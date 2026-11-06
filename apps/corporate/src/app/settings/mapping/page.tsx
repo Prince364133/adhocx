@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState } from 'react';
 import {
@@ -11,10 +11,31 @@ import {
   Download,
   Settings,
 } from 'lucide-react';
-import { mockImportMappings } from '../../../lib/mock/corporateMockData';
+
+interface SchemaFieldMapping {
+  sourceColumn: string;
+  adhocxField: string;
+  sampleValue: string;
+  validationRule: string;
+  isRequired: boolean;
+  status: 'Mapped' | 'Custom';
+}
+
+const DEFAULT_MAPPINGS: SchemaFieldMapping[] = [
+  { sourceColumn: 'Emp_ID / Worker_ID', adhocxField: 'employeeCode', sampleValue: 'EMP-9021', validationRule: '^[A-Z0-9_-]{3,20}$', isRequired: true, status: 'Mapped' },
+  { sourceColumn: 'Full_Name / Legal_Name', adhocxField: 'fullName', sampleValue: 'Ananya Deshmukh', validationRule: 'String (min 2 chars)', isRequired: true, status: 'Mapped' },
+  { sourceColumn: 'Gender / Sex', adhocxField: 'gender', sampleValue: 'FEMALE', validationRule: 'MALE | FEMALE | OTHER', isRequired: true, status: 'Mapped' },
+  { sourceColumn: 'Work_Email', adhocxField: 'workEmail', sampleValue: 'ananya.d@company.com', validationRule: 'Valid RFC-5322 Email', isRequired: false, status: 'Mapped' },
+  { sourceColumn: 'Contact_No / Mobile', adhocxField: 'phoneNumber', sampleValue: '+91 9876543210', validationRule: 'E.164 / 10-digit Indian Phone', isRequired: true, status: 'Mapped' },
+  { sourceColumn: 'Primary_Office_Code', adhocxField: 'officeCode', sampleValue: 'OFF-HYD-01', validationRule: 'Valid Tenant Office Code', isRequired: true, status: 'Mapped' },
+  { sourceColumn: 'Cost_Center_Code', adhocxField: 'costCenterCode', sampleValue: 'CC-ENG-04', validationRule: 'Valid Cost Center Code', isRequired: false, status: 'Mapped' },
+  { sourceColumn: 'Residential_Address', adhocxField: 'pickupAddress', sampleValue: 'Flat 402, Gachibowli, Hyd', validationRule: 'Geocodable address string', isRequired: true, status: 'Mapped' },
+  { sourceColumn: 'Home_Latitude', adhocxField: 'pickupLatitude', sampleValue: '17.440081', validationRule: 'Numeric Float (-90 to +90)', isRequired: true, status: 'Mapped' },
+  { sourceColumn: 'Home_Longitude', adhocxField: 'pickupLongitude', sampleValue: '78.348915', validationRule: 'Numeric Float (-180 to +180)', isRequired: true, status: 'Mapped' },
+];
 
 export default function ImportMappingEnginePage() {
-  const [mappings, setMappings] = useState(mockImportMappings);
+  const [mappings, setMappings] = useState<SchemaFieldMapping[]>(DEFAULT_MAPPINGS);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   const handleSave = () => {
@@ -43,7 +64,7 @@ export default function ImportMappingEnginePage() {
               alignItems: 'center',
               gap: 6,
               padding: '8px 14px',
-              backgroundColor: 'var(--corporate-blue)',
+              backgroundColor: '#5728B2',
               color: '#FFFFFF',
               borderRadius: 6,
               fontSize: 13,
@@ -83,8 +104,8 @@ export default function ImportMappingEnginePage() {
               Transform source file headers to enterprise data fields
             </p>
           </div>
-          <span style={{ fontSize: 12, color: 'var(--corporate-blue)', fontWeight: 600 }}>
-            Template: Workday_Standard_v3.0
+          <span style={{ fontSize: 12, color: '#5728B2', fontWeight: 600 }}>
+            Active Canonical Template v2.4
           </span>
         </div>
 
@@ -108,7 +129,7 @@ export default function ImportMappingEnginePage() {
                     <span
                       style={{
                         padding: '2px 8px',
-                        backgroundColor: 'var(--bg-surface-hover)',
+                        backgroundColor: 'var(--bg-surface-muted)',
                         borderRadius: 4,
                         fontSize: 12,
                         fontFamily: 'monospace',
@@ -120,7 +141,7 @@ export default function ImportMappingEnginePage() {
                   <td style={{ padding: '14px 8px', color: 'var(--text-muted)' }}>
                     <ArrowRight size={14} />
                   </td>
-                  <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--corporate-blue)' }}>
+                  <td style={{ padding: '14px 16px', fontWeight: 600, color: '#5728B2' }}>
                     {field.adhocxField}
                   </td>
                   <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>
@@ -133,8 +154,8 @@ export default function ImportMappingEnginePage() {
                     <span
                       style={{
                         padding: '2px 6px',
-                        backgroundColor: field.isRequired ? '#EFF6FF' : '#F8FAFC',
-                        color: field.isRequired ? 'var(--corporate-blue)' : 'var(--text-muted)',
+                        backgroundColor: field.isRequired ? '#EFF6FF' : 'var(--bg-surface-muted)',
+                        color: field.isRequired ? '#5728B2' : 'var(--text-muted)',
                         borderRadius: 4,
                         fontSize: 11,
                         fontWeight: 600,
@@ -169,4 +190,3 @@ export default function ImportMappingEnginePage() {
     </div>
   );
 }
-

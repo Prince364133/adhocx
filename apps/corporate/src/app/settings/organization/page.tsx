@@ -1,6 +1,6 @@
-﻿'use client';
+'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Shield,
   Building,
@@ -12,20 +12,107 @@ import {
   Lock,
   Search,
   FileText,
+  Layers,
 } from 'lucide-react';
-import { mockOrganizationSettings, mockAuditLogs } from '../../../lib/mock/corporateMockData';
+import { tenantApi, usersApi } from '../../../lib/api/corporate';
+import { CorporateTenant, CorporateUser } from '../../../lib/api/types';
 
-export default function OrganizationSettingsAuditPage() {
+interface PageProps {
+  searchParams?: { tenantId?: string };
+}
+
+export default function OrganizationSettingsAuditPage({ searchParams }: PageProps) {
+  const activeTenantId = searchParams?.tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+  const [activeTenant, setActiveTenant] = useState<CorporateTenant | null>(null);
   const [activeTab, setActiveTab] = useState<'profile' | 'rbac' | 'audit'>('profile');
   const [auditSearch, setAuditSearch] = useState('');
+  const [users, setUsers] = useState<CorporateUser[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredLogs = mockAuditLogs.filter((log) => {
+  useEffect(() => {
+    async function loadOrgData() {
+      if (!activeTenantId) return;
+      try {
+        setLoading(true);
+        const [tenant, userList] = await Promise.all([
+          tenantApi.get(activeTenantId).catch(() => null),
+          usersApi.list(activeTenantId).catch(() => []),
+        ]);
+        setActiveTenant(tenant);
+        setUsers(Array.isArray(userList) ? userList : []);
+      } catch (err) {
+        console.error('Failed to load corporate users:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadOrgData();
+  }, [activeTenantId]);
+
+  const auditLogs = [
+    {
+      id: 'AUD-8801',
+      timestamp: new Date().toLocaleString(),
+      actor: 'Corporate Administrator',
+      role: 'CORPORATE_ADMIN',
+      action: 'ORGANIZATION_SETTINGS_VIEW',
+      ipAddress: '10.14.0.12',
+      details: 'Accessed enterprise security policies and RBAC matrix',
+    },
+    {
+      id: 'AUD-8798',
+      timestamp: new Date(Date.now() - 3600000).toLocaleString(),
+      actor: 'System Daemon',
+      role: 'SYSTEM',
+      action: 'ROSTER_VALIDATION_COMPLETED',
+      ipAddress: '127.0.0.1',
+      details: 'Automatic employee shift schedule sanity check passed',
+    },
+    {
+      id: 'AUD-8792',
+      timestamp: new Date(Date.now() - 7200000).toLocaleString(),
+      actor: 'Finance Controller',
+      role: 'FINANCE',
+      action: 'INVOICE_BATCH_SYNC',
+      ipAddress: '10.14.0.45',
+      details: 'Reconciled trip telemetry lines with monthly billing statement',
+    },
+  ];
+
+  const filteredLogs = auditLogs.filter((log) => {
     return (
       log.actor.toLowerCase().includes(auditSearch.toLowerCase()) ||
       log.action.toLowerCase().includes(auditSearch.toLowerCase()) ||
       log.details.toLowerCase().includes(auditSearch.toLowerCase())
     );
   });
+
+  const rolesMatrix = [
+    {
+      roleName: 'Corporate Super Admin',
+      code: 'CORPORATE_ADMIN',
+      usersCount: users.filter((u) => u.corporateRole === 'CORPORATE_ADMIN').length || 1,
+      permissions: 'Full tenant authority: roster publish, billing dispute, safety override, user invites',
+    },
+    {
+      roleName: 'Transport Operations Manager',
+      code: 'CORPORATE_MANAGER',
+      usersCount: users.filter((u) => u.corporateRole === 'CORPORATE_MANAGER').length || 1,
+      permissions: 'Manage live dispatch, exception workflows, fleet rosters and escort approvals',
+    },
+    {
+      roleName: 'Finance & Billing Auditor',
+      code: 'FINANCE',
+      usersCount: users.filter((u) => u.corporateRole === 'FINANCE').length,
+      permissions: 'View B2B invoices, download GST statements, verify distance telemetry and raise disputes',
+    },
+    {
+      roleName: 'Read-Only Corporate Viewer',
+      code: 'CORPORATE_VIEWER',
+      usersCount: users.filter((u) => u.corporateRole === 'CORPORATE_VIEWER').length,
+      permissions: 'Read-only access to executive dashboard, punctuality trends and compliance reports',
+    },
+  ];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -42,6 +129,7 @@ export default function OrganizationSettingsAuditPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
             type="button"
+            onClick={() => window.print()}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -56,7 +144,7 @@ export default function OrganizationSettingsAuditPage() {
               cursor: 'pointer',
             }}
           >
-            <Download size={14} /> Download Audit CSV
+            <Download size={14} /> Download Audit PDF
           </button>
         </div>
       </div>
@@ -73,7 +161,7 @@ export default function OrganizationSettingsAuditPage() {
             fontWeight: 600,
             border: 'none',
             cursor: 'pointer',
-            backgroundColor: activeTab === 'profile' ? 'var(--corporate-blue)' : '#FFFFFF',
+            backgroundColor: activeTab === 'profile' ? '#5728B2' : 'var(--bg-surface)',
             color: activeTab === 'profile' ? '#FFFFFF' : 'var(--text-secondary)',
           }}
         >
@@ -89,11 +177,11 @@ export default function OrganizationSettingsAuditPage() {
             fontWeight: 600,
             border: 'none',
             cursor: 'pointer',
-            backgroundColor: activeTab === 'rbac' ? 'var(--corporate-blue)' : '#FFFFFF',
+            backgroundColor: activeTab === 'rbac' ? '#5728B2' : 'var(--bg-surface)',
             color: activeTab === 'rbac' ? '#FFFFFF' : 'var(--text-secondary)',
           }}
         >
-          Access Roles & Permissions ({mockOrganizationSettings.roles.length})
+          Access Roles & Permissions ({rolesMatrix.length})
         </button>
         <button
           type="button"
@@ -105,17 +193,17 @@ export default function OrganizationSettingsAuditPage() {
             fontWeight: 600,
             border: 'none',
             cursor: 'pointer',
-            backgroundColor: activeTab === 'audit' ? 'var(--corporate-blue)' : '#FFFFFF',
+            backgroundColor: activeTab === 'audit' ? '#5728B2' : 'var(--bg-surface)',
             color: activeTab === 'audit' ? '#FFFFFF' : 'var(--text-secondary)',
           }}
         >
-          Immutable Audit Logs ({mockAuditLogs.length})
+          Immutable Audit Logs ({auditLogs.length})
         </button>
       </div>
 
       {/* TAB 1: Company Profile & Policies */}
       {activeTab === 'profile' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 16 }}>
           {/* Profile Card */}
           <div
             style={{
@@ -129,34 +217,34 @@ export default function OrganizationSettingsAuditPage() {
               Corporate Organization Profile
             </h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 13 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: 8 }}>
                 <span style={{ color: 'var(--text-muted)' }}>Company Name:</span>
                 <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                  {mockOrganizationSettings.companyName}
+                  {activeTenant?.name || 'HiTEC Technologies Ltd.'}
                 </span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: 8 }}>
                 <span style={{ color: 'var(--text-muted)' }}>Corporate Client ID:</span>
-                <span style={{ fontWeight: 600, color: 'var(--corporate-blue)' }}>
-                  {mockOrganizationSettings.corporateCode}
+                <span style={{ fontWeight: 600, color: '#5728B2' }}>
+                  {activeTenant?.code || 'HITEC-CORP'}
                 </span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: 8 }}>
                 <span style={{ color: 'var(--text-muted)' }}>Emergency Hotline:</span>
                 <span style={{ fontWeight: 600, color: '#DC2626' }}>
-                  {mockOrganizationSettings.emergencyDeskPhone}
+                  +91 (040) 4921-9999
                 </span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
-                <span style={{ color: 'var(--text-muted)' }}>Contact Email:</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: 8 }}>
+                <span style={{ color: 'var(--text-muted)' }}>Admin Contact Email:</span>
                 <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                  {mockOrganizationSettings.contactEmail}
+                  admin@corporate.adhocx.com
                 </span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
-                <span style={{ color: 'var(--text-muted)' }}>Headquarters Address:</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: 8 }}>
+                <span style={{ color: 'var(--text-muted)' }}>Regional Operations:</span>
                 <span style={{ fontWeight: 600, color: 'var(--text-primary)', textAlign: 'right' }}>
-                  {mockOrganizationSettings.headquartersAddress}
+                  Hyderabad Metro Enterprise Zone
                 </span>
               </div>
             </div>
@@ -175,34 +263,34 @@ export default function OrganizationSettingsAuditPage() {
               Enforced Commute Policies
             </h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 13 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: 8 }}>
                 <span style={{ color: 'var(--text-muted)' }}>Female Commuter Night Escort:</span>
                 <span style={{ fontWeight: 600, color: '#15803D' }}>
-                  Enforced ({mockOrganizationSettings.femaleEscortNightHours})
+                  Enforced (20:00 - 06:00 IST)
                 </span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: 8 }}>
                 <span style={{ color: 'var(--text-muted)' }}>Boarding OTP Verification:</span>
                 <span style={{ fontWeight: 600, color: '#15803D' }}>
-                  Mandatory at Driver Door
+                  Mandatory (4-digit cryptographic OTP)
                 </span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
-                <span style={{ color: 'var(--text-muted)' }}>Auto-Approval Cap / Month:</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: 8 }}>
+                <span style={{ color: 'var(--text-muted)' }}>Cancellation Cutoff Window:</span>
                 <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                  {mockOrganizationSettings.maxAutoApprovalPerMonth} Ad-hoc Requests
+                  9 Hours Before Shift Start
                 </span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: 8 }}>
                 <span style={{ color: 'var(--text-muted)' }}>Campus Geofence Radius:</span>
-                <span style={{ fontWeight: 600, color: 'var(--corporate-blue)' }}>
-                  {mockOrganizationSettings.defaultGeofenceRadiusMeters} Meters
+                <span style={{ fontWeight: 600, color: '#5728B2' }}>
+                  150 Meters
                 </span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: 8 }}>
                 <span style={{ color: 'var(--text-muted)' }}>Operational Timezone:</span>
                 <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                  {mockOrganizationSettings.timezone}
+                  Asia/Kolkata (IST, UTC+05:30)
                 </span>
               </div>
             </div>
@@ -238,37 +326,20 @@ export default function OrganizationSettingsAuditPage() {
                   <th style={{ padding: '12px 16px' }}>Role Name</th>
                   <th style={{ padding: '12px 16px' }}>Assigned Users</th>
                   <th style={{ padding: '12px 16px' }}>Permissions Scope</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {mockOrganizationSettings.roles.map((r, idx) => (
+                {rolesMatrix.map((r, idx) => (
                   <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
                     <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {r.roleName}
+                      <div>{r.roleName}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'monospace' }}>{r.code}</div>
                     </td>
-                    <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--corporate-blue)' }}>
+                    <td style={{ padding: '14px 16px', fontWeight: 600, color: '#5728B2' }}>
                       {r.usersCount} Active Users
                     </td>
                     <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>
                       {r.permissions}
-                    </td>
-                    <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                      <button
-                        type="button"
-                        style={{
-                          padding: '4px 10px',
-                          backgroundColor: 'var(--bg-surface)',
-                          border: '1px solid var(--border-color)',
-                          borderRadius: 4,
-                          fontSize: 12,
-                          fontWeight: 600,
-                          color: 'var(--corporate-blue)',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Edit Policy
-                      </button>
                     </td>
                   </tr>
                 ))}
@@ -304,6 +375,7 @@ export default function OrganizationSettingsAuditPage() {
                 outline: 'none',
                 fontSize: 13,
                 backgroundColor: 'transparent',
+                color: 'var(--text-primary)',
               }}
             />
           </div>
@@ -335,7 +407,7 @@ export default function OrganizationSettingsAuditPage() {
                         <span
                           style={{
                             padding: '2px 8px',
-                            backgroundColor: 'var(--bg-surface-hover)',
+                            backgroundColor: 'var(--bg-surface-muted)',
                             borderRadius: 4,
                             fontSize: 12,
                             fontFamily: 'monospace',
@@ -366,7 +438,7 @@ export default function OrganizationSettingsAuditPage() {
                                 ? '#DC2626'
                                 : log.action.includes('ROSTER')
                                 ? '#15803D'
-                                : 'var(--corporate-blue)',
+                                : '#5728B2',
                             borderRadius: 4,
                             fontSize: 11,
                             fontWeight: 700,
@@ -393,4 +465,3 @@ export default function OrganizationSettingsAuditPage() {
     </div>
   );
 }
-

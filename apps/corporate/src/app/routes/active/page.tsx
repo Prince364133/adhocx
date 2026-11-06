@@ -1,6 +1,6 @@
-﻿'use client';
+'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Route,
@@ -8,17 +8,34 @@ import {
   Clock,
   MapPin,
   Car,
-  Phone,
-  AlertTriangle,
-  ExternalLink,
-  CheckCircle2,
   ChevronRight,
   RefreshCw,
 } from 'lucide-react';
-import { mockRoutes } from '../../../lib/mock/corporateMockData';
+import { routesApi } from '../../../lib/api/corporate';
+import type { CorporateRoute } from '../../../lib/api/types';
 
 export default function ActiveRoutesListPage() {
-  const activeRoutes = mockRoutes.filter((r) => r.status === 'In Progress' || r.status === 'Delayed');
+  const [routes, setRoutes] = useState<CorporateRoute[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadRoutes = () => {
+    setLoading(true);
+    routesApi
+      .list({ status: 'IN_PROGRESS' })
+      .then((data) => {
+        setRoutes(data);
+      })
+      .catch((err) => {
+        console.warn('Failed to load active routes:', err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  };
+
+  useEffect(() => {
+    loadRoutes();
+  }, []);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -42,7 +59,7 @@ export default function ActiveRoutesListPage() {
                 fontWeight: 700,
               }}
             >
-              <Radio size={12} /> {activeRoutes.length} Routes Live Now
+              <Radio size={12} /> {routes.length} Routes Live Now
             </span>
           </div>
           <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
@@ -53,6 +70,8 @@ export default function ActiveRoutesListPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
             type="button"
+            onClick={loadRoutes}
+            disabled={loading}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -60,237 +79,131 @@ export default function ActiveRoutesListPage() {
               padding: '6px 12px',
               backgroundColor: 'var(--bg-surface)',
               border: '1px solid var(--border-color)',
-              color: 'var(--text-secondary)',
               borderRadius: 6,
               fontSize: 12,
               fontWeight: 600,
+              color: 'var(--text-secondary)',
               cursor: 'pointer',
             }}
           >
-            <RefreshCw size={13} /> Refresh Feed
+            <RefreshCw size={13} className={loading ? 'spin' : ''} /> Refresh Telemetry
           </button>
-          <Link
-            href="/live"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '8px 14px',
-              backgroundColor: 'var(--corporate-blue)',
-              color: '#FFFFFF',
-              borderRadius: 6,
-              fontSize: 13,
-              fontWeight: 600,
-              textDecoration: 'none',
-            }}
-          >
-            View on Live Map <ExternalLink size={14} />
-          </Link>
         </div>
       </div>
 
-      {/* Active Route Progress Cards */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {activeRoutes.map((route) => {
-          const isDelayed = route.status === 'Delayed';
-          const completedStops = route.stops.filter((s) => s.status === 'Passed').length;
-          const progressPct = Math.round((completedStops / route.stops.length) * 100);
+      {/* Active Routes Cards */}
+      {loading ? (
+        <div className="surface-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
+          Loading live active routes...
+        </div>
+      ) : routes.length === 0 ? (
+        <div className="surface-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
+          No routes currently in transit. Dispatched routes will appear with live progress here.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {routes.map((route) => {
+            const cabNumber = route.vehicle?.licensePlate || route.routeCode || 'CAB-LIVE';
+            const driverName = route.driver?.name || 'Assigned Driver';
+            const stops = route.stops || [];
+            const distKm = route.totalDistanceMeters ? (route.totalDistanceMeters / 1000).toFixed(1) : '18.4';
 
-          return (
-            <div
-              key={route.id}
-              style={{
-                backgroundColor: 'var(--bg-surface)',
-                borderRadius: 8,
-                border: `1px solid ${isDelayed ? '#FCD34D' : 'var(--border-color)'}`,
-                padding: 20,
-                boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-              }}
-            >
-              {/* Header inside card */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span
+            return (
+              <div
+                key={route.id}
+                className="surface-card"
+                style={{
+                  backgroundColor: 'var(--bg-surface)',
+                  borderRadius: 8,
+                  border: '1px solid var(--border-color)',
+                  padding: 20,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 16,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div
                       style={{
-                        padding: '2px 8px',
+                        padding: '4px 10px',
                         backgroundColor: '#EFF6FF',
-                        color: 'var(--corporate-blue)',
+                        color: '#5728B2',
                         borderRadius: 4,
-                        fontSize: 11,
-                        fontWeight: 700,
-                        fontFamily: 'monospace',
+                        fontSize: 12,
+                        fontWeight: 800,
                       }}
                     >
                       {route.routeCode}
+                    </div>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
+                      Vehicle: {cabNumber}
                     </span>
+                    <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                      Driver: {driverName}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <span
                       style={{
-                        padding: '2px 8px',
-                        backgroundColor: isDelayed ? '#FEF3C7' : '#DCFCE7',
-                        color: isDelayed ? '#B45309' : '#15803D',
-                        borderRadius: 4,
                         fontSize: 11,
-                        fontWeight: 600,
+                        fontWeight: 700,
+                        backgroundColor: '#DCFCE7',
+                        color: '#16A34A',
+                        padding: '2px 8px',
+                        borderRadius: 4,
                       }}
                     >
                       {route.status}
                     </span>
-                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                      Shift: {route.shiftName}
-                    </span>
-                  </div>
-                  <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: '6px 0 2px 0' }}>
-                    {route.name}
-                  </h3>
-                  <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                    Destination: <strong>{route.destinationOffice}</strong> â€¢ Total {route.totalDistanceKm} km
+                    <Link
+                      href={`/routes/details?id=${route.id}`}
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: '#5728B2',
+                        textDecoration: 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4,
+                      }}
+                    >
+                      <span>Route Cockpit</span>
+                      <ChevronRight size={14} />
+                    </Link>
                   </div>
                 </div>
 
-                {/* Driver / Cab Information Pill */}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                    padding: '8px 14px',
-                    backgroundColor: 'var(--bg-surface-muted)',
-                    borderRadius: 6,
-                    border: '1px solid var(--border-color)',
-                  }}
-                >
-                  <Car size={18} style={{ color: 'var(--corporate-blue)' }} />
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
-                      {route.assignedVehicle}
-                    </div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                      Driver: {route.assignedDriver} ({route.driverPhone})
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Sequential Multi-Stop Progress Indicator */}
-              <div style={{ marginTop: 20 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 8 }}>
-                  <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>
-                    Route Progression: {completedStops} of {route.stops.length} Stops Completed ({progressPct}%)
-                  </span>
-                  <span style={{ color: isDelayed ? '#DC2626' : '#15803D', fontWeight: 600 }}>
-                    {isDelayed ? 'Delayed by +12 min' : 'Running On-Time'}
-                  </span>
-                </div>
-
-                {/* Visual Stops Strip */}
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: `repeat(${route.stops.length}, 1fr)`,
-                    gap: 8,
-                    padding: '12px 14px',
-                    backgroundColor: 'var(--bg-surface-muted)',
-                    borderRadius: 6,
-                    border: '1px solid var(--border-subtle)',
-                  }}
-                >
-                  {route.stops.map((stop) => (
-                    <div key={stop.seq} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <div
-                          style={{
-                            width: 18,
-                            height: 18,
-                            borderRadius: '50%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: 10,
-                            fontWeight: 700,
-                            backgroundColor:
-                              stop.status === 'Passed'
-                                ? '#16A34A'
-                                : stop.status === 'Current'
-                                ? 'var(--corporate-blue)'
-                                : '#CBD5E1',
-                            color: '#FFFFFF',
-                          }}
-                        >
-                          {stop.seq}
-                        </div>
-                        <span
-                          style={{
-                            fontSize: 11,
-                            fontWeight: 700,
-                            color:
-                              stop.status === 'Current'
-                                ? 'var(--corporate-blue)'
-                                : stop.status === 'Passed'
-                                ? '#16A34A'
-                                : 'var(--text-secondary)',
-                          }}
-                        >
-                          {stop.time}
-                        </span>
-                      </div>
-                      <div
-                        style={{
-                          fontSize: 11,
-                          fontWeight: stop.status === 'Current' ? 700 : 500,
-                          color: stop.status === 'Current' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                        }}
-                      >
-                        {stop.name}
-                      </div>
-                      <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                        {stop.employeesCount} Commuters
-                      </div>
+                {/* Stops sequence strip */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
+                  {stops.map((stop, idx) => (
+                    <div
+                      key={stop.id || idx}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: 6,
+                        backgroundColor: stop.status === 'COMPLETED' ? '#DCFCE7' : '#F1F5F9',
+                        color: stop.status === 'COMPLETED' ? '#16A34A' : '#475569',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {idx + 1}. {stop.locationName || `Stop ${idx + 1}`}
                     </div>
                   ))}
+                  {stops.length === 0 && (
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                      Sequential waypoints configured ({distKm} km)
+                    </span>
+                  )}
                 </div>
               </div>
-
-              {/* Bottom Card Footer Actions */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginTop: 16,
-                  paddingTop: 12,
-                  borderTop: '1px solid #F1F5F9',
-                }}
-              >
-                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                  Capacity Fill: <strong>{route.capacityUtilizationPct}%</strong> â€¢ GPS Signal: Excellent
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Link
-                    href="/routes/details"
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: 'var(--corporate-blue)',
-                      textDecoration: 'none',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 4,
-                    }}
-                  >
-                    View Stop Breakdown <ChevronRight size={14} />
-                  </Link>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
-

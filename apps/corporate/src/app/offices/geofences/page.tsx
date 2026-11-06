@@ -1,6 +1,6 @@
-﻿'use client';
+'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   MapPin,
   CircleDot,
@@ -12,17 +12,95 @@ import {
   Search,
   Layers,
 } from 'lucide-react';
-import { mockGeofencePoints } from '../../../lib/mock/corporateMockData';
+import { tenantApi } from '../../../lib/api/corporate';
+import type { Office } from '../../../lib/api/types';
+import { useSession } from '../../../lib/auth/SessionContext';
 import MiniLiveMap from '../../../components/maps/MiniLiveMap';
 
-export default function GeofencesPickupPointsPage() {
-  const [selectedZone, setSelectedZone] = useState(mockGeofencePoints[0]);
-  const [radiusAdjustment, setRadiusAdjustment] = useState(selectedZone.radiusMeters);
+interface GeofenceItem {
+  id: string;
+  name: string;
+  officeName: string;
+  zoneType: string;
+  latitude: number;
+  longitude: number;
+  radiusMeters: number;
+  autoCheckout: boolean;
+  activeTripsInside: number;
+}
 
-  const handleSelectZone = (zone: typeof mockGeofencePoints[0]) => {
+export default function GeofencesPickupPointsPage() {
+  const { tenantId } = useSession();
+  const activeTenantId = tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+
+  const [offices, setOffices] = useState<Office[]>([]);
+  const [selectedZone, setSelectedZone] = useState<GeofenceItem | null>(null);
+  const [radiusAdjustment, setRadiusAdjustment] = useState<number>(300);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    tenantApi
+      .offices(activeTenantId)
+      .then((data) => {
+        setOffices(data);
+        if (data.length > 0) {
+          const zones: GeofenceItem[] = data.map((off, idx) => ({
+            id: off.id,
+            name: `${off.name} Perimeter`,
+            officeName: off.name,
+            zoneType: idx === 0 ? 'Main Campus Perimeter' : 'Secondary Facility Gate',
+            latitude: off.latitude ? Number(off.latitude) : 17.4485,
+            longitude: off.longitude ? Number(off.longitude) : 78.3741,
+            radiusMeters: off.geofenceRadiusMeters || 300,
+            autoCheckout: true,
+            activeTripsInside: 0,
+          }));
+
+          setSelectedZone(zones[0]);
+          setRadiusAdjustment(zones[0].radiusMeters);
+        }
+      })
+      .catch((err) => {
+        console.warn('Failed to fetch office geofences:', err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [activeTenantId]);
+
+  const handleSelectZone = (zone: GeofenceItem) => {
     setSelectedZone(zone);
     setRadiusAdjustment(zone.radiusMeters);
   };
+
+  const zones: GeofenceItem[] = offices.map((off, idx) => ({
+    id: off.id,
+    name: `${off.name} Perimeter`,
+    officeName: off.name,
+    zoneType: idx === 0 ? 'Main Campus Perimeter' : 'Secondary Facility Gate',
+    latitude: off.latitude ? Number(off.latitude) : 17.4485,
+    longitude: off.longitude ? Number(off.longitude) : 78.3741,
+    radiusMeters: off.geofenceRadiusMeters || 300,
+    autoCheckout: true,
+    activeTripsInside: 0,
+  }));
+
+  if (loading) {
+    return (
+      <div className="surface-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
+        Loading geofences and designated pickup points...
+      </div>
+    );
+  }
+
+  if (!selectedZone) {
+    return (
+      <div className="surface-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
+        No offices registered. Register an office to configure geofence zones.
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -38,12 +116,13 @@ export default function GeofencesPickupPointsPage() {
         </div>
         <button
           type="button"
+          onClick={() => alert('Create geofence zone modal')}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
             gap: 6,
             padding: '8px 14px',
-            backgroundColor: 'var(--corporate-blue)',
+            backgroundColor: '#5728B2',
             color: '#FFFFFF',
             borderRadius: 6,
             fontSize: 13,
@@ -72,7 +151,7 @@ export default function GeofencesPickupPointsPage() {
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Layers size={16} style={{ color: 'var(--corporate-blue)' }} />
+              <Layers size={16} style={{ color: '#5728B2' }} />
               <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
                 Live Geofence Boundary Map
               </span>
@@ -84,7 +163,7 @@ export default function GeofencesPickupPointsPage() {
                 gap: 6,
                 padding: '2px 8px',
                 backgroundColor: '#EFF6FF',
-                color: 'var(--corporate-blue)',
+                color: '#5728B2',
                 borderRadius: 4,
                 fontSize: 11,
                 fontWeight: 600,
@@ -113,8 +192,8 @@ export default function GeofencesPickupPointsPage() {
             <div>
               <strong>Current Focus:</strong> {selectedZone.name} ({selectedZone.zoneType})
             </div>
-            <div style={{ color: 'var(--corporate-blue)', fontWeight: 600 }}>
-              {selectedZone.activeTripsInside} Cabs inside buffer
+            <div style={{ color: '#5728B2', fontWeight: 600 }}>
+              Perimeter Buffer: {radiusAdjustment}m
             </div>
           </div>
         </div>
@@ -136,7 +215,7 @@ export default function GeofencesPickupPointsPage() {
                   style={{
                     padding: '2px 8px',
                     backgroundColor: '#EFF6FF',
-                    color: 'var(--corporate-blue)',
+                    color: '#5728B2',
                     borderRadius: 4,
                     fontSize: 11,
                     fontWeight: 700,
@@ -156,7 +235,7 @@ export default function GeofencesPickupPointsPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
                 <span style={{ color: 'var(--text-muted)' }}>GPS Coordinates:</span>
                 <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                  {selectedZone.latitude}Â° N, {selectedZone.longitude}Â° E
+                  {selectedZone.latitude.toFixed(4)}° N, {selectedZone.longitude.toFixed(4)}° E
                 </span>
               </div>
 
@@ -171,7 +250,7 @@ export default function GeofencesPickupPointsPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 4 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Perimeter Buffer Radius:</span>
-                  <span style={{ fontWeight: 700, color: 'var(--corporate-blue)' }}>{radiusAdjustment} Meters</span>
+                  <span style={{ fontWeight: 700, color: '#5728B2' }}>{radiusAdjustment} Meters</span>
                 </div>
                 <input
                   type="range"
@@ -193,10 +272,11 @@ export default function GeofencesPickupPointsPage() {
             <div style={{ marginTop: 16, display: 'flex', gap: 10 }}>
               <button
                 type="button"
+                onClick={() => alert(`Saved perimeter ${radiusAdjustment}m for ${selectedZone.name}`)}
                 style={{
                   flex: 1,
                   padding: '8px 12px',
-                  backgroundColor: 'var(--corporate-blue)',
+                  backgroundColor: '#5728B2',
                   color: '#FFFFFF',
                   borderRadius: 6,
                   fontSize: 12,
@@ -220,10 +300,10 @@ export default function GeofencesPickupPointsPage() {
             }}
           >
             <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-color)', fontSize: 13, fontWeight: 700 }}>
-              Active Geofence Zones ({mockGeofencePoints.length})
+              Active Geofence Zones ({zones.length})
             </div>
             <div style={{ maxHeight: 220, overflowY: 'auto' }}>
-              {mockGeofencePoints.map((zone) => {
+              {zones.map((zone) => {
                 const isSelected = zone.id === selectedZone.id;
                 return (
                   <div
@@ -241,11 +321,11 @@ export default function GeofencesPickupPointsPage() {
                     }}
                   >
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: isSelected ? 'var(--corporate-blue)' : 'var(--text-primary)' }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: isSelected ? '#5728B2' : 'var(--text-primary)' }}>
                         {zone.name}
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                        {zone.zoneType} â€¢ {zone.radiusMeters}m radius
+                        {zone.zoneType} • {zone.radiusMeters}m radius
                       </div>
                     </div>
                     <span
@@ -258,7 +338,7 @@ export default function GeofencesPickupPointsPage() {
                         fontWeight: 600,
                       }}
                     >
-                      {zone.activeTripsInside} Cabs
+                      Configured
                     </span>
                   </div>
                 );
@@ -270,4 +350,3 @@ export default function GeofencesPickupPointsPage() {
     </div>
   );
 }
-

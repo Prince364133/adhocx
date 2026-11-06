@@ -12,16 +12,13 @@ import {
   Plus,
   Eye,
   Edit2,
-  MoreVertical,
   Search,
-  Filter,
-  ChevronLeft,
-  ChevronRight,
   Loader2,
   RefreshCw,
 } from 'lucide-react';
-import { employeeApi } from '../../lib/api/corporate';
-import { getStoredToken, decodeToken } from '../../lib/auth/session';
+import { employeeApi, tenantApi } from '../../lib/api/corporate';
+import type { Office } from '../../lib/api/types';
+import { useSession } from '../../lib/auth/SessionContext';
 
 interface EmployeeItem {
   id: string;
@@ -34,18 +31,13 @@ interface EmployeeItem {
   status: 'Active' | 'On Leave' | 'Inactive';
 }
 
-const FALLBACK_EMPLOYEES_LIST: EmployeeItem[] = [
-  { id: '1', code: 'EMP10204', name: 'Ravi Kumar', avatarInitials: 'RK', department: 'Engineering', office: 'HITEC City HQ', eligibility: 'Eligible', status: 'Active' },
-  { id: '2', code: 'EMP01893', name: 'Amit Kumar', avatarInitials: 'AK', department: 'Engineering', office: 'Kondapur', eligibility: 'Eligible', status: 'Active' },
-  { id: '3', code: 'EMP03124', name: 'Neha Verma', avatarInitials: 'NV', department: 'Design', office: 'Gachibowli', eligibility: 'Eligible', status: 'Active' },
-  { id: '4', code: 'EMP02911', name: 'Rohit Singh', avatarInitials: 'RS', department: 'Operations', office: 'HITEC City HQ', eligibility: 'Not Eligible', status: 'Active' },
-  { id: '5', code: 'EMP03376', name: 'Anjali Rao', avatarInitials: 'AR', department: 'HR', office: 'Madhapur', eligibility: 'Eligible', status: 'On Leave' },
-];
-
 export default function EmployeeDirectoryPage() {
+  const { tenantId } = useSession();
+  const activeTenantId = tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+
   const [employees, setEmployees] = useState<EmployeeItem[]>([]);
+  const [offices, setOffices] = useState<Office[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isLiveConnected, setIsLiveConnected] = useState(false);
   const [selectedOffice, setSelectedOffice] = useState('All Offices');
   const [selectedDept, setSelectedDept] = useState('All Departments');
   const [selectedEligibility, setSelectedEligibility] = useState('All Eligibility');
@@ -56,18 +48,20 @@ export default function EmployeeDirectoryPage() {
   const loadLiveEmployees = useCallback(async () => {
     setIsLoading(true);
     try {
-      const token = getStoredToken();
-      const claims = decodeToken(token);
-      const tenantId = claims?.corporateTenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+      const [res, offList] = await Promise.all([
+        employeeApi.list(activeTenantId, {
+          page: currentPage,
+          limit: 100,
+          search: searchQuery.trim() || undefined,
+        }),
+        tenantApi.offices(activeTenantId).catch(() => []),
+      ]);
 
-      const res = await employeeApi.list(tenantId, {
-        page: currentPage,
-        limit: 50,
-        search: searchQuery.trim() || undefined,
-      });
+      setOffices(offList);
 
-      if (res && Array.isArray(res.items) && res.items.length > 0) {
-        const liveItems: EmployeeItem[] = res.items.map((emp: any) => {
+      const items = res?.items || (res as any)?.data || [];
+      if (Array.isArray(items)) {
+        const liveItems: EmployeeItem[] = items.map((emp: any) => {
           const initials = emp.fullName
             ? emp.fullName
                 .split(' ')
@@ -83,27 +77,23 @@ export default function EmployeeDirectoryPage() {
             name: emp.fullName || 'Unnamed Employee',
             avatarInitials: initials,
             department: (emp.department as any)?.name || emp.department || 'Operations',
-            office: (emp.office as any)?.name || 'HITEC City HQ',
+            office: (emp.office as any)?.name || 'Main Office',
             eligibility: emp.isActive !== false ? 'Eligible' : 'Not Eligible',
             status: emp.isActive !== false ? 'Active' : 'Inactive',
           };
         });
 
         setEmployees(liveItems);
-        setIsLiveConnected(true);
       } else {
-        // Fallback to demo items if database tenant has no employees seeded yet
-        setEmployees(FALLBACK_EMPLOYEES_LIST);
-        setIsLiveConnected(false);
+        setEmployees([]);
       }
     } catch (err) {
-      console.warn('Live employee directory fetch fallback:', err);
-      setEmployees(FALLBACK_EMPLOYEES_LIST);
-      setIsLiveConnected(false);
+      console.warn('Live employee directory fetch error:', err);
+      setEmployees([]);
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage, searchQuery]);
+  }, [activeTenantId, currentPage, searchQuery]);
 
   useEffect(() => {
     loadLiveEmployees();
@@ -140,26 +130,11 @@ export default function EmployeeDirectoryPage() {
       {/* Title & Action Buttons Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary, #0F172A)', letterSpacing: '-0.02em' }}>
-              Employee Directory
-            </h1>
-            <span
-              style={{
-                fontSize: '11px',
-                fontWeight: 700,
-                padding: '2px 8px',
-                borderRadius: '9999px',
-                backgroundColor: isLiveConnected ? '#DCFCE7' : '#EFF6FF',
-                color: isLiveConnected ? '#16A34A' : '#5728B2',
-                border: `1px solid ${isLiveConnected ? '#86EFAC' : '#BFDBFE'}`,
-              }}
-            >
-              {isLiveConnected ? 'Live Database' : 'Demo Data'}
-            </span>
-          </div>
+          <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary, #0F172A)', letterSpacing: '-0.02em' }}>
+            Employee Directory
+          </h1>
           <p style={{ fontSize: '13px', color: 'var(--text-muted, #64748B)', marginTop: '2px' }}>
-            View, search and manage all corporate commuter profiles and transport eligibility
+            View, search and manage corporate commuter profiles and transport eligibility
           </p>
         </div>
 
@@ -204,27 +179,6 @@ export default function EmployeeDirectoryPage() {
             <UploadCloud size={15} />
             <span>Import Employees</span>
           </Link>
-
-          <button
-            onClick={() => alert('New Employee onboarding modal: Connects to POST /corporate/tenants/:id/employees')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              backgroundColor: '#5728B2',
-              color: '#FFFFFF',
-              border: 'none',
-              borderRadius: '8px',
-              padding: '8px 16px',
-              fontSize: '13px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              boxShadow: '0 2px 4px rgba(87, 40, 178,0.25)',
-            }}
-          >
-            <Plus size={16} />
-            <span>Add Employee</span>
-          </button>
         </div>
       </div>
 
@@ -249,10 +203,9 @@ export default function EmployeeDirectoryPage() {
           style={{ height: 36, padding: '0 12px', borderRadius: 6, border: '1px solid var(--border-strong)', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', outline: 'none' }}
         >
           <option value="All Offices">All Offices</option>
-          <option value="HITEC City">HITEC City HQ</option>
-          <option value="Kondapur">Kondapur</option>
-          <option value="Gachibowli">Gachibowli</option>
-          <option value="Madhapur">Madhapur</option>
+          {offices.map((o) => (
+            <option key={o.id} value={o.name}>{o.name}</option>
+          ))}
         </select>
 
         {/* Department select */}
@@ -411,6 +364,32 @@ export default function EmployeeDirectoryPage() {
             <Loader2 size={20} className="spin" />
             <span style={{ fontSize: '14px', fontWeight: 600 }}>Loading employee records from live database...</span>
           </div>
+        ) : filteredEmployees.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>
+            <Users size={36} color="#94A3B8" style={{ marginBottom: 12 }} />
+            <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>No employees found</h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: 16 }}>
+              {searchQuery ? 'No employees matched your search query.' : 'There are no employees registered for this corporate tenant yet.'}
+            </p>
+            <Link
+              href="/employees/import"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                backgroundColor: '#5728B2',
+                color: '#FFFFFF',
+                borderRadius: 6,
+                padding: '8px 16px',
+                fontSize: 13,
+                fontWeight: 700,
+                textDecoration: 'none',
+              }}
+            >
+              <UploadCloud size={15} />
+              <span>Import Employees Now</span>
+            </Link>
+          </div>
         ) : (
           <div className="table-scroll">
             <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -515,23 +494,6 @@ export default function EmployeeDirectoryPage() {
                         >
                           <Eye size={13} />
                         </Link>
-                        <button
-                          onClick={() => alert(`Edit employee ${emp.name}`)}
-                          style={{
-                            width: 28,
-                            height: 28,
-                            borderRadius: '6px',
-                            border: '1px solid var(--border-strong)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: 'var(--text-secondary)',
-                            backgroundColor: 'transparent',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          <Edit2 size={13} />
-                        </button>
                       </div>
                     </td>
                   </tr>

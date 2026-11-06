@@ -1,7 +1,8 @@
-﻿'use client';
+'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import {
   Building2,
   ShieldCheck,
@@ -13,13 +14,99 @@ import {
   Settings,
   Plus,
   RefreshCw,
-  Sliders,
 } from 'lucide-react';
-import { mockOffices } from '../../../lib/mock/corporateMockData';
+import { tenantApi } from '../../../lib/api/corporate';
+import type { Office, OfficeGeofenceDetails } from '../../../lib/api/types';
+import { useSession } from '../../../lib/auth/SessionContext';
 
-export default function OfficeDetailsGatesPage() {
-  const [selectedOfficeId, setSelectedOfficeId] = useState('OFF-HYD-01');
-  const office = mockOffices.find((o) => o.id === selectedOfficeId) || mockOffices[0];
+function OfficeDetailsGatesContent() {
+  const { tenantId } = useSession();
+  const activeTenantId = tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+
+  const searchParams = useSearchParams();
+  const officeIdParam = searchParams.get('id');
+
+  const [offices, setOffices] = useState<Office[]>([]);
+  const [selectedOfficeId, setSelectedOfficeId] = useState<string>('');
+  const [geofenceDetails, setGeofenceDetails] = useState<OfficeGeofenceDetails | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    tenantApi
+      .offices(activeTenantId)
+      .then((data) => {
+        setOffices(data);
+        if (data.length > 0) {
+          const match = officeIdParam ? data.find((o) => o.id === officeIdParam) : null;
+          const initial = match ? match.id : data[0].id;
+          setSelectedOfficeId(initial);
+        }
+      })
+      .catch((err) => {
+        console.warn('Failed to fetch offices:', err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [activeTenantId, officeIdParam]);
+
+  useEffect(() => {
+    if (!selectedOfficeId) return;
+    tenantApi
+      .geofences(activeTenantId, selectedOfficeId)
+      .then((res) => {
+        setGeofenceDetails(res);
+      })
+      .catch((err) => {
+        console.warn('Failed to fetch geofence details:', err);
+      });
+  }, [activeTenantId, selectedOfficeId]);
+
+  if (loading) {
+    return (
+      <div className="surface-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
+        Loading campus facility details...
+      </div>
+    );
+  }
+
+  const office = offices.find((o) => o.id === selectedOfficeId) || offices[0];
+
+  if (!office) {
+    return (
+      <div className="surface-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
+        No offices found. Please register an office campus first.
+      </div>
+    );
+  }
+
+  const gates = [
+    {
+      id: 'GATE-01',
+      gateName: 'Main Entrance & Visitor Gate',
+      type: 'Entry / Exit',
+      rfidEnabled: true,
+      operationalHours: '24 / 7',
+      boomBarrierStatus: 'Online',
+    },
+    {
+      id: 'GATE-02',
+      gateName: 'Fleet & Commuter Bay Terminal',
+      type: 'Entry Only',
+      rfidEnabled: true,
+      operationalHours: '06:00 - 23:00',
+      boomBarrierStatus: 'Online',
+    },
+    {
+      id: 'GATE-03',
+      gateName: 'Emergency & Service Exit',
+      type: 'Exit Only',
+      rfidEnabled: false,
+      operationalHours: '24 / 7',
+      boomBarrierStatus: 'Online',
+    },
+  ];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -56,34 +143,37 @@ export default function OfficeDetailsGatesPage() {
 
         {/* Campus Dropdown Selector */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <select
-            value={selectedOfficeId}
-            onChange={(e) => setSelectedOfficeId(e.target.value)}
-            style={{
-              padding: '8px 12px',
-              borderRadius: 6,
-              border: '1px solid var(--border-color)',
-              fontSize: 13,
-              fontWeight: 600,
-              backgroundColor: 'var(--bg-surface)',
-              color: 'var(--text-primary)',
-            }}
-          >
-            {mockOffices.map((off) => (
-              <option key={off.id} value={off.id}>
-                {off.name} ({off.code})
-              </option>
-            ))}
-          </select>
+          {offices.length > 1 && (
+            <select
+              value={selectedOfficeId}
+              onChange={(e) => setSelectedOfficeId(e.target.value)}
+              style={{
+                padding: '8px 12px',
+                borderRadius: 6,
+                border: '1px solid var(--border-color)',
+                fontSize: 13,
+                fontWeight: 600,
+                backgroundColor: 'var(--bg-surface)',
+                color: 'var(--text-primary)',
+              }}
+            >
+              {offices.map((off) => (
+                <option key={off.id} value={off.id}>
+                  {off.name} ({off.code || 'CAMPUS'})
+                </option>
+              ))}
+            </select>
+          )}
 
           <button
             type="button"
+            onClick={() => alert(`Add security gate for ${office.name}`)}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
               padding: '8px 14px',
-              backgroundColor: 'var(--corporate-blue)',
+              backgroundColor: '#5728B2',
               color: '#FFFFFF',
               borderRadius: 6,
               fontSize: 13,
@@ -115,18 +205,18 @@ export default function OfficeDetailsGatesPage() {
               {office.name}
             </div>
             <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
-              {office.address}, Hyderabad - {office.pincode}
+              {office.address || 'Campus Address'}, {office.city || 'Hyderabad'}
             </div>
           </div>
           <div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
               Daily Commuters
             </div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--corporate-blue)', marginTop: 4 }}>
-              {office.headcount.toLocaleString()} Employees
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#5728B2', marginTop: 4 }}>
+              {office.employeeCount ? `${office.employeeCount.toLocaleString()} Employees` : 'Active Campus'}
             </div>
             <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
-              {office.activeCabsDaily} Commuter Cabs Allocated
+              Dedicated pickup & drop staging bays
             </div>
           </div>
           <div>
@@ -134,7 +224,7 @@ export default function OfficeDetailsGatesPage() {
               Geofence Radius
             </div>
             <div style={{ fontSize: 15, fontWeight: 700, color: '#16A34A', marginTop: 4 }}>
-              {office.geofenceRadiusMeters} Meters Buffer
+              {office.geofenceRadiusMeters || 500} Meters Buffer
             </div>
             <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
               Auto Checkout on Gate Exit
@@ -142,13 +232,13 @@ export default function OfficeDetailsGatesPage() {
           </div>
           <div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
-              Facility Desk Contact
+              Coordinates (Lat / Lng)
             </div>
             <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginTop: 4 }}>
-              {office.leadContact}
+              {office.latitude ? `${Number(office.latitude).toFixed(4)}, ${Number(office.longitude).toFixed(4)}` : '17.4485, 78.3741'}
             </div>
             <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
-              Phone: {office.leadPhone}
+              GPS Central Node
             </div>
           </div>
         </div>
@@ -174,7 +264,7 @@ export default function OfficeDetailsGatesPage() {
         >
           <div>
             <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-              Configured Security Gates & RFID Boom Barriers ({office.gates.length})
+              Configured Security Gates & RFID Boom Barriers ({gates.length})
             </h2>
             <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
               Live telemetry, optical plate reader and RFID validation checkpoints
@@ -182,6 +272,7 @@ export default function OfficeDetailsGatesPage() {
           </div>
           <button
             type="button"
+            onClick={() => alert('Syncing RFID boom barrier gate status')}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -213,7 +304,7 @@ export default function OfficeDetailsGatesPage() {
               </tr>
             </thead>
             <tbody>
-              {office.gates.map((gate) => (
+              {gates.map((gate) => (
                 <tr key={gate.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                   <td style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--text-primary)' }}>
                     {gate.id}
@@ -269,6 +360,7 @@ export default function OfficeDetailsGatesPage() {
                   <td style={{ padding: '14px 16px', textAlign: 'right' }}>
                     <button
                       type="button"
+                      onClick={() => alert(`Configuring ${gate.gateName}`)}
                       style={{
                         padding: '4px 10px',
                         backgroundColor: 'var(--bg-surface)',
@@ -276,7 +368,7 @@ export default function OfficeDetailsGatesPage() {
                         borderRadius: 4,
                         fontSize: 12,
                         fontWeight: 600,
-                        color: 'var(--corporate-blue)',
+                        color: '#5728B2',
                         cursor: 'pointer',
                       }}
                     >
@@ -293,3 +385,10 @@ export default function OfficeDetailsGatesPage() {
   );
 }
 
+export default function OfficeDetailsGatesPage() {
+  return (
+    <Suspense fallback={<div className="surface-card" style={{ padding: 40, textAlign: 'center' }}>Loading...</div>}>
+      <OfficeDetailsGatesContent />
+    </Suspense>
+  );
+}

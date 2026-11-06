@@ -1,6 +1,6 @@
-﻿'use client';
+'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -16,19 +16,29 @@ import {
 
 export default function EmployeeImportWizardPage() {
   const router = useRouter();
-  const [currentStep, setCurrentStep] = useState(1);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<{
+    file: File;
     name: string;
     size: string;
-    records: number;
-  } | null>({
-    name: 'HiTEC_Employees_Dec.xlsx',
-    size: '2.4 MB',
-    records: 2846,
-  });
+  } | null>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+      setSelectedFile({
+        file,
+        name: file.name,
+        size: `${sizeMb} MB`,
+      });
+    }
+  };
 
   const handleNext = () => {
-    router.push('/employees/import/results');
+    if (selectedFile) {
+      router.push('/employees/import/results');
+    }
   };
 
   return (
@@ -102,7 +112,16 @@ export default function EmployeeImportWizardPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '20px' }}>
         {/* Left: Drag and Drop Upload Area */}
         <div className="surface-card" style={{ padding: '24px', backgroundColor: 'var(--bg-surface)', flex: '1 1 65%' }}>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept=".xlsx,.csv"
+            style={{ display: 'none' }}
+          />
+
           <div
+            onClick={() => fileInputRef.current?.click()}
             style={{
               border: '2px dashed #93C5FD',
               borderRadius: '12px',
@@ -134,7 +153,7 @@ export default function EmployeeImportWizardPage() {
             </div>
 
             <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '12px' }}>
-              Supported formats: .xlsx, .csv Â· Max file size: 10 MB
+              Supported formats: .xlsx, .csv · Max file size: 10 MB
             </div>
           </div>
 
@@ -159,13 +178,16 @@ export default function EmployeeImportWizardPage() {
                     {selectedFile.name}
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                    {selectedFile.size} Â· <strong>{selectedFile.records.toLocaleString()} records detected</strong>
+                    {selectedFile.size} · Ready for schema mapping and validation
                   </div>
                 </div>
               </div>
 
               <button
-                onClick={() => setSelectedFile(null)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedFile(null);
+                }}
                 style={{
                   width: 30,
                   height: 30,
@@ -193,7 +215,7 @@ export default function EmployeeImportWizardPage() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                backgroundColor: '#5728B2',
+                backgroundColor: selectedFile ? '#5728B2' : '#CBD5E1',
                 color: '#FFFFFF',
                 border: 'none',
                 borderRadius: '8px',
@@ -201,10 +223,10 @@ export default function EmployeeImportWizardPage() {
                 fontSize: '13px',
                 fontWeight: 700,
                 cursor: selectedFile ? 'pointer' : 'not-allowed',
-                boxShadow: '0 2px 4px rgba(87, 40, 178,0.25)',
+                boxShadow: selectedFile ? '0 2px 4px rgba(87, 40, 178,0.25)' : 'none',
               }}
             >
-              <span>Next: Map Fields</span>
+              <span>Next: Map Fields & Validate</span>
               <ArrowRight size={15} />
             </button>
           </div>
@@ -266,4 +288,3 @@ export default function EmployeeImportWizardPage() {
     </div>
   );
 }
-

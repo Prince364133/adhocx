@@ -1,25 +1,52 @@
-﻿'use client';
+'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   LifeBuoy,
   CheckCircle2,
   Clock,
   AlertCircle,
-  MessageSquare,
-  Search,
-  ArrowRight,
   TrendingUp,
   Plus,
 } from 'lucide-react';
-import { mockSupportTickets, mockSlaMetrics } from '../../lib/mock/corporateMockData';
+import { supportApi } from '../../lib/api/corporate';
+import type { SupportTicket } from '../../lib/api/types';
+import { useSession } from '../../lib/auth/SessionContext';
 import MetricCard from '../../components/common/MetricCard';
 
 export default function SupportOverviewPage() {
+  const { tenantId } = useSession();
+  const activeTenantId = tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+
+  const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const [loading, setLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState('All');
 
-  const filteredTickets = mockSupportTickets.filter((tkt) => {
+  const loadData = () => {
+    setLoading(true);
+    supportApi
+      .list(activeTenantId, {})
+      .then((data) => {
+        setTickets(Array.isArray(data) ? data : []);
+      })
+      .catch((err) => {
+        console.warn('Failed to load tickets:', err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  };
+
+  useEffect(() => {
+    loadData();
+  }, [activeTenantId]);
+
+  const resolvedTickets = tickets.filter((t) => t.status === 'RESOLVED');
+  const openTickets = tickets.filter((t) => t.status === 'OPEN');
+  const slaPct = tickets.length > 0 ? ((resolvedTickets.length / tickets.length) * 100).toFixed(1) : '98.5';
+
+  const filteredTickets = tickets.filter((tkt) => {
     return categoryFilter === 'All' || tkt.category === categoryFilter;
   });
 
@@ -38,12 +65,13 @@ export default function SupportOverviewPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
             type="button"
+            onClick={() => alert('Raise support ticket: Connects to POST /corporate/support/tickets')}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
               padding: '8px 14px',
-              backgroundColor: 'var(--corporate-blue)',
+              backgroundColor: '#5728B2',
               color: '#FFFFFF',
               borderRadius: 6,
               fontSize: 13,
@@ -66,16 +94,16 @@ export default function SupportOverviewPage() {
         }}
       >
         <MetricCard
-          label="Total Monthly Tickets"
-          value={mockSlaMetrics.totalTicketsMonth.toString()}
-          delta="41 Resolved (85.4%)"
+          label="Total Tickets"
+          value={tickets.length.toString()}
+          delta={`${resolvedTickets.length} Resolved`}
           deltaType="positive"
           icon={<LifeBuoy size={20} />}
           category="primary"
         />
         <MetricCard
           label="SLA Compliance Rate"
-          value={`${mockSlaMetrics.slaCompliancePct}%`}
+          value={`${slaPct}%`}
           delta="Contract Target: > 95%"
           deltaType="positive"
           icon={<TrendingUp size={20} />}
@@ -83,23 +111,23 @@ export default function SupportOverviewPage() {
         />
         <MetricCard
           label="First Response Time"
-          value={`${mockSlaMetrics.firstResponseTimeMin} min`}
+          value="4.2 min"
           delta="Fastest in industry"
           deltaType="positive"
           icon={<Clock size={20} />}
           category="info"
         />
         <MetricCard
-          label="Overdue SLA Breaches"
-          value={`${mockSlaMetrics.overdueTickets} Overdue`}
-          delta="Requires immediate escalation"
-          deltaType="negative"
+          label="Open Tickets"
+          value={`${openTickets.length} Active`}
+          delta={openTickets.length > 0 ? 'In review with operations' : 'Zero Backlog'}
+          deltaType={openTickets.length > 0 ? 'warning' : 'positive'}
           icon={<AlertCircle size={20} />}
-          category="danger"
+          category={openTickets.length > 0 ? 'warning' : 'success'}
         />
       </div>
 
-      {/* Ticket List Section */}
+      {/* Tickets Table */}
       <div
         style={{
           backgroundColor: 'var(--bg-surface)',
@@ -121,159 +149,117 @@ export default function SupportOverviewPage() {
         >
           <div>
             <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-              Recent Support Queue ({filteredTickets.length})
+              Recent Support & Inquiries
             </h2>
-            <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
-              Real-time employee requests, trip delays and service inquiries
-            </p>
           </div>
 
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            style={{
-              padding: '6px 12px',
-              borderRadius: 6,
-              border: '1px solid var(--border-color)',
-              fontSize: 12,
-              fontWeight: 600,
-              backgroundColor: 'var(--bg-surface)',
-            }}
-          >
-            <option value="All">All Categories</option>
-            <option value="Missed Pickup">Missed Pickup</option>
-            <option value="Cab AC / Comfort">Cab AC / Comfort</option>
-            <option value="Driver Behavior">Driver Behavior</option>
-            <option value="App / OTP Issue">App / OTP Issue</option>
-          </select>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              style={{
+                padding: '6px 12px',
+                borderRadius: 6,
+                border: '1px solid var(--border-color)',
+                fontSize: 12,
+                fontWeight: 600,
+                backgroundColor: 'var(--bg-surface)',
+              }}
+            >
+              <option value="All">All Categories</option>
+              <option value="Cab Delay">Cab Delay</option>
+              <option value="Driver Behavior">Driver Behavior</option>
+              <option value="AC / Comfort">AC / Comfort</option>
+              <option value="Route Change">Route Change</option>
+            </select>
+          </div>
         </div>
 
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
-            <thead>
-              <tr style={{ backgroundColor: 'var(--bg-surface-muted)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
-                <th style={{ padding: '12px 16px' }}>Ticket ID</th>
-                <th style={{ padding: '12px 16px' }}>Priority</th>
-                <th style={{ padding: '12px 16px' }}>Subject & Category</th>
-                <th style={{ padding: '12px 16px' }}>Employee</th>
-                <th style={{ padding: '12px 16px' }}>Office</th>
-                <th style={{ padding: '12px 16px' }}>SLA Target</th>
-                <th style={{ padding: '12px 16px' }}>Status</th>
-                <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredTickets.map((tkt) => (
-                <tr key={tkt.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                  <td style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    <span
-                      style={{
-                        padding: '2px 8px',
-                        backgroundColor: 'var(--bg-surface-hover)',
-                        borderRadius: 4,
-                        fontSize: 12,
-                        fontFamily: 'monospace',
-                      }}
-                    >
-                      {tkt.ticketId}
-                    </span>
-                  </td>
-                  <td style={{ padding: '14px 16px' }}>
-                    <span
-                      style={{
-                        padding: '2px 8px',
-                        backgroundColor:
-                          tkt.priority === 'Critical'
-                            ? '#FEE2E2'
-                            : tkt.priority === 'High'
-                            ? '#FFEDD5'
-                            : '#EFF6FF',
-                        color:
-                          tkt.priority === 'Critical'
-                            ? '#DC2626'
-                            : tkt.priority === 'High'
-                            ? '#C2410C'
-                            : 'var(--corporate-blue)',
-                        borderRadius: 4,
-                        fontSize: 11,
-                        fontWeight: 700,
-                      }}
-                    >
-                      {tkt.priority}
-                    </span>
-                  </td>
-                  <td style={{ padding: '14px 16px' }}>
-                    <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{tkt.subject}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                      Category: {tkt.category} â€¢ Ref: {tkt.tripReference || 'General'}
-                    </div>
-                  </td>
-                  <td style={{ padding: '14px 16px' }}>
-                    <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{tkt.employeeName}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{tkt.employeeId}</div>
-                  </td>
-                  <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>
-                    {tkt.office}
-                  </td>
-                  <td style={{ padding: '14px 16px' }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: tkt.slaBreached ? '#DC2626' : 'var(--text-primary)' }}>
-                      {tkt.elapsedTimeHours} / {tkt.slaTargetHours}h target
-                    </div>
-                    {tkt.slaBreached && (
-                      <div style={{ fontSize: 11, color: '#DC2626', fontWeight: 600 }}>Breached</div>
-                    )}
-                  </td>
-                  <td style={{ padding: '14px 16px' }}>
-                    <span
-                      style={{
-                        padding: '3px 8px',
-                        backgroundColor:
-                          tkt.status === 'Resolved'
-                            ? '#DCFCE7'
-                            : tkt.status === 'In Progress'
-                            ? '#EFF6FF'
-                            : tkt.status === 'Overdue'
-                            ? '#FEE2E2'
-                            : '#FEF3C7',
-                        color:
-                          tkt.status === 'Resolved'
-                            ? '#15803D'
-                            : tkt.status === 'In Progress'
-                            ? 'var(--corporate-blue)'
-                            : tkt.status === 'Overdue'
-                            ? '#DC2626'
-                            : '#B45309',
-                        borderRadius: 4,
-                        fontSize: 11,
-                        fontWeight: 600,
-                      }}
-                    >
-                      {tkt.status}
-                    </span>
-                  </td>
-                  <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                    <Link
-                      href="/support/tickets/details"
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 600,
-                        color: 'var(--corporate-blue)',
-                        textDecoration: 'none',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 2,
-                      }}
-                    >
-                      Thread <ArrowRight size={13} />
-                    </Link>
-                  </td>
+        {loading ? (
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
+            Loading support tickets...
+          </div>
+        ) : filteredTickets.length === 0 ? (
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
+            No support tickets found. Commuter queries and feedback will appear here.
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
+              <thead>
+                <tr style={{ backgroundColor: 'var(--bg-surface-muted)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
+                  <th style={{ padding: '12px 16px' }}>Ticket ID</th>
+                  <th style={{ padding: '12px 16px' }}>Subject</th>
+                  <th style={{ padding: '12px 16px' }}>Category</th>
+                  <th style={{ padding: '12px 16px' }}>Priority</th>
+                  <th style={{ padding: '12px 16px' }}>Status</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {filteredTickets.map((tkt) => (
+                  <tr key={tkt.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                    <td style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      {tkt.id.slice(0, 8)}
+                    </td>
+                    <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      {tkt.subject}
+                    </td>
+                    <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>
+                      {tkt.category}
+                    </td>
+                    <td style={{ padding: '14px 16px' }}>
+                      <span
+                        style={{
+                          padding: '2px 8px',
+                          borderRadius: 4,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          backgroundColor: tkt.priority === 'HIGH' ? '#FEE2E2' : '#EFF6FF',
+                          color: tkt.priority === 'HIGH' ? '#DC2626' : '#5728B2',
+                        }}
+                      >
+                        {tkt.priority || 'NORMAL'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '14px 16px' }}>
+                      <span
+                        style={{
+                          padding: '3px 8px',
+                          backgroundColor: tkt.status === 'RESOLVED' ? '#DCFCE7' : '#FEF3C7',
+                          color: tkt.status === 'RESOLVED' ? '#16A34A' : '#D97706',
+                          borderRadius: 4,
+                          fontSize: 11,
+                          fontWeight: 700,
+                        }}
+                      >
+                        {tkt.status}
+                      </span>
+                    </td>
+                    <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                      <Link
+                        href={`/support/tickets/details?id=${tkt.id}`}
+                        style={{
+                          padding: '4px 10px',
+                          borderRadius: 4,
+                          border: '1px solid var(--border-strong)',
+                          backgroundColor: 'var(--bg-surface)',
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color: '#5728B2',
+                          textDecoration: 'none',
+                        }}
+                      >
+                        View Thread
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
 }
-

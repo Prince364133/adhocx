@@ -9,13 +9,12 @@ import {
   Plus,
   Settings,
   Edit2,
-  MoreVertical,
   CheckCircle2,
   Loader2,
   RefreshCw,
 } from 'lucide-react';
 import { schedulingApi } from '../../../lib/api/corporate';
-import { getStoredToken, decodeToken } from '../../../lib/auth/session';
+import { useSession } from '../../../lib/auth/SessionContext';
 
 interface ShiftTemplateItem {
   id: string;
@@ -29,28 +28,18 @@ interface ShiftTemplateItem {
   status: 'Active' | 'Inactive';
 }
 
-const FALLBACK_SHIFTS: ShiftTemplateItem[] = [
-  { id: 'S1', name: 'General (Day)', iconColor: '#3B82F6', type: 'Fixed', loginTime: '09:00 AM', logoutTime: '06:00 PM', duration: '9 hr', assignedEmployees: 1246, status: 'Active' },
-  { id: 'S2', name: 'Shift A', iconColor: '#F59E0B', type: 'Fixed', loginTime: '02:00 PM', logoutTime: '11:00 PM', duration: '9 hr', assignedEmployees: 684, status: 'Active' },
-  { id: 'S3', name: 'Night', iconColor: '#8B5CF6', type: 'Fixed', loginTime: '10:00 PM', logoutTime: '07:00 AM', duration: '9 hr', assignedEmployees: 398, status: 'Active' },
-  { id: 'S4', name: 'Rotating A', iconColor: '#10B981', type: 'Rotating', loginTime: 'Week-based', logoutTime: 'Week-based', duration: '9 hr', assignedEmployees: 346, status: 'Active' },
-  { id: 'S5', name: 'Early Morning (General)', iconColor: '#06B6D4', type: 'Fixed', loginTime: '07:00 AM', logoutTime: '04:00 PM', duration: '9 hr', assignedEmployees: 172, status: 'Active' },
-];
-
 export default function ShiftManagementPage() {
-  const [shifts, setShifts] = useState<ShiftTemplateItem[]>(FALLBACK_SHIFTS);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isLive, setIsLive] = useState(false);
+  const { tenantId } = useSession();
+  const activeTenantId = tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+
+  const [shifts, setShifts] = useState<ShiftTemplateItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const loadShifts = useCallback(async () => {
     setIsLoading(true);
     try {
-      const token = getStoredToken();
-      const claims = decodeToken(token);
-      const tenantId = claims?.corporateTenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
-
-      const res = await schedulingApi.shiftTemplates(tenantId);
-      if (Array.isArray(res) && res.length > 0) {
+      const res = await schedulingApi.shiftTemplates(activeTenantId);
+      if (Array.isArray(res)) {
         setShifts(
           res.map((s, idx) => ({
             id: s.id,
@@ -64,18 +53,16 @@ export default function ShiftManagementPage() {
             status: s.isActive !== false ? 'Active' : 'Inactive',
           })),
         );
-        setIsLive(true);
       } else {
-        setShifts(FALLBACK_SHIFTS);
-        setIsLive(false);
+        setShifts([]);
       }
-    } catch {
-      setShifts(FALLBACK_SHIFTS);
-      setIsLive(false);
+    } catch (err) {
+      console.warn('Failed to load shifts:', err);
+      setShifts([]);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [activeTenantId]);
 
   useEffect(() => {
     loadShifts();
@@ -90,13 +77,14 @@ export default function ShiftManagementPage() {
             Shift Management
           </h1>
           <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-            Create and manage shift templates, timings and policies
+            Create and manage shift templates, timings and transport policies
           </p>
         </div>
 
         <div style={{ display: 'flex', gap: '10px' }}>
           <button
-            onClick={() => alert('Shift Policy Configuration')}
+            onClick={() => loadShifts()}
+            disabled={isLoading}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -105,18 +93,18 @@ export default function ShiftManagementPage() {
               color: 'var(--text-secondary)',
               border: '1px solid var(--border-strong)',
               borderRadius: 'var(--radius-md)',
-              padding: '8px 14px',
+              padding: '8px 12px',
               fontSize: '13px',
-              fontWeight: 700,
+              fontWeight: 600,
               cursor: 'pointer',
             }}
           >
-            <Settings size={15} />
-            <span>Shift Policies</span>
+            <RefreshCw size={14} className={isLoading ? 'spin' : ''} />
+            <span>Sync</span>
           </button>
 
           <button
-            onClick={() => alert('Create New Shift Dialog')}
+            onClick={() => alert('New Shift Template: Connects to POST /corporate/scheduling/shift-templates')}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -133,150 +121,149 @@ export default function ShiftManagementPage() {
             }}
           >
             <Plus size={16} />
-            <span>Create Shift</span>
+            <span>Create Shift Template</span>
           </button>
         </div>
       </div>
 
-      {/* 4 KPI Metric Cards */}
-      <div
-        className="surface-card"
-        style={{
-          padding: '16px 20px',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-          gap: '14px',
-          backgroundColor: 'var(--bg-surface)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#EFF6FF', color: '#5728B2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <CalendarClock size={18} />
-          </div>
-          <div>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>12</div>
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Shift Templates</div>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#DCFCE7', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Clock size={18} />
-          </div>
-          <div>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: '#16A34A' }}>8</div>
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Active Shifts</div>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#F3E8FF', color: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Users size={18} />
-          </div>
-          <div>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>2,846</div>
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Assigned Employees</div>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#FEF3C7', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Repeat size={18} />
-          </div>
-          <div>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>3</div>
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Shift Patterns (Fixed/Rotating)</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Shifts Data Table */}
+      {/* Shift Templates List */}
       <div className="surface-card" style={{ padding: '20px', backgroundColor: 'var(--bg-surface)' }}>
-        <div className="table-scroll">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Shift Name</th>
-                <th>Type</th>
-                <th>Login Time</th>
-                <th>Logout Time</th>
-                <th>Duration</th>
-                <th>Employees</th>
-                <th>Status</th>
-                <th style={{ textAlign: 'right' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {shifts.map((s) => (
-                <tr key={s.id}>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: s.iconColor }} />
-                      <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{s.name}</span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+          <h2 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)' }}>
+            Active Shift Schedules ({shifts.length})
+          </h2>
+        </div>
+
+        {isLoading ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px', gap: '10px', color: 'var(--text-secondary)' }}>
+            <Loader2 size={20} className="spin" />
+            <span style={{ fontSize: '14px', fontWeight: 600 }}>Loading shift templates...</span>
+          </div>
+        ) : shifts.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>
+            <CalendarClock size={40} color="#94A3B8" style={{ marginBottom: 12 }} />
+            <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>No shift templates created</h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: 16 }}>
+              Define login and logout windows for your facility to begin roster assignment.
+            </p>
+            <button
+              onClick={() => alert('Create shift template modal')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                backgroundColor: '#5728B2',
+                color: '#FFFFFF',
+                borderRadius: 6,
+                padding: '8px 16px',
+                fontSize: 13,
+                fontWeight: 700,
+                border: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              <Plus size={15} />
+              <span>Create Shift Template</span>
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {shifts.map((shift) => (
+              <div
+                key={shift.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '14px 18px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-subtle)',
+                  backgroundColor: 'var(--bg-surface)',
+                  flexWrap: 'wrap',
+                  gap: '14px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 200 }}>
+                  <div
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: '8px',
+                      backgroundColor: `${shift.iconColor}15`,
+                      color: shift.iconColor,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Clock size={20} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                      {shift.name}
                     </div>
-                  </td>
-                  <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{s.type}</td>
-                  <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{s.loginTime}</td>
-                  <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{s.logoutTime}</td>
-                  <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{s.duration}</td>
-                  <td style={{ fontWeight: 700, color: '#5728B2' }}>{s.assignedEmployees.toLocaleString()}</td>
-                  <td>
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                      {shift.loginTime} — {shift.logoutTime}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '24px', flexWrap: 'wrap' }}>
+                  <div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Shift Duration</div>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{shift.duration}</div>
+                  </div>
+
+                  <div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Assigned Headcount</div>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: '#5728B2' }}>
+                      {shift.assignedEmployees > 0 ? `${shift.assignedEmployees.toLocaleString()} employees` : 'General Pool'}
+                    </div>
+                  </div>
+
+                  <div>
                     <span
                       style={{
                         fontSize: '11px',
                         fontWeight: 700,
-                        padding: '2px 8px',
+                        padding: '3px 8px',
                         borderRadius: '4px',
-                        backgroundColor: '#DCFCE7',
-                        color: '#16A34A',
-                        border: '1px solid #86EFAC',
+                        backgroundColor: shift.status === 'Active' ? '#DCFCE7' : '#F1F5F9',
+                        color: shift.status === 'Active' ? '#16A34A' : '#64748B',
+                        border: `1px solid ${shift.status === 'Active' ? '#86EFAC' : '#CBD5E1'}`,
                       }}
                     >
-                      {s.status}
+                      {shift.status}
                     </span>
-                  </td>
-                  <td style={{ textAlign: 'right' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
-                      <button
-                        onClick={() => alert(`Edit ${s.name}`)}
-                        style={{
-                          width: 28,
-                          height: 28,
-                          borderRadius: 4,
-                          border: '1px solid var(--border-strong)',
-                          backgroundColor: 'var(--bg-surface-muted)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <Edit2 size={13} color="#475569" />
-                      </button>
-                      <button
-                        style={{
-                          width: 28,
-                          height: 28,
-                          borderRadius: 4,
-                          border: '1px solid var(--border-strong)',
-                          backgroundColor: 'var(--bg-surface-muted)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <MoreVertical size={13} color="#64748B" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button
+                      onClick={() => alert(`Edit shift ${shift.name}`)}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        border: '1px solid var(--border-strong)',
+                        backgroundColor: 'transparent',
+                        color: 'var(--text-secondary)',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      <Edit2 size={13} />
+                      <span>Edit</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
 }
-

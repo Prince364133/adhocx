@@ -63,6 +63,21 @@ export class CorporateRoutingController {
       throw new BadRequestException('loginTime (or deadline) is required');
     }
 
+    const excluded = body.excludedEmployees
+      ? typeof body.excludedEmployees === 'string'
+        ? body.excludedEmployees.split(',').map((s: string) => s.trim())
+        : body.excludedEmployees
+      : undefined;
+
+    let pricingConfig = undefined;
+    if (body.pricingConfig) {
+      try {
+        pricingConfig = typeof body.pricingConfig === 'string' ? JSON.parse(body.pricingConfig) : body.pricingConfig;
+      } catch {
+        // ignore parse error and fallback to default
+      }
+    }
+
     return this.routePlannerService!.planFromFile(
       file.buffer,
       file.originalname || 'employees.xlsx',
@@ -71,12 +86,15 @@ export class CorporateRoutingController {
         loginTime,
         logoutTime: body.logoutTime,
         officeRadiusKm: body.officeRadiusKm ? Number(body.officeRadiusKm) : 50,
+        maxTripKm: body.maxTripKm ? Number(body.maxTripKm) : 50,
         bufferMinutes: body.bufferMinutes ? Number(body.bufferMinutes) : 15,
         pickupWaitMinutes: body.pickupWaitMinutes ? Number(body.pickupWaitMinutes) : 5,
         cabCapacity: body.cabCapacity ? Number(body.cabCapacity) : 4,
         routingPreference: body.routingPreference || 'TRAFFIC_AWARE',
         avoidTolls: body.avoidTolls === 'true' || body.avoidTolls === true,
         avoidHighways: body.avoidHighways === 'true' || body.avoidHighways === true,
+        excludedEmployees: excluded,
+        pricingConfig,
       },
     );
   }
@@ -120,6 +138,21 @@ export class CorporateRoutingController {
     try {
       sendSse('progress', { stage: 'INIT', percent: 2, message: 'Initiating solver & loading roster...' });
 
+      const excluded = body.excludedEmployees
+        ? typeof body.excludedEmployees === 'string'
+          ? body.excludedEmployees.split(',').map((s: string) => s.trim())
+          : body.excludedEmployees
+        : undefined;
+
+      let pricingConfig = undefined;
+      if (body.pricingConfig) {
+        try {
+          pricingConfig = typeof body.pricingConfig === 'string' ? JSON.parse(body.pricingConfig) : body.pricingConfig;
+        } catch {
+          // ignore parse error and fallback to default
+        }
+      }
+
       const plan = await this.routePlannerService!.planFromFile(
         file.buffer,
         file.originalname || 'employees.xlsx',
@@ -128,12 +161,15 @@ export class CorporateRoutingController {
           loginTime,
           logoutTime: body.logoutTime,
           officeRadiusKm: body.officeRadiusKm ? Number(body.officeRadiusKm) : 50,
+          maxTripKm: body.maxTripKm ? Number(body.maxTripKm) : 50,
           bufferMinutes: body.bufferMinutes ? Number(body.bufferMinutes) : 15,
           pickupWaitMinutes: body.pickupWaitMinutes ? Number(body.pickupWaitMinutes) : 5,
           cabCapacity: body.cabCapacity ? Number(body.cabCapacity) : 4,
           routingPreference: body.routingPreference || 'TRAFFIC_AWARE',
           avoidTolls: body.avoidTolls === 'true' || body.avoidTolls === true,
           avoidHighways: body.avoidHighways === 'true' || body.avoidHighways === true,
+          excludedEmployees: excluded,
+          pricingConfig,
         },
         (type, percent, message, data) => {
           sendSse('progress', { stage: type, percent, message, data });

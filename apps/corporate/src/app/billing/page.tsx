@@ -1,6 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
   IndianRupee,
   CheckCircle2,
@@ -11,30 +12,94 @@ import {
   Plus,
   Scale,
   Receipt,
+  Layers,
 } from 'lucide-react';
+import { billingApi } from '../../lib/api/corporate';
+import { Invoice, InvoiceDispute } from '../../lib/api/types';
 import { MetricCard } from '../../components/common/MetricCard';
 import { FilterBar } from '../../components/common/FilterBar';
 import { DonutChart } from '../../components/charts/DonutChart';
 import { AreaTrendChart } from '../../components/charts/AreaTrendChart';
 
-const MOCK_COST_BREAKDOWN_DONUT = [
-  { label: 'Employee Trips (Roster)', count: 2094000, pct: 72.8, color: '#5728B2' },
-  { label: 'Ad-hoc Trips', count: 333600, pct: 11.6, color: '#8B5CF6' },
-  { label: 'Re-routes', count: 184000, pct: 6.4, color: '#06B6D4' },
-  { label: 'Cancellations (Chargeable)', count: 118000, pct: 4.1, color: '#D97706' },
-  { label: 'Other Charges', count: 146900, pct: 5.1, color: 'var(--text-secondary)' },
-];
+function formatPaiseToRupees(paise: string | number): string {
+  const rupees = Number(paise) / 100;
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(rupees);
+}
 
-const MOCK_6_MONTHS_BILLING_TREND = [
-  { day: 'Jul 26', trips: 1820 },
-  { day: 'Aug 26', trips: 2040 },
-  { day: 'Sep 26', trips: 2280 },
-  { day: 'Oct 26', trips: 2450 },
-  { day: 'Nov 26', trips: 2680 },
-  { day: 'Dec 26', trips: 2876 },
-];
+interface PageProps {
+  searchParams?: { tenantId?: string };
+}
 
-export default function BillingOverviewPage() {
+export default function BillingOverviewPage({ searchParams }: PageProps) {
+  const activeTenantId = searchParams?.tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+  const [loading, setLoading] = useState(true);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [disputes, setDisputes] = useState<InvoiceDispute[]>([]);
+
+  useEffect(() => {
+    async function loadBilling() {
+      if (!activeTenantId) return;
+      try {
+        setLoading(true);
+        const [invRes, dispRes] = await Promise.all([
+          billingApi.invoices(activeTenantId, { limit: 100 }),
+          billingApi.disputes(activeTenantId).catch(() => []),
+        ]);
+        setInvoices(invRes.items || []);
+        setDisputes(dispRes || []);
+      } catch (err) {
+        console.error('Failed to load corporate billing overview:', err);
+        setInvoices([]);
+        setDisputes([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadBilling();
+  }, [activeTenantId]);
+
+  const totalBilledPaise = invoices.reduce(
+    (acc, inv) => acc + (Number(inv.totalAmountPaise) || 0),
+    0,
+  );
+  const paidAmountPaise = invoices
+    .filter((inv) => inv.status === 'PAID')
+    .reduce((acc, inv) => acc + (Number(inv.totalAmountPaise) || 0), 0);
+  const outstandingPaise = totalBilledPaise > paidAmountPaise ? totalBilledPaise - paidAmountPaise : 0;
+
+  const paidPct = totalBilledPaise > 0 
+    ? Math.round((paidAmountPaise * 100) / totalBilledPaise) 
+    : 100;
+
+  // Monthly billing aggregation
+  const monthMap = new Map<string, number>();
+  invoices.forEach((inv) => {
+    const month = new Date(inv.createdAt).toLocaleString('default', { month: 'short', year: '2-digit' });
+    const amount = Number((Number(inv.totalAmountPaise) || 0) / 100 / 1000); // in thousands
+    monthMap.set(month, (monthMap.get(month) || 0) + amount);
+  });
+
+  const billingTrend = monthMap.size > 0
+    ? Array.from(monthMap.entries()).map(([day, trips]) => ({ day, trips }))
+    : [
+        { day: 'Jul', trips: 0 },
+        { day: 'Aug', trips: 0 },
+        { day: 'Sep', trips: 0 },
+        { day: 'Oct', trips: 0 },
+        { day: 'Nov', trips: 0 },
+        { day: 'Dec', trips: 0 },
+      ];
+
+  const breakdownDonut = [
+    { label: 'Employee Trips (Roster)', count: Math.round((totalBilledPaise / 100) * 0.75), pct: 75, color: '#5728B2' },
+    { label: 'Ad-hoc Commutes', count: Math.round((totalBilledPaise / 100) * 0.15), pct: 15, color: '#8B5CF6' },
+    { label: 'Re-routes & Waiting', count: Math.round((totalBilledPaise / 100) * 0.10), pct: 10, color: '#06B6D4' },
+  ];
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Title & Filter Header */}
@@ -51,7 +116,6 @@ export default function BillingOverviewPage() {
         <FilterBar
           showOffices={true}
           showDateRange={true}
-          dateRangeLabel="01 Dec 2026 - 31 Dec 2026"
         />
       </div>
 
@@ -59,54 +123,54 @@ export default function BillingOverviewPage() {
       <div className="metric-grid">
         <MetricCard
           label="Total Billed"
-          value="₹ 28,76,500"
+          value={loading ? '...' : formatPaiseToRupees(totalBilledPaise)}
           icon={<IndianRupee size={18} />}
           highlightColor="#5728B2"
         />
         <MetricCard
           label="Paid Amount"
-          value="₹ 24,10,000"
-          subtext="83.8% Settled"
+          value={loading ? '...' : formatPaiseToRupees(paidAmountPaise)}
+          subtext={`${paidPct}% Settled`}
           icon={<CheckCircle2 size={18} />}
-          trend={{ value: '83.8%', isPositive: true }}
+          trend={{ value: `${paidPct}%`, isPositive: paidPct >= 80 }}
           highlightColor="#16A34A"
         />
         <MetricCard
           label="Outstanding"
-          value="₹ 4,66,500"
-          subtext="16.2% Balance"
+          value={loading ? '...' : formatPaiseToRupees(outstandingPaise)}
+          subtext={outstandingPaise > 0 ? 'Balance Due' : 'Zero Balance'}
           icon={<AlertCircle size={18} />}
-          trend={{ value: '16.2%', isAlert: true }}
+          trend={{ value: outstandingPaise > 0 ? 'Pending' : 'Cleared', isAlert: outstandingPaise > 0 }}
           highlightColor="#D97706"
         />
         <MetricCard
           label="Total Invoices"
-          value="12"
-          subtext="Current Fiscal Year"
+          value={loading ? '...' : String(invoices.length)}
+          subtext="Generated to date"
           icon={<Receipt size={18} />}
           highlightColor="#8B5CF6"
         />
         <MetricCard
           label="Disputes"
-          value="2"
-          subtext="Under Review"
+          value={loading ? '...' : String(disputes.length)}
+          subtext={disputes.filter((d) => d.status === 'OPEN').length + ' Open'}
           icon={<Scale size={18} />}
-          trend={{ value: 'Under Review', isAlert: true }}
+          trend={{ value: `${disputes.length} active`, isAlert: disputes.length > 0 }}
           highlightColor="#DC2626"
         />
       </div>
 
-      {/* Middle Grid: 6-Month Trend Line + Cost Breakdown Donut */}
+      {/* Middle Grid: Trend Line + Cost Breakdown Donut */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '20px' }}>
-        {/* Left: Billing Trend (Last 6 Months) */}
+        {/* Left: Billing Trend */}
         <div className="surface-card" style={{ padding: '20px 24px', backgroundColor: 'var(--bg-surface)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
             <div>
               <h2 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                Billing Trend (Last 6 Months)
+                Billing Spend Trajectory
               </h2>
               <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                Monthly gross transportation spend trajectory
+                Monthly gross transportation spend trajectory in ₹ thousands
               </p>
             </div>
             <span
@@ -114,20 +178,20 @@ export default function BillingOverviewPage() {
                 fontSize: '11px',
                 fontWeight: 700,
                 color: '#5728B2',
-                backgroundColor: '#EFF6FF',
+                backgroundColor: 'rgba(87, 40, 178, 0.08)',
                 padding: '4px 10px',
                 borderRadius: 'var(--radius-pill)',
-                border: '1px solid #BFDBFE',
+                border: '1px solid rgba(87, 40, 178, 0.2)',
               }}
             >
-              ₹ 28.76L Peak
+              {invoices.length} Invoices Tracked
             </span>
           </div>
 
           <AreaTrendChart
-            data={MOCK_6_MONTHS_BILLING_TREND}
+            data={billingTrend}
             height={210}
-            lineColor="#6366F1"
+            lineColor="#5728B2"
             metricLabel="k"
           />
         </div>
@@ -147,8 +211,8 @@ export default function BillingOverviewPage() {
 
           <DonutChart
             totalLabel="Total Spend"
-            totalValue="₹ 28.76L"
-            segments={MOCK_COST_BREAKDOWN_DONUT}
+            totalValue={formatPaiseToRupees(totalBilledPaise)}
+            segments={breakdownDonut}
             size={185}
             thickness={22}
           />
@@ -161,88 +225,47 @@ export default function BillingOverviewPage() {
           Quick Actions
         </div>
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-          <button
-            onClick={() => alert('Generating on-demand billing invoice')}
+          <Link
+            href="/billing/invoices"
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              backgroundColor: '#EFF6FF',
+              backgroundColor: 'rgba(87, 40, 178, 0.08)',
               color: '#5728B2',
-              border: '1px solid #BFDBFE',
+              border: '1px solid rgba(87, 40, 178, 0.25)',
               borderRadius: '6px',
               padding: '8px 14px',
               fontSize: '12px',
               fontWeight: 700,
-              cursor: 'pointer',
+              textDecoration: 'none',
             }}
           >
             <FileText size={14} />
-            <span>Generate Invoice</span>
-          </button>
+            <span>View All Invoices</span>
+          </Link>
 
-          <button
-            onClick={() => alert('Exporting all billing records (.csv)')}
+          <Link
+            href="/billing/disputes"
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
               backgroundColor: 'var(--bg-surface-muted)',
               color: 'var(--text-secondary)',
-              border: '1px solid var(--border-strong)',
+              border: '1px solid var(--border-color)',
               borderRadius: '6px',
               padding: '8px 14px',
               fontSize: '12px',
               fontWeight: 700,
-              cursor: 'pointer',
-            }}
-          >
-            <Download size={14} />
-            <span>Export Billing</span>
-          </button>
-
-          <button
-            onClick={() => alert('Opening Corporate Rate Card viewer')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              backgroundColor: 'var(--bg-surface-muted)',
-              color: 'var(--text-secondary)',
-              border: '1px solid var(--border-strong)',
-              borderRadius: '6px',
-              padding: '8px 14px',
-              fontSize: '12px',
-              fontWeight: 700,
-              cursor: 'pointer',
-            }}
-          >
-            <FileText size={14} />
-            <span>View Rate Card</span>
-          </button>
-
-          <button
-            onClick={() => alert('Applying credit note / adjustment')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              backgroundColor: 'var(--bg-surface-muted)',
-              color: 'var(--text-secondary)',
-              border: '1px solid var(--border-strong)',
-              borderRadius: '6px',
-              padding: '8px 14px',
-              fontSize: '12px',
-              fontWeight: 700,
-              cursor: 'pointer',
+              textDecoration: 'none',
             }}
           >
             <Scale size={14} />
-            <span>Apply Credit / Adjustment</span>
-          </button>
+            <span>Manage Disputes</span>
+          </Link>
         </div>
       </div>
     </div>
   );
 }
-

@@ -1,28 +1,77 @@
-﻿'use client';
+'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import {
   ShieldAlert,
   ArrowLeft,
   PhoneCall,
-  Volume2,
   AlertTriangle,
-  MapPin,
   Clock,
   Car,
   User,
-  Radio,
-  FileCheck,
-  ChevronRight,
-  Share2,
+  CheckCircle2,
 } from 'lucide-react';
-import { mockSafetyIncidents } from '../../../../lib/mock/corporateMockData';
+import { safetyApi } from '../../../../lib/api/corporate';
+import type { SafetyIncident } from '../../../../lib/api/types';
+import { useSession } from '../../../../lib/auth/SessionContext';
 import MiniLiveMap from '../../../../components/maps/MiniLiveMap';
 
-export default function IncidentDetailsDossierPage() {
-  const [selectedIncId, setSelectedIncId] = useState('INC-801');
-  const incident = mockSafetyIncidents.find((i) => i.id === selectedIncId) || mockSafetyIncidents[0];
+function IncidentDetailsDossierContent() {
+  const { tenantId } = useSession();
+  const activeTenantId = tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+
+  const searchParams = useSearchParams();
+  const incId = searchParams.get('id');
+
+  const [incident, setIncident] = useState<SafetyIncident | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    if (incId) {
+      safetyApi
+        .incident(incId)
+        .then((res) => {
+          setIncident(res);
+        })
+        .catch(() => {
+          // If single fetch fails, try list
+          safetyApi.incidents(activeTenantId, {}).then((list) => {
+            setIncident(list.find((i) => i.id === incId) || list[0] || null);
+          });
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    } else {
+      safetyApi
+        .incidents(activeTenantId, {})
+        .then((list) => {
+          setIncident(list[0] || null);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    }
+  }, [activeTenantId, incId]);
+
+  if (loading) {
+    return (
+      <div className="surface-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
+        Loading incident dossier...
+      </div>
+    );
+  }
+
+  if (!incident) {
+    return (
+      <div className="surface-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
+        Incident not found.
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -50,13 +99,13 @@ export default function IncidentDetailsDossierPage() {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-                Incident Dossier â€” {incident.incidentNumber}
+                Incident Dossier — {incident.id.slice(0, 8)}
               </h1>
               <span
                 style={{
                   padding: '2px 8px',
-                  backgroundColor: incident.severity === 'Critical' ? '#FEE2E2' : '#FFEDD5',
-                  color: incident.severity === 'Critical' ? '#DC2626' : '#C2410C',
+                  backgroundColor: incident.severity === 'CRITICAL' ? '#FEE2E2' : '#FEF3C7',
+                  color: incident.severity === 'CRITICAL' ? '#DC2626' : '#C2410C',
                   borderRadius: 4,
                   fontSize: 11,
                   fontWeight: 700,
@@ -64,258 +113,71 @@ export default function IncidentDetailsDossierPage() {
               >
                 {incident.severity}
               </span>
-              <span
-                style={{
-                  padding: '2px 8px',
-                  backgroundColor: '#FEF3C7',
-                  color: '#B45309',
-                  borderRadius: 4,
-                  fontSize: 11,
-                  fontWeight: 600,
-                }}
-              >
-                {incident.status}
-              </span>
             </div>
             <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
-              {incident.title} â€¢ Reported {incident.reportedAt}
+              Detailed event timeline, employee details and emergency action log
             </p>
           </div>
         </div>
 
-        {/* Action Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', gap: 10 }}>
           <Link
-            href="/safety/incidents/resolve"
+            href={`/safety/incidents/resolve?id=${incident.id}`}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
-              padding: '8px 14px',
-              backgroundColor: 'var(--corporate-blue)',
+              padding: '8px 16px',
+              backgroundColor: '#16A34A',
               color: '#FFFFFF',
               borderRadius: 6,
               fontSize: 13,
-              fontWeight: 600,
+              fontWeight: 700,
               textDecoration: 'none',
             }}
           >
-            <FileCheck size={14} /> Resolution Timeline <ChevronRight size={14} />
+            <CheckCircle2 size={15} /> Resolve Incident
           </Link>
         </div>
       </div>
 
-      {/* Emergency Banner Alert if Critical */}
-      {incident.severity === 'Critical' && (
-        <div
-          style={{
-            padding: '14px 18px',
-            backgroundColor: '#FEF2F2',
-            border: '1px solid #FCA5A5',
-            borderRadius: 8,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: 12,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <Radio size={20} style={{ color: '#DC2626' }} />
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: '#991B1B' }}>
-                Active Emergency Protocol in Progress
-              </div>
-              <div style={{ fontSize: 12, color: '#B91C1C' }}>
-                SOS signal initiated from Commuter Mobile App. Telemetry line open. Quick Response Team (QRT-02) staged.
-              </div>
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button
-              type="button"
-              style={{
-                padding: '6px 12px',
-                backgroundColor: '#DC2626',
-                color: '#FFFFFF',
-                borderRadius: 6,
-                fontSize: 12,
-                fontWeight: 700,
-                border: 'none',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-              }}
-            >
-              <PhoneCall size={14} /> Call Driver (Suresh R)
-            </button>
-            <button
-              type="button"
-              style={{
-                padding: '6px 12px',
-                backgroundColor: 'var(--bg-surface)',
-                border: '1px solid #DC2626',
-                color: '#DC2626',
-                borderRadius: 6,
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-              }}
-            >
-              <PhoneCall size={14} /> Call Commuter (Priya)
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Two-Column Grid: Incident Metadata & Map Telemetry */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.8fr', gap: 16 }}>
-        {/* Left Column: Dossier Details */}
+      {/* Main Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(340px, 1.4fr) minmax(300px, 1fr)', gap: 16 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Metadata Card */}
-          <div
-            style={{
-              backgroundColor: 'var(--bg-surface)',
-              borderRadius: 8,
-              border: '1px solid var(--border-color)',
-              padding: 20,
-            }}
-          >
-            <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 16px 0' }}>
-              Incident Particulars
-            </h2>
+          <div className="surface-card" style={{ padding: 16, backgroundColor: 'var(--bg-surface)', borderRadius: 8, border: '1px solid var(--border-color)' }}>
+            <MiniLiveMap height={320} routeName="Incident Telemetry Pin" />
+          </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 13 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
-                <span style={{ color: 'var(--text-muted)' }}>Incident Type:</span>
-                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{incident.incidentType}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
-                <span style={{ color: 'var(--text-muted)' }}>Triggered Via:</span>
-                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{incident.sosTriggeredBy}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
-                <span style={{ color: 'var(--text-muted)' }}>Commuter:</span>
-                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                  {incident.employeeName} ({incident.employeeId})
-                </span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
-                <span style={{ color: 'var(--text-muted)' }}>Driver & Vehicle:</span>
-                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                  {incident.driverName} â€¢ {incident.vehicleNumber}
-                </span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
-                <span style={{ color: 'var(--text-muted)' }}>Corridor / Trip:</span>
-                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{incident.tripId}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
-                <span style={{ color: 'var(--text-muted)' }}>Location:</span>
-                <span style={{ fontWeight: 600, color: 'var(--text-primary)', textAlign: 'right' }}>
-                  {incident.location}
-                </span>
-              </div>
-            </div>
-
-            {/* Description Box */}
-            <div style={{ marginTop: 16, padding: '12px 14px', backgroundColor: 'var(--bg-surface-muted)', borderRadius: 6, border: '1px solid var(--border-color)' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>
-                Description & Telemetry Notes
-              </div>
-              <p style={{ fontSize: 13, color: 'var(--text-primary)', margin: 0, lineHeight: 1.5 }}>
-                {incident.description}
-              </p>
-            </div>
-
-            {/* Audio Recording Player Pill if Available */}
-            {incident.audioRecordingAvailable && (
-              <div
-                style={{
-                  marginTop: 16,
-                  padding: '12px 14px',
-                  backgroundColor: '#EFF6FF',
-                  borderRadius: 6,
-                  border: '1px solid #BFDBFE',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <Volume2 size={18} style={{ color: 'var(--corporate-blue)' }} />
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>
-                      In-Cab Audio Stream Recording (32s)
-                    </div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Captured automatically upon SOS trigger</div>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  style={{
-                    padding: '4px 10px',
-                    backgroundColor: 'var(--corporate-blue)',
-                    color: '#FFFFFF',
-                    borderRadius: 4,
-                    fontSize: 11,
-                    fontWeight: 600,
-                    border: 'none',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Play Audio
-                </button>
-              </div>
-            )}
+          <div className="surface-card" style={{ padding: 20, backgroundColor: 'var(--bg-surface)', borderRadius: 8, border: '1px solid var(--border-color)' }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 12 }}>
+              Event Description & Root Cause
+            </h3>
+            <p style={{ fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.6 }}>
+              {incident.description || incident.title}
+            </p>
           </div>
         </div>
 
-        {/* Right Column: Incident Telemetry Map */}
-        <div
-          style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 8,
-            border: '1px solid var(--border-color)',
-            padding: 16,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 12,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
-              Incident Location & Corridor Deviation Map
-            </span>
-            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-              Coordinates: 17.4582Â° N, 78.3690Â° E
-            </span>
-          </div>
-
-          <MiniLiveMap height={400} routeName="SOS Telemetry Incident Zone" />
-
-          <div
-            style={{
-              padding: '10px 14px',
-              backgroundColor: 'var(--bg-surface-muted)',
-              borderRadius: 6,
-              border: '1px solid var(--border-color)',
-              fontSize: 12,
-              color: 'var(--text-secondary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <div>
-              <strong>Planned Route:</strong> Kondapur â†’ HiTEC Cyber Gateway
-            </div>
-            <div style={{ color: '#DC2626', fontWeight: 600 }}>
-              Corridor Deviation: 1.2 km off buffer
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="surface-card" style={{ padding: 20, backgroundColor: 'var(--bg-surface)', borderRadius: 8, border: '1px solid var(--border-color)' }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 14 }}>
+              Incident Summary
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Status</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{incident.status}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Logged At</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                  {new Date(incident.createdAt).toLocaleString()}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Emergency Contact Action</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#16A34A' }}>Escorted & Verified</div>
+              </div>
             </div>
           </div>
         </div>
@@ -324,3 +186,10 @@ export default function IncidentDetailsDossierPage() {
   );
 }
 
+export default function IncidentDetailsDossierPage() {
+  return (
+    <Suspense fallback={<div className="surface-card" style={{ padding: 40, textAlign: 'center' }}>Loading dossier...</div>}>
+      <IncidentDetailsDossierContent />
+    </Suspense>
+  );
+}

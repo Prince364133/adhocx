@@ -1,6 +1,6 @@
-﻿'use client';
+'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Plus,
@@ -14,276 +14,291 @@ import {
   AlertTriangle,
   ChevronLeft,
   ChevronRight,
+  Layers,
 } from 'lucide-react';
+import { billingApi } from '../../../lib/api/corporate';
+import { Invoice } from '../../../lib/api/types';
 
-interface InvoiceListItem {
-  id: string;
-  invoiceNo: string;
-  billingPeriod: string;
-  office: string;
-  tripCount: number;
-  amount: number;
-  status: 'Paid' | 'Partially Paid' | 'Overdue' | 'Pending';
-  dueDate: string;
+function formatPaiseToRupees(paise: bigint | string | number): string {
+  const rupees = Number(paise) / 100;
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(rupees);
 }
 
-const MOCK_INVOICES: InvoiceListItem[] = [
-  { id: '1', invoiceNo: 'INV-2026-012', billingPeriod: '01 Dec - 07 Dec', office: 'HiTEC City', tripCount: 1248, amount: 486000, status: 'Paid', dueDate: '08 Dec 2026' },
-  { id: '2', invoiceNo: 'INV-2026-011', billingPeriod: '24 Nov - 30 Nov', office: 'Kondapur', tripCount: 986, amount: 392500, status: 'Paid', dueDate: '01 Dec 2026' },
-  { id: '3', invoiceNo: 'INV-2026-010', billingPeriod: '17 Nov - 23 Nov', office: 'Gachibowli', tripCount: 1102, amount: 421000, status: 'Partially Paid', dueDate: '30 Nov 2026' },
-  { id: '4', invoiceNo: 'INV-2026-009', billingPeriod: '10 Nov - 16 Nov', office: 'Madhapur', tripCount: 874, amount: 348000, status: 'Overdue', dueDate: '23 Nov 2026' },
-  { id: '5', invoiceNo: 'INV-2026-008', billingPeriod: '03 Nov - 09 Nov', office: 'HiTEC City', tripCount: 958, amount: 376000, status: 'Paid', dueDate: '16 Nov 2026' },
-];
+interface PageProps {
+  searchParams?: { tenantId?: string };
+}
 
-export default function InvoiceListPage() {
-  const [selectedOffice, setSelectedOffice] = useState('All Offices');
-  const [selectedStatus, setSelectedStatus] = useState('All Status');
+export default function InvoiceListPage({ searchParams }: PageProps) {
+  const activeTenantId = searchParams?.tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+  const [selectedStatus, setSelectedStatus] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
-  const [invoices, setInvoices] = useState(MOCK_INVOICES);
+  const [loading, setLoading] = useState(true);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+
+  useEffect(() => {
+    async function fetchInvoices() {
+      if (!activeTenantId) return;
+      try {
+        setLoading(true);
+        const res = await billingApi.invoices(activeTenantId, {
+          status: selectedStatus === 'ALL' ? undefined : selectedStatus,
+          page,
+          limit: 20,
+        });
+        setInvoices(res.items || []);
+        setTotalCount(res.pagination?.total || (res.items || []).length);
+      } catch (err) {
+        console.error('Failed to load corporate invoices:', err);
+        setInvoices([]);
+        setTotalCount(0);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchInvoices();
+  }, [activeTenantId, selectedStatus, page]);
 
   const filteredInvoices = invoices.filter((inv) => {
-    if (selectedOffice !== 'All Offices' && inv.office !== selectedOffice) return false;
-    if (selectedStatus !== 'All Status' && inv.status !== selectedStatus) return false;
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
     return (
-      inv.invoiceNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      inv.billingPeriod.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      inv.office.toLowerCase().includes(searchQuery.toLowerCase())
+      inv.invoiceNumber.toLowerCase().includes(q) ||
+      inv.status.toLowerCase().includes(q)
     );
   });
 
-  const getStatusBadge = (status: InvoiceListItem['status']) => {
-    switch (status) {
-      case 'Paid':
-        return { bg: '#DCFCE7', color: '#16A34A', border: '#86EFAC' };
-      case 'Partially Paid':
-        return { bg: '#FEF3C7', color: '#D97706', border: '#FCD34D' };
-      case 'Overdue':
-        return { bg: '#FEE2E2', color: '#DC2626', border: '#FCA5A5' };
-      case 'Pending':
-        return { bg: '#EFF6FF', color: '#5728B2', border: '#BFDBFE' };
+  const getStatusBadge = (status: string) => {
+    const s = (status || '').toUpperCase();
+    switch (s) {
+      case 'PAID':
+        return { bg: '#DCFCE7', color: '#16A34A', border: '#86EFAC', label: 'Paid' };
+      case 'ISSUED':
+        return { bg: '#EFF6FF', color: '#5728B2', border: '#BFDBFE', label: 'Issued' };
+      case 'DISPUTED':
+        return { bg: '#FEF3C7', color: '#D97706', border: '#FCD34D', label: 'Disputed' };
+      case 'OVERDUE':
+        return { bg: '#FEE2E2', color: '#DC2626', border: '#FCA5A5', label: 'Overdue' };
+      default:
+        return { bg: 'var(--bg-surface-muted)', color: 'var(--text-secondary)', border: 'var(--border-color)', label: status };
     }
   };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* Title & Generate Action Header */}
+      {/* Title Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
             Invoice List
           </h1>
           <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-            View and manage all invoices, their status and payment details
+            View and manage all B2B tax invoices, their settlement status and PDF downloads
           </p>
         </div>
-
-        <button
-          onClick={() => alert('Generating on-demand invoice')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            backgroundColor: '#5728B2',
-            color: '#FFFFFF',
-            border: 'none',
-            borderRadius: 'var(--radius-md)',
-            padding: '8px 16px',
-            fontSize: '13px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            boxShadow: '0 2px 4px rgba(87, 40, 178,0.25)',
-          }}
-        >
-          <Plus size={16} />
-          <span>Generate Invoice</span>
-        </button>
       </div>
 
-      {/* Main Table Card */}
-      <div className="surface-card" style={{ padding: '20px', backgroundColor: 'var(--bg-surface)' }}>
-        {/* Filter Controls Bar */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', backgroundColor: 'var(--bg-surface-muted)', padding: '6px 12px', borderRadius: 6, border: '1px solid var(--border-strong)' }}>
-              01 Dec 2026 - 31 Dec 2026
-            </div>
-
-            <select
-              value={selectedOffice}
-              onChange={(e) => setSelectedOffice(e.target.value)}
-              style={{ height: 34, padding: '0 10px', borderRadius: 6, border: '1px solid var(--border-strong)', fontSize: 12, color: 'var(--text-secondary)' }}
-            >
-              <option value="All Offices">All Offices</option>
-              <option value="HiTEC City">HiTEC City</option>
-              <option value="Kondapur">Kondapur</option>
-              <option value="Gachibowli">Gachibowli</option>
-              <option value="Madhapur">Madhapur</option>
-            </select>
-
-            <select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              style={{ height: 34, padding: '0 10px', borderRadius: 6, border: '1px solid var(--border-strong)', fontSize: 12, color: 'var(--text-secondary)' }}
-            >
-              <option value="All Status">All Status</option>
-              <option value="Paid">Paid</option>
-              <option value="Partially Paid">Partially Paid</option>
-              <option value="Overdue">Overdue</option>
-            </select>
-          </div>
-
-          <div style={{ position: 'relative', width: 280 }}>
-            <Search size={14} color="#94A3B8" style={{ position: 'absolute', left: 10, top: 10 }} />
+      {/* Filters & Search Row */}
+      <div
+        className="surface-card"
+        style={{
+          padding: '16px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+          flexWrap: 'wrap',
+          backgroundColor: 'var(--bg-surface)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: '260px' }}>
+          <div style={{ position: 'relative', width: '100%', maxWidth: '320px' }}>
+            <Search
+              size={15}
+              style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }}
+            />
             <input
               type="text"
+              placeholder="Search by invoice number..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by invoice no. or reference..."
               style={{
                 width: '100%',
-                height: 34,
-                paddingLeft: 30,
-                paddingRight: 10,
-                fontSize: 12,
-                border: '1px solid var(--border-strong)',
-                borderRadius: 6,
-                outline: 'none',
-                backgroundColor: 'var(--bg-surface-muted)',
+                padding: '8px 12px 8px 36px',
+                borderRadius: '6px',
+                border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-surface)',
+                color: 'var(--text-primary)',
+                fontSize: '13px',
               }}
             />
           </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Filter size={15} color="var(--text-muted)" />
+            <select
+              value={selectedStatus}
+              onChange={(e) => {
+                setSelectedStatus(e.target.value);
+                setPage(1);
+              }}
+              style={{
+                padding: '8px 12px',
+                borderRadius: '6px',
+                border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-surface)',
+                color: 'var(--text-primary)',
+                fontSize: '13px',
+              }}
+            >
+              <option value="ALL">All Status</option>
+              <option value="ISSUED">Issued</option>
+              <option value="PAID">Paid</option>
+              <option value="DISPUTED">Disputed</option>
+              <option value="DRAFT">Draft</option>
+            </select>
+          </div>
         </div>
 
-        {/* Invoice Data Table */}
-        <div className="table-scroll">
-          <table className="data-table">
+        <div style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600 }}>
+          {totalCount} Total Invoices
+        </div>
+      </div>
+
+      {/* Invoices Table */}
+      <div className="surface-card" style={{ padding: 0, overflow: 'hidden', backgroundColor: 'var(--bg-surface)' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
             <thead>
-              <tr>
-                <th style={{ width: 36 }}><input type="checkbox" /></th>
-                <th>Invoice No.</th>
-                <th>Billing Period</th>
-                <th>Office / City</th>
-                <th>Trip Count</th>
-                <th>Amount (â‚¹)</th>
-                <th>Status</th>
-                <th>Due Date</th>
-                <th style={{ textAlign: 'right' }}>Actions</th>
+              <tr style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface-muted)' }}>
+                <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-secondary)' }}>Invoice #</th>
+                <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-secondary)' }}>Billing Period</th>
+                <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-secondary)' }}>Routes / Lines</th>
+                <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-secondary)' }}>Taxable Subtotal</th>
+                <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-secondary)' }}>GST</th>
+                <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-secondary)' }}>Total Amount</th>
+                <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-secondary)' }}>Status</th>
+                <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-secondary)', textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filteredInvoices.map((inv) => {
-                const badge = getStatusBadge(inv.status);
-                return (
-                  <tr key={inv.id}>
-                    <td><input type="checkbox" /></td>
-                    <td style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{inv.invoiceNo}</td>
-                    <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{inv.billingPeriod}</td>
-                    <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{inv.office}</td>
-                    <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{inv.tripCount.toLocaleString()}</td>
-                    <td style={{ fontWeight: 800, color: 'var(--text-primary)' }}>â‚¹ {inv.amount.toLocaleString()}</td>
-                    <td>
-                      <span
-                        style={{
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          padding: '2px 8px',
-                          borderRadius: '4px',
-                          backgroundColor: badge.bg,
-                          color: badge.color,
-                          border: `1px solid ${badge.border}`,
-                        }}
-                      >
-                        {inv.status}
-                      </span>
-                    </td>
-                    <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{inv.dueDate}</td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
+              {loading ? (
+                <tr>
+                  <td colSpan={8} style={{ padding: '36px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    Loading invoices...
+                  </td>
+                </tr>
+              ) : filteredInvoices.length === 0 ? (
+                <tr>
+                  <td colSpan={8} style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                      <Layers size={32} style={{ opacity: 0.3 }} />
+                      <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>No invoices found</p>
+                      <p style={{ margin: 0, fontSize: 12 }}>Invoices generated for billing cycles will appear here.</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredInvoices.map((inv) => {
+                  const badge = getStatusBadge(inv.status);
+                  const period = `${new Date(inv.billingPeriodStart).toLocaleDateString()} - ${new Date(inv.billingPeriodEnd).toLocaleDateString()}`;
+
+                  return (
+                    <tr
+                      key={inv.id}
+                      style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.15s ease' }}
+                    >
+                      <td style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--text-primary)' }}>
                         <Link
-                          href={`/billing/details?id=${inv.invoiceNo}`}
-                          style={{
-                            width: 28,
-                            height: 28,
-                            borderRadius: 4,
-                            border: '1px solid #BFDBFE',
-                            backgroundColor: '#EFF6FF',
-                            color: '#5728B2',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                          title="View Invoice Details"
+                          href={`/billing/details?id=${inv.id}`}
+                          style={{ color: '#5728B2', textDecoration: 'none', fontWeight: 700 }}
                         >
-                          <Eye size={13} />
+                          {inv.invoiceNumber}
                         </Link>
-                        <button
-                          onClick={() => alert(`Downloading PDF for ${inv.invoiceNo}`)}
+                      </td>
+                      <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>
+                        {period}
+                      </td>
+                      <td style={{ padding: '14px 16px', color: 'var(--text-primary)', fontWeight: 600 }}>
+                        {inv._count?.lines ?? '—'}
+                      </td>
+                      <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>
+                        {formatPaiseToRupees(inv.subtotalPaise)}
+                      </td>
+                      <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>
+                        {formatPaiseToRupees(inv.gstPaise)}
+                      </td>
+                      <td style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        {formatPaiseToRupees(inv.totalAmountPaise)}
+                      </td>
+                      <td style={{ padding: '14px 16px' }}>
+                        <span
                           style={{
-                            width: 28,
-                            height: 28,
-                            borderRadius: 4,
-                            border: '1px solid var(--border-strong)',
-                            backgroundColor: 'var(--bg-surface)',
-                            color: 'var(--text-secondary)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            cursor: 'pointer',
-                          }}
-                          title="Download PDF"
-                        >
-                          <Download size={13} />
-                        </button>
-                        <button
-                          style={{
-                            width: 28,
-                            height: 28,
-                            borderRadius: 4,
-                            border: '1px solid var(--border-strong)',
-                            backgroundColor: 'var(--bg-surface)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            cursor: 'pointer',
+                            padding: '3px 8px',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            backgroundColor: badge.bg,
+                            color: badge.color,
+                            border: `1px solid ${badge.border}`,
                           }}
                         >
-                          <MoreVertical size={13} color="#64748B" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+                          {badge.label}
+                        </span>
+                      </td>
+                      <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                          <Link
+                            href={`/billing/details?id=${inv.id}`}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: 30,
+                              height: 30,
+                              borderRadius: 6,
+                              border: '1px solid var(--border-color)',
+                              backgroundColor: 'var(--bg-surface)',
+                              color: 'var(--text-secondary)',
+                            }}
+                            title="View Invoice"
+                          >
+                            <Eye size={14} />
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => billingApi.downloadPdf(inv)}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: 30,
+                              height: 30,
+                              borderRadius: 6,
+                              border: '1px solid var(--border-color)',
+                              backgroundColor: 'var(--bg-surface)',
+                              color: '#5728B2',
+                              cursor: 'pointer',
+                            }}
+                            title="Download PDF"
+                          >
+                            <Download size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
-        </div>
-
-        {/* Pagination Footer */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '16px', flexWrap: 'wrap', gap: '12px' }}>
-          <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-            Showing 1 - 5 of 12 invoices
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <button style={{ width: 28, height: 28, borderRadius: 4, border: '1px solid var(--border-strong)', backgroundColor: 'var(--bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <ChevronLeft size={14} color="#64748B" />
-            </button>
-            <button style={{ width: 28, height: 28, borderRadius: 4, border: '1px solid #5728B2', backgroundColor: '#5728B2', color: '#FFFFFF', fontSize: 12, fontWeight: 700 }}>
-              1
-            </button>
-            <button style={{ width: 28, height: 28, borderRadius: 4, border: '1px solid var(--border-strong)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
-              2
-            </button>
-            <button style={{ width: 28, height: 28, borderRadius: 4, border: '1px solid var(--border-strong)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
-              3
-            </button>
-            <button style={{ width: 28, height: 28, borderRadius: 4, border: '1px solid var(--border-strong)', backgroundColor: 'var(--bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <ChevronRight size={14} color="#64748B" />
-            </button>
-          </div>
         </div>
       </div>
     </div>
   );
 }
-

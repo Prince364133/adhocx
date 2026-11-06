@@ -40,6 +40,13 @@ export interface Office {
   code: string;
   name: string;
   addressText: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  isActive?: boolean;
+  geofenceRadiusMeters?: number;
+  employeeCount?: number;
   latitude: string;
   longitude: string;
   _count?: { employees: number; routes: number };
@@ -135,6 +142,8 @@ export interface Employee {
   department: string | null;
   costCenter: string | null;
   isActive: boolean;
+  status?: string;
+  shiftSchedule?: string;
   createdAt: string;
   updatedAt: string;
   office?: { id: string; name: string; code: string } | null;
@@ -168,6 +177,55 @@ export interface EmployeeRequestsResponse {
   employeeId: string;
   limit: number;
   items: EmployeeRequest[];
+}
+
+export type CorporateEmployee = Employee;
+export type CorporateRoute = RouteListItem;
+export type CorporateRouteStop = RouteStop;
+export type CorporateTenant = Tenant;
+export type CorporateAnalyticsOverview = any;
+
+export interface CostCenter {
+  id?: string;
+  code: string;
+  name: string;
+  department?: string;
+  budget?: number;
+  spent?: number;
+}
+
+export interface Department {
+  id?: string;
+  code?: string;
+  name: string;
+}
+
+export interface SafetyIncident {
+  id: string;
+  tenantId?: string;
+  routeId?: string;
+  severity?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' | string;
+  title?: string;
+  description?: string;
+  status: string;
+  createdAt: string;
+  updatedAt?: string;
+  resolvedAt?: string | null;
+  resolutionNotes?: string | null;
+  employee?: {
+    id: string;
+    fullName: string;
+    employeeCode: string;
+    phone?: string;
+  } | null;
+  driver?: {
+    id: string;
+    fullName: string;
+    phone?: string;
+  } | null;
+  vehicle?: {
+    registrationNumber: string;
+  } | null;
 }
 
 // ── Rosters & scheduling ───────────────────────────────────────────────────
@@ -248,6 +306,7 @@ export interface ShiftTemplate {
   weekdays?: number[];
   isOvernight: boolean;
   isActive: boolean;
+  status?: string;
 }
 
 export interface Holiday {
@@ -276,9 +335,22 @@ export interface RouteListItem {
   estDurationSeconds: number;
   status: string;
   atRisk?: boolean;
+  routeCode?: string;
+  routeNumber?: string;
+  vehiclePlate?: string;
+  vehicleRegistration?: string;
+  driverName?: string;
+  driverPhone?: string;
+  stopsCount?: number;
+  plannedDurationMinutes?: number;
+  plannedStartTime?: string | null;
+  plannedEndTime?: string | null;
+  actualStartTime?: string | null;
   office?: { id: string; code: string; name: string };
-  driver?: { id: string; fullName: string | null; phone: string | null } | null;
-  vehicle?: { id: string; registrationNumber: string; model: string | null; vehicleType: string | null } | null;
+  driver?: { id: string; fullName: string | null; name?: string | null; phone: string | null; rating?: number | null } | null;
+  vehicle?: { id: string; registrationNumber: string; licensePlate?: string | null; model: string | null; vehicleType: string | null; capacity?: number | null } | null;
+  stops?: RouteStop[];
+  totalDistanceMeters?: number;
   _count?: { stops: number };
 }
 
@@ -287,6 +359,10 @@ export interface RouteStop extends StopSummary {
   plannedEta: string;
   latitude: string;
   longitude: string;
+  sequence?: number;
+  locationName?: string;
+  address?: string;
+  plannedTime?: string;
   employee?: {
     id: string;
     employeeCode: string;
@@ -459,6 +535,7 @@ export interface CorporateRateCard {
   effectiveFrom: string;
   effectiveTo: string | null;
   isActive: boolean;
+  status?: string;
   retiredAt: string | null;
   inEffect?: boolean;
 }

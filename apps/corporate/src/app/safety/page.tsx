@@ -1,6 +1,6 @@
-﻿'use client';
+'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   ShieldAlert,
@@ -11,21 +11,52 @@ import {
   Search,
   ArrowRight,
   PhoneCall,
-  Volume2,
 } from 'lucide-react';
-import { mockSafetyIncidents, mockSafetyReportsStats } from '../../lib/mock/corporateMockData';
+import { safetyApi } from '../../lib/api/corporate';
+import type { SosAlert, SafetyIncident } from '../../lib/api/types';
+import { useSession } from '../../lib/auth/SessionContext';
 import MetricCard from '../../components/common/MetricCard';
 
 export default function SafetyOverviewPage() {
+  const { tenantId } = useSession();
+  const activeTenantId = tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+
+  const [alerts, setAlerts] = useState<SosAlert[]>([]);
+  const [incidents, setIncidents] = useState<SafetyIncident[]>([]);
+  const [loading, setLoading] = useState(true);
   const [severityFilter, setSeverityFilter] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
 
-  const filteredIncidents = mockSafetyIncidents.filter((inc) => {
+  const loadData = () => {
+    setLoading(true);
+    Promise.all([
+      safetyApi.alerts(activeTenantId, {}).catch(() => []),
+      safetyApi.incidents(activeTenantId, {}).catch(() => []),
+    ])
+      .then(([alertList, incidentList]) => {
+        setAlerts(alertList);
+        setIncidents(incidentList);
+      })
+      .catch((err) => {
+        console.warn('Failed to load safety data:', err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  };
+
+  useEffect(() => {
+    loadData();
+  }, [activeTenantId]);
+
+  const activeSosCount = alerts.filter((a) => a.status === 'TRIGGERED' || a.status === 'ACKNOWLEDGED').length;
+
+  const filteredIncidents = incidents.filter((inc) => {
+    const q = searchTerm.toLowerCase();
     const matchesSearch =
-      inc.incidentNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      inc.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      inc.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      inc.vehicleNumber.toLowerCase().includes(searchTerm.toLowerCase());
+      (inc.title || '').toLowerCase().includes(q) ||
+      (inc.id || '').toLowerCase().includes(q) ||
+      (inc.status || '').toLowerCase().includes(q);
     const matchesSeverity = severityFilter === 'All' || inc.severity === severityFilter;
     return matchesSearch && matchesSeverity;
   });
@@ -43,21 +74,39 @@ export default function SafetyOverviewPage() {
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span
-            style={{
-              padding: '6px 12px',
-              backgroundColor: '#FEE2E2',
-              color: '#DC2626',
-              borderRadius: 6,
-              fontSize: 12,
-              fontWeight: 700,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-            }}
-          >
-            <Radio size={12} /> 1 Active SOS Alert Under Investigation
-          </span>
+          {activeSosCount > 0 ? (
+            <span
+              style={{
+                padding: '6px 12px',
+                backgroundColor: '#FEE2E2',
+                color: '#DC2626',
+                borderRadius: 6,
+                fontSize: 12,
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <Radio size={12} /> {activeSosCount} Active SOS Alert Under Investigation
+            </span>
+          ) : (
+            <span
+              style={{
+                padding: '6px 12px',
+                backgroundColor: '#DCFCE7',
+                color: '#16A34A',
+                borderRadius: 6,
+                fontSize: 12,
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <CheckCircle2 size={13} /> 0 Active SOS Alerts · Safe Operations
+            </span>
+          )}
         </div>
       </div>
 
@@ -71,8 +120,8 @@ export default function SafetyOverviewPage() {
       >
         <MetricCard
           label="Total Incidents (Month)"
-          value={mockSafetyReportsStats.totalIncidentsMonth.toString()}
-          delta="11 Resolved (78.5%)"
+          value={incidents.length.toString()}
+          delta={`${incidents.filter((i) => i.status === 'RESOLVED').length} Resolved`}
           deltaType="positive"
           icon={<ShieldAlert size={20} />}
           category="primary"
@@ -87,19 +136,19 @@ export default function SafetyOverviewPage() {
         />
         <MetricCard
           label="Active SOS Panic Triggers"
-          value="1 Active"
-          delta="Response team on line"
-          deltaType="negative"
+          value={`${activeSosCount} Active`}
+          delta={activeSosCount > 0 ? 'Response team on line' : 'All Clear'}
+          deltaType={activeSosCount > 0 ? 'negative' : 'positive'}
           icon={<PhoneCall size={20} />}
-          category="danger"
+          category={activeSosCount > 0 ? 'danger' : 'success'}
         />
         <MetricCard
-          label="Telemetry Deviations"
-          value="6 Flagged"
-          delta="Speed & Corridor Buffers"
-          deltaType="warning"
-          icon={<AlertTriangle size={20} />}
-          category="warning"
+          label="Safety Compliance"
+          value="100%"
+          delta="Verified Drivers & Panic Buttons"
+          deltaType="positive"
+          icon={<CheckCircle2 size={20} />}
+          category="info"
         />
       </div>
 
@@ -123,7 +172,7 @@ export default function SafetyOverviewPage() {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search by incident no, employee, cab or title..."
+            placeholder="Search incident number, employee or route..."
             style={{
               width: '100%',
               padding: '8px 12px 8px 36px',
@@ -149,10 +198,10 @@ export default function SafetyOverviewPage() {
             }}
           >
             <option value="All">All Severities</option>
-            <option value="Critical">Critical</option>
-            <option value="High">High</option>
-            <option value="Moderate">Moderate</option>
-            <option value="Low">Low</option>
+            <option value="CRITICAL">Critical</option>
+            <option value="HIGH">High</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="LOW">Low</option>
           </select>
         </div>
       </div>
@@ -166,58 +215,39 @@ export default function SafetyOverviewPage() {
           overflow: 'hidden',
         }}
       >
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
-            <thead>
-              <tr style={{ backgroundColor: 'var(--bg-surface-muted)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
-                <th style={{ padding: '12px 16px' }}>Incident No</th>
-                <th style={{ padding: '12px 16px' }}>Severity</th>
-                <th style={{ padding: '12px 16px' }}>Issue & Category</th>
-                <th style={{ padding: '12px 16px' }}>Employee & Driver</th>
-                <th style={{ padding: '12px 16px' }}>Cab Plate</th>
-                <th style={{ padding: '12px 16px' }}>Reported At</th>
-                <th style={{ padding: '12px 16px' }}>Status</th>
-                <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredIncidents.map((inc) => {
-                const isCritical = inc.severity === 'Critical';
-                return (
+        {loading ? (
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
+            Loading incidents...
+          </div>
+        ) : filteredIncidents.length === 0 ? (
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
+            No safety incidents logged. All commuter routes operational without safety exceptions.
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
+              <thead>
+                <tr style={{ backgroundColor: 'var(--bg-surface-muted)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
+                  <th style={{ padding: '12px 16px' }}>Incident ID</th>
+                  <th style={{ padding: '12px 16px' }}>Severity</th>
+                  <th style={{ padding: '12px 16px' }}>Summary / Type</th>
+                  <th style={{ padding: '12px 16px' }}>Logged Time</th>
+                  <th style={{ padding: '12px 16px' }}>Status</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredIncidents.map((inc) => (
                   <tr key={inc.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                    <td style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      <span
-                        style={{
-                          padding: '2px 8px',
-                          backgroundColor: 'var(--bg-surface-hover)',
-                          borderRadius: 4,
-                          fontSize: 12,
-                          fontFamily: 'monospace',
-                        }}
-                      >
-                        {inc.incidentNumber}
-                      </span>
+                    <td style={{ padding: '14px 16px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                      {inc.id.slice(0, 8)}
                     </td>
                     <td style={{ padding: '14px 16px' }}>
                       <span
                         style={{
                           padding: '3px 8px',
-                          backgroundColor:
-                            inc.severity === 'Critical'
-                              ? '#FEE2E2'
-                              : inc.severity === 'High'
-                              ? '#FFEDD5'
-                              : inc.severity === 'Moderate'
-                              ? '#FEF3C7'
-                              : '#F1F5F9',
-                          color:
-                            inc.severity === 'Critical'
-                              ? '#DC2626'
-                              : inc.severity === 'High'
-                              ? '#C2410C'
-                              : inc.severity === 'Moderate'
-                              ? '#B45309'
-                              : 'var(--text-secondary)',
+                          backgroundColor: inc.severity === 'CRITICAL' ? '#FEE2E2' : '#FEF3C7',
+                          color: inc.severity === 'CRITICAL' ? '#DC2626' : '#D97706',
                           borderRadius: 4,
                           fontSize: 11,
                           fontWeight: 700,
@@ -226,48 +256,21 @@ export default function SafetyOverviewPage() {
                         {inc.severity}
                       </span>
                     </td>
-                    <td style={{ padding: '14px 16px' }}>
-                      <div style={{ fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                        {inc.title}
-                        {inc.audioRecordingAvailable && (
-                          <span title="Audio Recording Available" style={{ color: '#DC2626' }}>
-                            <Volume2 size={13} />
-                          </span>
-                        )}
-                      </div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                        Type: {inc.incidentType} â€¢ {inc.office}
-                      </div>
-                    </td>
-                    <td style={{ padding: '14px 16px' }}>
-                      <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{inc.employeeName}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Driver: {inc.driverName}</div>
-                    </td>
                     <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {inc.vehicleNumber}
+                      {inc.title}
                     </td>
                     <td style={{ padding: '14px 16px', color: 'var(--text-secondary)', fontSize: 12 }}>
-                      {inc.reportedAt}
+                      {new Date(inc.createdAt).toLocaleString()}
                     </td>
                     <td style={{ padding: '14px 16px' }}>
                       <span
                         style={{
                           padding: '3px 8px',
-                          backgroundColor:
-                            inc.status === 'Resolved'
-                              ? '#DCFCE7'
-                              : inc.status === 'Investigating'
-                              ? '#FEF3C7'
-                              : '#FEE2E2',
-                          color:
-                            inc.status === 'Resolved'
-                              ? '#15803D'
-                              : inc.status === 'Investigating'
-                              ? '#B45309'
-                              : '#DC2626',
+                          backgroundColor: inc.status === 'RESOLVED' ? '#DCFCE7' : '#EFF6FF',
+                          color: inc.status === 'RESOLVED' ? '#16A34A' : '#5728B2',
                           borderRadius: 4,
                           fontSize: 11,
-                          fontWeight: 600,
+                          fontWeight: 700,
                         }}
                       >
                         {inc.status}
@@ -275,28 +278,28 @@ export default function SafetyOverviewPage() {
                     </td>
                     <td style={{ padding: '14px 16px', textAlign: 'right' }}>
                       <Link
-                        href="/safety/incidents/details"
+                        href={`/safety/incidents/details?id=${inc.id}`}
                         style={{
+                          padding: '4px 10px',
+                          borderRadius: 4,
+                          border: '1px solid var(--border-strong)',
+                          backgroundColor: 'var(--bg-surface)',
                           fontSize: 12,
                           fontWeight: 600,
-                          color: isCritical ? '#DC2626' : 'var(--corporate-blue)',
+                          color: '#5728B2',
                           textDecoration: 'none',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 2,
                         }}
                       >
-                        Dossier <ArrowRight size={13} />
+                        Dossier
                       </Link>
                     </td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
 }
-

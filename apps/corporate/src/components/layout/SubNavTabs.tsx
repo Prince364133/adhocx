@@ -71,3 +71,4 @@ export function SubNavTabs({ title, tabs }: SubNavTabsProps) {
     </div>
   );
 }
+

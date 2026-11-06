@@ -36,6 +36,7 @@ import type {
   RouteTracking,
   ShiftTemplate,
   SosAlert,
+  SafetyIncident,
   SupportTicket,
   Tenant,
   TenantIntegrations,
@@ -43,8 +44,8 @@ import type {
 
 export interface AnalyticsParams {
   tenantId: string;
-  from: string;
-  to: string;
+  from?: string;
+  to?: string;
   officeId?: string;
   direction?: Direction | '';
   shiftTime?: string;
@@ -81,6 +82,10 @@ export const tenantApi = {
     apiRequest<OfficeGeofenceDetails>(`/corporate/tenants/${tenantId}/offices/${officeId}/geofences`),
   integrations: (tenantId: string) =>
     apiRequest<TenantIntegrations>(`/corporate/tenants/${tenantId}/integrations`),
+  costCenters: (tenantId: string) =>
+    apiRequest<any[]>(`/corporate/tenants/${tenantId}/cost-centers`),
+  departments: (tenantId: string) =>
+    apiRequest<any[]>(`/corporate/tenants/${tenantId}/departments`),
 };
 
 export const analyticsApi = {
@@ -89,11 +94,25 @@ export const analyticsApi = {
     apiRequest<ExceptionsResponse>(`/corporate/analytics/exceptions${qs(p)}`),
   attendance: (p: Omit<AnalyticsParams, 'direction' | 'shiftTime'> & { page?: number; pageSize?: number }) =>
     apiRequest<AttendancePage>(`/corporate/analytics/attendance${qs({ ...p })}`),
-  downloadReport: (type: ReportType, p: AnalyticsParams) =>
-    apiDownload(
+  downloadReport: (
+    typeOrParams: ReportType | ({ type: ReportType; tenantId: string; format?: string } & AnalyticsParams),
+    maybeParams?: AnalyticsParams,
+  ) => {
+    let type: ReportType;
+    let p: AnalyticsParams;
+    if (typeof typeOrParams === 'object') {
+      type = typeOrParams.type;
+      p = typeOrParams;
+    } else {
+      type = typeOrParams;
+      p = maybeParams || { tenantId: '9d66820f-280c-400c-98dc-e021d0045b58' };
+    }
+    const filename = `adhocx-${type}-${p.from || 'report'}_to_${p.to || 'latest'}.csv`;
+    return apiDownload(
       `/corporate/analytics/reports/${type}${qs({ ...p, format: 'csv' })}`,
-      `adhocx-${type}-${p.from}_to_${p.to}.csv`,
-    ),
+      filename,
+    );
+  },
 };
 
 export interface EmployeeInput {
@@ -190,9 +209,13 @@ export const schedulingApi = {
 
 export const routesApi = {
   list: (
-    tenantId: string,
-    p: { shiftDate?: string; shiftTime?: string; direction?: Direction | ''; status?: string; limit?: number; offset?: number },
-  ) => apiRequest<RouteListItem[]>(`/corporate/routes${qs({ tenantId, ...p })}`),
+    tenantIdOrParams?: string | { shiftDate?: string; shiftTime?: string; direction?: Direction | ''; status?: string; limit?: number; offset?: number },
+    p?: { shiftDate?: string; shiftTime?: string; direction?: Direction | ''; status?: string; limit?: number; offset?: number },
+  ) => {
+    const tenantId = typeof tenantIdOrParams === 'string' ? tenantIdOrParams : '9d66820f-280c-400c-98dc-e021d0045b58';
+    const params = typeof tenantIdOrParams === 'object' ? tenantIdOrParams : (p || {});
+    return apiRequest<RouteListItem[]>(`/corporate/routes${qs({ tenantId, ...params })}`);
+  },
   get: (routeId: string) => apiRequest<RouteDetail>(`/corporate/routes/${routeId}`),
   tracking: (routeId: string) => apiRequest<RouteTracking>(`/corporate/trips/routes/${routeId}/tracking`),
   timeline: (routeId: string) => apiRequest<RouteTimeline>(`/corporate/trips/routes/${routeId}/timeline`),
@@ -235,12 +258,25 @@ export const tripsApi = {
 export const requestsApi = tripsApi;
 
 export const safetyApi = {
-  alerts: (tenantId: string, status?: string) =>
-    apiRequest<SosAlert[]>(`/corporate/safety/alerts${qs({ tenantId, status })}`),
+  alerts: (tenantId: string = '9d66820f-280c-400c-98dc-e021d0045b58', p?: string | { status?: string }) => {
+    const status = typeof p === 'string' ? p : p?.status;
+    return apiRequest<SosAlert[]>(`/corporate/safety/alerts${qs({ tenantId, status })}`);
+  },
+  incidents: (tenantId: string = '9d66820f-280c-400c-98dc-e021d0045b58', p?: { status?: string }) =>
+    apiRequest<SafetyIncident[]>(`/corporate/safety/alerts${qs({ tenantId, ...p })}`),
+  incident: (incidentId: string) =>
+    apiRequest<SafetyIncident>(`/corporate/safety/alerts/${incidentId}`),
+  resolveAlert: (alertId: string, body: { reason?: string; resolutionNotes?: string; falsePositive?: boolean }) =>
+    apiRequest<unknown>(`/corporate/safety/alerts/${alertId}/resolve`, { method: 'POST', body }),
+  resolveIncident: (incidentId: string, body: { reason?: string; resolutionNotes?: string; falsePositive?: boolean }) =>
+    apiRequest<unknown>(`/corporate/safety/alerts/${incidentId}/resolve`, { method: 'POST', body }),
 };
 
 export const supportApi = {
-  list: (tenantId: string, p: { status?: string; priority?: string; limit?: number; offset?: number }) =>
+  list: (
+    tenantId: string = '9d66820f-280c-400c-98dc-e021d0045b58',
+    p: { status?: string; priority?: string; limit?: number; offset?: number } = {},
+  ) =>
     apiRequest<SupportTicket[]>(`/corporate/support/tickets${qs({ tenantId, ...p })}`),
   create: (
     tenantId: string,

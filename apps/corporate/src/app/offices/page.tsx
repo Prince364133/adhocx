@@ -1,6 +1,6 @@
-﻿'use client';
+'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Building2,
@@ -14,21 +14,47 @@ import {
   ChevronRight,
   Search,
 } from 'lucide-react';
-import { mockOffices } from '../../lib/mock/corporateMockData';
+import { tenantApi } from '../../lib/api/corporate';
+import type { Office } from '../../lib/api/types';
+import { useSession } from '../../lib/auth/SessionContext';
 import MetricCard from '../../components/common/MetricCard';
 
 export default function OfficesDirectoryPage() {
+  const { tenantId } = useSession();
+  const activeTenantId = tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+
+  const [offices, setOffices] = useState<Office[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
 
-  const filteredOffices = mockOffices.filter((off) => {
+  useEffect(() => {
+    setLoading(true);
+    tenantApi
+      .offices(activeTenantId)
+      .then((data) => {
+        setOffices(data);
+      })
+      .catch((err) => {
+        console.warn('Failed to load offices:', err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [activeTenantId]);
+
+  const filteredOffices = offices.filter((off) => {
+    const s = search.toLowerCase();
     const matchesSearch =
-      off.name.toLowerCase().includes(search.toLowerCase()) ||
-      off.code.toLowerCase().includes(search.toLowerCase()) ||
-      off.address.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = statusFilter === 'All' || off.status === statusFilter;
+      (off.name || '').toLowerCase().includes(s) ||
+      (off.code || '').toLowerCase().includes(s) ||
+      (off.address || '').toLowerCase().includes(s);
+    const matchesStatus = statusFilter === 'All' || (off.isActive !== false ? 'Active' : 'Inactive') === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  const totalHeadcount = offices.reduce((sum, o) => sum + (o.employeeCount || 0), 0);
+  const activeOfficesCount = offices.filter((o) => o.isActive !== false).length;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -45,12 +71,13 @@ export default function OfficesDirectoryPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
             type="button"
+            onClick={() => alert('Add campus site: Connects to POST /corporate/tenants/:id/offices')}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
               padding: '8px 14px',
-              backgroundColor: 'var(--corporate-blue)',
+              backgroundColor: '#5728B2',
               color: '#FFFFFF',
               borderRadius: 6,
               fontSize: 13,
@@ -74,31 +101,31 @@ export default function OfficesDirectoryPage() {
       >
         <MetricCard
           label="Registered Campuses"
-          value="3 Sites"
-          delta="100% Operational"
+          value={`${offices.length} Sites`}
+          delta={`${activeOfficesCount} Operational`}
           deltaType="positive"
           icon={<Building2 size={20} />}
           category="primary"
         />
         <MetricCard
-          label="Total Headcount Covered"
-          value="2,846"
-          delta="+2.4% this month"
+          label="Headcount Linked"
+          value={totalHeadcount > 0 ? totalHeadcount.toLocaleString() : 'Live Synced'}
+          delta="Enrolled Commuters"
           deltaType="positive"
           icon={<Users size={20} />}
           category="primary"
         />
         <MetricCard
-          label="Active Daily Fleet Cabs"
-          value="126 Cabs"
-          delta="Peak 08:00 - 10:00 AM"
+          label="Campus Geofences"
+          value={`${offices.length} Configured`}
+          delta="Automated Arrival Detection"
           deltaType="neutral"
           icon={<Car size={20} />}
           category="success"
         />
         <MetricCard
-          label="Secured Entry Gates"
-          value="9 Gates"
+          label="Access Perimeter"
+          value="Secured"
           delta="RFID & Barrier Online"
           deltaType="positive"
           icon={<ShieldCheck size={20} />}
@@ -153,142 +180,147 @@ export default function OfficesDirectoryPage() {
           >
             <option value="All">All Statuses</option>
             <option value="Active">Active</option>
-            <option value="Maintenance">Maintenance</option>
+            <option value="Inactive">Inactive</option>
           </select>
         </div>
       </div>
 
       {/* Campus Sites Grid Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16 }}>
-        {filteredOffices.map((office) => (
-          <div
-            key={office.id}
-            style={{
-              backgroundColor: 'var(--bg-surface)',
-              borderRadius: 8,
-              border: '1px solid var(--border-color)',
-              padding: 20,
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-            }}
-          >
-            <div>
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span
-                      style={{
-                        padding: '2px 8px',
-                        backgroundColor: '#EFF6FF',
-                        color: 'var(--corporate-blue)',
-                        borderRadius: 4,
-                        fontSize: 11,
-                        fontWeight: 700,
-                      }}
-                    >
-                      {office.code}
-                    </span>
-                    <span
-                      style={{
-                        padding: '2px 8px',
-                        backgroundColor: '#DCFCE7',
-                        color: '#15803D',
-                        borderRadius: 4,
-                        fontSize: 11,
-                        fontWeight: 600,
-                      }}
-                    >
-                      {office.status}
-                    </span>
-                  </div>
-                  <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: '8px 0 4px 0' }}>
-                    {office.name}
-                  </h3>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-muted)' }}>
-                    <MapPin size={13} />
-                    <span>{office.address}, {office.city} - {office.pincode}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Campus Stats Grid */}
+      {loading ? (
+        <div className="surface-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
+          Loading registered office campuses...
+        </div>
+      ) : filteredOffices.length === 0 ? (
+        <div className="surface-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
+          No office locations found. Add your company campus sites to start configuring rosters and geofences.
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16 }}>
+          {filteredOffices.map((office) => {
+            const statusText = office.isActive !== false ? 'Active' : 'Inactive';
+            const geofenceRadius = office.geofenceRadiusMeters || 500;
+            return (
               <div
+                key={office.id}
                 style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(3, 1fr)',
-                  gap: 8,
-                  padding: '12px 0',
-                  borderTop: '1px solid var(--border-color)',
-                  borderBottom: '1px solid var(--border-color)',
-                  margin: '12px 0',
+                  backgroundColor: 'var(--bg-surface)',
+                  borderRadius: 8,
+                  border: '1px solid var(--border-color)',
+                  padding: 20,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
                 }}
               >
                 <div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Headcount</div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
-                    {office.headcount.toLocaleString()}
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span
+                          style={{
+                            padding: '2px 8px',
+                            backgroundColor: '#EFF6FF',
+                            color: '#5728B2',
+                            borderRadius: 4,
+                            fontSize: 11,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {office.code || 'CAMPUS'}
+                        </span>
+                        <span
+                          style={{
+                            padding: '2px 8px',
+                            backgroundColor: office.isActive !== false ? '#DCFCE7' : '#F1F5F9',
+                            color: office.isActive !== false ? '#15803D' : '#64748B',
+                            borderRadius: 4,
+                            fontSize: 11,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {statusText}
+                        </span>
+                      </div>
+                      <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: '8px 0 4px 0' }}>
+                        {office.name}
+                      </h3>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-muted)' }}>
+                        <MapPin size={13} />
+                        <span>{office.address || 'Office Campus Location'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Campus Stats Grid */}
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(3, 1fr)',
+                      gap: 8,
+                      padding: '12px 0',
+                      borderTop: '1px solid var(--border-color)',
+                      borderBottom: '1px solid var(--border-color)',
+                      margin: '12px 0',
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Headcount</div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
+                        {office.employeeCount ? office.employeeCount.toLocaleString() : '—'}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Geofence</div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: '#5728B2' }}>
+                        {geofenceRadius}m
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Coordinates</div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: '#16A34A', marginTop: 3 }}>
+                        {office.latitude ? `${Number(office.latitude).toFixed(2)}, ${Number(office.longitude).toFixed(2)}` : 'Set'}
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Daily Cabs</div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--corporate-blue)' }}>
-                    {office.activeCabsDaily}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Security Gates</div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: '#16A34A' }}>
-                    {office.securityGatesCount} Gates
-                  </div>
+
+                {/* Bottom Actions */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, paddingTop: 12, borderTop: '1px solid #F1F5F9' }}>
+                  <Link
+                    href={`/offices/details?id=${office.id}`}
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: '#5728B2',
+                      textDecoration: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}
+                  >
+                    View Gates & Access <ChevronRight size={14} />
+                  </Link>
+                  <Link
+                    href={`/offices/geofences?id=${office.id}`}
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      textDecoration: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}
+                  >
+                    Geofence Details <ExternalLink size={12} />
+                  </Link>
                 </div>
               </div>
-
-              {/* Facility Lead Info */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-secondary)' }}>
-                <Phone size={13} style={{ color: 'var(--corporate-blue)' }} />
-                <span>
-                  <strong>Lead:</strong> {office.leadContact} ({office.leadPhone})
-                </span>
-              </div>
-            </div>
-
-            {/* Bottom Actions */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, paddingTop: 12, borderTop: '1px solid #F1F5F9' }}>
-              <Link
-                href="/offices/details"
-                style={{
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: 'var(--corporate-blue)',
-                  textDecoration: 'none',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 4,
-                }}
-              >
-                View Gates & Access <ChevronRight size={14} />
-              </Link>
-              <Link
-                href="/offices/geofences"
-                style={{
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: 'var(--text-secondary)',
-                  textDecoration: 'none',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 4,
-                }}
-              >
-                Geofence ({office.geofenceRadiusMeters}m) <ExternalLink size={12} />
-              </Link>
-            </div>
-          </div>
-        ))}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
-

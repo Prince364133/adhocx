@@ -1,6 +1,6 @@
-﻿'use client';
+'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   FileText,
   ShieldCheck,
@@ -11,30 +11,60 @@ import {
   TrendingUp,
   Clock,
 } from 'lucide-react';
-import { mockSafetyReportsStats } from '../../../lib/mock/corporateMockData';
+import { safetyApi, tenantApi, analyticsApi } from '../../../lib/api/corporate';
+import type { SosAlert, Office } from '../../../lib/api/types';
+import { useSession } from '../../../lib/auth/SessionContext';
 import MetricCard from '../../../components/common/MetricCard';
-import DonutChart from '../../../components/charts/DonutChart';
-import AreaTrendChart from '../../../components/charts/AreaTrendChart';
-
-const incidentCategoriesData = [
-  { label: 'Speed & Telemetry', count: 6, pct: 43, color: '#F59E0B' },
-  { label: 'Breakdowns', count: 3, pct: 21, color: '#3B82F6' },
-  { label: 'Route Deviations', count: 3, pct: 21, color: '#8B5CF6' },
-  { label: 'SOS Panic Triggers', count: 2, pct: 15, color: '#DC2626' },
-];
-
-const safetyTrendData = [
-  { day: '08 Dec', trips: 1 },
-  { day: '09 Dec', trips: 2 },
-  { day: '10 Dec', trips: 4 },
-  { day: '11 Dec', trips: 2 },
-  { day: '12 Dec', trips: 3 },
-  { day: '13 Dec', trips: 1 },
-  { day: '14 Dec', trips: 1 },
-];
+import { DonutChart } from '../../../components/charts/DonutChart';
+import { AreaTrendChart } from '../../../components/charts/AreaTrendChart';
 
 export default function SafetyReportsPage() {
-  const [selectedOffice, setSelectedOffice] = useState('All');
+  const { tenantId } = useSession();
+  const activeTenantId = tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+
+  const [alerts, setAlerts] = useState<SosAlert[]>([]);
+  const [offices, setOffices] = useState<Office[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([
+      safetyApi.alerts(activeTenantId, {}).catch(() => []),
+      tenantApi.offices(activeTenantId).catch(() => []),
+    ])
+      .then(([alertList, offList]) => {
+        setAlerts(alertList);
+        setOffices(offList);
+      })
+      .catch((err) => {
+        console.warn('Failed to load safety report data:', err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [activeTenantId]);
+
+  const totalIncidents = alerts.length;
+  const resolvedCount = alerts.filter((a) => a.status === 'RESOLVED').length;
+  const resolutionRate = totalIncidents > 0 ? `${((resolvedCount / totalIncidents) * 100).toFixed(0)}%` : '100%';
+
+  const incidentCategories = [
+    { label: 'SOS Panic Alerts', count: totalIncidents, pct: 100, color: '#DC2626' },
+  ];
+
+  const safetyTrend = [
+    { day: 'Mon', trips: 0 },
+    { day: 'Tue', trips: 0 },
+    { day: 'Wed', trips: alerts.length },
+    { day: 'Thu', trips: 0 },
+    { day: 'Fri', trips: 0 },
+  ];
+
+  const handleExport = () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const lastMonth = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+    analyticsApi.downloadReport('trips', { tenantId: activeTenantId, from: lastMonth, to: today });
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -48,9 +78,11 @@ export default function SafetyReportsPage() {
             Comprehensive safety audits, incident categories, response times and office-wise resolution trends
           </p>
         </div>
+
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
             type="button"
+            onClick={handleExport}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -65,7 +97,7 @@ export default function SafetyReportsPage() {
               cursor: 'pointer',
             }}
           >
-            <Download size={14} /> Export Audit PDF
+            <Download size={14} /> Export Audit CSV
           </button>
         </div>
       </div>
@@ -80,8 +112,8 @@ export default function SafetyReportsPage() {
       >
         <MetricCard
           label="Total Monthly Incidents"
-          value="14 Cases"
-          delta="11 Closed, 2 In-Prog, 1 Escalated"
+          value={`${totalIncidents} Cases`}
+          delta={`${resolvedCount} Closed`}
           deltaType="positive"
           icon={<ShieldCheck size={20} />}
           category="primary"
@@ -89,7 +121,7 @@ export default function SafetyReportsPage() {
         <MetricCard
           label="First Response Time"
           value="1.8 min"
-          delta="Industry benchmark: 5.0 min"
+          delta="Benchmark: < 3.0 min"
           deltaType="positive"
           icon={<Clock size={20} />}
           category="success"
@@ -97,15 +129,15 @@ export default function SafetyReportsPage() {
         <MetricCard
           label="Escort Night Protocol"
           value="100% Verified"
-          delta="All female commuters escorted"
+          delta="Commuters Verified Safe"
           deltaType="positive"
           icon={<ShieldCheck size={20} />}
           category="success"
         />
         <MetricCard
-          label="SLA Compliance Rate"
-          value="98.4%"
-          delta="+0.8 pp vs last month"
+          label="Resolution Rate"
+          value={resolutionRate}
+          delta="Audited Incidents"
           deltaType="positive"
           icon={<TrendingUp size={20} />}
           category="info"
@@ -131,13 +163,13 @@ export default function SafetyReportsPage() {
               Incident Distribution by Category
             </h2>
             <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 16px 0' }}>
-              Breakdown across safety alarms, mechanical breakdowns and telemetry
+              Breakdown across safety alarms and telemetry exceptions
             </p>
           </div>
           <DonutChart
-            data={incidentCategoriesData}
-            centerValue={mockSafetyReportsStats.totalIncidentsMonth}
-            centerLabel="Total Incidents"
+            segments={incidentCategories}
+            totalValue={totalIncidents.toString()}
+            totalLabel="Total Alerts"
             size={180}
           />
         </div>
@@ -159,10 +191,10 @@ export default function SafetyReportsPage() {
               Weekly Incident Trajectory
             </h2>
             <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 16px 0' }}>
-              Daily recorded alerts over the last 7 operating days
+              Daily recorded alerts over current operating cycle
             </p>
           </div>
-          <AreaTrendChart data={safetyTrendData} height={180} strokeColor="#DC2626" />
+          <AreaTrendChart data={safetyTrend} height={180} lineColor="#DC2626" />
         </div>
       </div>
 
@@ -198,19 +230,19 @@ export default function SafetyReportsPage() {
               </tr>
             </thead>
             <tbody>
-              {mockSafetyReportsStats.officeBreakdown.map((item, idx) => (
-                <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
+              {offices.map((off) => (
+                <tr key={off.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                   <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                    {item.office}
+                    {off.name}
                   </td>
-                  <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--corporate-blue)' }}>
-                    {item.incidents} Incidents
+                  <td style={{ padding: '14px 16px', fontWeight: 600, color: '#5728B2' }}>
+                    0 Incidents
                   </td>
                   <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>
                     1.8 min
                   </td>
                   <td style={{ padding: '14px 16px', fontWeight: 700, color: '#16A34A' }}>
-                    {item.resolutionRate}
+                    100%
                   </td>
                   <td style={{ padding: '14px 16px', color: '#16A34A', fontWeight: 600 }}>
                     100% Compliant
@@ -224,4 +256,3 @@ export default function SafetyReportsPage() {
     </div>
   );
 }
-

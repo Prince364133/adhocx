@@ -1,6 +1,6 @@
-﻿'use client';
+'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   CheckCircle2,
   Clock,
@@ -10,26 +10,39 @@ import {
   MoreVertical,
   Plus,
   Send,
+  Calendar,
 } from 'lucide-react';
-
-interface RosterVersionItem {
-  id: string;
-  version: string;
-  period: string;
-  changes: string;
-  uploadedBy: string;
-  status: 'Pending Approval' | 'Published';
-}
-
-const MOCK_ROSTER_VERSIONS: RosterVersionItem[] = [
-  { id: '1', version: 'Roster_V2.1', period: '08 Dec - 14 Dec 2026', changes: '56 updates (shift, add, remove)', uploadedBy: 'Priya Rao', status: 'Pending Approval' },
-  { id: '2', version: 'Roster_V2.0', period: '01 Dec - 07 Dec 2026', changes: '12 updates (shift change)', uploadedBy: 'Rohit Singh', status: 'Pending Approval' },
-  { id: '3', version: 'Roster_V1.9', period: '24 Nov - 30 Nov 2026', changes: '4 updates (leave, reassignment)', uploadedBy: 'Neha Verma', status: 'Pending Approval' },
-];
+import { rosterApi } from '../../../lib/api/corporate';
+import type { Roster } from '../../../lib/api/types';
+import { useSession } from '../../../lib/auth/SessionContext';
 
 export default function RosterApprovalPublishingPage() {
+  const { tenantId } = useSession();
+  const activeTenantId = tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+
+  const [rosters, setRosters] = useState<Roster[]>([]);
   const [activeTab, setActiveTab] = useState<'pending' | 'published' | 'history'>('pending');
-  const [selectedIds, setSelectedIds] = useState<string[]>(['1']);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadRosters = () => {
+    setLoading(true);
+    rosterApi
+      .list(activeTenantId, {})
+      .then((data) => {
+        setRosters(Array.isArray(data) ? data : []);
+      })
+      .catch((err) => {
+        console.warn('Failed to fetch rosters:', err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  };
+
+  useEffect(() => {
+    loadRosters();
+  }, [activeTenantId]);
 
   const toggleSelect = (id: string) => {
     if (selectedIds.includes(id)) {
@@ -39,9 +52,22 @@ export default function RosterApprovalPublishingPage() {
     }
   };
 
-  const handlePublish = () => {
-    alert(`Publishing ${selectedIds.length} approved roster version(s) to Autonomous Route Solver!`);
+  const handlePublish = async () => {
+    if (selectedIds.length === 0) return;
+    try {
+      await Promise.all(selectedIds.map((id) => rosterApi.publish(id)));
+      alert(`Published ${selectedIds.length} approved roster version(s) to Route Solver!`);
+      setSelectedIds([]);
+      loadRosters();
+    } catch (err) {
+      console.warn('Publishing error:', err);
+      alert('Failed to publish selected rosters.');
+    }
   };
+
+  const pendingRosters = rosters.filter((r) => r.status !== 'PUBLISHED');
+  const publishedRosters = rosters.filter((r) => r.status === 'PUBLISHED');
+  const displayRosters = activeTab === 'published' ? publishedRosters : pendingRosters;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -71,11 +97,11 @@ export default function RosterApprovalPublishingPage() {
             fontSize: '13px',
             fontWeight: 700,
             cursor: selectedIds.length > 0 ? 'pointer' : 'not-allowed',
-            boxShadow: '0 2px 4px rgba(87, 40, 178,0.25)',
+            boxShadow: selectedIds.length > 0 ? '0 2px 4px rgba(87, 40, 178,0.25)' : 'none',
           }}
         >
           <Send size={15} />
-          <span>+ Publish Selected ({selectedIds.length})</span>
+          <span>Publish Selected ({selectedIds.length})</span>
         </button>
       </div>
 
@@ -95,7 +121,7 @@ export default function RosterApprovalPublishingPage() {
               cursor: 'pointer',
             }}
           >
-            Pending Approval (3)
+            Pending Approval ({pendingRosters.length})
           </button>
           <button
             onClick={() => setActiveTab('published')}
@@ -110,82 +136,76 @@ export default function RosterApprovalPublishingPage() {
               cursor: 'pointer',
             }}
           >
-            Published Rosters
-          </button>
-          <button
-            onClick={() => setActiveTab('history')}
-            style={{
-              padding: '8px 16px',
-              fontSize: '13px',
-              fontWeight: 700,
-              border: 'none',
-              backgroundColor: 'transparent',
-              color: activeTab === 'history' ? '#5728B2' : '#64748B',
-              borderBottom: `2px solid ${activeTab === 'history' ? '#5728B2' : 'transparent'}`,
-              cursor: 'pointer',
-            }}
-          >
-            Version History
+            Published Rosters ({publishedRosters.length})
           </button>
         </div>
 
         {/* Approval Table */}
-        <div className="table-scroll">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th style={{ width: 36 }}>
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.length === MOCK_ROSTER_VERSIONS.length}
-                    onChange={(e) =>
-                      setSelectedIds(e.target.checked ? MOCK_ROSTER_VERSIONS.map((v) => v.id) : [])
-                    }
-                  />
-                </th>
-                <th>Roster Version</th>
-                <th>Period</th>
-                <th>Changes</th>
-                <th>Uploaded By</th>
-                <th>Status</th>
-                <th style={{ textAlign: 'right' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {MOCK_ROSTER_VERSIONS.map((v) => {
-                const isSelected = selectedIds.includes(v.id);
-                return (
-                  <tr key={v.id} style={{ backgroundColor: isSelected ? '#F8FAFC' : 'transparent' }}>
-                    <td>
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => toggleSelect(v.id)}
-                      />
-                    </td>
-                    <td style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{v.version}</td>
-                    <td style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>{v.period}</td>
-                    <td style={{ fontSize: '12px', color: 'var(--text-primary)' }}>{v.changes}</td>
-                    <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{v.uploadedBy}</td>
-                    <td>
-                      <span
-                        style={{
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          padding: '3px 8px',
-                          borderRadius: '4px',
-                          backgroundColor: '#FEF3C7',
-                          color: '#D97706',
-                          border: '1px solid #FCD34D',
-                        }}
-                      >
-                        {v.status}
-                      </span>
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
+        {loading ? (
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
+            Loading roster batches...
+          </div>
+        ) : displayRosters.length === 0 ? (
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
+            No {activeTab === 'published' ? 'published' : 'pending'} rosters found. Upload a roster spreadsheet to create a new batch.
+          </div>
+        ) : (
+          <div className="table-scroll">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th style={{ width: 36 }}>
+                    <input
+                      type="checkbox"
+                      checked={displayRosters.length > 0 && selectedIds.length === displayRosters.length}
+                      onChange={(e) =>
+                        setSelectedIds(e.target.checked ? displayRosters.map((v) => v.id) : [])
+                      }
+                    />
+                  </th>
+                  <th>Roster Identifier</th>
+                  <th>Period</th>
+                  <th>Status</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayRosters.map((v) => {
+                  const isSelected = selectedIds.includes(v.id);
+                  const isPublished = v.status === 'PUBLISHED';
+                  return (
+                    <tr key={v.id} style={{ backgroundColor: isSelected ? '#F8FAFC' : 'transparent' }}>
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelect(v.id)}
+                        />
+                      </td>
+                      <td style={{ fontWeight: 800, color: 'var(--text-primary)' }}>
+                        {v.id.slice(0, 8)} (Office {v.officeId?.slice(0, 6) || 'Main'})
+                      </td>
+                      <td style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                        {v.rosterDate ? new Date(v.rosterDate).toLocaleDateString() : 'Current Period'}
+                      </td>
+                      <td>
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            padding: '3px 8px',
+                            borderRadius: '4px',
+                            backgroundColor: isPublished ? '#DCFCE7' : '#FEF3C7',
+                            color: isPublished ? '#16A34A' : '#D97706',
+                            border: `1px solid ${isPublished ? '#86EFAC' : '#FCD34D'}`,
+                          }}
+                        >
+                          {v.status}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
                         <button
-                          onClick={() => alert(`Reviewing diff for ${v.version}`)}
+                          onClick={() => alert(`Reviewing details for roster ${v.id.slice(0, 8)}`)}
                           style={{
                             padding: '4px 10px',
                             borderRadius: 4,
@@ -197,33 +217,17 @@ export default function RosterApprovalPublishingPage() {
                             cursor: 'pointer',
                           }}
                         >
-                          Review Diff
+                          Review
                         </button>
-                        <button
-                          style={{
-                            width: 28,
-                            height: 28,
-                            borderRadius: 4,
-                            border: '1px solid var(--border-strong)',
-                            backgroundColor: 'var(--bg-surface)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          <MoreVertical size={13} color="#64748B" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
 }
-

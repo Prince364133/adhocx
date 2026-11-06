@@ -1,6 +1,6 @@
-﻿'use client';
+'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -13,26 +13,55 @@ import {
   Info,
   Calendar,
 } from 'lucide-react';
+import { rosterApi } from '../../../lib/api/corporate';
+import { useSession } from '../../../lib/auth/SessionContext';
 
-const MOCK_PREVIEW_ROWS = [
-  { empId: 'EMP02467', name: 'Priya Sharma', shift: 'Day', shiftColor: '#5728B2', office: 'HiTEC City', date: '08 Dec 2026' },
-  { empId: 'EMP02911', name: 'Rohit Singh', shift: 'Night', shiftColor: '#7C3AED', office: 'Kondapur', date: '08 Dec 2026' },
-  { empId: 'EMP03124', name: 'Neha Verma', shift: 'Evening', shiftColor: '#D97706', office: 'Gachibowli', date: '08 Dec 2026' },
-  { empId: 'EMP01893', name: 'Amit Kumar', shift: 'Day', shiftColor: '#5728B2', office: 'HiTEC City', date: '08 Dec 2026' },
-  { empId: 'EMP03376', name: 'Anjali Rao', shift: 'Day', shiftColor: '#5728B2', office: 'Madhapur', date: '08 Dec 2026' },
-];
+interface PreviewRow {
+  empId: string;
+  name: string;
+  shift: string;
+  shiftColor: string;
+  office: string;
+  date: string;
+}
 
 export default function RosterImportPreviewPage() {
   const router = useRouter();
+  const { tenantId } = useSession();
+  const activeTenantId = tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<{
+    file: File;
     name: string;
     size: string;
-    records: number;
-  } | null>({
-    name: 'HiTEC_Roster_Dec2026.xlsx',
-    size: '3.4 MB',
-    records: 2846,
-  });
+  } | null>(null);
+  const [previewRows, setPreviewRows] = useState<PreviewRow[]>([]);
+  const [isValidating, setIsValidating] = useState(false);
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+      setSelectedFile({
+        file,
+        name: file.name,
+        size: `${sizeMb} MB`,
+      });
+
+      setIsValidating(true);
+      try {
+        const res = await rosterApi.validate(activeTenantId, file);
+        if (res && (res as any).previewRows) {
+          setPreviewRows((res as any).previewRows);
+        }
+      } catch (err) {
+        console.warn('Validation error:', err);
+      } finally {
+        setIsValidating(false);
+      }
+    }
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -68,10 +97,10 @@ export default function RosterImportPreviewPage() {
           <div style={{ height: 2, flex: 1, backgroundColor: '#CBD5E1', margin: '0 12px' }} />
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: '#5728B2', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: selectedFile ? '#5728B2' : 'var(--bg-surface-hover)', color: selectedFile ? '#FFFFFF' : 'var(--text-secondary)', border: '1px solid var(--border-strong)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
               3
             </div>
-            <span style={{ fontSize: '13px', fontWeight: 700, color: '#5728B2' }}>Preview & Validate</span>
+            <span style={{ fontSize: '13px', fontWeight: selectedFile ? 700 : 500, color: selectedFile ? '#5728B2' : 'var(--text-secondary)' }}>Preview & Validate</span>
           </div>
 
           <div style={{ height: 2, flex: 1, backgroundColor: '#CBD5E1', margin: '0 12px' }} />
@@ -80,7 +109,7 @@ export default function RosterImportPreviewPage() {
             <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: 'var(--bg-surface-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-strong)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
               4
             </div>
-            <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>Import</span>
+            <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>Publish</span>
           </div>
         </div>
       </div>
@@ -89,7 +118,16 @@ export default function RosterImportPreviewPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '20px' }}>
         {/* Left: Upload Box */}
         <div className="surface-card" style={{ padding: '24px', backgroundColor: 'var(--bg-surface)', flex: '1 1 45%' }}>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileSelect}
+            accept=".xlsx,.csv"
+            style={{ display: 'none' }}
+          />
+
           <div
+            onClick={() => fileInputRef.current?.click()}
             style={{
               border: '2px dashed #93C5FD',
               borderRadius: '12px',
@@ -115,7 +153,7 @@ export default function RosterImportPreviewPage() {
             </div>
 
             <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '10px' }}>
-              Supported formats: .xlsx, .csv Â· Max size: 20 MB
+              Supported formats: .xlsx, .csv · Max size: 20 MB
             </div>
           </div>
 
@@ -139,7 +177,7 @@ export default function RosterImportPreviewPage() {
                     {selectedFile.name}
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                    {selectedFile.size} Â· <strong>{selectedFile.records.toLocaleString()} rows detected</strong>
+                    {selectedFile.size} · Validating columns & employee IDs
                   </div>
                 </div>
               </div>
@@ -150,7 +188,7 @@ export default function RosterImportPreviewPage() {
 
           <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <button
-              onClick={() => alert('Downloading Roster Template')}
+              onClick={() => alert('Downloading Roster Template (Excel)')}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -171,19 +209,20 @@ export default function RosterImportPreviewPage() {
 
             <button
               onClick={() => router.push('/rosters/approve')}
+              disabled={!selectedFile}
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                backgroundColor: '#5728B2',
+                backgroundColor: selectedFile ? '#5728B2' : '#CBD5E1',
                 color: '#FFFFFF',
                 border: 'none',
                 borderRadius: '6px',
                 padding: '8px 18px',
                 fontSize: '13px',
                 fontWeight: 700,
-                cursor: 'pointer',
-                boxShadow: '0 2px 4px rgba(87, 40, 178,0.25)',
+                cursor: selectedFile ? 'pointer' : 'not-allowed',
+                boxShadow: selectedFile ? '0 2px 4px rgba(87, 40, 178,0.25)' : 'none',
               }}
             >
               <span>Validate & Review</span>
@@ -192,62 +231,69 @@ export default function RosterImportPreviewPage() {
           </div>
         </div>
 
-        {/* Right: First 5 Rows Preview Table */}
+        {/* Right: Preview Table */}
         <div className="surface-card" style={{ padding: '20px', backgroundColor: 'var(--bg-surface)', flex: '1 1 55%' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
             <div>
               <h3 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                Import Preview (First 5 Rows)
+                Import Preview
               </h3>
               <p style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
                 Column mapping verified against tenant shifts
               </p>
             </div>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: '#16A34A', backgroundColor: '#DCFCE7', padding: '2px 8px', borderRadius: '4px' }}>
-              âœ“ All Columns Matched
-            </span>
+            {selectedFile && (
+              <span style={{ fontSize: '11px', fontWeight: 700, color: '#16A34A', backgroundColor: '#DCFCE7', padding: '2px 8px', borderRadius: '4px' }}>
+                ✓ Ready for Validation
+              </span>
+            )}
           </div>
 
-          <div className="table-scroll">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Employee ID</th>
-                  <th>Employee Name</th>
-                  <th>Shift</th>
-                  <th>Office</th>
-                  <th>Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {MOCK_PREVIEW_ROWS.map((row) => (
-                  <tr key={row.empId}>
-                    <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{row.empId}</td>
-                    <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{row.name}</td>
-                    <td>
-                      <span
-                        style={{
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          padding: '2px 8px',
-                          borderRadius: '4px',
-                          backgroundColor: `${row.shiftColor}18`,
-                          color: row.shiftColor,
-                        }}
-                      >
-                        {row.shift}
-                      </span>
-                    </td>
-                    <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{row.office}</td>
-                    <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{row.date}</td>
+          {previewRows.length === 0 ? (
+            <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13 }}>
+              Select a roster spreadsheet to preview parsed rows.
+            </div>
+          ) : (
+            <div className="table-scroll">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Employee ID</th>
+                    <th>Employee Name</th>
+                    <th>Shift</th>
+                    <th>Office</th>
+                    <th>Date</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {previewRows.map((row) => (
+                    <tr key={row.empId}>
+                      <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{row.empId}</td>
+                      <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{row.name}</td>
+                      <td>
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            backgroundColor: `${row.shiftColor}18`,
+                            color: row.shiftColor,
+                          }}
+                        >
+                          {row.shift}
+                        </span>
+                      </td>
+                      <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{row.office}</td>
+                      <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{row.date}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
-

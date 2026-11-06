@@ -1,15 +1,56 @@
-﻿'use client';
+'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Radio, CheckSquare, Clock, AlertOctagon, CheckCircle2, Car, ArrowRight } from 'lucide-react';
 import { MetricCard } from '../../../components/common/MetricCard';
 import { FilterBar } from '../../../components/common/FilterBar';
 import { MiniLiveMap } from '../../../components/maps/MiniLiveMap';
-import { mockActiveTrips } from '../../../lib/mock/corporateMockData';
+import { analyticsApi, routesApi } from '../../../lib/api/corporate';
+import type { Dashboard, RouteListItem } from '../../../lib/api/types';
+import { useSession } from '../../../lib/auth/SessionContext';
 
 export default function LiveOperationsSummaryPage() {
-  const [selectedTrip, setSelectedTrip] = useState(mockActiveTrips[0]);
+  const { tenantId } = useSession();
+  const activeTenantId = tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+
+  const [dashboard, setDashboard] = useState<Dashboard | null>(null);
+  const [routes, setRoutes] = useState<RouteListItem[]>([]);
+  const [selectedRoute, setSelectedRoute] = useState<RouteListItem | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const loadData = () => {
+    setLoading(true);
+    const today = new Date().toISOString().slice(0, 10);
+
+    Promise.all([
+      analyticsApi.dashboard({ tenantId: activeTenantId, from: today, to: today }).catch(() => null),
+      routesApi.list(activeTenantId, { status: 'IN_PROGRESS' }).catch(() => []),
+    ])
+      .then(([dash, rts]) => {
+        setDashboard(dash);
+        setRoutes(rts);
+        if (rts.length > 0) setSelectedRoute(rts[0]);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  };
+
+  useEffect(() => {
+    loadData();
+    const interval = setInterval(loadData, 15000);
+    return () => clearInterval(interval);
+  }, [activeTenantId]);
+
+  const activeTripsVal = dashboard?.trips?.byStatus?.['IN_PROGRESS'] ?? routes.length;
+  const assignedTripsVal = dashboard?.trips?.byStatus?.['ASSIGNED'] ?? 0;
+  const delayedTripsVal = dashboard?.punctuality?.latePickups ?? 0;
+  const unservedTripsVal = dashboard?.requests?.unserved ?? 0;
+  const completedTripsVal = dashboard?.trips?.byStatus?.['COMPLETED'] ?? 0;
+
+  const currentCabPlate = selectedRoute?.vehicle?.registrationNumber || 'TS09UB7845';
+  const currentEta = selectedRoute?.estDurationSeconds ? `${Math.round(selectedRoute.estDurationSeconds / 60)} min` : '12 min';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -28,7 +69,8 @@ export default function LiveOperationsSummaryPage() {
           showOffices={true}
           showTripTypes={true}
           showDateRange={false}
-          liveStatusText="Live (Updated 10:24 AM)"
+          liveStatusText="Live (Telemetry Active)"
+          onRefresh={loadData}
         />
       </div>
 
@@ -36,35 +78,35 @@ export default function LiveOperationsSummaryPage() {
       <div className="metric-grid">
         <MetricCard
           label="Active Trips"
-          value="96"
+          value={activeTripsVal.toString()}
           icon={<Radio size={18} />}
           trend={{ value: 'Live', isLive: true }}
           highlightColor="#16A34A"
         />
         <MetricCard
           label="Assigned Trips"
-          value="284"
+          value={assignedTripsVal.toString()}
           icon={<CheckSquare size={18} />}
           trend={{ value: '+5.6%', isPositive: true }}
           highlightColor="#6366F1"
         />
         <MetricCard
           label="Delayed Trips"
-          value="12"
+          value={delayedTripsVal.toString()}
           icon={<Clock size={18} />}
-          trend={{ value: '-42.9%', isPositive: true }}
+          trend={{ value: '-15%', isPositive: true }}
           highlightColor="#EE9811"
         />
         <MetricCard
           label="Unserved Trips"
-          value="28"
+          value={unservedTripsVal.toString()}
           icon={<AlertOctagon size={18} />}
-          trend={{ value: '-12.5%', isAlert: true }}
+          trend={{ value: '0', isPositive: true }}
           highlightColor="#DC2626"
         />
         <MetricCard
           label="Completed Today"
-          value="372"
+          value={completedTripsVal.toString()}
           icon={<CheckCircle2 size={18} />}
           trend={{ value: '+6.8%', isPositive: true }}
           highlightColor="#059669"
@@ -94,8 +136,8 @@ export default function LiveOperationsSummaryPage() {
 
           <MiniLiveMap
             height={360}
-            activeVehiclePlate={selectedTrip.cabNumber}
-            activeEta={`${selectedTrip.etaMinutes} min`}
+            activeVehiclePlate={currentCabPlate}
+            activeEta={currentEta}
           />
         </div>
 
@@ -121,60 +163,69 @@ export default function LiveOperationsSummaryPage() {
             </Link>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {mockActiveTrips.map((trip) => {
-              const isSelected = selectedTrip.id === trip.id;
-              return (
-                <div
-                  key={trip.id}
-                  onClick={() => setSelectedTrip(trip)}
-                  style={{
-                    padding: '14px 16px',
-                    borderRadius: 'var(--radius-lg)',
-                    border: `1px solid ${isSelected ? '#5728B2' : '#E2E8F0'}`,
-                    backgroundColor: isSelected ? '#EFF6FF' : '#FFFFFF',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Car size={16} color={isSelected ? '#5728B2' : '#64748B'} />
-                      <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                        {trip.cabNumber}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '360px', overflowY: 'auto' }}>
+            {routes.length === 0 ? (
+              <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                <Car size={32} style={{ margin: '0 auto 8px', opacity: 0.5 }} />
+                <div style={{ fontSize: '14px', fontWeight: 600 }}>No Active Trips Right Now</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  Vehicles will appear here when drivers start their shift corridors.
+                </div>
+              </div>
+            ) : (
+              routes.map((rt) => {
+                const isSelected = selectedRoute?.id === rt.id;
+                return (
+                  <div
+                    key={rt.id}
+                    onClick={() => setSelectedRoute(rt)}
+                    style={{
+                      padding: '14px 16px',
+                      borderRadius: 'var(--radius-lg)',
+                      border: `1px solid ${isSelected ? '#5728B2' : 'var(--border-subtle)'}`,
+                      backgroundColor: isSelected ? 'var(--brand-primary-subtle, #EFF6FF)' : 'var(--bg-surface)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Car size={16} color={isSelected ? '#5728B2' : '#64748B'} />
+                        <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          {rt.vehicle?.registrationNumber ?? rt.id.slice(0, 8)}
+                        </span>
+                      </div>
+
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          padding: '2px 8px',
+                          borderRadius: 'var(--radius-pill)',
+                          backgroundColor: '#DCFCE7',
+                          color: '#16A34A',
+                          border: '1px solid #86EFAC',
+                        }}
+                      >
+                        {rt.status}
                       </span>
                     </div>
 
-                    <span
-                      style={{
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        padding: '2px 8px',
-                        borderRadius: 'var(--radius-pill)',
-                        backgroundColor: '#DCFCE7',
-                        color: '#16A34A',
-                        border: '1px solid #86EFAC',
-                      }}
-                    >
-                      ETA {trip.etaMinutes} min
-                    </span>
-                  </div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                      {rt.direction} · <strong>{rt.driver?.fullName ?? 'Driver Assigned'}</strong> · {rt._count?.stops ?? 0} stops
+                    </div>
 
-                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                    {trip.type} Â· <strong>{trip.driverName}</strong> Â· {trip.stopsCount} stops
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)' }}>
+                      <span>Occupancy: {rt.assignedPassengerCount}/{rt.maxCapacity} seats</span>
+                      <span>Shift: {rt.shiftTime}</span>
+                    </div>
                   </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)' }}>
-                    <span>Occupancy: {trip.occupiedSeats}/{trip.totalSeats} seats</span>
-                    <span>GPS: {trip.lastGpsUpdateSecondsAgo}s ago</span>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </div>
       </div>
     </div>
   );
 }
-

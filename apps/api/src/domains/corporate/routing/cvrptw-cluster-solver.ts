@@ -1,4 +1,11 @@
 import { RouteCoord, haversineKm, GoogleRoutesV2Adapter, RouteRequestOptions } from './google-routes-v2.adapter';
+import {
+  PricingConfig,
+  calculateDistanceCharge,
+  selectCheapestCab,
+  optimizeGroups,
+  DEFAULT_PRICING_CONFIG,
+} from './cost-optimizer';
 
 export interface EmployeeRecord {
   employeeName: string;
@@ -10,6 +17,7 @@ export interface EmployeeRecord {
   matchedAddress: string;
   officeDistanceKm: number;
   outOfRadius: boolean;
+  bearingToOffice?: number;
 }
 
 export interface SolverConfig {
@@ -19,9 +27,11 @@ export interface SolverConfig {
   pickupWaitMinutes: number; // default 5
   cabCapacity: number; // default 4
   officeRadiusKm: number; // default 50
+  maxTripKm?: number; // default 50
   routingPreference?: 'TRAFFIC_AWARE' | 'TRAFFIC_AWARE_OPTIMAL';
   avoidTolls?: boolean;
   avoidHighways?: boolean;
+  pricingConfig?: PricingConfig;
 }
 
 export interface SolverPlannedStop {
@@ -53,6 +63,10 @@ export interface SolverPlannedSegment {
 
 export interface SolverCalculatedRoute {
   cab: number;
+  cabType?: string;
+  driverPayout?: number;
+  corporateRevenue?: number;
+  projectedMargin?: number;
   driverStart: string;
   sequence: string;
   stops: SolverPlannedStop[];
@@ -83,9 +97,25 @@ export function generate4DigitOtp(): string {
 }
 
 /**
- * Clusters employees into cabs using spatial proximity and radial spread objective scoring.
+ * Clusters employees into cabs using directional corridor bearings or pairwise Haversine proximity.
  */
-export function clusterEmployees(employees: EmployeeRecord[], capacity: number): EmployeeRecord[][] {
+export function clusterEmployees(
+  employees: EmployeeRecord[],
+  capacity: number,
+  officeCoord?: RouteCoord,
+  pricingConfig?: PricingConfig,
+  maxTripKm?: number,
+): EmployeeRecord[][] {
+  if (officeCoord) {
+    return optimizeGroups(
+      employees,
+      officeCoord,
+      pricingConfig || DEFAULT_PRICING_CONFIG,
+      capacity,
+      maxTripKm || 50,
+    );
+  }
+
   let remaining = [...employees];
   const groups: EmployeeRecord[][] = [];
 
@@ -147,6 +177,8 @@ export async function solveCabRoute(
   officeCoord: RouteCoord,
   config: SolverConfig,
   routesAdapter: GoogleRoutesV2Adapter,
+  pricingConfig: PricingConfig = DEFAULT_PRICING_CONFIG,
+  fleetUsed: Record<string, number> = {},
 ): Promise<SolverCalculatedRoute> {
   // 1. Furthest employee from office starts the cab route
   const sortedByDist = [...group].sort((a, b) => b.officeDistanceKm - a.officeDistanceKm);
@@ -267,8 +299,28 @@ export async function solveCabRoute(
   const meetsDeadline = arrival.getTime() <= config.loginTime.getTime();
   const meetsBuffer = arrival.getTime() <= targetArrival.getTime();
 
+  const effectivePricing = config.pricingConfig || pricingConfig || DEFAULT_PRICING_CONFIG;
+  const cabType =
+    selectCheapestCab(route.distanceKm, group.length, effectivePricing, fleetUsed) ||
+    effectivePricing.cabTypes[0];
+  if (cabType) {
+    fleetUsed[cabType.name] = (fleetUsed[cabType.name] || 0) + 1;
+  }
+  const driverPayout = cabType ? calculateDistanceCharge(route.distanceKm, cabType) : 0;
+  const corporateRevenue = Number(
+    (
+      (effectivePricing.employeeRevenue || 0) * group.length +
+      (effectivePricing.revenuePerKm || 0) * route.distanceKm
+    ).toFixed(2),
+  );
+  const projectedMargin = Number((corporateRevenue - driverPayout).toFixed(2));
+
   return {
     cab: cabNumber,
+    cabType: cabType?.name || 'sedan',
+    driverPayout,
+    corporateRevenue,
+    projectedMargin,
     driverStart: `${driver.employeeName} - ${driver.pickupAddress}`,
     sequence: [...people.map((p) => p.employeeName), officeName].join(' -> '),
     stops,

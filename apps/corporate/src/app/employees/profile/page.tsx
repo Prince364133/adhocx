@@ -1,6 +1,7 @@
-﻿'use client';
+'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   User,
   Mail,
@@ -20,9 +21,84 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { MiniLiveMap } from '../../../components/maps/MiniLiveMap';
+import { employeeApi } from '../../../lib/api/corporate';
+import type { CorporateEmployee } from '../../../lib/api/types';
+import { useSession } from '../../../lib/auth/SessionContext';
 
-export default function EmployeeProfilePage() {
+function EmployeeProfileContent() {
+  const { tenantId } = useSession();
+  const activeTenantId = tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+
+  const searchParams = useSearchParams();
+  const employeeId = searchParams.get('id');
+
+  const [employee, setEmployee] = useState<CorporateEmployee | null>(null);
+  const [requests, setRequests] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'transport' | 'history' | 'roster' | 'documents' | 'activity'>('overview');
+
+  useEffect(() => {
+    setLoading(true);
+    const fetchEmployee = async () => {
+      try {
+        let emp: CorporateEmployee | null = null;
+        if (employeeId) {
+          emp = await employeeApi.get(activeTenantId, employeeId);
+        } else {
+          const listRes = await employeeApi.list(activeTenantId, { limit: 1 });
+          const items = listRes?.items || (listRes as any)?.data || [];
+          if (items.length > 0) {
+            emp = items[0];
+          }
+        }
+        setEmployee(emp);
+
+        if (emp?.id) {
+          const reqs = await employeeApi.requests(activeTenantId, emp.id).catch(() => []);
+          setRequests(reqs as any[]);
+        }
+      } catch (err) {
+        console.warn('Failed to fetch employee details:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEmployee();
+  }, [activeTenantId, employeeId]);
+
+  if (loading) {
+    return (
+      <div className="surface-card" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+        Loading employee profile...
+      </div>
+    );
+  }
+
+  if (!employee) {
+    return (
+      <div className="surface-card" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+        Employee not found. Please select an employee from the directory.
+      </div>
+    );
+  }
+
+  const fullName = employee.fullName || 'Enterprise Employee';
+  const initials = fullName
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+  const code = employee.employeeCode || `EMP-${employee.id.slice(0, 6)}`;
+  const department = typeof employee.department === 'string' ? employee.department : (employee.department as any)?.name || 'Operations';
+  const officeName = employee.office?.name || 'Main Office Hub';
+  const email = employee.email || '—';
+  const phone = employee.phoneNumber || '—';
+  const defaultLoc = employee.locations?.find((l) => l.isDefault) || employee.locations?.[0];
+  const homeAddress = defaultLoc?.addressText || 'Pickup Point Configured';
+  const pickupLat = defaultLoc?.latitude ? Number(defaultLoc.latitude).toFixed(4) : '17.4485';
+  const pickupLng = defaultLoc?.longitude ? Number(defaultLoc.longitude).toFixed(4) : '78.3741';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -39,7 +115,7 @@ export default function EmployeeProfilePage() {
 
         <div style={{ display: 'flex', gap: '10px' }}>
           <button
-            onClick={() => alert('Editing profile')}
+            onClick={() => alert(`Editing profile for ${fullName}`)}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -57,21 +133,6 @@ export default function EmployeeProfilePage() {
           >
             <Edit2 size={14} />
             <span>Edit Profile</span>
-          </button>
-          <button
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 6,
-              border: '1px solid var(--border-strong)',
-              backgroundColor: 'var(--bg-surface)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-            }}
-          >
-            <MoreVertical size={16} color="#64748B" />
           </button>
         </div>
       </div>
@@ -97,28 +158,28 @@ export default function EmployeeProfilePage() {
                 margin: '0 auto 12px auto',
               }}
             >
-              PS
+              {initials}
             </div>
             <h2 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>
-              Priya Sharma
+              {fullName}
             </h2>
             <div style={{ marginTop: '4px', marginBottom: '8px' }}>
               <span
                 style={{
                   fontSize: '11px',
                   fontWeight: 800,
-                  backgroundColor: '#DCFCE7',
-                  color: '#16A34A',
-                  border: '1px solid #86EFAC',
+                  backgroundColor: employee.isActive !== false ? '#DCFCE7' : '#F1F5F9',
+                  color: employee.isActive !== false ? '#16A34A' : '#64748B',
+                  border: `1px solid ${employee.isActive !== false ? '#86EFAC' : '#CBD5E1'}`,
                   padding: '2px 8px',
                   borderRadius: 'var(--radius-pill)',
                 }}
               >
-                Transport Eligible
+                {employee.isActive !== false ? 'Transport Eligible' : 'Inactive'}
               </span>
             </div>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>EMP02467</div>
-            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Product Team Â· HiTEC City</div>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{code}</div>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{department} · {officeName}</div>
           </div>
 
           {/* Subnav Tabs Menu */}
@@ -186,73 +247,7 @@ export default function EmployeeProfilePage() {
               }}
             >
               <History size={16} />
-              <span>Trip History</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('roster')}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '10px 14px',
-                borderRadius: 6,
-                border: 'none',
-                backgroundColor: activeTab === 'roster' ? '#EFF6FF' : 'transparent',
-                color: activeTab === 'roster' ? '#5728B2' : '#475569',
-                fontSize: '13px',
-                fontWeight: activeTab === 'roster' ? 700 : 500,
-                cursor: 'pointer',
-                textAlign: 'left',
-              }}
-            >
-              <Calendar size={16} />
-              <span>Roster & Shifts</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('documents')}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '10px 14px',
-                borderRadius: 6,
-                border: 'none',
-                backgroundColor: activeTab === 'documents' ? '#EFF6FF' : 'transparent',
-                color: activeTab === 'documents' ? '#5728B2' : '#475569',
-                fontSize: '13px',
-                fontWeight: activeTab === 'documents' ? 700 : 500,
-                cursor: 'pointer',
-                textAlign: 'left',
-              }}
-            >
-              <FileText size={16} />
-              <span>Documents</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('activity')}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '10px 14px',
-                borderRadius: 6,
-                border: 'none',
-                backgroundColor: activeTab === 'activity' ? '#EFF6FF' : 'transparent',
-                color: activeTab === 'activity' ? '#5728B2' : '#475569',
-                fontSize: '13px',
-                fontWeight: activeTab === 'activity' ? 700 : 500,
-                cursor: 'pointer',
-                textAlign: 'left',
-              }}
-            >
-              <Activity size={16} />
-              <span>Activity Log</span>
+              <span>Trip Requests ({requests.length})</span>
             </button>
           </div>
         </div>
@@ -271,8 +266,8 @@ export default function EmployeeProfilePage() {
                   <Briefcase size={16} />
                 </div>
                 <div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Employee ID</div>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>EMP02467</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Employee Code</div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{code}</div>
                 </div>
               </div>
 
@@ -282,7 +277,7 @@ export default function EmployeeProfilePage() {
                 </div>
                 <div>
                   <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Work Email</div>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>priya.sharma@hitec.com</div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{email}</div>
                 </div>
               </div>
 
@@ -292,7 +287,7 @@ export default function EmployeeProfilePage() {
                 </div>
                 <div>
                   <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Phone</div>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>+91 98765 43210</div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{phone}</div>
                 </div>
               </div>
 
@@ -302,7 +297,7 @@ export default function EmployeeProfilePage() {
                 </div>
                 <div>
                   <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Department</div>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Product</div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{department}</div>
                 </div>
               </div>
 
@@ -312,7 +307,7 @@ export default function EmployeeProfilePage() {
                 </div>
                 <div>
                   <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Office / Building</div>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>HiTEC City</div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{officeName}</div>
                 </div>
               </div>
 
@@ -321,8 +316,10 @@ export default function EmployeeProfilePage() {
                   <ShieldCheck size={16} />
                 </div>
                 <div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Employment Type</div>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Full-Time</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Gender</div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    {employee.gender || 'Not specified'}
+                  </div>
                 </div>
               </div>
             </div>
@@ -338,25 +335,24 @@ export default function EmployeeProfilePage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div>
                   <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Eligibility Status</div>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#16A34A', marginTop: '2px' }}>
-                    Eligible (Compliant with Corporate Cab Policy)
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: employee.isActive !== false ? '#16A34A' : '#64748B', marginTop: '2px' }}>
+                    {employee.isActive !== false ? 'Eligible for Corporate Transport' : 'Not Eligible'}
                   </div>
                 </div>
 
                 <div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Geocoded Pickup Location</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Home / Geocoded Pickup Location</div>
                   <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
-                    Kondapur, Bus Stop Near Metro
+                    {homeAddress}
                   </div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Lat: 17.4699, Lng: 78.3578</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Lat: {pickupLat}, Lng: {pickupLng}</div>
                 </div>
 
                 <div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Geocoded Drop Location</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Assigned Office Hub</div>
                   <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
-                    HiTEC Office, Main Gate
+                    {officeName}
                   </div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Lat: 17.4474, Lng: 78.3762</div>
                 </div>
               </div>
 
@@ -364,41 +360,60 @@ export default function EmployeeProfilePage() {
               <div style={{ height: 160, borderRadius: 8, overflow: 'hidden' }}>
                 <MiniLiveMap
                   height={160}
-                  activeVehiclePlate="Kondapur Pickup"
-                  activeEta="Assigned Node"
+                  activeVehiclePlate={`${code} Node`}
+                  activeEta="Assigned Stop"
                 />
               </div>
             </div>
           </div>
 
-          {/* Card 3: Current Assignment */}
+          {/* Card 3: Recent Requests / Trip History */}
           <div className="surface-card" style={{ padding: '20px', backgroundColor: 'var(--bg-surface)' }}>
             <h3 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '16px' }}>
-              Current Assignment
+              Transport Requests ({requests.length})
             </h3>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px' }}>
-              <div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Active Shift</div>
-                <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
-                  Login (8:00 AM)
-                </div>
+            {requests.length === 0 ? (
+              <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '13px' }}>
+                No active or past transport requests found for this employee.
               </div>
-
-              <div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Active Roster</div>
-                <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
-                  Week 50 (Dec 08 - Dec 14)
-                </div>
+            ) : (
+              <div className="table-scroll">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Request ID</th>
+                      <th>Type</th>
+                      <th>Scheduled Date</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {requests.map((r: any) => (
+                      <tr key={r.id}>
+                        <td style={{ fontWeight: 700 }}>{r.id.slice(0, 8)}</td>
+                        <td>{r.type || 'COMMUTE'}</td>
+                        <td>{r.scheduledDate ? new Date(r.scheduledDate).toLocaleDateString() : '—'}</td>
+                        <td>
+                          <span
+                            style={{
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              color: r.status === 'SERVED' ? '#16A34A' : '#D97706',
+                              backgroundColor: r.status === 'SERVED' ? '#DCFCE7' : '#FEF3C7',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                            }}
+                          >
+                            {r.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-
-              <div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Today&apos;s Trip</div>
-                <div style={{ fontSize: '14px', fontWeight: 700, color: '#5728B2', marginTop: '2px' }}>
-                  TS09UB7845 (Pickup 7:42 AM)
-                </div>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
@@ -406,3 +421,10 @@ export default function EmployeeProfilePage() {
   );
 }
 
+export default function EmployeeProfilePage() {
+  return (
+    <Suspense fallback={<div className="surface-card" style={{ padding: '40px', textAlign: 'center' }}>Loading profile...</div>}>
+      <EmployeeProfileContent />
+    </Suspense>
+  );
+}

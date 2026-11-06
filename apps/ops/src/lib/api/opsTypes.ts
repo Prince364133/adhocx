@@ -181,6 +181,10 @@ export interface PlannedRouteSegment {
 
 export interface CalculatedRoute {
   cab: number;
+  cabType?: string;
+  driverPayout?: number;
+  corporateRevenue?: number;
+  projectedMargin?: number;
   driverStart: string;
   sequence: string;
   stops: PlannedRouteStop[];
@@ -199,9 +203,23 @@ export interface RoutePlanningResult {
   employeeCount: number;
   cabCount: number;
   officeRadiusKm: number;
+  maxTripKm?: number;
   outOfRadiusCount: number;
+  excludedByDistanceCount?: number;
+  excludedByDistance?: Array<{
+    name: string;
+    address: string;
+    matchedAddress?: string;
+    lat: number;
+    lng: number;
+    officeDistanceKm: number;
+  }>;
   bufferedDeadline: string;
   office: { name: string; lat: number; lng: number };
   routes: CalculatedRoute[];
+  totalKm?: number;
+  totalDriverPayout?: number;
+  expectedCorporateRevenue?: number;
+  projectedMargin?: number;
 }
 

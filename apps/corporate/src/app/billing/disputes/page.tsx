@@ -1,6 +1,7 @@
-﻿'use client';
+'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
   Scale,
   Plus,
@@ -11,70 +12,127 @@ import {
   Eye,
   MessageSquare,
   Search,
+  X,
+  Layers,
 } from 'lucide-react';
+import { billingApi } from '../../../lib/api/corporate';
+import { Invoice, InvoiceDispute } from '../../../lib/api/types';
 
-interface DisputeItem {
-  id: string;
-  disputeId: string;
-  invoiceNo: string;
-  office: string;
-  reason: string;
-  amount: number;
-  status: 'Open' | 'Under Review' | 'Resolved';
-  raisedOn: string;
+function formatPaiseToRupees(paise: string | number): string {
+  const rupees = Number(paise) / 100;
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(rupees);
 }
 
-const MOCK_DISPUTES: DisputeItem[] = [
-  { id: '1', disputeId: 'DIS-0264', invoiceNo: 'INV-2026-010', office: 'Gachibowli', reason: 'Extra trip charge mismatch', amount: 48000, status: 'Open', raisedOn: '24 Nov 2026' },
-  { id: '2', disputeId: 'DIS-0263', invoiceNo: 'INV-2026-009', office: 'Madhapur', reason: 'Incorrect trip count (+12 trips)', amount: 76500, status: 'Under Review', raisedOn: '22 Nov 2026' },
-  { id: '3', disputeId: 'DIS-0261', invoiceNo: 'INV-2026-007', office: 'HiTEC City', reason: 'Cancellation charge (not applicable - notified >9h)', amount: 12000, status: 'Resolved', raisedOn: '15 Nov 2026' },
-  { id: '4', disputeId: 'DIS-0258', invoiceNo: 'INV-2026-005', office: 'Kondapur', reason: 'Re-route distance variance calculation error', amount: 18000, status: 'Resolved', raisedOn: '10 Nov 2026' },
-  { id: '5', disputeId: 'DIS-0256', invoiceNo: 'INV-2026-004', office: 'HiTEC City', reason: 'Duplicate trip charge for login shift', amount: 26000, status: 'Resolved', raisedOn: '07 Nov 2026' },
-];
+interface PageProps {
+  searchParams?: { tenantId?: string };
+}
 
-export default function BillingDisputesPage() {
-  const [activeTab, setActiveTab] = useState<'all' | 'open' | 'review' | 'resolved'>('all');
-  const [disputes, setDisputes] = useState(MOCK_DISPUTES);
+export default function BillingDisputesPage({ searchParams }: PageProps) {
+  const activeTenantId = searchParams?.tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+  const [activeTab, setActiveTab] = useState<'all' | 'open' | 'resolved'>('all');
+  const [loading, setLoading] = useState(true);
+  const [disputes, setDisputes] = useState<InvoiceDispute[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Raise dispute modal state
+  const [showModal, setShowModal] = useState(false);
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState('');
+  const [reason, setReason] = useState('');
+  const [claimedAmountRupees, setClaimedAmountRupees] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  async function loadData() {
+    if (!activeTenantId) return;
+    try {
+      setLoading(true);
+      const [dispRes, invRes] = await Promise.all([
+        billingApi.disputes(activeTenantId),
+        billingApi.invoices(activeTenantId, { limit: 50 }),
+      ]);
+      setDisputes(dispRes || []);
+      setInvoices(invRes.items || []);
+    } catch (err) {
+      console.error('Failed to load disputes data:', err);
+      setDisputes([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadData();
+  }, [activeTenantId]);
+
+  const openDisputes = disputes.filter((d) => d.status === 'OPEN');
+  const resolvedDisputes = disputes.filter((d) => d.status === 'ACCEPTED' || d.status === 'REJECTED');
+
   const filteredDisputes = disputes.filter((item) => {
-    if (activeTab === 'open' && item.status !== 'Open') return false;
-    if (activeTab === 'review' && item.status !== 'Under Review') return false;
-    if (activeTab === 'resolved' && item.status !== 'Resolved') return false;
+    if (activeTab === 'open' && item.status !== 'OPEN') return false;
+    if (activeTab === 'resolved' && item.status !== 'ACCEPTED' && item.status !== 'REJECTED') return false;
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
     return (
-      item.disputeId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.invoiceNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.reason.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.office.toLowerCase().includes(searchQuery.toLowerCase())
+      item.id.toLowerCase().includes(q) ||
+      item.invoiceId.toLowerCase().includes(q) ||
+      item.reason.toLowerCase().includes(q)
     );
   });
 
-  const getStatusBadge = (status: DisputeItem['status']) => {
-    switch (status) {
-      case 'Open':
-        return { bg: '#FEF3C7', color: '#D97706', border: '#FCD34D' };
-      case 'Under Review':
-        return { bg: '#FFEDD5', color: '#EA580C', border: '#FDBA74' };
-      case 'Resolved':
-        return { bg: '#DCFCE7', color: '#16A34A', border: '#86EFAC' };
+  const totalDisputedPaise = disputes.reduce(
+    (acc, d) => acc + (Number(d.claimedAmountPaise) || 0),
+    0,
+  );
+  const totalApprovedPaise = disputes.reduce(
+    (acc, d) => acc + (Number(d.approvedAmountPaise) || 0),
+    0,
+  );
+
+  async function handleRaiseDispute(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedInvoiceId || !reason || !claimedAmountRupees) {
+      alert('Please fill in all dispute fields');
+      return;
     }
-  };
+
+    try {
+      setSubmitting(true);
+      const claimedPaise = String(Math.round(parseFloat(claimedAmountRupees) * 100));
+      await billingApi.raiseDispute(selectedInvoiceId, {
+        reason,
+        claimedAmountPaise: claimedPaise,
+      });
+      setShowModal(false);
+      setSelectedInvoiceId('');
+      setReason('');
+      setClaimedAmountRupees('');
+      await loadData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to submit dispute');
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Title & Raise Dispute Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-            Billing Disputes
+          <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', margin: 0 }}>
+            Billing Disputes & Adjustments
           </h1>
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-            Track, review and resolve invoice or charge disputes raised by your team
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
+            Track, review and dispute invoice line items with auditable credit note issuance
           </p>
         </div>
 
         <button
-          onClick={() => alert('Raising formal billing dispute')}
+          onClick={() => setShowModal(true)}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -111,18 +169,10 @@ export default function BillingDisputesPage() {
             <AlertTriangle size={18} />
           </div>
           <div>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: '#D97706' }}>2</div>
+            <div style={{ fontSize: '18px', fontWeight: 800, color: '#D97706' }}>
+              {loading ? '...' : openDisputes.length}
+            </div>
             <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Open Disputes</div>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#FFEDD5', color: '#EA580C', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Clock size={18} />
-          </div>
-          <div>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: '#EA580C' }}>3</div>
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Under Review</div>
           </div>
         </div>
 
@@ -131,7 +181,9 @@ export default function BillingDisputesPage() {
             <CheckCircle2 size={18} />
           </div>
           <div>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: '#16A34A' }}>7</div>
+            <div style={{ fontSize: '18px', fontWeight: 800, color: '#16A34A' }}>
+              {loading ? '...' : resolvedDisputes.length}
+            </div>
             <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Resolved</div>
           </div>
         </div>
@@ -141,8 +193,10 @@ export default function BillingDisputesPage() {
             <IndianRupee size={18} />
           </div>
           <div>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>â‚¹ 1,24,500</div>
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Disputed Amount</div>
+            <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>
+              {loading ? '...' : formatPaiseToRupees(totalDisputedPaise)}
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Disputed Claimed</div>
           </div>
         </div>
 
@@ -151,8 +205,10 @@ export default function BillingDisputesPage() {
             <CheckCircle2 size={18} />
           </div>
           <div>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: '#16A34A' }}>â‚¹ 96,000</div>
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Adjusted (Resolved)</div>
+            <div style={{ fontSize: '18px', fontWeight: 800, color: '#16A34A' }}>
+              {loading ? '...' : formatPaiseToRupees(totalApprovedPaise)}
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Approved Credit</div>
           </div>
         </div>
       </div>
@@ -160,7 +216,7 @@ export default function BillingDisputesPage() {
       {/* Main Table Card */}
       <div className="surface-card" style={{ padding: '20px', backgroundColor: 'var(--bg-surface)' }}>
         {/* Tabs Bar */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '12px', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
           <div style={{ display: 'flex', gap: '6px' }}>
             <button
               onClick={() => setActiveTab('all')}
@@ -170,12 +226,12 @@ export default function BillingDisputesPage() {
                 fontSize: '12px',
                 fontWeight: 700,
                 border: 'none',
-                backgroundColor: activeTab === 'all' ? '#5728B2' : '#F1F5F9',
-                color: activeTab === 'all' ? '#FFFFFF' : '#475569',
+                backgroundColor: activeTab === 'all' ? '#5728B2' : 'var(--bg-surface-muted)',
+                color: activeTab === 'all' ? '#FFFFFF' : 'var(--text-secondary)',
                 cursor: 'pointer',
               }}
             >
-              All Disputes (12)
+              All Disputes ({disputes.length})
             </button>
             <button
               onClick={() => setActiveTab('open')}
@@ -190,22 +246,7 @@ export default function BillingDisputesPage() {
                 cursor: 'pointer',
               }}
             >
-              Open (2)
-            </button>
-            <button
-              onClick={() => setActiveTab('review')}
-              style={{
-                padding: '6px 14px',
-                borderRadius: 6,
-                fontSize: '12px',
-                fontWeight: 700,
-                border: 'none',
-                backgroundColor: activeTab === 'review' ? '#EA580C' : '#FFEDD5',
-                color: activeTab === 'review' ? '#FFFFFF' : '#EA580C',
-                cursor: 'pointer',
-              }}
-            >
-              Under Review (3)
+              Open ({openDisputes.length})
             </button>
             <button
               onClick={() => setActiveTab('resolved')}
@@ -220,102 +261,265 @@ export default function BillingDisputesPage() {
                 cursor: 'pointer',
               }}
             >
-              Resolved (7)
+              Resolved ({resolvedDisputes.length})
             </button>
           </div>
 
-          <div style={{ position: 'relative', width: 260 }}>
-            <Search size={14} color="#94A3B8" style={{ position: 'absolute', left: 10, top: 10 }} />
+          <div style={{ position: 'relative', width: 240 }}>
+            <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
             <input
               type="text"
+              placeholder="Search disputes..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search dispute ID, invoice..."
               style={{
                 width: '100%',
-                height: 34,
-                paddingLeft: 30,
-                paddingRight: 10,
+                padding: '6px 10px 6px 30px',
                 borderRadius: 6,
-                border: '1px solid var(--border-strong)',
+                border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-surface)',
+                color: 'var(--text-primary)',
                 fontSize: 12,
-                outline: 'none',
-                backgroundColor: 'var(--bg-surface-muted)',
               }}
             />
           </div>
         </div>
 
         {/* Disputes Table */}
-        <div className="table-scroll">
-          <table className="data-table">
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
             <thead>
-              <tr>
-                <th style={{ width: 36 }}><input type="checkbox" /></th>
-                <th>Dispute ID</th>
-                <th>Invoice No.</th>
-                <th>Office</th>
-                <th>Issue / Reason</th>
-                <th>Amount (â‚¹)</th>
-                <th>Status</th>
-                <th>Raised On</th>
-                <th style={{ textAlign: 'right' }}>Actions</th>
+              <tr style={{ backgroundColor: 'var(--bg-surface-muted)', borderBottom: '1px solid var(--border-color)' }}>
+                <th style={{ padding: '10px 14px', fontWeight: 600, color: 'var(--text-secondary)' }}>Dispute ID</th>
+                <th style={{ padding: '10px 14px', fontWeight: 600, color: 'var(--text-secondary)' }}>Invoice #</th>
+                <th style={{ padding: '10px 14px', fontWeight: 600, color: 'var(--text-secondary)' }}>Reason</th>
+                <th style={{ padding: '10px 14px', fontWeight: 600, color: 'var(--text-secondary)' }}>Claimed</th>
+                <th style={{ padding: '10px 14px', fontWeight: 600, color: 'var(--text-secondary)' }}>Approved</th>
+                <th style={{ padding: '10px 14px', fontWeight: 600, color: 'var(--text-secondary)' }}>Status</th>
               </tr>
             </thead>
             <tbody>
-              {filteredDisputes.map((item) => {
-                const badge = getStatusBadge(item.status);
-                return (
-                  <tr key={item.id}>
-                    <td><input type="checkbox" /></td>
-                    <td style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{item.disputeId}</td>
-                    <td style={{ fontWeight: 600, color: '#5728B2' }}>{item.invoiceNo}</td>
-                    <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{item.office}</td>
-                    <td style={{ fontSize: '12px', color: 'var(--text-primary)' }}>{item.reason}</td>
-                    <td style={{ fontWeight: 800, color: 'var(--text-primary)' }}>â‚¹ {item.amount.toLocaleString()}</td>
-                    <td>
+              {loading ? (
+                <tr>
+                  <td colSpan={6} style={{ padding: '36px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    Loading billing disputes...
+                  </td>
+                </tr>
+              ) : filteredDisputes.length === 0 ? (
+                <tr>
+                  <td colSpan={6} style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                      <Layers size={32} style={{ opacity: 0.3 }} />
+                      <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>No disputes found</p>
+                      <p style={{ margin: 0, fontSize: 12 }}>There are no disputes filed matching the current filter.</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredDisputes.map((d) => (
+                  <tr key={d.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                    <td style={{ padding: '12px 14px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      {d.id.slice(0, 8)}
+                    </td>
+                    <td style={{ padding: '12px 14px' }}>
+                      <Link
+                        href={`/billing/details?id=${d.invoiceId}`}
+                        style={{ color: '#5728B2', textDecoration: 'none', fontWeight: 600 }}
+                      >
+                        {d.invoiceId.slice(0, 12)}
+                      </Link>
+                    </td>
+                    <td style={{ padding: '12px 14px', color: 'var(--text-primary)' }}>
+                      <div>{d.reason}</div>
+                      {d.resolutionNote && (
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                          Note: {d.resolutionNote}
+                        </div>
+                      )}
+                    </td>
+                    <td style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      {formatPaiseToRupees(d.claimedAmountPaise)}
+                    </td>
+                    <td style={{ padding: '12px 14px', fontWeight: 600, color: '#16A34A' }}>
+                      {d.approvedAmountPaise ? formatPaiseToRupees(d.approvedAmountPaise) : '—'}
+                    </td>
+                    <td style={{ padding: '12px 14px' }}>
                       <span
                         style={{
-                          fontSize: '11px',
+                          padding: '3px 8px',
+                          borderRadius: 4,
+                          fontSize: 11,
                           fontWeight: 700,
-                          padding: '2px 8px',
-                          borderRadius: '4px',
-                          backgroundColor: badge.bg,
-                          color: badge.color,
-                          border: `1px solid ${badge.border}`,
+                          backgroundColor:
+                            d.status === 'ACCEPTED'
+                              ? '#DCFCE7'
+                              : d.status === 'REJECTED'
+                              ? '#FEE2E2'
+                              : '#FEF3C7',
+                          color:
+                            d.status === 'ACCEPTED'
+                              ? '#16A34A'
+                              : d.status === 'REJECTED'
+                              ? '#DC2626'
+                              : '#D97706',
                         }}
                       >
-                        {item.status}
+                        {d.status}
                       </span>
                     </td>
-                    <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{item.raisedOn}</td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
-                        <button
-                          onClick={() => alert(`Reviewing dispute ${item.disputeId}`)}
-                          style={{
-                            padding: '4px 10px',
-                            borderRadius: 4,
-                            border: '1px solid #BFDBFE',
-                            backgroundColor: '#EFF6FF',
-                            color: '#5728B2',
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Review
-                        </button>
-                      </div>
-                    </td>
                   </tr>
-                );
-              })}
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* Modal: Raise Dispute */}
+      {showModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: 20,
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: 'var(--bg-surface)',
+              borderRadius: 8,
+              border: '1px solid var(--border-color)',
+              width: '100%',
+              maxWidth: 500,
+              padding: 24,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Raise Invoice Dispute</h3>
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleRaiseDispute} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+                  Select Invoice
+                </label>
+                <select
+                  value={selectedInvoiceId}
+                  onChange={(e) => setSelectedInvoiceId(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: 6,
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: 'var(--bg-surface)',
+                    color: 'var(--text-primary)',
+                    fontSize: 13,
+                  }}
+                  required
+                >
+                  <option value="">-- Choose Invoice --</option>
+                  {invoices.map((inv) => (
+                    <option key={inv.id} value={inv.id}>
+                      {inv.invoiceNumber} ({formatPaiseToRupees(inv.totalAmountPaise)})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+                  Claimed Disputed Amount (₹)
+                </label>
+                <input
+                  type="number"
+                  placeholder="e.g. 5000"
+                  value={claimedAmountRupees}
+                  onChange={(e) => setClaimedAmountRupees(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: 6,
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: 'var(--bg-surface)',
+                    color: 'var(--text-primary)',
+                    fontSize: 13,
+                  }}
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+                  Reason for Dispute
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Describe discrepancy (e.g. driver GPS variance, cancelled trip charged, etc.)"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: 6,
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: 'var(--bg-surface)',
+                    color: 'var(--text-primary)',
+                    fontSize: 13,
+                    resize: 'vertical',
+                  }}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: 6,
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: 'var(--bg-surface)',
+                    color: 'var(--text-secondary)',
+                    fontSize: 13,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: 6,
+                    border: 'none',
+                    backgroundColor: '#5728B2',
+                    color: '#FFFFFF',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: submitting ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {submitting ? 'Submitting...' : 'Submit Dispute'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-

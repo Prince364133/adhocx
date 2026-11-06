@@ -1,61 +1,96 @@
-﻿'use client';
+'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  CheckSquare,
   Check,
   X,
   Search,
-  ChevronDown,
-  Clock,
-  ArrowRight,
   Filter,
+  CheckCircle2,
+  Clock,
+  AlertCircle,
+  FileText,
+  User,
+  MapPin,
+  Calendar,
 } from 'lucide-react';
+import { tripsApi, tenantApi } from '../../../lib/api/corporate';
+import { BookingRequestItem, Office } from '../../../lib/api/types';
 
-interface ApprovalItem {
-  id: string;
-  requestId: string;
-  employeeName: string;
-  empId: string;
-  requestType: 'Pickup Change' | 'Ad-hoc' | 'Cancellation' | 'Policy Exception';
-  details: string;
-  office: string;
-  requestedOn: string;
+interface PageProps {
+  searchParams?: { tenantId?: string };
 }
 
-const MOCK_APPROVALS: ApprovalItem[] = [
-  { id: '1', requestId: 'REQ-78670', employeeName: 'Anjali Rao', empId: 'EMP03376', requestType: 'Pickup Change', details: 'Kondapur Gate 2 â†’ Kondapur Gate 3', office: 'HiTEC City', requestedOn: '08 Dec, 09:12 AM' },
-  { id: '2', requestId: 'REQ-78671', employeeName: 'Vikram Reddy', empId: 'EMP04011', requestType: 'Pickup Change', details: 'Gachibowli Circle â†’ Botanical Garden', office: 'Gachibowli', requestedOn: '08 Dec, 08:44 AM' },
-  { id: '3', requestId: 'REQ-78672', employeeName: 'Neha Verma', empId: 'EMP03124', requestType: 'Pickup Change', details: 'Madhapur HUDA â†’ Inorbit Mall', office: 'HiTEC City', requestedOn: '08 Dec, 08:18 AM' },
-  { id: '4', requestId: 'REQ-78673', employeeName: 'Amit Kumar', empId: 'EMP01893', requestType: 'Ad-hoc', details: 'Late flight arrival pickup from Airport at 11:30 PM', office: 'HiTEC City', requestedOn: '08 Dec, 07:55 AM' },
-  { id: '5', requestId: 'REQ-78674', employeeName: 'Rohit Singh', empId: 'EMP02911', requestType: 'Cancellation', details: 'Medical emergency leave cancellation for Night shift', office: 'HiTEC City', requestedOn: '08 Dec, 07:12 AM' },
-];
+export default function ApprovalsPage({ searchParams }: PageProps) {
+  const tenantId = searchParams?.tenantId;
+  const activeTenantId = tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
 
-export default function ApprovalInboxPage() {
-  const [activeTab, setActiveTab] = useState<'all' | 'pickup' | 'adhoc' | 'cancellation' | 'policy'>('all');
+  const [items, setItems] = useState<BookingRequestItem[]>([]);
+  const [offices, setOffices] = useState<Office[]>([]);
+  const [activeTab, setActiveTab] = useState<'all' | 'login' | 'logout'>('all');
   const [selectedOffice, setSelectedOffice] = useState('All Offices');
-  const [items, setItems] = useState(MOCK_APPROVALS);
+  const [loading, setLoading] = useState(true);
 
-  const handleApprove = (id: string, reqId: string) => {
-    alert(`Approved ${reqId}`);
-    setItems(items.filter((item) => item.id !== id));
+  const loadPending = () => {
+    setLoading(true);
+    Promise.all([
+      tripsApi.requests({ tenantId: activeTenantId, status: 'UNSERVED' }),
+      tenantApi.offices(activeTenantId).catch(() => []),
+    ])
+      .then(([res, offList]) => {
+        setItems(res?.items || []);
+        setOffices(offList);
+      })
+      .catch((err) => {
+        console.warn('Failed to load pending approvals:', err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   };
 
-  const handleReject = (id: string, reqId: string) => {
-    alert(`Rejected ${reqId}`);
-    setItems(items.filter((item) => item.id !== id));
+  useEffect(() => {
+    loadPending();
+  }, [activeTenantId]);
+
+  const handleApprove = async (id: string, reqId: string) => {
+    try {
+      await tripsApi.reviewRequest(id, { decision: 'APPROVE' });
+      setItems((prev) => prev.filter((item) => item.id !== id));
+      alert(`Approved request ${reqId}`);
+    } catch (err) {
+      console.warn('Approve error:', err);
+    }
   };
+
+  const handleReject = async (id: string, reqId: string) => {
+    try {
+      await tripsApi.reviewRequest(id, { decision: 'REJECT' });
+      setItems((prev) => prev.filter((item) => item.id !== id));
+      alert(`Rejected request ${reqId}`);
+    } catch (err) {
+      console.warn('Reject error:', err);
+    }
+  };
+
+  const filteredItems = items.filter((item) => {
+    if (activeTab === 'login' && item.direction !== 'LOGIN') return false;
+    if (activeTab === 'logout' && item.direction !== 'LOGOUT') return false;
+    const officeName = item.roster?.office?.name;
+    if (selectedOffice !== 'All Offices' && officeName !== selectedOffice) return false;
+    return true;
+  });
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Title & Filter Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', margin: 0 }}>
             Approval Inbox
           </h1>
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-            Review and approve employee requests (pickup change, ad-hoc, cancellation, policy exceptions)
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
+            Review and approve pending employee commute requests and ad-hoc allocations
           </p>
         </div>
 
@@ -63,20 +98,12 @@ export default function ApprovalInboxPage() {
           <select
             value={selectedOffice}
             onChange={(e) => setSelectedOffice(e.target.value)}
-            style={{ height: 36, padding: '0 12px', borderRadius: 6, border: '1px solid var(--border-strong)', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', outline: 'none' }}
+            style={{ height: 36, padding: '0 12px', borderRadius: 6, border: '1px solid var(--border-color)', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', outline: 'none', backgroundColor: 'var(--bg-surface)' }}
           >
             <option value="All Offices">All Offices</option>
-            <option value="HiTEC City">HiTEC City</option>
-            <option value="Gachibowli">Gachibowli</option>
-          </select>
-
-          <select
-            defaultValue="Newest First"
-            style={{ height: 36, padding: '0 12px', borderRadius: 6, border: '1px solid var(--border-strong)', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', outline: 'none' }}
-          >
-            <option value="Newest First">Newest First</option>
-            <option value="Oldest First">Oldest First</option>
-            <option value="Urgent First">Urgent First</option>
+            {offices.map((o) => (
+              <option key={o.id} value={o.name}>{o.name}</option>
+            ))}
           </select>
         </div>
       </div>
@@ -84,7 +111,7 @@ export default function ApprovalInboxPage() {
       {/* Main Inbox Card */}
       <div className="surface-card" style={{ padding: '20px', backgroundColor: 'var(--bg-surface)' }}>
         {/* Tabs */}
-        <div style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)', marginBottom: '16px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', marginBottom: '16px', flexWrap: 'wrap' }}>
           <button
             onClick={() => setActiveTab('all')}
             style={{
@@ -93,169 +120,152 @@ export default function ApprovalInboxPage() {
               fontWeight: 700,
               border: 'none',
               backgroundColor: 'transparent',
-              color: activeTab === 'all' ? '#5728B2' : '#64748B',
+              color: activeTab === 'all' ? '#5728B2' : 'var(--text-secondary)',
               borderBottom: `2px solid ${activeTab === 'all' ? '#5728B2' : 'transparent'}`,
               cursor: 'pointer',
             }}
           >
-            All (28)
+            All Pending ({items.length})
           </button>
           <button
-            onClick={() => setActiveTab('pickup')}
+            onClick={() => setActiveTab('login')}
             style={{
               padding: '8px 16px',
               fontSize: '13px',
               fontWeight: 700,
               border: 'none',
               backgroundColor: 'transparent',
-              color: activeTab === 'pickup' ? '#5728B2' : '#64748B',
-              borderBottom: `2px solid ${activeTab === 'pickup' ? '#5728B2' : 'transparent'}`,
+              color: activeTab === 'login' ? '#5728B2' : 'var(--text-secondary)',
+              borderBottom: `2px solid ${activeTab === 'login' ? '#5728B2' : 'transparent'}`,
               cursor: 'pointer',
             }}
           >
-            Pickup Change (12)
+            Login Commutes ({items.filter((i) => i.direction === 'LOGIN').length})
           </button>
           <button
-            onClick={() => setActiveTab('adhoc')}
+            onClick={() => setActiveTab('logout')}
             style={{
               padding: '8px 16px',
               fontSize: '13px',
               fontWeight: 700,
               border: 'none',
               backgroundColor: 'transparent',
-              color: activeTab === 'adhoc' ? '#5728B2' : '#64748B',
-              borderBottom: `2px solid ${activeTab === 'adhoc' ? '#5728B2' : 'transparent'}`,
+              color: activeTab === 'logout' ? '#5728B2' : 'var(--text-secondary)',
+              borderBottom: `2px solid ${activeTab === 'logout' ? '#5728B2' : 'transparent'}`,
               cursor: 'pointer',
             }}
           >
-            Ad-hoc Requests (9)
-          </button>
-          <button
-            onClick={() => setActiveTab('cancellation')}
-            style={{
-              padding: '8px 16px',
-              fontSize: '13px',
-              fontWeight: 700,
-              border: 'none',
-              backgroundColor: 'transparent',
-              color: activeTab === 'cancellation' ? '#5728B2' : '#64748B',
-              borderBottom: `2px solid ${activeTab === 'cancellation' ? '#5728B2' : 'transparent'}`,
-              cursor: 'pointer',
-            }}
-          >
-            Cancellations (5)
-          </button>
-          <button
-            onClick={() => setActiveTab('policy')}
-            style={{
-              padding: '8px 16px',
-              fontSize: '13px',
-              fontWeight: 700,
-              border: 'none',
-              backgroundColor: 'transparent',
-              color: activeTab === 'policy' ? '#5728B2' : '#64748B',
-              borderBottom: `2px solid ${activeTab === 'policy' ? '#5728B2' : 'transparent'}`,
-              cursor: 'pointer',
-            }}
-          >
-            Policy Exceptions (2)
+            Logout Commutes ({items.filter((i) => i.direction === 'LOGOUT').length})
           </button>
         </div>
 
         {/* Requests Table */}
-        <div className="table-scroll">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th style={{ width: 36 }}><input type="checkbox" /></th>
-                <th>Request ID</th>
-                <th>Employee</th>
-                <th>Request Type</th>
-                <th>Details</th>
-                <th>Office</th>
-                <th>Requested On</th>
-                <th style={{ textAlign: 'right' }}>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((req) => (
-                <tr key={req.id}>
-                  <td><input type="checkbox" /></td>
-                  <td style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{req.requestId}</td>
-                  <td>
-                    <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{req.employeeName}</div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{req.empId}</div>
-                  </td>
-                  <td>
-                    <span
-                      style={{
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        padding: '2px 8px',
-                        borderRadius: 4,
-                        backgroundColor: '#EFF6FF',
-                        color: '#5728B2',
-                        border: '1px solid #BFDBFE',
-                      }}
-                    >
-                      {req.requestType}
-                    </span>
-                  </td>
-                  <td style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                    {req.details}
-                  </td>
-                  <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{req.office}</td>
-                  <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{req.requestedOn}</td>
-                  <td style={{ textAlign: 'right' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
-                      <button
-                        onClick={() => handleApprove(req.id, req.requestId)}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          padding: '5px 12px',
-                          borderRadius: 4,
-                          backgroundColor: '#16A34A',
-                          color: '#FFFFFF',
-                          border: 'none',
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <Check size={12} />
-                        <span>Approve</span>
-                      </button>
-
-                      <button
-                        onClick={() => handleReject(req.id, req.requestId)}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          padding: '5px 12px',
-                          borderRadius: 4,
-                          backgroundColor: 'var(--bg-surface)',
-                          color: '#DC2626',
-                          border: '1px solid #FCA5A5',
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <X size={12} />
-                        <span>Reject</span>
-                      </button>
-                    </div>
-                  </td>
+        {loading ? (
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
+            Loading pending approvals...
+          </div>
+        ) : filteredItems.length === 0 ? (
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
+            Inbox clean! No pending requests awaiting review or approval.
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+              <thead>
+                <tr style={{ backgroundColor: 'var(--bg-surface-muted)', borderBottom: '1px solid var(--border-color)' }}>
+                  <th style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-secondary)' }}>Request ID</th>
+                  <th style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-secondary)' }}>Employee</th>
+                  <th style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-secondary)' }}>Direction</th>
+                  <th style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-secondary)' }}>Office Campus</th>
+                  <th style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-secondary)' }}>Shift / Date</th>
+                  <th style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-secondary)', textAlign: 'right' }}>Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {filteredItems.map((req) => (
+                  <tr key={req.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                    <td style={{ padding: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      {req.id.slice(0, 8)}
+                    </td>
+                    <td style={{ padding: '14px' }}>
+                      <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                        {req.employee?.fullName || 'Enterprise Employee'}
+                      </div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                        {req.employee?.employeeCode || '—'}
+                      </div>
+                    </td>
+                    <td style={{ padding: '14px' }}>
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          padding: '2px 8px',
+                          borderRadius: 4,
+                          backgroundColor: req.direction === 'LOGIN' ? '#EFF6FF' : '#FEF3C7',
+                          color: req.direction === 'LOGIN' ? '#5728B2' : '#D97706',
+                          border: '1px solid currentColor',
+                        }}
+                      >
+                        {req.direction === 'LOGIN' ? 'Login Pickup' : 'Logout Drop'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '14px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                      {req.roster?.office?.name || 'Main Campus'}
+                    </td>
+                    <td style={{ padding: '14px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                      {req.scheduledDate} {req.shiftTime}
+                    </td>
+                    <td style={{ padding: '14px', textAlign: 'right' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                        <button
+                          onClick={() => handleApprove(req.id, req.id.slice(0, 8))}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '6px 12px',
+                            borderRadius: 4,
+                            backgroundColor: '#16A34A',
+                            color: '#FFFFFF',
+                            border: 'none',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <Check size={12} />
+                          <span>Approve</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleReject(req.id, req.id.slice(0, 8))}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '6px 12px',
+                            borderRadius: 4,
+                            backgroundColor: 'var(--bg-surface)',
+                            color: '#DC2626',
+                            border: '1px solid #FCA5A5',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <X size={12} />
+                          <span>Reject</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
 }
-

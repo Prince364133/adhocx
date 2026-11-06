@@ -11,28 +11,49 @@ import {
   SolverCalculatedRoute,
   formatClock,
 } from './cvrptw-cluster-solver';
+import {
+  PricingConfig,
+  DEFAULT_PRICING_CONFIG,
+} from './cost-optimizer';
 
 export interface PlanRoutesFromFileOptions {
   office: string; // Office address
   loginTime: string | Date;
   logoutTime?: string | Date;
   officeRadiusKm?: number; // default 50
+  maxTripKm?: number; // default 50
   bufferMinutes?: number; // default 15
   pickupWaitMinutes?: number; // default 5
   cabCapacity?: number; // default 4
   routingPreference?: 'TRAFFIC_AWARE' | 'TRAFFIC_AWARE_OPTIMAL';
   avoidTolls?: boolean;
   avoidHighways?: boolean;
+  excludedEmployees?: string[];
+  pricingConfig?: PricingConfig;
 }
 
 export interface PlanRoutesResult {
   employeeCount: number;
   cabCount: number;
   officeRadiusKm: number;
+  maxTripKm: number;
   outOfRadiusCount: number;
+  excludedByDistanceCount: number;
+  excludedByDistance: Array<{
+    name: string;
+    address: string;
+    matchedAddress?: string;
+    lat: number;
+    lng: number;
+    officeDistanceKm: number;
+  }>;
   bufferedDeadline: string;
   office: { name: string; lat: number; lng: number };
   routes: SolverCalculatedRoute[];
+  totalKm: number;
+  totalDriverPayout: number;
+  expectedCorporateRevenue: number;
+  projectedMargin: number;
 }
 
 export interface CommitPlanDto {
@@ -88,16 +109,37 @@ export class CorporateRoutePlannerService {
       throw new BadRequestException('Invalid login_time date format');
     }
 
+    // Excluded employee filtering
+    let activeRows = rawRows;
+    if (options.excludedEmployees && options.excludedEmployees.length > 0) {
+      const excludedSet = new Set(
+        options.excludedEmployees
+          .map((e) => (e || '').trim().toLowerCase())
+          .filter(Boolean),
+      );
+      activeRows = rawRows.filter(
+        (r) => !excludedSet.has(r.employeeName.trim().toLowerCase()),
+      );
+      if (activeRows.length === 0) {
+        throw new BadRequestException('No employees remain after exclusions');
+      }
+    }
+
+    const maxTripKm = Number(options.maxTripKm) || 50;
+    const pricingConfig = options.pricingConfig || DEFAULT_PRICING_CONFIG;
+
     const config: SolverConfig = {
       loginTime,
       logoutTime: options.logoutTime ? new Date(options.logoutTime) : undefined,
       officeRadiusKm: Number(options.officeRadiusKm) || 50,
+      maxTripKm,
       bufferMinutes: Number(options.bufferMinutes) || 15,
       pickupWaitMinutes: Number(options.pickupWaitMinutes) || 5,
       cabCapacity: Number(options.cabCapacity) || 4,
       routingPreference: options.routingPreference || 'TRAFFIC_AWARE',
       avoidTolls: Boolean(options.avoidTolls),
       avoidHighways: Boolean(options.avoidHighways),
+      pricingConfig,
     };
 
     if (onProgress) {
@@ -115,7 +157,7 @@ export class CorporateRoutePlannerService {
     }
 
     // 2. Batch geocode all unique employee addresses
-    const uniqueAddresses = Array.from(new Set(rawRows.map((r) => r.pickupAddress)));
+    const uniqueAddresses = Array.from(new Set(activeRows.map((r) => r.pickupAddress)));
     const geocodeMap = await this.geocodingAdapter.batchGeocode(
       uniqueAddresses,
       6,
@@ -133,7 +175,16 @@ export class CorporateRoutePlannerService {
 
     // 3. Assemble employee records with radial distances and catchment alerts
     const employeeRecords: EmployeeRecord[] = [];
-    for (const row of rawRows) {
+    const excludedByDistance: Array<{
+      name: string;
+      address: string;
+      matchedAddress?: string;
+      lat: number;
+      lng: number;
+      officeDistanceKm: number;
+    }> = [];
+
+    for (const row of activeRows) {
       const geo = geocodeMap.get(row.pickupAddress.toLowerCase()) || {
         lat: 17.44,
         lng: 78.38,
@@ -143,7 +194,7 @@ export class CorporateRoutePlannerService {
       };
 
       const distKm = Number(haversineKm(geo, officeCoord).toFixed(2));
-      employeeRecords.push({
+      const record: EmployeeRecord = {
         employeeName: row.employeeName,
         pickupAddress: row.pickupAddress,
         phoneNumber: row.phoneNumber,
@@ -153,18 +204,43 @@ export class CorporateRoutePlannerService {
         matchedAddress: geo.matchedAddress,
         officeDistanceKm: distKm,
         outOfRadius: distKm > config.officeRadiusKm,
-      });
+      };
+
+      if (distKm > maxTripKm) {
+        excludedByDistance.push({
+          name: record.employeeName,
+          address: record.pickupAddress,
+          matchedAddress: record.matchedAddress,
+          lat: record.coord.lat,
+          lng: record.coord.lng,
+          officeDistanceKm: distKm,
+        });
+      } else {
+        employeeRecords.push(record);
+      }
+    }
+
+    if (employeeRecords.length === 0) {
+      throw new BadRequestException(
+        `No employees are within the ${maxTripKm} km cab distance limit (${excludedByDistance.length} excluded)`,
+      );
     }
 
     if (onProgress) {
-      onProgress('clustering', 55, `Clustering ${employeeRecords.length} employees into cabs (max ${config.cabCapacity} per cab)`);
+      onProgress(
+        'clustering',
+        55,
+        `Clustering ${employeeRecords.length} employees into directional corridors (max ${config.cabCapacity} per cab, max trip ${maxTripKm} km)`,
+      );
     }
 
-    // 4. Cluster into cabs
-    const groups = clusterEmployees(employeeRecords, config.cabCapacity);
+    // 4. Cluster into cabs using directional corridor bearings
+    const groups = clusterEmployees(employeeRecords, config.cabCapacity, officeCoord, pricingConfig, maxTripKm);
 
-    // 5. Multi-pass traffic solve for each cab
+    // 5. Multi-pass traffic solve for each cab with dynamic vehicle category selection
     const routes: SolverCalculatedRoute[] = [];
+    const fleetUsed: Record<string, number> = {};
+
     for (let i = 0; i < groups.length; i++) {
       const group = groups[i];
       const cabRoute = await solveCabRoute(
@@ -174,16 +250,23 @@ export class CorporateRoutePlannerService {
         officeCoord,
         config,
         this.routesAdapter,
+        pricingConfig,
+        fleetUsed,
       );
       routes.push(cabRoute);
 
       if (onProgress) {
         const pct = 55 + Math.round(((i + 1) / groups.length) * 40); // 55% -> 95%
-        onProgress('route_complete', pct, `Solved Route ${i + 1} of ${groups.length} (${cabRoute.distanceKm} km, ${cabRoute.stops.length} stops)`, {
-          route: cabRoute,
-          completed: i + 1,
-          total: groups.length,
-        });
+        onProgress(
+          'route_complete',
+          pct,
+          `Solved Route ${i + 1} of ${groups.length} [${cabRoute.cabType?.toUpperCase() || 'SEDAN'}] (${cabRoute.distanceKm} km, payout: ₹${cabRoute.driverPayout})`,
+          {
+            route: cabRoute,
+            completed: i + 1,
+            total: groups.length,
+          },
+        );
       }
     }
 
@@ -197,11 +280,19 @@ export class CorporateRoutePlannerService {
     const outOfRadiusCount = employeeRecords.filter((e) => e.outOfRadius).length;
     const targetArrival = new Date(config.loginTime.getTime() - config.bufferMinutes * 60_000);
 
+    const totalKm = Number(routes.reduce((sum, r) => sum + (r.distanceKm || 0), 0).toFixed(2));
+    const totalDriverPayout = Number(routes.reduce((sum, r) => sum + (r.driverPayout || 0), 0).toFixed(2));
+    const expectedCorporateRevenue = Number(routes.reduce((sum, r) => sum + (r.corporateRevenue || 0), 0).toFixed(2));
+    const projectedMargin = Number((expectedCorporateRevenue - totalDriverPayout).toFixed(2));
+
     const result: PlanRoutesResult = {
       employeeCount: employeeRecords.length,
       cabCount: routes.length,
       officeRadiusKm: config.officeRadiusKm,
+      maxTripKm,
       outOfRadiusCount,
+      excludedByDistanceCount: excludedByDistance.length,
+      excludedByDistance,
       bufferedDeadline: formatClock(targetArrival),
       office: {
         name: officeName,
@@ -209,12 +300,21 @@ export class CorporateRoutePlannerService {
         lng: officeCoord.lng,
       },
       routes,
+      totalKm,
+      totalDriverPayout,
+      expectedCorporateRevenue,
+      projectedMargin,
     };
 
     if (onProgress) {
-      onProgress('complete', 100, `Successfully planned ${routes.length} routes for ${employeeRecords.length} employees`, {
-        plan: result,
-      });
+      onProgress(
+        'complete',
+        100,
+        `Successfully planned ${routes.length} routes for ${employeeRecords.length} employees. Total km: ${totalKm}, Margin: ₹${projectedMargin}`,
+        {
+          plan: result,
+        },
+      );
     }
 
     return result;
@@ -239,6 +339,9 @@ export class CorporateRoutePlannerService {
         const targetPickup1Time = firstStop ? new Date(`${shiftDate}T00:00:00Z`) : new Date();
         const targetOfficeArrivalTime = new Date(`${shiftDate}T${shiftTime}:00Z`);
 
+        const effectiveCategory = route.cabType?.toUpperCase() === 'SUV' ? 'SUV' : (vehicleCategory || 'SEDAN');
+        const effectiveMaxCapacity = effectiveCategory === 'SUV' ? 6 : 4;
+
         const createdRoute = await tx.corporateRoute.create({
           data: {
             tenantId,
@@ -246,8 +349,8 @@ export class CorporateRoutePlannerService {
             shiftDate: new Date(shiftDate),
             shiftTime,
             direction,
-            vehicleCategory,
-            maxCapacity: route.stops.length,
+            vehicleCategory: effectiveCategory,
+            maxCapacity: effectiveMaxCapacity,
             assignedPassengerCount: route.stops.length,
             status: 'PLANNED',
             targetPickup1Time,
@@ -310,6 +413,7 @@ export class CorporateRoutePlannerService {
     const s1 = workbook.addWorksheet('Routes Overview', { views: [{ state: 'frozen', ySplit: 1 }] });
     s1.columns = [
       { header: 'Cab #', key: 'cab', width: 10 },
+      { header: 'Vehicle Category', key: 'cabType', width: 16 },
       { header: 'Driver Starting Stop', key: 'driverStart', width: 45 },
       { header: 'Sequence', key: 'sequence', width: 50 },
       { header: 'Stops', key: 'stopsCount', width: 10 },
@@ -317,6 +421,9 @@ export class CorporateRoutePlannerService {
       { header: 'Office Arrival', key: 'arrival', width: 15 },
       { header: 'Distance (km)', key: 'distanceKm', width: 15 },
       { header: 'Drive Time (min)', key: 'driveMinutes', width: 16 },
+      { header: 'Driver Payout (₹)', key: 'driverPayout', width: 16 },
+      { header: 'Corporate Revenue (₹)', key: 'corporateRevenue', width: 22 },
+      { header: 'Projected Margin (₹)', key: 'projectedMargin', width: 20 },
       { header: 'Deadline Status', key: 'status', width: 18 },
       { header: 'Buffer Status', key: 'bufferStatus', width: 18 },
       { header: 'Time Source', key: 'timeSource', width: 28 },
@@ -327,6 +434,7 @@ export class CorporateRoutePlannerService {
     for (const r of plan.routes) {
       s1.addRow({
         cab: r.cab,
+        cabType: r.cabType?.toUpperCase() || 'SEDAN',
         driverStart: r.driverStart,
         sequence: r.sequence,
         stopsCount: r.stops.length,
@@ -334,6 +442,9 @@ export class CorporateRoutePlannerService {
         arrival: r.arrival,
         distanceKm: r.distanceKm,
         driveMinutes: r.driveMinutes,
+        driverPayout: r.driverPayout ?? 0,
+        corporateRevenue: r.corporateRevenue ?? 0,
+        projectedMargin: r.projectedMargin ?? 0,
         status: r.status,
         bufferStatus: r.bufferStatus,
         timeSource: r.timeSource,
@@ -376,6 +487,30 @@ export class CorporateRoutePlannerService {
           officeDistanceKm: s.officeDistanceKm,
           outOfRadius: s.outOfRadius ? 'YES (ALERT)' : 'NO',
           boardingOtp: s.boardingOtp,
+        });
+      }
+    }
+
+    // Sheet 3: Catchment & Distance Exclusions (if any)
+    if (plan.excludedByDistance && plan.excludedByDistance.length > 0) {
+      const s3 = workbook.addWorksheet('Distance Exclusions', { views: [{ state: 'frozen', ySplit: 1 }] });
+      s3.columns = [
+        { header: 'Employee Name', key: 'name', width: 25 },
+        { header: 'Pickup Address', key: 'address', width: 45 },
+        { header: 'Distance from Office (km)', key: 'officeDistanceKm', width: 25 },
+        { header: 'Max Permissible Limit (km)', key: 'limit', width: 25 },
+        { header: 'Reason', key: 'reason', width: 35 },
+      ];
+      s3.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      s3.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEF4444' } };
+
+      for (const exc of plan.excludedByDistance) {
+        s3.addRow({
+          name: exc.name,
+          address: exc.matchedAddress || exc.address,
+          officeDistanceKm: exc.officeDistanceKm,
+          limit: plan.maxTripKm || 50,
+          reason: `Exceeds max cab trip limit of ${plan.maxTripKm || 50} km`,
         });
       }
     }

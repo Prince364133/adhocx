@@ -47,6 +47,8 @@ export default function RouteOptimizerPage() {
   const [officeAddress, setOfficeAddress] = useState('Mindspace IT Park, Hitec City, Hyderabad');
   const [deadline, setDeadline] = useState(tomorrowMorningIst());
   const [officeRadiusKm, setOfficeRadiusKm] = useState(50);
+  const [maxTripKm, setMaxTripKm] = useState(50);
+  const [excludedEmployees, setExcludedEmployees] = useState('');
   const [stopDwellMinutes, setStopDwellMinutes] = useState(5);
   const [bufferMinutes, setBufferMinutes] = useState(15);
   const [cabCapacity, setCabCapacity] = useState(4);
@@ -305,6 +307,10 @@ export default function RouteOptimizerPage() {
     formData.append('office', officeAddress);
     formData.append('loginTime', deadline);
     formData.append('officeRadiusKm', String(officeRadiusKm));
+    formData.append('maxTripKm', String(maxTripKm));
+    if (excludedEmployees.trim()) {
+      formData.append('excludedEmployees', excludedEmployees.trim());
+    }
     formData.append('stopDwellMinutes', String(stopDwellMinutes));
     formData.append('bufferMinutes', String(bufferMinutes));
     formData.append('cabCapacity', String(cabCapacity));
@@ -455,7 +461,7 @@ export default function RouteOptimizerPage() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
             gap: '12px',
             padding: '14px 18px',
             backgroundColor: 'var(--bg-surface)',
@@ -473,16 +479,34 @@ export default function RouteOptimizerPage() {
             <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>{planResult.employeeCount} Riders</div>
           </div>
           <div>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Deadline Compliance</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Fleet Total Distance</div>
+            <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
+              {(planResult.totalKm ?? planResult.routes.reduce((acc, r) => acc + (r.distanceKm || 0), 0)).toFixed(1)} km
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Driver Payout</div>
+            <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
+              ₹{(planResult.totalDriverPayout ?? planResult.routes.reduce((acc, r) => acc + (r.driverPayout || 0), 0)).toLocaleString()}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Corporate Revenue</div>
+            <div style={{ fontSize: '20px', fontWeight: 700, color: '#1167EE', marginTop: '2px' }}>
+              ₹{(planResult.expectedCorporateRevenue ?? planResult.routes.reduce((acc, r) => acc + (r.corporateRevenue || 0), 0)).toLocaleString()}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Projected Margin</div>
             <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--color-success, #16A34A)', marginTop: '2px' }}>
-              {planResult.routes.filter((r) => r.status === 'Meets deadline').length} / {planResult.cabCount} (100%)
+              ₹{(planResult.projectedMargin ?? ((planResult.expectedCorporateRevenue || 0) - (planResult.totalDriverPayout || 0))).toLocaleString()}
             </div>
           </div>
           <div>
             <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Catchment Alerts</div>
             <div
               style={{
-                fontSize: '20px',
+                fontSize: '18px',
                 fontWeight: 700,
                 color: planResult.outOfRadiusCount > 0 ? 'var(--color-danger, #DC2626)' : 'var(--color-success, #16A34A)',
                 marginTop: '2px',
@@ -491,12 +515,14 @@ export default function RouteOptimizerPage() {
               {planResult.outOfRadiusCount > 0 ? `${planResult.outOfRadiusCount} Outside >${planResult.officeRadiusKm}km` : 'All Within Radius'}
             </div>
           </div>
-          <div>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Fleet Total Distance</div>
-            <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
-              {planResult.routes.reduce((acc, r) => acc + (r.distanceKm || 0), 0).toFixed(1)} km
+          {Boolean(planResult.excludedByDistanceCount && planResult.excludedByDistanceCount > 0) && (
+            <div>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Distance Excluded</div>
+              <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--color-danger, #DC2626)', marginTop: '2px' }}>
+                {planResult.excludedByDistanceCount} Beyond {planResult.maxTripKm || 50}km
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -677,11 +703,34 @@ export default function RouteOptimizerPage() {
                       />
                     </div>
 
-                    {/* 2-Column Grid for Radius and Capacity */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    {/* Excluded Employees */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                        Exclude Employees (optional comma-separated names)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. John Doe, Sarah Smith"
+                        value={excludedEmployees}
+                        onChange={(e) => setExcludedEmployees(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          backgroundColor: 'var(--bg-input)',
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: '6px',
+                          color: 'var(--text-primary)',
+                          fontSize: '13px',
+                          outline: 'none',
+                        }}
+                      />
+                    </div>
+
+                    {/* 3-Column Grid for Radius, Max Trip, and Capacity */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
                       <div>
                         <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                          Catchment Radius (km)
+                          Catchment (km)
                         </label>
                         <input
                           type="number"
@@ -689,6 +738,28 @@ export default function RouteOptimizerPage() {
                           max={500}
                           value={officeRadiusKm}
                           onChange={(e) => setOfficeRadiusKm(Number(e.target.value))}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            backgroundColor: 'var(--bg-input)',
+                            border: '1px solid var(--border-subtle)',
+                            borderRadius: '6px',
+                            color: 'var(--text-primary)',
+                            fontSize: '13px',
+                            outline: 'none',
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                          Max Trip (km)
+                        </label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={500}
+                          value={maxTripKm}
+                          onChange={(e) => setMaxTripKm(Number(e.target.value))}
                           style={{
                             width: '100%',
                             padding: '8px 12px',
@@ -1080,6 +1151,31 @@ export default function RouteOptimizerPage() {
               {/* Scrollable list of routes */}
               <div style={{ overflowY: 'auto', flex: 1, padding: '12px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {planResult.excludedByDistance && planResult.excludedByDistance.length > 0 && (
+                    <div
+                      style={{
+                        padding: '12px 14px',
+                        borderRadius: '8px',
+                        backgroundColor: 'var(--color-danger-bg)',
+                        border: '1px solid var(--color-danger-border)',
+                        color: 'var(--color-danger)',
+                        fontSize: '12px',
+                      }}
+                    >
+                      <strong style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <AlertTriangle size={14} />
+                        {planResult.excludedByDistance.length} Employee(s) Beyond {planResult.maxTripKm || 50} km Maximum Trip Limit
+                      </strong>
+                      <div style={{ marginTop: '6px', maxHeight: '100px', overflowY: 'auto' }}>
+                        {planResult.excludedByDistance.map((exc, idx) => (
+                          <div key={idx} style={{ fontSize: '11px', marginTop: '2px', color: 'var(--text-secondary)' }}>
+                            • <strong>{exc.name}</strong> ({exc.officeDistanceKm} km) - {exc.matchedAddress || exc.address}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {planResult.routes.map((route) => {
                     const isSelected = selectedCab === route.cab;
                     const isExpanded = expandedCabs.has(route.cab);
@@ -1120,12 +1216,33 @@ export default function RouteOptimizerPage() {
                               }}
                             />
                             <div>
-                              <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                                Route {route.cab} · {route.stops.length} Pickups
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                  Route {route.cab} · {route.stops.length} Pickups
+                                </span>
+                                <span
+                                  style={{
+                                    fontSize: '10px',
+                                    fontWeight: 700,
+                                    padding: '1px 6px',
+                                    borderRadius: '4px',
+                                    backgroundColor: route.cabType === 'suv' ? 'rgba(238, 152, 17, 0.15)' : 'rgba(17, 103, 238, 0.15)',
+                                    color: route.cabType === 'suv' ? '#EE9811' : '#1167EE',
+                                    border: `1px solid ${route.cabType === 'suv' ? '#EE9811' : '#1167EE'}`,
+                                  }}
+                                >
+                                  {(route.cabType || 'sedan').toUpperCase()}
+                                </span>
                               </div>
                               <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
                                 {route.departure} → {route.arrival} · {route.distanceKm} km · {route.driveMinutes} min
                               </div>
+                              {(route.driverPayout !== undefined || route.projectedMargin !== undefined) && (
+                                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                  Payout: <strong style={{ color: 'var(--text-primary)' }}>₹{route.driverPayout ?? 0}</strong> · Margin:{' '}
+                                  <strong style={{ color: 'var(--color-success, #16A34A)' }}>₹{route.projectedMargin ?? 0}</strong>
+                                </div>
+                              )}
                             </div>
                           </div>
 
@@ -1167,8 +1284,16 @@ export default function RouteOptimizerPage() {
                         {/* Expanded Door-to-Door Itinerary */}
                         {isExpanded && (
                           <div style={{ padding: '0 14px 12px', borderTop: '1px solid var(--border-subtle)', fontSize: '12px' }}>
-                            <div style={{ margin: '8px 0 6px', color: 'var(--text-secondary)', fontSize: '11px' }}>
-                              Sequence: <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{route.sequence}</span>
+                            <div style={{ margin: '8px 0 6px', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: '6px' }}>
+                              <div style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>
+                                Sequence: <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{route.sequence}</span>
+                              </div>
+                              <div style={{ display: 'flex', gap: '8px', fontSize: '11px' }}>
+                                <span>Cab: <strong style={{ textTransform: 'uppercase' }}>{route.cabType || 'Sedan'}</strong></span>
+                                <span>Revenue: <strong style={{ color: '#1167EE' }}>₹{route.corporateRevenue ?? 0}</strong></span>
+                                <span>Payout: <strong>₹{route.driverPayout ?? 0}</strong></span>
+                                <span>Margin: <strong style={{ color: 'var(--color-success, #16A34A)' }}>₹{route.projectedMargin ?? 0}</strong></span>
+                              </div>
                             </div>
 
                             <ol style={{ margin: '8px 0', paddingLeft: '18px', color: 'var(--text-primary)' }}>

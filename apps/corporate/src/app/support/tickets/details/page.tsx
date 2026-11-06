@@ -1,7 +1,8 @@
-﻿'use client';
+'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import {
   MessageSquare,
   ArrowLeft,
@@ -10,43 +11,69 @@ import {
   ShieldCheck,
   Send,
   CheckCircle2,
-  AlertTriangle,
-  Car,
-  FileText,
 } from 'lucide-react';
-import { mockSupportTickets } from '../../../../lib/mock/corporateMockData';
+import { supportApi } from '../../../../lib/api/corporate';
+import type { SupportTicket } from '../../../../lib/api/types';
+import { useSession } from '../../../../lib/auth/SessionContext';
 
-export default function TicketDetailsThreadPage() {
-  const [selectedTktId, setSelectedTktId] = useState('TKT-901');
-  const ticket = mockSupportTickets.find((t) => t.id === selectedTktId) || mockSupportTickets[0];
+function TicketDetailsThreadContent() {
+  const { tenantId } = useSession();
+  const activeTenantId = tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+
+  const searchParams = useSearchParams();
+  const ticketIdParam = searchParams.get('id');
+
+  const [ticket, setTicket] = useState<SupportTicket | null>(null);
+  const [loading, setLoading] = useState(true);
   const [replyMessage, setReplyMessage] = useState('');
-  const [conversation, setConversation] = useState(ticket.conversation);
-  const [ticketStatus, setTicketStatus] = useState(ticket.status);
+  const [replies, setReplies] = useState<Array<{ sender: string; time: string; text: string }>>([]);
+
+  useEffect(() => {
+    setLoading(true);
+    supportApi
+      .list(activeTenantId, {})
+      .then((tickets) => {
+        if (tickets.length > 0) {
+          const match = ticketIdParam ? tickets.find((t) => t.id === ticketIdParam) : null;
+          setTicket(match || tickets[0]);
+        }
+      })
+      .catch((err) => {
+        console.warn('Failed to load ticket:', err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [activeTenantId, ticketIdParam]);
 
   const handleSendReply = () => {
     if (!replyMessage.trim()) return;
-    const newMsg = {
-      sender: 'Corporate Transport Admin (You)',
-      role: 'Agent' as const,
-      time: 'Just now',
-      message: replyMessage.trim(),
-    };
-    setConversation([...conversation, newMsg]);
+    setReplies([
+      ...replies,
+      {
+        sender: 'Corporate Transport Admin (You)',
+        time: 'Just now',
+        text: replyMessage.trim(),
+      },
+    ]);
     setReplyMessage('');
   };
 
-  const handleResolve = () => {
-    setTicketStatus('Resolved');
-    setConversation([
-      ...conversation,
-      {
-        sender: 'System',
-        role: 'System' as const,
-        time: 'Just now',
-        message: 'Ticket marked as RESOLVED by Corporate Transport Admin.',
-      },
-    ]);
-  };
+  if (loading) {
+    return (
+      <div className="surface-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
+        Loading ticket thread...
+      </div>
+    );
+  }
+
+  if (!ticket) {
+    return (
+      <div className="surface-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
+        Ticket not found.
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -54,7 +81,7 @@ export default function TicketDetailsThreadPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <Link
-            href="/support/tickets"
+            href="/support"
             style={{
               padding: '6px 10px',
               borderRadius: 6,
@@ -69,239 +96,123 @@ export default function TicketDetailsThreadPage() {
               backgroundColor: 'var(--bg-surface)',
             }}
           >
-            <ArrowLeft size={14} /> Back to Ticket List
+            <ArrowLeft size={14} /> Back to Support Overview
           </Link>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-                {ticket.ticketId}: {ticket.subject}
+                Ticket — {ticket.id.slice(0, 8)}
               </h1>
               <span
                 style={{
                   padding: '2px 8px',
-                  backgroundColor: ticket.priority === 'High' ? '#FFEDD5' : '#EFF6FF',
-                  color: ticket.priority === 'High' ? '#C2410C' : 'var(--corporate-blue)',
-                  borderRadius: 4,
-                  fontSize: 11,
-                  fontWeight: 700,
-                }}
-              >
-                {ticket.priority} Priority
-              </span>
-              <span
-                style={{
-                  padding: '2px 8px',
-                  backgroundColor: ticketStatus === 'Resolved' ? '#DCFCE7' : '#EFF6FF',
-                  color: ticketStatus === 'Resolved' ? '#15803D' : 'var(--corporate-blue)',
+                  backgroundColor: ticket.status === 'RESOLVED' ? '#DCFCE7' : '#EFF6FF',
+                  color: ticket.status === 'RESOLVED' ? '#16A34A' : '#5728B2',
                   borderRadius: 4,
                   fontSize: 11,
                   fontWeight: 600,
                 }}
               >
-                {ticketStatus}
+                {ticket.status}
               </span>
             </div>
             <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
-              Opened {ticket.createdAt} â€¢ Category: {ticket.category}
+              Category: {ticket.category} · Priority: {ticket.priority || 'Normal'}
             </p>
           </div>
         </div>
-
-        {/* Action Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {ticketStatus !== 'Resolved' && (
-            <button
-              type="button"
-              onClick={handleResolve}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '8px 14px',
-                backgroundColor: '#16A34A',
-                color: '#FFFFFF',
-                borderRadius: 6,
-                fontSize: 13,
-                fontWeight: 600,
-                border: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              <CheckCircle2 size={16} /> Mark as Resolved
-            </button>
-          )}
-        </div>
       </div>
 
-      {/* Two-Column Grid: Left Metadata & Right Chat Thread */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: 16 }}>
-        {/* Left Column: Ticket Metadata & Commuter Details */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div
-            style={{
-              backgroundColor: 'var(--bg-surface)',
-              borderRadius: 8,
-              border: '1px solid var(--border-color)',
-              padding: 20,
-            }}
-          >
-            <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 16px 0' }}>
-              Ticket Information
-            </h2>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 13 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
-                <span style={{ color: 'var(--text-muted)' }}>Commuter:</span>
-                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                  {ticket.employeeName} ({ticket.employeeId})
-                </span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
-                <span style={{ color: 'var(--text-muted)' }}>Campus Site:</span>
-                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{ticket.office}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
-                <span style={{ color: 'var(--text-muted)' }}>Category:</span>
-                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{ticket.category}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
-                <span style={{ color: 'var(--text-muted)' }}>Trip Reference:</span>
-                <span style={{ fontWeight: 600, color: 'var(--corporate-blue)' }}>
-                  {ticket.tripReference || 'N/A'}
-                </span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
-                <span style={{ color: 'var(--text-muted)' }}>SLA Target:</span>
-                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                  {ticket.slaTargetHours} Hours (Elapsed: {ticket.elapsedTimeHours})
-                </span>
-              </div>
+      {/* Main Grid: Left Conversation Thread / Right Ticket Info */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(340px, 1.4fr) minmax(280px, 1fr)', gap: 16 }}>
+        {/* Thread */}
+        <div className="surface-card" style={{ padding: 20, backgroundColor: 'var(--bg-surface)', borderRadius: 8, border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ padding: 16, backgroundColor: 'var(--bg-surface-muted)', borderRadius: 8, border: '1px solid var(--border-subtle)' }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
+              {ticket.subject}
             </div>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>
+              {ticket.description}
+            </p>
+          </div>
 
-            {/* SLA Timer Indicator */}
-            <div style={{ marginTop: 16, padding: '12px 14px', backgroundColor: 'var(--bg-surface-muted)', borderRadius: 6, border: '1px solid var(--border-color)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#15803D', fontWeight: 600, fontSize: 12 }}>
-                <Clock size={14} /> Within Contractual SLA Window
+          {/* Reply history */}
+          {replies.map((r, idx) => (
+            <div key={idx} style={{ padding: 14, borderRadius: 8, backgroundColor: '#EFF6FF', border: '1px solid #BFDBFE' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#5728B2', fontWeight: 700, marginBottom: 4 }}>
+                <span>{r.sender}</span>
+                <span>{r.time}</span>
               </div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-                Target resolution by 10:30 AM (48 min remaining)
-              </div>
+              <div style={{ fontSize: 13, color: 'var(--text-primary)' }}>{r.text}</div>
             </div>
-          </div>
-        </div>
+          ))}
 
-        {/* Right Column: Live Conversation Thread */}
-        <div
-          style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 8,
-            border: '1px solid var(--border-color)',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            minHeight: 460,
-          }}
-        >
-          {/* Messages Header */}
-          <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border-color)', fontSize: 14, fontWeight: 700 }}>
-            Investigation Thread & Employee Messages ({conversation.length})
-          </div>
-
-          {/* Messages Container */}
-          <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto', flex: 1 }}>
-            {conversation.map((msg, idx) => {
-              const isEmployee = msg.role === 'Employee';
-              const isSystem = msg.role === 'System';
-
-              if (isSystem) {
-                return (
-                  <div
-                    key={idx}
-                    style={{
-                      textAlign: 'center',
-                      fontSize: 11,
-                      color: 'var(--text-muted)',
-                      padding: '4px 10px',
-                      backgroundColor: 'var(--bg-surface-muted)',
-                      borderRadius: 4,
-                      alignSelf: 'center',
-                    }}
-                  >
-                    {msg.message} â€¢ {msg.time}
-                  </div>
-                );
-              }
-
-              return (
-                <div
-                  key={idx}
-                  style={{
-                    alignSelf: isEmployee ? 'flex-start' : 'flex-end',
-                    maxWidth: '80%',
-                    backgroundColor: isEmployee ? '#F1F5F9' : '#EFF6FF',
-                    borderRadius: 8,
-                    padding: '10px 14px',
-                    border: `1px solid ${isEmployee ? '#E2E8F0' : '#BFDBFE'}`,
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 4 }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: isEmployee ? 'var(--text-primary)' : 'var(--corporate-blue)' }}>
-                      {msg.sender}
-                    </span>
-                    <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{msg.time}</span>
-                  </div>
-                  <p style={{ fontSize: 13, color: 'var(--text-primary)', margin: 0, lineHeight: 1.4 }}>
-                    {msg.message}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Reply Input Box */}
-          <div
-            style={{
-              padding: '14px 20px',
-              borderTop: '1px solid var(--border-color)',
-              display: 'flex',
-              gap: 10,
-              backgroundColor: 'var(--bg-surface-muted)',
-            }}
-          >
-            <input
-              type="text"
+          {/* Reply Box */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10 }}>
+            <textarea
+              rows={3}
               value={replyMessage}
               onChange={(e) => setReplyMessage(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSendReply()}
-              placeholder="Type an official response or internal note to the commuter..."
+              placeholder="Type your response to the commuter or operations vendor..."
               style={{
-                flex: 1,
-                padding: '8px 12px',
+                width: '100%',
+                padding: '10px 12px',
                 borderRadius: 6,
                 border: '1px solid var(--border-color)',
                 fontSize: 13,
-                backgroundColor: 'var(--bg-surface)',
+                outline: 'none',
               }}
             />
-            <button
-              type="button"
-              onClick={handleSendReply}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '8px 16px',
-                backgroundColor: 'var(--corporate-blue)',
-                color: '#FFFFFF',
-                borderRadius: 6,
-                fontSize: 13,
-                fontWeight: 600,
-                border: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              <Send size={14} /> Send
-            </button>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={handleSendReply}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '8px 16px',
+                  backgroundColor: '#5728B2',
+                  color: '#FFFFFF',
+                  borderRadius: 6,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
+              >
+                <Send size={14} /> Send Reply
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Info */}
+        <div className="surface-card" style={{ padding: 20, backgroundColor: 'var(--bg-surface)', borderRadius: 8, border: '1px solid var(--border-color)' }}>
+          <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 14 }}>
+            Ticket Metadata
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 13 }}>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Ticket ID</div>
+              <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{ticket.id}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Created Date</div>
+              <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                {new Date(ticket.createdAt).toLocaleString()}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Category</div>
+              <div style={{ fontWeight: 600, color: '#5728B2' }}>{ticket.category}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Status</div>
+              <div style={{ fontWeight: 700, color: ticket.status === 'RESOLVED' ? '#16A34A' : '#D97706' }}>
+                {ticket.status}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -309,3 +220,10 @@ export default function TicketDetailsThreadPage() {
   );
 }
 
+export default function TicketDetailsThreadPage() {
+  return (
+    <Suspense fallback={<div className="surface-card" style={{ padding: 40, textAlign: 'center' }}>Loading...</div>}>
+      <TicketDetailsThreadContent />
+    </Suspense>
+  );
+}

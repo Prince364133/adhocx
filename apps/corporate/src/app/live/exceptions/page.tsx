@@ -1,6 +1,6 @@
-﻿'use client';
+'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Clock,
   UserX,
@@ -8,28 +8,51 @@ import {
   Navigation,
   ShieldAlert,
   Search,
-  MapPin,
   List,
   Map,
-  Eye,
-  CheckCircle,
-  AlertTriangle,
 } from 'lucide-react';
 import { MetricCard } from '../../../components/common/MetricCard';
 import { FilterBar } from '../../../components/common/FilterBar';
 import { MiniLiveMap } from '../../../components/maps/MiniLiveMap';
-import {
-  mockExceptions,
-  mockExceptionsSummary,
-  ExceptionItem,
-} from '../../../lib/mock/corporateMockData';
+import { analyticsApi } from '../../../lib/api/corporate';
+import type { ExceptionItem, ExceptionsResponse } from '../../../lib/api/types';
+import { useSession } from '../../../lib/auth/SessionContext';
 
 export default function TrackingExceptionsPage() {
+  const { tenantId } = useSession();
+  const activeTenantId = tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+
+  const [data, setData] = useState<ExceptionsResponse | null>(null);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'list' | 'map'>('list');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState('ALL');
 
-  const filteredExceptions = mockExceptions.filter((exc) => {
+  useEffect(() => {
+    setLoading(true);
+    analyticsApi
+      .exceptions({ tenantId: activeTenantId })
+      .then((res) => {
+        setData(res);
+      })
+      .catch((err) => {
+        console.warn('Exceptions fetch error:', err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [activeTenantId]);
+
+  const exceptions = data?.items ?? [];
+  const summary = data?.summary ?? {
+    delayedPickups: 0,
+    unassignedTrips: 0,
+    gpsStaleCount: 0,
+    routeDeviations: 0,
+    safetyAlerts: 0,
+  };
+
+  const filteredExceptions = exceptions.filter((exc) => {
     const matchesType = selectedType === 'ALL' || exc.type.toUpperCase().includes(selectedType);
     const matchesSearch =
       exc.target.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -71,7 +94,7 @@ export default function TrackingExceptionsPage() {
         <FilterBar
           showOffices={true}
           showDateRange={true}
-          dateRangeLabel="Today, 08 Dec 2026"
+          dateRangeLabel="Today"
           showExceptionTypes={true}
         />
       </div>
@@ -80,39 +103,39 @@ export default function TrackingExceptionsPage() {
       <div className="metric-grid">
         <MetricCard
           label="Delayed Trips"
-          value={mockExceptionsSummary.delayedPickups}
+          value={summary.delayedPickups}
           icon={<Clock size={18} />}
           highlightColor="#D97706"
-          onClick={() => setSelectedType('DELAYED')}
+          onClick={() => setSelectedType(selectedType === 'DELAYED' ? 'ALL' : 'DELAYED')}
         />
         <MetricCard
           label="Unassigned Trips"
-          value={mockExceptionsSummary.unassignedTrips}
+          value={summary.unassignedTrips}
           icon={<UserX size={18} />}
           highlightColor="#EA580C"
-          onClick={() => setSelectedType('UNASSIGNED')}
+          onClick={() => setSelectedType(selectedType === 'UNASSIGNED' ? 'ALL' : 'UNASSIGNED')}
         />
         <MetricCard
           label="GPS Stale"
-          value={mockExceptionsSummary.gpsStaleCount}
+          value={summary.gpsStaleCount}
           subtext="> 5 mins"
           icon={<Radio size={18} />}
           highlightColor="#CA8A04"
-          onClick={() => setSelectedType('GPS')}
+          onClick={() => setSelectedType(selectedType === 'GPS' ? 'ALL' : 'GPS')}
         />
         <MetricCard
           label="Route Deviations"
-          value={mockExceptionsSummary.routeDeviations}
+          value={summary.routeDeviations}
           icon={<Navigation size={18} />}
           highlightColor="#7C3AED"
-          onClick={() => setSelectedType('DEVIATION')}
+          onClick={() => setSelectedType(selectedType === 'DEVIATION' ? 'ALL' : 'DEVIATION')}
         />
         <MetricCard
           label="Safety Alerts"
-          value={mockExceptionsSummary.safetyAlerts}
+          value={summary.safetyAlerts}
           icon={<ShieldAlert size={18} />}
           highlightColor="#DC2626"
-          onClick={() => setSelectedType('SAFETY')}
+          onClick={() => setSelectedType(selectedType === 'SAFETY' ? 'ALL' : 'SAFETY')}
         />
       </div>
 
@@ -138,7 +161,7 @@ export default function TrackingExceptionsPage() {
               }}
             >
               <List size={14} />
-              <span>Exception List (53)</span>
+              <span>Exception List ({filteredExceptions.length})</span>
             </button>
             <button
               onClick={() => setActiveTab('map')}
@@ -186,86 +209,96 @@ export default function TrackingExceptionsPage() {
 
         {/* Tab 1: List View */}
         {activeTab === 'list' && (
-          <div className="table-scroll">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Trip / Vehicle</th>
-                  <th>Type</th>
-                  <th>Details</th>
-                  <th>Office</th>
-                  <th>Since</th>
-                  <th>Status</th>
-                  <th style={{ textAlign: 'right' }}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredExceptions.map((item) => {
-                  const badge = getBadgeStyle(item.type);
-                  return (
-                    <tr key={item.id}>
-                      <td style={{ fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-                        {item.target}
-                      </td>
-                      <td>
-                        <span
-                          style={{
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            padding: '3px 8px',
-                            borderRadius: '4px',
-                            backgroundColor: badge.bg,
-                            color: badge.color,
-                            border: `1px solid ${badge.border}`,
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {item.type}
-                        </span>
-                      </td>
-                      <td style={{ color: 'var(--text-primary)', fontSize: '12px' }}>
-                        {item.details}
-                      </td>
-                      <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                        {item.office}
-                      </td>
-                      <td style={{ fontSize: '12px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                        {item.duration}
-                      </td>
-                      <td>
-                        <span
-                          style={{
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            color: item.status === 'Escalated' ? '#DC2626' : item.status === 'In Review' ? '#D97706' : '#5728B2',
-                          }}
-                        >
-                          {item.status}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <button
-                          onClick={() => alert(`Triggering ${item.action} for ${item.target}`)}
-                          style={{
-                            padding: '4px 12px',
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            backgroundColor: item.action === 'Resolve' ? '#FEE2E2' : '#EFF6FF',
-                            color: item.action === 'Resolve' ? '#DC2626' : '#5728B2',
-                            border: `1px solid ${item.action === 'Resolve' ? '#FCA5A5' : '#BFDBFE'}`,
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          {item.action}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          loading ? (
+            <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+              Loading tracking exceptions...
+            </div>
+          ) : filteredExceptions.length === 0 ? (
+            <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+              No active tracking exceptions found for this filter. All operations normal.
+            </div>
+          ) : (
+            <div className="table-scroll">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Trip / Vehicle</th>
+                    <th>Type</th>
+                    <th>Details</th>
+                    <th>Office</th>
+                    <th>Since</th>
+                    <th>Status</th>
+                    <th style={{ textAlign: 'right' }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredExceptions.map((item) => {
+                    const badge = getBadgeStyle(item.type);
+                    return (
+                      <tr key={item.id}>
+                        <td style={{ fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                          {item.target}
+                        </td>
+                        <td>
+                          <span
+                            style={{
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              padding: '3px 8px',
+                              borderRadius: '4px',
+                              backgroundColor: badge.bg,
+                              color: badge.color,
+                              border: `1px solid ${badge.border}`,
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {item.type}
+                          </span>
+                        </td>
+                        <td style={{ color: 'var(--text-primary)', fontSize: '12px' }}>
+                          {item.details}
+                        </td>
+                        <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                          {item.office}
+                        </td>
+                        <td style={{ fontSize: '12px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                          {item.duration}
+                        </td>
+                        <td>
+                          <span
+                            style={{
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              color: item.status === 'Escalated' ? '#DC2626' : item.status === 'In Review' ? '#D97706' : '#5728B2',
+                            }}
+                          >
+                            {item.status}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <button
+                            onClick={() => alert(`Reviewing exception: ${item.target} (${item.details})`)}
+                            style={{
+                              padding: '4px 12px',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              backgroundColor: item.action === 'Resolve' ? '#FEE2E2' : '#EFF6FF',
+                              color: item.action === 'Resolve' ? '#DC2626' : '#5728B2',
+                              border: `1px solid ${item.action === 'Resolve' ? '#FCA5A5' : '#BFDBFE'}`,
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {item.action}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )
         )}
 
         {/* Tab 2: Map View */}
@@ -273,8 +306,8 @@ export default function TrackingExceptionsPage() {
           <div style={{ marginTop: '10px' }}>
             <MiniLiveMap
               height={420}
-              activeVehiclePlate="TS14CD9931 (SOS Alert)"
-              activeEta="Location: HiTEC City Junction"
+              activeVehiclePlate="Live Exception Radar"
+              activeEta="Active Hotspots"
             />
           </div>
         )}
@@ -282,4 +315,3 @@ export default function TrackingExceptionsPage() {
     </div>
   );
 }
-

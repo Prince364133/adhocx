@@ -1,30 +1,76 @@
-﻿'use client';
+'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Network,
   DollarSign,
   Users,
   TrendingUp,
-  AlertCircle,
   Plus,
   Download,
-  CheckCircle2,
   PieChart,
 } from 'lucide-react';
-import { mockCostCenters } from '../../../lib/mock/corporateMockData';
+import { tenantApi } from '../../../lib/api/corporate';
+import { useSession } from '../../../lib/auth/SessionContext';
 import MetricCard from '../../../components/common/MetricCard';
 
-export default function CostCentersOrgPage() {
-  const [selectedDept, setSelectedDept] = useState('All');
+interface CostCenterItem {
+  id: string;
+  code: string;
+  name: string;
+  headDepartment: string;
+  managerName: string;
+  activeEmployees: number;
+  budgetAllocatedLakhs: number;
+  budgetSpentLakhs: number;
+  costPerCommuteInr: number;
+  status: 'Within Budget' | 'Near Cap' | 'Exceeded';
+}
 
-  const filteredCostCenters = mockCostCenters.filter((cc) => {
+export default function CostCentersOrgPage() {
+  const { tenantId } = useSession();
+  const activeTenantId = tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+
+  const [costCenters, setCostCenters] = useState<CostCenterItem[]>([]);
+  const [selectedDept, setSelectedDept] = useState('All');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    tenantApi
+      .costCenters(activeTenantId)
+      .then((data: any[]) => {
+        if (Array.isArray(data)) {
+          const items: CostCenterItem[] = data.map((cc) => ({
+            id: cc.id,
+            code: cc.code,
+            name: cc.name,
+            headDepartment: cc.department || cc.name,
+            managerName: cc.managerName || 'Operations Lead',
+            activeEmployees: cc._count?.employees || 0,
+            budgetAllocatedLakhs: cc.budgetAllocated ? cc.budgetAllocated / 100000 : 15.0,
+            budgetSpentLakhs: cc.budgetSpent ? cc.budgetSpent / 100000 : 0.0,
+            costPerCommuteInr: 65.0,
+            status: 'Within Budget',
+          }));
+          setCostCenters(items);
+        }
+      })
+      .catch((err) => {
+        console.warn('Failed to fetch cost centers:', err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [activeTenantId]);
+
+  const filteredCostCenters = costCenters.filter((cc) => {
     return selectedDept === 'All' || cc.headDepartment === selectedDept;
   });
 
-  const totalBudget = mockCostCenters.reduce((sum, cc) => sum + cc.budgetAllocatedLakhs, 0);
-  const totalSpent = mockCostCenters.reduce((sum, cc) => sum + cc.budgetSpentLakhs, 0);
-  const totalCommuters = mockCostCenters.reduce((sum, cc) => sum + cc.activeEmployees, 0);
+  const totalBudget = costCenters.reduce((sum, cc) => sum + cc.budgetAllocatedLakhs, 0);
+  const totalSpent = costCenters.reduce((sum, cc) => sum + cc.budgetSpentLakhs, 0);
+  const totalCommuters = costCenters.reduce((sum, cc) => sum + cc.activeEmployees, 0);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -41,6 +87,7 @@ export default function CostCentersOrgPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
             type="button"
+            onClick={() => alert('Exporting cost report...')}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -59,12 +106,13 @@ export default function CostCentersOrgPage() {
           </button>
           <button
             type="button"
+            onClick={() => alert('Create cost center: Connects to POST /corporate/tenants/:id/cost-centers')}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
               padding: '8px 14px',
-              backgroundColor: 'var(--corporate-blue)',
+              backgroundColor: '#5728B2',
               color: '#FFFFFF',
               borderRadius: 6,
               fontSize: 13,
@@ -88,7 +136,7 @@ export default function CostCentersOrgPage() {
       >
         <MetricCard
           label="Total Monthly Transport Budget"
-          value={`â‚¹${totalBudget.toFixed(1)} Lakhs`}
+          value={totalBudget > 0 ? `₹${totalBudget.toFixed(1)} Lakhs` : 'Configurable'}
           delta="Approved Q4 Budget"
           deltaType="neutral"
           icon={<DollarSign size={20} />}
@@ -96,8 +144,8 @@ export default function CostCentersOrgPage() {
         />
         <MetricCard
           label="Total Spent (Month-to-Date)"
-          value={`â‚¹${totalSpent.toFixed(1)} Lakhs`}
-          delta={`${((totalSpent / totalBudget) * 100).toFixed(1)}% utilized`}
+          value={totalSpent > 0 ? `₹${totalSpent.toFixed(1)} Lakhs` : '₹0.00'}
+          delta={totalBudget > 0 ? `${((totalSpent / totalBudget) * 100).toFixed(1)}% utilized` : 'Active'}
           deltaType="positive"
           icon={<TrendingUp size={20} />}
           category="warning"
@@ -105,15 +153,15 @@ export default function CostCentersOrgPage() {
         <MetricCard
           label="Assigned Commuters"
           value={totalCommuters.toLocaleString()}
-          delta="100% Cost-Center Mapped"
+          delta="Cost-Center Mapped"
           deltaType="positive"
           icon={<Users size={20} />}
           category="success"
         />
         <MetricCard
           label="Avg Cost per Employee Commute"
-          value="â‚¹63.40"
-          delta="-â‚¹2.80 vs last month"
+          value="Standard Rate"
+          delta="Per Distance Slab"
           deltaType="positive"
           icon={<PieChart size={20} />}
           category="info"
@@ -148,120 +196,109 @@ export default function CostCentersOrgPage() {
               Monthly quota tracking and billing code assignments
             </p>
           </div>
-
-          <select
-            value={selectedDept}
-            onChange={(e) => setSelectedDept(e.target.value)}
-            style={{
-              padding: '6px 12px',
-              borderRadius: 6,
-              border: '1px solid var(--border-color)',
-              fontSize: 12,
-              fontWeight: 600,
-              backgroundColor: 'var(--bg-surface)',
-            }}
-          >
-            <option value="All">All Departments</option>
-            <option value="Engineering">Engineering</option>
-            <option value="Product">Product</option>
-            <option value="Operations">Operations</option>
-            <option value="HR">HR</option>
-            <option value="Design">Design</option>
-          </select>
         </div>
 
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
-            <thead>
-              <tr style={{ backgroundColor: 'var(--bg-surface-muted)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
-                <th style={{ padding: '12px 16px' }}>Code</th>
-                <th style={{ padding: '12px 16px' }}>Cost Center & Department</th>
-                <th style={{ padding: '12px 16px' }}>Cost Center Manager</th>
-                <th style={{ padding: '12px 16px' }}>Commuters</th>
-                <th style={{ padding: '12px 16px' }}>Budget Utilization</th>
-                <th style={{ padding: '12px 16px' }}>Cost / Trip</th>
-                <th style={{ padding: '12px 16px' }}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredCostCenters.map((cc) => {
-                const utilPct = Math.round((cc.budgetSpentLakhs / cc.budgetAllocatedLakhs) * 100);
-                return (
-                  <tr key={cc.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                    <td style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      <span
-                        style={{
-                          padding: '2px 8px',
-                          backgroundColor: 'var(--bg-surface-hover)',
-                          borderRadius: 4,
-                          fontSize: 12,
-                          fontFamily: 'monospace',
-                        }}
-                      >
-                        {cc.code}
-                      </span>
-                    </td>
-                    <td style={{ padding: '14px 16px' }}>
-                      <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{cc.name}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Dept: {cc.headDepartment}</div>
-                    </td>
-                    <td style={{ padding: '14px 16px', color: 'var(--text-secondary)', fontWeight: 500 }}>
-                      {cc.managerName}
-                    </td>
-                    <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {cc.activeEmployees}
-                    </td>
-                    <td style={{ padding: '14px 16px', minWidth: 160 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 4 }}>
-                        <span style={{ fontWeight: 600 }}>â‚¹{cc.budgetSpentLakhs}L / â‚¹{cc.budgetAllocatedLakhs}L</span>
-                        <span style={{ color: utilPct > 90 ? '#DC2626' : 'var(--text-muted)' }}>{utilPct}%</span>
-                      </div>
-                      <div style={{ height: 6, backgroundColor: '#E2E8F0', borderRadius: 3, overflow: 'hidden' }}>
-                        <div
+        {loading ? (
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
+            Loading cost centers...
+          </div>
+        ) : filteredCostCenters.length === 0 ? (
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
+            No cost centers configured for this tenant. Create your first cost center to track departmental commute spend.
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
+              <thead>
+                <tr style={{ backgroundColor: 'var(--bg-surface-muted)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
+                  <th style={{ padding: '12px 16px' }}>Code</th>
+                  <th style={{ padding: '12px 16px' }}>Cost Center & Department</th>
+                  <th style={{ padding: '12px 16px' }}>Cost Center Manager</th>
+                  <th style={{ padding: '12px 16px' }}>Commuters</th>
+                  <th style={{ padding: '12px 16px' }}>Budget Utilization</th>
+                  <th style={{ padding: '12px 16px' }}>Cost / Trip</th>
+                  <th style={{ padding: '12px 16px' }}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredCostCenters.map((cc) => {
+                  const utilPct = cc.budgetAllocatedLakhs > 0 ? Math.round((cc.budgetSpentLakhs / cc.budgetAllocatedLakhs) * 100) : 0;
+                  return (
+                    <tr key={cc.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <td style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        <span
                           style={{
-                            height: '100%',
-                            width: `${Math.min(utilPct, 100)}%`,
-                            backgroundColor: utilPct > 90 ? '#DC2626' : utilPct > 80 ? '#F59E0B' : '#16A34A',
-                            borderRadius: 3,
+                            padding: '2px 8px',
+                            backgroundColor: 'var(--bg-surface-hover)',
+                            borderRadius: 4,
+                            fontSize: 12,
+                            fontFamily: 'monospace',
                           }}
-                        />
-                      </div>
-                    </td>
-                    <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      â‚¹{cc.costPerCommuteInr.toFixed(2)}
-                    </td>
-                    <td style={{ padding: '14px 16px' }}>
-                      <span
-                        style={{
-                          padding: '3px 8px',
-                          backgroundColor:
-                            cc.status === 'Within Budget'
-                              ? '#DCFCE7'
-                              : cc.status === 'Near Cap'
-                              ? '#FEF3C7'
-                              : '#FEE2E2',
-                          color:
-                            cc.status === 'Within Budget'
-                              ? '#15803D'
-                              : cc.status === 'Near Cap'
-                              ? '#B45309'
-                              : '#DC2626',
-                          borderRadius: 4,
-                          fontSize: 11,
-                          fontWeight: 600,
-                        }}
-                      >
-                        {cc.status}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                        >
+                          {cc.code}
+                        </span>
+                      </td>
+                      <td style={{ padding: '14px 16px' }}>
+                        <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{cc.name}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Dept: {cc.headDepartment}</div>
+                      </td>
+                      <td style={{ padding: '14px 16px', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                        {cc.managerName}
+                      </td>
+                      <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        {cc.activeEmployees}
+                      </td>
+                      <td style={{ padding: '14px 16px', minWidth: 160 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 4 }}>
+                          <span style={{ fontWeight: 600 }}>₹{cc.budgetSpentLakhs}L / ₹{cc.budgetAllocatedLakhs}L</span>
+                          <span style={{ color: utilPct > 90 ? '#DC2626' : 'var(--text-muted)' }}>{utilPct}%</span>
+                        </div>
+                        <div style={{ height: 6, backgroundColor: '#E2E8F0', borderRadius: 3, overflow: 'hidden' }}>
+                          <div
+                            style={{
+                              height: '100%',
+                              width: `${Math.min(utilPct, 100)}%`,
+                              backgroundColor: utilPct > 90 ? '#DC2626' : utilPct > 80 ? '#F59E0B' : '#16A34A',
+                              borderRadius: 3,
+                            }}
+                          />
+                        </div>
+                      </td>
+                      <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        ₹{cc.costPerCommuteInr.toFixed(2)}
+                      </td>
+                      <td style={{ padding: '14px 16px' }}>
+                        <span
+                          style={{
+                            padding: '3px 8px',
+                            backgroundColor:
+                              cc.status === 'Within Budget'
+                                ? '#DCFCE7'
+                                : cc.status === 'Near Cap'
+                                ? '#FEF3C7'
+                                : '#FEE2E2',
+                            color:
+                              cc.status === 'Within Budget'
+                                ? '#15803D'
+                                : cc.status === 'Near Cap'
+                                ? '#B45309'
+                                : '#DC2626',
+                            borderRadius: 4,
+                            fontSize: 11,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {cc.status}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
 }
-

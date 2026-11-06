@@ -1,6 +1,6 @@
-﻿'use client';
+'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Calendar,
   ChevronLeft,
@@ -11,8 +11,11 @@ import {
   Building2,
   Briefcase,
 } from 'lucide-react';
+import { employeeApi, rosterApi, tenantApi } from '../../../lib/api/corporate';
+import type { CorporateEmployee, Office } from '../../../lib/api/types';
+import { useSession } from '../../../lib/auth/SessionContext';
 
-interface RosterCalendarRow {
+interface CalendarRow {
   empId: string;
   name: string;
   avatar: string;
@@ -23,89 +26,64 @@ interface RosterCalendarRow {
   }>;
 }
 
-const MOCK_ROSTER_MATRIX: RosterCalendarRow[] = [
-  {
-    empId: 'EMP02467',
-    name: 'Priya Sharma',
-    avatar: 'PS',
-    department: 'Product',
-    schedule: [
-      { day: 'Mon 07', shift: 'Day' },
-      { day: 'Tue 08', shift: 'Day' },
-      { day: 'Wed 09', shift: 'Day' },
-      { day: 'Thu 10', shift: 'Day' },
-      { day: 'Fri 11', shift: 'Day' },
-      { day: 'Sat 12', shift: 'Off' },
-      { day: 'Sun 13', shift: 'Off' },
-    ],
-  },
-  {
-    empId: 'EMP02911',
-    name: 'Rohit Singh',
-    avatar: 'RS',
-    department: 'Operations',
-    schedule: [
-      { day: 'Mon 07', shift: 'Night' },
-      { day: 'Tue 08', shift: 'Night' },
-      { day: 'Wed 09', shift: 'Night' },
-      { day: 'Thu 10', shift: 'Night' },
-      { day: 'Fri 11', shift: 'Night' },
-      { day: 'Sat 12', shift: 'Off' },
-      { day: 'Sun 13', shift: 'Off' },
-    ],
-  },
-  {
-    empId: 'EMP03124',
-    name: 'Neha Verma',
-    avatar: 'NV',
-    department: 'Design',
-    schedule: [
-      { day: 'Mon 07', shift: 'Evening' },
-      { day: 'Tue 08', shift: 'Evening' },
-      { day: 'Wed 09', shift: 'Evening' },
-      { day: 'Thu 10', shift: 'Evening' },
-      { day: 'Fri 11', shift: 'Evening' },
-      { day: 'Sat 12', shift: 'Off' },
-      { day: 'Sun 13', shift: 'Off' },
-    ],
-  },
-  {
-    empId: 'EMP01893',
-    name: 'Amit Kumar',
-    avatar: 'AK',
-    department: 'Engineering',
-    schedule: [
-      { day: 'Mon 07', shift: 'Day' },
-      { day: 'Tue 08', shift: 'Day' },
-      { day: 'Wed 09', shift: 'Day' },
-      { day: 'Thu 10', shift: 'Day' },
-      { day: 'Fri 11', shift: 'Training' },
-      { day: 'Sat 12', shift: 'Off' },
-      { day: 'Sun 13', shift: 'Off' },
-    ],
-  },
-  {
-    empId: 'EMP03376',
-    name: 'Anjali Rao',
-    avatar: 'AR',
-    department: 'HR',
-    schedule: [
-      { day: 'Mon 07', shift: 'Day' },
-      { day: 'Tue 08', shift: 'Day' },
-      { day: 'Wed 09', shift: 'Day' },
-      { day: 'Thu 10', shift: 'Day' },
-      { day: 'Fri 11', shift: 'Day' },
-      { day: 'Sat 12', shift: 'Off' },
-      { day: 'Sun 13', shift: 'Off' },
-    ],
-  },
-];
-
 export default function RosterCalendarPage() {
-  const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('month');
+  const { tenantId } = useSession();
+  const activeTenantId = tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+
+  const [employees, setEmployees] = useState<CorporateEmployee[]>([]);
+  const [offices, setOffices] = useState<Office[]>([]);
+  const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('week');
   const [selectedOffice, setSelectedOffice] = useState('All Offices');
   const [selectedDept, setSelectedDept] = useState('All Departments');
   const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([
+      employeeApi.list(activeTenantId, { limit: 50 }).catch(() => ({ items: [] })),
+      tenantApi.offices(activeTenantId).catch(() => []),
+    ])
+      .then(([empRes, offList]) => {
+        const items = empRes?.items || (empRes as any)?.data || [];
+        setEmployees(items);
+        setOffices(offList);
+      })
+      .catch((err) => {
+        console.warn('Failed to load roster employees:', err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [activeTenantId]);
+
+  const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  const rows: CalendarRow[] = employees.map((emp) => {
+    const fullName = emp.fullName || 'Enterprise Employee';
+    const avatar = fullName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase();
+    const department = typeof emp.department === 'string' ? emp.department : (emp.department as any)?.name || 'Operations';
+
+    return {
+      empId: emp.employeeCode || `EMP-${emp.id.slice(0, 6)}`,
+      name: fullName,
+      avatar,
+      department,
+      schedule: daysOfWeek.map((day, idx) => ({
+        day,
+        shift: idx >= 5 ? 'Off' : 'Day',
+      })),
+    };
+  });
+
+  const filteredRows = rows.filter((r) => {
+    const matchesDept = selectedDept === 'All Departments' || r.department.toLowerCase().includes(selectedDept.toLowerCase());
+    const matchesSearch =
+      r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      r.empId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      r.department.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesDept && matchesSearch;
+  });
 
   const getShiftBadge = (shift: string) => {
     switch (shift) {
@@ -132,7 +110,7 @@ export default function RosterCalendarPage() {
             Roster Calendar
           </h1>
           <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-            Create and manage employee rosters by shift, office and department
+            View and manage active employee shift rosters across facilities
           </p>
         </div>
 
@@ -189,26 +167,15 @@ export default function RosterCalendarPage() {
       {/* Filter Ribbon & Month Navigation */}
       <div className="surface-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', backgroundColor: 'var(--bg-surface)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {/* Month selector */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'var(--bg-surface-muted)', border: '1px solid var(--border-strong)', borderRadius: 6, padding: '4px 10px' }}>
-            <button style={{ border: 'none', background: 'none', cursor: 'pointer' }}>
-              <ChevronLeft size={14} color="#64748B" />
-            </button>
-            <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Dec 2026</span>
-            <button style={{ border: 'none', background: 'none', cursor: 'pointer' }}>
-              <ChevronRight size={14} color="#64748B" />
-            </button>
-          </div>
-
           <select
             value={selectedOffice}
             onChange={(e) => setSelectedOffice(e.target.value)}
             style={{ height: 34, padding: '0 10px', borderRadius: 6, border: '1px solid var(--border-strong)', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', outline: 'none' }}
           >
             <option value="All Offices">All Offices</option>
-            <option value="HiTEC City">HiTEC City</option>
-            <option value="Kondapur">Kondapur</option>
-            <option value="Gachibowli">Gachibowli</option>
+            {offices.map((o) => (
+              <option key={o.id} value={o.name}>{o.name}</option>
+            ))}
           </select>
 
           <select
@@ -217,29 +184,28 @@ export default function RosterCalendarPage() {
             style={{ height: 34, padding: '0 10px', borderRadius: 6, border: '1px solid var(--border-strong)', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', outline: 'none' }}
           >
             <option value="All Departments">All Departments</option>
-            <option value="Product">Product</option>
             <option value="Engineering">Engineering</option>
-            <option value="Design">Design</option>
+            <option value="Product">Product</option>
             <option value="Operations">Operations</option>
+            <option value="HR">HR</option>
           </select>
         </div>
 
-        {/* Search box */}
-        <div style={{ position: 'relative', width: 260 }}>
-          <Search size={14} color="#94A3B8" style={{ position: 'absolute', left: 10, top: 10 }} />
+        <div style={{ position: 'relative', width: 240 }}>
+          <Search size={14} color="#94A3B8" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search employee, shift, roster..."
+            placeholder="Search employee..."
             style={{
               width: '100%',
               height: 34,
               paddingLeft: 30,
               paddingRight: 10,
-              borderRadius: 6,
-              border: '1px solid var(--border-strong)',
               fontSize: 12,
+              border: '1px solid var(--border-strong)',
+              borderRadius: '6px',
               outline: 'none',
               backgroundColor: 'var(--bg-surface-muted)',
             }}
@@ -247,81 +213,89 @@ export default function RosterCalendarPage() {
         </div>
       </div>
 
-      {/* Roster Calendar Matrix */}
+      {/* Calendar Grid Table */}
       <div className="surface-card" style={{ padding: '20px', backgroundColor: 'var(--bg-surface)' }}>
-        <div className="table-scroll">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th style={{ minWidth: 200 }}>Employees (2,846)</th>
-                <th style={{ textAlign: 'center' }}>Mon 07</th>
-                <th style={{ textAlign: 'center' }}>Tue 08</th>
-                <th style={{ textAlign: 'center' }}>Wed 09</th>
-                <th style={{ textAlign: 'center' }}>Thu 10</th>
-                <th style={{ textAlign: 'center' }}>Fri 11</th>
-                <th style={{ textAlign: 'center' }}>Sat 12</th>
-                <th style={{ textAlign: 'center' }}>Sun 13</th>
-              </tr>
-            </thead>
-            <tbody>
-              {MOCK_ROSTER_MATRIX.map((row) => (
-                <tr key={row.empId}>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div
-                        style={{
-                          width: 30,
-                          height: 30,
-                          borderRadius: '50%',
-                          backgroundColor: '#1E293B',
-                          color: '#FFFFFF',
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        {row.avatar}
-                      </div>
-                      <div>
-                        <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{row.name}</div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                          {row.empId} Â· {row.department}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-
-                  {row.schedule.map((slot) => {
-                    const badge = getShiftBadge(slot.shift);
-                    return (
-                      <td key={slot.day} style={{ textAlign: 'center' }}>
-                        <span
+        {loading ? (
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
+            Loading roster schedules...
+          </div>
+        ) : filteredRows.length === 0 ? (
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
+            No roster records found. Import employee rosters to populate the calendar grid.
+          </div>
+        ) : (
+          <div className="table-scroll">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th style={{ width: 220 }}>Employee</th>
+                  {daysOfWeek.map((day) => (
+                    <th key={day} style={{ textAlign: 'center' }}>
+                      {day}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredRows.map((row) => (
+                  <tr key={row.empId}>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div
                           style={{
-                            display: 'inline-block',
-                            minWidth: 54,
-                            padding: '4px 8px',
-                            borderRadius: '4px',
+                            width: 30,
+                            height: 30,
+                            borderRadius: '50%',
+                            backgroundColor: '#1E293B',
+                            color: '#FFFFFF',
                             fontSize: '11px',
                             fontWeight: 700,
-                            backgroundColor: badge.bg,
-                            color: badge.color,
-                            border: `1px solid ${badge.border}`,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
                           }}
                         >
-                          {slot.shift}
-                        </span>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                          {row.avatar}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '13px' }}>
+                            {row.name}
+                          </div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                            {row.empId} · {row.department}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+
+                    {row.schedule.map((item, idx) => {
+                      const badge = getShiftBadge(item.shift);
+                      return (
+                        <td key={idx} style={{ textAlign: 'center', padding: '10px 8px' }}>
+                          <span
+                            style={{
+                              display: 'inline-block',
+                              padding: '4px 10px',
+                              borderRadius: '4px',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              backgroundColor: badge.bg,
+                              color: badge.color,
+                              border: `1px solid ${badge.border}`,
+                            }}
+                          >
+                            {item.shift}
+                          </span>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
 }
-

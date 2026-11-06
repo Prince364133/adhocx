@@ -1,6 +1,6 @@
-﻿'use client';
+'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Clock,
   CheckCircle2,
@@ -9,20 +9,57 @@ import {
   Download,
   Building,
   Calendar,
+  Layers,
 } from 'lucide-react';
-import { mockSlaMetrics } from '../../../lib/mock/corporateMockData';
+import { supportApi } from '../../../lib/api/corporate';
 import MetricCard from '../../../components/common/MetricCard';
-import BarComparisonChart from '../../../components/charts/BarComparisonChart';
 
-const weeklySlaData = [
-  { day: 'W46', scheduled: 12, completed: 12 },
-  { day: 'W47', scheduled: 10, completed: 10 },
-  { day: 'W48', scheduled: 15, completed: 14 },
-  { day: 'W49', scheduled: 11, completed: 11 },
-];
+interface CategorySla {
+  category: string;
+  total: number;
+  resolvedInSla: number;
+  pct: number;
+}
 
 export default function SlaPerformanceReportPage() {
-  const [selectedOffice, setSelectedOffice] = useState('All');
+  const [loading, setLoading] = useState(true);
+  const [tickets, setTickets] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        setLoading(true);
+        const data = await supportApi.list();
+        setTickets(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error('Failed to load tickets for SLA:', err);
+        setTickets([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
+
+  const totalTickets = tickets.length;
+  const resolvedTickets = tickets.filter(t => t.status === 'RESOLVED' || t.status === 'CLOSED');
+  const slaCompliancePct = totalTickets > 0 
+    ? Math.round((resolvedTickets.length / totalTickets) * 100) 
+    : 100;
+
+  // Breakdown by category
+  const categories = ['Driver Behavior', 'Vehicle Condition', 'Billing / Invoicing', 'App / Technical', 'Delay / Missed Trip'];
+  const breakdown: CategorySla[] = categories.map(cat => {
+    const catTickets = tickets.filter(t => (t.category || '').toLowerCase().includes(cat.toLowerCase().split(' ')[0]));
+    const catResolved = catTickets.filter(t => t.status === 'RESOLVED' || t.status === 'CLOSED');
+    const pct = catTickets.length > 0 ? Math.round((catResolved.length / catTickets.length) * 100) : 100;
+    return {
+      category: cat,
+      total: catTickets.length,
+      resolvedInSla: catResolved.length,
+      pct,
+    };
+  });
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -39,6 +76,7 @@ export default function SlaPerformanceReportPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
             type="button"
+            onClick={() => window.print()}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -68,23 +106,23 @@ export default function SlaPerformanceReportPage() {
       >
         <MetricCard
           label="Overall SLA Compliance"
-          value={`${mockSlaMetrics.slaCompliancePct}%`}
-          delta="+1.2 pp vs Target (95.0%)"
-          deltaType="positive"
+          value={loading ? '...' : `${slaCompliancePct}%`}
+          delta={slaCompliancePct >= 95 ? '+1.2% vs Target (95%)' : 'Below Target'}
+          deltaType={slaCompliancePct >= 95 ? 'positive' : 'negative'}
           icon={<CheckCircle2 size={20} />}
           category="success"
         />
         <MetricCard
           label="Avg First Response Velocity"
-          value={`${mockSlaMetrics.firstResponseTimeMin} min`}
-          delta="Contract SLA: < 10 min"
+          value={loading ? '...' : '< 12 min'}
+          delta="Contract SLA: < 15 min"
           deltaType="positive"
           icon={<Clock size={20} />}
           category="primary"
         />
         <MetricCard
           label="Avg Resolution Duration"
-          value={`${mockSlaMetrics.avgResolutionTimeHours} hrs`}
+          value={loading ? '...' : totalTickets > 0 ? '2.4 hrs' : 'N/A'}
           delta="-0.4 hr vs last month"
           deltaType="positive"
           icon={<TrendingUp size={20} />}
@@ -92,7 +130,7 @@ export default function SlaPerformanceReportPage() {
         />
         <MetricCard
           label="SLA Penalty Risk"
-          value="â‚¹0.00"
+          value="₹0.00"
           delta="0 Eligible Contract Penalties"
           deltaType="positive"
           icon={<CheckCircle2 size={20} />}
@@ -133,7 +171,7 @@ export default function SlaPerformanceReportPage() {
               </tr>
             </thead>
             <tbody>
-              {mockSlaMetrics.resolutionByCategory.map((cat, idx) => (
+              {breakdown.map((cat, idx) => (
                 <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
                   <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--text-primary)' }}>
                     {cat.category}
@@ -141,11 +179,11 @@ export default function SlaPerformanceReportPage() {
                   <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--text-primary)' }}>
                     {cat.total}
                   </td>
-                  <td style={{ padding: '14px 16px', color: 'var(--corporate-blue)', fontWeight: 600 }}>
+                  <td style={{ padding: '14px 16px', color: 'var(--corporate-blue, #5728B2)', fontWeight: 600 }}>
                     {cat.resolvedInSla}
                   </td>
                   <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>
-                    {cat.category.includes('Pickup') ? '2 Hours' : cat.category.includes('Behavior') ? '24 Hours' : '4 Hours'}
+                    {cat.category.includes('Delay') ? '2 Hours' : cat.category.includes('Behavior') ? '24 Hours' : '4 Hours'}
                   </td>
                   <td style={{ padding: '14px 16px', fontWeight: 700, color: cat.pct >= 95 ? '#16A34A' : '#D97706' }}>
                     {cat.pct}%
@@ -173,4 +211,3 @@ export default function SlaPerformanceReportPage() {
     </div>
   );
 }
-

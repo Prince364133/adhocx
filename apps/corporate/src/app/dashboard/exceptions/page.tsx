@@ -1,31 +1,58 @@
-﻿'use client';
+'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Clock,
   UserX,
   Radio,
   Navigation,
   ShieldAlert,
-  AlertTriangle,
-  ArrowRight,
-  Eye,
-  CheckCircle,
   Search,
+  CheckCircle,
 } from 'lucide-react';
 import { MetricCard } from '../../../components/common/MetricCard';
 import { FilterBar } from '../../../components/common/FilterBar';
-import {
-  mockExceptions,
-  mockExceptionsSummary,
-  mockExceptionsTrend,
-  ExceptionItem,
-} from '../../../lib/mock/corporateMockData';
+import { analyticsApi } from '../../../lib/api/corporate';
+import type { ExceptionItem, ExceptionsResponse } from '../../../lib/api/types';
+import { useSession } from '../../../lib/auth/SessionContext';
 
 export default function ExceptionsDashboardPage() {
-  const [exceptions, setExceptions] = useState<ExceptionItem[]>(mockExceptions);
+  const { tenantId } = useSession();
+  const activeTenantId = tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+
+  const [data, setData] = useState<ExceptionsResponse | null>(null);
+  const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+
+  const loadData = () => {
+    setLoading(true);
+    analyticsApi
+      .exceptions({ tenantId: activeTenantId })
+      .then((res) => {
+        setData(res);
+      })
+      .catch((err) => {
+        console.warn('Exceptions fetch error:', err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  };
+
+  useEffect(() => {
+    loadData();
+  }, [activeTenantId]);
+
+  const exceptions = data?.items ?? [];
+  const summary = data?.summary ?? {
+    delayedPickups: 0,
+    unassignedTrips: 0,
+    gpsStaleCount: 0,
+    routeDeviations: 0,
+    safetyAlerts: 0,
+  };
+  const trend = data?.trend ?? [];
 
   const filteredExceptions = exceptions.filter((exc) => {
     const matchesFilter = activeFilter === 'ALL' || exc.type.toUpperCase().includes(activeFilter);
@@ -73,8 +100,9 @@ export default function ExceptionsDashboardPage() {
         <FilterBar
           showOffices={true}
           showDateRange={true}
-          dateRangeLabel="Today, 14 Dec 2026"
+          dateRangeLabel="Today's Shift"
           showExceptionTypes={true}
+          onRefresh={loadData}
         />
       </div>
 
@@ -82,7 +110,7 @@ export default function ExceptionsDashboardPage() {
       <div className="metric-grid">
         <MetricCard
           label="Delayed Pickups"
-          value={mockExceptionsSummary.delayedPickups}
+          value={summary.delayedPickups}
           subtext="Needs Attention"
           icon={<Clock size={18} />}
           highlightColor="#D97706"
@@ -90,7 +118,7 @@ export default function ExceptionsDashboardPage() {
         />
         <MetricCard
           label="Unassigned Trips"
-          value={mockExceptionsSummary.unassignedTrips}
+          value={summary.unassignedTrips}
           subtext="Requires Allocation"
           icon={<UserX size={18} />}
           highlightColor="#EA580C"
@@ -98,7 +126,7 @@ export default function ExceptionsDashboardPage() {
         />
         <MetricCard
           label="GPS Stale"
-          value={mockExceptionsSummary.gpsStaleCount}
+          value={summary.gpsStaleCount}
           subtext="> 5 mins"
           icon={<Radio size={18} />}
           highlightColor="#CA8A04"
@@ -106,7 +134,7 @@ export default function ExceptionsDashboardPage() {
         />
         <MetricCard
           label="Route Deviations"
-          value={mockExceptionsSummary.routeDeviations}
+          value={summary.routeDeviations}
           subtext="Check Route"
           icon={<Navigation size={18} />}
           highlightColor="#7C3AED"
@@ -114,7 +142,7 @@ export default function ExceptionsDashboardPage() {
         />
         <MetricCard
           label="Safety Alerts"
-          value={mockExceptionsSummary.safetyAlerts}
+          value={summary.safetyAlerts}
           subtext="Immediate Review"
           icon={<ShieldAlert size={18} />}
           highlightColor="#DC2626"
@@ -164,174 +192,144 @@ export default function ExceptionsDashboardPage() {
           </div>
 
           <div className="table-scroll">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Type</th>
-                  <th>Trip / Employee</th>
-                  <th>Details</th>
-                  <th>Status</th>
-                  <th style={{ textAlign: 'right' }}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredExceptions.map((item) => {
-                  const badge = getBadgeStyle(item.type);
-                  return (
-                    <tr key={item.id}>
-                      <td>
-                        <span
-                          style={{
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            padding: '3px 8px',
-                            borderRadius: '4px',
-                            backgroundColor: badge.bg,
-                            color: badge.color,
-                            border: `1px solid ${badge.border}`,
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {item.type}
-                        </span>
-                      </td>
-                      <td style={{ fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-                        {item.target}
-                      </td>
-                      <td style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>
-                        {item.details}
-                      </td>
-                      <td>
-                        <span
-                          style={{
-                            fontSize: '11px',
-                            fontWeight: 600,
-                            color: item.status === 'Escalated' ? '#DC2626' : item.status === 'In Review' ? '#D97706' : '#5728B2',
-                          }}
-                        >
-                          {item.status}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <button
-                          onClick={() => handleAction(item)}
-                          style={{
-                            padding: '4px 10px',
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            backgroundColor: '#EFF6FF',
-                            color: '#5728B2',
-                            border: '1px solid #BFDBFE',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          {item.action}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            {filteredExceptions.length === 0 ? (
+              <div style={{ padding: '36px 16px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                <CheckCircle size={32} color="#16A34A" style={{ margin: '0 auto 8px' }} />
+                <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>Zero Exceptions Detected</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  All scheduled and active commutes are adhering to SLA standards.
+                </div>
+              </div>
+            ) : (
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Type</th>
+                    <th>Trip / Employee</th>
+                    <th>Details</th>
+                    <th>Status</th>
+                    <th style={{ textAlign: 'right' }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredExceptions.map((item) => {
+                    const badge = getBadgeStyle(item.type);
+                    return (
+                      <tr key={item.id}>
+                        <td>
+                          <span
+                            style={{
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              padding: '3px 8px',
+                              borderRadius: '4px',
+                              backgroundColor: badge.bg,
+                              color: badge.color,
+                              border: `1px solid ${badge.border}`,
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {item.type}
+                          </span>
+                        </td>
+                        <td style={{ fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                          {item.target}
+                        </td>
+                        <td style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>
+                          {item.details}
+                        </td>
+                        <td>
+                          <span
+                            style={{
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              color: item.status === 'Escalated' ? '#DC2626' : item.status === 'In Review' ? '#D97706' : '#5728B2',
+                            }}
+                          >
+                            {item.status}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <button
+                            onClick={() => handleAction(item)}
+                            style={{
+                              padding: '4px 10px',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              backgroundColor: '#EFF6FF',
+                              color: '#5728B2',
+                              border: '1px solid #BFDBFE',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {item.action}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
 
         {/* Right: Exceptions Trend (Last 7 Days) */}
-        <div className="surface-card" style={{ padding: '20px 24px', flex: '1 1 38%' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+        <div className="surface-card" style={{ padding: '20px 24px', flex: '1 1 35%' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
             <div>
               <h2 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                Exceptions Trend (Last 7 Days)
+                Exceptions Trend
               </h2>
               <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                Incident recurrence by category over time
+                7-day operational exception volume
               </p>
             </div>
+            <span
+              style={{
+                fontSize: '11px',
+                fontWeight: 700,
+                color: '#5728B2',
+                backgroundColor: '#EFF6FF',
+                padding: '4px 10px',
+                borderRadius: 'var(--radius-pill)',
+                border: '1px solid #BFDBFE',
+              }}
+            >
+              Daily Tally
+            </span>
           </div>
 
-          {/* Trend Multi-Line Chart Legend */}
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '14px', fontSize: '11px', fontWeight: 600 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#D97706' }} />
-              <span style={{ color: 'var(--text-secondary)' }}>Delayed</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#EA580C' }} />
-              <span style={{ color: 'var(--text-secondary)' }}>Unassigned</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#CA8A04' }} />
-              <span style={{ color: 'var(--text-secondary)' }}>GPS Stale</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#7C3AED' }} />
-              <span style={{ color: 'var(--text-secondary)' }}>Deviation</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#DC2626' }} />
-              <span style={{ color: 'var(--text-secondary)' }}>Safety</span>
-            </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {trend.map((t, idx) => {
+              const dayTotal = t.delayed + t.unassigned + t.gpsStale + t.deviation + t.safety;
+              return (
+                <div
+                  key={idx}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '8px 12px',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: 'var(--bg-surface-muted)',
+                    fontSize: '12px',
+                  }}
+                >
+                  <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{t.day}</span>
+                  <div style={{ display: 'flex', gap: '8px', fontSize: '11px' }}>
+                    <span style={{ color: '#D97706' }}>{t.delayed} delay</span>
+                    <span style={{ color: '#EA580C' }}>{t.unassigned} unassign</span>
+                    <span style={{ color: '#DC2626' }}>{t.safety} safety</span>
+                  </div>
+                  <span style={{ fontWeight: 800, color: '#5728B2' }}>{dayTotal}</span>
+                </div>
+              );
+            })}
           </div>
-
-          {/* SVG Trend Multi-Line Visualizer */}
-          <svg viewBox="0 0 460 220" style={{ width: '100%', height: 'auto', overflow: 'visible' }}>
-            {/* Grid */}
-            {[0, 10, 20, 30, 40].map((v) => {
-              const y = 180 - (v / 40) * 150;
-              return (
-                <g key={v}>
-                  <line x1="30" y1={y} x2="440" y2={y} stroke="#E2E8F0" strokeDasharray="3 3" />
-                  <text x="24" y={y + 4} textAnchor="end" fontSize="10" fill="#94A3B8">
-                    {v}
-                  </text>
-                </g>
-              );
-            })}
-
-            {/* Render lines for Unassigned (highest) and Delayed */}
-            {/* Unassigned curve: red-orange */}
-            <path
-              d="M 50 60 Q 110 65, 170 68 T 290 55 T 410 70"
-              fill="none"
-              stroke="#EA580C"
-              strokeWidth="2.5"
-            />
-            {/* Delayed curve: amber */}
-            <path
-              d="M 50 115 Q 110 125, 170 128 T 290 135 T 410 138"
-              fill="none"
-              stroke="#D97706"
-              strokeWidth="2.5"
-            />
-            {/* GPS Stale curve: yellow */}
-            <path
-              d="M 50 150 Q 110 148, 170 155 T 290 160 T 410 158"
-              fill="none"
-              stroke="#CA8A04"
-              strokeWidth="2"
-            />
-            {/* Safety curve: red */}
-            <path
-              d="M 50 175 Q 110 172, 170 180 T 290 172 T 410 170"
-              fill="none"
-              stroke="#DC2626"
-              strokeWidth="2"
-            />
-
-            {/* X Labels */}
-            {mockExceptionsTrend.map((t, idx) => {
-              const x = 50 + idx * 60;
-              return (
-                <text key={t.day} x={x} y="205" textAnchor="middle" fontSize="10" fill="#94A3B8">
-                  {t.day}
-                </text>
-              );
-            })}
-          </svg>
         </div>
       </div>
     </div>
   );
 }
-
