@@ -28,7 +28,8 @@ class _DropReachedScreenState extends State<DropReachedScreen> {
     final boarding = await MockDataService.getBoardingData();
     if (mounted) {
       setState(() {
-        _destinationData = boarding['destination_reached'] as Map<String, dynamic>?;
+        _destinationData =
+            boarding['destination_reached'] as Map<String, dynamic>?;
         _isLoading = false;
       });
     }
@@ -37,7 +38,8 @@ class _DropReachedScreenState extends State<DropReachedScreen> {
   @override
   Widget build(BuildContext context) {
     final title = _destinationData?['title'] ?? 'Reached Destination';
-    final subtitle = _destinationData?['subtitle'] ?? 'You have arrived at your drop location.';
+    final subtitle = _destinationData?['subtitle'] ??
+        'You have arrived at your drop location.';
     final location = _destinationData?['location'] ?? 'HITEC City Office';
     final arrivedAt = _destinationData?['arrivedAt'] ?? '9:02 AM';
 
@@ -47,7 +49,8 @@ class _DropReachedScreenState extends State<DropReachedScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              size: 18, color: AppColors.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -55,7 +58,8 @@ class _DropReachedScreenState extends State<DropReachedScreen> {
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                 child: Column(
                   children: [
                     const SizedBox(height: 20),
@@ -68,9 +72,9 @@ class _DropReachedScreenState extends State<DropReachedScreen> {
                         color: const Color(0xFFEFF6FF),
                         borderRadius: BorderRadius.circular(24),
                       ),
-                      child: Stack(
+                      child: const Stack(
                         alignment: Alignment.center,
-                        children: const [
+                        children: [
                           Icon(
                             Icons.apartment_rounded,
                             size: 64,
@@ -79,7 +83,8 @@ class _DropReachedScreenState extends State<DropReachedScreen> {
                           Positioned(
                             right: 28,
                             top: 10,
-                            child: Icon(Icons.location_on_rounded, size: 28, color: AppColors.secondaryOrange),
+                            child: Icon(Icons.location_on_rounded,
+                                size: 28, color: AppColors.secondaryOrange),
                           ),
                         ],
                       ),
@@ -117,7 +122,8 @@ class _DropReachedScreenState extends State<DropReachedScreen> {
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.location_on_rounded, color: AppColors.primaryBlue, size: 22),
+                              const Icon(Icons.location_on_rounded,
+                                  color: AppColors.primaryBlue, size: 22),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
@@ -134,7 +140,8 @@ class _DropReachedScreenState extends State<DropReachedScreen> {
                           const Divider(height: 24),
                           Row(
                             children: [
-                              const Icon(Icons.access_time_rounded, color: AppColors.textSecondary, size: 20),
+                              const Icon(Icons.access_time_rounded,
+                                  color: AppColors.textSecondary, size: 20),
                               const SizedBox(width: 12),
                               Text(
                                 'Arrived at',
@@ -164,7 +171,8 @@ class _DropReachedScreenState extends State<DropReachedScreen> {
                     EmployeePrimaryButton(
                       label: 'Confirm Drop',
                       icon: Icons.check_circle_outline_rounded,
-                      onPressed: () => context.push(AppRoutes.tripCompletedSummary),
+                      onPressed: () =>
+                          context.push(AppRoutes.tripCompletedSummary),
                     ),
                     const SizedBox(height: 16),
                   ],
@@ -174,6 +182,3 @@ class _DropReachedScreenState extends State<DropReachedScreen> {
     );
   }
 }
-
-
-

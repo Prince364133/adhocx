@@ -69,8 +69,12 @@ class _ProfileMyDetailsScreenState extends State<ProfileMyDetailsScreen> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               IconButton(
-                                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
-                                onPressed: () => context.go(AppRoutes.homeUpcomingPickup),
+                                icon: const Icon(
+                                    Icons.arrow_back_ios_new_rounded,
+                                    color: Colors.white,
+                                    size: 18),
+                                onPressed: () =>
+                                    context.go(AppRoutes.homeUpcomingPickup),
                               ),
                               Text(
                                 'Profile',
@@ -81,8 +85,10 @@ class _ProfileMyDetailsScreenState extends State<ProfileMyDetailsScreen> {
                                 ),
                               ),
                               IconButton(
-                                icon: const Icon(Icons.settings_outlined, color: Colors.white),
-                                onPressed: () => context.push(AppRoutes.settingsOverview),
+                                icon: const Icon(Icons.settings_outlined,
+                                    color: Colors.white),
+                                onPressed: () =>
+                                    context.push(AppRoutes.settingsOverview),
                               ),
                             ],
                           ),
@@ -96,8 +102,10 @@ class _ProfileMyDetailsScreenState extends State<ProfileMyDetailsScreen> {
                               children: [
                                 CircleAvatar(
                                   radius: 46,
-                                  backgroundColor: Colors.white.withOpacity(0.2),
-                                  child: const Icon(Icons.person, size: 56, color: Colors.white),
+                                  backgroundColor:
+                                      Colors.white.withValues(alpha: 0.2),
+                                  child: const Icon(Icons.person,
+                                      size: 56, color: Colors.white),
                                 ),
                                 Container(
                                   padding: const EdgeInsets.all(6),
@@ -105,7 +113,8 @@ class _ProfileMyDetailsScreenState extends State<ProfileMyDetailsScreen> {
                                     color: AppColors.secondaryOrange,
                                     shape: BoxShape.circle,
                                   ),
-                                  child: const Icon(Icons.edit_rounded, size: 14, color: Colors.white),
+                                  child: const Icon(Icons.edit_rounded,
+                                      size: 14, color: Colors.white),
                                 ),
                               ],
                             ),
@@ -122,9 +131,10 @@ class _ProfileMyDetailsScreenState extends State<ProfileMyDetailsScreen> {
                           ),
                           const SizedBox(height: 4),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 4),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
+                              color: Colors.white.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: Text(
@@ -154,13 +164,16 @@ class _ProfileMyDetailsScreenState extends State<ProfileMyDetailsScreen> {
                         ),
                         child: Column(
                           children: [
-                            _buildInfoRow(Icons.apartment_rounded, 'Organization', org),
+                            _buildInfoRow(
+                                Icons.apartment_rounded, 'Organization', org),
                             const Divider(height: 24),
                             _buildInfoRow(Icons.email_outlined, 'Email', email),
                             const Divider(height: 24),
-                            _buildInfoRow(Icons.phone_outlined, 'Phone Number', phone),
+                            _buildInfoRow(
+                                Icons.phone_outlined, 'Phone Number', phone),
                             const Divider(height: 24),
-                            _buildInfoRow(Icons.location_on_outlined, 'Address', address),
+                            _buildInfoRow(
+                                Icons.location_on_outlined, 'Address', address),
                           ],
                         ),
                       ),
@@ -180,24 +193,42 @@ class _ProfileMyDetailsScreenState extends State<ProfileMyDetailsScreen> {
                         child: Column(
                           children: [
                             ListTile(
-                              leading: const Icon(Icons.edit_outlined, color: AppColors.primaryBlue),
-                              title: Text('Edit Profile', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600)),
-                              trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+                              leading: const Icon(Icons.edit_outlined,
+                                  color: AppColors.primaryBlue),
+                              title: Text('Edit Profile',
+                                  style: GoogleFonts.inter(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600)),
+                              trailing: const Icon(Icons.chevron_right_rounded,
+                                  color: AppColors.textMuted),
                               onTap: () => context.push(AppRoutes.editProfile),
                             ),
                             const Divider(height: 1),
                             ListTile(
-                              leading: const Icon(Icons.settings_outlined, color: AppColors.primaryBlue),
-                              title: Text('App Settings', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600)),
-                              trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
-                              onTap: () => context.push(AppRoutes.settingsOverview),
+                              leading: const Icon(Icons.settings_outlined,
+                                  color: AppColors.primaryBlue),
+                              title: Text('App Settings',
+                                  style: GoogleFonts.inter(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600)),
+                              trailing: const Icon(Icons.chevron_right_rounded,
+                                  color: AppColors.textMuted),
+                              onTap: () =>
+                                  context.push(AppRoutes.settingsOverview),
                             ),
                             const Divider(height: 1),
                             ListTile(
-                              leading: const Icon(Icons.logout_rounded, color: Color(0xFFDC2626)),
-                              title: Text('Sign Out', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: const Color(0xFFDC2626))),
-                              trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
-                              onTap: () => context.push(AppRoutes.logoutConfirm),
+                              leading: const Icon(Icons.logout_rounded,
+                                  color: Color(0xFFDC2626)),
+                              title: Text('Sign Out',
+                                  style: GoogleFonts.inter(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color(0xFFDC2626))),
+                              trailing: const Icon(Icons.chevron_right_rounded,
+                                  color: AppColors.textMuted),
+                              onTap: () =>
+                                  context.push(AppRoutes.logoutConfirm),
                             ),
                           ],
                         ),
@@ -230,9 +261,15 @@ class _ProfileMyDetailsScreenState extends State<ProfileMyDetailsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted)),
+              Text(label,
+                  style: GoogleFonts.inter(
+                      fontSize: 11, color: AppColors.textMuted)),
               const SizedBox(height: 2),
-              Text(value, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+              Text(value,
+                  style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary)),
             ],
           ),
         ),
@@ -240,6 +277,3 @@ class _ProfileMyDetailsScreenState extends State<ProfileMyDetailsScreen> {
     );
   }
 }
-
-
-

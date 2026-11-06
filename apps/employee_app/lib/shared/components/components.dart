@@ -1,5 +1,6 @@
 /// AdhocX Employee Design System - Shared Component Library
 /// Atomic Design Taxonomy: Badges, Buttons, Cards, Feedback, Inputs, Navigation, Sheets.
+library;
 
 // Badges
 export 'badges/employee_status_badge.dart';
@@ -31,4 +32,3 @@ export 'feedback/employee_step_tracker.dart';
 
 // Inputs
 export 'inputs/employee_otp_input.dart';
-

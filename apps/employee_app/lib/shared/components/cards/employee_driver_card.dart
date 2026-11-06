@@ -54,10 +54,10 @@ class EmployeeDriverCard extends StatelessWidget {
               Stack(
                 alignment: Alignment.bottomRight,
                 children: [
-                  CircleAvatar(
+                  const CircleAvatar(
                     radius: 26,
                     backgroundColor: AppColors.primaryBlueLight,
-                    child: const Icon(
+                    child: Icon(
                       Icons.person,
                       size: 30,
                       color: AppColors.primaryBlue,
@@ -69,7 +69,8 @@ class EmployeeDriverCard extends StatelessWidget {
                       color: AppColors.success,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.check, size: 10, color: Colors.white),
+                    child:
+                        const Icon(Icons.check, size: 10, color: Colors.white),
                   ),
                 ],
               ),
@@ -91,7 +92,8 @@ class EmployeeDriverCard extends StatelessWidget {
                     const SizedBox(height: 3),
                     Row(
                       children: [
-                        const Icon(Icons.star_rounded, size: 16, color: AppColors.accentAmber),
+                        const Icon(Icons.star_rounded,
+                            size: 16, color: AppColors.accentAmber),
                         const SizedBox(width: 3),
                         Text(
                           rating.toStringAsFixed(1),
@@ -128,7 +130,8 @@ class EmployeeDriverCard extends StatelessWidget {
 
               // Vehicle Number Badge
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
                   color: AppColors.surfaceMuted,
                   borderRadius: BorderRadius.circular(8),
@@ -209,4 +212,3 @@ class EmployeeDriverCard extends StatelessWidget {
     );
   }
 }
-

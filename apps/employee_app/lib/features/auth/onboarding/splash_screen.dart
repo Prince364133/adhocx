@@ -47,24 +47,25 @@ class _SplashScreenState extends State<SplashScreen> {
             children: [
               const SizedBox(height: 40),
               // Center Logo & Subtitle
-              Expanded(
+              const Expanded(
                 child: Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const EmployeeBrandLogo(
+                      EmployeeBrandLogo(
                         fontSize: 44,
                         logoTheme: LogoTheme.dark,
                         subtitle: 'Corporate Employee Transportation',
                       ),
-                      const SizedBox(height: 24),
+                      SizedBox(height: 24),
                       // Subtle Loading Indicator
-                      const SizedBox(
+                      SizedBox(
                         width: 24,
                         height: 24,
                         child: CircularProgressIndicator(
                           strokeWidth: 2.0,
-                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryBlueLight),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                              AppColors.primaryBlueLight),
                         ),
                       ),
                     ],
@@ -74,18 +75,20 @@ class _SplashScreenState extends State<SplashScreen> {
 
               // Bottom Car & Skyline Graphic Area
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     // Stylized Sedan Car on curved highway graphic
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 12),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.08),
+                        color: Colors.white.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.18),
+                          color: Colors.white.withValues(alpha: 0.18),
                         ),
                       ),
                       child: Row(
@@ -102,7 +105,7 @@ class _SplashScreenState extends State<SplashScreen> {
                             style: GoogleFonts.inter(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: Colors.white.withOpacity(0.9),
+                              color: Colors.white.withValues(alpha: 0.9),
                               letterSpacing: 0.3,
                             ),
                           ),
@@ -114,7 +117,7 @@ class _SplashScreenState extends State<SplashScreen> {
                       'v1.0 • Telangana & Regional Hubs',
                       style: GoogleFonts.inter(
                         fontSize: 11,
-                        color: Colors.white.withOpacity(0.5),
+                        color: Colors.white.withValues(alpha: 0.5),
                         fontWeight: FontWeight.w400,
                       ),
                     ),
@@ -128,6 +131,3 @@ class _SplashScreenState extends State<SplashScreen> {
     );
   }
 }
-
-
-

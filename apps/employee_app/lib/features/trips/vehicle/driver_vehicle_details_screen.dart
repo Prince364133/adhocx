@@ -8,10 +8,12 @@ class DriverVehicleDetailsScreen extends StatefulWidget {
   const DriverVehicleDetailsScreen({super.key});
 
   @override
-  State<DriverVehicleDetailsScreen> createState() => _DriverVehicleDetailsScreenState();
+  State<DriverVehicleDetailsScreen> createState() =>
+      _DriverVehicleDetailsScreenState();
 }
 
-class _DriverVehicleDetailsScreenState extends State<DriverVehicleDetailsScreen> {
+class _DriverVehicleDetailsScreenState
+    extends State<DriverVehicleDetailsScreen> {
   Map<String, dynamic>? _assignmentData;
   bool _isLoading = true;
 
@@ -35,7 +37,8 @@ class _DriverVehicleDetailsScreenState extends State<DriverVehicleDetailsScreen>
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: AppColors.primaryBlue)),
+        body: Center(
+            child: CircularProgressIndicator(color: AppColors.primaryBlue)),
       );
     }
 
@@ -80,7 +83,7 @@ class _DriverVehicleDetailsScreenState extends State<DriverVehicleDetailsScreen>
                   border: Border.all(color: AppColors.border),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.04),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -88,10 +91,11 @@ class _DriverVehicleDetailsScreenState extends State<DriverVehicleDetailsScreen>
                 ),
                 child: Row(
                   children: [
-                    CircleAvatar(
+                    const CircleAvatar(
                       radius: 30,
                       backgroundColor: AppColors.primaryBlueLight,
-                      child: const Icon(Icons.person, size: 36, color: AppColors.primaryBlue),
+                      child: Icon(Icons.person,
+                          size: 36, color: AppColors.primaryBlue),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -109,7 +113,8 @@ class _DriverVehicleDetailsScreenState extends State<DriverVehicleDetailsScreen>
                           const SizedBox(height: 4),
                           Row(
                             children: [
-                              const Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 18),
+                              const Icon(Icons.star_rounded,
+                                  color: Color(0xFFF59E0B), size: 18),
                               const SizedBox(width: 4),
                               Text(
                                 '$rating ($tripsCount trips)',
@@ -127,10 +132,12 @@ class _DriverVehicleDetailsScreenState extends State<DriverVehicleDetailsScreen>
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: AppColors.primaryBlueLight.withOpacity(0.4),
+                        color:
+                            AppColors.primaryBlueLight.withValues(alpha: 0.4),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.phone, color: AppColors.primaryBlue, size: 22),
+                      child: const Icon(Icons.phone,
+                          color: AppColors.primaryBlue, size: 22),
                     ),
                   ],
                 ),
@@ -174,7 +181,8 @@ class _DriverVehicleDetailsScreenState extends State<DriverVehicleDetailsScreen>
                     ),
                     const SizedBox(height: 4),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 4),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(8),
@@ -215,7 +223,7 @@ class _DriverVehicleDetailsScreenState extends State<DriverVehicleDetailsScreen>
                   border: Border.all(color: AppColors.border),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.04),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -264,6 +272,3 @@ class _DriverVehicleDetailsScreenState extends State<DriverVehicleDetailsScreen>
     );
   }
 }
-
-
-

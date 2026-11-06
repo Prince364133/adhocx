@@ -1,204 +1,427 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 
+// Comprehensive Schema.org JSON-LD for Driver Partner Mobile Application & Network
 const jsonLd = {
   "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  "name": "AdhocX Driver Partner Mobile App",
-  "operatingSystem": "Android",
-  "applicationCategory": "BusinessApplication",
-  "publisher": {
-    "@type": "Organization",
-    "name": "Estemporaneo Technologies Private Limited",
-    "url": "https://www.adhocx.com"
-  },
-  "description": "Dedicated mobile application for verified independent commercial cab drivers operating enterprise employee routes across Hyderabad. Features direct onboarding, route offers, turn-by-turn navigation, and automated bank settlements."
+  "@graph": [
+    {
+      "@type": "WebPage",
+      "@id": "https://www.adhocx.com/driver-app#webpage",
+      "url": "https://www.adhocx.com/driver-app",
+      "name": "AdhocX Driver Partner Program | Commercial Cab Owners Hyderabad",
+      "description": "Join the AdhocX driver partner network in Hyderabad. Onboard eligible yellow-plate commercial vehicles, receive pre-scheduled corporate route offers, and get direct bank settlements.",
+      "breadcrumb": {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://www.adhocx.com/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Driver Mobile App",
+            "item": "https://www.adhocx.com/driver-app"
+          }
+        ]
+      }
+    },
+    {
+      "@type": "MobileApplication",
+      "@id": "https://www.adhocx.com/driver-app#app",
+      "name": "AdhocX Driver Partner Mobile App",
+      "operatingSystem": "Android",
+      "applicationCategory": "BusinessApplication",
+      "downloadUrl": "https://play.google.com/store/apps/details?id=com.adhocx.app",
+      "publisher": {
+        "@type": "Organization",
+        "name": "AdhocX",
+        "legalName": "Estemporaneo Technologies Private Limited",
+        "url": "https://www.adhocx.com",
+        "telephone": "+91-7893545818",
+        "email": "support@adhocx.com"
+      },
+      "description": "Official driver partner application for verified independent commercial cab drivers operating enterprise employee routes across Hyderabad. Features direct onboarding, advance shift offers, ordered turn-by-turn navigation, and automated bank settlements.",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "INR"
+      }
+    }
+  ]
 };
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: 'Driver Mobile App', url: '/driver-app' }
+];
 ---
 
 <BaseLayout
-  title="Driver Mobile App — Commercial Yellow-Plate Partner Network | AdhocX"
-  description="Dedicated mobile application for verified commercial cab drivers in Hyderabad: direct onboarding, transparent route offers, GPS route navigation, OTP boarding verification, and prompt bank settlements."
+  title="AdhocX Driver Partner Program | Commercial Cab Owners Hyderabad"
+  description="Join the AdhocX driver partner network in Hyderabad. Onboard eligible yellow-plate commercial vehicles, receive pre-scheduled corporate route offers, and get direct bank settlements."
   canonical="https://www.adhocx.com/driver-app"
+  ogTitle="AdhocX Driver Partner Program | Commercial Cab Owners Hyderabad"
+  ogDescription="Onboard eligible yellow-plate commercial vehicles directly with AdhocX. Pre-scheduled corporate shift rosters, 100% direct bank settlements, and 24-hr activation."
+  ogImage="https://www.adhocx.com/images/drivers/hero-driver-partner.jpg"
+  ogImageAlt="AdhocX Driver Partner Program for Commercial Yellow-Plate Cab Owners in Hyderabad"
   activeNav="driver-app"
+  breadcrumbs={breadcrumbs}
   jsonLd={jsonLd}
 >
-  <!-- Hero Section (Subdued & Professional) -->
-  <section class="page-hero-section" style="background: linear-gradient(180deg, var(--color-primary-50) 0%, #ffffff 100%); padding: var(--space-16) 0 var(--space-12);">
-    <div class="container text-center" style="max-width: 860px; margin: 0 auto;">
-      <div class="badge badge-blue" style="margin-bottom: var(--space-4);">
-        <span class="status-dot-pulse"></span>
-        <span>Driver Partner Network &bull; Commercial Yellow-Plate Chauffeurs</span>
-      </div>
-      <h1 class="display-title" style="color: var(--color-text-primary); margin-bottom: var(--space-6);">
-        Drive with Dignity. <br />
-        <span style="color: var(--color-primary-600);">Pre-Scheduled Corporate Routes & Direct Bank Settlements.</span>
-      </h1>
-      <p class="body-large" style="color: var(--color-text-secondary); margin-bottom: var(--space-8); line-height: 1.6;">
-        AdhocX onboards independent commercial cab owners directly to fulfill verified employee shift routes across Hyderabad. No middleman brokers, no arbitrary commissions, and transparent route terms before you accept.
-      </p>
-      <div style="display: flex; gap: var(--space-4); justify-content: center; flex-wrap: wrap;">
-        <a href="#onboarding" class="btn btn-primary btn-large">
-          View Onboarding Requirements &rarr;
-        </a>
-        <a href="https://play.google.com/store/apps/details?id=com.adhocx.app" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-large">
-          Download Driver App (Google Play)
-        </a>
-      </div>
-    </div>
-  </section>
+  <!-- =========================================================================
+       SECTION 1: HERO SECTION
+       "Drive with Dignity. Pre-Scheduled Corporate Routes & Direct Bank Settlements."
+       ========================================================================= -->
+  <section class="drv-hero-section" id="hero">
+    <div class="drv-hero-bg-grid"></div>
+    <div class="container drv-hero-container">
+      <div class="drv-hero-grid">
+        <!-- Left Hero Column: Copy & CTAs -->
+        <div class="drv-hero-content">
+          <!-- Eyebrow Badge -->
+          <div class="drv-eyebrow-badge">
+            <span class="drv-pulse-dot"></span>
+            <span>Driver Partner Network &bull; Commercial Yellow-Plate Chauffeurs</span>
+          </div>
 
-  <!-- Commercial Fleet Visual & Standards -->
-  <section style="background: var(--color-surface); border-top: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border); padding: var(--space-10) 0;">
-    <div class="container">
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-12); align-items: center;">
-        <div>
-          <span class="badge badge-primary" style="margin-bottom: var(--space-3);">Partner Verification Standard</span>
-          <h2 style="font-size: 2rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-4);">
-            Strictly Commercial Yellow-Plate Vehicles
+          <!-- Main H1 Title -->
+          <h1 class="drv-hero-h1">
+            Drive with Dignity.
+          </h1>
+
+          <!-- Supporting Headline -->
+          <h2 class="drv-hero-subhead">
+            Pre-Scheduled Corporate Routes &amp; Direct Bank Settlements.
           </h2>
-          <p class="body-large" style="color: var(--color-text-secondary); margin-bottom: var(--space-6);">
-            To maintain enterprise safety contracts, AdhocX only onboards commercially registered, insured, and permit-holding passenger vehicles.
+
+          <!-- Description -->
+          <p class="drv-hero-desc">
+            AdhocX onboards independent commercial cab owners directly to fulfill verified employee shift routes across Hyderabad. No middleman brokers, no arbitrary commissions, and transparent route terms before you accept.
           </p>
 
-          <div style="display: flex; flex-direction: column; gap: var(--space-4);">
-            <div style="display: flex; gap: var(--space-3); align-items: flex-start;">
-              <div style="width: 2rem; height: 2rem; border-radius: 6px; background: #CEE0FD; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-              </div>
-              <div>
-                <strong style="color: var(--color-text-primary);">Eligible 4-Seater Sedans:</strong>
-                <p style="font-size: 0.875rem; color: var(--color-text-secondary); margin-top: 2px;">Maruti Dzire, Toyota Etios, Hyundai Aura, Tata Tigor EV (Yellow-Plate T/TR registration).</p>
-              </div>
-            </div>
+          <!-- Primary & Secondary CTA Buttons -->
+          <div class="drv-hero-actions">
+            <a href="#onboarding" class="btn-pill-primary drv-btn-primary" id="btn-view-onboarding">
+              <span>View Onboarding Requirements</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+              </svg>
+            </a>
+            <a 
+              href="https://play.google.com/store/apps/details?id=com.adhocx.app" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              class="btn-pill-secondary drv-btn-secondary"
+              id="btn-hero-play-store"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M3.609 1.814L13.793 12 3.61 22.186a2.372 2.372 0 0 1-.61-.914V2.728c.15-.36.368-.679.609-.914zm11.233 11.235l2.424 2.424-11.838 6.786 9.414-9.21zm2.424-2.098l3.197 1.832c.983.563.983 1.48 0 2.044l-3.197 1.832-2.316-2.316 2.316-3.392zm-2.424-.326L5.428 1.411l11.838 6.786-2.424 2.428z"/>
+              </svg>
+              <span>Download Driver App (Google Play)</span>
+            </a>
+          </div>
 
-            <div style="display: flex; gap: var(--space-3); align-items: flex-start;">
-              <div style="width: 2rem; height: 2rem; border-radius: 6px; background: #CEE0FD; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-              </div>
-              <div>
-                <strong style="color: var(--color-text-primary);">Eligible 6/7-Seater MUVs & SUVs:</strong>
-                <p style="font-size: 0.875rem; color: var(--color-text-secondary); margin-top: 2px;">Maruti Ertiga, XL6, Kia Carens, Toyota Innova Crysta (Commercial yellow board).</p>
-              </div>
+          <!-- Value Checks -->
+          <div class="drv-hero-checks">
+            <div class="drv-check-item">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" aria-hidden="true">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
+              <span>Pre-Scheduled Shift Rosters</span>
             </div>
-
-            <div style="display: flex; gap: var(--space-3); align-items: flex-start;">
-              <div style="width: 2rem; height: 2rem; border-radius: 6px; background: #CEE0FD; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-              </div>
-              <div>
-                <strong style="color: var(--color-text-primary);">Direct Contract Model:</strong>
-                <p style="font-size: 0.875rem; color: var(--color-text-secondary); margin-top: 2px;">You contract directly with AdhocX. Payouts are made straight to your verified bank account without intermediary cuts.</p>
-              </div>
+            <div class="drv-check-item">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" aria-hidden="true">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
+              <span>Direct Bank Account Payouts</span>
+            </div>
+            <div class="drv-check-item">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" aria-hidden="true">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
+              <span>24 Business-Hour Activation</span>
             </div>
           </div>
         </div>
 
-        <div>
-          <div style="border-radius: 1.25rem; overflow: hidden; box-shadow: var(--shadow-xl); border: 1px solid var(--color-border);">
-            <img
-              src="/corporate-cab-fleet.jpg"
-              alt="AdhocX Commercial 4-Seater and 7-Seater Fleet for Verified Drivers"
-              width="640"
-              height="400"
-              style="width: 100%; height: auto; display: block; object-fit: cover; aspect-ratio: 16 / 10;"
-              loading="lazy"
+        <!-- Right Hero Column: Driver & Vehicle Photography Card -->
+        <div class="drv-hero-visual-wrapper">
+          <div class="drv-hero-image-card">
+            <img 
+              src="/images/drivers/hero-driver-partner.jpg" 
+              alt="Professional commercial yellow-plate cab driver in Hyderabad with vehicle"
+              class="drv-hero-photo"
+              width="1200"
+              height="800"
+              loading="eager"
             />
+            <div class="drv-hero-image-overlay"></div>
+
+            <!-- Overlaid Smartphone Route Offer Mockup Card -->
+            <div class="drv-float-route-card">
+              <div class="drv-float-header">
+                <div class="drv-route-badge">
+                  <span class="drv-route-dot"></span>
+                  <span>NEW ADVANCE SHIFT OFFER</span>
+                </div>
+                <span class="drv-route-time">07:30 PM Login Shift</span>
+              </div>
+              <div class="drv-route-corridor">
+                <strong>Gachibowli Tech Corridor &rarr; Pocharam Campus</strong>
+              </div>
+              <div class="drv-route-meta-row">
+                <div class="drv-meta-cell">
+                  <span class="drv-meta-lbl">STOPS</span>
+                  <span class="drv-meta-val">4 Verified Nodes</span>
+                </div>
+                <div class="drv-meta-cell">
+                  <span class="drv-meta-lbl">EST. DISTANCE</span>
+                  <span class="drv-meta-val">28.4 km</span>
+                </div>
+                <div class="drv-meta-cell">
+                  <span class="drv-meta-lbl">PAYOUT</span>
+                  <span class="drv-meta-val-payout">Direct to Bank</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Overlaid Bottom Verification Status Pill -->
+            <div class="drv-float-verify-pill">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2.5" aria-hidden="true">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+              </svg>
+              <span>Digital Verification in 24 Business Hours</span>
+            </div>
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- Driver App Modules (PRD #4 Aligned) -->
-  <section class="section-padding" style="background: var(--color-surface-muted);">
+
+  <!-- =========================================================================
+       SECTION 2: COMMERCIAL VEHICLE ELIGIBILITY
+       "Strictly Commercial Yellow-Plate Vehicles"
+       ========================================================================= -->
+  <section class="drv-eligibility-section" id="eligibility">
     <div class="container">
-      <div class="text-center" style="max-width: 800px; margin: 0 auto var(--space-12);">
-        <span class="badge badge-warm" style="margin-bottom: var(--space-3);">Driver Partner Technology</span>
-        <h2 style="font-size: 2.25rem; font-weight: 800; color: var(--color-text-primary); margin-bottom: var(--space-4);">
-          Everything You Need to Manage Your Shifts
-        </h2>
-        <p style="color: var(--color-text-secondary); font-size: 1.05rem; line-height: 1.6;">
+      <div class="drv-section-header">
+        <div class="drv-eyebrow-badge">
+          <span class="drv-pulse-dot"></span>
+          <span>Partner Verification Standard</span>
+        </div>
+        <h2 class="drv-section-h2">Strictly Commercial Yellow-Plate Vehicles</h2>
+        <p class="drv-section-desc">
+          To maintain enterprise safety contracts, AdhocX only onboards commercially registered, insured, and permit-holding passenger vehicles.
+        </p>
+      </div>
+
+      <!-- 3 Eligibility Cards -->
+      <div class="drv-eligibility-grid">
+        <!-- Card 1: 4-Seater Sedans -->
+        <div class="drv-eligibility-card">
+          <div class="drv-card-top-icon box-purple">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <rect x="2" y="7" width="20" height="12" rx="2"></rect>
+              <circle cx="7" cy="19" r="2"></circle>
+              <circle cx="17" cy="19" r="2"></circle>
+              <line x1="2" y1="12" x2="22" y2="12"></line>
+            </svg>
+          </div>
+          <div class="drv-card-badge">Yellow-Plate T/TR Board</div>
+          <h3 class="drv-card-h3">Eligible 4-Seater Sedans</h3>
+          <p class="drv-card-p">
+            Maruti Dzire, Toyota Etios, Hyundai Aura, Tata Tigor EV (Yellow-Plate T/TR registration).
+          </p>
+          <ul class="drv-card-specs">
+            <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg> AC Sedan with commercial yellow registration</li>
+            <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg> Clean, sanitized interiors &amp; working seatbelts</li>
+          </ul>
+        </div>
+
+        <!-- Card 2: 6/7-Seater MUVs & SUVs -->
+        <div class="drv-eligibility-card">
+          <div class="drv-card-top-icon box-purple">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3 3 0 0 0 2 12v4c0 .6.4 1 1 1h2"></path>
+              <circle cx="7" cy="17" r="2"></circle>
+              <circle cx="17" cy="17" r="2"></circle>
+            </svg>
+          </div>
+          <div class="drv-card-badge">Yellow Board MUVs</div>
+          <h3 class="drv-card-h3">Eligible 6/7-Seater MUVs &amp; SUVs</h3>
+          <p class="drv-card-p">
+            Maruti Ertiga, XL6, Kia Carens, Toyota Innova Crysta (Commercial yellow board).
+          </p>
+          <ul class="drv-card-specs">
+            <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg> High-capacity employee shift roasters</li>
+            <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg> Executive airport and client delegation mobility</li>
+          </ul>
+        </div>
+
+        <!-- Card 3: Direct Contract Model -->
+        <div class="drv-eligibility-card drv-card-contract">
+          <div class="drv-card-top-icon box-green">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <line x1="12" y1="1" x2="12" y2="23"></line>
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+            </svg>
+          </div>
+          <div class="drv-card-badge badge-green">Direct Bank Transfer</div>
+          <h3 class="drv-card-h3">Direct Contract Model</h3>
+          <p class="drv-card-p">
+            You contract directly with AdhocX. Payouts are made straight to your verified bank account without intermediary cuts.
+          </p>
+          <ul class="drv-card-specs">
+            <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg> No middleman brokers or arbitrary commission cuts</li>
+            <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg> Automated electronic bank transfers with UTR proofs</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Prominent Fleet Image Showcase -->
+      <div class="drv-fleet-showcase-box">
+        <div class="drv-fleet-img-wrap">
+          <img
+            src="/corporate-cab-fleet.jpg"
+            alt="AdhocX Commercial 4-Seater and 7-Seater Fleet for Verified Drivers"
+            width="1376"
+            height="768"
+            class="drv-fleet-img"
+            loading="lazy"
+          />
+          <div class="drv-fleet-caption">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
+            <span>Verified Commercial Fleet &bull; HITEC City, Gachibowli &amp; Financial District Corridors</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- =========================================================================
+       SECTION 3: DRIVER PARTNER TECHNOLOGY (6 FEATURES)
+       "Everything You Need to Manage Your Shifts"
+       ========================================================================= -->
+  <section class="drv-tech-section" id="technology">
+    <div class="container">
+      <div class="drv-section-header">
+        <div class="drv-eyebrow-badge">
+          <span class="drv-pulse-dot"></span>
+          <span>Driver Partner Technology</span>
+        </div>
+        <h2 class="drv-section-h2">Everything You Need to Manage Your Shifts</h2>
+        <p class="drv-section-desc">
           Built for operational ease, quick boarding verification, and zero payment disputes.
         </p>
       </div>
 
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-8);">
-        
-        <!-- Module 1: Direct Digital Onboarding -->
-        <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-sm);">
-          <div style="width: 3rem; height: 3rem; border-radius: 0.75rem; background: #EFF6FF; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-4);">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><polyline points="17 11 19 13 23 9"></polyline></svg>
+      <!-- 6 Feature Cards Grid -->
+      <div class="drv-tech-grid">
+        <!-- Feature 1: Paperless Onboarding & Verification -->
+        <div class="drv-tech-card">
+          <div class="drv-tech-icon-box">
+            <!-- Lucide FileCheck -->
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <polyline points="9 15 11 17 15 13"></polyline>
+            </svg>
           </div>
-          <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-2);">
-            Paperless Onboarding & Verification
-          </h3>
-          <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.6;">
+          <h3 class="drv-tech-title">Paperless Onboarding &amp; Verification</h3>
+          <p class="drv-tech-p">
             Upload your commercial driving license, vehicle RC, RTA fitness, insurance, and bank account details directly through the app. Digital review and activation within 24 business hours.
           </p>
         </div>
 
-        <!-- Module 2: Transparent Route Offers -->
-        <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-sm);">
-          <div style="width: 3rem; height: 3rem; border-radius: 0.75rem; background: #EFF6FF; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-4);">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+        <!-- Feature 2: Pre-Scheduled Route Offers -->
+        <div class="drv-tech-card">
+          <div class="drv-tech-icon-box">
+            <!-- Lucide CalendarClock -->
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+              <circle cx="12" cy="14" r="2"></circle>
+            </svg>
           </div>
-          <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-2);">
-            Pre-Scheduled Route Offers
-          </h3>
-          <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.6;">
+          <h3 class="drv-tech-title">Pre-Scheduled Route Offers</h3>
+          <p class="drv-tech-p">
             Receive advance shift offers showing exact pickup zone, scheduled pickup time, stop count, total route distance, and agreed contracted payout before you accept.
           </p>
         </div>
 
-        <!-- Module 3: Ordered Stops & OTP Verification -->
-        <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-sm);">
-          <div style="width: 3rem; height: 3rem; border-radius: 0.75rem; background: #DCFCE7; color: #16A34A; display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-4);">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        <!-- Feature 3: Ordered Stops & Boarding Scanner -->
+        <div class="drv-tech-card">
+          <div class="drv-tech-icon-box">
+            <!-- Lucide MapPin / QrCode -->
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+              <circle cx="12" cy="10" r="3"></circle>
+            </svg>
           </div>
-          <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-2);">
-            Ordered Stops & Boarding Scanner
-          </h3>
-          <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.6;">
+          <h3 class="drv-tech-title">Ordered Stops &amp; Boarding Scanner</h3>
+          <p class="drv-tech-p">
             Integrated turn-by-turn navigation guides you to each employee's pickup waypoint. Verify passenger boarding instantly using dynamic 4-digit OTP or QR code.
           </p>
         </div>
 
-        <!-- Module 4: Direct Bank Settlements -->
-        <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-sm);">
-          <div style="width: 3rem; height: 3rem; border-radius: 0.75rem; background: #EFF6FF; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-4);">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+        <!-- Feature 4: Transparent Payouts to Bank -->
+        <div class="drv-tech-card">
+          <div class="drv-tech-icon-box">
+            <!-- Lucide Landmark / Wallet -->
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <line x1="3" y1="21" x2="21" y2="21"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+              <polyline points="5 10 12 3 19 10"></polyline>
+              <line x1="6" y1="10" x2="6" y2="21"></line>
+              <line x1="10" y1="10" x2="10" y2="21"></line>
+              <line x1="14" y1="10" x2="14" y2="21"></line>
+              <line x1="18" y1="10" x2="18" y2="21"></line>
+            </svg>
           </div>
-          <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-2);">
-            Transparent Payouts to Bank
-          </h3>
-          <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.6;">
+          <h3 class="drv-tech-title">Transparent Payouts to Bank</h3>
+          <p class="drv-tech-p">
             Earnings are generated automatically upon trip completion. Review submitted, approved, and paid payouts with bank confirmation references in your in-app ledger.
           </p>
         </div>
 
-        <!-- Module 5: 24/7 Command Support & SOS -->
-        <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-sm);">
-          <div style="width: 3rem; height: 3rem; border-radius: 0.75rem; background: #EFF6FF; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-4);">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+        <!-- Feature 5: 24/7 Dispatch Desk Assistance -->
+        <div class="drv-tech-card">
+          <div class="drv-tech-icon-box">
+            <!-- Lucide Headset -->
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
+              <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
+            </svg>
           </div>
-          <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-2);">
-            24/7 Dispatch Desk Assistance
-          </h3>
-          <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.6;">
+          <h3 class="drv-tech-title">24/7 Dispatch Desk Assistance</h3>
+          <p class="drv-tech-p">
             Direct in-app contact with our operations desk for vehicle breakdowns, road blockages, passenger no-shows, or route emergencies.
           </p>
         </div>
 
-        <!-- Module 6: Document Expiry Reminders -->
-        <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-sm);">
-          <div style="width: 3rem; height: 3rem; border-radius: 0.75rem; background: #EFF6FF; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-4);">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+        <!-- Feature 6: Compliance Alerts & Safety Training -->
+        <div class="drv-tech-card">
+          <div class="drv-tech-icon-box">
+            <!-- Lucide ShieldCheck -->
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+              <polyline points="9 12 11 14 15 10"></polyline>
+            </svg>
           </div>
-          <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-2);">
-            Compliance Alerts & Safety Training
-          </h3>
-          <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.6;">
+          <h3 class="drv-tech-title">Compliance Alerts &amp; Safety Training</h3>
+          <p class="drv-tech-p">
             Proactive alerts before insurance, fitness, or driving licenses expire. Access mandatory corporate passenger etiquette and safety guidelines directly in the app.
           </p>
         </div>
@@ -206,51 +429,1247 @@ const jsonLd = {
     </div>
   </section>
 
-  <!-- Required Documents Checklist -->
-  <section id="onboarding" class="section-padding" style="background: var(--color-surface);">
-    <div class="container" style="max-width: 800px; margin: 0 auto;">
-      <div style="background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8);">
-        <h3 style="font-size: 1.4rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-4); text-align: center;">
-          Required Onboarding Documents
-        </h3>
-        <p style="font-size: 0.9rem; color: var(--color-text-secondary); text-align: center; margin-bottom: var(--space-6);">
-          All documents can be photographed and uploaded directly within the AdhocX Driver App.
-        </p>
 
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--space-4);">
-          <div style="display: flex; gap: 8px; align-items: center; font-size: 0.9rem; color: var(--color-text-primary);">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            <span>Commercial Driving License (Badge)</span>
+  <!-- =========================================================================
+       SECTION 4: REQUIRED ONBOARDING DOCUMENTS
+       Section ID: "onboarding"
+       ========================================================================= -->
+  <section class="drv-onboard-section" id="onboarding">
+    <div class="container">
+      <div class="drv-onboard-wrapper">
+        <div class="drv-section-header">
+          <div class="drv-eyebrow-badge">
+            <span class="drv-pulse-dot"></span>
+            <span>Digital Document Verification</span>
           </div>
-          <div style="display: flex; gap: 8px; align-items: center; font-size: 0.9rem; color: var(--color-text-primary);">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            <span>Vehicle Registration Certificate (RC)</span>
+          <h2 class="drv-section-h2">Required Onboarding Documents</h2>
+          <p class="drv-section-desc">
+            All documents can be photographed and uploaded directly within the AdhocX Driver App.
+          </p>
+        </div>
+
+        <!-- 6 Document Cards -->
+        <div class="drv-docs-grid">
+          <!-- Doc 1 -->
+          <div class="drv-doc-card">
+            <div class="drv-doc-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+                <circle cx="9" cy="10" r="2"></circle>
+                <line x1="15" y1="8" x2="17" y2="8"></line>
+                <line x1="15" y1="12" x2="17" y2="12"></line>
+                <line x1="7" y1="16" x2="17" y2="16"></line>
+              </svg>
+            </div>
+            <div class="drv-doc-info">
+              <div class="drv-doc-num">01</div>
+              <h3 class="drv-doc-title">Commercial Driving License (Badge)</h3>
+              <p class="drv-doc-desc">Valid commercial endorsement / badge authorizing passenger transport.</p>
+            </div>
           </div>
-          <div style="display: flex; gap: 8px; align-items: center; font-size: 0.9rem; color: var(--color-text-primary);">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            <span>Commercial Passenger Insurance</span>
+
+          <!-- Doc 2 -->
+          <div class="drv-doc-card">
+            <div class="drv-doc-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <rect x="2" y="7" width="20" height="12" rx="2"></rect>
+                <circle cx="7" cy="19" r="2"></circle>
+                <circle cx="17" cy="19" r="2"></circle>
+                <line x1="2" y1="12" x2="22" y2="12"></line>
+              </svg>
+            </div>
+            <div class="drv-doc-info">
+              <div class="drv-doc-num">02</div>
+              <h3 class="drv-doc-title">Vehicle Registration Certificate (RC)</h3>
+              <p class="drv-doc-desc">Commercial Yellow-Plate (T/TR registration) 4-seater or 7-seater.</p>
+            </div>
           </div>
-          <div style="display: flex; gap: 8px; align-items: center; font-size: 0.9rem; color: var(--color-text-primary);">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            <span>RTA Commercial Fitness Certificate</span>
+
+          <!-- Doc 3 -->
+          <div class="drv-doc-card">
+            <div class="drv-doc-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+              </svg>
+            </div>
+            <div class="drv-doc-info">
+              <div class="drv-doc-num">03</div>
+              <h3 class="drv-doc-title">Commercial Passenger Insurance</h3>
+              <p class="drv-doc-desc">Active comprehensive commercial taxi policy covering passengers.</p>
+            </div>
           </div>
-          <div style="display: flex; gap: 8px; align-items: center; font-size: 0.9rem; color: var(--color-text-primary);">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            <span>Aadhaar Card / Verified Identity Proof</span>
+
+          <!-- Doc 4 -->
+          <div class="drv-doc-card">
+            <div class="drv-doc-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+              </svg>
+            </div>
+            <div class="drv-doc-info">
+              <div class="drv-doc-num">04</div>
+              <h3 class="drv-doc-title">RTA Commercial Fitness Certificate</h3>
+              <p class="drv-doc-desc">Valid roadworthiness &amp; fitness certificate issued by Telangana RTA.</p>
+            </div>
           </div>
-          <div style="display: flex; gap: 8px; align-items: center; font-size: 0.9rem; color: var(--color-text-primary);">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            <span>Bank Account Passbook / Cancelled Cheque</span>
+
+          <!-- Doc 5 -->
+          <div class="drv-doc-card">
+            <div class="drv-doc-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+            </div>
+            <div class="drv-doc-info">
+              <div class="drv-doc-num">05</div>
+              <h3 class="drv-doc-title">Aadhaar Card / Verified Identity Proof</h3>
+              <p class="drv-doc-desc">Government-issued identity proof for driver KYC and verification.</p>
+            </div>
+          </div>
+
+          <!-- Doc 6 -->
+          <div class="drv-doc-card">
+            <div class="drv-doc-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                <line x1="2" y1="10" x2="22" y2="10"></line>
+              </svg>
+            </div>
+            <div class="drv-doc-info">
+              <div class="drv-doc-num">06</div>
+              <h3 class="drv-doc-title">Bank Account Passbook / Cancelled Cheque</h3>
+              <p class="drv-doc-desc">Account number &amp; IFSC code for direct, automated electronic payouts.</p>
+            </div>
           </div>
         </div>
 
-        <div style="text-align: center; margin-top: var(--space-8);">
-          <a href="https://play.google.com/store/apps/details?id=com.adhocx.app" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-large">
-            Download Driver App & Onboard &rarr;
-          </a>
+        <!-- Onboarding Action Banner -->
+        <div class="drv-onboard-action-card">
+          <div class="drv-onboard-action-content">
+            <div class="drv-action-left">
+              <div class="drv-badge-green">24 Business Hours Activation</div>
+              <h3 class="drv-action-h3">Upload Photos in App — No Physical Office Visit Needed</h3>
+              <p class="drv-action-p">Our verification desk reviews documents digitally so you can start taking pre-scheduled corporate routes promptly.</p>
+            </div>
+            <div class="drv-action-right">
+              <a 
+                href="https://play.google.com/store/apps/details?id=com.adhocx.app" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                class="btn-pill-primary drv-onboard-btn"
+                id="btn-onboarding-download"
+              >
+                <span>Download Driver App &amp; Onboard</span>
+                <span aria-hidden="true">&rarr;</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- =========================================================================
+       SECTION 5: DRIVER APP CONVERSION SECTION
+       "Ready to Drive with AdhocX?"
+       ========================================================================= -->
+  <section class="drv-conversion-section" id="download-app">
+    <div class="container">
+      <div class="drv-conversion-card">
+        <div class="drv-conversion-grid">
+          <!-- Left: Call to Action Details -->
+          <div class="drv-conversion-copy">
+            <div class="drv-eyebrow-badge badge-on-dark">
+              <span class="drv-pulse-dot"></span>
+              <span>Available on Android</span>
+            </div>
+            <h2 class="drv-conversion-h2">
+              Ready to Drive with AdhocX?
+            </h2>
+            <p class="drv-conversion-p">
+              Download the AdhocX Driver App, complete your document verification, and explore pre-scheduled corporate route opportunities.
+            </p>
+
+            <div class="drv-conversion-features">
+              <div class="drv-conv-feat">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span>Direct corporate contract — zero broker commissions</span>
+              </div>
+              <div class="drv-conv-feat">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span>Pre-scheduled shift rosters before you accept</span>
+              </div>
+              <div class="drv-conv-feat">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span>Automated bank payouts with complete ledger transparency</span>
+              </div>
+            </div>
+
+            <!-- Google Play Store Button -->
+            <div class="drv-conversion-btn-wrap">
+              <a 
+                href="https://play.google.com/store/apps/details?id=com.adhocx.app" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                class="drv-playstore-btn"
+                id="btn-bottom-playstore"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M3.609 1.814L13.793 12 3.61 22.186a2.372 2.372 0 0 1-.61-.914V2.728c.15-.36.368-.679.609-.914zm11.233 11.235l2.424 2.424-11.838 6.786 9.414-9.21zm2.424-2.098l3.197 1.832c.983.563.983 1.48 0 2.044l-3.197 1.832-2.316-2.316 2.316-3.392zm-2.424-.326L5.428 1.411l11.838 6.786-2.424 2.428z"/>
+                </svg>
+                <div>
+                  <span class="btn-micro">GET IT ON</span>
+                  <span class="btn-title">Google Play</span>
+                </div>
+              </a>
+            </div>
+          </div>
+
+          <!-- Right: Mobile Driver App Showcase Interface -->
+          <div class="drv-conversion-mockup">
+            <div class="drv-phone-frame">
+              <!-- Top App Status Bar -->
+              <div class="drv-phone-topbar">
+                <span class="drv-online-badge">
+                  <span class="drv-online-dot"></span>
+                  <span>ONLINE &bull; ADHOCX DRIVER</span>
+                </span>
+                <span class="drv-phone-network">4G LTE</span>
+              </div>
+
+              <!-- Driver Route Offer Card in App -->
+              <div class="drv-app-route-offer">
+                <div class="drv-offer-header">
+                  <span class="drv-offer-type">CORPORATE SHIFT DROP</span>
+                  <span class="drv-offer-time">22:00 Graveyard</span>
+                </div>
+                <div class="drv-offer-dest">
+                  <div class="drv-stop-dot green"></div>
+                  <div>
+                    <div class="drv-stop-lbl">PICKUP CAMPUS</div>
+                    <strong>HITEC City Cyber Towers, Gate 3</strong>
+                  </div>
+                </div>
+                <div class="drv-offer-dest">
+                  <div class="drv-stop-dot red"></div>
+                  <div>
+                    <div class="drv-stop-lbl">DROP CORRIDOR</div>
+                    <strong>Kondapur &bull; Miyapur (3 Ordered Stops)</strong>
+                  </div>
+                </div>
+                <!-- SCSC Protocol Tag -->
+                <div class="drv-app-scsc-tag">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                  <span>SCSC Safe-Drop Sequence Active &bull; Security Escort Assigned</span>
+                </div>
+              </div>
+
+              <!-- Quick Boarding Scanner Interface -->
+              <div class="drv-app-scanner-sim">
+                <div class="drv-scan-title">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  <span>Pass Verification: Enter 4-Digit OTP or Scan QR</span>
+                </div>
+                <div class="drv-otp-display">
+                  <span class="otp-box">&bull;</span>
+                  <span class="otp-box">&bull;</span>
+                  <span class="otp-box">&bull;</span>
+                  <span class="otp-box">&bull;</span>
+                </div>
+              </div>
+
+              <!-- Bank Settlement Ledger Row -->
+              <div class="drv-app-ledger-sim">
+                <div class="drv-ledger-left">
+                  <span class="drv-ledger-title">Last Completed Trip</span>
+                  <span class="drv-ledger-ref">Ref: UTR-98241088214 (Bank Transfer)</span>
+                </div>
+                <div class="drv-ledger-right">
+                  <span class="drv-payout-badge">Settled</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </section>
 </BaseLayout>
 
+<style>
+  /* ==========================================================================
+     ADHOCX DRIVER PARTNER PAGE SPECIFIC STYLES
+     ========================================================================== */
+  
+  /* ---- HERO SECTION ---- */
+  .drv-hero-section {
+    position: relative;
+    padding: clamp(3.5rem, 6vw, 5.5rem) 0 clamp(3.5rem, 6vw, 5rem);
+    background: linear-gradient(180deg, #F9F8FE 0%, #FFFFFF 100%);
+    overflow: hidden;
+    border-bottom: 1px solid var(--color-border, #E2E8F0);
+  }
+
+  .drv-hero-bg-grid {
+    position: absolute;
+    inset: 0;
+    background-size: 36px 36px;
+    background-image: 
+      linear-gradient(to right, rgba(87, 40, 178, 0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(87, 40, 178, 0.04) 1px, transparent 1px);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .drv-hero-container {
+    position: relative;
+    z-index: 2;
+    max-width: 1440px;
+  }
+
+  .drv-hero-grid {
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr;
+    gap: clamp(2rem, 5vw, 4rem);
+    align-items: center;
+  }
+
+  .drv-eyebrow-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.875rem;
+    border-radius: 9999px;
+    background: rgba(87, 40, 178, 0.06);
+    border: 1px solid rgba(87, 40, 178, 0.18);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--color-primary-600, #5728B2);
+    letter-spacing: 0.02em;
+    margin-bottom: 1.25rem;
+    width: fit-content;
+  }
+
+  .drv-pulse-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--color-primary-600, #5728B2);
+    display: inline-block;
+    box-shadow: 0 0 0 3px rgba(87, 40, 178, 0.2);
+    animation: drvPulse 2s infinite ease-in-out;
+  }
+
+  @keyframes drvPulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.3); opacity: 0.7; }
+  }
+
+  .drv-hero-h1 {
+    font-size: clamp(2.5rem, 4.2vw, 4rem);
+    font-weight: 900;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    color: #0F172A;
+    margin-bottom: 0.75rem;
+  }
+
+  .drv-hero-subhead {
+    font-size: clamp(1.25rem, 2vw, 1.75rem);
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--color-primary-600, #5728B2);
+    margin-bottom: 1.25rem;
+  }
+
+  .drv-hero-desc {
+    font-size: clamp(1rem, 1.3vw, 1.125rem);
+    color: #475569;
+    line-height: 1.65;
+    margin-bottom: 2rem;
+    max-width: 36rem;
+  }
+
+  .drv-hero-actions {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 2.25rem;
+  }
+
+  .drv-btn-primary {
+    background: var(--color-accent-orange, #FF5F09);
+    color: #FFFFFF !important;
+    padding: 0.875rem 1.75rem;
+    font-weight: 700;
+    font-size: 0.975rem;
+    box-shadow: 0 4px 16px rgba(255, 95, 9, 0.35);
+  }
+
+  .drv-btn-primary:hover {
+    background: #E04E00;
+    color: #FFFFFF;
+  }
+
+  .drv-btn-secondary {
+    background: #FFFFFF;
+    color: #0F172A !important;
+    border: 1.5px solid #CBD5E1;
+    padding: 0.875rem 1.75rem;
+    font-weight: 600;
+    font-size: 0.975rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .drv-btn-secondary:hover {
+    background: #F8FAFC;
+    border-color: #94A3B8;
+  }
+
+  .drv-hero-checks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.875rem 1.5rem;
+  }
+
+  .drv-check-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #334155;
+  }
+
+  /* ---- HERO VISUAL (RIGHT COLUMN) ---- */
+  .drv-hero-visual-wrapper {
+    position: relative;
+    width: 100%;
+  }
+
+  .drv-hero-image-card {
+    position: relative;
+    border-radius: 1.25rem;
+    overflow: hidden;
+    box-shadow: 0 25px 50px -12px rgba(1, 13, 45, 0.18), 0 10px 24px -6px rgba(1, 13, 45, 0.08);
+    border: 1px solid #E2E8F0;
+    background: #FFFFFF;
+    aspect-ratio: 16 / 11;
+  }
+
+  .drv-hero-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.5s ease;
+  }
+
+  .drv-hero-image-card:hover .drv-hero-photo {
+    transform: scale(1.02);
+  }
+
+  .drv-hero-image-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.05) 0%, rgba(15, 23, 42, 0.55) 100%);
+    pointer-events: none;
+  }
+
+  /* Floating Smartphone Offer Card in Hero */
+  .drv-float-route-card {
+    position: absolute;
+    top: 1.25rem;
+    left: 1.25rem;
+    right: 1.25rem;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(226, 232, 240, 0.95);
+    border-radius: 0.875rem;
+    padding: 0.875rem 1rem;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+  }
+
+  .drv-float-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.4rem;
+  }
+
+  .drv-route-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.65rem;
+    font-weight: 800;
+    color: var(--color-primary-600, #5728B2);
+    letter-spacing: 0.05em;
+  }
+
+  .drv-route-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #10B981;
+    display: inline-block;
+  }
+
+  .drv-route-time {
+    font-size: 0.725rem;
+    font-weight: 700;
+    color: #0F172A;
+  }
+
+  .drv-route-corridor {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: #0F172A;
+    margin-bottom: 0.5rem;
+  }
+
+  .drv-route-meta-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    background: #F8FAFC;
+    border-radius: 0.5rem;
+    padding: 0.35rem 0.65rem;
+    border: 1px solid #E2E8F0;
+  }
+
+  .drv-meta-cell {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .drv-meta-lbl {
+    font-size: 0.575rem;
+    font-weight: 700;
+    color: #64748B;
+  }
+
+  .drv-meta-val {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #1E293B;
+  }
+
+  .drv-meta-val-payout {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #10B981;
+  }
+
+  .drv-float-verify-pill {
+    position: absolute;
+    bottom: 1.25rem;
+    left: 1.25rem;
+    background: rgba(15, 23, 42, 0.92);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #FFFFFF;
+    padding: 0.5rem 0.875rem;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+  }
+
+  /* ---- ELIGIBILITY SECTION ---- */
+  .drv-eligibility-section {
+    padding: clamp(4rem, 7vw, 6rem) 0;
+    background: #FFFFFF;
+    border-bottom: 1px solid #E2E8F0;
+  }
+
+  .drv-section-header {
+    text-align: center;
+    max-width: 48rem;
+    margin: 0 auto clamp(2.5rem, 5vw, 4rem) auto;
+  }
+
+  .drv-section-h2 {
+    font-size: clamp(1.85rem, 3.2vw, 2.75rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: #0F172A;
+    margin-bottom: 0.875rem;
+    line-height: 1.2;
+  }
+
+  .drv-section-desc {
+    font-size: clamp(1rem, 1.3vw, 1.125rem);
+    color: #64748B;
+    line-height: 1.6;
+  }
+
+  .drv-eligibility-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.75rem;
+    margin-bottom: 3.5rem;
+  }
+
+  .drv-eligibility-card {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 1.25rem;
+    padding: 2rem;
+    box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.05);
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .drv-eligibility-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 16px 36px -8px rgba(1, 13, 45, 0.1);
+    border-color: #CBD5E1;
+  }
+
+  .drv-card-contract {
+    border: 2px solid #10B981;
+    background: linear-gradient(180deg, #FFFFFF 0%, #F0FDF4 100%);
+  }
+
+  .drv-card-top-icon {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.25rem;
+  }
+
+  .box-purple {
+    background: #ECE6FE;
+    color: #5728B2;
+  }
+
+  .box-green {
+    background: #DCFCE7;
+    color: #10B981;
+  }
+
+  .drv-card-badge {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-primary-600, #5728B2);
+    margin-bottom: 0.5rem;
+  }
+
+  .badge-green {
+    color: #059669;
+  }
+
+  .drv-card-h3 {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: #0F172A;
+    margin-bottom: 0.75rem;
+  }
+
+  .drv-card-p {
+    font-size: 0.925rem;
+    color: #475569;
+    line-height: 1.6;
+    margin-bottom: 1.5rem;
+  }
+
+  .drv-card-specs {
+    list-style: none;
+    padding: 0;
+    margin: auto 0 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    border-top: 1px solid #F1F5F9;
+    padding-top: 1.25rem;
+    font-size: 0.85rem;
+    color: #334155;
+  }
+
+  .drv-card-specs li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  /* Fleet Showcase Image Banner */
+  .drv-fleet-showcase-box {
+    margin-top: 2rem;
+  }
+
+  .drv-fleet-img-wrap {
+    position: relative;
+    border-radius: 1.25rem;
+    overflow: hidden;
+    border: 1px solid #E2E8F0;
+    box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.1);
+  }
+
+  .drv-fleet-img {
+    width: 100%;
+    height: auto;
+    display: block;
+    object-fit: cover;
+    aspect-ratio: 16 / 8;
+  }
+
+  .drv-fleet-caption {
+    position: absolute;
+    bottom: 1rem;
+    left: 1rem;
+    background: rgba(15, 23, 42, 0.88);
+    backdrop-filter: blur(8px);
+    color: #FFFFFF;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  /* ---- TECHNOLOGY SECTION (6 FEATURES) ---- */
+  .drv-tech-section {
+    padding: clamp(4rem, 7vw, 6rem) 0;
+    background: #F8FAFC;
+    border-bottom: 1px solid #E2E8F0;
+  }
+
+  .drv-tech-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.75rem;
+  }
+
+  .drv-tech-card {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 1.25rem;
+    padding: 2rem;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.04);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+  }
+
+  .drv-tech-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 16px 36px -8px rgba(1, 13, 45, 0.09);
+    border-color: #CBD5E1;
+  }
+
+  .drv-tech-icon-box {
+    width: 3.25rem;
+    height: 3.25rem;
+    border-radius: 0.75rem;
+    background: #EFF6FF;
+    color: var(--color-primary-600, #5728B2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.25rem;
+  }
+
+  .drv-tech-title {
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: #0F172A;
+    margin-bottom: 0.65rem;
+    line-height: 1.3;
+  }
+
+  .drv-tech-p {
+    font-size: 0.9rem;
+    color: #64748B;
+    line-height: 1.65;
+    margin: 0;
+  }
+
+  /* ---- ONBOARDING SECTION ---- */
+  .drv-onboard-section {
+    padding: clamp(4rem, 7vw, 6rem) 0;
+    background: #FFFFFF;
+    border-bottom: 1px solid #E2E8F0;
+  }
+
+  .drv-onboard-wrapper {
+    max-width: 1040px;
+    margin: 0 auto;
+  }
+
+  .drv-docs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.25rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .drv-doc-card {
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 1rem;
+    padding: 1.25rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+  }
+
+  .drv-doc-card:hover {
+    background: #FFFFFF;
+    border-color: var(--color-primary-600, #5728B2);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+  }
+
+  .drv-doc-icon-wrap {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 0.5rem;
+    background: #ECE6FE;
+    color: #5728B2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .drv-doc-info {
+    flex: 1;
+  }
+
+  .drv-doc-num {
+    font-size: 0.6875rem;
+    font-weight: 800;
+    color: #94A3B8;
+    margin-bottom: 0.15rem;
+  }
+
+  .drv-doc-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #0F172A;
+    margin: 0 0 0.25rem 0;
+  }
+
+  .drv-doc-desc {
+    font-size: 0.8125rem;
+    color: #64748B;
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  .drv-onboard-action-card {
+    background: linear-gradient(135deg, #FAF8FE 0%, #EFF6FF 100%);
+    border: 1px solid #DBEAFE;
+    border-radius: 1.25rem;
+    padding: 2rem;
+  }
+
+  .drv-onboard-action-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+    flex-wrap: wrap;
+  }
+
+  .drv-action-left {
+    flex: 1;
+    min-width: 280px;
+  }
+
+  .drv-badge-green {
+    display: inline-block;
+    background: #DCFCE7;
+    color: #166534;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    margin-bottom: 0.5rem;
+  }
+
+  .drv-action-h3 {
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: #0F172A;
+    margin: 0 0 0.4rem 0;
+  }
+
+  .drv-action-p {
+    font-size: 0.9rem;
+    color: #475569;
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  .drv-onboard-btn {
+    background: var(--color-accent-orange, #FF5F09);
+    color: #FFFFFF !important;
+    padding: 0.875rem 1.75rem;
+    font-weight: 700;
+    font-size: 0.95rem;
+    box-shadow: 0 4px 14px rgba(255, 95, 9, 0.35);
+    white-space: nowrap;
+  }
+
+  .drv-onboard-btn:hover {
+    background: #E04E00;
+    color: #FFFFFF;
+  }
+
+  /* ---- CONVERSION SECTION ---- */
+  .drv-conversion-section {
+    padding: clamp(4rem, 7vw, 6rem) 0;
+    background: #FFFFFF;
+  }
+
+  .drv-conversion-card {
+    background: linear-gradient(135deg, #1E1035 0%, #2D145E 50%, #170B2C 100%);
+    border-radius: 1.5rem;
+    padding: clamp(2rem, 5vw, 3.5rem);
+    color: #FFFFFF;
+    box-shadow: 0 25px 60px -15px rgba(23, 11, 44, 0.4);
+    overflow: hidden;
+  }
+
+  .drv-conversion-grid {
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: clamp(2rem, 5vw, 4rem);
+    align-items: center;
+  }
+
+  .badge-on-dark {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: #E2E8F0;
+  }
+
+  .badge-on-dark .drv-pulse-dot {
+    background: #10B981;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25);
+  }
+
+  .drv-conversion-h2 {
+    font-size: clamp(2rem, 3.4vw, 2.75rem);
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    color: #FFFFFF;
+    margin-bottom: 1rem;
+    line-height: 1.15;
+  }
+
+  .drv-conversion-p {
+    font-size: 1.05rem;
+    color: #CBD5E1;
+    line-height: 1.6;
+    margin-bottom: 2rem;
+  }
+
+  .drv-conversion-features {
+    display: flex;
+    flex-direction: column;
+    gap: 0.875rem;
+    margin-bottom: 2.25rem;
+  }
+
+  .drv-conv-feat {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.925rem;
+    color: #F1F5F9;
+  }
+
+  .drv-playstore-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.875rem;
+    background: #000000;
+    color: #FFFFFF;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 0.75rem;
+    padding: 0.75rem 1.5rem;
+    text-decoration: none;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+  }
+
+  .drv-playstore-btn:hover {
+    background: #111827;
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-2px);
+    color: #FFFFFF;
+  }
+
+  .btn-micro {
+    display: block;
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    opacity: 0.8;
+  }
+
+  .btn-title {
+    display: block;
+    font-size: 1.15rem;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+
+  /* ---- PHONE SIMULATION MOCKUP (RIGHT) ---- */
+  .drv-conversion-mockup {
+    display: flex;
+    justify-content: center;
+  }
+
+  .drv-phone-frame {
+    width: 100%;
+    max-width: 360px;
+    background: #FFFFFF;
+    border-radius: 1.75rem;
+    padding: 1.25rem;
+    color: #0F172A;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.35);
+    border: 3px solid rgba(255, 255, 255, 0.15);
+  }
+
+  .drv-phone-topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.6875rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #E2E8F0;
+    margin-bottom: 0.875rem;
+  }
+
+  .drv-online-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-weight: 700;
+    color: #10B981;
+  }
+
+  .drv-online-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #10B981;
+    display: inline-block;
+  }
+
+  .drv-phone-network {
+    font-weight: 600;
+    color: #94A3B8;
+  }
+
+  .drv-app-route-offer {
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 0.875rem;
+    padding: 0.875rem;
+    margin-bottom: 0.875rem;
+  }
+
+  .drv-offer-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #64748B;
+    margin-bottom: 0.5rem;
+  }
+
+  .drv-offer-type {
+    color: var(--color-primary-600, #5728B2);
+  }
+
+  .drv-offer-dest {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .drv-stop-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-top: 0.25rem;
+    flex-shrink: 0;
+  }
+
+  .drv-stop-dot.green { background: #10B981; }
+  .drv-stop-dot.red { background: #EF4444; }
+
+  .drv-stop-lbl {
+    font-size: 0.575rem;
+    color: #94A3B8;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .drv-app-scsc-tag {
+    margin-top: 0.5rem;
+    background: #ECE6FE;
+    color: #5728B2;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 0.35rem 0.5rem;
+    border-radius: 0.375rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .drv-app-scanner-sim {
+    background: #F1F5F9;
+    border-radius: 0.75rem;
+    padding: 0.75rem;
+    margin-bottom: 0.875rem;
+  }
+
+  .drv-scan-title {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    color: #334155;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .drv-otp-display {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+  }
+
+  .otp-box {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.375rem;
+    background: #FFFFFF;
+    border: 1px solid #CBD5E1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    color: #0F172A;
+  }
+
+  .drv-app-ledger-sim {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 0.75rem;
+    padding: 0.65rem 0.875rem;
+  }
+
+  .drv-ledger-left {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .drv-ledger-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #0F172A;
+  }
+
+  .drv-ledger-ref {
+    font-size: 0.625rem;
+    color: #64748B;
+  }
+
+  .drv-payout-badge {
+    background: #DCFCE7;
+    color: #166534;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    padding: 0.2rem 0.5rem;
+    border-radius: 9999px;
+  }
+
+  /* ---- RESPONSIVE MEDIA QUERIES ---- */
+  @media (max-width: 1024px) {
+    .drv-hero-grid,
+    .drv-conversion-grid {
+      grid-template-columns: 1fr;
+      gap: 2.5rem;
+    }
+
+    .drv-tech-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .drv-hero-visual-wrapper {
+      margin-top: 1rem;
+    }
+
+    .drv-conversion-mockup {
+      order: 2;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .drv-tech-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .drv-hero-actions {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .drv-btn-primary,
+    .drv-btn-secondary {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .drv-float-route-card {
+      position: static;
+      margin: 0.75rem;
+    }
+
+    .drv-float-verify-pill {
+      position: static;
+      margin: 0.75rem;
+    }
+
+    .drv-onboard-action-content {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .drv-onboard-btn {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+</style>

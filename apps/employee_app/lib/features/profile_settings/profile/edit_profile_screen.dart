@@ -13,10 +13,14 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
-  final TextEditingController _nameController = TextEditingController(text: 'Ravi Kumar');
-  final TextEditingController _phoneController = TextEditingController(text: '+91 98765 43210');
-  final TextEditingController _emailController = TextEditingController(text: 'ravi.kumar@hitec.com');
-  final TextEditingController _addressController = TextEditingController(text: 'Kondapur, Hyderabad');
+  final TextEditingController _nameController =
+      TextEditingController(text: 'Ravi Kumar');
+  final TextEditingController _phoneController =
+      TextEditingController(text: '+91 98765 43210');
+  final TextEditingController _emailController =
+      TextEditingController(text: 'ravi.kumar@hitec.com');
+  final TextEditingController _addressController =
+      TextEditingController(text: 'Kondapur, Hyderabad');
   bool _isLoading = true;
 
   @override
@@ -56,7 +60,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              size: 18, color: AppColors.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
@@ -73,7 +78,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                 child: Column(
                   children: [
                     // Avatar with Camera Badge
@@ -81,10 +87,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       child: Stack(
                         alignment: Alignment.bottomRight,
                         children: [
-                          CircleAvatar(
+                          const CircleAvatar(
                             radius: 46,
                             backgroundColor: AppColors.primaryBlueLight,
-                            child: const Icon(Icons.person, size: 54, color: AppColors.primaryBlue),
+                            child: Icon(Icons.person,
+                                size: 54, color: AppColors.primaryBlue),
                           ),
                           Container(
                             padding: const EdgeInsets.all(6),
@@ -92,7 +99,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               color: AppColors.primaryBlue,
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(Icons.camera_alt_rounded, size: 14, color: Colors.white),
+                            child: const Icon(Icons.camera_alt_rounded,
+                                size: 14, color: Colors.white),
                           ),
                         ],
                       ),
@@ -101,7 +109,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
                     _buildTextField('Full Name', _nameController),
                     const SizedBox(height: 18),
-                    _buildTextField('Phone Number', _phoneController, isLocked: true),
+                    _buildTextField('Phone Number', _phoneController,
+                        isLocked: true),
                     const SizedBox(height: 18),
                     _buildTextField('Email', _emailController),
                     const SizedBox(height: 18),
@@ -113,7 +122,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       label: 'Save Changes',
                       onPressed: () {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Profile updated successfully.')),
+                          const SnackBar(
+                              content: Text('Profile updated successfully.')),
                         );
                         Navigator.of(context).pop();
                       },
@@ -126,13 +136,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, {bool isLocked = false}) {
+  Widget _buildTextField(String label, TextEditingController controller,
+      {bool isLocked = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+          style: GoogleFonts.inter(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary),
         ),
         const SizedBox(height: 6),
         Container(
@@ -147,15 +161,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             enabled: !isLocked,
             decoration: InputDecoration(
               border: InputBorder.none,
-              suffixIcon: isLocked ? const Icon(Icons.lock_outline_rounded, size: 18, color: AppColors.textMuted) : null,
+              suffixIcon: isLocked
+                  ? const Icon(Icons.lock_outline_rounded,
+                      size: 18, color: AppColors.textMuted)
+                  : null,
             ),
-            style: GoogleFonts.inter(fontSize: 14, color: isLocked ? AppColors.textSecondary : AppColors.textPrimary),
+            style: GoogleFonts.inter(
+                fontSize: 14,
+                color:
+                    isLocked ? AppColors.textSecondary : AppColors.textPrimary),
           ),
         ),
       ],
     );
   }
 }
-
-
-

@@ -9,7 +9,8 @@ class SosAlertConfirmedScreen extends StatefulWidget {
   const SosAlertConfirmedScreen({super.key});
 
   @override
-  State<SosAlertConfirmedScreen> createState() => _SosAlertConfirmedScreenState();
+  State<SosAlertConfirmedScreen> createState() =>
+      _SosAlertConfirmedScreenState();
 }
 
 class _SosAlertConfirmedScreenState extends State<SosAlertConfirmedScreen> {
@@ -41,7 +42,8 @@ class _SosAlertConfirmedScreenState extends State<SosAlertConfirmedScreen> {
         'You will receive a call from our safety team in a few moments.';
 
     return Scaffold(
-      backgroundColor: const Color(0xFF1E293B), // Charcoal emergency response theme
+      backgroundColor:
+          const Color(0xFF1E293B), // Charcoal emergency response theme
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -54,7 +56,8 @@ class _SosAlertConfirmedScreenState extends State<SosAlertConfirmedScreen> {
           ? const Center(child: CircularProgressIndicator(color: Colors.white))
           : SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 child: Column(
                   children: [
                     const SizedBox(height: 12),
@@ -67,7 +70,8 @@ class _SosAlertConfirmedScreenState extends State<SosAlertConfirmedScreen> {
                         shape: BoxShape.circle,
                       ),
                       child: const Center(
-                        child: Icon(Icons.check_rounded, color: Colors.white, size: 44),
+                        child: Icon(Icons.check_rounded,
+                            color: Colors.white, size: 44),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -96,13 +100,14 @@ class _SosAlertConfirmedScreenState extends State<SosAlertConfirmedScreen> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFDC2626).withOpacity(0.2),
+                        color: const Color(0xFFDC2626).withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: const Color(0xFFEF4444)),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.headset_mic_rounded, color: Color(0xFFFCA5A5), size: 24),
+                          const Icon(Icons.headset_mic_rounded,
+                              color: Color(0xFFFCA5A5), size: 24),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
@@ -140,13 +145,16 @@ class _SosAlertConfirmedScreenState extends State<SosAlertConfirmedScreen> {
                       decoration: BoxDecoration(
                         color: const Color(0xFF0F172A),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.white.withOpacity(0.1)),
+                        border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.1)),
                       ),
                       child: Column(
                         children: [
-                          _buildStepRow('Alert Received', '9:41 AM', isDone: true),
+                          _buildStepRow('Alert Received', '9:41 AM',
+                              isDone: true),
                           const Divider(color: Colors.white12, height: 20),
-                          _buildStepRow('Team Assigned', 'In Progress', isActive: true),
+                          _buildStepRow('Team Assigned', 'In Progress',
+                              isActive: true),
                           const Divider(color: Colors.white12, height: 20),
                           _buildStepRow('In Contact', 'Pending'),
                         ],
@@ -163,7 +171,8 @@ class _SosAlertConfirmedScreenState extends State<SosAlertConfirmedScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF2563EB),
                           padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
                           elevation: 0,
                         ),
                         child: Text(
@@ -184,21 +193,30 @@ class _SosAlertConfirmedScreenState extends State<SosAlertConfirmedScreen> {
     );
   }
 
-  Widget _buildStepRow(String title, String status, {bool isDone = false, bool isActive = false}) {
+  Widget _buildStepRow(String title, String status,
+      {bool isDone = false, bool isActive = false}) {
     return Row(
       children: [
         Container(
           width: 18,
           height: 18,
           decoration: BoxDecoration(
-            color: isDone ? const Color(0xFF16A34A) : isActive ? const Color(0xFF2563EB) : Colors.white24,
+            color: isDone
+                ? const Color(0xFF16A34A)
+                : isActive
+                    ? const Color(0xFF2563EB)
+                    : Colors.white24,
             shape: BoxShape.circle,
           ),
           child: Center(
             child: isDone
                 ? const Icon(Icons.check, size: 12, color: Colors.white)
                 : isActive
-                    ? Container(width: 6, height: 6, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle))
+                    ? Container(
+                        width: 6,
+                        height: 6,
+                        decoration: const BoxDecoration(
+                            color: Colors.white, shape: BoxShape.circle))
                     : null,
           ),
         ),
@@ -206,7 +224,8 @@ class _SosAlertConfirmedScreenState extends State<SosAlertConfirmedScreen> {
         Expanded(
           child: Text(
             title,
-            style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white),
+            style: GoogleFonts.inter(
+                fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white),
           ),
         ),
         Text(
@@ -214,13 +233,14 @@ class _SosAlertConfirmedScreenState extends State<SosAlertConfirmedScreen> {
           style: GoogleFonts.inter(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: isDone ? const Color(0xFF4ADE80) : isActive ? const Color(0xFF60A5FA) : Colors.white38,
+            color: isDone
+                ? const Color(0xFF4ADE80)
+                : isActive
+                    ? const Color(0xFF60A5FA)
+                    : Colors.white38,
           ),
         ),
       ],
     );
   }
 }
-
-
-

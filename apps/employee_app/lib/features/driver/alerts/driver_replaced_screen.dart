@@ -47,7 +47,8 @@ class _DriverReplacedScreenState extends State<DriverReplacedScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              size: 18, color: AppColors.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -55,7 +56,8 @@ class _DriverReplacedScreenState extends State<DriverReplacedScreen> {
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                 child: Column(
                   children: [
                     const SizedBox(height: 16),
@@ -97,7 +99,8 @@ class _DriverReplacedScreenState extends State<DriverReplacedScreen> {
                               const CircleAvatar(
                                 radius: 20,
                                 backgroundColor: Color(0xFFF1F5F9),
-                                child: Icon(Icons.person, color: AppColors.textMuted, size: 22),
+                                child: Icon(Icons.person,
+                                    color: AppColors.textMuted, size: 22),
                               ),
                               const SizedBox(width: 14),
                               Expanded(
@@ -123,7 +126,8 @@ class _DriverReplacedScreenState extends State<DriverReplacedScreen> {
                                 ),
                               ),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 2),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFFF1F5F9),
                                   borderRadius: BorderRadius.circular(8),
@@ -143,10 +147,11 @@ class _DriverReplacedScreenState extends State<DriverReplacedScreen> {
                           // New Driver
                           Row(
                             children: [
-                              CircleAvatar(
+                              const CircleAvatar(
                                 radius: 22,
                                 backgroundColor: AppColors.primaryBlueLight,
-                                child: const Icon(Icons.person, color: AppColors.primaryBlue, size: 26),
+                                child: Icon(Icons.person,
+                                    color: AppColors.primaryBlue, size: 26),
                               ),
                               const SizedBox(width: 14),
                               Expanded(
@@ -174,7 +179,8 @@ class _DriverReplacedScreenState extends State<DriverReplacedScreen> {
                               ),
                               Row(
                                 children: [
-                                  const Icon(Icons.star_rounded, size: 16, color: Color(0xFFF59E0B)),
+                                  const Icon(Icons.star_rounded,
+                                      size: 16, color: Color(0xFFF59E0B)),
                                   const SizedBox(width: 4),
                                   Text(
                                     '$rating',
@@ -196,7 +202,8 @@ class _DriverReplacedScreenState extends State<DriverReplacedScreen> {
 
                     EmployeePrimaryButton(
                       label: 'Continue',
-                      onPressed: () => context.push(AppRoutes.cabAssignedOverview),
+                      onPressed: () =>
+                          context.push(AppRoutes.cabAssignedOverview),
                     ),
                     const SizedBox(height: 16),
                   ],
@@ -206,6 +213,3 @@ class _DriverReplacedScreenState extends State<DriverReplacedScreen> {
     );
   }
 }
-
-
-

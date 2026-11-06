@@ -68,7 +68,7 @@ class EmployeeVerificationScreen extends StatelessWidget {
                   border: Border.all(color: AppColors.border, width: 1.5),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.04),
                       blurRadius: 16,
                       offset: const Offset(0, 6),
                     ),
@@ -124,7 +124,7 @@ class EmployeeVerificationScreen extends StatelessWidget {
           width: 36,
           height: 36,
           decoration: BoxDecoration(
-            color: AppColors.primaryBlueLight.withOpacity(0.35),
+            color: AppColors.primaryBlueLight.withValues(alpha: 0.35),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(icon, size: 20, color: AppColors.primaryBlue),
@@ -159,6 +159,3 @@ class EmployeeVerificationScreen extends StatelessWidget {
     );
   }
 }
-
-
-

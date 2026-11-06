@@ -8,7 +8,8 @@ class EmergencyContactsScreen extends StatefulWidget {
   const EmergencyContactsScreen({super.key});
 
   @override
-  State<EmergencyContactsScreen> createState() => _EmergencyContactsScreenState();
+  State<EmergencyContactsScreen> createState() =>
+      _EmergencyContactsScreenState();
 }
 
 class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
@@ -39,7 +40,8 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              size: 18, color: AppColors.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
@@ -56,7 +58,8 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
               child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
                 itemCount: _contacts.length,
                 itemBuilder: (context, index) {
                   final contact = _contacts[index] as Map<String, dynamic>;
@@ -86,7 +89,8 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
 
                   return Container(
                     margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 14),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
@@ -97,7 +101,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: iconColor.withOpacity(0.12),
+                            color: iconColor.withValues(alpha: 0.12),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(icon, color: iconColor, size: 22),
@@ -128,10 +132,12 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.call_rounded, color: AppColors.primaryBlue),
+                          icon: const Icon(Icons.call_rounded,
+                              color: AppColors.primaryBlue),
                           onPressed: () {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Dialing $name ($phone)...')),
+                              SnackBar(
+                                  content: Text('Dialing $name ($phone)...')),
                             );
                           },
                         ),
@@ -144,6 +150,3 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
     );
   }
 }
-
-
-

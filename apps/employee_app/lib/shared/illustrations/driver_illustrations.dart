@@ -39,7 +39,8 @@ class AssignmentDelayedBadge extends StatelessWidget {
         border: Border.all(color: AppColors.warningBorder, width: 2),
       ),
       child: const Center(
-        child: Icon(Icons.access_time_rounded, size: 44, color: AppColors.warning),
+        child:
+            Icon(Icons.access_time_rounded, size: 44, color: AppColors.warning),
       ),
     );
   }
@@ -55,12 +56,14 @@ class DriverReplacedBadge extends StatelessWidget {
       width: 84,
       height: 84,
       decoration: BoxDecoration(
-        color: AppColors.primaryBlueLight.withOpacity(0.4),
+        color: AppColors.primaryBlueLight.withValues(alpha: 0.4),
         shape: BoxShape.circle,
-        border: Border.all(color: AppColors.primaryBlue.withOpacity(0.3), width: 2),
+        border: Border.all(
+            color: AppColors.primaryBlue.withValues(alpha: 0.3), width: 2),
       ),
       child: const Center(
-        child: Icon(Icons.swap_horiz_rounded, size: 44, color: AppColors.primaryBlue),
+        child: Icon(Icons.swap_horiz_rounded,
+            size: 44, color: AppColors.primaryBlue),
       ),
     );
   }
@@ -126,7 +129,8 @@ class VehicleIssueBadge extends StatelessWidget {
         border: Border.all(color: AppColors.errorBorder, width: 2),
       ),
       child: const Center(
-        child: Icon(Icons.warning_amber_rounded, size: 44, color: AppColors.error),
+        child:
+            Icon(Icons.warning_amber_rounded, size: 44, color: AppColors.error),
       ),
     );
   }
@@ -205,10 +209,10 @@ class DriverAvatarCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          CircleAvatar(
+          const CircleAvatar(
             radius: 26,
             backgroundColor: AppColors.primaryBlueLight,
-            child: const Icon(Icons.person, color: AppColors.primaryBlue, size: 30),
+            child: Icon(Icons.person, color: AppColors.primaryBlue, size: 30),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -226,10 +230,13 @@ class DriverAvatarCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    const Icon(Icons.star_rounded, size: 16, color: Color(0xFFF59E0B)),
+                    const Icon(Icons.star_rounded,
+                        size: 16, color: Color(0xFFF59E0B)),
                     const SizedBox(width: 4),
                     Text(
-                      tripsCount != null ? '$rating ($tripsCount trips)' : '$rating',
+                      tripsCount != null
+                          ? '$rating ($tripsCount trips)'
+                          : '$rating',
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -243,7 +250,8 @@ class DriverAvatarCard extends StatelessWidget {
           ),
           if (onCall != null)
             IconButton(
-              icon: const Icon(Icons.phone_in_talk_rounded, color: AppColors.primaryBlue),
+              icon: const Icon(Icons.phone_in_talk_rounded,
+                  color: AppColors.primaryBlue),
               onPressed: onCall,
             ),
         ],
@@ -251,5 +259,3 @@ class DriverAvatarCard extends StatelessWidget {
     );
   }
 }
-
-

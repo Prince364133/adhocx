@@ -33,7 +33,8 @@ class _LostPropertyScreenState extends State<LostPropertyScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              size: 18, color: AppColors.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
@@ -52,7 +53,7 @@ class _LostPropertyScreenState extends State<LostPropertyScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(child: const LostPropertyBadge()),
+              const Center(child: LostPropertyBadge()),
               const SizedBox(height: 16),
               Center(
                 child: Text(
@@ -84,7 +85,8 @@ class _LostPropertyScreenState extends State<LostPropertyScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.directions_car_filled_rounded, color: AppColors.primaryBlue, size: 20),
+                    const Icon(Icons.directions_car_filled_rounded,
+                        color: AppColors.primaryBlue, size: 20),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -108,7 +110,8 @@ class _LostPropertyScreenState extends State<LostPropertyScreen> {
                         ],
                       ),
                     ),
-                    const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+                    const Icon(Icons.chevron_right_rounded,
+                        color: AppColors.textMuted),
                   ],
                 ),
               ),
@@ -140,15 +143,18 @@ class _LostPropertyScreenState extends State<LostPropertyScreen> {
                       maxLines: 4,
                       maxLength: 200,
                       decoration: const InputDecoration(
-                        hintText: 'Describe your lost item (color, brand, distinguishing marks)...',
+                        hintText:
+                            'Describe your lost item (color, brand, distinguishing marks)...',
                         border: InputBorder.none,
                         counterText: '',
                       ),
-                      style: GoogleFonts.inter(fontSize: 14, color: AppColors.textPrimary),
+                      style: GoogleFonts.inter(
+                          fontSize: 14, color: AppColors.textPrimary),
                     ),
                     Text(
                       '${_itemController.text.length}/200',
-                      style: GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted),
+                      style: GoogleFonts.inter(
+                          fontSize: 11, color: AppColors.textMuted),
                     ),
                   ],
                 ),
@@ -176,7 +182,8 @@ class _LostPropertyScreenState extends State<LostPropertyScreen> {
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: AppColors.border),
                     ),
-                    child: const Icon(Icons.backpack_outlined, color: AppColors.primaryBlue, size: 24),
+                    child: const Icon(Icons.backpack_outlined,
+                        color: AppColors.primaryBlue, size: 24),
                   ),
                   const SizedBox(width: 12),
                   Container(
@@ -187,7 +194,8 @@ class _LostPropertyScreenState extends State<LostPropertyScreen> {
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: AppColors.primaryBlue),
                     ),
-                    child: const Icon(Icons.add_rounded, color: AppColors.primaryBlue, size: 28),
+                    child: const Icon(Icons.add_rounded,
+                        color: AppColors.primaryBlue, size: 28),
                   ),
                 ],
               ),
@@ -199,7 +207,9 @@ class _LostPropertyScreenState extends State<LostPropertyScreen> {
                 label: 'Submit Request',
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Lost property ticket submitted. Cab driver alerted.')),
+                    const SnackBar(
+                        content: Text(
+                            'Lost property ticket submitted. Cab driver alerted.')),
                   );
                   context.push(AppRoutes.myRequestsTickets);
                 },
@@ -212,6 +222,3 @@ class _LostPropertyScreenState extends State<LostPropertyScreen> {
     );
   }
 }
-
-
-

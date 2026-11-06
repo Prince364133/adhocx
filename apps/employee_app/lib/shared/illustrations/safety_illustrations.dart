@@ -13,12 +13,14 @@ class SafetyCenterShieldBadge extends StatelessWidget {
       width: 80,
       height: 80,
       decoration: BoxDecoration(
-        color: AppColors.primaryBlueLight.withOpacity(0.4),
+        color: AppColors.primaryBlueLight.withValues(alpha: 0.4),
         shape: BoxShape.circle,
-        border: Border.all(color: AppColors.primaryBlue.withOpacity(0.3), width: 2),
+        border: Border.all(
+            color: AppColors.primaryBlue.withValues(alpha: 0.3), width: 2),
       ),
       child: const Center(
-        child: Icon(Icons.shield_rounded, size: 44, color: AppColors.primaryBlue),
+        child:
+            Icon(Icons.shield_rounded, size: 44, color: AppColors.primaryBlue),
       ),
     );
   }
@@ -34,7 +36,7 @@ class SosSirenBadge extends StatelessWidget {
       width: 180,
       height: 180,
       decoration: BoxDecoration(
-        color: const Color(0xFFEF4444).withOpacity(0.18),
+        color: const Color(0xFFEF4444).withValues(alpha: 0.18),
         shape: BoxShape.circle,
       ),
       child: Center(
@@ -46,17 +48,18 @@ class SosSirenBadge extends StatelessWidget {
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFFDC2626).withOpacity(0.4),
+                color: const Color(0xFFDC2626).withValues(alpha: 0.4),
                 blurRadius: 24,
                 spreadRadius: 4,
                 offset: const Offset(0, 8),
               ),
             ],
           ),
-          child: Column(
+          child: const Column(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
-              Icon(Icons.notifications_active_rounded, size: 40, color: Colors.white),
+            children: [
+              Icon(Icons.notifications_active_rounded,
+                  size: 40, color: Colors.white),
               SizedBox(height: 6),
               Text(
                 'SOS',
@@ -85,7 +88,7 @@ class SafetyCallPulseAvatar extends StatelessWidget {
       width: 160,
       height: 160,
       decoration: BoxDecoration(
-        color: AppColors.primaryBlue.withOpacity(0.15),
+        color: AppColors.primaryBlue.withValues(alpha: 0.15),
         shape: BoxShape.circle,
       ),
       child: Center(
@@ -93,7 +96,7 @@ class SafetyCallPulseAvatar extends StatelessWidget {
           width: 120,
           height: 120,
           decoration: BoxDecoration(
-            color: AppColors.primaryBlue.withOpacity(0.3),
+            color: AppColors.primaryBlue.withValues(alpha: 0.3),
             shape: BoxShape.circle,
           ),
           child: Center(
@@ -160,7 +163,7 @@ class TicketStatusPill extends StatelessWidget {
       bg = AppColors.warningLight;
       fg = AppColors.warning;
     } else if (lower.contains('open')) {
-      bg = AppColors.primaryBlueLight.withOpacity(0.5);
+      bg = AppColors.primaryBlueLight.withValues(alpha: 0.5);
       fg = AppColors.primaryBlueDark;
     }
 
@@ -181,5 +184,3 @@ class TicketStatusPill extends StatelessWidget {
     );
   }
 }
-
-

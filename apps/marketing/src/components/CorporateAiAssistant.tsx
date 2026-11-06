@@ -21,24 +21,113 @@ const getOpenAiKey = (): string => {
   return '';
 };
 
-const SYSTEM_PROMPT = `You are the official AI Corporate Assistant for AdhocX, operated by Estemporaneo Technologies Private Limited, headquartered in Hyderabad, Telangana.
-Your primary role is to assist corporate decision-makers (HR heads, Corporate Transport Managers, Facilities Admins, VP Operations, and Procurement) who are evaluating AdhocX for employee transportation services (ETS).
+// Strict, high-performance system prompt tuned for short, engaging, on-brand B2B responses
+const SYSTEM_PROMPT = `You are the official Corporate AI Assistant for AdhocX (operated by Estemporaneo Technologies Private Limited), headquartered in Hyderabad, Telangana.
+Your primary role is to assist corporate decision-makers (HR Directors, Corporate Transport / ETS Managers, Facilities Administrators, Operations VPs, and Procurement Leads) who are evaluating AdhocX for B2B employee transportation services.
 
-Key Company & Platform Knowledge:
-1. Business Model: AdhocX contracts directly with corporate clients to plan and operate enterprise transportation. Drivers are independent commercial cab owners onboarded directly with yellow-plate cabs. There is NO vendor intermediary or middleman broker in our enterprise flow.
-2. Fleets: 100% yellow-plate commercial passenger vehicles. 4-seater sedans (Maruti Dzire, Toyota Etios, Tata Tigor EV) and 6/7-seater MUVs (Maruti Ertiga, XL6, Kia Carens, Toyota Innova Crysta).
-3. Operating Corridors: Hyderabad technology parks and enterprise hubs (HITEC City, Gachibowli, Financial District, Madhapur, Kondapur, Pocharam).
-4. Employee Mobile App: Corporate SSO & OTP authentication, live cab GPS tracking with age freshness indicator, walking directions to pickup spots, dynamic expiring OTP/QR boarding verification, 1-tap in-transit SOS emergency button connected to our 24/7 safety command desk, shift calendar view, and commuter feedback.
-5. Driver Partner App: Direct digital onboarding (KYC, commercial driving license, RC, passenger insurance, RTA fitness), transparent advance route offers, turn-by-turn navigation, boarding OTP scanner, and direct bank settlements on verified trip completion.
-6. Safety & Compliance: 24/7 safety command centre oversight, strict night-shift escort policies, female safe-drop sequencing (never leaving female employees as the first pickup or last drop alone at night), geofenced speed and deviation alarms.
-7. Industries Served: IT & ITES campuses, 24/7 BPO/KPO operations, Global Capability Centers (GCCs), Banking & Financial Services (BFSI), and Healthcare facilities.
-8. Pricing & Commercial Policy: AdhocX provides customized corporate contracts, monthly shift packages, and mileage-based rate cards tailored to each enterprise's specific shift schedules, headcount, and route density. You must NEVER invent or quote specific numeric prices, rates, or guarantees. Always explain that pricing is customized and guide the user to request a tailored corporate proposal.
-9. If a user asks a question you cannot answer with certainty, or asks for specific quotations, pricing, or contract finalization, politely inform them that our corporate sales team will provide an exact quotation and invite them to use the "Request Corporate Proposal" button.
+STRICT KNOWLEDGE & SCOPE RULES:
+1. EXCLUSIVELY USE ADHOCX WEBSITE DATA: Base all answers directly on AdhocX's official corporate transportation platform, operating models, fleets, mobile apps, and governance rules. You may also draw upon industry knowledge related to B2B travel-tech (e.g. GPS telemetry freshness, dynamic route clustering, geofenced duty slips, ERP 3-way match, SCSC graveyard safety protocols), but ONLY as they directly apply to corporate employee transportation.
+2. STRICTLY NO OFF-TOPIC QUERIES: If a user asks about anything unrelated to corporate employee transportation, travel tech, or AdhocX (e.g. general trivia, politics, cooking, coding, medical advice), politely decline and redirect: "I specialize exclusively in AdhocX corporate employee transportation and B2B mobility tech. How may I assist you with your enterprise fleet, employee commute, or corporate routes today?"
+3. SHORT & ENGAGING ANSWERS (CRITICAL):
+   - Keep answers SHORT, PUNCHY, AND HIGHLY ENGAGING. Never output long essays or walls of text!
+   - Maximum length: 2 to 4 concise sentences, or 2 to 3 compact bullet points.
+   - Executives and transport managers want direct, immediate facts without unnecessary filler.
+4. SUPPORT ASTERISKS FOR BOLD:
+   - Use asterisks (**bold text**) to emphasize key technical terms, vehicle models, or compliance standards (e.g. **100% Commercial Yellow-Plate**, **Pre-Scheduled Shift Rosters**, **Direct Bank Settlements**). The UI parser converts them into bold text.
+5. STRICT RULE: ZERO emojis in all responses (maintain an executive, enterprise B2B tone).
 
-Style & Tone Guidelines:
-- Highly professional, courteous, clear, and enterprise B2B friendly.
-- STRICT RULE: ZERO emojis in all messages.
-- Keep answers concise, direct, and structured with clean bullet points.`;
+CORE ADHOCX KNOWLEDGE BASE:
+- Direct Contract Model: AdhocX contracts directly with enterprises. Independent commercial cab owners onboard directly. Zero middleman brokers, zero arbitrary commission cuts, and transparent pre-agreed contract rate cards.
+- 100% Commercial Yellow-Plate Fleets: 4-seater sedans (Maruti Dzire, Toyota Etios, Hyundai Aura, Tata Tigor EV) and 6/7-seater MUVs/SUVs (Maruti Ertiga, XL6, Kia Carens, Toyota Innova Crysta). Never private white-plate cars.
+- Primary Operating Corridors: Hyderabad technology parks and enterprise corridors (HITEC City, Gachibowli, Financial District, Madhapur, Kondapur, Pocharam).
+- 5 Specialized Industry Verticals:
+  1. IT & Tech Parks: High-density nodal stops, rotational shift rosters, multi-campus connectivity across HITEC City and Gachibowli.
+  2. 24/7 BPO & Operations (24/7 Duty Ready): Zero-dropout shift handoffs, Cyberabad Security Council (SCSC) compliance, automated female safe-drop sequence (never drop a female employee first/last alone at night), verified security escorts, 1-tap SOS desk.
+  3. GCCs & Consulting: Executive mobility, dedicated premium fleets (Innova Crysta, Hycross, executive sedans), RGIA airport transfers with flight-delay tracking, privacy calling proxy, NDA-bound chauffeurs.
+  4. Banking & BFSI: Audit-ready financial governance, automated 3-way match reconciliation (Duty Slip GPS = Fleet Invoiced = Corporate Approved), single consolidated monthly GST invoice, zero billing leakage.
+  5. Healthcare & Critical Infrastructure: 24/7 punctual staff transit, rapid driver standby replacements, sanitized vehicles, zero disruption to patient care.
+- Technology Suite:
+  - Employee Mobile App: Corporate SSO/OTP login, live GPS tracking with age freshness indicator, walking directions to pickup nodes, dynamic 4-digit OTP/QR boarding pass, 1-tap in-transit SOS desk.
+  - Driver Mobile App: Paperless 24-business-hour digital onboarding, pre-scheduled advance route offers (zone, time, stop count, distance, payout), ordered stop navigation, OTP boarding scanner, transparent in-app ledger with direct bank settlements.
+- Commercial & Pricing Policy: Pricing is customized per enterprise shift schedule, commuter volume, and corridor mileage. Never invent or quote specific numeric rates. Always invite users to request a custom corporate quotation or RFP proposal.`;
+
+/**
+ * Text formatting helper that converts **bold** or *bold* asterisks into <strong> elements
+ */
+function renderFormattedText(text: string): React.ReactNode {
+  const parts: React.ReactNode[] = [];
+  // Match **bold** or *bold*
+  const regex = /(\*\*([^*]+)\*\*|\*([^*]+)\*)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.substring(lastIndex, match.index));
+    }
+    const boldText = match[2] || match[3];
+    parts.push(
+      <strong key={match.index} style={{ fontWeight: 700, color: 'inherit' }}>
+        {boldText}
+      </strong>
+    );
+    lastIndex = regex.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.substring(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : text;
+}
+
+/**
+ * Multi-line message renderer supporting line breaks, bullet points, and bold asterisks
+ */
+function renderMessage(content: string, isUser: boolean): React.ReactNode {
+  const lines = content.split('\n');
+
+  return lines.map((line, idx) => {
+    const trimmed = line.trim();
+
+    // Paragraph spacing for empty lines
+    if (!trimmed) {
+      return <div key={idx} style={{ height: '6px' }} />;
+    }
+
+    // Bullet items: - , * , • or numbered list (1., 2.)
+    const bulletMatch = trimmed.match(/^([-*•]|\d+\.)\s+(.+)$/);
+    if (bulletMatch) {
+      const prefix = bulletMatch[1];
+      const text = bulletMatch[2];
+      const isOrdered = /^\d+\./.test(prefix);
+
+      return (
+        <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', margin: '4px 0' }}>
+          <span style={{
+            color: isUser ? '#ffffff' : 'var(--color-primary-600, #5728B2)',
+            fontWeight: 700,
+            fontSize: isOrdered ? '0.8rem' : '1rem',
+            lineHeight: 1.4,
+            flexShrink: 0
+          }}>
+            {isOrdered ? prefix : '•'}
+          </span>
+          <span style={{ flex: 1, lineHeight: 1.5 }}>
+            {renderFormattedText(text)}
+          </span>
+        </div>
+      );
+    }
+
+    // Standard paragraph line
+    return (
+      <div key={idx} style={{ margin: '2px 0', lineHeight: 1.55 }}>
+        {renderFormattedText(line)}
+      </div>
+    );
+  });
+}
 
 export default function CorporateAiAssistant() {
   const [isOpen, setIsOpen] = useState(false);
@@ -57,7 +146,7 @@ export default function CorporateAiAssistant() {
         setMessages([
           {
             role: 'assistant',
-            content: 'Hello. I am the AdhocX Corporate AI Assistant. How can I assist you with your enterprise employee transportation, mobile apps, or fleet requirements today?',
+            content: 'Hello! I am the **AdhocX Corporate AI Assistant**.\nHow can I assist you with your **enterprise employee transportation**, **commercial fleets**, or **corporate shift routes** today?',
             showContactCta: false
           }
         ]);
@@ -111,7 +200,7 @@ export default function CorporateAiAssistant() {
           model: 'gpt-4o-mini',
           messages: apiMessages,
           temperature: 0.3,
-          max_tokens: 450
+          max_tokens: 240 // Tuned for short, crisp, engaging executive answers
         })
       });
 
@@ -135,7 +224,8 @@ export default function CorporateAiAssistant() {
         lowerText.includes('cost') ||
         lowerText.includes('quote') ||
         lowerText.includes('rate') ||
-        lowerText.includes('contract');
+        lowerText.includes('contract') ||
+        lowerText.includes('rfp');
 
       setMessages(prev => [
         ...prev,
@@ -297,7 +387,7 @@ export default function CorporateAiAssistant() {
                   key={idx}
                   style={{
                     alignSelf: isUser ? 'flex-end' : 'flex-start',
-                    maxWidth: '85%',
+                    maxWidth: '88%',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '6px'
@@ -311,10 +401,9 @@ export default function CorporateAiAssistant() {
                     fontSize: '0.875rem',
                     lineHeight: 1.55,
                     boxShadow: '0 2px 6px rgba(0, 0, 0, 0.05)',
-                    border: isUser ? 'none' : '1px solid #e2e8f0',
-                    whiteSpace: 'pre-wrap'
+                    border: isUser ? 'none' : '1px solid #e2e8f0'
                   }}>
-                    {m.content}
+                    {renderMessage(m.content, isUser)}
                   </div>
 
                   {/* Fallback / Contact Sales Action Button */}
@@ -455,4 +544,3 @@ export default function CorporateAiAssistant() {
     </div>
   );
 }
-

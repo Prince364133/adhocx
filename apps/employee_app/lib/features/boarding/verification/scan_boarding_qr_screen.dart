@@ -23,7 +23,8 @@ class _ScanBoardingQrScreenState extends State<ScanBoardingQrScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: Colors.white),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              size: 18, color: Colors.white),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
@@ -67,22 +68,29 @@ class _ScanBoardingQrScreenState extends State<ScanBoardingQrScreen> {
               onTap: () {
                 setState(() => _isFlashOn = !_isFlashOn);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(_isFlashOn ? 'Camera flash turned ON' : 'Camera flash turned OFF')),
+                  SnackBar(
+                      content: Text(_isFlashOn
+                          ? 'Camera flash turned ON'
+                          : 'Camera flash turned OFF')),
                 );
               },
               borderRadius: BorderRadius.circular(30),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
+                  color: Colors.white.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(30),
-                  border: Border.all(color: Colors.white.withOpacity(0.3)),
+                  border:
+                      Border.all(color: Colors.white.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      _isFlashOn ? Icons.flash_on_rounded : Icons.flash_off_rounded,
+                      _isFlashOn
+                          ? Icons.flash_on_rounded
+                          : Icons.flash_off_rounded,
                       color: Colors.white,
                       size: 20,
                     ),
@@ -107,6 +115,3 @@ class _ScanBoardingQrScreenState extends State<ScanBoardingQrScreen> {
     );
   }
 }
-
-
-

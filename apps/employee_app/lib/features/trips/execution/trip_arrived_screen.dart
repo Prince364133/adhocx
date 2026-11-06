@@ -69,13 +69,15 @@ class _TripArrivedScreenState extends State<TripArrivedScreen> {
               const SizedBox(height: 8),
               Text(
                 'Share this code with your driver upon boarding',
-                style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary),
+                style: GoogleFonts.inter(
+                    fontSize: 13, color: AppColors.textSecondary),
               ),
               const SizedBox(height: 24),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                 decoration: BoxDecoration(
-                  color: AppColors.primaryBlueLight.withOpacity(0.3),
+                  color: AppColors.primaryBlueLight.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: AppColors.primaryBlueLight),
                 ),
@@ -108,11 +110,12 @@ class _TripArrivedScreenState extends State<TripArrivedScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: AppColors.primaryBlue)),
+        body: Center(
+            child: CircularProgressIndicator(color: AppColors.primaryBlue)),
       );
     }
 
-        final otp = _tripData?['boardingOtp'] ?? '583271';
+    final otp = _tripData?['boardingOtp'] ?? '583271';
     final driver = _tripData?['driver'] as Map<String, dynamic>?;
     final driverName = driver?['name'] ?? 'Suresh R';
     final rating = (driver?['rating'] ?? 4.8).toString();
@@ -138,7 +141,8 @@ class _TripArrivedScreenState extends State<TripArrivedScreen> {
 
               // Arrived Status Pill
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 decoration: BoxDecoration(
                   color: AppColors.successLight,
                   borderRadius: BorderRadius.circular(20),
@@ -191,7 +195,7 @@ class _TripArrivedScreenState extends State<TripArrivedScreen> {
                   border: Border.all(color: AppColors.border),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.04),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -199,10 +203,11 @@ class _TripArrivedScreenState extends State<TripArrivedScreen> {
                 ),
                 child: Row(
                   children: [
-                    CircleAvatar(
+                    const CircleAvatar(
                       radius: 20,
                       backgroundColor: AppColors.primaryBlueLight,
-                      child: const Icon(Icons.person, color: AppColors.primaryBlue, size: 22),
+                      child: Icon(Icons.person,
+                          color: AppColors.primaryBlue, size: 22),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -217,7 +222,8 @@ class _TripArrivedScreenState extends State<TripArrivedScreen> {
                     ),
                     Row(
                       children: [
-                        const Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 16),
+                        const Icon(Icons.star_rounded,
+                            color: Color(0xFFF59E0B), size: 16),
                         const SizedBox(width: 4),
                         Text(
                           rating,
@@ -233,10 +239,12 @@ class _TripArrivedScreenState extends State<TripArrivedScreen> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: AppColors.primaryBlueLight.withOpacity(0.4),
+                        color:
+                            AppColors.primaryBlueLight.withValues(alpha: 0.4),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.phone, color: AppColors.primaryBlue, size: 18),
+                      child: const Icon(Icons.phone,
+                          color: AppColors.primaryBlue, size: 18),
                     ),
                   ],
                 ),
@@ -264,6 +272,3 @@ class _TripArrivedScreenState extends State<TripArrivedScreen> {
     );
   }
 }
-
-
-

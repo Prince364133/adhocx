@@ -12,7 +12,8 @@ class MyRequestsTicketsScreen extends StatefulWidget {
   const MyRequestsTicketsScreen({super.key});
 
   @override
-  State<MyRequestsTicketsScreen> createState() => _MyRequestsTicketsScreenState();
+  State<MyRequestsTicketsScreen> createState() =>
+      _MyRequestsTicketsScreenState();
 }
 
 class _MyRequestsTicketsScreenState extends State<MyRequestsTicketsScreen> {
@@ -46,7 +47,8 @@ class _MyRequestsTicketsScreenState extends State<MyRequestsTicketsScreen> {
       final status = (ticket['status'] ?? '').toString().toLowerCase();
       if (_selectedFilter == 1) return status == 'open';
       if (_selectedFilter == 2) return status == 'in progress';
-      if (_selectedFilter == 3) return status == 'resolved' || status == 'closed';
+      if (_selectedFilter == 3)
+        return status == 'resolved' || status == 'closed';
       return true;
     }).toList();
 
@@ -56,7 +58,8 @@ class _MyRequestsTicketsScreenState extends State<MyRequestsTicketsScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              size: 18, color: AppColors.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
@@ -77,7 +80,8 @@ class _MyRequestsTicketsScreenState extends State<MyRequestsTicketsScreen> {
                   // Filter Tab Bar
                   Container(
                     color: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: List.generate(_filters.length, (index) {
@@ -86,17 +90,24 @@ class _MyRequestsTicketsScreenState extends State<MyRequestsTicketsScreen> {
                           onTap: () => setState(() => _selectedFilter = index),
                           borderRadius: BorderRadius.circular(20),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 6),
                             decoration: BoxDecoration(
-                              color: isSelected ? AppColors.primaryBlue : Colors.transparent,
+                              color: isSelected
+                                  ? AppColors.primaryBlue
+                                  : Colors.transparent,
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
                               _filters[index],
                               style: GoogleFonts.inter(
                                 fontSize: 13,
-                                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                                color: isSelected ? Colors.white : AppColors.textSecondary,
+                                fontWeight: isSelected
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                                color: isSelected
+                                    ? Colors.white
+                                    : AppColors.textSecondary,
                               ),
                             ),
                           ),
@@ -117,10 +128,14 @@ class _MyRequestsTicketsScreenState extends State<MyRequestsTicketsScreen> {
                         final status = item['status'] ?? '';
 
                         IconData icon = Icons.info_outline_rounded;
-                        if (category.toString().contains('SOS')) icon = Icons.notifications_active_rounded;
-                        if (category.toString().contains('Driving')) icon = Icons.flag_rounded;
-                        if (category.toString().contains('Behavior')) icon = Icons.chat_bubble_outline_rounded;
-                        if (category.toString().contains('Property')) icon = Icons.backpack_rounded;
+                        if (category.toString().contains('SOS'))
+                          icon = Icons.notifications_active_rounded;
+                        if (category.toString().contains('Driving'))
+                          icon = Icons.flag_rounded;
+                        if (category.toString().contains('Behavior'))
+                          icon = Icons.chat_bubble_outline_rounded;
+                        if (category.toString().contains('Property'))
+                          icon = Icons.backpack_rounded;
 
                         return Container(
                           margin: const EdgeInsets.only(bottom: 12),
@@ -130,14 +145,17 @@ class _MyRequestsTicketsScreenState extends State<MyRequestsTicketsScreen> {
                             border: Border.all(color: AppColors.border),
                           ),
                           child: ListTile(
-                            onTap: () => context.push(AppRoutes.requestDetailsTracking),
+                            onTap: () =>
+                                context.push(AppRoutes.requestDetailsTracking),
                             leading: Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: AppColors.primaryBlueLight.withOpacity(0.4),
+                                color: AppColors.primaryBlueLight
+                                    .withValues(alpha: 0.4),
                                 shape: BoxShape.circle,
                               ),
-                              child: Icon(icon, color: AppColors.primaryBlue, size: 20),
+                              child: Icon(icon,
+                                  color: AppColors.primaryBlue, size: 20),
                             ),
                             title: Text(
                               category,
@@ -159,7 +177,8 @@ class _MyRequestsTicketsScreenState extends State<MyRequestsTicketsScreen> {
                               children: [
                                 TicketStatusPill(status: status),
                                 const SizedBox(width: 8),
-                                const Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.textMuted),
+                                const Icon(Icons.chevron_right_rounded,
+                                    size: 16, color: AppColors.textMuted),
                               ],
                             ),
                           ),
@@ -182,6 +201,3 @@ class _MyRequestsTicketsScreenState extends State<MyRequestsTicketsScreen> {
     );
   }
 }
-
-
-

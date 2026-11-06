@@ -2,203 +2,1693 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import EnterpriseLeadForm from '../components/EnterpriseLeadForm';
 
+// Comprehensive Schema.org JSON-LD graph for B2B Industries Page
 const jsonLd = {
   "@context": "https://schema.org",
-  "@type": "Service",
-  "name": "AdhocX Industry-Specific Corporate Mobility Solutions",
-  "provider": {
-    "@type": "Organization",
-    "name": "AdhocX (Estemporaneo Technologies Private Limited)",
-    "url": "https://www.adhocx.com"
-  },
-  "areaServed": ["Telangana", "Hyderabad", "HITEC City", "Gachibowli", "Financial District"],
-  "description": "Tailored employee commute management for IT campuses, 24/7 BPO operations, Global Capability Centers (GCCs), Banking institutions, and Healthcare facilities across Hyderabad."
+  "@graph": [
+    {
+      "@type": "WebPage",
+      "@id": "https://www.adhocx.com/industries#webpage",
+      "url": "https://www.adhocx.com/industries",
+      "name": "Industry-Specific Corporate Employee Transportation Solutions | AdhocX",
+      "description": "Discover AdhocX industry-specific employee transportation solutions for IT, BPO, GCC, BFSI and healthcare enterprises across Hyderabad.",
+      "breadcrumb": {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://www.adhocx.com/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Industries",
+            "item": "https://www.adhocx.com/industries"
+          }
+        ]
+      }
+    },
+    {
+      "@type": "Service",
+      "@id": "https://www.adhocx.com/industries#service",
+      "name": "Corporate Employee Transportation Solutions by Industry in Hyderabad",
+      "serviceType": "B2B Enterprise Employee Mobility & Fleet Management",
+      "provider": {
+        "@type": "Organization",
+        "name": "AdhocX",
+        "legalName": "Estemporaneo Technologies Private Limited",
+        "url": "https://www.adhocx.com",
+        "telephone": "+91-7893545818",
+        "email": "support@adhocx.com"
+      },
+      "areaServed": [
+        { "@type": "AdministrativeArea", "name": "Hyderabad" },
+        { "@type": "Place", "name": "HITEC City" },
+        { "@type": "Place", "name": "Gachibowli" },
+        { "@type": "Place", "name": "Financial District" },
+        { "@type": "Place", "name": "Madhapur" },
+        { "@type": "Place", "name": "Kondapur" },
+        { "@type": "Place", "name": "Pocharam" }
+      ],
+      "hasOfferCatalog": {
+        "@type": "OfferCatalog",
+        "name": "AdhocX Enterprise Verticals",
+        "itemListElement": [
+          {
+            "@type": "Offer",
+            "itemOffered": {
+              "@type": "Service",
+              "name": "IT & Tech Park Employee Transportation",
+              "description": "High-density nodal stop optimization and multi-campus employee transit for IT parks across HITEC City and Gachibowli."
+            }
+          },
+          {
+            "@type": "Offer",
+            "itemOffered": {
+              "@type": "Service",
+              "name": "24/7 BPO & KPO Shift Operations Transit",
+              "description": "Zero-dropout graveyard shift handoffs with SCSC female safe-drop sequence and verified security escorts."
+            }
+          },
+          {
+            "@type": "Offer",
+            "itemOffered": {
+              "@type": "Service",
+              "name": "GCC & Management Consulting Executive Mobility",
+              "description": "Executive-grade 4 & 7-seater premium fleets, RGIA flight-tracked airport transfers, and privacy proxy routing."
+            }
+          },
+          {
+            "@type": "Offer",
+            "itemOffered": {
+              "@type": "Service",
+              "name": "BFSI Audit-Compliant Corporate Transportation",
+              "description": "Audit-ready corporate commute controls with automated 3-way match reconciliation and single GST tax invoicing."
+            }
+          },
+          {
+            "@type": "Offer",
+            "itemOffered": {
+              "@type": "Service",
+              "name": "Healthcare & Critical Infrastructure Staff Transport",
+              "description": "Round-the-clock punctual staff transit for hospitals, diagnostic labs, and critical facility operations with standby replacements."
+            }
+          }
+        ]
+      }
+    }
+  ]
 };
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: 'Industries', url: '/industries' }
+];
 ---
 
 <BaseLayout
-  title="Industries We Serve — Enterprise Commute Management | AdhocX"
-  description="Tailored corporate employee transportation for IT & Tech Parks, 24/7 BPO/ITES Shift Operations, Global Capability Centers (GCCs), Banking & Financial Services (BFSI), and Healthcare Facilities across Hyderabad."
+  title="Industry-Specific Corporate Employee Transportation Solutions | AdhocX"
+  description="Discover AdhocX industry-specific employee transportation solutions for IT, BPO, GCC, BFSI and healthcare enterprises across Hyderabad."
   canonical="https://www.adhocx.com/industries"
+  ogTitle="Industry-Specific Corporate Employee Transportation Solutions | AdhocX"
+  ogDescription="Discover AdhocX industry-specific employee transportation solutions for IT, BPO, GCC, BFSI and healthcare enterprises across Hyderabad."
+  ogImage="https://www.adhocx.com/images/industries/hero-industries.jpg"
+  ogImageAlt="AdhocX Corporate Employee Transportation Solutions by Industry in Hyderabad"
   activeNav="industries"
+  breadcrumbs={breadcrumbs}
   jsonLd={jsonLd}
 >
-  <!-- Hero Section -->
-  <section class="page-hero-section" style="background: linear-gradient(180deg, var(--color-primary-50) 0%, #ffffff 100%); padding: var(--space-16) 0 var(--space-12);">
-    <div class="container text-center" style="max-width: 900px; margin: 0 auto;">
-      <div class="badge badge-blue" style="margin-bottom: var(--space-4);">
-        <span class="status-dot-pulse"></span>
-        <span>Enterprise Sector Solutions &bull; Hyderabad Tech Corridors</span>
-      </div>
-      <h1 class="display-title" style="color: var(--color-text-primary); margin-bottom: var(--space-6);">
-        Tailored Employee Commute Solutions <br />
-        <span style="color: var(--color-primary-600);">for Every Enterprise Industry.</span>
-      </h1>
-      <p class="body-large" style="color: var(--color-text-secondary); margin-bottom: var(--space-8); line-height: 1.6;">
-        Different sectors have radically different shift dynamics, regulatory compliance requirements, and passenger safety obligations. Discover how <span class="logo-text" style="font-size: 1.15em;">Adhoc<span class="logo-accent">X</span></span> customizes corporate transport operations for your specific industry.
-      </p>
-      <div style="display: flex; gap: var(--space-4); justify-content: center; flex-wrap: wrap;">
-        <a href="#industry-sectors" class="btn btn-primary btn-large">
-          Explore Industry Solutions &rarr;
-        </a>
-        <a href="#request-quote" class="btn btn-secondary btn-large">
-          Request Sector Consultation
-        </a>
+  <!-- =========================================================================
+       SECTION 1: HERO SECTION
+       "Tailored Employee Commute Solutions for Every Enterprise Industry."
+       ========================================================================= -->
+  <section class="ind-hero-section" id="hero">
+    <div class="ind-hero-bg-grid"></div>
+    <div class="container ind-hero-container">
+      <div class="ind-hero-grid">
+        <!-- Left Hero Column: Copy & CTAs -->
+        <div class="ind-hero-content">
+          <!-- Eyebrow Badge -->
+          <div class="ind-eyebrow-badge">
+            <span class="ind-pulse-dot"></span>
+            <span>Enterprise Sector Solutions &bull; Hyderabad Tech Corridors</span>
+          </div>
+
+          <!-- Main H1 Title -->
+          <h1 class="ind-hero-h1">
+            Tailored Employee Commute Solutions <br />
+            <span class="ind-gradient-accent">for Every Enterprise Industry.</span>
+          </h1>
+
+          <!-- Description -->
+          <p class="ind-hero-desc">
+            Different sectors have radically different shift dynamics, regulatory compliance requirements, and passenger safety obligations. Discover how <span class="ind-brand-inline">Adhoc<strong>X</strong></span> customizes corporate transport operations for your specific industry.
+          </p>
+
+          <!-- Action CTA Buttons -->
+          <div class="ind-hero-actions">
+            <a href="#industry-sectors" class="btn-pill-primary ind-hero-btn-primary">
+              <span>Explore Industry Solutions</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+              </svg>
+            </a>
+            <a href="#request-quote" class="btn-pill-secondary ind-hero-btn-secondary">
+              <span>Request Sector Consultation</span>
+            </a>
+          </div>
+
+          <!-- Enterprise Value Badges -->
+          <div class="ind-hero-checks">
+            <div class="ind-check-pill">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" aria-hidden="true">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
+              <span>100% Commercial Yellow-Plate</span>
+            </div>
+            <div class="ind-check-pill">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" aria-hidden="true">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
+              <span>SCSC Night Safety Compliant</span>
+            </div>
+            <div class="ind-check-pill">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" aria-hidden="true">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
+              <span>3-Way Match Audit Invoicing</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Hero Column: Corporate Mobility Showcase -->
+        <div class="ind-hero-visual-wrapper">
+          <div class="ind-hero-image-card">
+            <img 
+              src="/images/industries/hero-industries.jpg" 
+              alt="AdhocX corporate employee transportation and commercial fleet outside modern Hyderabad IT campus" 
+              class="ind-hero-photo"
+              width="1400"
+              height="933"
+              loading="eager"
+            />
+            <div class="ind-hero-image-overlay"></div>
+
+            <!-- Overlaid Floating Telemetry Card 1 -->
+            <div class="ind-float-telemetry-top">
+              <div class="ind-float-icon-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                </svg>
+              </div>
+              <div>
+                <div class="ind-float-lbl">HYDERABAD TECH CORRIDORS</div>
+                <div class="ind-float-val">HITEC City &bull; Gachibowli &bull; Pocharam</div>
+              </div>
+            </div>
+
+            <!-- Overlaid Floating Telemetry Card 2 -->
+            <div class="ind-float-telemetry-bottom">
+              <div class="ind-telemetry-dot-wrap">
+                <span class="ind-live-indicator"></span>
+              </div>
+              <div class="ind-telemetry-details">
+                <div class="ind-float-lbl">DIRECT ENTERPRISE SOURCING</div>
+                <div class="ind-float-val">Zero Private Cab Reg Liability &bull; Locked Rates</div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- Industry Verticals Grid -->
-  <section id="industry-sectors" class="section-padding" style="background: var(--color-surface);">
+  <!-- =========================================================================
+       SECTOR QUICK-JUMP NAVIGATION BAR
+       ========================================================================= -->
+  <nav class="ind-quicknav-bar" aria-label="Industry sector navigation">
     <div class="container">
-      <div class="text-center" style="max-width: 800px; margin: 0 auto var(--space-12);">
-        <span class="badge badge-warm" style="margin-bottom: var(--space-3);">Specialized Verticals</span>
-        <h2 style="font-size: 2.25rem; font-weight: 800; color: var(--color-text-primary); margin-bottom: var(--space-4);">
-          Engineered for Exact Operating Conditions
-        </h2>
-        <p style="color: var(--color-text-secondary); font-size: 1.05rem; line-height: 1.6;">
+      <div class="ind-quicknav-wrapper">
+        <span class="ind-quicknav-label">Select Vertical:</span>
+        <div class="ind-quicknav-pills">
+          <a href="#it-tech-parks" class="ind-quicknav-item">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+            <span>IT & Tech Parks</span>
+          </a>
+          <a href="#bpo-operations" class="ind-quicknav-item">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            <span>24/7 BPO & Operations</span>
+          </a>
+          <a href="#gcc-consulting" class="ind-quicknav-item">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+            <span>GCCs & Consulting</span>
+          </a>
+          <a href="#bfsi-banking" class="ind-quicknav-item">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+            <span>Banking & BFSI</span>
+          </a>
+          <a href="#healthcare-infrastructure" class="ind-quicknav-item">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+            <span>Healthcare & Facilities</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- =========================================================================
+       SECTION 2: SPECIALIZED INDUSTRY SOLUTIONS (5 VERTICALS)
+       ========================================================================= -->
+  <section id="industry-sectors" class="ind-sectors-section">
+    <div class="container">
+      <!-- Section Header -->
+      <div class="ind-section-header">
+        <div class="ind-eyebrow-badge">
+          <span class="ind-pulse-dot"></span>
+          <span>Specialized Verticals</span>
+        </div>
+        <h2 class="ind-section-h2">Engineered for Exact Operating Conditions</h2>
+        <p class="ind-section-desc">
           Whether moving thousands of software engineers in peak hours or safeguarding overnight operations, AdhocX provides specialized mobility frameworks.
         </p>
       </div>
 
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: var(--space-8);">
-        
-        <!-- Sector 1: IT & Tech Corridors -->
-        <div style="background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); display: flex; flex-direction: column; justify-content: space-between;">
-          <div>
-            <div style="width: 3.25rem; height: 3.25rem; border-radius: 0.75rem; background: #EFF6FF; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-4);">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+      <!-- Vertical Solution Showcases (Alternating 2-Column Cards) -->
+      <div class="ind-verticals-stack">
+
+        <!-- ==========================================
+             VERTICAL 1: IT & Tech Parks
+             ========================================== -->
+        <article class="ind-sector-card" id="it-tech-parks">
+          <div class="ind-sector-content">
+            <div class="ind-sector-top-meta">
+              <span class="ind-sector-num">01</span>
+              <span class="ind-sector-tag tag-blue">High-Density Tech Hubs</span>
             </div>
-            <h3 style="font-size: 1.35rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-3);">
-              Information Technology & Tech Parks
-            </h3>
-            <p style="font-size: 0.9rem; color: var(--color-text-secondary); line-height: 1.6; margin-bottom: var(--space-6);">
+
+            <div class="ind-sector-icon-title">
+              <div class="ind-sector-icon-box box-blue">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                  <line x1="8" y1="21" x2="16" y2="21"></line>
+                  <line x1="12" y1="17" x2="12" y2="21"></line>
+                </svg>
+              </div>
+              <h3 class="ind-sector-h3">Information Technology &amp; Tech Parks</h3>
+            </div>
+
+            <p class="ind-sector-p">
               Designed for massive campus operations across HITEC City, Gachibowli, and the Financial District. Handles complex rotational rosters and multi-facility employee transit with clustered routing.
             </p>
-            <ul style="display: flex; flex-direction: column; gap: 8px; font-size: 0.875rem; color: var(--color-text-secondary); border-top: 1px solid var(--color-border); padding-top: var(--space-4);">
-              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>High-density nodal stop optimization minimizing travel times</li>
-              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Multi-office campus connectivity between Kondapur, Madhapur & Gachibowli</li>
-              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Scalable commercial fleet capacity for high-volume shift changes</li>
-            </ul>
-          </div>
-          <div style="margin-top: var(--space-6);">
-            <a href="#request-quote" class="btn btn-outline" style="width: 100%; text-align: center; justify-content: center;">
-              Request Tech Campus Plan &rarr;
-            </a>
-          </div>
-        </div>
 
-        <!-- Sector 2: 24/7 BPO & Customer Operations -->
-        <div style="background: var(--color-surface-muted); border: 2px solid var(--color-primary-600); border-radius: var(--radius-xl); padding: var(--space-8); display: flex; flex-direction: column; justify-content: space-between; position: relative;">
-          <div style="position: absolute; top: -14px; right: 24px; background: var(--color-primary-600); color: #ffffff; font-size: 0.75rem; font-weight: 700; padding: 4px 12px; border-radius: var(--radius-full); text-transform: uppercase; letter-spacing: 0.05em;">
-            24/7 Duty Ready
-          </div>
-          <div>
-            <div style="width: 3.25rem; height: 3.25rem; border-radius: 0.75rem; background: #ECE6FE; color: #5728B2; display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-4);">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            <!-- Features Checklist -->
+            <ul class="ind-feature-list" role="list">
+              <li class="ind-feature-item">
+                <div class="ind-feat-icon">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </div>
+                <span>High-density nodal stop optimization minimizing travel times.</span>
+              </li>
+              <li class="ind-feature-item">
+                <div class="ind-feat-icon">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </div>
+                <span>Multi-office campus connectivity between Kondapur, Madhapur &amp; Gachibowli.</span>
+              </li>
+              <li class="ind-feature-item">
+                <div class="ind-feat-icon">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </div>
+                <span>Scalable commercial fleet capacity for high-volume shift changes.</span>
+              </li>
+            </ul>
+
+            <!-- Operational Parameters Footer -->
+            <div class="ind-sector-footer">
+              <a href="#request-quote" class="ind-sector-cta-btn">
+                <span>Request Tech Campus Plan</span>
+                <span aria-hidden="true">&rarr;</span>
+              </a>
+              <div class="ind-fleet-pill">
+                <span>Fleets:</span> 4-Seater Sedans &bull; 7-Seater MUVs
+              </div>
             </div>
-            <h3 style="font-size: 1.35rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-3);">
-              24/7 BPO, KPO & Customer Operations
-            </h3>
-            <p style="font-size: 0.9rem; color: var(--color-text-secondary); line-height: 1.6; margin-bottom: var(--space-6);">
+          </div>
+
+          <div class="ind-sector-media">
+            <div class="ind-image-frame">
+              <img 
+                src="/images/industries/it-tech-parks.jpg" 
+                alt="Corporate employees boarding commercial cabs outside a modern IT campus in Hyderabad"
+                class="ind-sector-photo"
+                width="1000"
+                height="667"
+                loading="lazy"
+              />
+              <div class="ind-photo-badge">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                <span>HITEC City &bull; Financial District Corridors</span>
+              </div>
+            </div>
+          </div>
+        </article>
+
+
+        <!-- ==========================================
+             VERTICAL 2: 24/7 BPO & Operations (Featured)
+             ========================================== -->
+        <article class="ind-sector-card ind-sector-card-featured" id="bpo-operations">
+          <div class="ind-sector-content">
+            <div class="ind-sector-top-meta">
+              <span class="ind-sector-num">02</span>
+              <!-- Company Badge Requirement -->
+              <span class="ind-sector-tag tag-purple-badge">24/7 Duty Ready</span>
+            </div>
+
+            <div class="ind-sector-icon-title">
+              <div class="ind-sector-icon-box box-purple">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+              </div>
+              <h3 class="ind-sector-h3">24/7 BPO, KPO &amp; Customer Operations</h3>
+            </div>
+
+            <p class="ind-sector-p">
               Zero-dropout shift handoffs and uncompromising night safety protocols. Strict adherence to Cyberabad Security Council (SCSC) guidelines for graveyard shifts.
             </p>
-            <ul style="display: flex; flex-direction: column; gap: 8px; font-size: 0.875rem; color: var(--color-text-secondary); border-top: 1px solid var(--color-border); padding-top: var(--space-4);">
-              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Automated female safe-drop sequence: never drop a female employee first/last</li>
-              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Mandatory verified security escort integration for midnight shift drops</li>
-              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>1-tap employee SOS linked directly to our 24/7 emergency response desk</li>
-            </ul>
-          </div>
-          <div style="margin-top: var(--space-6);">
-            <a href="#request-quote" class="btn btn-primary" style="width: 100%; text-align: center; justify-content: center;">
-              Request 24/7 Shift Plan &rarr;
-            </a>
-          </div>
-        </div>
 
-        <!-- Sector 3: Global Capability Centers (GCCs) & Consulting -->
-        <div style="background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); display: flex; flex-direction: column; justify-content: space-between;">
-          <div>
-            <div style="width: 3.25rem; height: 3.25rem; border-radius: 0.75rem; background: #EFF6FF; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-4);">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+            <!-- Features Checklist -->
+            <ul class="ind-feature-list" role="list">
+              <li class="ind-feature-item">
+                <div class="ind-feat-icon feat-purple">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </div>
+                <span>Automated female safe-drop sequence: never drop a female employee first/last.</span>
+              </li>
+              <li class="ind-feature-item">
+                <div class="ind-feat-icon feat-purple">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </div>
+                <span>Mandatory verified security escort integration for midnight shift drops.</span>
+              </li>
+              <li class="ind-feature-item">
+                <div class="ind-feat-icon feat-purple">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </div>
+                <span>1-tap employee SOS linked directly to our 24/7 emergency response desk.</span>
+              </li>
+            </ul>
+
+            <!-- Operational Parameters Footer -->
+            <div class="ind-sector-footer">
+              <a href="#request-quote" class="ind-sector-cta-btn btn-featured-cta">
+                <span>Request 24/7 Shift Plan</span>
+                <span aria-hidden="true">&rarr;</span>
+              </a>
+              <div class="ind-fleet-pill pill-purple">
+                <span>Safety:</span> SCSC Safe-Drop &bull; Verified Escorts
+              </div>
             </div>
-            <h3 style="font-size: 1.35rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-3);">
-              Global Capability Centers (GCCs) & Consulting
-            </h3>
-            <p style="font-size: 0.9rem; color: var(--color-text-secondary); line-height: 1.6; margin-bottom: var(--space-6);">
-              Executive-grade mobility services for international leadership, consulting delegations, and client partner travel. Premium 4 & 7-seater vehicles with seasoned chauffeurs.
+          </div>
+
+          <div class="ind-sector-media">
+            <div class="ind-image-frame">
+              <img 
+                src="/images/industries/bpo-night-shift.jpg" 
+                alt="Professional night-shift employee transportation with a commercial cab and security escort in Hyderabad"
+                class="ind-sector-photo"
+                width="1000"
+                height="667"
+                loading="lazy"
+              />
+              <div class="ind-photo-badge badge-night">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                <span>Cyberabad SCSC Protocol Enforced</span>
+              </div>
+            </div>
+          </div>
+        </article>
+
+
+        <!-- ==========================================
+             VERTICAL 3: GCCs & Consulting
+             ========================================== -->
+        <article class="ind-sector-card" id="gcc-consulting">
+          <div class="ind-sector-content">
+            <div class="ind-sector-top-meta">
+              <span class="ind-sector-num">03</span>
+              <span class="ind-sector-tag tag-blue">Executive &amp; Global Mobility</span>
+            </div>
+
+            <div class="ind-sector-icon-title">
+              <div class="ind-sector-icon-box box-blue">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                </svg>
+              </div>
+              <h3 class="ind-sector-h3">Global Capability Centers (GCCs) &amp; Consulting</h3>
+            </div>
+
+            <p class="ind-sector-p">
+              Executive-grade mobility services for international leadership, consulting delegations, and client partner travel. Premium 4 &amp; 7-seater vehicles with seasoned chauffeurs.
             </p>
-            <ul style="display: flex; flex-direction: column; gap: 8px; font-size: 0.875rem; color: var(--color-text-secondary); border-top: 1px solid var(--color-border); padding-top: var(--space-4);">
-              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Dedicated premium fleets: Innova Crysta, Hycross, and luxury sedans</li>
-              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Seamless RGIA airport meet-and-greet transfers with flight delay tracking</li>
-              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Strict non-disclosure, sanitized interiors, and privacy calling proxy</li>
-            </ul>
-          </div>
-          <div style="margin-top: var(--space-6);">
-            <a href="#request-quote" class="btn btn-outline" style="width: 100%; text-align: center; justify-content: center;">
-              Request GCC Mobility Plan &rarr;
-            </a>
-          </div>
-        </div>
 
-        <!-- Sector 4: Banking, Financial Services & Insurance (BFSI) -->
-        <div style="background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); display: flex; flex-direction: column; justify-content: space-between;">
-          <div>
-            <div style="width: 3.25rem; height: 3.25rem; border-radius: 0.75rem; background: #EFF6FF; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-4);">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+            <!-- Features Checklist -->
+            <ul class="ind-feature-list" role="list">
+              <li class="ind-feature-item">
+                <div class="ind-feat-icon">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </div>
+                <span>Dedicated premium fleets: Innova Crysta, Hycross, and luxury sedans.</span>
+              </li>
+              <li class="ind-feature-item">
+                <div class="ind-feat-icon">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </div>
+                <span>Seamless RGIA airport meet-and-greet transfers with flight delay tracking.</span>
+              </li>
+              <li class="ind-feature-item">
+                <div class="ind-feat-icon">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </div>
+                <span>Strict non-disclosure, sanitized interiors, and privacy calling proxy.</span>
+              </li>
+            </ul>
+
+            <!-- Operational Parameters Footer -->
+            <div class="ind-sector-footer">
+              <a href="#request-quote" class="ind-sector-cta-btn">
+                <span>Request GCC Mobility Plan</span>
+                <span aria-hidden="true">&rarr;</span>
+              </a>
+              <div class="ind-fleet-pill">
+                <span>Fleets:</span> Innova Crysta &bull; Hycross &bull; Exec Sedans
+              </div>
             </div>
-            <h3 style="font-size: 1.35rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-3);">
-              Banking & Financial Services (BFSI)
-            </h3>
-            <p style="font-size: 0.9rem; color: var(--color-text-secondary); line-height: 1.6; margin-bottom: var(--space-6);">
+          </div>
+
+          <div class="ind-sector-media">
+            <div class="ind-image-frame">
+              <img 
+                src="/images/industries/gcc-executive.jpg" 
+                alt="Premium executive commercial vehicle outside a corporate office or airport in Hyderabad"
+                class="ind-sector-photo"
+                width="1000"
+                height="667"
+                loading="lazy"
+              />
+              <div class="ind-photo-badge">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                <span>RGIA Airport Meet &amp; Greet &bull; Flight-Tracked</span>
+              </div>
+            </div>
+          </div>
+        </article>
+
+
+        <!-- ==========================================
+             VERTICAL 4: Banking & Financial Services (BFSI)
+             ========================================== -->
+        <article class="ind-sector-card" id="bfsi-banking">
+          <div class="ind-sector-content">
+            <div class="ind-sector-top-meta">
+              <span class="ind-sector-num">04</span>
+              <span class="ind-sector-tag tag-blue">Audit-Grade Financial Controls</span>
+            </div>
+
+            <div class="ind-sector-icon-title">
+              <div class="ind-sector-icon-box box-blue">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <line x1="12" y1="1" x2="12" y2="23"></line>
+                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                </svg>
+              </div>
+              <h3 class="ind-sector-h3">Banking &amp; Financial Services (BFSI)</h3>
+            </div>
+
+            <p class="ind-sector-p">
               Audit-ready compliance and rigorous financial controls. Automated 3-way match reconciliation ensures finance directors experience zero billing leakage.
             </p>
-            <ul style="display: flex; flex-direction: column; gap: 8px; font-size: 0.875rem; color: var(--color-text-secondary); border-top: 1px solid var(--color-border); padding-top: var(--space-4);">
-              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Single consolidated monthly GST tax invoice with cost-center breakdown</li>
-              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>GPS geofenced duty slip validation prevents inflated mileage claims</li>
-              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Zero hidden surcharges: agreed contract rate card locked at inception</li>
-            </ul>
-          </div>
-          <div style="margin-top: var(--space-6);">
-            <a href="#request-quote" class="btn btn-outline" style="width: 100%; text-align: center; justify-content: center;">
-              Request BFSI Framework &rarr;
-            </a>
-          </div>
-        </div>
 
-        <!-- Sector 5: Healthcare & Critical Operations -->
-        <div style="background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); display: flex; flex-direction: column; justify-content: space-between;">
-          <div>
-            <div style="width: 3.25rem; height: 3.25rem; border-radius: 0.75rem; background: #DCFCE7; color: #16A34A; display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-4);">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+            <!-- Features Checklist -->
+            <ul class="ind-feature-list" role="list">
+              <li class="ind-feature-item">
+                <div class="ind-feat-icon">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </div>
+                <span>Single consolidated monthly GST tax invoice with cost-center breakdown.</span>
+              </li>
+              <li class="ind-feature-item">
+                <div class="ind-feat-icon">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </div>
+                <span>GPS geofenced duty slip validation prevents inflated mileage claims.</span>
+              </li>
+              <li class="ind-feature-item">
+                <div class="ind-feat-icon">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </div>
+                <span>Zero hidden surcharges: agreed contract rate card locked at inception.</span>
+              </li>
+            </ul>
+
+            <!-- Operational Parameters Footer -->
+            <div class="ind-sector-footer">
+              <a href="#request-quote" class="ind-sector-cta-btn">
+                <span>Request BFSI Framework</span>
+                <span aria-hidden="true">&rarr;</span>
+              </a>
+              <div class="ind-fleet-pill">
+                <span>Audit:</span> 3-Way Match &bull; Single GST Invoice
+              </div>
             </div>
-            <h3 style="font-size: 1.35rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-3);">
-              Healthcare & Critical Infrastructure
-            </h3>
-            <p style="font-size: 0.9rem; color: var(--color-text-secondary); line-height: 1.6; margin-bottom: var(--space-6);">
+          </div>
+
+          <div class="ind-sector-media">
+            <div class="ind-image-frame">
+              <img 
+                src="/images/industries/bfsi-financial.jpg" 
+                alt="Professional financial district office with a corporate commercial vehicle in Hyderabad"
+                class="ind-sector-photo"
+                width="1000"
+                height="667"
+                loading="lazy"
+              />
+              <div class="ind-photo-badge">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                <span>Zero Billing Leakage &bull; GPS Duty Slips</span>
+              </div>
+            </div>
+          </div>
+        </article>
+
+
+        <!-- ==========================================
+             VERTICAL 5: Healthcare & Critical Infrastructure
+             ========================================== -->
+        <article class="ind-sector-card" id="healthcare-infrastructure">
+          <div class="ind-sector-content">
+            <div class="ind-sector-top-meta">
+              <span class="ind-sector-num">05</span>
+              <span class="ind-sector-tag tag-green">Round-the-Clock Punctuality</span>
+            </div>
+
+            <div class="ind-sector-icon-title">
+              <div class="ind-sector-icon-box box-green">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                </svg>
+              </div>
+              <h3 class="ind-sector-h3">Healthcare &amp; Critical Infrastructure</h3>
+            </div>
+
+            <p class="ind-sector-p">
               Punctual, round-the-clock transport for hospital staff, medical diagnostics laboratories, and critical facility maintenance teams.
             </p>
-            <ul style="display: flex; flex-direction: column; gap: 8px; font-size: 0.875rem; color: var(--color-text-secondary); border-top: 1px solid var(--color-border); padding-top: var(--space-4);">
-              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Strict on-time SLA delivery ensuring zero disruption to patient care</li>
-              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Rapid driver standby replacement protocol for unexpected emergencies</li>
-              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Fully compliant commercial vehicles and background-checked drivers</li>
+
+            <!-- Features Checklist -->
+            <ul class="ind-feature-list" role="list">
+              <li class="ind-feature-item">
+                <div class="ind-feat-icon feat-green">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </div>
+                <span>Strict on-time SLA delivery ensuring zero disruption to patient care.</span>
+              </li>
+              <li class="ind-feature-item">
+                <div class="ind-feat-icon feat-green">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </div>
+                <span>Rapid driver standby replacement protocol for unexpected emergencies.</span>
+              </li>
+              <li class="ind-feature-item">
+                <div class="ind-feat-icon feat-green">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </div>
+                <span>Fully compliant commercial vehicles and background-checked drivers.</span>
+              </li>
             </ul>
+
+            <!-- Operational Parameters Footer -->
+            <div class="ind-sector-footer">
+              <a href="#request-quote" class="ind-sector-cta-btn">
+                <span>Request Healthcare Mobility Plan</span>
+                <span aria-hidden="true">&rarr;</span>
+              </a>
+              <div class="ind-fleet-pill">
+                <span>SLA:</span> Emergency Standbys &bull; Sanitized Cab Curation
+              </div>
+            </div>
           </div>
-          <div style="margin-top: var(--space-6);">
-            <a href="#request-quote" class="btn btn-outline" style="width: 100%; text-align: center; justify-content: center;">
-              Request Healthcare Mobility Plan &rarr;
-            </a>
+
+          <div class="ind-sector-media">
+            <div class="ind-image-frame">
+              <img 
+                src="/images/industries/healthcare-transport.jpg" 
+                alt="Healthcare professionals using reliable commercial employee transportation near a modern hospital in Hyderabad"
+                class="ind-sector-photo"
+                width="1000"
+                height="667"
+                loading="lazy"
+              />
+              <div class="ind-photo-badge">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+                <span>Zero Disruption to Patient Care SLA</span>
+              </div>
+            </div>
           </div>
+        </article>
+
+      </div>
+    </div>
+  </section>
+
+
+  <!-- =========================================================================
+       SECTION 3: CROSS-SECTOR COMPLIANCE & SAFETY STANDARDS
+       ========================================================================= -->
+  <section class="ind-standards-section">
+    <div class="container">
+      <div class="ind-section-header">
+        <div class="ind-eyebrow-badge">
+          <span class="ind-pulse-dot"></span>
+          <span>Universal Governance Standard</span>
+        </div>
+        <h2 class="ind-section-h2">Universal Enterprise Safety Across All Sectors</h2>
+        <p class="ind-section-desc">
+          Regardless of industry vertical, every AdhocX commute operation is built upon our uncompromised 4-pillar enterprise compliance foundation.
+        </p>
+      </div>
+
+      <div class="ind-standards-grid">
+        <div class="ind-standard-card">
+          <div class="ind-std-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+          </div>
+          <h3 class="ind-std-title">100% Commercial Yellow-Plate</h3>
+          <p class="ind-std-p">Zero regulatory liability. Every cab operates with commercial RTO permits, valid passenger fitness, and commercial vehicle insurance.</p>
+        </div>
+
+        <div class="ind-standard-card">
+          <div class="ind-std-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <polyline points="16 11 18 13 22 9"></polyline>
+            </svg>
+          </div>
+          <h3 class="ind-std-title">Verified &amp; Police-Checked Drivers</h3>
+          <p class="ind-std-p">Rigorous Aadhaar, driving history, and local police verification before any driver receives their enterprise route assignment.</p>
+        </div>
+
+        <div class="ind-standard-card">
+          <div class="ind-std-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+          </div>
+          <h3 class="ind-std-title">Automated Safe-Drop Routing</h3>
+          <p class="ind-std-p">Intelligent algorithmic sequencing ensures female colleagues are never left as the first pickup or solitary last drop at night.</p>
+        </div>
+
+        <div class="ind-standard-card">
+          <div class="ind-std-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <line x1="12" y1="1" x2="12" y2="23"></line>
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+            </svg>
+          </div>
+          <h3 class="ind-std-title">Automated 3-Way Billing Match</h3>
+          <p class="ind-std-p">Zero billing leakage. GPS telemetry matches automated digital duty slips directly against agreed enterprise contract rate cards.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- Lead Capture Section -->
-  <section id="request-quote" class="section-padding" style="background: var(--color-surface-muted);">
-    <div class="container" style="max-width: 900px; margin: 0 auto;">
-      <EnterpriseLeadForm client:load defaultPurpose="Enterprise Commute / ETS RFP Proposal" />
+
+  <!-- =========================================================================
+       SECTION 4: ENTERPRISE PROPOSAL SECTION
+       "Request Custom Corporate Quotation & Proposal"
+       ========================================================================= -->
+  <section id="request-quote" class="ind-quote-section">
+    <div class="container">
+      <div class="ind-quote-wrapper">
+        <!-- Left Side: Enterprise Consultation Overview -->
+        <div class="ind-quote-info-col">
+          <div class="ind-eyebrow-badge">
+            <span class="ind-pulse-dot"></span>
+            <span>Direct Enterprise Sourcing</span>
+          </div>
+          <h2 class="ind-quote-h2">
+            Request Custom Corporate Quotation &amp; Proposal
+          </h2>
+          <p class="ind-quote-lead">
+            Tailored B2B contract pricing for 4-seater and 7-seater yellow-plate commercial fleets across Hyderabad tech corridors.
+          </p>
+
+          <div class="ind-trust-points">
+            <div class="ind-trust-item">
+              <div class="ind-trust-check">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="3" aria-hidden="true">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              </div>
+              <div>
+                <strong>Direct Corporate Contract Rate Card</strong>
+                <p>Contract pricing locked at inception with zero hidden surge surcharges.</p>
+              </div>
+            </div>
+
+            <div class="ind-trust-item">
+              <div class="ind-trust-check">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="3" aria-hidden="true">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              </div>
+              <div>
+                <strong>Guaranteed Same-Day RFP Response</strong>
+                <p>Our Hyderabad mobility operations leads review corridor volumes within 4 business hours.</p>
+              </div>
+            </div>
+
+            <div class="ind-trust-item">
+              <div class="ind-trust-check">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="3" aria-hidden="true">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              </div>
+              <div>
+                <strong>100% Yellow-Plate Commercial Vehicles</strong>
+                <p>Dzire, Etios, Ertiga, Carens, and Innova Crysta dedicated fleets.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Direct Corporate Contact Card -->
+          <div class="ind-direct-contact-card">
+            <div class="ind-contact-row">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2" aria-hidden="true">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                <polyline points="22,6 12,13 2,6"></polyline>
+              </svg>
+              <span>Email: <a href="mailto:support@adhocx.com">support@adhocx.com</a></span>
+            </div>
+            <div class="ind-contact-row">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2" aria-hidden="true">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+              </svg>
+              <span>Phone: <a href="tel:+917893545818">+91-7893545818</a></span>
+            </div>
+            <div class="ind-contact-row">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2" aria-hidden="true">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                <circle cx="12" cy="10" r="3"></circle>
+              </svg>
+              <span>Hyderabad Hub: HITEC City &amp; Financial District</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Side: Official Enterprise Lead Form Island -->
+        <div class="ind-quote-form-col">
+          <EnterpriseLeadForm client:load defaultPurpose="Enterprise Commute / ETS RFP Proposal" />
+        </div>
+      </div>
     </div>
   </section>
 </BaseLayout>
 
+<style>
+  /* ==========================================================================
+     ADHOCX INDUSTRIES PAGE SPECIFIC STYLES
+     ========================================================================== */
+  
+  /* ---- HERO SECTION ---- */
+  .ind-hero-section {
+    position: relative;
+    padding: clamp(3.5rem, 6vw, 5.5rem) 0 clamp(3.5rem, 6vw, 5rem);
+    background: linear-gradient(180deg, #F9F8FE 0%, #FFFFFF 100%);
+    overflow: hidden;
+    border-bottom: 1px solid var(--color-border, #E2E8F0);
+  }
+
+  .ind-hero-bg-grid {
+    position: absolute;
+    inset: 0;
+    background-size: 36px 36px;
+    background-image: 
+      linear-gradient(to right, rgba(87, 40, 178, 0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(87, 40, 178, 0.04) 1px, transparent 1px);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .ind-hero-container {
+    position: relative;
+    z-index: 2;
+    max-width: 1440px;
+  }
+
+  .ind-hero-grid {
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr;
+    gap: clamp(2rem, 5vw, 4rem);
+    align-items: center;
+  }
+
+  .ind-eyebrow-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.875rem;
+    border-radius: 9999px;
+    background: rgba(87, 40, 178, 0.06);
+    border: 1px solid rgba(87, 40, 178, 0.18);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--color-primary-600, #5728B2);
+    letter-spacing: 0.02em;
+    margin-bottom: 1.25rem;
+    width: fit-content;
+  }
+
+  .ind-pulse-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--color-primary-600, #5728B2);
+    display: inline-block;
+    box-shadow: 0 0 0 3px rgba(87, 40, 178, 0.2);
+    animation: indPulse 2s infinite ease-in-out;
+  }
+
+  @keyframes indPulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.3); opacity: 0.7; }
+  }
+
+  .ind-hero-h1 {
+    font-size: clamp(2.25rem, 3.8vw, 3.5rem);
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -0.03em;
+    color: #0F172A;
+    margin-bottom: 1.25rem;
+  }
+
+  .ind-gradient-accent {
+    color: var(--color-primary-600, #5728B2);
+    background: linear-gradient(135deg, #5728B2 0%, #2563EB 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .ind-brand-inline {
+    font-weight: 700;
+    color: #0F172A;
+  }
+
+  .ind-brand-inline strong {
+    color: var(--color-accent-orange, #FF5F09);
+  }
+
+  .ind-hero-desc {
+    font-size: clamp(1rem, 1.4vw, 1.125rem);
+    color: #475569;
+    line-height: 1.65;
+    margin-bottom: 2rem;
+    max-width: 36rem;
+  }
+
+  .ind-hero-actions {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 2.25rem;
+  }
+
+  .ind-hero-btn-primary {
+    background: var(--color-primary-600, #5728B2);
+    color: #FFFFFF !important;
+    padding: 0.875rem 1.75rem;
+    font-weight: 700;
+    font-size: 0.975rem;
+    box-shadow: 0 4px 16px rgba(87, 40, 178, 0.35);
+  }
+
+  .ind-hero-btn-secondary {
+    background: #FFFFFF;
+    color: #0F172A !important;
+    border: 1.5px solid #CBD5E1;
+    padding: 0.875rem 1.75rem;
+    font-weight: 600;
+    font-size: 0.975rem;
+  }
+
+  .ind-hero-checks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.875rem 1.5rem;
+  }
+
+  .ind-check-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #334155;
+  }
+
+  /* ---- HERO VISUAL (RIGHT COLUMN) ---- */
+  .ind-hero-visual-wrapper {
+    position: relative;
+    width: 100%;
+  }
+
+  .ind-hero-image-card {
+    position: relative;
+    border-radius: 1.25rem;
+    overflow: hidden;
+    box-shadow: 0 25px 50px -12px rgba(1, 13, 45, 0.18), 0 10px 24px -6px rgba(1, 13, 45, 0.08);
+    border: 1px solid #E2E8F0;
+    background: #FFFFFF;
+    aspect-ratio: 16 / 10;
+  }
+
+  .ind-hero-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.5s ease;
+  }
+
+  .ind-hero-image-card:hover .ind-hero-photo {
+    transform: scale(1.02);
+  }
+
+  .ind-hero-image-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.05) 0%, rgba(15, 23, 42, 0.45) 100%);
+    pointer-events: none;
+  }
+
+  .ind-float-telemetry-top {
+    position: absolute;
+    top: 1.25rem;
+    left: 1.25rem;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    padding: 0.625rem 1rem;
+    border-radius: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  }
+
+  .ind-float-icon-box {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.5rem;
+    background: #EFF6FF;
+    color: var(--color-primary-600, #5728B2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .ind-float-telemetry-bottom {
+    position: absolute;
+    bottom: 1.25rem;
+    right: 1.25rem;
+    background: rgba(15, 23, 42, 0.92);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #FFFFFF;
+    padding: 0.625rem 1rem;
+    border-radius: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.25);
+  }
+
+  .ind-telemetry-dot-wrap {
+    display: flex;
+    align-items: center;
+  }
+
+  .ind-live-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10B981;
+    display: inline-block;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25);
+  }
+
+  .ind-float-lbl {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: #64748B;
+    text-transform: uppercase;
+  }
+
+  .ind-float-telemetry-bottom .ind-float-lbl {
+    color: #94A3B8;
+  }
+
+  .ind-float-val {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: #0F172A;
+  }
+
+  .ind-float-telemetry-bottom .ind-float-val {
+    color: #FFFFFF;
+  }
+
+  /* ---- SECTOR QUICKNAV BAR ---- */
+  .ind-quicknav-bar {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid #E2E8F0;
+    padding: 0.75rem 0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+  }
+
+  .ind-quicknav-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .ind-quicknav-wrapper::-webkit-scrollbar {
+    display: none;
+  }
+
+  .ind-quicknav-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748B;
+    white-space: nowrap;
+  }
+
+  .ind-quicknav-pills {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: nowrap;
+  }
+
+  .ind-quicknav-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.875rem;
+    border-radius: 9999px;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #475569;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+  }
+
+  .ind-quicknav-item:hover {
+    background: #ECE6FE;
+    border-color: #5728B2;
+    color: #5728B2;
+  }
+
+  /* ---- SPECIALIZED VERTICALS SECTION ---- */
+  .ind-sectors-section {
+    padding: clamp(4rem, 7vw, 6rem) 0;
+    background: #FFFFFF;
+  }
+
+  .ind-section-header {
+    text-align: center;
+    max-width: 48rem;
+    margin: 0 auto clamp(2.5rem, 5vw, 4rem) auto;
+  }
+
+  .ind-section-h2 {
+    font-size: clamp(1.85rem, 3.2vw, 2.75rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: #0F172A;
+    margin-bottom: 0.875rem;
+    line-height: 1.2;
+  }
+
+  .ind-section-desc {
+    font-size: clamp(1rem, 1.3vw, 1.125rem);
+    color: #64748B;
+    line-height: 1.6;
+  }
+
+  .ind-verticals-stack {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(2.5rem, 5vw, 4rem);
+  }
+
+  /* ---- SECTOR CARD (ALTERNATING 2-COLUMN) ---- */
+  .ind-sector-card {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(2rem, 5vw, 3.5rem);
+    align-items: center;
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 1.25rem;
+    padding: clamp(1.5rem, 4vw, 2.75rem);
+    box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05);
+    transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+  }
+
+  .ind-sector-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 20px 40px -10px rgba(1, 13, 45, 0.1);
+    border-color: #CBD5E1;
+  }
+
+  /* Alternate even cards (reverse columns) */
+  .ind-sector-card:nth-child(even) .ind-sector-content {
+    order: 2;
+  }
+  .ind-sector-card:nth-child(even) .ind-sector-media {
+    order: 1;
+  }
+
+  /* Featured Card Highlight (e.g. 24/7 BPO) */
+  .ind-sector-card-featured {
+    border: 2px solid var(--color-primary-600, #5728B2);
+    box-shadow: 0 15px 35px -5px rgba(87, 40, 178, 0.12);
+    position: relative;
+    background: linear-gradient(180deg, #FFFFFF 0%, #FAFAFF 100%);
+  }
+
+  .ind-sector-top-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .ind-sector-num {
+    font-size: 0.8125rem;
+    font-weight: 800;
+    color: #94A3B8;
+    letter-spacing: 0.05em;
+  }
+
+  .ind-sector-tag {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.25rem 0.625rem;
+    border-radius: 9999px;
+  }
+
+  .tag-blue {
+    background: #EFF6FF;
+    color: #1D4ED8;
+  }
+
+  .tag-green {
+    background: #ECFDF5;
+    color: #047857;
+  }
+
+  .tag-purple-badge {
+    background: var(--color-primary-600, #5728B2);
+    color: #FFFFFF;
+    box-shadow: 0 2px 8px rgba(87, 40, 178, 0.3);
+  }
+
+  .ind-sector-icon-title {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    margin-bottom: 1rem;
+  }
+
+  .ind-sector-icon-box {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .box-blue {
+    background: #EFF6FF;
+    color: var(--color-primary-600, #5728B2);
+  }
+
+  .box-purple {
+    background: #ECE6FE;
+    color: #5728B2;
+  }
+
+  .box-green {
+    background: #DCFCE7;
+    color: #16A34A;
+  }
+
+  .ind-sector-h3 {
+    font-size: clamp(1.25rem, 2vw, 1.6rem);
+    font-weight: 800;
+    color: #0F172A;
+    line-height: 1.25;
+    margin: 0;
+  }
+
+  .ind-sector-p {
+    font-size: 0.95rem;
+    color: #475569;
+    line-height: 1.65;
+    margin-bottom: 1.5rem;
+  }
+
+  .ind-feature-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1.75rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    border-top: 1px solid #F1F5F9;
+    padding-top: 1.25rem;
+  }
+
+  .ind-feature-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    font-size: 0.9rem;
+    color: #334155;
+    line-height: 1.5;
+  }
+
+  .ind-feat-icon {
+    width: 1.35rem;
+    height: 1.35rem;
+    border-radius: 50%;
+    background: #EFF6FF;
+    color: var(--color-primary-600, #5728B2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+  }
+
+  .feat-purple {
+    background: #ECE6FE;
+    color: #5728B2;
+  }
+
+  .feat-green {
+    background: #DCFCE7;
+    color: #16A34A;
+  }
+
+  .ind-sector-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    border-top: 1px solid #F1F5F9;
+    padding-top: 1.25rem;
+  }
+
+  .ind-sector-cta-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.65rem 1.25rem;
+    border-radius: 9999px;
+    background: #F8FAFC;
+    border: 1px solid #CBD5E1;
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: #0F172A;
+    text-decoration: none;
+    transition: all 0.2s ease;
+  }
+
+  .ind-sector-cta-btn:hover {
+    background: var(--color-primary-600, #5728B2);
+    border-color: var(--color-primary-600, #5728B2);
+    color: #FFFFFF;
+    transform: translateX(2px);
+  }
+
+  .btn-featured-cta {
+    background: var(--color-primary-600, #5728B2);
+    border-color: var(--color-primary-600, #5728B2);
+    color: #FFFFFF;
+    box-shadow: 0 4px 12px rgba(87, 40, 178, 0.3);
+  }
+
+  .btn-featured-cta:hover {
+    background: #431E8E;
+    color: #FFFFFF;
+  }
+
+  .ind-fleet-pill {
+    font-size: 0.75rem;
+    color: #64748B;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    padding: 0.35rem 0.75rem;
+    border-radius: 9999px;
+  }
+
+  .ind-fleet-pill span {
+    font-weight: 700;
+    color: #334155;
+  }
+
+  .pill-purple {
+    background: #FBF9FF;
+    border-color: #ECE6FE;
+    color: #5728B2;
+  }
+
+  .pill-purple span {
+    color: #5728B2;
+  }
+
+  .ind-sector-media {
+    width: 100%;
+  }
+
+  .ind-image-frame {
+    position: relative;
+    border-radius: 1rem;
+    overflow: hidden;
+    aspect-ratio: 16 / 10;
+    background: #F1F5F9;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+    border: 1px solid #E2E8F0;
+  }
+
+  .ind-sector-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.5s ease;
+  }
+
+  .ind-sector-card:hover .ind-sector-photo {
+    transform: scale(1.025);
+  }
+
+  .ind-photo-badge {
+    position: absolute;
+    bottom: 0.875rem;
+    left: 0.875rem;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(6px);
+    color: #FFFFFF;
+    font-size: 0.725rem;
+    font-weight: 600;
+    padding: 0.35rem 0.75rem;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .badge-night {
+    background: rgba(87, 40, 178, 0.9);
+  }
+
+  /* ---- UNIVERSAL STANDARDS SECTION ---- */
+  .ind-standards-section {
+    padding: clamp(3.5rem, 6vw, 5rem) 0;
+    background: #F8FAFC;
+    border-top: 1px solid #E2E8F0;
+    border-bottom: 1px solid #E2E8F0;
+  }
+
+  .ind-standards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .ind-standard-card {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 1rem;
+    padding: 1.75rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .ind-standard-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.06);
+  }
+
+  .ind-std-icon {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 0.625rem;
+    background: #ECE6FE;
+    color: #5728B2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.25rem;
+  }
+
+  .ind-std-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #0F172A;
+    margin-bottom: 0.5rem;
+  }
+
+  .ind-std-p {
+    font-size: 0.875rem;
+    color: #64748B;
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  /* ---- ENTERPRISE PROPOSAL SECTION ---- */
+  .ind-quote-section {
+    padding: clamp(4rem, 7vw, 6rem) 0;
+    background: #FFFFFF;
+  }
+
+  .ind-quote-wrapper {
+    display: grid;
+    grid-template-columns: 0.95fr 1.05fr;
+    gap: clamp(2rem, 5vw, 4rem);
+    align-items: start;
+  }
+
+  .ind-quote-h2 {
+    font-size: clamp(1.85rem, 3.2vw, 2.5rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: #0F172A;
+    line-height: 1.2;
+    margin-bottom: 1rem;
+  }
+
+  .ind-quote-lead {
+    font-size: 1rem;
+    color: #475569;
+    line-height: 1.65;
+    margin-bottom: 2rem;
+  }
+
+  .ind-trust-points {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .ind-trust-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.875rem;
+  }
+
+  .ind-trust-check {
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    background: #ECE6FE;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 0.2rem;
+  }
+
+  .ind-trust-item strong {
+    display: block;
+    font-size: 0.95rem;
+    color: #0F172A;
+    margin-bottom: 0.2rem;
+  }
+
+  .ind-trust-item p {
+    font-size: 0.85rem;
+    color: #64748B;
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  .ind-direct-contact-card {
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 1rem;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    font-size: 0.875rem;
+    color: #334155;
+  }
+
+  .ind-contact-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .ind-contact-row a {
+    color: var(--color-primary-600, #5728B2);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .ind-contact-row a:hover {
+    text-decoration: underline;
+  }
+
+  /* ---- RESPONSIVE MEDIA QUERIES ---- */
+  @media (max-width: 1024px) {
+    .ind-hero-grid,
+    .ind-sector-card,
+    .ind-quote-wrapper {
+      grid-template-columns: 1fr;
+      gap: 2.5rem;
+    }
+
+    .ind-sector-card:nth-child(even) .ind-sector-content,
+    .ind-sector-card:nth-child(even) .ind-sector-media {
+      order: unset;
+    }
+
+    .ind-hero-visual-wrapper {
+      margin-top: 1rem;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .ind-hero-actions {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .ind-hero-btn-primary,
+    .ind-hero-btn-secondary {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .ind-float-telemetry-top,
+    .ind-float-telemetry-bottom {
+      position: static;
+      margin: 0.75rem;
+    }
+
+    .ind-sector-footer {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .ind-sector-cta-btn {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .ind-fleet-pill {
+      text-align: center;
+    }
+  }
+</style>

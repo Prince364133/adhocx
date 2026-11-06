@@ -12,7 +12,8 @@ class CabAssignedOverviewScreen extends StatefulWidget {
   const CabAssignedOverviewScreen({super.key});
 
   @override
-  State<CabAssignedOverviewScreen> createState() => _CabAssignedOverviewScreenState();
+  State<CabAssignedOverviewScreen> createState() =>
+      _CabAssignedOverviewScreenState();
 }
 
 class _CabAssignedOverviewScreenState extends State<CabAssignedOverviewScreen> {
@@ -43,7 +44,8 @@ class _CabAssignedOverviewScreenState extends State<CabAssignedOverviewScreen> {
     final driverRating = (_driver?['rating'] ?? 4.8).toDouble();
     final vehicleModel = _vehicle?['model'] ?? 'Maruti Ertiga';
     final plateNumber = _vehicle?['plateNumber'] ?? 'TS09UB7845';
-    final vehicleSpecs = '${_vehicle?['color'] ?? "White"} • ${_vehicle?['seating'] ?? "7 Seater"}';
+    final vehicleSpecs =
+        '${_vehicle?['color'] ?? "White"} • ${_vehicle?['seating'] ?? "7 Seater"}';
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -51,8 +53,11 @@ class _CabAssignedOverviewScreenState extends State<CabAssignedOverviewScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.textPrimary),
-          onPressed: () => Navigator.of(context).canPop() ? Navigator.of(context).pop() : context.go(AppRoutes.homeUpcomingPickup),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              size: 18, color: AppColors.textPrimary),
+          onPressed: () => Navigator.of(context).canPop()
+              ? Navigator.of(context).pop()
+              : context.go(AppRoutes.homeUpcomingPickup),
         ),
         title: Text(
           "Today's Pickup",
@@ -68,14 +73,16 @@ class _CabAssignedOverviewScreenState extends State<CabAssignedOverviewScreen> {
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Status Badge & Shift Header
                     Center(
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 5),
                         decoration: BoxDecoration(
                           color: AppColors.successLight,
                           borderRadius: BorderRadius.circular(20),
@@ -107,7 +114,8 @@ class _CabAssignedOverviewScreenState extends State<CabAssignedOverviewScreen> {
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.schedule_rounded, size: 18, color: AppColors.primaryBlue),
+                              const Icon(Icons.schedule_rounded,
+                                  size: 18, color: AppColors.primaryBlue),
                               const SizedBox(width: 8),
                               Text(
                                 '8:15 AM • Login Trip',
@@ -162,10 +170,11 @@ class _CabAssignedOverviewScreenState extends State<CabAssignedOverviewScreen> {
                         ),
                         child: Row(
                           children: [
-                            CircleAvatar(
+                            const CircleAvatar(
                               radius: 26,
                               backgroundColor: AppColors.primaryBlueLight,
-                              child: const Icon(Icons.person, color: AppColors.primaryBlue, size: 30),
+                              child: Icon(Icons.person,
+                                  color: AppColors.primaryBlue, size: 30),
                             ),
                             const SizedBox(width: 14),
                             Expanded(
@@ -183,7 +192,8 @@ class _CabAssignedOverviewScreenState extends State<CabAssignedOverviewScreen> {
                                   const SizedBox(height: 4),
                                   Row(
                                     children: [
-                                      const Icon(Icons.star_rounded, size: 16, color: Color(0xFFF59E0B)),
+                                      const Icon(Icons.star_rounded,
+                                          size: 16, color: Color(0xFFF59E0B)),
                                       const SizedBox(width: 4),
                                       Text(
                                         '$driverRating',
@@ -199,10 +209,13 @@ class _CabAssignedOverviewScreenState extends State<CabAssignedOverviewScreen> {
                               ),
                             ),
                             IconButton(
-                              icon: const Icon(Icons.phone_in_talk_rounded, color: AppColors.primaryBlue),
-                              onPressed: () => context.push(AppRoutes.contactDriverSheet),
+                              icon: const Icon(Icons.phone_in_talk_rounded,
+                                  color: AppColors.primaryBlue),
+                              onPressed: () =>
+                                  context.push(AppRoutes.contactDriverSheet),
                             ),
-                            const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+                            const Icon(Icons.chevron_right_rounded,
+                                color: AppColors.textMuted),
                           ],
                         ),
                       ),
@@ -230,7 +243,10 @@ class _CabAssignedOverviewScreenState extends State<CabAssignedOverviewScreen> {
                                 color: const Color(0xFFF1F5F9),
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              child: const Icon(Icons.directions_car_filled_rounded, color: AppColors.primaryBlue, size: 30),
+                              child: const Icon(
+                                  Icons.directions_car_filled_rounded,
+                                  color: AppColors.primaryBlue,
+                                  size: 30),
                             ),
                             const SizedBox(width: 14),
                             Expanded(
@@ -264,7 +280,8 @@ class _CabAssignedOverviewScreenState extends State<CabAssignedOverviewScreen> {
                                 ],
                               ),
                             ),
-                            const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+                            const Icon(Icons.chevron_right_rounded,
+                                color: AppColors.textMuted),
                           ],
                         ),
                       ),
@@ -277,7 +294,8 @@ class _CabAssignedOverviewScreenState extends State<CabAssignedOverviewScreen> {
                       onTap: () => context.push(AppRoutes.pickupSequence),
                       borderRadius: BorderRadius.circular(16),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 14),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(16),
@@ -285,7 +303,8 @@ class _CabAssignedOverviewScreenState extends State<CabAssignedOverviewScreen> {
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.alt_route_rounded, size: 20, color: AppColors.primaryBlue),
+                            const Icon(Icons.alt_route_rounded,
+                                size: 20, color: AppColors.primaryBlue),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
@@ -297,7 +316,8 @@ class _CabAssignedOverviewScreenState extends State<CabAssignedOverviewScreen> {
                                 ),
                               ),
                             ),
-                            const Icon(Icons.chevron_right_rounded, color: AppColors.primaryBlue),
+                            const Icon(Icons.chevron_right_rounded,
+                                color: AppColors.primaryBlue),
                           ],
                         ),
                       ),
@@ -359,6 +379,3 @@ class _CabAssignedOverviewScreenState extends State<CabAssignedOverviewScreen> {
     );
   }
 }
-
-
-

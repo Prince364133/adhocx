@@ -46,7 +46,8 @@ class _ScheduleWeeklyScreenState extends State<ScheduleWeeklyScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: AppColors.primaryBlue)),
+        body: Center(
+            child: CircularProgressIndicator(color: AppColors.primaryBlue)),
       );
     }
 
@@ -82,7 +83,8 @@ class _ScheduleWeeklyScreenState extends State<ScheduleWeeklyScreen> {
 
               // Week Selector
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   color: AppColors.surfaceMuted,
                   borderRadius: BorderRadius.circular(14),
@@ -91,7 +93,8 @@ class _ScheduleWeeklyScreenState extends State<ScheduleWeeklyScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Icon(Icons.chevron_left_rounded, color: AppColors.textSecondary),
+                    const Icon(Icons.chevron_left_rounded,
+                        color: AppColors.textSecondary),
                     Text(
                       '08 - 14 Dec 2026',
                       style: GoogleFonts.inter(
@@ -100,7 +103,8 @@ class _ScheduleWeeklyScreenState extends State<ScheduleWeeklyScreen> {
                         color: AppColors.textPrimary,
                       ),
                     ),
-                    const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+                    const Icon(Icons.chevron_right_rounded,
+                        color: AppColors.textSecondary),
                   ],
                 ),
               ),
@@ -115,14 +119,15 @@ class _ScheduleWeeklyScreenState extends State<ScheduleWeeklyScreen> {
 
                 return Container(
                   margin: const EdgeInsets.only(bottom: 10),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: AppColors.border),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.03),
+                        color: Colors.black.withValues(alpha: 0.03),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -205,6 +210,3 @@ class _ScheduleWeeklyScreenState extends State<ScheduleWeeklyScreen> {
     );
   }
 }
-
-
-

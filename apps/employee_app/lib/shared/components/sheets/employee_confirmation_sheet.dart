@@ -112,10 +112,10 @@ class EmployeeDriverContactSheet extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         // Driver Profile Header
-        CircleAvatar(
+        const CircleAvatar(
           radius: 34,
           backgroundColor: AppColors.primaryBlueLight,
-          child: const Icon(Icons.person, color: AppColors.primaryBlue, size: 38),
+          child: Icon(Icons.person, color: AppColors.primaryBlue, size: 38),
         ),
         const SizedBox(height: 10),
         Text(
@@ -130,11 +130,13 @@ class EmployeeDriverContactSheet extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.star_rounded, size: 16, color: AppColors.accentAmber),
+            const Icon(Icons.star_rounded,
+                size: 16, color: AppColors.accentAmber),
             const SizedBox(width: 4),
             Text(
               rating.toStringAsFixed(1),
-              style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700),
+              style:
+                  GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700),
             ),
             const SizedBox(width: 8),
             Container(
@@ -169,7 +171,8 @@ class EmployeeDriverContactSheet extends StatelessWidget {
               color: AppColors.successLight,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.phone_rounded, color: AppColors.success, size: 20),
+            child: const Icon(Icons.phone_rounded,
+                color: AppColors.success, size: 20),
           ),
           title: Text(
             'Call Driver',
@@ -179,7 +182,8 @@ class EmployeeDriverContactSheet extends StatelessWidget {
             'Virtual masked call via AdhocX PBX',
             style: GoogleFonts.inter(fontSize: 12, color: AppColors.textMuted),
           ),
-          trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+          trailing: const Icon(Icons.chevron_right_rounded,
+              color: AppColors.textMuted),
         ),
         const SizedBox(height: 12),
         ListTile(
@@ -194,7 +198,8 @@ class EmployeeDriverContactSheet extends StatelessWidget {
               color: AppColors.primaryBlueSoft,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.chat_bubble_outline_rounded, color: AppColors.primaryBlue, size: 20),
+            child: const Icon(Icons.chat_bubble_outline_rounded,
+                color: AppColors.primaryBlue, size: 20),
           ),
           title: Text(
             'In-App Chat',
@@ -204,11 +209,11 @@ class EmployeeDriverContactSheet extends StatelessWidget {
             'Quick messages & canned responses',
             style: GoogleFonts.inter(fontSize: 12, color: AppColors.textMuted),
           ),
-          trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+          trailing: const Icon(Icons.chevron_right_rounded,
+              color: AppColors.textMuted),
         ),
         const SizedBox(height: 16),
       ],
     );
   }
 }
-

@@ -36,11 +36,13 @@ class _TripPlanningScreenState extends State<TripPlanningScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: AppColors.primaryBlue)),
+        body: Center(
+            child: CircularProgressIndicator(color: AppColors.primaryBlue)),
       );
     }
 
-    final message = _tripData?['message'] ?? 'We are planning your trip. Your cab will be assigned soon.';
+    final message = _tripData?['message'] ??
+        'We are planning your trip. Your cab will be assigned soon.';
     final pickupPoint = _tripData?['pickupPoint'] ?? 'Home - Hitech City';
     final pickupTime = _tripData?['pickupTime'] ?? '8:15 AM';
     final shift = _tripData?['shift'] ?? 'Login Shift (09:00 AM)';
@@ -66,7 +68,8 @@ class _TripPlanningScreenState extends State<TripPlanningScreen> {
 
               // Planning Status Pill
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFEF3C7),
                   borderRadius: BorderRadius.circular(20),
@@ -111,7 +114,7 @@ class _TripPlanningScreenState extends State<TripPlanningScreen> {
                   border: Border.all(color: AppColors.border),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.04),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -152,7 +155,8 @@ class _TripPlanningScreenState extends State<TripPlanningScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.info_outline_rounded, color: AppColors.primaryBlue, size: 20),
+                    const Icon(Icons.info_outline_rounded,
+                        color: AppColors.primaryBlue, size: 20),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
@@ -176,7 +180,8 @@ class _TripPlanningScreenState extends State<TripPlanningScreen> {
     );
   }
 
-  Widget _buildRow({required IconData icon, required String label, required String value}) {
+  Widget _buildRow(
+      {required IconData icon, required String label, required String value}) {
     return Row(
       children: [
         Icon(icon, size: 20, color: AppColors.textMuted),
@@ -209,6 +214,3 @@ class _TripPlanningScreenState extends State<TripPlanningScreen> {
     );
   }
 }
-
-
-

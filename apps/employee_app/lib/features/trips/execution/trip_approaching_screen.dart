@@ -39,7 +39,8 @@ class _TripApproachingScreenState extends State<TripApproachingScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: AppColors.primaryBlue)),
+        body: Center(
+            child: CircularProgressIndicator(color: AppColors.primaryBlue)),
       );
     }
 
@@ -70,7 +71,8 @@ class _TripApproachingScreenState extends State<TripApproachingScreen> {
 
               // Approaching Status Pill
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 decoration: BoxDecoration(
                   color: const Color(0xFFEFF6FF),
                   borderRadius: BorderRadius.circular(20),
@@ -123,7 +125,7 @@ class _TripApproachingScreenState extends State<TripApproachingScreen> {
                   border: Border.all(color: AppColors.border),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.04),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -131,10 +133,11 @@ class _TripApproachingScreenState extends State<TripApproachingScreen> {
                 ),
                 child: Row(
                   children: [
-                    CircleAvatar(
+                    const CircleAvatar(
                       radius: 24,
                       backgroundColor: AppColors.primaryBlueLight,
-                      child: const Icon(Icons.person, color: AppColors.primaryBlue, size: 28),
+                      child: Icon(Icons.person,
+                          color: AppColors.primaryBlue, size: 28),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -152,7 +155,8 @@ class _TripApproachingScreenState extends State<TripApproachingScreen> {
                           const SizedBox(height: 2),
                           Row(
                             children: [
-                              const Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 16),
+                              const Icon(Icons.star_rounded,
+                                  color: Color(0xFFF59E0B), size: 16),
                               const SizedBox(width: 4),
                               Text(
                                 rating,
@@ -179,10 +183,12 @@ class _TripApproachingScreenState extends State<TripApproachingScreen> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: AppColors.primaryBlueLight.withOpacity(0.4),
+                        color:
+                            AppColors.primaryBlueLight.withValues(alpha: 0.4),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.phone, color: AppColors.primaryBlue, size: 20),
+                      child: const Icon(Icons.phone,
+                          color: AppColors.primaryBlue, size: 20),
                     ),
                   ],
                 ),
@@ -210,6 +216,3 @@ class _TripApproachingScreenState extends State<TripApproachingScreen> {
     );
   }
 }
-
-
-

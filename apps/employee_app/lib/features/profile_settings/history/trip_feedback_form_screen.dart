@@ -40,7 +40,8 @@ class _TripFeedbackFormScreenState extends State<TripFeedbackFormScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              size: 18, color: AppColors.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
@@ -70,7 +71,9 @@ class _TripFeedbackFormScreenState extends State<TripFeedbackFormScreen> {
                     iconSize: 36,
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     icon: Icon(
-                      star <= _rating ? Icons.star_rounded : Icons.star_border_rounded,
+                      star <= _rating
+                          ? Icons.star_rounded
+                          : Icons.star_border_rounded,
                       color: const Color(0xFFF59E0B),
                     ),
                     onPressed: () => setState(() => _rating = star),
@@ -108,12 +111,16 @@ class _TripFeedbackFormScreenState extends State<TripFeedbackFormScreen> {
                         }
                       });
                     },
-                    selectedColor: AppColors.primaryBlueLight.withOpacity(0.5),
+                    selectedColor:
+                        AppColors.primaryBlueLight.withValues(alpha: 0.5),
                     checkmarkColor: AppColors.primaryBlue,
                     labelStyle: GoogleFonts.inter(
                       fontSize: 12,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                      color: isSelected ? AppColors.primaryBlueDark : AppColors.textPrimary,
+                      fontWeight:
+                          isSelected ? FontWeight.w700 : FontWeight.w500,
+                      color: isSelected
+                          ? AppColors.primaryBlueDark
+                          : AppColors.textPrimary,
                     ),
                   );
                 }).toList(),
@@ -141,11 +148,13 @@ class _TripFeedbackFormScreenState extends State<TripFeedbackFormScreen> {
                         border: InputBorder.none,
                         counterText: '',
                       ),
-                      style: GoogleFonts.inter(fontSize: 14, color: AppColors.textPrimary),
+                      style: GoogleFonts.inter(
+                          fontSize: 14, color: AppColors.textPrimary),
                     ),
                     Text(
                       '${_feedbackController.text.length}/200',
-                      style: GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted),
+                      style: GoogleFonts.inter(
+                          fontSize: 11, color: AppColors.textMuted),
                     ),
                   ],
                 ),
@@ -157,7 +166,8 @@ class _TripFeedbackFormScreenState extends State<TripFeedbackFormScreen> {
                 label: 'Submit Feedback',
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Thank you! Feedback recorded.')),
+                    const SnackBar(
+                        content: Text('Thank you! Feedback recorded.')),
                   );
                   Navigator.of(context).pop();
                 },
@@ -170,6 +180,3 @@ class _TripFeedbackFormScreenState extends State<TripFeedbackFormScreen> {
     );
   }
 }
-
-
-

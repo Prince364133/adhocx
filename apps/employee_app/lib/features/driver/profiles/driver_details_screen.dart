@@ -47,7 +47,8 @@ class _DriverDetailsScreenState extends State<DriverDetailsScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              size: 18, color: AppColors.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
@@ -64,7 +65,8 @@ class _DriverDetailsScreenState extends State<DriverDetailsScreen> {
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                 child: Column(
                   children: [
                     // Driver Profile Avatar
@@ -72,10 +74,10 @@ class _DriverDetailsScreenState extends State<DriverDetailsScreen> {
                       child: Stack(
                         alignment: Alignment.bottomRight,
                         children: [
-                          CircleAvatar(
+                          const CircleAvatar(
                             radius: 46,
                             backgroundColor: AppColors.primaryBlueLight,
-                            child: const Icon(
+                            child: Icon(
                               Icons.person,
                               size: 54,
                               color: AppColors.primaryBlue,
@@ -87,7 +89,8 @@ class _DriverDetailsScreenState extends State<DriverDetailsScreen> {
                               color: AppColors.success,
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(Icons.check, size: 14, color: Colors.white),
+                            child: const Icon(Icons.check,
+                                size: 14, color: Colors.white),
                           ),
                         ],
                       ),
@@ -109,7 +112,8 @@ class _DriverDetailsScreenState extends State<DriverDetailsScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.star_rounded, size: 18, color: Color(0xFFF59E0B)),
+                        const Icon(Icons.star_rounded,
+                            size: 18, color: Color(0xFFF59E0B)),
                         const SizedBox(width: 4),
                         Text(
                           '$rating ($tripsCount trips)',
@@ -125,7 +129,8 @@ class _DriverDetailsScreenState extends State<DriverDetailsScreen> {
 
                     // Verified Driver Badge
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
                         color: AppColors.successLight,
                         borderRadius: BorderRadius.circular(16),
@@ -134,7 +139,8 @@ class _DriverDetailsScreenState extends State<DriverDetailsScreen> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.verified_user_rounded, size: 14, color: AppColors.success),
+                          const Icon(Icons.verified_user_rounded,
+                              size: 14, color: AppColors.success),
                           const SizedBox(width: 4),
                           Text(
                             'Verified Driver',
@@ -157,10 +163,12 @@ class _DriverDetailsScreenState extends State<DriverDetailsScreen> {
                           child: ElevatedButton.icon(
                             onPressed: () {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Calling $name ($phone)...')),
+                                SnackBar(
+                                    content: Text('Calling $name ($phone)...')),
                               );
                             },
-                            icon: const Icon(Icons.call_rounded, size: 18, color: Colors.white),
+                            icon: const Icon(Icons.call_rounded,
+                                size: 18, color: Colors.white),
                             label: Text(
                               'Call',
                               style: GoogleFonts.inter(
@@ -172,7 +180,8 @@ class _DriverDetailsScreenState extends State<DriverDetailsScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primaryBlue,
                               padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
                               elevation: 0,
                             ),
                           ),
@@ -185,7 +194,8 @@ class _DriverDetailsScreenState extends State<DriverDetailsScreen> {
                                 SnackBar(content: Text('Messaging $name...')),
                               );
                             },
-                            icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18, color: AppColors.primaryBlue),
+                            icon: const Icon(Icons.chat_bubble_outline_rounded,
+                                size: 18, color: AppColors.primaryBlue),
                             label: Text(
                               'Message',
                               style: GoogleFonts.inter(
@@ -195,9 +205,11 @@ class _DriverDetailsScreenState extends State<DriverDetailsScreen> {
                               ),
                             ),
                             style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: AppColors.primaryBlue),
+                              side: const BorderSide(
+                                  color: AppColors.primaryBlue),
                               padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
                             ),
                           ),
                         ),
@@ -278,7 +290,8 @@ class _DriverDetailsScreenState extends State<DriverDetailsScreen> {
                 ),
               ),
               const SizedBox(width: 4),
-              const Icon(Icons.check_circle_rounded, size: 16, color: AppColors.success),
+              const Icon(Icons.check_circle_rounded,
+                  size: 16, color: AppColors.success),
             ],
           )
         else
@@ -294,6 +307,3 @@ class _DriverDetailsScreenState extends State<DriverDetailsScreen> {
     );
   }
 }
-
-
-

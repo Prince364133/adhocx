@@ -12,10 +12,12 @@ class RequestStatusApprovedScreen extends StatefulWidget {
   const RequestStatusApprovedScreen({super.key});
 
   @override
-  State<RequestStatusApprovedScreen> createState() => _RequestStatusApprovedScreenState();
+  State<RequestStatusApprovedScreen> createState() =>
+      _RequestStatusApprovedScreenState();
 }
 
-class _RequestStatusApprovedScreenState extends State<RequestStatusApprovedScreen> {
+class _RequestStatusApprovedScreenState
+    extends State<RequestStatusApprovedScreen> {
   Map<String, dynamic>? _approvedData;
   bool _isLoading = true;
 
@@ -27,7 +29,8 @@ class _RequestStatusApprovedScreenState extends State<RequestStatusApprovedScree
 
   Future<void> _loadJsonData() async {
     final schedules = await MockDataService.getSchedules();
-    final changeRequests = schedules['change_requests'] as Map<String, dynamic>?;
+    final changeRequests =
+        schedules['change_requests'] as Map<String, dynamic>?;
     if (mounted) {
       setState(() {
         _approvedData = changeRequests?['approved'] as Map<String, dynamic>?;
@@ -40,13 +43,15 @@ class _RequestStatusApprovedScreenState extends State<RequestStatusApprovedScree
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: AppColors.primaryBlue)),
+        body: Center(
+            child: CircularProgressIndicator(color: AppColors.primaryBlue)),
       );
     }
 
     final message = _approvedData?['message'] ??
         'Your pickup location has been updated for the selected trip.';
-    final newLocation = _approvedData?['newLocation'] ?? 'Green Meadows, Kondapur';
+    final newLocation =
+        _approvedData?['newLocation'] ?? 'Green Meadows, Kondapur';
     final tripDate = _approvedData?['tripDate'] ?? 'Tue, 09 Dec 2026';
 
     return Scaffold(
@@ -104,7 +109,7 @@ class _RequestStatusApprovedScreenState extends State<RequestStatusApprovedScree
                   border: Border.all(color: AppColors.border),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.04),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -114,7 +119,8 @@ class _RequestStatusApprovedScreenState extends State<RequestStatusApprovedScree
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.location_on_outlined, color: AppColors.success, size: 20),
+                        const Icon(Icons.location_on_outlined,
+                            color: AppColors.success, size: 20),
                         const SizedBox(width: 14),
                         Expanded(
                           child: Column(
@@ -122,7 +128,8 @@ class _RequestStatusApprovedScreenState extends State<RequestStatusApprovedScree
                             children: [
                               Text(
                                 'New Pickup Location',
-                                style: GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted),
+                                style: GoogleFonts.inter(
+                                    fontSize: 11, color: AppColors.textMuted),
                               ),
                               Text(
                                 newLocation,
@@ -140,7 +147,8 @@ class _RequestStatusApprovedScreenState extends State<RequestStatusApprovedScree
                     const Divider(color: AppColors.border, height: 24),
                     Row(
                       children: [
-                        const Icon(Icons.calendar_month_outlined, color: AppColors.primaryBlue, size: 20),
+                        const Icon(Icons.calendar_month_outlined,
+                            color: AppColors.primaryBlue, size: 20),
                         const SizedBox(width: 14),
                         Expanded(
                           child: Column(
@@ -148,7 +156,8 @@ class _RequestStatusApprovedScreenState extends State<RequestStatusApprovedScree
                             children: [
                               Text(
                                 'Trip Date',
-                                style: GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted),
+                                style: GoogleFonts.inter(
+                                    fontSize: 11, color: AppColors.textMuted),
                               ),
                               Text(
                                 tripDate,
@@ -183,6 +192,3 @@ class _RequestStatusApprovedScreenState extends State<RequestStatusApprovedScree
     );
   }
 }
-
-
-

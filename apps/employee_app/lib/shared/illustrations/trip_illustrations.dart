@@ -18,7 +18,7 @@ class EmptyScheduleIllustration extends StatelessWidget {
         border: Border.all(color: AppColors.border, width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),
@@ -176,7 +176,8 @@ class InProgressMapIllustration extends StatelessWidget {
                 color: AppColors.success,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.my_location, size: 16, color: Colors.white),
+              child:
+                  const Icon(Icons.my_location, size: 16, color: Colors.white),
             ),
           ),
           // Moving cab
@@ -190,7 +191,7 @@ class InProgressMapIllustration extends StatelessWidget {
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.18),
+                    color: Colors.black.withValues(alpha: 0.18),
                     blurRadius: 8,
                   ),
                 ],
@@ -212,7 +213,8 @@ class InProgressMapIllustration extends StatelessWidget {
                 color: AppColors.primaryBlue,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.apartment_rounded, size: 20, color: Colors.white),
+              child: const Icon(Icons.apartment_rounded,
+                  size: 20, color: Colors.white),
             ),
           ),
         ],
@@ -306,10 +308,9 @@ class TripUnservedBadge extends StatelessWidget {
         border: Border.all(color: const Color(0xFFFDE68A), width: 2),
       ),
       child: const Center(
-        child: Icon(Icons.warning_amber_rounded, size: 44, color: Color(0xFFD97706)),
+        child: Icon(Icons.warning_amber_rounded,
+            size: 44, color: Color(0xFFD97706)),
       ),
     );
   }
 }
-
-

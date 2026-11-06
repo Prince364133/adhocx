@@ -13,10 +13,12 @@ class LiveTrackingOverviewScreen extends StatefulWidget {
   const LiveTrackingOverviewScreen({super.key});
 
   @override
-  State<LiveTrackingOverviewScreen> createState() => _LiveTrackingOverviewScreenState();
+  State<LiveTrackingOverviewScreen> createState() =>
+      _LiveTrackingOverviewScreenState();
 }
 
-class _LiveTrackingOverviewScreenState extends State<LiveTrackingOverviewScreen> {
+class _LiveTrackingOverviewScreenState
+    extends State<LiveTrackingOverviewScreen> {
   Map<String, dynamic>? _overview;
   bool _isLoading = true;
 
@@ -54,8 +56,11 @@ class _LiveTrackingOverviewScreenState extends State<LiveTrackingOverviewScreen>
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.textPrimary),
-          onPressed: () => Navigator.of(context).canPop() ? Navigator.of(context).pop() : context.go(AppRoutes.homeUpcomingPickup),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              size: 18, color: AppColors.textPrimary),
+          onPressed: () => Navigator.of(context).canPop()
+              ? Navigator.of(context).pop()
+              : context.go(AppRoutes.homeUpcomingPickup),
         ),
         title: Text(
           title,
@@ -71,14 +76,16 @@ class _LiveTrackingOverviewScreenState extends State<LiveTrackingOverviewScreen>
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Status Badge
                     Center(
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 5),
                         decoration: BoxDecoration(
                           color: AppColors.successLight,
                           borderRadius: BorderRadius.circular(20),
@@ -118,10 +125,11 @@ class _LiveTrackingOverviewScreenState extends State<LiveTrackingOverviewScreen>
                       ),
                       child: Row(
                         children: [
-                          CircleAvatar(
+                          const CircleAvatar(
                             radius: 24,
                             backgroundColor: AppColors.primaryBlueLight,
-                            child: const Icon(Icons.person, color: AppColors.primaryBlue, size: 28),
+                            child: Icon(Icons.person,
+                                color: AppColors.primaryBlue, size: 28),
                           ),
                           const SizedBox(width: 14),
                           Expanded(
@@ -139,7 +147,8 @@ class _LiveTrackingOverviewScreenState extends State<LiveTrackingOverviewScreen>
                                       ),
                                     ),
                                     const SizedBox(width: 6),
-                                    const Icon(Icons.star_rounded, size: 15, color: Color(0xFFF59E0B)),
+                                    const Icon(Icons.star_rounded,
+                                        size: 15, color: Color(0xFFF59E0B)),
                                     Text(
                                       '$driverRating',
                                       style: GoogleFonts.inter(
@@ -170,8 +179,10 @@ class _LiveTrackingOverviewScreenState extends State<LiveTrackingOverviewScreen>
                             ),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.phone_in_talk_rounded, color: AppColors.primaryBlue),
-                            onPressed: () => context.push(AppRoutes.contactDriverSheet),
+                            icon: const Icon(Icons.phone_in_talk_rounded,
+                                color: AppColors.primaryBlue),
+                            onPressed: () =>
+                                context.push(AppRoutes.contactDriverSheet),
                           ),
                         ],
                       ),
@@ -199,6 +210,3 @@ class _LiveTrackingOverviewScreenState extends State<LiveTrackingOverviewScreen>
     );
   }
 }
-
-
-

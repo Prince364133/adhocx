@@ -47,7 +47,8 @@ class _CabApproachingScreenState extends State<CabApproachingScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              size: 18, color: AppColors.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
@@ -64,14 +65,17 @@ class _CabApproachingScreenState extends State<CabApproachingScreen> {
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                 child: Column(
                   children: [
                     // Status Badge
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppColors.primaryBlueLight.withOpacity(0.5),
+                        color:
+                            AppColors.primaryBlueLight.withValues(alpha: 0.5),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Text(
@@ -117,7 +121,8 @@ class _CabApproachingScreenState extends State<CabApproachingScreen> {
                     // Time and Distance Card
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 16, horizontal: 20),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
@@ -128,7 +133,8 @@ class _CabApproachingScreenState extends State<CabApproachingScreen> {
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.access_time_rounded, size: 18, color: AppColors.primaryBlue),
+                              const Icon(Icons.access_time_rounded,
+                                  size: 18, color: AppColors.primaryBlue),
                               const SizedBox(width: 8),
                               Text(
                                 eta,
@@ -142,7 +148,8 @@ class _CabApproachingScreenState extends State<CabApproachingScreen> {
                           ),
                           Row(
                             children: [
-                              const Icon(Icons.location_on_rounded, size: 18, color: AppColors.primaryBlue),
+                              const Icon(Icons.location_on_rounded,
+                                  size: 18, color: AppColors.primaryBlue),
                               const SizedBox(width: 8),
                               Text(
                                 distance,
@@ -178,6 +185,3 @@ class _CabApproachingScreenState extends State<CabApproachingScreen> {
     );
   }
 }
-
-
-

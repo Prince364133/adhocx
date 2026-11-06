@@ -51,7 +51,8 @@ class _LiveSupportChatScreenState extends State<LiveSupportChatScreen> {
         setState(() {
           _messages.add({
             'sender': 'support',
-            'text': "Thank you for reaching out. An AdhocX transport agent is reviewing your message.",
+            'text':
+                "Thank you for reaching out. An AdhocX transport agent is reviewing your message.",
             'time': 'Just now',
           });
         });
@@ -73,15 +74,18 @@ class _LiveSupportChatScreenState extends State<LiveSupportChatScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              size: 18, color: AppColors.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Row(
           children: [
             CircleAvatar(
               radius: 16,
-              backgroundColor: AppColors.primaryBlueLight.withOpacity(0.5),
-              child: const Icon(Icons.headset_mic_rounded, size: 18, color: AppColors.primaryBlue),
+              backgroundColor:
+                  AppColors.primaryBlueLight.withValues(alpha: 0.5),
+              child: const Icon(Icons.headset_mic_rounded,
+                  size: 18, color: AppColors.primaryBlue),
             ),
             const SizedBox(width: 10),
             Column(
@@ -97,7 +101,8 @@ class _LiveSupportChatScreenState extends State<LiveSupportChatScreen> {
                 ),
                 Text(
                   "We're here to help you",
-                  style: GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted),
+                  style: GoogleFonts.inter(
+                      fontSize: 11, color: AppColors.textMuted),
                 ),
               ],
             ),
@@ -121,13 +126,19 @@ class _LiveSupportChatScreenState extends State<LiveSupportChatScreen> {
                         final time = msg['time'] ?? '';
 
                         return Align(
-                          alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                          alignment: isUser
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
                           child: Container(
                             margin: const EdgeInsets.only(bottom: 14),
-                            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            constraints: BoxConstraints(
+                                maxWidth:
+                                    MediaQuery.of(context).size.width * 0.75),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
                             decoration: BoxDecoration(
-                              color: isUser ? AppColors.primaryBlue : Colors.white,
+                              color:
+                                  isUser ? AppColors.primaryBlue : Colors.white,
                               borderRadius: BorderRadius.only(
                                 topLeft: const Radius.circular(16),
                                 topRight: const Radius.circular(16),
@@ -136,20 +147,24 @@ class _LiveSupportChatScreenState extends State<LiveSupportChatScreen> {
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.04),
+                                  color: Colors.black.withValues(alpha: 0.04),
                                   blurRadius: 6,
                                   offset: const Offset(0, 2),
                                 ),
                               ],
                             ),
                             child: Column(
-                              crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                              crossAxisAlignment: isUser
+                                  ? CrossAxisAlignment.end
+                                  : CrossAxisAlignment.start,
                               children: [
                                 Text(
                                   text,
                                   style: GoogleFonts.inter(
                                     fontSize: 14,
-                                    color: isUser ? Colors.white : AppColors.textPrimary,
+                                    color: isUser
+                                        ? Colors.white
+                                        : AppColors.textPrimary,
                                     height: 1.35,
                                   ),
                                 ),
@@ -158,7 +173,9 @@ class _LiveSupportChatScreenState extends State<LiveSupportChatScreen> {
                                   time,
                                   style: GoogleFonts.inter(
                                     fontSize: 10,
-                                    color: isUser ? Colors.white70 : AppColors.textMuted,
+                                    color: isUser
+                                        ? Colors.white70
+                                        : AppColors.textMuted,
                                   ),
                                 ),
                               ],
@@ -171,15 +188,18 @@ class _LiveSupportChatScreenState extends State<LiveSupportChatScreen> {
 
                   // Bottom Input Bar
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                    decoration: const BoxDecoration(
                       color: Colors.white,
-                      border: Border(top: BorderSide(color: AppColors.border)),
+                      border: const Border(
+                          top: const BorderSide(color: AppColors.border)),
                     ),
                     child: Row(
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.attach_file_rounded, color: AppColors.textMuted),
+                          icon: const Icon(Icons.attach_file_rounded,
+                              color: AppColors.textMuted),
                           onPressed: () {},
                         ),
                         Expanded(
@@ -204,7 +224,8 @@ class _LiveSupportChatScreenState extends State<LiveSupportChatScreen> {
                         CircleAvatar(
                           backgroundColor: AppColors.primaryBlue,
                           child: IconButton(
-                            icon: const Icon(Icons.send_rounded, color: Colors.white, size: 18),
+                            icon: const Icon(Icons.send_rounded,
+                                color: Colors.white, size: 18),
                             onPressed: _sendMessage,
                           ),
                         ),
@@ -217,6 +238,3 @@ class _LiveSupportChatScreenState extends State<LiveSupportChatScreen> {
     );
   }
 }
-
-
-
