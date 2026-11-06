@@ -23,8 +23,8 @@ function LoginContent() {
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get('redirect') || '/';
 
-  const [identifier, setIdentifier] = useState('ops@adhocx.com');
-  const [password, setPassword] = useState('Admin@AdhocX2026!');
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -36,40 +36,6 @@ function LoginContent() {
   ) => {
     setOpsSession(accessToken, refreshToken, user);
     router.replace(redirectUrl);
-  };
-
-  /**
-   * One-click Demo Sign-In: Directly authenticates against live NestJS backend.
-   */
-  const handleQuickDemoSignIn = async () => {
-    setIsLoading(true);
-    setErrorMessage(null);
-    setIdentifier('ops@adhocx.com');
-    setPassword('Admin@AdhocX2026!');
-
-    try {
-      const res = await opsApi.login('ops@adhocx.com', 'Admin@AdhocX2026!');
-      const data = res?.data || res;
-      if (data && data.accessToken) {
-        applySessionAndRedirect(
-          data.accessToken,
-          {
-            id: data.user?.id || '7b42bd61-6afb-441d-89ac-d954ffd24f7f',
-            role: data.user?.role || 'OPS',
-            fullName: data.user?.fullName || 'AdhocX Operations Dispatcher',
-            email: data.user?.email || 'ops@adhocx.com',
-            phone: data.user?.phone || '+919876543209',
-          },
-          data.refreshToken,
-        );
-        return;
-      }
-    } catch (err: any) {
-      console.warn('Backend authentication error:', err);
-      setErrorMessage(err?.message || 'Failed to authenticate with live operations backend.');
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -90,7 +56,7 @@ function LoginContent() {
         applySessionAndRedirect(
           data.accessToken,
           {
-            id: data.user?.id || 'USR-OPS',
+            id: data.user?.id || '',
             role: data.user?.role || 'OPS',
             fullName: data.user?.fullName || 'Operations Dispatcher',
             email: data.user?.email || identifier.trim(),
@@ -104,7 +70,7 @@ function LoginContent() {
     } catch (err: any) {
       const msg = err?.message || '';
       if (msg.includes('401') || msg.includes('Incorrect') || msg.includes('Unauthorized')) {
-        setErrorMessage('Invalid credentials. Default ops demo password is Admin@AdhocX2026!.');
+        setErrorMessage('Invalid credentials. Please verify your operations email and password.');
       } else {
         setErrorMessage(msg || 'Authentication failed. Please check network connectivity.');
       }
@@ -387,34 +353,18 @@ function LoginContent() {
 
           {/* Password with Eye Visibility Toggle */}
           <div style={{ width: '100%', boxSizing: 'border-box' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
-              <label
-                htmlFor="ops-password"
-                style={{
-                  fontSize: '0.78rem',
-                  fontWeight: 600,
-                  color: 'var(--text-secondary)',
-                }}
-              >
-                Password
-              </label>
-              <button
-                type="button"
-                onClick={() => setPassword('Admin@AdhocX2026!')}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '0.72rem',
-                  fontWeight: 600,
-                  color: 'var(--brand-primary, #5728B2)',
-                  cursor: 'pointer',
-                  padding: 0,
-                  textDecoration: 'underline',
-                }}
-              >
-                Use Demo Password
-              </button>
-            </div>
+            <label
+              htmlFor="ops-password"
+              style={{
+                display: 'block',
+                fontSize: '0.78rem',
+                fontWeight: 600,
+                color: 'var(--text-secondary)',
+                marginBottom: '0.4rem',
+              }}
+            >
+              Password
+            </label>
             <div style={{ position: 'relative', width: '100%', boxSizing: 'border-box' }}>
               <div
                 style={{
@@ -527,79 +477,6 @@ function LoginContent() {
             )}
           </button>
         </form>
-
-        {/* Quick Demo Access */}
-        <div style={{ marginTop: '1.25rem', paddingTop: '1.15rem', borderTop: '1px solid var(--border-subtle)' }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.35rem',
-              fontSize: '0.7rem',
-              fontWeight: 700,
-              color: 'var(--text-muted)',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              marginBottom: '0.75rem',
-            }}
-          >
-            <Sparkles size={13} style={{ color: 'var(--brand-primary, #5728B2)' }} />
-            <span>Instant Dispatcher Access (Live Backend)</span>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleQuickDemoSignIn}
-            disabled={isLoading}
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '0.75rem 0.95rem',
-              borderRadius: '10px',
-              backgroundColor: 'var(--bg-surface-muted)',
-              border: '1.5px solid var(--border-subtle)',
-              cursor: 'pointer',
-              textAlign: 'left',
-              transition: 'all 0.15s ease',
-              boxSizing: 'border-box',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = 'var(--brand-primary, #5728B2)';
-              e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'var(--border-subtle)';
-              e.currentTarget.style.backgroundColor = 'var(--bg-surface-muted)';
-            }}
-          >
-            <div>
-              <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                AdhocX Operations Dispatcher
-              </div>
-              <div style={{ fontSize: '0.7rem', color: 'var(--brand-primary, #5728B2)', fontWeight: 600, marginTop: '2px' }}>
-                ops@adhocx.com · System Role: OPS
-              </div>
-            </div>
-            <span
-              style={{
-                fontSize: '0.72rem',
-                fontWeight: 700,
-                color: '#FFFFFF',
-                backgroundColor: 'var(--brand-primary, #5728B2)',
-                padding: '4px 10px',
-                borderRadius: '6px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-              }}
-            >
-              Sign In ➔
-            </span>
-          </button>
-        </div>
 
         {/* Security & System Info */}
         <div

@@ -265,6 +265,29 @@ export class CorporateTenantController {
     return this.tenantService.getOfficeById(tenantId, officeId);
   }
 
+  @Get(':id/offices/:officeId/geofences')
+  @Roles(...CORPORATE_PORTAL_ROLES)
+  @CorporateResource('tenant', 'id')
+  @CorporatePermission('offices:read')
+  @ApiOperation({ summary: 'Get office geofence polygon, gates and pickup bays' })
+  @ApiResponse({ status: 200, description: 'Office geofences and gates' })
+  public async getOfficeGeofences(
+    @Param('id') tenantId: string,
+    @Param('officeId') officeId: string,
+  ) {
+    return this.tenantService.getOfficeGeofences(tenantId, officeId);
+  }
+
+  @Get(':id/integrations')
+  @Roles(...CORPORATE_PORTAL_ROLES)
+  @CorporateResource('tenant', 'id')
+  @CorporatePermission('tenant:read')
+  @ApiOperation({ summary: 'Get tenant HRMS connector status, webhook delivery health and field mappings' })
+  @ApiResponse({ status: 200, description: 'Integration status' })
+  public async getIntegrations(@Param('id') tenantId: string) {
+    return this.tenantService.getTenantIntegrations(tenantId);
+  }
+
   // ---------------------------------------------------------------------------
   // EMPLOYEES & GEOCODING
   // ---------------------------------------------------------------------------

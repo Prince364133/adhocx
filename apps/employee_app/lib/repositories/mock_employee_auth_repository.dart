@@ -35,8 +35,8 @@ class MockEmployeeAuthRepository implements EmployeeAuthRepository {
       throw const TransportIneligibleException();
     }
 
-    // Valid OTP codes: 528471 (from UI mockup) or 123456
-    if (cleanOtp == '528471' || cleanOtp == '123456') {
+    // OTP verification requires a valid 6-digit code
+    if (cleanOtp.length == 6) {
       final profile = await MockDataService.getEmployeeProfile();
       final user = EmployeeUser(
         id: profile['id'] as String? ?? 'usr_emp_10294',

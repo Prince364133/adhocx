@@ -33,7 +33,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     _hasError = widget.initialError;
     if (_hasError) {
       _errorMessage = 'Invalid OTP. Please check and try again.';
-      _otpCode = '5284'; // matches Screen 14 mockup visual where 4 digits were entered
+      _otpCode = '';
     }
   }
 
@@ -85,7 +85,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<EmployeeAuthProvider>();
-    final phone = authProvider.currentPhone ?? '+91 98765 43210';
+    final phone = (authProvider.currentPhone != null && authProvider.currentPhone!.isNotEmpty)
+        ? authProvider.currentPhone!
+        : 'your registered number';
     final countdown = authProvider.resendCountdown;
     final countdownFormatted = '00:${countdown.toString().padLeft(2, '0')}';
 
@@ -193,34 +195,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                       ),
               ),
 
-              // Dev hint card for testers
               const Spacer(),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceMuted,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.info_outline, size: 16, color: AppColors.textMuted),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Dev Mock: Use code 528471 to verify, 888888 for not eligible, or any code for invalid state.',
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
               // "Verify & Continue" Pill Button
               EmployeePrimaryButton(
                 label: 'Verify & Continue',

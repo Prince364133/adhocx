@@ -8,6 +8,7 @@ import { apiDownload, apiRequest, qs } from './client';
 import type {
   AttendancePage,
   AuthResponse,
+  BookingQueueResponse,
   CorporateRateCard,
   CorporateUser,
   CreditNote,
@@ -16,11 +17,13 @@ import type {
   Employee,
   EmployeeLocation,
   EmployeeRequestsResponse,
+  ExceptionsResponse,
   Holiday,
   Invoice,
   InvoiceDetail,
   InvoiceDispute,
   Office,
+  OfficeGeofenceDetails,
   OtpRequestResponse,
   Paginated,
   Roster,
@@ -35,6 +38,7 @@ import type {
   SosAlert,
   SupportTicket,
   Tenant,
+  TenantIntegrations,
 } from './types';
 
 export interface AnalyticsParams {
@@ -73,10 +77,16 @@ export const authApi = {
 export const tenantApi = {
   get: (tenantId: string) => apiRequest<Tenant>(`/corporate/tenants/${tenantId}`),
   offices: (tenantId: string) => apiRequest<Office[]>(`/corporate/tenants/${tenantId}/offices`),
+  geofences: (tenantId: string, officeId: string) =>
+    apiRequest<OfficeGeofenceDetails>(`/corporate/tenants/${tenantId}/offices/${officeId}/geofences`),
+  integrations: (tenantId: string) =>
+    apiRequest<TenantIntegrations>(`/corporate/tenants/${tenantId}/integrations`),
 };
 
 export const analyticsApi = {
   dashboard: (p: AnalyticsParams) => apiRequest<Dashboard>(`/corporate/analytics/dashboard${qs({ ...p })}`),
+  exceptions: (p: { tenantId?: string; officeId?: string; from?: string; to?: string }) =>
+    apiRequest<ExceptionsResponse>(`/corporate/analytics/exceptions${qs(p)}`),
   attendance: (p: Omit<AnalyticsParams, 'direction' | 'shiftTime'> & { page?: number; pageSize?: number }) =>
     apiRequest<AttendancePage>(`/corporate/analytics/attendance${qs({ ...p })}`),
   downloadReport: (type: ReportType, p: AnalyticsParams) =>
@@ -198,7 +208,31 @@ export const tripsApi = {
     requestId: string,
     body: { employeeId: string; action: 'CANCEL' | 'RESCHEDULE'; newShiftTime?: string; newShiftDate?: string },
   ) => apiRequest<unknown>(`/corporate/trips/requests/${requestId}/reschedule`, { method: 'POST', body }),
+
+  /**
+   * List corporate transport requests across all rosters for a tenant.
+   */
+  requests: (p: {
+    tenantId?: string;
+    status?: string;
+    direction?: string;
+    scheduledDate?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }) => apiRequest<BookingQueueResponse>(`/corporate/trips/requests${qs(p)}`),
+
+  /**
+   * Approve or reject an ad-hoc or exception transport booking request.
+   */
+  reviewRequest: (requestId: string, body: { decision: 'APPROVE' | 'REJECT'; notes?: string }) =>
+    apiRequest<{ success: boolean; request: any }>(`/corporate/trips/requests/${requestId}/review`, {
+      method: 'POST',
+      body,
+    }),
 };
+
+export const requestsApi = tripsApi;
 
 export const safetyApi = {
   alerts: (tenantId: string, status?: string) =>

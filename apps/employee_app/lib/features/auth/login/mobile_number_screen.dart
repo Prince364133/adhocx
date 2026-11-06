@@ -7,7 +7,6 @@ import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/widgets/employee_app_bar.dart';
 import 'package:adhocx_employee/widgets/employee_primary_button.dart';
 import 'package:adhocx_employee/state/employee_auth_provider.dart';
-import 'package:adhocx_employee/models/auth_state.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
 
 class MobileNumberScreen extends StatefulWidget {
@@ -409,39 +408,6 @@ class _MobileNumberScreenState extends State<MobileNumberScreen> {
                       label: _isPhoneMode ? 'Send SMS OTP' : 'Send Email OTP',
                       isLoading: authProvider.isLoading,
                       onPressed: isReady ? _handleSendOtp : null,
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // 1-Click Instant Demo Commuter Access
-                    Center(
-                      child: TextButton.icon(
-                        onPressed: authProvider.isLoading
-                            ? null
-                            : () async {
-                                final res = await authProvider.loginWithPassword(
-                                  identifier: 'ravi.kumar@hitec.com',
-                                  password: 'Admin@AdhocX2026!',
-                                );
-                                if (context.mounted && res == AuthStatus.authenticated) {
-                                  context.go(AppRoutes.employeeVerified);
-                                }
-                              },
-                        icon: const Icon(Icons.bolt, size: 16, color: AppColors.primaryBlue),
-                        label: Text(
-                          '1-Click Demo Commuter (Ravi Kumar - EMP10204)',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primaryBlue,
-                          ),
-                        ),
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                          backgroundColor: const Color(0xFFEFF6FF),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                      ),
                     ),
                   ],
                 ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -18,53 +19,117 @@ class CompanySsoScreen extends StatefulWidget {
 }
 
 class _CompanySsoScreenState extends State<CompanySsoScreen> {
-  final TextEditingController _emailController = TextEditingController();
-  bool _isValidEmail = false;
+  final TextEditingController _inputController = TextEditingController();
+  bool _isPhoneMode = false;
+  bool _isValid = false;
 
   @override
   void initState() {
     super.initState();
-    _emailController.addListener(() {
-      final email = _emailController.text.trim();
-      final valid = email.contains('@') && email.contains('.') && email.length > 5;
-      if (valid != _isValidEmail) {
-        setState(() => _isValidEmail = valid);
-      }
-    });
+    _inputController.addListener(_onInputChanged);
+  }
+
+  void _onInputChanged() {
+    final text = _inputController.text.trim();
+    if (text.isEmpty) {
+      if (_isValid) setState(() => _isValid = false);
+      return;
+    }
+
+    // Smart Auto-Detection:
+    // If user starts with or enters digits -> switch to Mobile (+91)
+    // If user enters alphabets or '@' -> switch to Corporate Email
+    final startsWithDigitsOrPlus = RegExp(r'^(\+|[0-9])').hasMatch(text);
+    final hasAlphaOrAt = RegExp(r'[a-zA-Z@]').hasMatch(text);
+
+    if (startsWithDigitsOrPlus && !hasAlphaOrAt && !_isPhoneMode) {
+      setState(() => _isPhoneMode = true);
+    } else if (hasAlphaOrAt && _isPhoneMode) {
+      setState(() => _isPhoneMode = false);
+    }
+
+    final valid = _isPhoneMode
+        ? _cleanIndianDigits(text).length == 10
+        : (text.contains('@') && text.contains('.') && text.length > 5);
+
+    if (valid != _isValid) {
+      setState(() => _isValid = valid);
+    }
   }
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _inputController.removeListener(_onInputChanged);
+    _inputController.dispose();
     super.dispose();
   }
 
-  Future<void> _handleSsoSubmit() async {
-    final email = _emailController.text.trim();
-    if (!_isValidEmail) return;
+  String _cleanIndianDigits(String raw) {
+    String digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.startsWith('91') && digits.length == 12) {
+      digits = digits.substring(2);
+    } else if (digits.startsWith('0') && digits.length == 11) {
+      digits = digits.substring(1);
+    }
+    return digits;
+  }
 
+  Future<void> _handleSubmit() async {
+    final text = _inputController.text.trim();
     final authProvider = context.read<EmployeeAuthProvider>();
-    final result = await authProvider.authenticateWithSso(email);
 
-    if (!mounted) return;
+    if (_isPhoneMode) {
+      final digits = _cleanIndianDigits(text);
+      if (digits.length != 10 || !RegExp(r'^[6-9]\d{9}$').hasMatch(digits)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter a valid 10-digit Indian mobile number.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        return;
+      }
 
-    if (result == AuthStatus.authenticated) {
-      context.go(AppRoutes.employeeVerified);
-    } else if (result == AuthStatus.notEligible) {
-      context.go(AppRoutes.transportUnavailable);
+      final success = await authProvider.sendOtp('+91 $digits');
+      if (mounted && success) {
+        context.push(AppRoutes.otpVerify);
+      }
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authProvider.errorMessage ?? 'SSO authentication failed.'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      if (!text.contains('@') || !text.contains('.')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter a valid company email address.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        return;
+      }
+
+      final result = await authProvider.authenticateWithSso(text);
+
+      if (!mounted) return;
+
+      if (result == AuthStatus.authenticated) {
+        context.go(AppRoutes.employeeVerified);
+      } else if (result == AuthStatus.notEligible) {
+        context.go(AppRoutes.transportUnavailable);
+      } else if (result == AuthStatus.otpSent) {
+        context.push(AppRoutes.otpVerify);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(authProvider.errorMessage ?? 'SSO authentication failed.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<EmployeeAuthProvider>();
+    final rawText = _inputController.text.trim();
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -82,7 +147,7 @@ class _CompanySsoScreenState extends State<CompanySsoScreen> {
               const SizedBox(height: 28),
 
               Text(
-                'Continue with\nCompany SSO',
+                _isPhoneMode ? 'Sign In with\nIndian Mobile (+91)' : 'Continue with\nCompany SSO',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
                   fontSize: 24,
@@ -96,7 +161,9 @@ class _CompanySsoScreenState extends State<CompanySsoScreen> {
               const SizedBox(height: 8),
 
               Text(
-                'Use your company email to sign in.',
+                _isPhoneMode
+                    ? "Enter your 10-digit Indian phone number to receive an SMS OTP."
+                    : 'Use your company email or mobile number to sign in.',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
                   fontSize: 14,
@@ -105,39 +172,201 @@ class _CompanySsoScreenState extends State<CompanySsoScreen> {
                 ),
               ),
 
-              const SizedBox(height: 36),
+              const SizedBox(height: 24),
 
-              // Work Email TextField
-              TextField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                autocorrect: false,
-                style: GoogleFonts.inter(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textPrimary,
+              // Mode Switcher Pills
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                decoration: InputDecoration(
-                  hintText: 'you@company.com',
-                  prefixIcon: const Icon(
-                    Icons.email_outlined,
-                    color: AppColors.textMuted,
-                    size: 20,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _isPhoneMode = false;
+                          });
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: !_isPhoneMode ? Colors.white : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: !_isPhoneMode
+                                ? [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.06),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 1),
+                                    )
+                                  ]
+                                : null,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.email_outlined,
+                                size: 15,
+                                color: !_isPhoneMode ? AppColors.primaryBlue : AppColors.textMuted,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Company Email',
+                                style: GoogleFonts.inter(
+                                  fontSize: 13,
+                                  fontWeight: !_isPhoneMode ? FontWeight.w700 : FontWeight.w500,
+                                  color: !_isPhoneMode ? AppColors.textPrimary : AppColors.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _isPhoneMode = true;
+                          });
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: _isPhoneMode ? Colors.white : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: _isPhoneMode
+                                ? [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.06),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 1),
+                                    )
+                                  ]
+                                : null,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Text('🇮🇳', style: TextStyle(fontSize: 14)),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Mobile (+91)',
+                                style: GoogleFonts.inter(
+                                  fontSize: 13,
+                                  fontWeight: _isPhoneMode ? FontWeight.w700 : FontWeight.w500,
+                                  color: _isPhoneMode ? AppColors.textPrimary : AppColors.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Smart Identifier TextField
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: rawText.isNotEmpty ? AppColors.primaryBlue : AppColors.border,
+                    width: rawText.isNotEmpty ? 2.0 : 1.5,
                   ),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppColors.border, width: 1.5),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppColors.border, width: 1.5),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppColors.primaryBlue, width: 2),
-                  ),
+                ),
+                child: Row(
+                  children: [
+                    if (_isPhoneMode) ...[
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('🇮🇳', style: TextStyle(fontSize: 16)),
+                          const SizedBox(width: 5),
+                          Text(
+                            '+91',
+                            style: GoogleFonts.inter(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            size: 18,
+                            color: AppColors.textMuted,
+                          ),
+                        ],
+                      ),
+                      Container(
+                        height: 24,
+                        width: 1,
+                        color: AppColors.border,
+                        margin: const EdgeInsets.symmetric(horizontal: 10),
+                      ),
+                    ] else ...[
+                      const Icon(
+                        Icons.alternate_email_rounded,
+                        size: 19,
+                        color: AppColors.primaryBlue,
+                      ),
+                      Container(
+                        height: 24,
+                        width: 1,
+                        color: AppColors.border,
+                        margin: const EdgeInsets.symmetric(horizontal: 10),
+                      ),
+                    ],
+                    Expanded(
+                      child: TextField(
+                        controller: _inputController,
+                        keyboardType: _isPhoneMode ? TextInputType.phone : TextInputType.emailAddress,
+                        inputFormatters: _isPhoneMode
+                            ? [
+                                FilteringTextInputFormatter.allow(RegExp(r'[0-9\+\s\-]')),
+                                LengthLimitingTextInputFormatter(14),
+                              ]
+                            : null,
+                        style: GoogleFonts.inter(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.textPrimary,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: _isPhoneMode ? '98765 43210' : 'you@company.com',
+                          hintStyle: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                            color: AppColors.textMuted,
+                          ),
+                          border: InputBorder.none,
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                    if (rawText.isNotEmpty)
+                      GestureDetector(
+                        onTap: () => setState(() => _inputController.clear()),
+                        child: const Icon(
+                          Icons.cancel,
+                          size: 18,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                  ],
                 ),
               ),
 
@@ -145,39 +374,18 @@ class _CompanySsoScreenState extends State<CompanySsoScreen> {
 
               // Continue Button
               EmployeePrimaryButton(
-                label: 'Continue',
+                label: _isPhoneMode ? 'Send SMS OTP' : 'Continue with SSO',
                 isLoading: authProvider.isLoading,
-                onPressed: _isValidEmail ? _handleSsoSubmit : null,
+                onPressed: _isValid ? _handleSubmit : null,
               ),
 
               const SizedBox(height: 24),
 
-              // Divider "or"
-              Row(
-                children: [
-                  const Expanded(child: Divider(color: AppColors.border)),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(
-                      'or',
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        color: AppColors.textMuted,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                  const Expanded(child: Divider(color: AppColors.border)),
-                ],
-              ),
-
-              const SizedBox(height: 20),
-
-              // Link to Mobile Number
+              // Quick route directly to mobile number
               TextButton(
                 onPressed: () => context.push(AppRoutes.mobileNumber),
                 child: Text(
-                  'Use Mobile Number Instead',
+                  'Switch to Dialpad Sign In',
                   style: GoogleFonts.inter(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,

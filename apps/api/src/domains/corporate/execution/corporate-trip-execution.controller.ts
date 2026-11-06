@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Param,
+  Query,
   Body,
   BadRequestException,
   Req,
@@ -10,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
 import { UserRole } from '@adhocx/contracts';
+import { DatabaseService } from '../../../database/database.service';
 import { JwtAuthGuard } from '../../../common/guards/auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { CorporateAccessGuard } from '../../../common/guards/corporate-access.guard';
@@ -41,6 +43,7 @@ export class CorporateTripExecutionController {
   constructor(
     private readonly executionService: CorporateTripExecutionService,
     private readonly riderService: CorporateRiderService,
+    private readonly db: DatabaseService,
   ) {}
 
   @Post('routes/:id/start')
@@ -296,6 +299,122 @@ export class CorporateTripExecutionController {
       },
       { override: { actorUserId, reason: body.reason } },
     );
+  }
+
+  @Get('requests')
+  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @CorporateTenantScoped()
+  @ApiOperation({ summary: 'List and filter corporate transport requests / booking queue across all rosters' })
+  public async listRequests(
+    @Query('tenantId') tenantId?: string,
+    @Query('status') status?: string,
+    @Query('direction') direction?: string,
+    @Query('scheduledDate') scheduledDate?: string,
+    @Query('search') search?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Req() req?: any,
+  ) {
+    const scopedTenantId = req?.user?.corporateTenantId ?? tenantId;
+    if (!scopedTenantId) {
+      throw new BadRequestException('tenantId is required');
+    }
+
+    const pageNum = Math.max(1, page ? parseInt(page, 10) : 1);
+    const take = Math.min(100, Math.max(1, limit ? parseInt(limit, 10) : 30));
+    const skip = (pageNum - 1) * take;
+
+    const where: any = { tenantId: scopedTenantId };
+    if (status && status !== 'ALL') {
+      where.status = status;
+    }
+    if (direction && direction !== 'ALL') {
+      where.direction = direction;
+    }
+    if (scheduledDate) {
+      where.scheduledDate = new Date(scheduledDate);
+    }
+    if (search) {
+      where.OR = [
+        { employee: { fullName: { contains: search, mode: 'insensitive' } } },
+        { employee: { employeeCode: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+
+    const [total, items] = await Promise.all([
+      this.db.corporateTransportRequest.count({ where }),
+      this.db.corporateTransportRequest.findMany({
+        where,
+        skip,
+        take,
+        orderBy: [{ scheduledDate: 'desc' }, { shiftTime: 'asc' }],
+        include: {
+          employee: {
+            select: {
+              id: true,
+              employeeCode: true,
+              fullName: true,
+              email: true,
+              phoneNumber: true,
+              department: true,
+            },
+          },
+          routeStop: {
+            select: {
+              id: true,
+              routeId: true,
+              stopSequence: true,
+              status: true,
+              plannedEta: true,
+              actualArrivalTime: true,
+            },
+          },
+          roster: {
+            select: {
+              id: true,
+              rosterDate: true,
+              office: { select: { id: true, name: true, code: true } },
+            },
+          },
+        },
+      }),
+    ]);
+
+    return {
+      items,
+      total,
+      page: pageNum,
+      pageSize: take,
+      totalPages: Math.ceil(total / take),
+    };
+  }
+
+  @Post('requests/:id/review')
+  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @CorporateResource('request', 'id')
+  @ApiOperation({ summary: 'Approve or reject an ad-hoc or exception transport booking request' })
+  public async reviewRequest(
+    @Param('id') requestId: string,
+    @Body() body: { decision: 'APPROVE' | 'REJECT'; notes?: string },
+    @Req() req?: any,
+  ) {
+    if (!body.decision || (body.decision !== 'APPROVE' && body.decision !== 'REJECT')) {
+      throw new BadRequestException('decision must be "APPROVE" or "REJECT"');
+    }
+
+    const targetStatus = body.decision === 'APPROVE' ? 'APPROVED' : 'CANCELLED';
+    const updated = await this.db.corporateTransportRequest.update({
+      where: { id: requestId },
+      data: { status: targetStatus },
+      include: { employee: true },
+    });
+
+    return {
+      success: true,
+      request: updated,
+      reviewedBy: req?.user?.id,
+      notes: body.notes,
+    };
   }
 
   // ---------------------------------------------------------------------------

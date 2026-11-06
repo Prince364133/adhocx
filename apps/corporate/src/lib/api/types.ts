@@ -477,3 +477,136 @@ export interface CorporateUser {
   corporateOfficeIds: string[];
   createdAt: string;
 }
+
+// ── Operational Exceptions ──────────────────────────────────────────────────
+
+export interface ExceptionItem {
+  id: string;
+  type: 'Delayed' | 'Unassigned' | 'GPS Stale' | 'Route Deviation' | 'Safety Alert';
+  target: string;
+  details: string;
+  office: string;
+  duration: string;
+  status: 'Open' | 'In Review' | 'Escalated' | 'Resolved';
+  action: 'View' | 'Assign' | 'Track' | 'Resolve' | 'Locate';
+}
+
+export interface ExceptionsSummary {
+  delayedPickups: number;
+  unassignedTrips: number;
+  gpsStaleCount: number;
+  routeDeviations: number;
+  safetyAlerts: number;
+}
+
+export interface ExceptionsResponse {
+  summary: ExceptionsSummary;
+  items: ExceptionItem[];
+  trend: Array<{
+    day: string;
+    delayed: number;
+    unassigned: number;
+    gpsStale: number;
+    deviation: number;
+    safety: number;
+  }>;
+}
+
+// ── Bookings & Requests Queue ───────────────────────────────────────────────
+
+export interface BookingRequestItem {
+  id: string;
+  rosterId: string | null;
+  scheduledDate: string;
+  shiftTime: string;
+  direction: Direction;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  employee?: {
+    id: string;
+    employeeCode: string;
+    fullName: string;
+    email: string;
+    phoneNumber: string;
+    department?: string | null;
+  };
+  routeStop?: {
+    id: string;
+    routeId: string;
+    stopSequence: number;
+    status: string;
+    plannedEta: string;
+    actualArrivalTime: string | null;
+  } | null;
+  roster?: {
+    id: string;
+    rosterDate: string;
+    office?: { id: string; name: string; code: string } | null;
+  } | null;
+}
+
+export interface BookingQueueResponse {
+  items: BookingRequestItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+// ── Geofences & Gates ───────────────────────────────────────────────────────
+
+export interface OfficeGeofenceDetails {
+  office: {
+    id: string;
+    code: string;
+    name: string;
+    addressText: string;
+  };
+  radiusMeters: number;
+  center: { latitude: number; longitude: number };
+  polygon: Array<{ latitude: number; longitude: number }>;
+  gates: Array<{
+    id: string;
+    name: string;
+    type: string;
+    rfidBarrier: boolean;
+    guardOnDuty: boolean;
+    lat: number;
+    lng: number;
+  }>;
+  pickupPoints: Array<{
+    id: string;
+    name: string;
+    capacity: number;
+    lat: number;
+    lng: number;
+  }>;
+}
+
+// ── Integrations & Health ──────────────────────────────────────────────────
+
+export interface TenantIntegrations {
+  tenantId: string;
+  tenantName: string;
+  hrms: {
+    provider: string;
+    status: string;
+    lastSyncAt: string;
+    syncInterval: string;
+    autoSyncEnabled: boolean;
+    totalEmployeesSynced: number;
+  };
+  webhookHealth: {
+    uptimePct: number;
+    avgLatencyMs: number;
+    totalEventsToday: number;
+    failedEventsToday: number;
+  };
+  fieldMappings: Array<{
+    systemField: string;
+    hrmsField: string;
+    isRequired: boolean;
+    mapped: boolean;
+  }>;
+}

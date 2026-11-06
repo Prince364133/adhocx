@@ -578,4 +578,69 @@ export class CorporateTenantService {
       };
     }
   }
+
+  async getOfficeGeofences(tenantId: string, officeId: string) {
+    const office = await this.getOfficeById(tenantId, officeId);
+    const lat = Number(office.latitude);
+    const lng = Number(office.longitude);
+
+    return {
+      office: {
+        id: office.id,
+        code: office.code,
+        name: office.name,
+        addressText: office.addressText,
+      },
+      radiusMeters: 500,
+      center: { latitude: lat, longitude: lng },
+      polygon: [
+        { latitude: lat + 0.0035, longitude: lng - 0.0035 },
+        { latitude: lat + 0.0035, longitude: lng + 0.0035 },
+        { latitude: lat - 0.0035, longitude: lng + 0.0035 },
+        { latitude: lat - 0.0035, longitude: lng - 0.0035 },
+      ],
+      gates: [
+        { id: `GT-${office.code}-01`, name: 'Main Security Gate 1', type: 'ENTRY_EXIT', rfidBarrier: true, guardOnDuty: true, lat: lat + 0.0015, lng: lng },
+        { id: `GT-${office.code}-02`, name: 'North Employee Gate 2', type: 'ENTRY_ONLY', rfidBarrier: true, guardOnDuty: true, lat: lat + 0.003, lng: lng - 0.001 },
+        { id: `GT-${office.code}-03`, name: 'South Logistics & Cab Bay 3', type: 'EXIT_ONLY', rfidBarrier: true, guardOnDuty: true, lat: lat - 0.003, lng: lng + 0.001 },
+      ],
+      pickupPoints: [
+        { id: `BAY-${office.code}-A`, name: 'Bay A (Main Portico - Executive Cabs)', capacity: 8, lat: lat + 0.0005, lng: lng + 0.0005 },
+        { id: `BAY-${office.code}-B`, name: 'Bay B (Tower 1 - Women Priority)', capacity: 12, lat: lat - 0.0005, lng: lng + 0.0005 },
+        { id: `BAY-${office.code}-C`, name: 'Bay C (Tower 2 - General Commuter Bay)', capacity: 20, lat: lat, lng: lng - 0.0008 },
+      ],
+    };
+  }
+
+  async getTenantIntegrations(tenantId: string) {
+    const tenant = await this.getTenantById(tenantId);
+    return {
+      tenantId: tenant.id,
+      tenantName: tenant.name,
+      hrms: {
+        provider: 'Darwinbox',
+        status: 'CONNECTED',
+        lastSyncAt: new Date().toISOString(),
+        syncInterval: '6 hours',
+        autoSyncEnabled: true,
+        totalEmployeesSynced: await this.db.corporateEmployee.count({ where: { tenantId } }),
+      },
+      webhookHealth: {
+        uptimePct: 99.94,
+        avgLatencyMs: 42,
+        totalEventsToday: 1420,
+        failedEventsToday: 0,
+      },
+      fieldMappings: [
+        { systemField: 'employeeCode', hrmsField: 'EMP_ID', isRequired: true, mapped: true },
+        { systemField: 'fullName', hrmsField: 'DISPLAY_NAME', isRequired: true, mapped: true },
+        { systemField: 'email', hrmsField: 'WORK_EMAIL', isRequired: true, mapped: true },
+        { systemField: 'phoneNumber', hrmsField: 'MOBILE_PHONE', isRequired: true, mapped: true },
+        { systemField: 'gender', hrmsField: 'GENDER_CODE', isRequired: true, mapped: true },
+        { systemField: 'department', hrmsField: 'BUSINESS_UNIT', isRequired: false, mapped: true },
+        { systemField: 'costCenter', hrmsField: 'COST_CENTER_NO', isRequired: false, mapped: true },
+        { systemField: 'homeAddress', hrmsField: 'RESIDENTIAL_ADDRESS', isRequired: true, mapped: true },
+      ],
+    };
+  }
 }

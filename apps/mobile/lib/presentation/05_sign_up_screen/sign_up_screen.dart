@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -17,7 +18,7 @@ import '../../widgets/common/app_primary_button.dart';
 import '../../widgets/common/app_social_auth_button.dart';
 import '../../widgets/common/app_text_field.dart';
 
-/// Screen 5: Create your account (Sign Up) with Email and Google Auth.
+/// Screen 5: Create your account (Sign Up) with Mobile (+91), Email, and Google Auth.
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
 
@@ -33,8 +34,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
   late final TapGestureRecognizer _privacyRecognizer;
 
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
+  final _identifierController = TextEditingController();
 
+  bool _isPhoneMode = true;
   bool _agreeToTerms = false;
   bool _isLoading = false;
 
@@ -43,13 +45,30 @@ class _SignUpScreenState extends State<SignUpScreen> {
     super.initState();
     _termsRecognizer = TapGestureRecognizer()..onTap = () => _launchWebUrl(_termsUrl);
     _privacyRecognizer = TapGestureRecognizer()..onTap = () => _launchWebUrl(_privacyUrl);
+    _identifierController.addListener(_onIdentifierChanged);
+  }
+
+  void _onIdentifierChanged() {
+    final text = _identifierController.text.trim();
+    if (text.isEmpty) return;
+
+    // Smart auto-detection: numbers turn to phone (+91), letters turn to email
+    final startsWithDigitsOrPlus = RegExp(r'^(\+|[0-9])').hasMatch(text);
+    final hasAlphaOrAt = RegExp(r'[a-zA-Z@]').hasMatch(text);
+
+    if (startsWithDigitsOrPlus && !hasAlphaOrAt && !_isPhoneMode) {
+      setState(() => _isPhoneMode = true);
+    } else if (hasAlphaOrAt && _isPhoneMode) {
+      setState(() => _isPhoneMode = false);
+    }
   }
 
   @override
   void dispose() {
     _termsRecognizer.dispose();
     _privacyRecognizer.dispose();
-    _emailController.dispose();
+    _identifierController.removeListener(_onIdentifierChanged);
+    _identifierController.dispose();
     super.dispose();
   }
 
@@ -67,27 +86,46 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
-  String? _validateEmail(String? val) {
+  String _cleanIndianDigits(String raw) {
+    String digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.startsWith('91') && digits.length == 12) {
+      digits = digits.substring(2);
+    } else if (digits.startsWith('0') && digits.length == 11) {
+      digits = digits.substring(1);
+    }
+    return digits;
+  }
+
+  String? _validateIdentifier(String? val) {
     if (val == null || val.trim().isEmpty) {
-      return 'Please enter your email address';
+      return _isPhoneMode
+          ? 'Please enter your 10-digit mobile number'
+          : 'Please enter your email address';
     }
-    final email = val.trim().toLowerCase();
-    final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
-    if (!emailRegex.hasMatch(email)) {
-      return 'Please enter a valid email address';
+    final text = val.trim();
+    if (_isPhoneMode) {
+      final digits = _cleanIndianDigits(text);
+      if (digits.length != 10 || !RegExp(r'^[6-9]\d{9}$').hasMatch(digits)) {
+        return 'Please enter a valid 10-digit Indian mobile number';
+      }
+      return null;
+    } else {
+      final email = text.toLowerCase();
+      final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+      if (!emailRegex.hasMatch(email)) {
+        return 'Please enter a valid email address';
+      }
+      return null;
     }
-    return null;
   }
 
   Future<void> _handleSignUp() async {
-    final emailRaw = _emailController.text.trim().toLowerCase();
-    final emailError = _validateEmail(emailRaw);
-    if (emailError != null) {
+    final validationError = _validateIdentifier(_identifierController.text);
+    if (validationError != null) {
       _formKey.currentState?.validate();
-      AppToast.showError(emailError, context: context);
+      AppToast.showError(validationError, context: context);
       return;
     }
-    final targetEmail = emailRaw;
 
     if (!_agreeToTerms) {
       AppToast.showWarning('Please accept the Terms & Conditions and Privacy Policy to proceed', context: context);
@@ -105,32 +143,71 @@ class _SignUpScreenState extends State<SignUpScreen> {
       final authService = context.read<AuthService>();
       final onboarding = context.read<OnboardingProvider>();
 
-      onboarding.setPersonalDetails(
-        fullName: !isPlaceholderName(onboarding.fullName) ? onboarding.fullName : '',
-        dateOfBirth: onboarding.dateOfBirth,
-        gender: onboarding.gender,
-        email: targetEmail,
-      );
+      if (_isPhoneMode) {
+        final digits = _cleanIndianDigits(_identifierController.text);
+        final phoneE164 = '+91$digits';
 
-      final res = await authService.requestOtp(
-        email: targetEmail,
-        channel: 'EMAIL',
-        role: onboarding.role,
-        isRegister: true,
-      );
-
-      if (mounted) {
-        final message = res is Map && res['message'] != null ? res['message'] : 'OTP sent to $targetEmail';
-        AppToast.showSuccess(message, context: context);
-
-        context.push(
-          AppRoutes.loginOtpScreen,
-          extra: {
-            'email': targetEmail,
-            'role': onboarding.role,
-            'isRegister': true,
-          },
+        onboarding.setPersonalDetails(
+          fullName: !isPlaceholderName(onboarding.fullName) ? onboarding.fullName : '',
+          dateOfBirth: onboarding.dateOfBirth,
+          gender: onboarding.gender,
+          phone: phoneE164,
         );
+
+        final res = await authService.requestOtp(
+          phone: phoneE164,
+          channel: 'SMS',
+          role: onboarding.role,
+          isRegister: true,
+        );
+
+        if (mounted) {
+          final message = res is Map && res['message'] != null
+              ? res['message']
+              : 'SMS OTP sent to $phoneE164';
+          AppToast.showSuccess(message, context: context);
+
+          context.push(
+            AppRoutes.loginOtpScreen,
+            extra: {
+              'phone': phoneE164,
+              'role': onboarding.role,
+              'isRegister': true,
+            },
+          );
+        }
+      } else {
+        final targetEmail = _identifierController.text.trim().toLowerCase();
+
+        onboarding.setPersonalDetails(
+          fullName: !isPlaceholderName(onboarding.fullName) ? onboarding.fullName : '',
+          dateOfBirth: onboarding.dateOfBirth,
+          gender: onboarding.gender,
+          email: targetEmail,
+        );
+
+        final res = await authService.requestOtp(
+          email: targetEmail,
+          channel: 'EMAIL',
+          role: onboarding.role,
+          isRegister: true,
+        );
+
+        if (mounted) {
+          final message = res is Map && res['message'] != null
+              ? res['message']
+              : 'OTP sent to $targetEmail';
+          AppToast.showSuccess(message, context: context);
+
+          context.push(
+            AppRoutes.loginOtpScreen,
+            extra: {
+              'email': targetEmail,
+              'role': onboarding.role,
+              'isRegister': true,
+            },
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -256,18 +333,163 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                     const SizedBox(height: AppSpacing.xl),
 
-                    // ── Input Field: Corporate Email or Driver Email ────────
-                    AppTextField(
-                      controller: _emailController,
-                      label: isDriver ? 'Email Address *' : 'Corporate Email Address *',
-                      hintText: isDriver ? 'name@example.com' : 'traveldesk@company.com',
-                      prefixIcon: Icon(
-                        Icons.email_outlined,
-                        size: 20,
-                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                    // ── Mode Switcher Pills: Mobile (+91) vs Email ───────────
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.surfaceElevatedDark : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      keyboardType: TextInputType.emailAddress,
-                      validator: _validateEmail,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _isPhoneMode = true;
+                                });
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: _isPhoneMode
+                                      ? (isDark ? AppColors.surfaceDark : Colors.white)
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(8),
+                                  boxShadow: _isPhoneMode
+                                      ? [
+                                          BoxShadow(
+                                            color: Colors.black.withValues(alpha: 0.06),
+                                            blurRadius: 4,
+                                            offset: const Offset(0, 1),
+                                          )
+                                        ]
+                                      : null,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Text('🇮🇳', style: TextStyle(fontSize: 14)),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'Mobile (+91)',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: _isPhoneMode ? FontWeight.w700 : FontWeight.w500,
+                                        color: _isPhoneMode
+                                            ? (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)
+                                            : (isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _isPhoneMode = false;
+                                });
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: !_isPhoneMode
+                                      ? (isDark ? AppColors.surfaceDark : Colors.white)
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(8),
+                                  boxShadow: !_isPhoneMode
+                                      ? [
+                                          BoxShadow(
+                                            color: Colors.black.withValues(alpha: 0.06),
+                                            blurRadius: 4,
+                                            offset: const Offset(0, 1),
+                                          )
+                                        ]
+                                      : null,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.email_outlined,
+                                      size: 15,
+                                      color: !_isPhoneMode
+                                          ? (isDark ? AppColors.primaryLight : AppColors.primary)
+                                          : (isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'Email Address',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: !_isPhoneMode ? FontWeight.w700 : FontWeight.w500,
+                                        color: !_isPhoneMode
+                                            ? (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)
+                                            : (isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+
+                    // ── Input Field: Smart Identifier (Phone +91 or Email) ───
+                    AppTextField(
+                      controller: _identifierController,
+                      label: _isPhoneMode
+                          ? 'Mobile Number (India) *'
+                          : (isDriver ? 'Email Address *' : 'Corporate Email Address *'),
+                      hintText: _isPhoneMode
+                          ? '98765 43210'
+                          : (isDriver ? 'name@example.com' : 'traveldesk@company.com'),
+                      keyboardType: _isPhoneMode ? TextInputType.phone : TextInputType.emailAddress,
+                      inputFormatters: _isPhoneMode
+                          ? [
+                              FilteringTextInputFormatter.allow(RegExp(r'[0-9\+\s\-]')),
+                              LengthLimitingTextInputFormatter(14),
+                            ]
+                          : null,
+                      prefixIcon: _isPhoneMode
+                          ? Padding(
+                              padding: const EdgeInsets.only(left: 12, right: 8),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Text('🇮🇳', style: TextStyle(fontSize: 16)),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    '+91',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 14,
+                                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    height: 18,
+                                    width: 1,
+                                    color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                                  ),
+                                ],
+                              ),
+                            )
+                          : Icon(
+                              Icons.email_outlined,
+                              size: 20,
+                              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                            ),
+                      validator: _validateIdentifier,
                     ),
                     const SizedBox(height: AppSpacing.lg),
 
@@ -335,9 +557,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                     const SizedBox(height: AppSpacing.xl),
 
-                    // ── Primary Action: Continue with Email OTP ──────────────
+                    // ── Primary Action: Continue with SMS or Email OTP ────────
                     AppPrimaryButton(
-                      text: 'Continue with Email OTP',
+                      text: _isPhoneMode ? 'Continue with SMS OTP' : 'Continue with Email OTP',
                       isLoading: _isLoading,
                       onPressed: _handleSignUp,
                     ),

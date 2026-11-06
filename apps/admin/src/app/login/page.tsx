@@ -21,8 +21,8 @@ function AdminLoginForm() {
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get('redirect') || '/dashboard';
 
-  const [identifier, setIdentifier] = useState('admin@adhocx.com');
-  const [password, setPassword] = useState('Admin@AdhocX2026!');
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -79,12 +79,6 @@ function AdminLoginForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     await performLogin(identifier, password);
-  };
-
-  const handleQuickSignIn = async () => {
-    setIdentifier('admin@adhocx.com');
-    setPassword('Admin@AdhocX2026!');
-    await performLogin('admin@adhocx.com', 'Admin@AdhocX2026!');
   };
 
   return (
@@ -395,43 +389,6 @@ function AdminLoginForm() {
                 <ArrowRight size={17} />
               </>
             )}
-          </button>
-
-          {/* One-Click Quick Sign In Helper */}
-          <button
-            type="button"
-            id="admin-quick-signin-btn"
-            disabled={isLoading}
-            onClick={handleQuickSignIn}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.45rem',
-              width: '100%',
-              padding: '0.65rem 1rem',
-              borderRadius: 'var(--radius-md, 8px)',
-              backgroundColor: '#F1F5F9',
-              color: '#475569',
-              fontSize: '0.82rem',
-              fontWeight: 600,
-              border: '1px solid #CBD5E1',
-              cursor: isLoading ? 'not-allowed' : 'pointer',
-              transition: 'all 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
-              if (!isLoading) {
-                e.currentTarget.style.backgroundColor = '#E2E8F0';
-                e.currentTarget.style.borderColor = '#94A3B8';
-              }
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = '#F1F5F9';
-              e.currentTarget.style.borderColor = '#CBD5E1';
-            }}
-          >
-            <KeyRound size={14} color="#5728B2" />
-            <span>One-Click Admin Sign In</span>
           </button>
         </form>
 

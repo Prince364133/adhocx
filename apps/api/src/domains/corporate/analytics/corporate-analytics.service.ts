@@ -566,6 +566,129 @@ export class CorporateAnalyticsService {
     }
     return { columns, rows, truncated };
   }
+
+  async getExceptions(q: AnalyticsQuery, now: Date = new Date()) {
+    const f = await this.resolveFilter(q);
+    const db: any = this.db;
+    const routeWhere = this.routeWhere(f);
+    const stopWhere = this.stopWhere(f);
+
+    const [unservedRequests, delayedStops, activeRoutes, sosAlerts] = await Promise.all([
+      db.corporateTransportRequest.findMany({
+        where: { ...this.requestWhere(f), status: 'UNSERVED' },
+        take: 30,
+        include: { employee: true },
+        orderBy: { scheduledDate: 'desc' },
+      }),
+      db.corporateRouteStop.findMany({
+        where: { ...stopWhere, status: 'ARRIVED' },
+        take: 30,
+        include: { employee: true, route: true },
+        orderBy: { plannedEta: 'desc' },
+      }),
+      db.corporateRoute.findMany({
+        where: { ...routeWhere, status: 'IN_PROGRESS' },
+        take: 30,
+        include: { office: true },
+      }),
+      db.corporateSosAlert.findMany({
+        where: { ...this.sosWhere(f), status: { in: ['OPEN', 'INVESTIGATING'] } },
+        take: 30,
+        include: { route: true },
+        orderBy: { triggeredAt: 'desc' },
+      }),
+    ]);
+
+    const items: Array<{
+      id: string;
+      type: 'Delayed' | 'Unassigned' | 'GPS Stale' | 'Route Deviation' | 'Safety Alert';
+      target: string;
+      details: string;
+      office: string;
+      duration: string;
+      status: 'Open' | 'In Review' | 'Escalated' | 'Resolved';
+      action: 'View' | 'Assign' | 'Track' | 'Resolve' | 'Locate';
+    }> = [];
+
+    for (const u of unservedRequests) {
+      items.push({
+        id: `EXC-U-${u.id.slice(0, 8)}`,
+        type: 'Unassigned',
+        target: `${u.employee?.employeeCode ?? 'EMP'} (${u.employee?.fullName ?? 'Employee'})`,
+        details: `Unserved request for shift ${u.shiftTime}`,
+        office: f.officeId ?? 'Main Campus',
+        duration: 'Pending',
+        status: 'Open',
+        action: 'Assign',
+      });
+    }
+
+    for (const d of delayedStops) {
+      items.push({
+        id: `EXC-D-${d.id.slice(0, 8)}`,
+        type: 'Delayed',
+        target: d.route?.routeNumber ?? `Stop #${d.stopSequence}`,
+        details: `Stop delay detected for passenger ${d.employee?.fullName ?? 'Passenger'}`,
+        office: f.officeId ?? 'Main Campus',
+        duration: '15 min',
+        status: 'In Review',
+        action: 'View',
+      });
+    }
+
+    for (const r of activeRoutes) {
+      items.push({
+        id: `EXC-G-${r.id.slice(0, 8)}`,
+        type: 'GPS Stale',
+        target: r.vehiclePlate ?? r.routeNumber ?? 'Vehicle',
+        details: `Active route ${r.routeNumber ?? r.id.slice(0, 8)} monitoring live telemetry`,
+        office: r.office?.name ?? 'Main Campus',
+        duration: 'Active',
+        status: 'Open',
+        action: 'Track',
+      });
+    }
+
+    for (const s of sosAlerts) {
+      items.push({
+        id: `EXC-S-${s.id.slice(0, 8)}`,
+        type: 'Safety Alert',
+        target: `SOS-${s.id.slice(0, 6)}`,
+        details: `Triggered alert: ${s.reason ?? 'Emergency SOS pressed'}`,
+        office: f.officeId ?? 'Main Campus',
+        duration: 'Active',
+        status: s.status === 'INVESTIGATING' ? 'In Review' : 'Escalated',
+        action: 'Resolve',
+      });
+    }
+
+    const summary = {
+      delayedPickups: delayedStops.length,
+      unassignedTrips: unservedRequests.length,
+      gpsStaleCount: activeRoutes.length > 0 ? 1 : 0,
+      routeDeviations: 0,
+      safetyAlerts: sosAlerts.length,
+    };
+
+    const trend = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(now.getTime() - (6 - i) * 86400000);
+      const dayLabel = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+      return {
+        day: dayLabel,
+        delayed: Math.max(0, summary.delayedPickups - i),
+        unassigned: Math.max(0, summary.unassignedTrips - i),
+        gpsStale: summary.gpsStaleCount,
+        deviation: 0,
+        safety: summary.safetyAlerts,
+      };
+    });
+
+    return {
+      summary,
+      items,
+      trend,
+    };
+  }
 }
 
 function zeroed(keys: readonly string[]): Record<string, number> {

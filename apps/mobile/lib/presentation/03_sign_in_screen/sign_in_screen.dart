@@ -28,7 +28,7 @@ class _SignInScreenState extends State<SignInScreen> {
   final _formKey = GlobalKey<FormState>();
   final _identifierController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _isPhoneMode = false;
+  bool _isPhoneMode = true;
   bool _showPasswordField = true;
   bool _obscurePassword = true;
   bool _isLoading = false;

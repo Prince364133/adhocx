@@ -101,7 +101,7 @@ class HttpEmployeeAuthRepository implements EmployeeAuthRepository {
       return await _fetchAndCacheProfile(fallbackUser: payload['user']);
     } on ApiException catch (e) {
       if (e.statusCode == 401) {
-        throw Exception('Invalid credentials. Please verify your details or use demo password.');
+        throw Exception('Invalid credentials. Please verify your details or password.');
       }
       throw Exception(e.message);
     } catch (e) {
@@ -116,15 +116,9 @@ class HttpEmployeeAuthRepository implements EmployeeAuthRepository {
       throw Exception('Please enter a valid company email address.');
     }
 
-    try {
-      return await loginWithPassword(
-        identifier: email,
-        password: 'Admin@AdhocX2026!',
-      );
-    } catch (e) {
-      debugPrint('[HttpEmployeeAuthRepository] SSO fallback to profile: $e');
-      rethrow;
-    }
+    // Dispatches verification OTP to company email
+    await sendOtp(email);
+    throw Exception('A single-sign-on verification code has been dispatched to $email. Please enter the OTP to complete login.');
   }
 
   @override
@@ -160,11 +154,11 @@ class HttpEmployeeAuthRepository implements EmployeeAuthRepository {
       final data = (res['data'] ?? res) as Map<String, dynamic>;
 
       final user = EmployeeUser(
-        id: data['employeeId']?.toString() ?? fallbackUser?['id']?.toString() ?? 'EMP-DEFAULT',
-        employeeId: data['employeeCode']?.toString() ?? 'EMP10204',
-        fullName: data['fullName']?.toString() ?? fallbackUser?['fullName']?.toString() ?? 'Ravi Kumar',
-        organization: data['tenant']?['name']?.toString() ?? 'HiTEC Technologies Ltd.',
-        office: data['office']?['name']?.toString() ?? 'HITEC City HQ',
+        id: data['employeeId']?.toString() ?? fallbackUser?['id']?.toString() ?? '',
+        employeeId: data['employeeCode']?.toString() ?? fallbackUser?['employeeCode']?.toString() ?? '',
+        fullName: data['fullName']?.toString() ?? fallbackUser?['fullName']?.toString() ?? 'Corporate Commuter',
+        organization: data['tenant']?['name']?.toString() ?? fallbackUser?['tenantName']?.toString() ?? 'Corporate Enterprise',
+        office: data['office']?['name']?.toString() ?? fallbackUser?['officeName']?.toString() ?? 'Corporate Campus',
         email: data['email']?.toString() ?? fallbackUser?['email']?.toString() ?? '',
         phone: data['phoneNumber']?.toString() ?? fallbackUser?['phone']?.toString() ?? '',
         isTransportEligible: true,
@@ -178,11 +172,11 @@ class HttpEmployeeAuthRepository implements EmployeeAuthRepository {
       debugPrint('[HttpEmployeeAuthRepository] Error fetching /corporate/me: $e');
       if (fallbackUser != null) {
         final user = EmployeeUser(
-          id: fallbackUser['id']?.toString() ?? 'usr_default',
-          employeeId: 'EMP10204',
-          fullName: fallbackUser['fullName']?.toString() ?? 'Corporate Employee',
-          organization: 'HiTEC Technologies Ltd.',
-          office: 'HITEC City HQ',
+          id: fallbackUser['id']?.toString() ?? '',
+          employeeId: fallbackUser['employeeCode']?.toString() ?? '',
+          fullName: fallbackUser['fullName']?.toString() ?? 'Corporate Commuter',
+          organization: fallbackUser['tenantName']?.toString() ?? 'Corporate Enterprise',
+          office: fallbackUser['officeName']?.toString() ?? 'Corporate Campus',
           email: fallbackUser['email']?.toString() ?? '',
           phone: fallbackUser['phone']?.toString() ?? '',
           isTransportEligible: true,

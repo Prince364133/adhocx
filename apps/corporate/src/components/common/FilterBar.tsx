@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Calendar, ChevronDown, RefreshCw } from 'lucide-react';
-import { mockOfficesList } from '../../lib/mock/corporateMockData';
+import { useSession } from '../../lib/auth/SessionContext';
 
 export interface FilterBarProps {
   showOffices?: boolean;
@@ -25,6 +25,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   liveStatusText,
   onRefresh,
 }) => {
+  const { offices } = useSession();
   const [selectedOffice, setSelectedOffice] = useState('All Offices');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -89,7 +90,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             style={selectStyle}
           >
             <option value="All Offices">All Offices</option>
-            {mockOfficesList.map((o) => (
+            {offices.map((o) => (
               <option key={o.id} value={o.name}>
                 {o.name}
               </option>

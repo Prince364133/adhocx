@@ -48,6 +48,22 @@ export class CorporateAnalyticsController {
     return this.analytics.getDashboard({ tenantId, officeId, from, to, direction, shiftTime });
   }
 
+  @Get('exceptions')
+  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @CorporateTenantScoped()
+  @ApiOperation({
+    summary: 'Active operational exceptions: delayed route pickups, unassigned requests, stale GPS vehicles and safety alerts',
+  })
+  @ApiResponse({ status: 200, description: 'Live exceptions summary and feed' })
+  public async exceptions(
+    @Query('tenantId') tenantId?: string,
+    @Query('officeId') officeId?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.analytics.getExceptions({ tenantId, officeId, from, to });
+  }
+
   @Get('attendance')
   @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
   @CorporateTenantScoped()
