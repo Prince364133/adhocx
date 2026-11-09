@@ -84,6 +84,15 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
     overrides: new Map<string, number>(), // "lat,lng" -> ETA minutes
     outage: false,
     calls: 0,
+    async computeRoadRoute(_origin: LatLng, _dest: LatLng) {
+      return {
+        distanceKm: 32,
+        distanceMeters: 32000,
+        durationMinutes: 55,
+        durationSeconds: 3300,
+        isRealRoad: true,
+      };
+    },
     async computeDriverEtaMatrix(origins: LatLng[], dest: LatLng): Promise<DriverEtaResult[]> {
       routing.calls++;
       if (routing.outage) throw new Error('simulated Google outage');
