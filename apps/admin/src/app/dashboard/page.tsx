@@ -757,7 +757,7 @@ export default function DashboardPage() {
               }}
             >
               <MapPin size={16} />
-              <span>Zonal Corridor Intelligence</span>
+              <span>Corridor Intelligence</span>
             </button>
           </div>
 

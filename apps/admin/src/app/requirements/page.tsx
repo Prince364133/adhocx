@@ -78,7 +78,7 @@ export default function RequirementsPage() {
                 fontWeight: 800,
               }}
             >
-              {r.zonalQuote ? 'B2B Zonal 2026' : 'Direct Dispatch'}
+              {r.pricing ? 'Distance Engine' : 'Legacy price'}
             </span>
           </div>
           <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginTop: '0.25rem' }}>
@@ -235,8 +235,8 @@ export default function RequirementsPage() {
               </div>
             </div>
 
-            {/* Corporate zonal breakdown: amounts come from the stored quote snapshot, never a live percentage. */}
-            {selectedReq.zonalQuote && (
+            {/* Distance-based pricing breakdown: amounts come from the stored quote snapshot, never a client estimate. */}
+            {selectedReq.pricing && (
               <div
                 style={{
                   background: 'linear-gradient(135deg, rgba(91, 66, 243, 0.08) 0%, rgba(139, 92, 246, 0.05) 100%)',
@@ -248,19 +248,18 @@ export default function RequirementsPage() {
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem', gap: '0.5rem', flexWrap: 'wrap' }}>
                   <span style={{ fontSize: '0.875rem', fontWeight: 800, color: 'var(--brand-primary)' }}>
-                    🏢 Corporate zonal · {selectedReq.zonalQuote.locality?.name} ↔ {selectedReq.zonalQuote.officeHub?.displayName}
+                    🛣️ Distance Rate Engine · Route Pricing Snapshot
                   </span>
                   <span className="badge badge-info">
-                    {selectedReq.zonalQuote.locality?.zoneLabel} · {selectedReq.zonalQuote.vehicleType} · rate {selectedReq.zonalQuote.rateVersion}
+                    {selectedReq.vehicleType} · plan {selectedReq.pricing.planVersion} · {(selectedReq.pricing.distanceM / 1000).toFixed(1)} km
                   </span>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem' }}>
                   {[
-                    { label: 'Vendor fare (per vehicle)', value: selectedReq.zonalQuote.totalAmount, color: 'var(--text-primary)' },
-                    { label: 'Escort payable', value: selectedReq.zonalQuote.internal?.escortPayable, color: 'var(--text-secondary)' },
-                    { label: `Driver earnings (${selectedReq.zonalQuote.internal?.driverRateVersion ?? ''})`, value: selectedReq.zonalQuote.internal?.driverEarning, color: 'var(--color-success)' },
-                    { label: 'Platform spread', value: selectedReq.zonalQuote.internal?.platformSpread, color: 'var(--brand-primary)' },
+                    { label: 'Vendor fare (per vehicle)', value: selectedReq.pricing.vendorPricePaise / 100, color: 'var(--text-primary)' },
+                    { label: 'Driver payout (guaranteed)', value: selectedReq.pricing.driverPayoutPaise / 100, color: 'var(--color-success)' },
+                    { label: 'Platform spread', value: selectedReq.pricing.grossSpreadPaise / 100, color: 'var(--brand-primary)' },
                   ].map((tile) => (
                     <div key={tile.label} style={{ background: 'var(--bg-surface-elevated)', padding: '0.75rem', borderRadius: 'var(--radius-md)' }}>
                       <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{tile.label}</div>
@@ -272,7 +271,7 @@ export default function RequirementsPage() {
                 </div>
 
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.75rem' }}>
-                  Fixed rate-card fare locked at booking. Direction: {selectedReq.zonalQuote.direction === 'INBOUND_TO_OFFICE' ? 'home → office' : 'office → home'}.
+                  Locked at booking from the quote of {new Date(selectedReq.pricing.quotedAt).toLocaleString()}. Later plan changes do not affect it.
                 </div>
               </div>
             )}

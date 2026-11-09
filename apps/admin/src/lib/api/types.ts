@@ -128,8 +128,17 @@ export interface RequirementListItem {
   ratePerVehicle?: number;
   suggestedBudget?: number;
   createdAt: string;
-  /** Stored zonal quote snapshot (admin view: includes `internal` driver payout and spread). */
-  zonalQuote?: ZonalQuoteResponse;
+  /** Locked distance-pricing snapshot (admin responses only). */
+  pricing?: RequirementPricingSnapshot;
+}
+
+export interface RequirementPricingSnapshot {
+  planVersion: string;
+  distanceM: number;
+  vendorPricePaise: number;
+  driverPayoutPaise: number;
+  grossSpreadPaise: number;
+  quotedAt: string;
 }
 
 export interface DisputeListItem {
@@ -369,44 +378,34 @@ export interface AdminPaymentMetrics {
   pendingTransactions: number;
 }
 
-export interface RateCard {
+/** Vehicle category catalogue entry. Prices are not here: they come from distance pricing plans. */
+export interface VehicleCategory {
   id?: string;
-  vehicleType: string;
-  categoryLabel?: string;
-  displayName?: string;
-  seatingCapacity?: string;
-  description?: string;
-  baseFare: number;
-  baseKm: number;
-  perKmRate: number;
-  perMinuteRate?: number;
-  minimumFare?: number;
-  deadheadThresholdKm?: number;
-  deadheadPerKmRate?: number;
-  nightChargeMultiplier?: number;
-  surgeMultiplier: number;
-  platformFeePercent?: number;
-  platformFeePercentage?: number;
-  driverSharePercent?: number;
-  driverSharePercentage?: number;
-  iconKey?: string;
-  status?: string;
-  updatedAt?: string;
-}
-
-export interface CreateRateCardPayload {
   vehicleType: string;
   categoryLabel: string;
   seatingCapacity: string;
-  description: string;
+  maxSeats?: number;
+  description?: string;
+  iconKey?: string | null;
+  isActive?: boolean;
+  updatedAt?: string;
+  updatedBy?: string | null;
+}
+
+export interface CreateVehicleCategoryPayload {
+  vehicleType: string;
+  categoryLabel: string;
+  seatingCapacity: string;
+  description?: string;
   iconKey?: string;
-  baseFare: number;
-  baseKm: number;
-  perKmRate: number;
-  perMinuteRate?: number;
-  driverSharePercent?: number;
-  platformFeePercent?: number;
-  surgeMultiplier?: number;
+}
+
+export interface UpdateVehicleCategoryPayload {
+  categoryLabel?: string;
+  seatingCapacity?: string;
+  description?: string;
+  iconKey?: string;
+  isActive?: boolean;
 }
 
 export interface SystemPolicyConfig {
@@ -418,89 +417,6 @@ export interface SystemPolicyConfig {
   convenienceFeePercent?: number;
   gstPercent?: number;
   updatedAt?: string;
-}
-
-export type ZonalHubId = 'HITEC_NANAKRAMGUDA' | 'KOKAPET';
-export type ZonalDirection = 'INBOUND_TO_OFFICE' | 'OUTBOUND_FROM_OFFICE';
-export type ZonalLocalityStatus = 'VERIFIED' | 'PENDING_REVIEW' | 'INACTIVE';
-
-export interface ZonalLocality {
-  id: string;
-  name: string;
-  zoneId: string;
-  zoneLabel: string;
-  reviewStatus: ZonalLocalityStatus;
-  bookable: boolean;
-  aliases: string[];
-  hasVerifiedPin: boolean;
-  notes?: string;
-}
-
-export interface ZonalRateCardResponse {
-  audience: 'VENDOR' | 'DRIVER';
-  version: string;
-  effectiveFrom: string;
-  currency: string;
-  hubs: { id: ZonalHubId; displayName: string; lat: number; lng: number }[];
-  zones: { id: string; label: string }[];
-  /** matrix[hubId][zoneId] = { sedan, suv, escortSedan?, escortSuv? } in INR */
-  matrix: Record<string, Record<string, { sedan: number; suv: number; escortSedan?: number; escortSuv?: number }>>;
-  localities: ZonalLocality[];
-  notes: string[];
-}
-
-export interface ZonalQuoteRequest {
-  officeHubId: ZonalHubId;
-  direction: ZonalDirection;
-  localityId: string;
-  vehicleType: 'SEDAN' | 'SUV';
-  hasEscort: boolean;
-  pickupLat: number;
-  pickupLng: number;
-  dropLat: number;
-  dropLng: number;
-}
-
-export interface ZonalQuoteResponse {
-  canAutoQuote: boolean;
-  requiresOpsReview: boolean;
-  reasonCode?: string;
-  reason?: string;
-  quoteId?: string;
-  rateVersion?: string;
-  officeHub: { id: string; displayName: string };
-  locality: { id: string; name: string; zoneId: string; zoneLabel: string } | null;
-  direction: ZonalDirection;
-  vehicleType: string;
-  hasEscort?: boolean;
-  lineItems?: { code: string; label: string; amount: number }[];
-  baseFare?: number;
-  escortFee?: number;
-  totalAmount?: number;
-  expiresAt?: string;
-  internal?: { driverRateVersion: string; driverEarning: number; platformSpread: number; escortPayable: number };
-}
-
-export interface ZonalRateCardVersion {
-  id: string;
-  audience: 'VENDOR' | 'DRIVER';
-  version: string;
-  status: 'DRAFT' | 'ACTIVE' | 'RETIRED';
-  effectiveFrom: string;
-  publishedAt: string | null;
-  publishedBy: string | null;
-  notes: string | null;
-  rowCount: number;
-  rows: { hubId: string; zoneId: string; vehicleType: string; baseAmountPaise: number; escortMaxPaise: number }[];
-}
-
-export interface UpdateZonalLocalityRequest {
-  reviewStatus?: ZonalLocalityStatus;
-  zoneId?: string;
-  centerLat?: number;
-  centerLng?: number;
-  aliases?: string[];
-  reason: string;
 }
 
 export interface CorridorAnalytics {
@@ -899,3 +815,91 @@ export interface CorporateSosAlert {
     office: { id: string; name: string } | null;
   };
 }
+
+// ==========================================
+// DYNAMIC DISTANCE-BASED PRICING TYPES (PRD v1.0)
+// ==========================================
+
+export interface DistancePricingSlab {
+  id: string;
+  planId: string;
+  minDistanceMExclusive: number;
+  maxDistanceMInclusive: number;
+  vendorPricePaise: number;
+  driverPayoutPaise: number;
+  grossSpreadPaise: number;
+  grossMarginPercent: number;
+  vendorPriceRupees: number;
+  driverPayoutRupees: number;
+  grossSpreadRupees: number;
+  minKm: number;
+  maxKm: number;
+  displayRange: string;
+  active: boolean;
+  sortOrder: number;
+}
+
+export interface DistancePricingPlan {
+  id: string;
+  vehicleCategory: string;
+  version: string;
+  name?: string | null;
+  status: 'DRAFT' | 'PUBLISHING' | 'ACTIVE' | 'SCHEDULED' | 'RETIRED';
+  effectiveFrom: string;
+  effectiveTo?: string | null;
+  createdBy?: string | null;
+  publishedBy?: string | null;
+  publishedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  slabs: DistancePricingSlab[];
+  slabCount?: number;
+}
+
+export interface CreatePricingSlabInput {
+  minDistanceMExclusive: number;
+  maxDistanceMInclusive: number;
+  vendorPricePaise: number;
+  driverPayoutPaise: number;
+  active?: boolean;
+}
+
+export interface CreateDistancePricingPlanPayload {
+  vehicleCategory?: string;
+  /** Omit to let the server assign the next version for the category. */
+  version?: string;
+  name?: string;
+  cloneFromPlanId?: string;
+  slabs?: CreatePricingSlabInput[];
+}
+
+export interface PricingAuditItem {
+  id: string;
+  actorId?: string | null;
+  actorName?: string | null;
+  action: string;
+  entityType: string;
+  entityId: string;
+  oldValueJson?: any;
+  newValueJson?: any;
+  reason?: string | null;
+  timestamp: string;
+}
+
+export interface DistanceSimulationResult {
+  distanceMeters: number;
+  displayedKm: number;
+  planId: string;
+  planVersion: string;
+  vehicleCategory: string;
+  slabId: string;
+  slabRange: string;
+  vendorPricePaise: number;
+  vendorPriceRupees: number;
+  driverPayoutPaise: number;
+  driverPayoutRupees: number;
+  grossSpreadPaise: number;
+  grossSpreadRupees: number;
+  grossMarginPercent: number;
+}
+

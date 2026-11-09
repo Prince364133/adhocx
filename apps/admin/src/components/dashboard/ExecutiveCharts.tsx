@@ -1009,7 +1009,7 @@ export const CorridorMatrixChart: React.FC<{
               }}
             />
             <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-              Zonal Corridor Travel Density & SLA Adherence
+              Corridor Travel Density & SLA Adherence
             </h3>
           </div>
           <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: 0 }}>

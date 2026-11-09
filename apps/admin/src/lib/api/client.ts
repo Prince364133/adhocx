@@ -21,8 +21,9 @@ import {
   AssignmentItem,
   AdminPaymentItem,
   AdminPaymentMetrics,
-  RateCard,
-  CreateRateCardPayload,
+  VehicleCategory,
+  CreateVehicleCategoryPayload,
+  UpdateVehicleCategoryPayload,
   SystemPolicyConfig,
   CorridorAnalytics,
   OperationalReportData,
@@ -34,12 +35,6 @@ import {
   TestPushPayload,
   InAppNotificationItem,
   AudienceEstimateResult,
-  ZonalRateCardResponse,
-  ZonalLocality,
-  ZonalRateCardVersion,
-  UpdateZonalLocalityRequest,
-  ZonalQuoteRequest,
-  ZonalQuoteResponse,
   CorporatePayoutBatch,
   CorporatePayoutBatchListItem,
   CorporatePayoutReconciliation,
@@ -54,6 +49,11 @@ import {
   CorporateTicketPriority,
   CorporateSosAlert,
   CorporateSosStatus,
+  DistancePricingPlan,
+  CreateDistancePricingPlanPayload,
+  CreatePricingSlabInput,
+  PricingAuditItem,
+  DistanceSimulationResult,
 } from './types';
 
 export function getApiBaseUrl(): string {
@@ -409,7 +409,7 @@ export const adminApi = {
         vendorRate: r.ratePerVehicle ?? r.vendorRate ?? r.suggestedBudget ?? 0,
         ratePerVehicle: r.ratePerVehicle ?? r.vendorRate ?? r.suggestedBudget ?? 0,
         suggestedBudget: r.suggestedBudget,
-        zonalQuote: r.zonalQuote ?? undefined,
+        pricing: r.pricing ?? undefined,
         createdAt: r.createdAt,
       })) as RequirementListItem[];
     });
@@ -456,21 +456,22 @@ export const adminApi = {
 
   getAdminPaymentMetrics: () => apiClient<AdminPaymentMetrics>('/payments/admin/metrics'),
 
-  // Dynamic Pricing Engine & System Policy Configuration
-  getPricingTiers: () => apiClient<RateCard[]>('/pricing/tiers'),
+  // Vehicle category catalogue (no prices) & platform policy
+  getPricingTiers: () => apiClient<VehicleCategory[]>('/pricing/tiers'),
 
-  createPricingTier: (data: CreateRateCardPayload) =>
-    apiClient<RateCard>('/pricing/admin/tiers', {
+  createPricingTier: (data: CreateVehicleCategoryPayload) =>
+    apiClient<VehicleCategory>('/pricing/admin/tiers', {
       method: 'POST',
       body: data,
     }),
 
-  updatePricingTier: (vehicleType: string, data: Partial<RateCard>) =>
-    apiClient<RateCard>(`/pricing/admin/${vehicleType}`, {
+  updatePricingTier: (vehicleType: string, data: UpdateVehicleCategoryPayload) =>
+    apiClient<VehicleCategory>(`/pricing/admin/${vehicleType}`, {
       method: 'PATCH',
       body: data,
     }),
 
+  /** Deactivates the category (history is kept). Refused while trips in that category are running. */
   deletePricingTier: (vehicleType: string) =>
     apiClient<{ success: boolean; message: string }>(`/pricing/admin/tiers/${vehicleType}`, {
       method: 'DELETE',
@@ -484,31 +485,55 @@ export const adminApi = {
       body: data,
     }),
 
-  // Corporate zonal rate card (Hyderabad): active cards, quote simulator, versions and locality review
-  getZonalVendorRateCard: () => apiClient<ZonalRateCardResponse>('/pricing/zonal/vendor-card'),
+  // ── Dynamic Distance-Based Pricing Engine (PRD v1.0) ──────────────────────
+  getDistancePricingPlans: (params?: { vehicleCategory?: string; status?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.vehicleCategory) q.set('vehicleCategory', params.vehicleCategory);
+    if (params?.status) q.set('status', params.status);
+    const qs = q.toString();
+    return apiClient<DistancePricingPlan[]>(`/admin/pricing/plans${qs ? `?${qs}` : ''}`);
+  },
 
-  getZonalDriverRateCard: () => apiClient<ZonalRateCardResponse>('/pricing/zonal/driver-card'),
+  getDistancePricingPlan: (id: string) =>
+    apiClient<DistancePricingPlan>(`/admin/pricing/plans/${id}`),
 
-  calculateZonalQuote: (payload: ZonalQuoteRequest) =>
-    apiClient<ZonalQuoteResponse>('/pricing/zonal/quote', {
+  createDistancePricingPlan: (data: CreateDistancePricingPlanPayload) =>
+    apiClient<DistancePricingPlan>('/admin/pricing/plans', {
       method: 'POST',
-      body: payload,
+      body: data,
     }),
 
-  getZonalLocalities: () => apiClient<ZonalLocality[]>('/pricing/zonal/localities'),
+  updateDistancePricingSlabs: (id: string, slabs: CreatePricingSlabInput[], reason?: string) =>
+    apiClient<DistancePricingPlan>(`/admin/pricing/plans/${id}/slabs`, {
+      method: 'PUT',
+      body: { slabs, reason },
+    }),
 
-  listZonalRateVersions: () => apiClient<ZonalRateCardVersion[]>('/pricing/zonal/admin/versions'),
+  retireDistancePricingPlan: (id: string, reason: string) =>
+    apiClient<DistancePricingPlan>(`/admin/pricing/plans/${id}/retire`, {
+      method: 'POST',
+      body: { reason },
+    }),
 
-  publishZonalRateVersion: (id: string, reason: string) =>
-    apiClient<{ id: string; version: string; status: string; previousVersion: string | null }>(
-      `/pricing/zonal/admin/versions/${id}/publish`,
-      { method: 'POST', body: { reason } },
-    ),
+  publishDistancePricingPlan: (id: string, reason: string, effectiveFrom?: string) =>
+    apiClient<DistancePricingPlan>(`/admin/pricing/plans/${id}/publish`, {
+      method: 'POST',
+      body: { reason, effectiveFrom },
+    }),
 
-  updateZonalLocality: (localityId: string, payload: UpdateZonalLocalityRequest) =>
-    apiClient<ZonalLocality>(`/pricing/zonal/admin/localities/${encodeURIComponent(localityId)}`, {
-      method: 'PATCH',
-      body: payload,
+  getDistancePricingAudit: (planId?: string) =>
+    apiClient<PricingAuditItem[]>(`/admin/pricing/audit${planId ? `?planId=${planId}` : ''}`),
+
+  simulateDistancePricing: (data: {
+    distanceKm?: number;
+    distanceMeters?: number;
+    pickup?: { lat: number; lng: number; address?: string };
+    drop?: { lat: number; lng: number; address?: string };
+    vehicleCategory?: string;
+  }) =>
+    apiClient<DistanceSimulationResult>('/admin/pricing/simulate', {
+      method: 'POST',
+      body: data,
     }),
 
   // Operational Reports & Corridor Intelligence
