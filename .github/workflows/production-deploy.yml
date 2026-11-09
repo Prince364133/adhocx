@@ -164,6 +164,16 @@ jobs:
           GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID || '886573696369-84dnfvb9jaegbqp8deosr3ucf8tq93ms.apps.googleusercontent.com' }}
           GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET || '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' }}
           GOOGLE_PROJECT_ID=${{ secrets.GOOGLE_PROJECT_ID || 'adhocx-507407' }}
+          MSG91_AUTH_KEY=${{ secrets.MSG91_AUTH_KEY || '566812Axr8m5zl8a6aec3551P1' }}
+          MSG91_OTP_TEMPLATE_ID=${{ secrets.MSG91_OTP_TEMPLATE_ID || '6aecb09fbde8179f65068242' }}
+          MSG91_SENDER_ID=${{ secrets.MSG91_SENDER_ID || 'ADHOCX' }}
+          MSG91_ENABLED=${{ secrets.MSG91_ENABLED || 'true' }}
+          GOOGLE_MAPS_API_KEY=${{ secrets.GOOGLE_MAPS_API_KEY || 'AIzaSyB8uEHtGy96QPbx3eIxG0s0_WYlWpB8QVI' }}
+          GOOGLE_MAPS_BROWSER_API_KEY=${{ secrets.GOOGLE_MAPS_BROWSER_API_KEY || 'AIzaSyB8uEHtGy96QPbx3eIxG0s0_WYlWpB8QVI' }}
+          JWT_ACCESS_EXPIRES_IN=7d
+          JWT_REFRESH_EXPIRES_IN=90d
+          OTP_EXPIRY_SECONDS=300
+          OTP_RESEND_DELAY_SECONDS=30
           ENV_EOF"
 
           echo "🚀 Pulling latest container images and launching services..."

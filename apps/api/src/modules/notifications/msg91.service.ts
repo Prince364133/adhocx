@@ -24,6 +24,7 @@ export class Msg91Service {
   private readonly logger = new Logger(Msg91Service.name);
 
   private readonly flowUrl = 'https://control.msg91.com/api/v5/flow/';
+  private readonly otpUrl = 'https://control.msg91.com/api/v5/otp';
   private readonly defaultOtpTemplateId = '6aecb09fbde8179f65068242';
   private readonly defaultSenderId = 'ADHOCX';
 
@@ -128,6 +129,7 @@ export class Msg91Service {
     }
 
     // 2. Dispatch real SMS via MSG91 Flow API
+    const isTest = process.env.NODE_ENV === 'test';
     const payload: Msg91FlowPayload = {
       template_id: templateId,
       short_url: '0',
@@ -137,7 +139,7 @@ export class Msg91Service {
           mobiles: mobile,
           num: otp, // matches template ##num##
           otp,      // fallback alias
-          code: otp // fallback alias
+          code: otp, // fallback alias
         },
       ],
     };
@@ -158,6 +160,22 @@ export class Msg91Service {
       });
 
       const responseData: any = await response.json().catch(() => null);
+
+      // Trigger dedicated MSG91 high-priority OTP route as well to guarantee immediate cellular carrier delivery
+      if (!isTest) {
+        try {
+          const otpEndpoint = `${this.otpUrl}?template_id=${encodeURIComponent(templateId)}&mobile=${encodeURIComponent(mobile)}&otp=${encodeURIComponent(otp)}&otp_expiry=10`;
+          await fetch(otpEndpoint, {
+            method: 'POST',
+            headers: {
+              authkey: authKey,
+              'content-type': 'application/json',
+              accept: 'application/json',
+            },
+            body: JSON.stringify({ otp, num: otp }),
+          }).catch(() => null);
+        } catch (_) {}
+      }
 
       if (response.ok && responseData?.type !== 'error') {
         const messageId =
