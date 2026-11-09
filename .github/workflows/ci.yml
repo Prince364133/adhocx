@@ -167,6 +167,7 @@ jobs:
       - name: Run Coupon System Verification Suite
         env:
           API_URL: http://localhost:7001/api/v1
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/adhocx_test?schema=public
         run: node scripts/seed-and-test-coupons.js
 
       - name: Run Live Dispatch & Fulfillment E2E Test Suite

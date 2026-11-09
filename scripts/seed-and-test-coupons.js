@@ -18,6 +18,9 @@ const dotenv = safeRequire('dotenv');
 if (dotenv && dotenv.config) {
   dotenv.config({ path: path.resolve(__dirname, '../.env') });
 }
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = 'postgresql://test_user:test_password@localhost:5432/adhocx_test?schema=public';
+}
 const { PrismaClient } = safeRequire('@prisma/client');
 const prisma = new PrismaClient();
 
