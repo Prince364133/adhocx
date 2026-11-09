@@ -553,7 +553,7 @@ export class RequirementsService {
     if (!UUID_REGEX.test(id)) {
       throw new NotFoundException(`Requirement '${id}' not found`);
     }
-    const isAdmin = role === UserRole.ADMIN;
+    const isAdmin = role === UserRole.ADMIN || role === UserRole.OPS;
     const vendor = await this.db.vendor.findUnique({ where: { userId: vendorUserId } });
     const requirement = await this.db.requirement.findUnique({
       where: { id },

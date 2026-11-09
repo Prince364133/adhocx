@@ -276,7 +276,7 @@ export class CorporateRoutingController {
   }
 
   @Get()
-  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
   @CorporateTenantScoped()
   @ApiOperation({ summary: 'List corporate routes with optional filters (paged: limit default 500, max 1000; offset)' })
   public async listRoutes(
@@ -331,7 +331,7 @@ export class CorporateRoutingController {
   }
 
   @Get(':id')
-  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER, UserRole.DRIVER)
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER, UserRole.DRIVER)
   @CorporateResource('route', 'id')
   @ApiOperation({ summary: 'Get full itinerary and ordered stops for a specific corporate route' })
   public async getRouteById(@Param('id') id: string) {

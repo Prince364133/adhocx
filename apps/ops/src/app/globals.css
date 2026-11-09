@@ -173,6 +173,19 @@ body {
   display: inline-block;
 }
 
+.progress-bar-container {
+  height: 6px;
+  overflow: hidden;
+  background: var(--bg-surface-muted);
+  border-radius: var(--radius-pill);
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  transition: width 0.2s ease;
+}
+
 [data-theme="dark"] .code-tag,
 html.dark .code-tag,
 .dark .code-tag {

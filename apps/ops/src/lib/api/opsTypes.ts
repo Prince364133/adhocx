@@ -115,6 +115,86 @@ export interface OpsBoardResponse {
   staleGps: CorporateRouteItem[];
 }
 
+export interface RequirementListItem {
+  id: string;
+  vendorName: string;
+  fulfillmentMode?: 'DIRECT_DISPATCH';
+  vehicleType: string;
+  quantity: number;
+  assignedQuantity: number;
+  pickupAddress: string;
+  dropAddress: string;
+  reportingTime: string;
+  status: string;
+  vendorRate?: number;
+  ratePerVehicle?: number;
+  suggestedBudget?: number;
+  createdAt: string;
+  zonalQuote?: {
+    locality?: { name?: string; zoneLabel?: string } | null;
+    officeHub?: { displayName?: string };
+    vehicleType?: string;
+    rateVersion?: string;
+    direction?: string;
+    totalAmount?: number;
+    internal?: {
+      driverRateVersion?: string;
+      driverEarning?: number;
+      platformSpread?: number;
+      escortPayable?: number;
+    };
+  };
+}
+
+export interface AssignmentItem {
+  id: string;
+  requirementId: string;
+  driverId: string;
+  tripId?: string;
+  driverName?: string;
+  driverPhone?: string;
+  vehiclePlate?: string;
+  vehicleType?: string;
+  vehicleModel?: string;
+  status: string;
+  assignedRate?: number;
+  pickupAddress?: string;
+  dropAddress?: string;
+  reportingTime?: string;
+  assignedAt?: string;
+  offeredAt?: string;
+  createdAt: string;
+}
+
+export interface TripListItem {
+  id: string;
+  requirementId: string;
+  driverName?: string;
+  driverPhone?: string;
+  vehiclePlate?: string;
+  pickupAddress: string;
+  dropAddress: string;
+  status: string;
+  driverRate: number;
+  tollCharges?: number;
+  parkingCharges?: number;
+  totalDriverEarnings?: number;
+  reportingTime: string;
+  startedAt?: string;
+  completedAt?: string;
+  createdAt: string;
+}
+
+export interface TripEvent {
+  id: string;
+  tripId: string;
+  eventType: string;
+  latitude: number;
+  longitude: number;
+  metadata?: { description?: string; [key: string]: unknown };
+  createdAt: string;
+}
+
 export interface SosAlertItem {
   id: string;
   routeId: string;
@@ -222,4 +302,3 @@ export interface RoutePlanningResult {
   expectedCorporateRevenue?: number;
   projectedMargin?: number;
 }
-

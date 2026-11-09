@@ -6,9 +6,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   LucideIcon,
   LayoutDashboard,
-  ClipboardList,
-  Navigation,
-  Truck,
   ShieldCheck,
   Car,
   Users,
@@ -42,14 +39,6 @@ const navSections: NavSection[] = [
   {
     items: [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    ],
-  },
-  {
-    title: 'OPERATIONS',
-    items: [
-      { href: '/requirements', label: 'Requirements', icon: ClipboardList },
-      { href: '/trips', label: 'Trips & Telemetry', icon: Navigation },
-      { href: '/assignments', label: 'Assignments', icon: Truck },
     ],
   },
   {

@@ -37,7 +37,8 @@ The repository is managed as an integrated **Turborepo** workspace powered by `p
 adhocx/
 ├── apps/
 │   ├── marketing/          # Public B2B portal, lead-gen & driver acquisition (Astro 4.x + React)
-│   ├── admin/              # Enterprise ops command center, KYC verification & dispatch (Next.js 14)
+│   ├── admin/              # Governance, KYC verification, finance & billing (Next.js 14)
+│   ├── ops/                # Operations desk: requirements, trips/telemetry, assignments & fleet dispatch (Next.js 14)
 │   ├── api/                # Core backend API, WebSocket dispatch, Prisma ORM, Redis (Node.js)
 │   └── mobile/             # Cross-platform driver partner application (Flutter 3.x)
 ├── packages/
@@ -121,8 +122,9 @@ pnpm dev
 
 # Or run specific applications:
 pnpm --filter @adhocx/marketing dev  # Marketing site on http://localhost:4321
-pnpm --filter @adhocx/admin dev      # Admin portal on http://localhost:3000
-pnpm --filter @adhocx/api dev        # Backend API on http://localhost:4000
+pnpm --filter @adhocx/admin dev      # Admin portal on http://localhost:7002
+pnpm --filter @adhocx/ops dev        # Operations portal on http://localhost:7004
+pnpm --filter @adhocx/api dev        # Backend API on http://localhost:7001
 pnpm --filter @adhocx/mobile dev     # Flutter mobile application
 ```
 

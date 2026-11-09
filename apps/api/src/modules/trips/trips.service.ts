@@ -128,6 +128,24 @@ export class TripsService {
     return trips.map((t) => this.mapToDto(t));
   }
 
+  async getTripsForOperations(query?: TripQueryDto): Promise<TripResponseDto[]> {
+    const page = query?.page || 1;
+    const limit = query?.limit || 20;
+    const trips = await this.db.trip.findMany({
+      where: query?.status ? { status: query.status } : undefined,
+      include: {
+        requirement: { include: { vendor: { include: { user: true } } } },
+        vendor: { include: { user: true } },
+        driver: { include: { user: true } },
+      },
+      skip: (page - 1) * limit,
+      take: limit,
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return trips.map((trip) => this.mapToDto(trip));
+  }
+
   /**
    * Check if current user has any completed trip with a pending review.
    * Enables the mandatory review gatekeeper across mobile and web clients.

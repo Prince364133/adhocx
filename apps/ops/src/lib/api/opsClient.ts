@@ -4,6 +4,10 @@ import {
   OpsBoardResponse,
   SosAlertItem,
   RoutePlanningResult,
+  RequirementListItem,
+  AssignmentItem,
+  TripListItem,
+  TripEvent,
 } from './opsTypes';
 import {
   getStoredOpsToken,
@@ -98,6 +102,29 @@ type RequestOptions = RequestInit & {
   _retry?: boolean;
 };
 
+type ApiList<T> = T[] | { items?: T[] };
+
+type RequirementApiItem = {
+  id: string;
+  vendorName?: string;
+  vendor?: { organizationName?: string };
+  fulfillmentMode?: 'DIRECT_DISPATCH';
+  vehicleType: string;
+  quantity: number;
+  assignedQuantity?: number;
+  pickupAddress?: string;
+  pickupLocation?: { address?: string };
+  dropAddress?: string;
+  dropLocation?: { address?: string };
+  reportingTime: string;
+  status: string;
+  ratePerVehicle?: number;
+  vendorRate?: number;
+  suggestedBudget?: number;
+  zonalQuote?: RequirementListItem['zonalQuote'];
+  createdAt: string;
+};
+
 async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
   const baseUrl = getApiBaseUrl();
   const token = getStoredOpsToken();
@@ -155,7 +182,14 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     throw new Error(`API Error [${response.status}]: ${errorDetail}`);
   }
 
-  return response.json() as Promise<T>;
+  if (response.status === 204) return undefined as T;
+
+  const json = await response.json();
+  if (json && typeof json === 'object' && json.success === true && 'data' in json) {
+    return json.data as T;
+  }
+
+  return json as T;
 }
 
 export const opsApi = {
@@ -196,6 +230,53 @@ export const opsApi = {
   getRouteDetail: async (routeId: string): Promise<CorporateRouteItem> => {
     return request<CorporateRouteItem>(`/corporate/ops/routes/${routeId}/detail`);
   },
+
+  getRequirements: async (status?: string): Promise<RequirementListItem[]> => {
+    const query = status && status !== 'ALL' ? `?status=${encodeURIComponent(status)}` : '';
+    const response = await request<ApiList<RequirementApiItem>>(`/requirements${query}`);
+    const items = Array.isArray(response) ? response : response?.items;
+    if (!Array.isArray(items)) return [];
+
+    return items.map((requirement) => ({
+      id: requirement.id,
+      vendorName: requirement.vendorName || requirement.vendor?.organizationName || 'Corporate Client',
+      fulfillmentMode: requirement.fulfillmentMode,
+      vehicleType: requirement.vehicleType,
+      quantity: requirement.quantity,
+      assignedQuantity: requirement.assignedQuantity ?? 0,
+      pickupAddress: requirement.pickupAddress || requirement.pickupLocation?.address || 'Pickup Location',
+      dropAddress: requirement.dropAddress || requirement.dropLocation?.address || 'Drop Location',
+      reportingTime: requirement.reportingTime,
+      status: requirement.status,
+      vendorRate: requirement.ratePerVehicle ?? requirement.vendorRate ?? requirement.suggestedBudget ?? 0,
+      ratePerVehicle: requirement.ratePerVehicle ?? requirement.vendorRate ?? requirement.suggestedBudget ?? 0,
+      suggestedBudget: requirement.suggestedBudget,
+      zonalQuote: requirement.zonalQuote,
+      createdAt: requirement.createdAt,
+    }));
+  },
+
+  getAssignments: async (params: { status?: string; search?: string; limit?: number; page?: number } = {}): Promise<AssignmentItem[]> => {
+    const query = new URLSearchParams();
+    if (params.status && params.status !== 'ALL') query.set('status', params.status);
+    if (params.search) query.set('search', params.search);
+    if (params.limit) query.set('limit', String(params.limit));
+    if (params.page) query.set('page', String(params.page));
+    const queryString = query.toString();
+    const response = await request<ApiList<AssignmentItem>>(`/assignments${queryString ? `?${queryString}` : ''}`);
+    if (Array.isArray(response)) return response;
+    return Array.isArray(response?.items) ? response.items : [];
+  },
+
+  getTrips: async (status?: string): Promise<TripListItem[]> => {
+    const query = status && status !== 'ALL' ? `?status=${encodeURIComponent(status)}` : '';
+    const response = await request<ApiList<TripListItem>>(`/trips${query}`);
+    if (Array.isArray(response)) return response;
+    return Array.isArray(response?.items) ? response.items : [];
+  },
+
+  getTripEvents: (tripId: string): Promise<TripEvent[]> =>
+    request<TripEvent[]>(`/trips/${encodeURIComponent(tripId)}/events`),
 
   // ── Companies / Tenants ──
   getTenants: async (params: { search?: string; page?: number; limit?: number } = {}): Promise<{

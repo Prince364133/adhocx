@@ -34,6 +34,7 @@ import {
 } from '../../components/dashboard/ExecutiveCharts';
 
 export default function DashboardPage() {
+  const opsBaseUrl = process.env.NEXT_PUBLIC_OPS_URL?.replace(/\/+$/, '');
   const [metrics, setMetrics] = useState<AdminMetrics>({
     totalDrivers: 0,
     verifiedDrivers: 0,
@@ -247,7 +248,9 @@ export default function DashboardPage() {
           </button>
 
           <Link
-            href="/requirements"
+            href={`${opsBaseUrl}/requirements`}
+            target="_blank"
+            rel="noopener noreferrer"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -818,7 +821,9 @@ export default function DashboardPage() {
               </p>
             </div>
             <Link
-              href="/requirements"
+              href={`${opsBaseUrl}/requirements`}
+              target="_blank"
+              rel="noopener noreferrer"
               style={{
                 fontSize: '0.78rem',
                 fontWeight: 700,

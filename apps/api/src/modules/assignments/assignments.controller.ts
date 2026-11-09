@@ -12,7 +12,7 @@ export class AssignmentsController {
   constructor(private readonly assignmentsService: AssignmentsService) {}
 
   @Get()
-  @Roles(UserRole.ADMIN, UserRole.VENDOR)
+  @Roles(UserRole.ADMIN, UserRole.VENDOR, UserRole.OPS)
   @ApiOperation({ summary: 'List driver requirement assignments' })
   @SwaggerResponse({ status: 200, type: [AdminAssignmentListItemDto] })
   async listAssignments(@Query() query: AdminAssignmentQueryDto) {

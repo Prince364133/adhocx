@@ -1,17 +1,12 @@
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { adminApi } from '../../lib/api/client';
-import { TripListItem, TripEvent } from '../../lib/api/types';
-import {
-  PageHeader,
-  FilterBar,
-  DataTable,
-  Column,
-  StatusBadge,
-  Button,
-  Drawer,
-} from '../../components/common';
+import { opsApi } from '../../lib/api/opsClient';
+import { TripListItem, TripEvent } from '../../lib/api/opsTypes';
+import { Button } from '../../components/common/Button';
+import { Drawer } from '../../components/common/Drawer';
+import { StatusBadge } from '../../components/common/StatusBadge';
+import { Column, DataTable, FilterBar, PageHeader } from '../../components/operations/OperationsTable';
 import { CorporateRouteManagementSection } from './CorporateRouteManagementSection';
 
 const STATUS_TABS = [
@@ -30,9 +25,11 @@ export default function TripsPage() {
   const [search, setSearch] = useState('');
   const [trips, setTrips] = useState<TripListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedTrip, setSelectedTrip] = useState<TripListItem | null>(null);
   const [events, setEvents] = useState<TripEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
+  const [eventsError, setEventsError] = useState<string | null>(null);
 
   useEffect(() => {
     if (activeModule === 'ON_DEMAND') {
@@ -42,9 +39,12 @@ export default function TripsPage() {
 
   async function loadTrips(status: string) {
     setLoading(true);
+    setLoadError(null);
     try {
-      const data = await adminApi.getTrips(status).catch(() => [] as TripListItem[]);
-      setTrips(data);
+      setTrips(await opsApi.getTrips(status));
+    } catch (error) {
+      setTrips([]);
+      setLoadError(error instanceof Error ? error.message : String(error));
     } finally {
       setLoading(false);
     }
@@ -66,9 +66,12 @@ export default function TripsPage() {
   async function handleOpenTelemetry(trip: TripListItem) {
     setSelectedTrip(trip);
     setEventsLoading(true);
+    setEventsError(null);
     try {
-      const data = await adminApi.getTripEvents(trip.id).catch(() => [] as TripEvent[]);
-      setEvents(data);
+      setEvents(await opsApi.getTripEvents(trip.id));
+    } catch (error) {
+      setEvents([]);
+      setEventsError(error instanceof Error ? error.message : String(error));
     } finally {
       setEventsLoading(false);
     }
@@ -119,7 +122,7 @@ export default function TripsPage() {
       key: 'status',
       label: 'Trip Status',
       sortable: true,
-      render: (t) => <StatusBadge status={t.status} size="sm" showPulse />,
+      render: (t) => <StatusBadge status={t.status} size="sm" pulse />,
     },
     {
       key: 'totalDriverEarnings',
@@ -219,6 +222,11 @@ export default function TripsPage() {
             onSearchChange={setSearch}
             searchPlaceholder="Search trip ID, driver, vehicle plate, route..."
           />
+          {loadError && (
+            <p role="alert" style={{ color: 'var(--color-danger)', margin: '0 0 1rem' }}>
+              Could not load trips: {loadError}
+            </p>
+          )}
 
           <DataTable
             columns={columns}
@@ -236,13 +244,6 @@ export default function TripsPage() {
             title={selectedTrip ? `Trip Telemetry — TRP-${selectedTrip.id.slice(0, 8).toUpperCase()}` : ''}
             subtitle={selectedTrip ? `Driver: ${selectedTrip.driverName} (${selectedTrip.vehiclePlate})` : ''}
             width="600px"
-            footer={
-              <div style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'flex-end' }}>
-                <Button variant="secondary" size="sm" onClick={() => setSelectedTrip(null)}>
-                  Close
-                </Button>
-              </div>
-            }
           >
             {selectedTrip && (
               <div>
@@ -257,7 +258,7 @@ export default function TripsPage() {
                   <div style={{ background: 'var(--bg-surface-elevated)', padding: '1rem', borderRadius: 'var(--radius-lg)' }}>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Status</div>
                     <div style={{ marginTop: '0.25rem' }}>
-                      <StatusBadge status={selectedTrip.status} size="sm" showPulse />
+                      <StatusBadge status={selectedTrip.status} size="sm" pulse />
                     </div>
                   </div>
                   <div style={{ background: 'var(--bg-surface-elevated)', padding: '1rem', borderRadius: 'var(--radius-lg)' }}>
@@ -272,7 +273,11 @@ export default function TripsPage() {
                   GPS Telemetry Events
                 </div>
 
-                {eventsLoading ? (
+                {eventsError ? (
+                  <div role="alert" style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--color-danger)' }}>
+                    Could not load trip telemetry: {eventsError}
+                  </div>
+                ) : eventsLoading ? (
                   <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-secondary)' }}>
                     Loading events...
                   </div>
