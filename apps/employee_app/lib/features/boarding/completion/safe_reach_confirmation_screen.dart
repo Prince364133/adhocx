@@ -94,7 +94,7 @@ class _SafeReachConfirmationScreenState extends State<SafeReachConfirmationScree
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('Safe arrival confirmed with AdhocX Command Center. Thank you!'),
-                            backgroundColor: AppColors.successGreen,
+                            backgroundColor: AppColors.success,
                           ),
                         );
                         context.push(AppRoutes.postTripFeedback);

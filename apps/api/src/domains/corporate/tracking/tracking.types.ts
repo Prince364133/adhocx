@@ -1,3 +1,4 @@
+import type { LiveVehicleTelemetryPayload } from '@adhocx/contracts';
 /**
  * Corporate ETS tracking domain (WS-B): GPS freshness, stream contract, trip-event vocabulary.
  */
@@ -208,3 +209,37 @@ export interface RoutePlaybackView {
   /** Pass as `cursor` to fetch the next page; null when the window is exhausted. */
   nextCursor: string | null;
 }
+
+/** Live map payload for a route's latest fix. Freshness comes from the device timestamp. */
+export function toLiveTelemetry(
+  route: { id: string; tenantId: string; status?: string | null; driverId?: string | null; driverName?: string | null },
+  fix: LatestGpsFix,
+  now: Date = new Date(),
+): LiveVehicleTelemetryPayload {
+  const recordedAt = Date.parse(fix.recordedAt);
+  const receivedAt = fix.receivedAt ? Date.parse(fix.receivedAt) : NaN;
+  return {
+    routeId: route.id,
+    tenantId: route.tenantId,
+    driverId: fix.driverId ?? route.driverId ?? '',
+    ...(route.driverName ? { driverName: route.driverName } : {}),
+    lat: fix.latitude,
+    lng: fix.longitude,
+    speedKph: Number.isFinite(Number(fix.speedMps)) ? Math.round(Number(fix.speedMps) * 3.6) : 0,
+    heading: Number.isFinite(Number(fix.headingDeg)) ? Number(fix.headingDeg) : 0,
+    ...(Number.isFinite(Number(fix.accuracyM)) ? { accuracyM: Number(fix.accuracyM) } : {}),
+    ...(Number.isFinite(Number(fix.batteryPct)) ? { batteryPct: Number(fix.batteryPct) } : {}),
+    recordedAt,
+    ...(Number.isFinite(receivedAt) ? { receivedAt } : {}),
+    gpsState: classifyGpsFreshness(recordedAt, now).gpsState,
+    ...(route.status ? { status: route.status } : {}),
+  };
+}
+
+/** Pub/Sub channels for live telemetry. */
+export const TelemetryChannels = {
+  opsFleet: 'telemetry:ops:fleet',
+  tenantFleet: (tenantId: string) => `telemetry:tenant:${tenantId}:fleet`,
+  route: (routeId: string) => `telemetry:route:${routeId}`,
+  trip: (tripId: string) => `telemetry:trip:${tripId}`,
+};

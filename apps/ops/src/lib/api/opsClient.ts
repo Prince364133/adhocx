@@ -1,3 +1,4 @@
+import type { LiveVehicleTelemetryPayload } from '@adhocx/contracts';
 import {
   CorporateTenantOption,
   CorporateRouteItem,
@@ -118,7 +119,7 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
       headers,
     });
   } catch (err: any) {
-    throw new Error(`Network failure: ${err?.message || 'Unable to reach backend'}`);
+    throw new Error(`Network failure: ${err?.message || 'Unable to reach backend'}`, { cause: err });
   }
 
   // Silent refresh token rotation on 401
@@ -159,6 +160,9 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
 }
 
 export const opsApi = {
+  /** Latest known position of every active cab in scope (only cabs that have reported GPS). */
+  getFleetSnapshot: () => request<LiveVehicleTelemetryPayload[]>('/corporate/trips/routes/fleet/live'),
+
   // ── Authentication ──
   login: async (identifier: string, password: string): Promise<any> => {
     return request<any>('/auth/login', {

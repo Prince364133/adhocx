@@ -463,7 +463,7 @@ function LoginContent() {
                     maxLength={6}
                     value={otpCode}
                     onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                    placeholder="123456"
+                    placeholder="······"
                     autoFocus
                     required
                     style={{

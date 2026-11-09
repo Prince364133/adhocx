@@ -17,7 +17,7 @@ class BoardingOtpInputScreen extends StatefulWidget {
 class _BoardingOtpInputScreenState extends State<BoardingOtpInputScreen> {
   Map<String, dynamic>? _options;
   bool _isLoading = true;
-  final TextEditingController _otpController = TextEditingController(text: '583271');
+  final TextEditingController _otpController = TextEditingController();
 
   @override
   void initState() {
@@ -43,7 +43,7 @@ class _BoardingOtpInputScreenState extends State<BoardingOtpInputScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final otpStr = _options?['otp'] ?? '583271';
+    final otpStr = _options?['otp']?.toString() ?? '';
     final expiresIn = _options?['otpExpiresIn'] ?? '02:58';
 
     return Scaffold(

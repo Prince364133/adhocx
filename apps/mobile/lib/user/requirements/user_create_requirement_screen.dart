@@ -278,7 +278,11 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                                   return;
                                 }
                                 final orderId = (order['orderId'] ?? order['razorpayOrderId']) as String;
-                                final keyId = (order['keyId'] as String?) ?? 'rzp_test_ADHOCX_DEMO';
+                                final keyId = (order['keyId'] as String?) ?? const String.fromEnvironment('RAZORPAY_KEY_ID', defaultValue: '');
+                                if (keyId.isEmpty) {
+                                  Fluttertoast.showToast(msg: 'Payment gateway is not configured.');
+                                  return;
+                                }
                                 if (ctx.mounted) {
                                   Navigator.pop(ctx);
                                 }

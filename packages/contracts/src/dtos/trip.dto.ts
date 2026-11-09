@@ -54,6 +54,7 @@ export class TripLocationUpdateDto {
   @IsNumber()
   heading?: number;
 
+  /** Ground speed in metres per second (as reported by the device GPS). */
   @IsOptional()
   @IsNumber()
   speed?: number;

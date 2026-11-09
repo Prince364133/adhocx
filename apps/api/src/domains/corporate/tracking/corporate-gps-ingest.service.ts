@@ -1,9 +1,12 @@
 import { BadRequestException, Injectable, Logger, Optional } from '@nestjs/common';
 import { RedisService } from '../../../redis/redis.service';
+import { RedisPubSubService } from '../../../redis/redis-pubsub.service';
 import { CorporateTelemetryWriter } from './corporate-telemetry-writer.service';
 import {
   CorporateGpsKeys,
   GPS_LATEST_TTL_SEC,
+  TelemetryChannels,
+  toLiveTelemetry,
   GPS_MAX_FUTURE_SKEW_MS,
   GPS_SEEN_TTL_SEC,
   GpsFixRecord,
@@ -15,6 +18,7 @@ export interface GpsIngestRoute {
   id: string;
   tenantId: string;
   driverId?: string | null;
+  status?: string | null;
 }
 
 export interface GpsIngestFix {
@@ -56,6 +60,7 @@ export class CorporateGpsIngestService {
   constructor(
     private readonly redis: RedisService,
     @Optional() private readonly writer?: CorporateTelemetryWriter,
+    @Optional() private readonly pubsub?: RedisPubSubService,
   ) {
     const n = Number(process.env.CORPORATE_GPS_STREAM_MAXLEN);
     // ~25 min of headroom at 670 fixes/s if every writer is down.
@@ -106,6 +111,14 @@ export class CorporateGpsIngestService {
         receivedAt: receivedAt.toISOString(),
       };
       await this.cacheSet(CorporateGpsKeys.latest(route.id), JSON.stringify(latest), GPS_LATEST_TTL_SEC);
+
+      // Live map fan-out (fire and forget; never blocks or fails ingest).
+      if (this.pubsub) {
+        const payload = toLiveTelemetry(route, latest, receivedAt);
+        for (const channel of [TelemetryChannels.opsFleet, TelemetryChannels.tenantFleet(route.tenantId), TelemetryChannels.route(route.id)]) {
+          this.pubsub.publish(channel, payload).catch(() => undefined);
+        }
+      }
     }
 
     // 3. History

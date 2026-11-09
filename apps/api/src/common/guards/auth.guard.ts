@@ -5,6 +5,13 @@ import { ConfigService } from '@nestjs/config';
 import { Optional } from '@nestjs/common';
 import { RedisService } from '../../redis/redis.service';
 
+/** Server-Sent Events endpoints (`.../live-stream`) are the only routes that accept `?access_token=`. */
+export function allowsQueryToken(request: any): boolean {
+  if (String(request?.method ?? '').toUpperCase() !== 'GET') return false;
+  const path = String(request?.path ?? request?.url ?? '').split('?')[0];
+  return /\/live-stream\/?$/.test(path);
+}
+
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   constructor(
@@ -15,13 +22,21 @@ export class JwtAuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
-    const authHeader = request.headers.authorization;
+    let token: string | undefined;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new UnauthorizedException('Missing or invalid Authorization header');
+    const authHeader = request.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    } else if (allowsQueryToken(request)) {
+      // Browser EventSource cannot send headers. Accepted only on live-stream (SSE) GETs so tokens
+      // do not end up in URLs (and access logs) for the rest of the API.
+      const q = request.query?.access_token ?? request.query?.token;
+      if (q) token = String(q);
     }
 
-    const token = authHeader.split(' ')[1];
+    if (!token) {
+      throw new UnauthorizedException('Missing or invalid Authorization header or token query parameter');
+    }
     try {
       if (this.redisService) {
         const isBlacklisted = await this.redisService.isTokenBlacklisted(token);

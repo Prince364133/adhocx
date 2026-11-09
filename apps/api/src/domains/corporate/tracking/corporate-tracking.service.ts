@@ -1,7 +1,9 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../../../database/database.service';
 import { CorporateGpsIngestService } from './corporate-gps-ingest.service';
+import type { LiveVehicleTelemetryPayload } from '@adhocx/contracts';
 import {
+  toLiveTelemetry,
   classifyGpsFreshness,
   PlaybackPoint,
   RoutePlaybackView,
@@ -71,6 +73,29 @@ export class CorporateTrackingService {
       throw new NotFoundException(`Corporate route ${routeId} not found`);
     }
     return route as { id: string; tenantId: string; status: string; driverId: string | null };
+  }
+
+  /**
+   * Latest known position of every active route in scope, for hydrating a live map before the
+   * stream delivers new fixes. Routes without a cached fix are omitted (never a guessed position).
+   */
+  async getFleetSnapshot(scope: TrackingScope = {}, now: Date = new Date()): Promise<LiveVehicleTelemetryPayload[]> {
+    const routes: any[] = await this.db.corporateRoute.findMany({
+      where: {
+        status: { in: ['DISPATCHING', 'ASSIGNED', 'IN_TRANSIT'] as any },
+        ...('tenantId' in scope ? { tenantId: scope.tenantId ?? '__none__' } : {}),
+      },
+      select: { id: true, tenantId: true, status: true, driverId: true, driver: { select: { fullName: true } } },
+      take: 5000,
+    });
+    const out: LiveVehicleTelemetryPayload[] = [];
+    await Promise.all(
+      routes.map(async (r) => {
+        const fix = await this.gpsIngest.readLatest(r.id);
+        if (fix) out.push(toLiveTelemetry({ ...r, driverName: r.driver?.fullName ?? null }, fix, now));
+      }),
+    );
+    return out;
   }
 
   async getTracking(routeId: string, scope: TrackingScope = {}, now: Date = new Date()): Promise<RouteTrackingView> {

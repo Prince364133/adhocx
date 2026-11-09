@@ -33,6 +33,8 @@ import { LocationsService } from '../locations/locations.service';
 import { findPendingReviewTrip } from '../reviews/pending-review';
 import { DispatchConfig } from '../dispatch/dispatch.config';
 import { sanitizeRealName } from '../../common';
+import { RedisPubSubService } from '../../redis/redis-pubsub.service';
+import { LiveVehicleTelemetryPayload } from '@adhocx/contracts';
 
 @Injectable()
 export class TripsService {
@@ -44,6 +46,7 @@ export class TripsService {
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
     @Optional() private readonly locations?: LocationsService,
+    @Optional() private readonly pubsub?: RedisPubSubService,
   ) {}
 
   /**
@@ -651,6 +654,26 @@ export class TripsService {
       speed: dto.speed,
       timestamp: now.toISOString(),
     });
+
+    // Live ops map fan-out (fire and forget). Speed arrives in m/s.
+    if (this.pubsub) {
+      const speedMps = Number(dto.speed);
+      const telemetryPayload: LiveVehicleTelemetryPayload = {
+        routeId: id,
+        tripId: id,
+        driverId: trip.driverId ?? '',
+        lat: dto.location.latitude,
+        lng: dto.location.longitude,
+        speedKph: Number.isFinite(speedMps) ? Math.round(speedMps * 3.6) : 0,
+        heading: Number.isFinite(Number(dto.heading)) ? Number(dto.heading) : 0,
+        recordedAt: now.getTime(),
+        receivedAt: now.getTime(),
+        gpsState: 'LIVE',
+        status: trip.status,
+      };
+      this.pubsub.publish('telemetry:ops:fleet', telemetryPayload).catch(() => undefined);
+      this.pubsub.publish(`telemetry:trip:${id}`, telemetryPayload).catch(() => undefined);
+    }
   }
 
   /**

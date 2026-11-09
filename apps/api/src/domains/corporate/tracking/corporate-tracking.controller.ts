@@ -1,5 +1,6 @@
-import { Controller, Get, Param, Query, Req, UseGuards } from '@nestjs/common';
+import { Controller, ForbiddenException, Get, MessageEvent, Param, Query, Req, Sse, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { Observable } from 'rxjs';
 import { UserRole } from '@adhocx/contracts';
 import { JwtAuthGuard } from '../../../common/guards/auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
@@ -7,6 +8,10 @@ import { CorporateAccessGuard } from '../../../common/guards/corporate-access.gu
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { CorporateResource } from '../../../common/decorators/corporate-resource.decorator';
 import { CorporateTrackingService, TrackingScope } from './corporate-tracking.service';
+import { RedisPubSubService } from '../../../redis/redis-pubsub.service';
+import { TelemetryChannels } from './tracking.types';
+
+const SSE_HEARTBEAT_MS = 25_000;
 
 const TENANT_BOUND_ROLES = new Set<string>([UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER, UserRole.EMPLOYEE]);
 
@@ -21,7 +26,10 @@ export function trackingScopeOf(req: any): TrackingScope {
 @UseGuards(JwtAuthGuard, RolesGuard, CorporateAccessGuard)
 @Controller('corporate/trips')
 export class CorporateTrackingController {
-  constructor(private readonly tracking: CorporateTrackingService) {}
+  constructor(
+    private readonly tracking: CorporateTrackingService,
+    private readonly pubsub: RedisPubSubService,
+  ) {}
 
   @Get('routes/:id/tracking')
   @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER, UserRole.DRIVER, UserRole.EMPLOYEE)
@@ -59,5 +67,51 @@ export class CorporateTrackingController {
     @Req() req?: any,
   ) {
     return this.tracking.getPlayback(routeId, { from, to, limit, cursor }, trackingScopeOf(req));
+  }
+
+  @Get('routes/fleet/live')
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @ApiOperation({ summary: 'Latest known position of every active cab in scope (hydrates the live map)' })
+  getFleetSnapshot(@Req() req: any) {
+    return this.tracking.getFleetSnapshot(trackingScopeOf(req));
+  }
+
+  @Sse('routes/fleet/live-stream')
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @ApiOperation({ summary: 'Live stream (SSE) of fixes for every active cab in scope' })
+  streamFleetTelemetry(@Req() req: any): Observable<MessageEvent> {
+    const scope = trackingScopeOf(req);
+    // Tenant-bound callers only ever get their tenant's channel (none at all without a tenant).
+    if ('tenantId' in scope && !scope.tenantId) throw new ForbiddenException('No corporate tenant on this account');
+    const channel = scope.tenantId ? TelemetryChannels.tenantFleet(scope.tenantId) : TelemetryChannels.opsFleet;
+    return this.stream(req, channel);
+  }
+
+  @Sse('routes/:id/live-stream')
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER, UserRole.DRIVER, UserRole.EMPLOYEE)
+  @CorporateResource('route', 'id')
+  @ApiOperation({ summary: 'Live stream (SSE) of fixes for one route' })
+  streamRouteTelemetry(@Req() req: any, @Param('id') routeId: string): Observable<MessageEvent> {
+    return this.stream(req, TelemetryChannels.route(routeId));
+  }
+
+  /** Relays one Pub/Sub channel as SSE, with a heartbeat so idle proxies keep the connection open. */
+  private stream(_req: any, channel: string): Observable<MessageEvent> {
+    // Nest's SSE response already sends X-Accel-Buffering: no and Cache-Control: no-transform.
+    return new Observable<MessageEvent>((subscriber) => {
+      const handler = (_ch: string, raw: string) => {
+        try {
+          subscriber.next({ data: JSON.parse(raw) } as MessageEvent);
+        } catch {
+          // ignore malformed frames
+        }
+      };
+      this.pubsub.subscribe(channel, handler).catch((err) => subscriber.error(err));
+      const heartbeat = setInterval(() => subscriber.next({ type: 'heartbeat', data: '{}' } as MessageEvent), SSE_HEARTBEAT_MS);
+      return () => {
+        clearInterval(heartbeat);
+        this.pubsub.unsubscribe(channel, handler).catch(() => undefined);
+      };
+    });
   }
 }

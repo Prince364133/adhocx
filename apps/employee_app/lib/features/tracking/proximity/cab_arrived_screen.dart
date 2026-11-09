@@ -38,7 +38,7 @@ class _CabArrivedScreenState extends State<CabArrivedScreen> {
   @override
   Widget build(BuildContext context) {
     final title = _arrivedData?['title'] ?? 'Your cab has arrived! Please board now.';
-    final otp = _arrivedData?['otp'] ?? '583271';
+    final otp = _arrivedData?['otp']?.toString() ?? '';
 
     return Scaffold(
       backgroundColor: AppColors.background,

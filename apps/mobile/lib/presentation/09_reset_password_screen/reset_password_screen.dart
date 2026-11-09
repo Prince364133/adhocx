@@ -68,11 +68,16 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       return;
     }
 
+    final otpCode = widget.otp?.trim() ?? '';
+    if (otpCode.isEmpty) {
+      AppToast.showError('Invalid or missing OTP code. Please request a new OTP.', context: context);
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
       final authService = context.read<AuthService>();
-      final otpCode = widget.otp ?? '123456';
 
       await authService.resetPassword(
         identifier: widget.email ?? widget.phone ?? '',

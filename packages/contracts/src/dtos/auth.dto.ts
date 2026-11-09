@@ -40,7 +40,6 @@ export class RequestOtpResponseDto {
   expiresAt!: string;
   retryAfterSeconds!: number;
   message?: string;
-  otp?: string;
 }
 
 export class VerifyOtpDto {

@@ -131,7 +131,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
       );
 
       if (mounted) {
-        final devOtp = res is Map ? (res['otp'] ?? res['data']?['otp'])?.toString() : null;
         final message = res is Map && res['message'] != null
             ? res['message']
             : 'SMS OTP sent to $phoneE164';
@@ -143,7 +142,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
             'phone': phoneE164,
             'role': onboarding.role,
             'isRegister': true,
-            'devOtp': devOtp,
           },
         );
       }

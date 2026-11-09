@@ -20,7 +20,6 @@ class LoginOtpScreen extends StatefulWidget {
   final String? email;
   final String role;
   final bool isRegister;
-  final String? devOtp;
 
   const LoginOtpScreen({
     super.key,
@@ -28,7 +27,6 @@ class LoginOtpScreen extends StatefulWidget {
     this.email,
     required this.role,
     this.isRegister = false,
-    this.devOtp,
   });
 
   @override
@@ -44,9 +42,6 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.devOtp != null && widget.devOtp!.length == 6) {
-      _otp = widget.devOtp!;
-    }
     _startCountdown();
   }
 
@@ -227,30 +222,6 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
                       color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                     ),
                   ),
-                  if (widget.devOtp != null && widget.devOtp!.isNotEmpty) ...[
-                    const SizedBox(height: AppSpacing.sm),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm + 2, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(AppRadius.xs),
-                          border: Border.all(
-                            color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: Text(
-                          'Test Code: ${widget.devOtp}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? AppColors.primaryLight : AppColors.primary,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
                   const SizedBox(height: AppSpacing.xxl),
 
                   // ── 6-Box OTP PIN Display ──────────────────────────────────
