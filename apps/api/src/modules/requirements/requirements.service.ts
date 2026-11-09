@@ -8,7 +8,6 @@ import {
   ConflictException,
   Logger,
   Optional,
-  ServiceUnavailableException,
 } from '@nestjs/common';
 import {
   CreateRequirementDto,

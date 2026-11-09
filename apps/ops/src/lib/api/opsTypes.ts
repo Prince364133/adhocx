@@ -130,6 +130,7 @@ export interface RequirementListItem {
   ratePerVehicle?: number;
   suggestedBudget?: number;
   createdAt: string;
+  pricing?: RequirementPricingSnapshot;
   zonalQuote?: {
     locality?: { name?: string; zoneLabel?: string } | null;
     officeHub?: { displayName?: string };
@@ -144,6 +145,15 @@ export interface RequirementListItem {
       escortPayable?: number;
     };
   };
+}
+
+export interface RequirementPricingSnapshot {
+  planVersion: string;
+  distanceM: number;
+  vendorPricePaise: number;
+  driverPayoutPaise: number;
+  grossSpreadPaise: number;
+  quotedAt: string;
 }
 
 export interface AssignmentItem {
