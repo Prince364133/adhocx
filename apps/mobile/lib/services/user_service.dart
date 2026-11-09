@@ -36,14 +36,15 @@ class UserService {
     DateTime? scheduledPickupTime,
     bool? isScheduled,
     String? couponCode,
-    String? zonalQuoteId,
+    String? quoteId,
   }) async {
     await _ensureSession();
+    final effectiveQuoteId = quoteId;
     final effectiveQuantity = requiredQuantity ?? quantity;
     final effectiveReportingTime = (isScheduled == false) ? DateTime.now() : (scheduledPickupTime ?? reportingTime);
     final effectiveIsScheduled = (isScheduled == false) ? false : (isScheduled ?? (scheduledPickupTime != null || effectiveReportingTime.isAfter(DateTime.now().add(const Duration(minutes: 5)))));
-    // Corporate zonal trips are priced server-side from the stored quote; never send a client amount.
-    final effectiveBudget = zonalQuoteId != null ? null : (ratePerVehicle ?? budgetPerVehicle ?? suggestedBudget);
+    // Distance-based quotes are priced server-side from the stored quote; never send a client amount.
+    final effectiveBudget = effectiveQuoteId != null ? null : (ratePerVehicle ?? budgetPerVehicle ?? suggestedBudget);
     final combinedNotes = [
       if (title != null && title.isNotEmpty) title,
       if (notes != null && notes.isNotEmpty) notes,
@@ -72,7 +73,7 @@ class UserService {
         if (suggestedBudget != null) 'suggestedBudget': suggestedBudget,
         if (combinedNotes.isNotEmpty) 'notes': combinedNotes,
         if (couponCode != null && couponCode.isNotEmpty) 'couponCode': couponCode,
-        if (zonalQuoteId != null) 'zonalQuoteId': zonalQuoteId,
+        if (effectiveQuoteId != null) 'quoteId': effectiveQuoteId,
       },
     );
   }
@@ -438,73 +439,68 @@ class UserService {
     );
   }
 
-  // Corporate zonal rate card (Hyderabad). Returns null when offline so screens can fall back.
-  // ── Dedicated Pricing Service Methods ─────────────────────────────────────
+  // ── Distance pricing ──────────────────────────────────────────────────────
+  // Every price comes from the server's active distance plan. The app never computes or guesses one:
+  // when the server cannot price a trip (no route, no active plan) the error is shown and booking waits.
 
-  Map<String, dynamic>? _cachedVendorRateCard;
-  Map<String, dynamic>? get cachedVendorRateCard => _cachedVendorRateCard;
-
-  /// Corporate zonal rate card (Hyderabad). Caches in memory for instant synchronous lookup.
-  Future<Map<String, dynamic>?> getVendorZonalRateCard({bool forceRefresh = false}) async {
-    if (_cachedVendorRateCard != null && !forceRefresh) {
-      return _cachedVendorRateCard;
-    }
-    try {
-      final res = await _api.get('/pricing/zonal/vendor-card', force: forceRefresh);
-      if (res is Map<String, dynamic>) {
-        _cachedVendorRateCard = res;
-        return res;
-      }
-      return _cachedVendorRateCard;
-    } catch (_) {
-      return _cachedVendorRateCard;
-    }
-  }
-
-  /// Approved locality master; each result carries a stable `id`, `zoneId` and `bookable` flag.
-  Future<List<Map<String, dynamic>>> searchZonalLocalities({String? query}) async {
-    final res = await _api.get(
-      '/pricing/zonal/localities',
-      queryParameters: (query != null && query.trim().isNotEmpty) ? {'q': query.trim()} : null,
-    );
-    if (res is List) {
-      return res.whereType<Map<String, dynamic>>().toList();
-    }
-    return [];
-  }
-
-  /// Creates a server-stored zonal quote. Throws [ApiException] with the server message on failure.
-  /// A 200 response with `canAutoQuote: false` means the trip needs operations review.
-  Future<Map<String, dynamic>> createZonalQuote({
-    required String officeHubId,
-    required String direction,
-    required String localityId,
-    required String vehicleType,
-    required bool hasEscort,
-    required double pickupLat,
-    required double pickupLng,
-    required double dropLat,
-    required double dropLng,
-  }) async {
+  /// Vendor rate card (charges only) for a vehicle category. Throws [ApiException] when no plan is active.
+  Future<Map<String, dynamic>> getVendorRateCard({String vehicleCategory = 'ALL', bool forceRefresh = false}) async {
     await _ensureSession();
-    final res = await _api.post('/pricing/zonal/quote', body: {
-      'officeHubId': officeHubId,
-      'direction': direction,
-      'localityId': localityId,
-      'vehicleType': vehicleType,
-      'hasEscort': hasEscort,
-      'pickupLat': pickupLat,
-      'pickupLng': pickupLng,
-      'dropLat': dropLat,
-      'dropLng': dropLng,
-    });
+    final res = await _api.get(
+      '/vendor/pricing/rate-card',
+      queryParameters: {'vehicleCategory': vehicleCategory.trim().toUpperCase()},
+      force: forceRefresh,
+    );
     return res is Map<String, dynamic> ? res : <String, dynamic>{};
   }
 
-  /// Live marketplace vehicle pricing tiers (Sedan, SUV, Hatchback, Bus, etc.)
+  /// Server quote for one vehicle on a route. The returned `quoteId` must be sent when booking;
+  /// the booked price is the quoted price.
+  Future<Map<String, dynamic>> createDistanceTripQuote({
+    required double pickupLat,
+    required double pickupLng,
+    required String pickupAddress,
+    required double dropLat,
+    required double dropLng,
+    required String dropAddress,
+    required String vehicleCategory,
+    bool pickupIsOffice = false,
+    bool dropIsOffice = false,
+  }) async {
+    await _ensureSession();
+    final res = await _api.post(
+      '/vendor/trip-quotes',
+      body: {
+        'pickupLocation': {
+          'latitude': pickupLat,
+          'longitude': pickupLng,
+          'address': pickupAddress,
+          if (pickupIsOffice) 'isOffice': true,
+        },
+        'dropLocation': {
+          'latitude': dropLat,
+          'longitude': dropLng,
+          'address': dropAddress,
+          if (dropIsOffice) 'isOffice': true,
+        },
+        'vehicleCategory': vehicleCategory.trim().toUpperCase(),
+      },
+    );
+    if (res is Map<String, dynamic>) {
+      final vendorRupees = (res['vendorPriceRupees'] as num?)?.toDouble() ??
+          ((res['vendorPricePaise'] as num?) != null ? (res['vendorPricePaise'] as num) / 100.0 : null);
+      return {
+        ...res,
+        if (vendorRupees != null) 'totalAmount': vendorRupees,
+      };
+    }
+    return <String, dynamic>{};
+  }
+
+  /// Vehicle category catalogue (names and seating; no prices).
   Future<List<Map<String, dynamic>>> getPricingTiers({bool forceRefresh = false}) async {
     try {
-      dynamic res = await _api.get('/pricing/tiers', force: forceRefresh);
+      final dynamic res = await _api.get('/pricing/tiers', force: forceRefresh);
       List<dynamic> list = [];
       if (res is List) {
         list = res;
@@ -513,219 +509,14 @@ class UserService {
           list = res['data'] as List<dynamic>;
         } else if (res['items'] is List) {
           list = res['items'] as List<dynamic>;
-        } else if (res['tiers'] is List) {
-          list = res['tiers'] as List<dynamic>;
         }
       }
-
-      if (list.isEmpty) {
-        dynamic fallback = await _api.get('/pricing', force: forceRefresh);
-        if (fallback is List) {
-          list = fallback;
-        } else if (fallback is Map) {
-          if (fallback['data'] is List) {
-            list = fallback['data'] as List<dynamic>;
-          } else if (fallback['items'] is List) {
-            list = fallback['items'] as List<dynamic>;
-          }
-        }
-      }
-
-      if (list.isNotEmpty) {
-        return List<Map<String, dynamic>>.from(
-          list.whereType<Map>().map((item) => Map<String, dynamic>.from(item)),
-        );
-      }
-    } catch (_) {}
-    return [];
-  }
-
-  /// Dynamic trip fare quotation via backend PricingService (/pricing/calculate)
-  Future<Map<String, dynamic>> calculateTripFare({
-    required String vehicleType,
-    double? distanceKm,
-    int? durationMinutes,
-    double? pickupLat,
-    double? pickupLng,
-    double? dropLat,
-    double? dropLng,
-    int quantity = 1,
-  }) async {
-    try {
-      await _ensureSession();
-      final body = <String, dynamic>{
-        'vehicleType': vehicleType,
-        if (distanceKm != null && distanceKm > 0) 'distanceKm': distanceKm,
-        if (durationMinutes != null && durationMinutes > 0) 'durationMinutes': durationMinutes,
-        if (pickupLat != null && pickupLat != 0.0 && pickupLng != null && pickupLng != 0.0)
-          'pickupLocation': {'latitude': pickupLat, 'longitude': pickupLng},
-        if (dropLat != null && dropLat != 0.0 && dropLng != null && dropLng != 0.0)
-          'dropLocation': {'latitude': dropLat, 'longitude': dropLng},
-        'quantity': quantity,
-      };
-      final res = await _api.post('/pricing/calculate', body: body);
-      return res is Map<String, dynamic> ? res : <String, dynamic>{};
-    } catch (_) {
-      return <String, dynamic>{};
-    }
-  }
-
-  /// Authoritative fare calculation engine that calls dedicated server services.
-  /// Decides real rates on calculation without any hardcoded values in UI components.
-  Future<double> calculateEstimatedFare({
-    required String vehicleType,
-    required String officeHubId,
-    required String direction,
-    Map<String, dynamic>? locality,
-    bool hasEscort = false,
-    double distanceKm = 0.0,
-    int durationMinutes = 0,
-    double pickupLat = 0.0,
-    double pickupLng = 0.0,
-    double dropLat = 0.0,
-    double dropLng = 0.0,
-    Map<String, dynamic>? existingQuote,
-  }) async {
-    // 1. If an active server quote already exists for this trip, return its exact total
-    if (existingQuote != null && existingQuote['totalAmount'] != null) {
-      final total = (existingQuote['totalAmount'] as num?)?.toDouble();
-      if (total != null && total > 0) return total.roundToDouble();
-    }
-
-    final localityId = locality?['id']?.toString();
-    // 2. If corporate locality is provided, query dedicated zonal pricing backend
-    if (localityId != null && localityId.isNotEmpty) {
-      try {
-        final quote = await createZonalQuote(
-          officeHubId: officeHubId,
-          direction: direction,
-          localityId: localityId,
-          vehicleType: vehicleType == 'SUV' ? 'SUV' : 'SEDAN',
-          hasEscort: hasEscort,
-          pickupLat: pickupLat,
-          pickupLng: pickupLng,
-          dropLat: dropLat,
-          dropLng: dropLng,
-        );
-        final total = (quote['totalAmount'] as num?)?.toDouble();
-        if (total != null && total > 0) return total.roundToDouble();
-      } catch (_) {}
-
-      // Fallback: evaluate against live server rate card
-      final card = await getVendorZonalRateCard();
-      if (card != null && card['matrix'] is Map) {
-        final hubMatrix = (card['matrix'] as Map)[officeHubId];
-        final zoneId = locality?['zoneId']?.toString();
-        if (hubMatrix is Map && zoneId != null) {
-          final cell = hubMatrix[zoneId] as Map?;
-          if (cell != null) {
-            final isSuv = vehicleType == 'SUV';
-            final base = (isSuv ? cell['suv'] : cell['sedan']) as num? ?? 500;
-            final escort = hasEscort
-                ? ((isSuv ? cell['escortSuv'] : cell['escortSedan']) as num? ?? 0)
-                : 0;
-            return (base + escort).toDouble().roundToDouble();
-          }
-        }
-      }
-    }
-
-    // 3. For custom road routes, calculate via dedicated server pricing engine
-    try {
-      final tripFare = await calculateTripFare(
-        vehicleType: vehicleType,
-        distanceKm: distanceKm > 0 ? distanceKm : 10.0,
-        durationMinutes: durationMinutes,
-        pickupLat: pickupLat,
-        pickupLng: pickupLng,
-        dropLat: dropLat,
-        dropLng: dropLng,
+      return List<Map<String, dynamic>>.from(
+        list.whereType<Map>().map((item) => Map<String, dynamic>.from(item)),
       );
-      final total = (tripFare['estimatedTotal'] as num?)?.toDouble() ??
-          (tripFare['ratePerVehicle'] as num?)?.toDouble();
-      if (total != null && total > 0) {
-        final escortAdd = hasEscort ? (vehicleType == 'SUV' ? 400.0 : 300.0) : 0.0;
-        return (total + escortAdd).roundToDouble();
-      }
-    } catch (_) {}
-
-    // 4. Default fallback: live vehicle category rates from server
-    final tiers = await getPricingTiers();
-    for (final t in tiers) {
-      if (t['vehicleType'] == vehicleType) {
-        final baseFare = (t['baseFare'] as num?)?.toDouble() ?? 800.0;
-        final baseKm = (t['baseKm'] as num?)?.toDouble() ?? 40.0;
-        final perKm = (t['perKmRate'] as num?)?.toDouble() ?? 14.5;
-        double fare = baseFare;
-        if (distanceKm > baseKm) {
-          fare += (distanceKm - baseKm) * perKm;
-        } else if (distanceKm > 0) {
-          final proportional = (distanceKm * perKm) + (baseFare * 0.4);
-          final minF = baseFare * 0.6;
-          fare = proportional > minF ? proportional : minF;
-        }
-        if (hasEscort) fare += (vehicleType == 'SUV' ? 400.0 : 300.0);
-        return fare.roundToDouble();
-      }
+    } catch (_) {
+      return [];
     }
-
-    return 800.0;
-  }
-
-  /// Fast synchronous calculation using cached server rate card and pricing tiers
-  double calculateSynchronousFare({
-    required String vehicleType,
-    required String officeHubId,
-    Map<String, dynamic>? locality,
-    bool hasEscort = false,
-    double distanceKm = 0.0,
-    List<Map<String, dynamic>>? vehicleTiers,
-    Map<String, dynamic>? existingQuote,
-  }) {
-    if (existingQuote != null && existingQuote['totalAmount'] != null) {
-      final total = (existingQuote['totalAmount'] as num?)?.toDouble();
-      if (total != null && total > 0) return total.roundToDouble();
-    }
-
-    // Check cached vendor rate card from server
-    if (locality != null && _cachedVendorRateCard != null && _cachedVendorRateCard!['matrix'] is Map) {
-      final hubMatrix = (_cachedVendorRateCard!['matrix'] as Map)[officeHubId];
-      final zoneId = locality['zoneId']?.toString();
-      if (hubMatrix is Map && zoneId != null) {
-        final cell = hubMatrix[zoneId] as Map?;
-        if (cell != null) {
-          final isSuv = vehicleType == 'SUV';
-          final base = (isSuv ? cell['suv'] : cell['sedan']) as num? ?? 500;
-          final escort = hasEscort
-              ? ((isSuv ? cell['escortSuv'] : cell['escortSedan']) as num? ?? 0)
-              : 0;
-          return (base + escort).toDouble().roundToDouble();
-        }
-      }
-    }
-
-    // Vehicle tier based calculation
-    if (vehicleTiers != null && vehicleTiers.isNotEmpty) {
-      for (final t in vehicleTiers) {
-        if (t['id'] == vehicleType || t['vehicleType'] == vehicleType) {
-          final baseFare = (t['baseRate'] ?? t['baseFare'] as num?)?.toDouble() ?? 800.0;
-          final baseKm = (t['baseKm'] as num?)?.toDouble() ?? 40.0;
-          final perKm = (t['perKmRate'] as num?)?.toDouble() ?? 14.5;
-          double fare = baseFare;
-          if (distanceKm > baseKm) {
-            fare += (distanceKm - baseKm) * perKm;
-          } else if (distanceKm > 0) {
-            final proportional = (distanceKm * perKm) + (baseFare * 0.4);
-            final minF = baseFare * 0.6;
-            fare = proportional > minF ? proportional : minF;
-          }
-          if (hasEscort) fare += (vehicleType == 'SUV' ? 400.0 : 300.0);
-          return fare.roundToDouble();
-        }
-      }
-    }
-
-    return 800.0;
   }
 
   // ── Dedicated Corporate ETS Employee Operations (PRD 01 & 08) ─────────────

@@ -40,13 +40,11 @@ class RequirementDraftProvider extends ChangeNotifier {
   String _formattedEta = '';
   String _formattedDistance = '';
 
-  // Corporate Zonal Rate Card Configuration (Hyderabad 2026)
-  bool _zonalEnabled = false;
-  String _zonalOfficeHubId = 'HITEC_NANAKRAMGUDA';
-  String _zonalDirection = 'OUTBOUND_FROM_OFFICE'; // 'OUTBOUND_FROM_OFFICE' (office -> home) or 'INBOUND_TO_OFFICE' (home -> office)
-  Map<String, dynamic>? _zonalLocality;
-  bool _zonalHasEscort = false;
-  Map<String, dynamic>? _zonalQuote;
+  // Server distance quote for the current route and vehicle type. Its amount is the booked price.
+  Map<String, dynamic>? _quote;
+  // Optional "office" labels on the pickup / drop (display only; pricing is by route distance).
+  bool _pickupIsOffice = false;
+  bool _dropIsOffice = false;
 
 
   RequirementDraftProvider() {
@@ -106,19 +104,16 @@ class RequirementDraftProvider extends ChangeNotifier {
   String get formattedEta => _formattedEta;
   String get formattedDistance => _formattedDistance;
 
-  // Corporate Zonal Getters
-  bool get zonalEnabled => _zonalEnabled;
-  String get zonalOfficeHubId => _zonalOfficeHubId;
-  String get zonalDirection => _zonalDirection;
-  Map<String, dynamic>? get zonalLocality => _zonalLocality;
-  bool get zonalHasEscort => _zonalHasEscort;
-  Map<String, dynamic>? get zonalQuote => _zonalQuote;
-  String? get zonalQuoteId => (_zonalEnabled && _zonalQuote != null && _zonalQuote!['canAutoQuote'] == true)
-      ? _zonalQuote!['quoteId'] as String?
-      : null;
-  double? get zonalTotalAmount => (_zonalEnabled && _zonalQuote != null && _zonalQuote!['canAutoQuote'] == true)
-      ? (_zonalQuote!['totalAmount'] as num?)?.toDouble()
-      : null;
+  Map<String, dynamic>? get quote => _quote;
+  String? get quoteId => _quote?['quoteId'] as String?;
+  double? get quotedAmount => (_quote?['totalAmount'] as num?)?.toDouble();
+  DateTime? get quoteExpiresAt => DateTime.tryParse(_quote?['expiresAt']?.toString() ?? '');
+  bool get hasValidQuote {
+    final exp = quoteExpiresAt;
+    return quoteId != null && (exp == null || exp.isAfter(DateTime.now()));
+  }
+  bool get pickupIsOffice => _pickupIsOffice;
+  bool get dropIsOffice => _dropIsOffice;
 
 
   // Setters / Updates
@@ -132,6 +127,8 @@ class RequirementDraftProvider extends ChangeNotifier {
     double? maxBudgetCap,
   }) {
     _fulfillmentMode = fulfillmentMode;
+    // A quote is for one vehicle type; changing the type needs a new quote.
+    if (vehicleType != _vehicleType) _quote = null;
     _vehicleType = vehicleType;
     _quantity = quantity;
     if (passengers != null) _passengers = passengers;
@@ -316,31 +313,23 @@ class RequirementDraftProvider extends ChangeNotifier {
     _estimatedDurationMinutes = 0;
     _formattedEta = '';
     _formattedDistance = '';
-    _zonalEnabled = false;
-    _zonalOfficeHubId = 'HITEC_NANAKRAMGUDA';
-    _zonalDirection = 'OUTBOUND_FROM_OFFICE';
-    _zonalLocality = null;
-    _zonalHasEscort = false;
-    _zonalQuote = null;
+    _quote = null;
+    _pickupIsOffice = false;
+    _dropIsOffice = false;
     _cabs.clear();
     _initDefaultDateTime();
     notifyListeners();
   }
 
-  void setZonalConfig({
-    bool? enabled,
-    String? officeHubId,
-    String? direction,
-    Map<String, dynamic>? locality,
-    bool? hasEscort,
-    Map<String, dynamic>? quote,
-  }) {
-    if (enabled != null) _zonalEnabled = enabled;
-    if (officeHubId != null) _zonalOfficeHubId = officeHubId;
-    if (direction != null) _zonalDirection = direction;
-    if (locality != null) _zonalLocality = locality;
-    if (hasEscort != null) _zonalHasEscort = hasEscort;
-    if (quote != null) _zonalQuote = quote;
+  /// Stores the current server quote; pass null to clear it (e.g. after a failed or expired quote).
+  void setQuote(Map<String, dynamic>? quote) {
+    _quote = quote;
+    notifyListeners();
+  }
+
+  void setOfficeLabels({bool? pickupIsOffice, bool? dropIsOffice}) {
+    if (pickupIsOffice != null) _pickupIsOffice = pickupIsOffice;
+    if (dropIsOffice != null) _dropIsOffice = dropIsOffice;
     notifyListeners();
   }
 

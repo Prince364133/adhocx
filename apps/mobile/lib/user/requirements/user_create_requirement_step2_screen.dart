@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -11,8 +12,6 @@ import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/app_primary_button.dart';
 import 'requirement_draft_provider.dart';
-import 'utils/office_hub_detector.dart';
-import 'widgets/zonal_quote_panel.dart';
 
 class UserCreateRequirementStep2Screen extends StatefulWidget {
   const UserCreateRequirementStep2Screen({super.key});
@@ -23,40 +22,28 @@ class UserCreateRequirementStep2Screen extends StatefulWidget {
 
 class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirementStep2Screen> {
   static const String _tripType = 'One Way';
-  late TextEditingController _pickupController;
-  late TextEditingController _pickupInstructions;
-  late TextEditingController _dropController;
-  late TextEditingController _dropInstructions;
 
-  String _officeAddress = '';
-  double _officeLat = 0.0;
-  double _officeLng = 0.0;
+  String _pickupAddress = '';
+  double _pickupLat = 0.0;
+  double _pickupLng = 0.0;
+  bool _pickupIsOffice = false;
+  late TextEditingController _pickupInstructions;
+
+  String _dropAddress = '';
+  double _dropLat = 0.0;
+  double _dropLng = 0.0;
+  bool _dropIsOffice = false;
+  late TextEditingController _dropInstructions;
 
   bool _initialized = false;
   bool _isCalculatingRoute = false;
   RoadRouteResult? _routeResult;
 
-  // Direction: 'OUTBOUND_FROM_OFFICE' (Office -> Home) or 'INBOUND_TO_OFFICE' (Home -> Office)
-  String _direction = 'OUTBOUND_FROM_OFFICE';
-  Map<String, dynamic>? _locality;
-  bool _hasEscort = false;
   bool _loadingQuote = false;
-  String? _zonalError;
-  Map<String, dynamic>? _zonalQuote;
-
-  bool get _isOfficePickup => _direction == 'OUTBOUND_FROM_OFFICE';
-
-  String get _localityAddress => _locality != null ? '${_locality!['name']}, Hyderabad, Telangana' : '';
-  double get _localityLat => (_locality?['lat'] as num?)?.toDouble() ?? 0.0;
-  double get _localityLng => (_locality?['lng'] as num?)?.toDouble() ?? 0.0;
-
-  String get _pickupAddress => _isOfficePickup ? _officeAddress : _localityAddress;
-  double get _pickupLat => _isOfficePickup ? _officeLat : _localityLat;
-  double get _pickupLng => _isOfficePickup ? _officeLng : _localityLng;
-
-  String get _dropAddress => !_isOfficePickup ? _officeAddress : _localityAddress;
-  double get _dropLat => !_isOfficePickup ? _officeLat : _localityLat;
-  double get _dropLng => !_isOfficePickup ? _officeLng : _localityLng;
+  String? _quoteError;
+  Map<String, dynamic>? _distanceQuote;
+  Timer? _quoteExpiryTimer;
+  int _secondsUntilExpiry = 0;
 
   @override
   void didChangeDependencies() {
@@ -66,50 +53,24 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
       _pickupInstructions = TextEditingController(text: draft.pickupInstructions);
       _dropInstructions = TextEditingController(text: draft.dropInstructions);
 
-      _direction = draft.zonalDirection;
-      _locality = draft.zonalLocality;
-      _hasEscort = draft.zonalHasEscort;
-      _zonalQuote = draft.zonalQuote;
+      _pickupAddress = draft.pickupLocation;
+      _pickupLat = draft.pickupLat;
+      _pickupLng = draft.pickupLng;
+      _pickupIsOffice = draft.pickupIsOffice;
 
-      final def = OfficeHubDetector.defaultLocationForHub(
-        draft.zonalOfficeHubId.isNotEmpty ? draft.zonalOfficeHubId : OfficeHubDetector.hitecId,
-      );
-      final defaultOfficeAddr = def['address'] as String;
-      final defaultOfficeLat = (def['lat'] as num).toDouble();
-      final defaultOfficeLng = (def['lng'] as num).toDouble();
+      _dropAddress = draft.dropLocation;
+      _dropLat = draft.dropLat;
+      _dropLng = draft.dropLng;
+      _dropIsOffice = draft.dropIsOffice;
 
-      // Determine office location from draft
-      if (draft.pickupLocation.isNotEmpty && !draft.pickupLocation.contains('Gurgaon')) {
-        if (_isOfficePickup) {
-          _officeAddress = draft.pickupLocation;
-          _officeLat = draft.pickupLat != 0.0 ? draft.pickupLat : defaultOfficeLat;
-          _officeLng = draft.pickupLng != 0.0 ? draft.pickupLng : defaultOfficeLng;
-        } else {
-          _officeAddress = draft.dropLocation.isNotEmpty ? draft.dropLocation : defaultOfficeAddr;
-          _officeLat = draft.dropLat != 0.0 ? draft.dropLat : defaultOfficeLat;
-          _officeLng = draft.dropLng != 0.0 ? draft.dropLng : defaultOfficeLng;
-        }
-      } else {
-        _officeAddress = defaultOfficeAddr;
-        _officeLat = defaultOfficeLat;
-        _officeLng = defaultOfficeLng;
-      }
-
-      _pickupController = TextEditingController(text: _pickupAddress);
-      _dropController = TextEditingController(text: _dropAddress);
+      _distanceQuote = draft.quote;
 
       _initialized = true;
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _syncToDraft();
-        if (_locality != null && _getDetectedHub() != null) {
-          _calculateAndSyncRoute();
-          _refreshZonalQuote();
-        } else {
-          setState(() {
-            _routeResult = null;
-            _zonalQuote = null;
-          });
+        if (_hasValidCoordinates) {
+          _calculateAndFetchQuote();
         }
       });
     }
@@ -117,47 +78,45 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
 
   @override
   void dispose() {
-    _pickupController.dispose();
     _pickupInstructions.dispose();
-    _dropController.dispose();
     _dropInstructions.dispose();
+    _quoteExpiryTimer?.cancel();
     super.dispose();
   }
 
-  String? _getDetectedHub() {
-    return OfficeHubDetector.detectHub(lat: _officeLat, lng: _officeLng, addressText: _officeAddress);
-  }
+  bool get _hasValidCoordinates =>
+      _pickupLat != 0.0 &&
+      _pickupLng != 0.0 &&
+      _dropLat != 0.0 &&
+      _dropLng != 0.0 &&
+      !(_pickupLat == _dropLat && _pickupLng == _dropLng);
 
   bool get _canContinue {
-    if (_officeAddress.trim().isEmpty || _locality == null) {
-      return false;
-    }
-    final detected = _getDetectedHub();
-    if (detected == null) {
-      return false;
-    }
+    if (_pickupAddress.trim().isEmpty || _dropAddress.trim().isEmpty) return false;
+    if (!_hasValidCoordinates) return false;
+    if (_loadingQuote) return false;
+    if (_distanceQuote == null || _distanceQuote!['quoteId'] == null) return false;
     return true;
   }
 
-  Future<void> _calculateAndSyncRoute() async {
-    final detected = _getDetectedHub();
-    if (_locality == null ||
-        detected == null ||
-        _pickupLat == 0.0 ||
-        _dropLat == 0.0 ||
-        (_pickupLat == _dropLat && _pickupLng == _dropLng)) {
-      if (mounted) {
-        setState(() {
-          _routeResult = null;
-          _isCalculatingRoute = false;
-        });
-      }
-      context.read<RequirementDraftProvider>().clearRoadRoute();
+  Future<void> _calculateAndFetchQuote() async {
+    if (!_hasValidCoordinates) {
+      setState(() {
+        _routeResult = null;
+        _distanceQuote = null;
+        _quoteError = null;
+      });
       return;
     }
 
-    setState(() => _isCalculatingRoute = true);
+    setState(() {
+      _isCalculatingRoute = true;
+      _loadingQuote = true;
+      _quoteError = null;
+    });
+
     try {
+      // 1. Calculate road routing via Google Maps
       final res = await LocationService.instance.calculateRoadRoute(
         startLat: _pickupLat,
         startLng: _pickupLng,
@@ -166,8 +125,6 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
       );
 
       final distanceKm = res.distanceKm;
-      // Real actual estimated driving time calculated with 40 km/h average:
-      // Time in minutes = (distanceKm / 40.0) * 60
       final minutesAt40Kmh = distanceKm > 0 ? ((distanceKm / 40.0) * 60.0).round().clamp(1, 1440) : 0;
       final formattedEta = minutesAt40Kmh < 60
           ? '$minutesAt40Kmh mins'
@@ -196,81 +153,90 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
           formattedEta: formattedEta,
         );
       }
-    } catch (_) {
-      if (mounted) setState(() => _isCalculatingRoute = false);
-    }
-  }
 
-  Future<void> _refreshZonalQuote() async {
-    final detected = _getDetectedHub();
-    if (_locality == null || detected == null) {
-      setState(() {
-        _zonalQuote = null;
-        _zonalError = null;
-      });
-      _syncToDraft();
-      return;
-    }
+      // 2. Fetch server distance quote (PRD v1.0 dynamic distance engine)
+      if (!mounted) return;
+      final draft = context.read<RequirementDraftProvider>();
+      final vehicleCategory = draft.vehicleType.trim().toUpperCase();
 
-    setState(() {
-      _loadingQuote = true;
-      _zonalError = null;
-    });
-
-    final draft = context.read<RequirementDraftProvider>();
-    final vehicleType = draft.vehicleType.trim().toUpperCase();
-
-    try {
-      final res = await UserService.instance.createZonalQuote(
-        officeHubId: detected,
-        direction: _direction,
-        localityId: _locality!['id'] as String,
-        vehicleType: vehicleType == 'SUV' ? 'SUV' : 'SEDAN',
-        hasEscort: _hasEscort,
+      final quote = await UserService.instance.createDistanceTripQuote(
         pickupLat: _pickupLat,
         pickupLng: _pickupLng,
+        pickupAddress: _pickupAddress.trim(),
         dropLat: _dropLat,
         dropLng: _dropLng,
+        dropAddress: _dropAddress.trim(),
+        vehicleCategory: vehicleCategory,
+        pickupIsOffice: _pickupIsOffice,
+        dropIsOffice: _dropIsOffice,
       );
+
       if (mounted) {
         setState(() {
-          _zonalQuote = res;
+          _distanceQuote = quote;
           _loadingQuote = false;
+          _quoteError = null;
         });
+        _startExpiryCountdown(quote['expiresAt'] as String?);
         _syncToDraft();
       }
     } on ApiException catch (e) {
       if (mounted) {
         setState(() {
-          _zonalQuote = null;
+          _distanceQuote = null;
           _loadingQuote = false;
-          _zonalError = e.message;
+          _quoteError = e.message;
         });
         _syncToDraft();
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
         setState(() {
-          _zonalQuote = null;
+          _distanceQuote = null;
           _loadingQuote = false;
-          _zonalError = 'Could not fetch corporate quote. Check your connection.';
+          _quoteError = 'Distance quote unavailable. Please check your connection.';
         });
         _syncToDraft();
       }
     }
   }
 
+  void _startExpiryCountdown(String? expiresAtStr) {
+    _quoteExpiryTimer?.cancel();
+    if (expiresAtStr == null) return;
+    final expiresAt = DateTime.tryParse(expiresAtStr);
+    if (expiresAt == null) return;
+
+    final diffSec = expiresAt.difference(DateTime.now()).inSeconds;
+    if (diffSec <= 0) {
+      setState(() => _secondsUntilExpiry = 0);
+      return;
+    }
+
+    setState(() => _secondsUntilExpiry = diffSec);
+    _quoteExpiryTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      final remaining = expiresAt.difference(DateTime.now()).inSeconds;
+      if (remaining <= 0) {
+        timer.cancel();
+        setState(() {
+          _secondsUntilExpiry = 0;
+          _quoteError = 'Quote has expired. Refreshing...';
+        });
+        _calculateAndFetchQuote();
+      } else {
+        setState(() => _secondsUntilExpiry = remaining);
+      }
+    });
+  }
+
   void _syncToDraft() {
-    final detected = _getDetectedHub() ?? OfficeHubDetector.hitecId;
     final draft = context.read<RequirementDraftProvider>();
-    draft.setZonalConfig(
-      enabled: true,
-      officeHubId: detected,
-      direction: _direction,
-      locality: _locality,
-      hasEscort: _hasEscort,
-      quote: _zonalQuote,
-    );
+    draft.setQuote(_distanceQuote);
+    draft.setOfficeLabels(pickupIsOffice: _pickupIsOffice, dropIsOffice: _dropIsOffice);
     draft.updateStep2(
       pickupLocation: _pickupAddress.trim(),
       pickupInstructions: _pickupInstructions.text.trim(),
@@ -284,212 +250,64 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
     );
   }
 
-  void _setDirection(String newDirection) {
-    if (_direction == newDirection) return;
-    setState(() {
-      _direction = newDirection;
-      _pickupController.text = _pickupAddress;
-      _dropController.text = _dropAddress;
-    });
-    _syncToDraft();
-    _calculateAndSyncRoute();
-    _refreshZonalQuote();
-  }
-
   void _swapLocations() {
-    final tempInstructions = _pickupInstructions.text;
-    _pickupInstructions.text = _dropInstructions.text;
-    _dropInstructions.text = tempInstructions;
-    _setDirection(_direction == 'OUTBOUND_FROM_OFFICE' ? 'INBOUND_TO_OFFICE' : 'OUTBOUND_FROM_OFFICE');
+    setState(() {
+      final tempAddr = _pickupAddress;
+      final tempLat = _pickupLat;
+      final tempLng = _pickupLng;
+      final tempOffice = _pickupIsOffice;
+      final tempInst = _pickupInstructions.text;
+
+      _pickupAddress = _dropAddress;
+      _pickupLat = _dropLat;
+      _pickupLng = _dropLng;
+      _pickupIsOffice = _dropIsOffice;
+      _pickupInstructions.text = _dropInstructions.text;
+
+      _dropAddress = tempAddr;
+      _dropLat = tempLat;
+      _dropLng = tempLng;
+      _dropIsOffice = tempOffice;
+      _dropInstructions.text = tempInst;
+    });
+
+    _syncToDraft();
+    _calculateAndFetchQuote();
   }
 
-  Future<void> _openOfficeLocationPicker() async {
-    final initialAddress = _officeAddress;
-    final initialLat = _officeLat;
-    final initialLng = _officeLng;
-
-    final picked = await showModalBottomSheet<Map<String, dynamic>>(
-      context: context,
-      useRootNavigator: true,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        final isDark = Theme.of(ctx).brightness == Brightness.dark;
-        return Container(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.slate700 : AppColors.slate300,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              Text(
-                'Select Approved Office Hub',
-                style: AppTypography.h4(
-                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Choose one of the 2 official Hyderabad hubs or search your office building:',
-                style: TextStyle(fontSize: 12, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
-              ),
-              const SizedBox(height: 14),
-
-              // Hub 1: HITEC / Nanakramguda
-              ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  side: BorderSide(color: AppColors.primary.withValues(alpha: 0.3)),
-                ),
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                  ),
-                  child: const Icon(Icons.business_rounded, color: AppColors.primary, size: 22),
-                ),
-                title: const Text('HITEC / Nanakramguda Hub', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                subtitle: const Text('Cyber Towers, Madhapur, Raidurg, Financial District, Waverock', style: TextStyle(fontSize: 11)),
-                trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
-                onTap: () {
-                  Navigator.pop(ctx, OfficeHubDetector.defaultLocationForHub(OfficeHubDetector.hitecId));
-                },
-              ),
-              const SizedBox(height: 10),
-
-              // Hub 2: Kokapet
-              ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  side: BorderSide(color: AppColors.accentPurple.withValues(alpha: 0.3)),
-                ),
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.accentPurple.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                  ),
-                  child: const Icon(Icons.corporate_fare_rounded, color: AppColors.accentPurple, size: 22),
-                ),
-                title: const Text('Kokapet Hub', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                subtitle: const Text('Kokapet SEZ, GAR Infobahn, Neopolis, Golden Mile', style: TextStyle(fontSize: 11)),
-                trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
-                onTap: () {
-                  Navigator.pop(ctx, OfficeHubDetector.defaultLocationForHub(OfficeHubDetector.kokapetId));
-                },
-              ),
-              const SizedBox(height: 14),
-
-              // Search Specific Building
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () async {
-                    Navigator.pop(ctx);
-                    final result = await context.push<Map<String, dynamic>>(
-                      AppRoutes.universalLocationSearchScreen,
-                      extra: {
-                        'title': 'Search Corporate Office Building',
-                        'initialAddress': initialAddress,
-                        'initialLat': initialLat,
-                        'initialLng': initialLng,
-                        'officeHubOnly': true,
-                      },
-                    );
-                    if (result != null && mounted) {
-                      final addr = (result['fullAddress'] as String?) ?? (result['address'] as String?) ?? (result['title'] as String?) ?? '';
-                      final lat = (result['latitude'] as num?)?.toDouble() ?? 17.4435;
-                      final lng = (result['longitude'] as num?)?.toDouble() ?? 78.3772;
-                      final detected = OfficeHubDetector.detectHub(lat: lat, lng: lng, addressText: addr);
-                      if (detected == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            backgroundColor: AppColors.error,
-                            content: Text('"$addr" is outside approved office hubs (HITEC / Kokapet).'),
-                          ),
-                        );
-                        return;
-                      }
-                      setState(() {
-                        _officeAddress = addr;
-                        _officeLat = lat;
-                        _officeLng = lng;
-                        _pickupController.text = _pickupAddress;
-                        _dropController.text = _dropAddress;
-                      });
-                      _syncToDraft();
-                      _calculateAndSyncRoute();
-                      _refreshZonalQuote();
-                    }
-                  },
-                  icon: const Icon(Icons.search_rounded, size: 18),
-                  label: const Text('Search Custom Building / Street in Hub', style: TextStyle(fontWeight: FontWeight.bold)),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
+  Future<void> _pickLocation({required bool isPickup}) async {
+    final result = await context.push<Map<String, dynamic>>(
+      AppRoutes.universalLocationSearchScreen,
+      extra: {
+        'title': isPickup ? 'Select Pickup Location' : 'Select Drop Location',
+        'initialAddress': isPickup ? _pickupAddress : _dropAddress,
+        'initialLat': isPickup ? _pickupLat : _dropLat,
+        'initialLng': isPickup ? _pickupLng : _dropLng,
       },
     );
 
-    if (picked != null && mounted) {
-      final addr = picked['address'] as String;
-      final lat = (picked['lat'] as num).toDouble();
-      final lng = (picked['lng'] as num).toDouble();
-      setState(() {
-        _officeAddress = addr;
-        _officeLat = lat;
-        _officeLng = lng;
-        _pickupController.text = _pickupAddress;
-        _dropController.text = _dropAddress;
-      });
-      _syncToDraft();
-      _calculateAndSyncRoute();
-      _refreshZonalQuote();
-    }
-  }
+    if (result != null && mounted) {
+      final addr = (result['fullAddress'] as String?) ??
+          (result['address'] as String?) ??
+          (result['title'] as String?) ??
+          '';
+      final lat = (result['latitude'] as num?)?.toDouble() ?? 0.0;
+      final lng = (result['longitude'] as num?)?.toDouble() ?? 0.0;
 
-  Future<void> _openEmployeeLocationPicker() async {
-    // Direct user to verified locality picker
-    final picked = await showModalBottomSheet<Map<String, dynamic>>(
-      context: context,
-      useRootNavigator: true,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => const ZonalLocalityPickerSheet(),
-    );
-
-    if (picked != null && mounted) {
       setState(() {
-        _locality = picked;
-        _pickupController.text = _pickupAddress;
-        _dropController.text = _dropAddress;
+        if (isPickup) {
+          _pickupAddress = addr;
+          _pickupLat = lat;
+          _pickupLng = lng;
+        } else {
+          _dropAddress = addr;
+          _dropLat = lat;
+          _dropLng = lng;
+        }
       });
+
       _syncToDraft();
-      _calculateAndSyncRoute();
-      _refreshZonalQuote();
+      _calculateAndFetchQuote();
     }
   }
 
@@ -499,9 +317,9 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
     final draft = context.read<RequirementDraftProvider>();
     draft.updateStep2(
       pickupLocation: _pickupAddress.trim(),
-      pickupInstructions: '',
+      pickupInstructions: _pickupInstructions.text.trim(),
       dropLocation: _dropAddress.trim(),
-      dropInstructions: '',
+      dropInstructions: _dropInstructions.text.trim(),
       tripType: _tripType,
       pickupLat: _pickupLat,
       pickupLng: _pickupLng,
@@ -528,12 +346,6 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
     final isDark = theme.brightness == Brightness.dark;
     final primaryText = isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight;
     final mutedText = isDark ? AppColors.textMutedDark : AppColors.textMutedLight;
-    final detectedHub = _getDetectedHub();
-
-    final officeAddress = _isOfficePickup ? _pickupController.text.trim() : _dropController.text.trim();
-    final isOfficeOutside = officeAddress.isNotEmpty && detectedHub == null;
-
-    final employeeAddress = !_isOfficePickup ? _pickupController.text.trim() : _dropController.text.trim();
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
@@ -542,12 +354,12 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
         elevation: 0,
         leading: IconButton(
           onPressed: () => context.pop(),
-          icon: Icon(Icons.arrow_back, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+          icon: Icon(Icons.arrow_back, color: primaryText),
         ),
         title: Text(
-          'Create Requirement',
+          'Select Route & Locations',
           style: AppTypography.h3(
-            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+            color: primaryText,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -592,11 +404,11 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Route & Direction',
+                          'Pickup & Drop Locations',
                           style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: primaryText),
                         ),
                         TextButton.icon(
-                          onPressed: _swapLocations,
+                          onPressed: _hasValidCoordinates ? _swapLocations : null,
                           style: TextButton.styleFrom(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             minimumSize: Size.zero,
@@ -608,66 +420,64 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
                       ],
                     ),
 
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
 
-                    // 1. DIRECTION SEGMENTED BAR
-                    _buildDirectionBar(isDark, primaryText),
-
-                    const SizedBox(height: 12),
-
-                    // 2. UNIFIED CONNECTED ROUTE CARD (Pickup + Drop + Inline Distance & 40km/h ETA)
-                    _buildUnifiedRouteCard(
-                      isDark: isDark,
-                      primaryText: primaryText,
-                      mutedText: mutedText,
-                      detectedHub: detectedHub,
-                      officeAddress: officeAddress,
-                      isOfficeOutside: isOfficeOutside,
-                      employeeAddress: employeeAddress,
-                    ),
+                    // 1. UNIFIED CONNECTED ROUTE CARD
+                    _buildConnectedRouteCard(isDark, primaryText, mutedText),
 
                     const SizedBox(height: 12),
 
-                    // 3. COMPACT OPTIONS (Security Escort)
-                    _buildOptionsCard(isDark, primaryText, mutedText),
-
-                    // 4. GUARANTEED FARE CARD (only when quote is available & locality is selected)
-                    if (_loadingQuote) ...[
+                    // 3. DYNAMIC DISTANCE PRICING CARD (PRD v1.0)
+                    if (_isCalculatingRoute || _loadingQuote) ...[
                       const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 8),
-                        child: LinearProgressIndicator(minHeight: 2),
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Center(
+                          child: Column(
+                            children: [
+                              CircularProgressIndicator(strokeWidth: 2),
+                              SizedBox(height: 8),
+                              Text('Calculating route distance and guaranteed fare...', style: TextStyle(fontSize: 12)),
+                            ],
+                          ),
+                        ),
                       ),
-                    ] else if (_zonalQuote != null && detectedHub != null && _locality != null) ...[
-                      _buildZonalFareCard(isDark, primaryText, mutedText, detectedHub),
-                    ] else if (_zonalError != null) ...[
+                    ] else if (_distanceQuote != null) ...[
+                      _buildDistanceQuoteCard(isDark, primaryText, mutedText),
+                    ] else if (_quoteError != null) ...[
                       Container(
                         margin: const EdgeInsets.only(top: 8),
-                        padding: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: AppColors.error.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(AppRadius.md),
                           border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
                         ),
                         child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 16),
+                            const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 18),
                             const SizedBox(width: 8),
-                            Expanded(child: Text(_zonalError!, style: const TextStyle(fontSize: 11, color: AppColors.error))),
+                            Expanded(
+                              child: Text(
+                                _quoteError!,
+                                style: const TextStyle(fontSize: 12, color: AppColors.error, fontWeight: FontWeight.w500),
+                              ),
+                            ),
                           ],
                         ),
                       ),
                     ],
 
-                    const SizedBox(height: AppSpacing.lg),
+                    const SizedBox(height: AppSpacing.xl),
 
-                    // 5. BOTTOM ACTIONS (Back + Continue)
+                    // 4. BOTTOM ACTIONS (Back + Continue)
                     Row(
                       children: [
                         Expanded(
                           child: OutlinedButton(
                             onPressed: () => context.pop(),
                             style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              padding: const EdgeInsets.symmetric(vertical: 13),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                             ),
                             child: const Text('Back', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -684,20 +494,23 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
                       ],
                     ),
 
-                    // Guidance hint when Continue is disabled
                     if (!_canContinue) ...[
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
                       Center(
                         child: Text(
-                          detectedHub == null
-                              ? 'Office location must be within HITEC City or Kokapet corridor'
-                              : (_locality == null
-                                  ? 'Select an employee locality to calculate route'
-                                  : 'Please provide all required locations'),
+                          _pickupAddress.isEmpty
+                              ? 'Select a pickup location to begin'
+                              : (_dropAddress.isEmpty
+                                  ? 'Select a drop location to calculate distance'
+                                  : (_loadingQuote
+                                      ? 'Resolving pricing slab...'
+                                      : (_quoteError != null
+                                          ? 'Route exceeds available pricing bands'
+                                          : 'Select locations to get quote'))),
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
-                            color: detectedHub == null ? AppColors.error : AppColors.warning,
+                            color: _quoteError != null ? AppColors.error : AppColors.warning,
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -713,147 +526,20 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
     );
   }
 
-  Widget _buildDirectionBar(bool isDark, Color primaryText) {
-    final isOutbound = _direction == 'OUTBOUND_FROM_OFFICE';
-    return Container(
-      height: 38,
-      padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : AppColors.slate200,
-        borderRadius: BorderRadius.circular(AppRadius.full),
-        border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight, width: 0.5),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: GestureDetector(
-              onTap: () => _setDirection('OUTBOUND_FROM_OFFICE'),
-              child: Container(
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: isOutbound ? AppColors.primary : Colors.transparent,
-                  borderRadius: BorderRadius.circular(AppRadius.full),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.business_rounded,
-                      size: 14,
-                      color: isOutbound ? Colors.white : primaryText,
-                    ),
-                    const SizedBox(width: 4),
-                    Icon(
-                      Icons.arrow_forward_rounded,
-                      size: 12,
-                      color: isOutbound ? Colors.white : primaryText,
-                    ),
-                    const SizedBox(width: 4),
-                    Icon(
-                      Icons.home_rounded,
-                      size: 14,
-                      color: isOutbound ? Colors.white : primaryText,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Office → Home',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: isOutbound ? FontWeight.bold : FontWeight.w500,
-                        color: isOutbound ? Colors.white : primaryText,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: GestureDetector(
-              onTap: () => _setDirection('INBOUND_TO_OFFICE'),
-              child: Container(
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: !isOutbound ? AppColors.primary : Colors.transparent,
-                  borderRadius: BorderRadius.circular(AppRadius.full),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.home_rounded,
-                      size: 14,
-                      color: !isOutbound ? Colors.white : primaryText,
-                    ),
-                    const SizedBox(width: 4),
-                    Icon(
-                      Icons.arrow_forward_rounded,
-                      size: 12,
-                      color: !isOutbound ? Colors.white : primaryText,
-                    ),
-                    const SizedBox(width: 4),
-                    Icon(
-                      Icons.business_rounded,
-                      size: 14,
-                      color: !isOutbound ? Colors.white : primaryText,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Home → Office',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: !isOutbound ? FontWeight.bold : FontWeight.w500,
-                        color: !isOutbound ? Colors.white : primaryText,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildUnifiedRouteCard({
-    required bool isDark,
-    required Color primaryText,
-    required Color mutedText,
-    required String? detectedHub,
-    required String officeAddress,
-    required bool isOfficeOutside,
-    required String employeeAddress,
-  }) {
-    final pickupIsOffice = _isOfficePickup;
-
-    final officeTitle = _officeAddress.isNotEmpty
-        ? (detectedHub != null ? OfficeHubDetector.hubDisplayName(detectedHub) : _officeAddress.split(',').first.trim())
-        : 'Tap to select approved office hub';
-    final officeSubtitle = detectedHub != null
-        ? (detectedHub == OfficeHubDetector.hitecId ? 'HITEC City / Nanakramguda' : 'Kokapet SEZ / Neopolis')
-        : (isOfficeOutside ? 'Outside service corridor' : 'Official Corporate Office Hub');
-
-    final employeeTitle = _locality != null
-        ? '${_locality!['name']} (${_locality!['zoneLabel']})'
-        : 'Select Employee Locality';
-    final employeeSubtitle = _locality != null
-        ? 'Verified Locality • Fixed Fare'
-        : 'Tap to select from 100+ verified areas';
-
+  Widget _buildConnectedRouteCard(bool isDark, Color primaryText, Color mutedText) {
     return Container(
       decoration: BoxDecoration(
         color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
         borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(
-          color: isOfficeOutside ? AppColors.error : (isDark ? AppColors.borderDark : AppColors.borderLight),
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
         ),
       ),
       child: Column(
         children: [
-          // ── STOP 1: ALWAYS PICKUP LOCATION ──
+          // ── STOP 1: PICKUP LOCATION ──
           InkWell(
-            onTap: pickupIsOffice ? _openOfficeLocationPicker : _openEmployeeLocationPicker,
+            onTap: () => _pickLocation(isPickup: true),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
@@ -861,7 +547,7 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.only(top: 3),
+                    padding: const EdgeInsets.only(top: 4),
                     child: Container(
                       width: 10,
                       height: 10,
@@ -879,7 +565,7 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
                         Row(
                           children: [
                             Text(
-                              'PICKUP LOCATION (STOP 1)',
+                              'PICKUP LOCATION',
                               style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
@@ -887,42 +573,59 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
                                 letterSpacing: 0.6,
                               ),
                             ),
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                              decoration: BoxDecoration(
-                                color: (pickupIsOffice ? AppColors.primary : AppColors.accentPurple).withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                pickupIsOffice ? 'Office Hub' : 'Employee Home',
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                  color: pickupIsOffice ? AppColors.primary : AppColors.accentPurple,
+                            const Spacer(),
+                            // Optional "Mention as Office" Chip
+                            InkWell(
+                              onTap: () {
+                                setState(() => _pickupIsOffice = !_pickupIsOffice);
+                                _syncToDraft();
+                              },
+                              borderRadius: BorderRadius.circular(4),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: _pickupIsOffice
+                                      ? AppColors.primary.withValues(alpha: 0.15)
+                                      : (isDark ? AppColors.slate800 : AppColors.slate200),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                    color: _pickupIsOffice
+                                        ? AppColors.primary
+                                        : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.business_rounded,
+                                      size: 11,
+                                      color: _pickupIsOffice ? AppColors.primary : mutedText,
+                                    ),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      _pickupIsOffice ? 'Office' : 'Mention as Office',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: _pickupIsOffice ? FontWeight.bold : FontWeight.w500,
+                                        color: _pickupIsOffice ? AppColors.primary : mutedText,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 3),
+                        const SizedBox(height: 4),
                         Text(
-                          pickupIsOffice ? officeTitle : employeeTitle,
+                          _pickupAddress.isNotEmpty ? _pickupAddress : 'Tap to select pickup point',
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
-                            color: (!pickupIsOffice && _locality == null) ? AppColors.accentPurple : primaryText,
+                            color: _pickupAddress.isNotEmpty ? primaryText : AppColors.primary,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          pickupIsOffice ? officeSubtitle : employeeSubtitle,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: (pickupIsOffice && isOfficeOutside) ? AppColors.error : mutedText,
-                          ),
-                          maxLines: 1,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 6),
@@ -931,9 +634,7 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
                           onChanged: (_) => _syncToDraft(),
                           decoration: InputDecoration(
                             isDense: true,
-                            hintText: pickupIsOffice
-                                ? 'Office Gate / Tower (e.g. Bldg 12B, Gate 3)'
-                                : 'Home landmark (e.g. Flat 402, beside SBI ATM)',
+                            hintText: 'Landmark / Gate / Tower (e.g. Bldg 3, Gate 1)',
                             hintStyle: TextStyle(fontSize: 10, color: mutedText),
                             contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                             border: OutlineInputBorder(
@@ -947,23 +648,44 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Icon(Icons.chevron_right_rounded, size: 18, color: mutedText),
+                  Icon(Icons.chevron_right_rounded, size: 20, color: mutedText),
                 ],
               ),
             ),
           ),
 
-          // ── CONNECTOR LINE ──
+          // ── CONNECTOR LINE & INLINE ROUTE ──
           Padding(
             padding: const EdgeInsets.only(left: 18),
             child: Row(
               children: [
                 Container(
                   width: 2,
-                  height: 12,
+                  height: 16,
                   color: isDark ? AppColors.slate700 : AppColors.slate300,
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 14),
+                if (_routeResult != null && _routeResult!.distanceKm > 0) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.directions_car_rounded, size: 12, color: AppColors.primary),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${_routeResult!.formattedDistance} • ~${_routeResult!.formattedEta}',
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
                 Expanded(
                   child: Divider(
                     height: 1,
@@ -975,19 +697,17 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
             ),
           ),
 
-          // ── STOP 2: ALWAYS DESTINATION LOCATION ──
+          // ── STOP 2: DROP LOCATION ──
           InkWell(
-            onTap: !pickupIsOffice ? _openOfficeLocationPicker : _openEmployeeLocationPicker,
-            borderRadius: BorderRadius.vertical(
-              bottom: Radius.circular((_locality != null && _routeResult != null) ? 0 : AppRadius.lg),
-            ),
+            onTap: () => _pickLocation(isPickup: false),
+            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(AppRadius.lg)),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.only(top: 3),
+                    padding: const EdgeInsets.only(top: 4),
                     child: Container(
                       width: 10,
                       height: 10,
@@ -1005,7 +725,7 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
                         Row(
                           children: [
                             Text(
-                              'DESTINATION LOCATION (STOP 2)',
+                              'DROP LOCATION',
                               style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
@@ -1013,42 +733,59 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
                                 letterSpacing: 0.6,
                               ),
                             ),
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                              decoration: BoxDecoration(
-                                color: (!pickupIsOffice ? AppColors.primary : AppColors.accentPurple).withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                !pickupIsOffice ? 'Office Hub' : 'Employee Home',
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                  color: !pickupIsOffice ? AppColors.primary : AppColors.accentPurple,
+                            const Spacer(),
+                            // Optional "Mention as Office" Chip
+                            InkWell(
+                              onTap: () {
+                                setState(() => _dropIsOffice = !_dropIsOffice);
+                                _syncToDraft();
+                              },
+                              borderRadius: BorderRadius.circular(4),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: _dropIsOffice
+                                      ? AppColors.primary.withValues(alpha: 0.15)
+                                      : (isDark ? AppColors.slate800 : AppColors.slate200),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                    color: _dropIsOffice
+                                        ? AppColors.primary
+                                        : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.business_rounded,
+                                      size: 11,
+                                      color: _dropIsOffice ? AppColors.primary : mutedText,
+                                    ),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      _dropIsOffice ? 'Office' : 'Mention as Office',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: _dropIsOffice ? FontWeight.bold : FontWeight.w500,
+                                        color: _dropIsOffice ? AppColors.primary : mutedText,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 3),
+                        const SizedBox(height: 4),
                         Text(
-                          !pickupIsOffice ? officeTitle : employeeTitle,
+                          _dropAddress.isNotEmpty ? _dropAddress : 'Tap to select drop point',
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
-                            color: (pickupIsOffice && _locality == null) ? AppColors.accentPurple : primaryText,
+                            color: _dropAddress.isNotEmpty ? primaryText : AppColors.primary,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          !pickupIsOffice ? officeSubtitle : employeeSubtitle,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: (!pickupIsOffice && isOfficeOutside) ? AppColors.error : mutedText,
-                          ),
-                          maxLines: 1,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 6),
@@ -1057,9 +794,7 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
                           onChanged: (_) => _syncToDraft(),
                           decoration: InputDecoration(
                             isDense: true,
-                            hintText: !pickupIsOffice
-                                ? 'Office Gate / Tower (e.g. Bldg 12B, Gate 3)'
-                                : 'Home landmark (e.g. Flat 402, beside SBI ATM)',
+                            hintText: 'Landmark / Flat / Gate (e.g. Near SBI ATM)',
                             hintStyle: TextStyle(fontSize: 10, color: mutedText),
                             contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                             border: OutlineInputBorder(
@@ -1073,118 +808,9 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Icon(Icons.chevron_right_rounded, size: 18, color: mutedText),
+                  Icon(Icons.chevron_right_rounded, size: 20, color: mutedText),
                 ],
               ),
-            ),
-          ),
-
-          // ── INLINE ROUTE DISTANCE & ETA (ONLY calculated & shown when BOTH locations are selected!) ──
-          if (_isCalculatingRoute) ...[
-            Divider(height: 1, thickness: 0.5, color: isDark ? AppColors.borderDark : AppColors.borderLight),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.05),
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(AppRadius.lg)),
-              ),
-              child: Row(
-                children: [
-                  const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2)),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Calculating road distance & ETA (40 km/h avg)...',
-                    style: TextStyle(fontSize: 11, color: mutedText),
-                  ),
-                ],
-              ),
-            ),
-          ] else if (_locality != null && detectedHub != null && _routeResult != null && _routeResult!.distanceKm > 0) ...[
-            Divider(height: 1, thickness: 0.5, color: isDark ? AppColors.borderDark : AppColors.borderLight),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.06),
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(AppRadius.lg)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.directions_car_filled_rounded, size: 15, color: AppColors.primary),
-                  const SizedBox(width: 6),
-                  Text(
-                    '${_routeResult!.formattedDistance} • ~${_routeResult!.formattedEta}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: primaryText,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    '(40 km/h avg)',
-                    style: TextStyle(fontSize: 10, color: mutedText, fontWeight: FontWeight.w500),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOptionsCard(bool isDark, Color primaryText, Color mutedText) {
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-      ),
-      child: Column(
-        children: [
-          // Row 1: Security Escort
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            child: Row(
-              children: [
-                const Icon(Icons.shield_outlined, size: 18, color: AppColors.primary),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Row(
-                    children: [
-                      Text(
-                        'Security Escort',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: primaryText),
-                      ),
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                        decoration: BoxDecoration(
-                          color: AppColors.accentPurple.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          _zonalQuote != null && (_zonalQuote!['escortFee'] as num?) != null && (_zonalQuote!['escortFee'] as num) > 0
-                              ? '+₹${(_zonalQuote!['escortFee'] as num).toInt()}'
-                              : 'Approved ceiling',
-                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.accentPurple),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Transform.scale(
-                  scale: 0.8,
-                  child: Switch(
-                    value: _hasEscort,
-                    activeThumbColor: AppColors.primary,
-                    onChanged: (v) {
-                      setState(() => _hasEscort = v);
-                      _refreshZonalQuote();
-                    },
-                  ),
-                ),
-              ],
             ),
           ),
         ],
@@ -1192,45 +818,90 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
     );
   }
 
-  Widget _buildZonalFareCard(bool isDark, Color primaryText, Color muted, String hubId) {
-    final q = _zonalQuote!;
-    final baseFare = (q['baseFare'] as num?)?.toDouble() ?? 500.0;
-    final escortCharge = _hasEscort ? ((q['escortFee'] as num?)?.toDouble() ?? 0.0) : 0.0;
-    final total = (q['totalAmount'] as num?)?.toDouble() ?? (baseFare + escortCharge);
-    final zoneLabel = _locality?['zoneLabel'] ?? '';
+  Widget _buildDistanceQuoteCard(bool isDark, Color primaryText, Color muted) {
+    final q = _distanceQuote!;
+    final vendorRupees = (q['vendorPriceRupees'] as num?)?.toDouble() ??
+        ((q['vendorPricePaise'] as num?) != null ? (q['vendorPricePaise'] as num) / 100.0 : 0.0);
+    final totalFare = vendorRupees;
+    final slabLabel = q['planVersion'] != null ? 'Plan ${q['planVersion']}' : 'Distance Slab';
+    final displayKm = (q['displayedKm'] is num)
+        ? '${(q['displayedKm'] as num).toStringAsFixed(1)} km'
+        : (_routeResult != null ? _routeResult!.formattedDistance : '');
 
     return Container(
       margin: const EdgeInsets.only(top: AppSpacing.sm),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppColors.success.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: AppColors.success.withValues(alpha: 0.35)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.verified_rounded, color: AppColors.success, size: 18),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Fixed Rate ($zoneLabel) • No Surge',
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.success),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppColors.success.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
                 ),
-                Text(
-                  _hasEscort
-                      ? 'Base ₹${baseFare.toStringAsFixed(0)} + ₹${escortCharge.toStringAsFixed(0)} Escort'
-                      : 'Fixed corporate zonal pricing',
-                  style: TextStyle(fontSize: 10, color: muted),
+                child: const Icon(Icons.verified_rounded, color: AppColors.success, size: 18),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'Guaranteed Trip Price',
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.success),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                          decoration: BoxDecoration(
+                            color: AppColors.success.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            slabLabel,
+                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.success),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Google Maps route: $displayKm • Fixed rate band • Zero surge',
+                      style: TextStyle(fontSize: 11, color: muted),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '₹${totalFare.toStringAsFixed(0)}',
+                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.success),
+                  ),
+                  if (_secondsUntilExpiry > 0)
+                    Text(
+                      'Expires in ${_secondsUntilExpiry ~/ 60}:${(_secondsUntilExpiry % 60).toString().padLeft(2, '0')}',
+                      style: const TextStyle(fontSize: 10, color: AppColors.slate500, fontWeight: FontWeight.w600),
+                    ),
+                ],
+              ),
+            ],
           ),
+          const SizedBox(height: 8),
           Text(
-            '₹${total.toStringAsFixed(0)}',
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.success),
+            'Distance is calculated by Google Maps Platform Routes API and compared using unrounded meters. Changes made in the rate card apply to newly priced bookings.',
+            style: TextStyle(fontSize: 10, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight, fontStyle: FontStyle.italic),
           ),
         ],
       ),

@@ -1061,48 +1061,6 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
                                   ),
                                 ],
                               ),
-                              if (req['zonalQuote'] is Map) ...[
-                                const SizedBox(height: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Expanded(
-                                        child: Row(
-                                          children: [
-                                            const Icon(Icons.verified_rounded, size: 14, color: AppColors.primary),
-                                            const SizedBox(width: 6),
-                                            Flexible(
-                                              child: Text(
-                                                'Corporate Zonal · ${req['zonalQuote']?['locality']?['zoneLabel'] ?? ''} · ${req['zonalQuote']?['officeHub']?['displayName'] ?? ''}',
-                                                overflow: TextOverflow.ellipsis,
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: isDark ? AppColors.primaryLight : AppColors.primary,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      Text(
-                                        'Rate ${req['zonalQuote']?['rateVersion'] ?? ''}${req['zonalQuote']?['hasEscort'] == true ? ' · Escort' : ''}',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w600,
-                                          color: isDark ? AppColors.accentGreenLight : AppColors.success,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
                             ],
                           ),
                         ),

@@ -776,7 +776,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   _liveOffer?['escortRequired'] == true ||
                   _liveOffer?['requirement']?['hasEscort'] == true ||
                   _liveOffer?['requirement']?['escortRequired'] == true ||
-                  _liveOffer?['zonal']?['hasEscort'] == true ||
                   (_liveOffer?['notes']?.toString().toLowerCase().contains('escort') ?? false) ||
                   (_liveOffer?['requirement']?['notes']?.toString().toLowerCase().contains('escort') ?? false);
 

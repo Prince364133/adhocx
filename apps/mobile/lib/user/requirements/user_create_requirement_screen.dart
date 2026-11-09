@@ -342,6 +342,69 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
     );
   }
 
+  /// Cabs without a usable quote (added from a template, or older than the quote lifetime) get a
+  /// fresh server price. Returns false when any cab could not be priced or any price changed, so the
+  /// vendor sees the current total before anything is booked.
+  Future<bool> _ensureFreshQuotes(RequirementDraftProvider draft) async {
+    int changed = 0;
+    final failed = <int>[];
+    for (var i = 0; i < draft.cabs.length; i++) {
+      final cab = draft.cabs[i];
+      if (cab.hasValidQuote) continue;
+      if (!cab.hasLocations) {
+        failed.add(i + 1);
+        continue;
+      }
+      try {
+        final q = await UserService.instance.createDistanceTripQuote(
+          pickupLat: cab.pickupLat,
+          pickupLng: cab.pickupLng,
+          pickupAddress: cab.pickupAddress,
+          dropLat: cab.dropLat,
+          dropLng: cab.dropLng,
+          dropAddress: cab.dropAddress,
+          vehicleCategory: cab.vehicleType,
+          pickupIsOffice: cab.pickupIsOffice,
+          dropIsOffice: cab.dropIsOffice,
+        );
+        final amount = (q['totalAmount'] as num?)?.toDouble();
+        final quoteId = q['quoteId']?.toString();
+        if (quoteId == null || amount == null) {
+          failed.add(i + 1);
+          continue;
+        }
+        if ((amount - cab.estimatedFare).abs() >= 0.5) changed++;
+        draft.updateCab(
+          i,
+          cab.copyWith(
+            estimatedFare: amount,
+            quoteId: quoteId,
+            quoteExpiresAt: DateTime.tryParse(q['expiresAt']?.toString() ?? ''),
+          ),
+        );
+      } catch (_) {
+        failed.add(i + 1);
+      }
+    }
+    if (failed.isNotEmpty) {
+      Fluttertoast.showToast(
+        msg: 'Cab ${failed.map((n) => '#$n').join(', ')} could not be priced. Edit the route or try again.',
+        backgroundColor: AppColors.error,
+        textColor: Colors.white,
+      );
+      return false;
+    }
+    if (changed > 0) {
+      Fluttertoast.showToast(
+        msg: 'Prices were refreshed for $changed cab(s). Check the total and tap deploy again.',
+        backgroundColor: AppColors.warning,
+        textColor: Colors.white,
+      );
+      return false;
+    }
+    return true;
+  }
+
   Future<void> _handleDeployAllCabs() async {
     final draft = context.read<RequirementDraftProvider>();
     if (draft.cabs.isEmpty) {
@@ -352,6 +415,12 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
       );
       return;
     }
+
+    setState(() => _isDeploying = true);
+    final quotesReady = await _ensureFreshQuotes(draft);
+    if (!mounted) return;
+    setState(() => _isDeploying = false);
+    if (!quotesReady) return;
 
     final double discount = ((_appliedCoupon?['discountAmount'] as num?)?.toDouble() ?? 0.0);
     final double netTotal = (draft.cartTotalEstimatedFare - discount).clamp(0.0, double.infinity);
@@ -540,11 +609,11 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
               quantity: 1,
               fulfillmentMode: 'DIRECT_DISPATCH',
               pickupAddress: cab.pickupAddress,
-              pickupLat: cab.pickupLat != 0.0 ? cab.pickupLat : 17.4435,
-              pickupLng: cab.pickupLng != 0.0 ? cab.pickupLng : 78.3772,
+              pickupLat: cab.pickupLat,
+              pickupLng: cab.pickupLng,
               dropAddress: cab.dropAddress,
-              dropLat: cab.dropLat != 0.0 ? cab.dropLat : 17.3850,
-              dropLng: cab.dropLng != 0.0 ? cab.dropLng : 78.4867,
+              dropLat: cab.dropLat,
+              dropLng: cab.dropLng,
               reportingTime: cab.reportingDateTime,
               isScheduled: cab.isScheduled,
               ratePerVehicle: cab.estimatedFare,
@@ -555,7 +624,7 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                 totalCabs: draft.cabs.length,
               ),
               couponCode: _appliedCoupon?['code'] as String?,
-              zonalQuoteId: cab.zonalQuoteId,
+              quoteId: cab.quoteId,
             );
             createdRequirements.add(res);
             deployedIndexes.add(idx);
@@ -909,13 +978,6 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                                                     '${cab.passengers} pax',
                                                     isDark,
                                                   ),
-                                                  if (cab.hasEscort)
-                                                    _buildMiniChip(
-                                                      Icons.shield_outlined,
-                                                      'Security Escort',
-                                                      isDark,
-                                                      chipColor: AppColors.accentPurple,
-                                                    ),
                                                 ],
                                               ),
                                             ],
@@ -947,7 +1009,7 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                                             const SizedBox(width: 6),
                                             Expanded(
                                               child: Text(
-                                                'Direction: ${cab.isOutbound ? "Office Hub → Employee Locality" : "Employee Locality → Office Hub"}',
+                                                'Route: ${cab.routeSummary}',
                                                 style: TextStyle(
                                                   fontSize: 12,
                                                   fontWeight: FontWeight.w600,

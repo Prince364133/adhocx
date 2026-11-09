@@ -85,200 +85,167 @@ class RateCardModal extends StatefulWidget {
 
 class _RateCardModalState extends State<RateCardModal> {
   bool _isLoading = true;
-  String _selectedHub = 'HITEC_NANAKRAMGUDA';
   String _selectedVehicle = 'SEDAN';
-
-  /// Live active driver card from the server; the bundled driver.pdf values are the offline fallback.
-  Map<String, dynamic>? _remoteZonalCard;
+  List<Map<String, dynamic>> _databaseSlabs = [];
+  String? _rateVersion;
 
   @override
   void initState() {
     super.initState();
-    _loadAllRateCards();
+    _fetchRateCard();
   }
 
-  Future<void> _loadAllRateCards() async {
+  Future<void> _fetchRateCard() async {
+    setState(() => _isLoading = true);
     try {
-      final card = await DriverService.instance.getDriverZonalRateCard(forceRefresh: true);
-      if (mounted) {
-        setState(() {
-          _remoteZonalCard = card is Map<String, dynamic> && card['matrix'] is Map ? card : null;
-          _isLoading = false;
-        });
+      final res = await DriverService.instance.getDriverDistanceRateCard(
+        vehicleCategory: _selectedVehicle,
+        forceRefresh: true,
+      );
+      if (res != null && res is Map && res['slabs'] is List) {
+        final slabsList = (res['slabs'] as List).whereType<Map>().map((m) {
+          final range = m['range']?.toString() ?? '${m['minKm']}–${m['maxKm']} km';
+          final payout = (m['driverPayoutRupees'] as num?)?.toInt() ??
+              ((m['driverPayoutPaise'] as num?) != null ? ((m['driverPayoutPaise'] as num) / 100).round() : 0);
+          final desc = m['desc']?.toString() ?? 'Distance band';
+          return {
+            'range': range,
+            'payout': payout,
+            'desc': desc,
+          };
+        }).toList();
+
+        if (mounted) {
+          setState(() {
+            _databaseSlabs = slabsList;
+            _rateVersion = res['version']?.toString();
+            _isLoading = false;
+          });
+          return;
+        }
       }
-    } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
+    } catch (_) {}
+
+    if (mounted) {
+      setState(() => _isLoading = false);
     }
   }
-
-  // Canonical fallback data matching driver.pdf 2026 proposal
-  static const Map<String, Map<String, Map<String, dynamic>>> _defaultZonalData = {
-    'HITEC_NANAKRAMGUDA': {
-      'Extra (E)': {'SEDAN': 425, 'SUV': 595},
-      'Zone 6': {'SEDAN': 510, 'SUV': 765},
-      'Zone 5': {'SEDAN': 595, 'SUV': 850},
-      'Zone 4': {'SEDAN': 680, 'SUV': 935},
-      'Zone 3': {'SEDAN': 765, 'SUV': 1020},
-      'Zone 2': {'SEDAN': 850, 'SUV': 1105},
-      'Zone 1': {'SEDAN': 935, 'SUV': 1190},
-    },
-    'KOKAPET': {
-      'Extra (E)': {'SEDAN': 510, 'SUV': 680},
-      'Zone 6': {'SEDAN': 595, 'SUV': 765},
-      'Zone 5': {'SEDAN': 680, 'SUV': 935},
-      'Zone 4': {'SEDAN': 765, 'SUV': 1020},
-      'Zone 3': {'SEDAN': 850, 'SUV': 1105},
-      'Zone 2': {'SEDAN': 935, 'SUV': 1190},
-      'Zone 1': {'SEDAN': 1020, 'SUV': 1275},
-    },
-  };
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return _ModalShell(
-      title: 'Driver Rate Card & Tariffs',
+      title: 'Driver Distance Rate Card',
       icon: Icons.speed_rounded,
       iconColor: AppColors.info,
-      child: _isLoading
-          ? const Center(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Subtitle & Version
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  'Live distance-based fixed driver payouts loaded from central database.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                  ),
+                ),
+              ),
+              if (_rateVersion != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    'v$_rateVersion',
+                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Vehicle Selector Pill
+          Row(
+            children: [
+              ChoiceChip(
+                label: const Text('Sedan (4+1)'),
+                selected: _selectedVehicle == 'SEDAN',
+                onSelected: (val) {
+                  setState(() => _selectedVehicle = 'SEDAN');
+                  _fetchRateCard();
+                },
+                selectedColor: AppColors.primary.withValues(alpha: 0.2),
+              ),
+              const SizedBox(width: 8),
+              ChoiceChip(
+                label: const Text('SUV (6+1)'),
+                selected: _selectedVehicle == 'SUV',
+                onSelected: (val) {
+                  setState(() => _selectedVehicle = 'SUV');
+                  _fetchRateCard();
+                },
+                selectedColor: AppColors.primary.withValues(alpha: 0.2),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // Distance Slabs Table
+          if (_isLoading)
+            const Center(
               child: Padding(
                 padding: EdgeInsets.symmetric(vertical: 32.0),
                 child: CircularProgressIndicator(),
               ),
             )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Hub Selector
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => setState(() => _selectedHub = 'HITEC_NANAKRAMGUDA'),
-                        style: OutlinedButton.styleFrom(
-                          backgroundColor: _selectedHub == 'HITEC_NANAKRAMGUDA'
-                              ? AppColors.primary.withValues(alpha: 0.15)
-                              : Colors.transparent,
-                          side: BorderSide(
-                            color: _selectedHub == 'HITEC_NANAKRAMGUDA' ? AppColors.primary : Colors.grey.shade400,
-                          ),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        child: Text(
-                          'HITEC / Nanakramguda',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: _selectedHub == 'HITEC_NANAKRAMGUDA'
-                                ? AppColors.primary
-                                : (isDark ? Colors.white70 : Colors.black87),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => setState(() => _selectedHub = 'KOKAPET'),
-                        style: OutlinedButton.styleFrom(
-                          backgroundColor: _selectedHub == 'KOKAPET'
-                              ? AppColors.primary.withValues(alpha: 0.15)
-                              : Colors.transparent,
-                          side: BorderSide(
-                            color: _selectedHub == 'KOKAPET' ? AppColors.primary : Colors.grey.shade400,
-                          ),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        child: Text(
-                          'Kokapet Hub',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: _selectedHub == 'KOKAPET'
-                                ? AppColors.primary
-                                : (isDark ? Colors.white70 : Colors.black87),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+          else if (_databaseSlabs.isEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24.0),
+                child: Text(
+                  'No distance slabs found for $_selectedVehicle in the database.',
+                  style: TextStyle(fontSize: 12, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
                 ),
-                const SizedBox(height: 8),
+              ),
+            )
+          else
+            _buildDistanceTable(context, isDark),
+          const SizedBox(height: 14),
 
-                // Vehicle Selector Pill
-                Row(
-                  children: [
-                    ChoiceChip(
-                      label: const Text('Sedan (4+1)'),
-                      selected: _selectedVehicle == 'SEDAN',
-                      onSelected: (val) => setState(() => _selectedVehicle = 'SEDAN'),
-                      selectedColor: AppColors.primary.withValues(alpha: 0.2),
-                    ),
-                    const SizedBox(width: 8),
-                    ChoiceChip(
-                      label: const Text('SUV (6+1)'),
-                      selected: _selectedVehicle == 'SUV',
-                      onSelected: (val) => setState(() => _selectedVehicle = 'SUV'),
-                      selectedColor: AppColors.primary.withValues(alpha: 0.2),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                // Zonal Earnings Table
-                _buildZonalTable(context, isDark),
-                const SizedBox(height: 12),
-
-                // Fixed Payout Guarantee Callout
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.success.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    children: const [
-                      Icon(Icons.check_circle_outline, color: AppColors.success, size: 18),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Guaranteed net payout credited to your wallet on verified OTP completion. Zero platform deductions from the listed rate card. Escort, toll or other additions are paid only when shown as a line item before you accept.',
-                          style: TextStyle(color: AppColors.success, fontSize: 11, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ],
+          // Fixed Payout Guarantee Callout
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.success.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: const [
+                Icon(Icons.check_circle_outline, color: AppColors.success, size: 18),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Guaranteed net payout credited to your wallet on verified OTP completion. Zero platform commission deducted from the listed rate card. Prices are loaded dynamically from database.',
+                    style: TextStyle(color: AppColors.success, fontSize: 11, fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
             ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildZonalTable(BuildContext context, bool isDark) {
-    final rows = <List<String>>[];
-    final card = _remoteZonalCard;
-    final remoteHub = card != null ? (card['matrix'] as Map)[_selectedHub] : null;
-    final zones = (card?['zones'] as List?)?.whereType<Map>().toList() ?? const [];
-    final versionNote = card != null ? 'Rate version ${card['version']}' : 'Standard one-way trip';
-
-    if (remoteHub is Map && zones.isNotEmpty) {
-      for (final z in zones) {
-        final cell = remoteHub[z['id']] as Map? ?? const {};
-        final earning = (_selectedVehicle == 'SUV' ? cell['suv'] : cell['sedan']) as num? ?? 0;
-        rows.add(['${z['label']}', '₹${earning.toStringAsFixed(0)} Net', versionNote]);
-      }
-    } else {
-      final hubData = _defaultZonalData[_selectedHub] ?? _defaultZonalData['HITEC_NANAKRAMGUDA']!;
-      hubData.forEach((zone, values) {
-        rows.add([zone, '₹${values[_selectedVehicle] ?? 0} Net', versionNote]);
-      });
-    }
-
+  Widget _buildDistanceTable(BuildContext context, bool isDark) {
     return Container(
       decoration: BoxDecoration(
         color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceElevatedLight,
@@ -286,9 +253,11 @@ class _RateCardModalState extends State<RateCardModal> {
         border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
       ),
       child: Column(
-        children: rows.asMap().entries.map((entry) {
+        children: _databaseSlabs.asMap().entries.map((entry) {
           final i = entry.key;
-          final row = entry.value;
+          final slab = entry.value;
+          final payout = slab['payout'];
+
           return Column(
             children: [
               Padding(
@@ -300,15 +269,15 @@ class _RateCardModalState extends State<RateCardModal> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          row[0],
+                          slab['range'] as String,
                           style: TextStyle(
                             color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                             fontSize: 13,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                         Text(
-                          row[2],
+                          slab['desc'] as String,
                           style: TextStyle(
                             color: isDark ? AppColors.textMutedDark : AppColors.textSecondaryLight,
                             fontSize: 10,
@@ -317,7 +286,7 @@ class _RateCardModalState extends State<RateCardModal> {
                       ],
                     ),
                     Text(
-                      row[1],
+                      '₹$payout Net',
                       style: const TextStyle(
                         color: AppColors.primary,
                         fontSize: 14,
@@ -327,7 +296,7 @@ class _RateCardModalState extends State<RateCardModal> {
                   ],
                 ),
               ),
-              if (i < rows.length - 1)
+              if (i < _databaseSlabs.length - 1)
                 Divider(
                   color: isDark ? AppColors.borderDark : AppColors.borderLight,
                   height: 1,

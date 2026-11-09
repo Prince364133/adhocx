@@ -3,23 +3,17 @@ class CabCartItem {
   String vehicleType; // 'SEDAN', 'SUV', 'HATCHBACK', 'BUS'
   String vehicleLabel; // 'Prime Sedan', 'SUV 7 Seater', etc.
   int passengers;
-  String direction; // 'OUTBOUND_FROM_OFFICE' or 'INBOUND_TO_OFFICE'
-  String officeHubId;
-  String officeAddress;
-  double officeLat;
-  double officeLng;
-  Map<String, dynamic>? locality;
-  String localityName;
   String pickupAddress;
   double pickupLat;
   double pickupLng;
+  bool pickupIsOffice; // optional display label
   String pickupInstructions;
   String dropAddress;
   double dropLat;
   double dropLng;
+  bool dropIsOffice; // optional display label
   String dropInstructions;
   String tripType; // 'One Way'
-  bool hasEscort;
   bool isScheduled;
   String pickupDate; // YYYY-MM-DD
   String pickupTime; // e.g. 07:14 PM
@@ -30,8 +24,11 @@ class CabCartItem {
   int durationMinutes;
   String formattedDistance;
   String formattedEta;
+
+  /// Price per vehicle from the server quote (0 until quoted).
   double estimatedFare;
-  String? zonalQuoteId;
+  String? quoteId;
+  DateTime? quoteExpiresAt;
   bool isExpanded;
 
   CabCartItem({
@@ -39,23 +36,17 @@ class CabCartItem {
     required this.vehicleType,
     required this.vehicleLabel,
     required this.passengers,
-    required this.direction,
-    required this.officeHubId,
-    required this.officeAddress,
-    required this.officeLat,
-    required this.officeLng,
-    this.locality,
-    required this.localityName,
     required this.pickupAddress,
     required this.pickupLat,
     required this.pickupLng,
+    this.pickupIsOffice = false,
     this.pickupInstructions = '',
     required this.dropAddress,
     required this.dropLat,
     required this.dropLng,
+    this.dropIsOffice = false,
     this.dropInstructions = '',
     this.tripType = 'One Way',
-    this.hasEscort = false,
     this.isScheduled = false,
     required this.pickupDate,
     required this.pickupTime,
@@ -67,19 +58,26 @@ class CabCartItem {
     this.formattedDistance = '',
     this.formattedEta = '',
     required this.estimatedFare,
-    this.zonalQuoteId,
+    this.quoteId,
+    this.quoteExpiresAt,
     this.isExpanded = false,
   });
 
-  bool get isOutbound => direction == 'OUTBOUND_FROM_OFFICE';
+  bool get hasLocations => pickupLat != 0.0 && pickupLng != 0.0 && dropLat != 0.0 && dropLng != 0.0;
 
-  String get pickupShort => pickupAddress.isNotEmpty
-      ? pickupAddress.split(',').first.trim()
-      : (isOutbound ? 'Office Hub' : localityName);
+  /// True when the stored quote can still be booked as-is.
+  bool get hasValidQuote =>
+      quoteId != null && (quoteExpiresAt == null || quoteExpiresAt!.isAfter(DateTime.now().add(const Duration(seconds: 30))));
 
-  String get dropShort => dropAddress.isNotEmpty
-      ? dropAddress.split(',').first.trim()
-      : (!isOutbound ? 'Office Hub' : localityName);
+  String get pickupShort {
+    final s = pickupAddress.split(',').first.trim();
+    return pickupIsOffice ? '$s (Office)' : s;
+  }
+
+  String get dropShort {
+    final s = dropAddress.split(',').first.trim();
+    return dropIsOffice ? '$s (Office)' : s;
+  }
 
   String get routeSummary => '$pickupShort → $dropShort';
 
@@ -98,12 +96,8 @@ class CabCartItem {
       final tCabs = totalCabs ?? 1;
       notes.add('[Batch: $batchId | Group: $bName | Cab: $cIdx/$tCabs]');
     }
-    if (direction.isNotEmpty) {
-      notes.add(isOutbound ? 'Route: Office → Home' : 'Route: Home → Office');
-    }
-    if (hasEscort) {
-      notes.add('Security Escort: Required');
-    }
+    if (pickupIsOffice) notes.add('Pickup: Office');
+    if (dropIsOffice) notes.add('Drop: Office');
     if (passengers > 0) {
       notes.add('Passengers: $passengers');
     }
@@ -148,36 +142,29 @@ class CabCartItem {
     return match?.group(1)?.trim() ?? '';
   }
 
-  static String parseDirection(String? notes) {
-    if (notes == null || notes.isEmpty) return 'OUTBOUND_FROM_OFFICE';
-    if (notes.contains('Route: Home → Office') || notes.contains('INBOUND_TO_OFFICE')) {
-      return 'INBOUND_TO_OFFICE';
-    }
-    return 'OUTBOUND_FROM_OFFICE';
-  }
+  /// Office labels written by [buildFormattedNotes] (and by older app builds' route notes).
+  static bool parsePickupIsOffice(String? notes) =>
+      notes != null && (notes.contains('Pickup: Office') || notes.contains('Route: Office → Home'));
+
+  static bool parseDropIsOffice(String? notes) =>
+      notes != null && (notes.contains('Drop: Office') || notes.contains('Route: Home → Office'));
 
   Map<String, dynamic> toJson() => {
     'id': id,
     'vehicleType': vehicleType,
     'vehicleLabel': vehicleLabel,
     'passengers': passengers,
-    'direction': direction,
-    'officeHubId': officeHubId,
-    'officeAddress': officeAddress,
-    'officeLat': officeLat,
-    'officeLng': officeLng,
-    'locality': locality,
-    'localityName': localityName,
     'pickupAddress': pickupAddress,
     'pickupLat': pickupLat,
     'pickupLng': pickupLng,
+    'pickupIsOffice': pickupIsOffice,
     'pickupInstructions': pickupInstructions,
     'dropAddress': dropAddress,
     'dropLat': dropLat,
     'dropLng': dropLng,
+    'dropIsOffice': dropIsOffice,
     'dropInstructions': dropInstructions,
     'tripType': tripType,
-    'hasEscort': hasEscort,
     'isScheduled': isScheduled,
     'pickupDate': pickupDate,
     'pickupTime': pickupTime,
@@ -189,7 +176,7 @@ class CabCartItem {
     'formattedDistance': formattedDistance,
     'formattedEta': formattedEta,
     'estimatedFare': estimatedFare,
-    'zonalQuoteId': zonalQuoteId,
+    // Quotes are short-lived and are not stored in templates.
   };
 
   factory CabCartItem.fromJson(Map<String, dynamic> json) {
@@ -200,31 +187,28 @@ class CabCartItem {
       parsedReporting = DateTime.now();
     }
 
-    final bool isSched = json['isScheduled'] == true;
+    // Templates saved by older builds stored a direction instead of office labels.
+    final legacyDirection = json['direction']?.toString();
+    final pickupIsOffice = json['pickupIsOffice'] == true || legacyDirection == 'OUTBOUND_FROM_OFFICE';
+    final dropIsOffice = json['dropIsOffice'] == true || legacyDirection == 'INBOUND_TO_OFFICE';
 
     return CabCartItem(
       id: json['id']?.toString() ?? 'cab_${DateTime.now().millisecondsSinceEpoch}',
       vehicleType: json['vehicleType']?.toString() ?? 'SEDAN',
       vehicleLabel: json['vehicleLabel']?.toString() ?? 'Prime Sedan',
       passengers: (json['passengers'] as num?)?.toInt() ?? 4,
-      direction: json['direction']?.toString() ?? 'OUTBOUND_FROM_OFFICE',
-      officeHubId: json['officeHubId']?.toString() ?? '',
-      officeAddress: json['officeAddress']?.toString() ?? '',
-      officeLat: (json['officeLat'] as num?)?.toDouble() ?? 0.0,
-      officeLng: (json['officeLng'] as num?)?.toDouble() ?? 0.0,
-      locality: json['locality'] is Map ? Map<String, dynamic>.from(json['locality']) : null,
-      localityName: json['localityName']?.toString() ?? '',
       pickupAddress: json['pickupAddress']?.toString() ?? '',
       pickupLat: (json['pickupLat'] as num?)?.toDouble() ?? 0.0,
       pickupLng: (json['pickupLng'] as num?)?.toDouble() ?? 0.0,
+      pickupIsOffice: pickupIsOffice,
       pickupInstructions: json['pickupInstructions']?.toString() ?? '',
       dropAddress: json['dropAddress']?.toString() ?? '',
       dropLat: (json['dropLat'] as num?)?.toDouble() ?? 0.0,
       dropLng: (json['dropLng'] as num?)?.toDouble() ?? 0.0,
+      dropIsOffice: dropIsOffice,
       dropInstructions: json['dropInstructions']?.toString() ?? '',
       tripType: json['tripType']?.toString() ?? 'One Way',
-      hasEscort: json['hasEscort'] == true,
-      isScheduled: isSched,
+      isScheduled: json['isScheduled'] == true,
       pickupDate: json['pickupDate']?.toString() ?? '',
       pickupTime: json['pickupTime']?.toString() ?? '',
       reportingDateTime: parsedReporting,
@@ -235,12 +219,11 @@ class CabCartItem {
       formattedDistance: json['formattedDistance']?.toString() ?? '',
       formattedEta: json['formattedEta']?.toString() ?? '',
       estimatedFare: (json['estimatedFare'] as num?)?.toDouble() ?? 0.0,
-      zonalQuoteId: json['zonalQuoteId']?.toString(),
     );
   }
 
   /// Clones the cab item and updates its date to today (or given target date),
-  /// preserving its scheduled time-of-day.
+  /// preserving its scheduled time-of-day. The copy has no quote: it is re-priced before booking.
   CabCartItem copyForDate(DateTime targetDate, {int? index}) {
     final newId = 'cab_${DateTime.now().millisecondsSinceEpoch}_${index ?? 0}';
     final dateStr = '${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}';
@@ -267,7 +250,7 @@ class CabCartItem {
       id: newId,
       pickupDate: dateStr,
       reportingDateTime: newReporting,
-      zonalQuoteId: null,
+      clearQuote: true,
       isExpanded: false,
     );
   }
@@ -277,23 +260,17 @@ class CabCartItem {
     String? vehicleType,
     String? vehicleLabel,
     int? passengers,
-    String? direction,
-    String? officeHubId,
-    String? officeAddress,
-    double? officeLat,
-    double? officeLng,
-    Map<String, dynamic>? locality,
-    String? localityName,
     String? pickupAddress,
     double? pickupLat,
     double? pickupLng,
+    bool? pickupIsOffice,
     String? pickupInstructions,
     String? dropAddress,
     double? dropLat,
     double? dropLng,
+    bool? dropIsOffice,
     String? dropInstructions,
     String? tripType,
-    bool? hasEscort,
     bool? isScheduled,
     String? pickupDate,
     String? pickupTime,
@@ -305,7 +282,9 @@ class CabCartItem {
     String? formattedDistance,
     String? formattedEta,
     double? estimatedFare,
-    String? zonalQuoteId,
+    String? quoteId,
+    DateTime? quoteExpiresAt,
+    bool clearQuote = false,
     bool? isExpanded,
   }) {
     return CabCartItem(
@@ -313,23 +292,17 @@ class CabCartItem {
       vehicleType: vehicleType ?? this.vehicleType,
       vehicleLabel: vehicleLabel ?? this.vehicleLabel,
       passengers: passengers ?? this.passengers,
-      direction: direction ?? this.direction,
-      officeHubId: officeHubId ?? this.officeHubId,
-      officeAddress: officeAddress ?? this.officeAddress,
-      officeLat: officeLat ?? this.officeLat,
-      officeLng: officeLng ?? this.officeLng,
-      locality: locality ?? this.locality,
-      localityName: localityName ?? this.localityName,
       pickupAddress: pickupAddress ?? this.pickupAddress,
       pickupLat: pickupLat ?? this.pickupLat,
       pickupLng: pickupLng ?? this.pickupLng,
+      pickupIsOffice: pickupIsOffice ?? this.pickupIsOffice,
       pickupInstructions: pickupInstructions ?? this.pickupInstructions,
       dropAddress: dropAddress ?? this.dropAddress,
       dropLat: dropLat ?? this.dropLat,
       dropLng: dropLng ?? this.dropLng,
+      dropIsOffice: dropIsOffice ?? this.dropIsOffice,
       dropInstructions: dropInstructions ?? this.dropInstructions,
       tripType: tripType ?? this.tripType,
-      hasEscort: hasEscort ?? this.hasEscort,
       isScheduled: isScheduled ?? this.isScheduled,
       pickupDate: pickupDate ?? this.pickupDate,
       pickupTime: pickupTime ?? this.pickupTime,
@@ -341,7 +314,8 @@ class CabCartItem {
       formattedDistance: formattedDistance ?? this.formattedDistance,
       formattedEta: formattedEta ?? this.formattedEta,
       estimatedFare: estimatedFare ?? this.estimatedFare,
-      zonalQuoteId: zonalQuoteId ?? this.zonalQuoteId,
+      quoteId: clearQuote ? null : (quoteId ?? this.quoteId),
+      quoteExpiresAt: clearQuote ? null : (quoteExpiresAt ?? this.quoteExpiresAt),
       isExpanded: isExpanded ?? this.isExpanded,
     );
   }

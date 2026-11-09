@@ -11,7 +11,6 @@ import '../../shared/widgets/app_adaptive_skeleton.dart';
 import 'models/cab_cart_item.dart';
 import 'models/fleet_template_model.dart';
 import 'services/fleet_template_service.dart';
-import 'utils/office_hub_detector.dart';
 import 'widgets/batch_requirement_details_modal.dart';
 import 'widgets/saved_templates_modal.dart';
 import '../../core/utils/app_toast.dart';
@@ -250,31 +249,17 @@ class _UserRequirementsListScreenState extends State<UserRequirementsListScreen>
           reporting = (DateTime.tryParse(reportingTimeStr) ?? reporting).toLocal();
         }
 
-        final fare = (it['ratePerVehicle'] as num?)?.toDouble() ??
-            (it['totalAmount'] as num?)?.toDouble() ??
-            800.0;
+        // Last booked price, shown until the cab is re-priced by the server before booking.
+        final fare = (it['ratePerVehicle'] as num?)?.toDouble() ?? (it['totalAmount'] as num?)?.toDouble() ?? 0.0;
 
         final notes = it['notes']?.toString() ?? '';
-        final direction = CabCartItem.parseDirection(notes);
         final pickupInstructions = CabCartItem.parsePickupGuide(notes);
         final dropInstructions = CabCartItem.parseDropGuide(notes);
 
-        final pLat = (it['pickupLocation']?['latitude'] as num?)?.toDouble() ?? 17.4435;
-        final pLng = (it['pickupLocation']?['longitude'] as num?)?.toDouble() ?? 78.3772;
-        final dLat = (it['dropLocation']?['latitude'] as num?)?.toDouble() ?? 17.3850;
-        final dLng = (it['dropLocation']?['longitude'] as num?)?.toDouble() ?? 78.4867;
-
-        final isOutbound = direction == 'OUTBOUND_FROM_OFFICE';
-        final officeAddress = isOutbound ? pickupAddress : dropAddress;
-        final officeLat = isOutbound ? pLat : dLat;
-        final officeLng = isOutbound ? pLng : dLng;
-        final localityAddress = isOutbound ? dropAddress : pickupAddress;
-
-        final detectedHub = OfficeHubDetector.detectHub(
-          lat: officeLat,
-          lng: officeLng,
-          addressText: officeAddress,
-        ) ?? OfficeHubDetector.hitecId;
+        final pLat = (it['pickupLocation']?['latitude'] as num?)?.toDouble() ?? 0.0;
+        final pLng = (it['pickupLocation']?['longitude'] as num?)?.toDouble() ?? 0.0;
+        final dLat = (it['dropLocation']?['latitude'] as num?)?.toDouble() ?? 0.0;
+        final dLng = (it['dropLocation']?['longitude'] as num?)?.toDouble() ?? 0.0;
 
         templateCabs.add(
           CabCartItem(
@@ -282,22 +267,17 @@ class _UserRequirementsListScreenState extends State<UserRequirementsListScreen>
             vehicleType: vehicleType,
             vehicleLabel: vehicleType == 'SUV' ? 'SUV 7 Seater' : 'Prime Sedan',
             passengers: vehicleType == 'SUV' ? 7 : 4,
-            direction: direction,
-            officeHubId: detectedHub,
-            officeAddress: officeAddress,
-            officeLat: officeLat,
-            officeLng: officeLng,
-            localityName: localityAddress.split(',').first.trim(),
             pickupAddress: pickupAddress,
             pickupLat: pLat,
             pickupLng: pLng,
+            pickupIsOffice: CabCartItem.parsePickupIsOffice(notes),
             pickupInstructions: pickupInstructions,
             dropAddress: dropAddress,
             dropLat: dLat,
             dropLng: dLng,
+            dropIsOffice: CabCartItem.parseDropIsOffice(notes),
             dropInstructions: dropInstructions,
             tripType: 'One Way',
-            hasEscort: false,
             pickupDate: '${reporting.year}-${reporting.month.toString().padLeft(2, '0')}-${reporting.day.toString().padLeft(2, '0')}',
             pickupTime: '${reporting.hour > 12 ? reporting.hour - 12 : (reporting.hour == 0 ? 12 : reporting.hour)}:${reporting.minute.toString().padLeft(2, '0')} ${reporting.hour >= 12 ? 'PM' : 'AM'}',
             reportingDateTime: reporting,

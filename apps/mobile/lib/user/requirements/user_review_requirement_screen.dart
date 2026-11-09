@@ -15,7 +15,6 @@ import '../../core/networking/api_client.dart';
 import '../../shared/widgets/pending_review_gate.dart';
 import '../../core/utils/app_toast.dart';
 import 'requirement_draft_provider.dart';
-import 'utils/office_hub_detector.dart';
 
 class UserReviewRequirementScreen extends StatefulWidget {
   const UserReviewRequirementScreen({super.key});
@@ -52,65 +51,8 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
     } catch (_) {}
   }
 
-  double _getRatePerVehicle(RequirementDraftProvider draft) {
-    if (draft.zonalEnabled && draft.zonalQuote != null) {
-      final total = (draft.zonalQuote!['totalAmount'] as num?)?.toDouble();
-      if (total != null && total > 0) {
-        return total;
-      }
-    }
-    final vType = draft.vehicleType.trim().toUpperCase();
-    Map<String, dynamic>? tier;
-    if (_vehicleTiers.isNotEmpty) {
-      for (final t in _vehicleTiers) {
-        if (t['vehicleType']?.toString().toUpperCase() == vType) {
-          tier = t;
-          break;
-        }
-      }
-      if (tier == null) {
-        for (final t in _vehicleTiers) {
-          if (t['categoryLabel']?.toString().toUpperCase().contains(vType) == true) {
-            tier = t;
-            break;
-          }
-        }
-      }
-      tier ??= _vehicleTiers.first;
-    }
-
-    double baseFare = 800.0;
-    double baseKm = 40.0;
-    double perKmRate = 14.5;
-
-    if (tier != null) {
-      baseFare = double.tryParse(tier['baseFare']?.toString() ?? '') ?? 800.0;
-      baseKm = double.tryParse(tier['baseKm']?.toString() ?? '') ?? 40.0;
-      perKmRate = double.tryParse(tier['perKmRate']?.toString() ?? '') ?? 14.5;
-    } else {
-      if (vType == 'HATCHBACK') {
-        baseFare = 500.0;
-        baseKm = 20.0;
-        perKmRate = 11.0;
-      } else if (vType == 'SUV') {
-        baseFare = 1400.0;
-        baseKm = 40.0;
-        perKmRate = 19.0;
-      } else if (vType == 'BUS') {
-        baseFare = 6500.0;
-        baseKm = 100.0;
-        perKmRate = 45.0;
-      } else if (vType == 'TEMPO_TRAVELLER') {
-        baseFare = 3200.0;
-        baseKm = 80.0;
-        perKmRate = 28.0;
-      }
-    }
-
-    final distance = draft.roadDistanceKm > 0 ? draft.roadDistanceKm : 0.0;
-    final extraKm = (distance - baseKm).clamp(0.0, double.infinity);
-    return (baseFare + (extraKm * perKmRate)).roundToDouble();
-  }
+  /// Price per vehicle from the server quote. 0 when there is no quote (the UI then blocks booking).
+  double _getRatePerVehicle(RequirementDraftProvider draft) => draft.quotedAmount ?? 0.0;
 
   String _getVehicleCategoryLabel(String type) {
     final vType = type.trim().toUpperCase();
@@ -572,16 +514,16 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
   Future<void> _handleConfirmAndPost() async {
     final draft = context.read<RequirementDraftProvider>();
 
-    // Corporate zonal bookings need a valid server quote.
-    if (draft.fulfillmentMode == 'DIRECT_DISPATCH' && draft.zonalEnabled) {
-      if (draft.zonalQuote == null || draft.zonalQuote!['quoteId'] == null) {
-        Fluttertoast.showToast(
-          msg: 'Corporate zonal quote is missing. Please return to Step 2 to generate quote.',
-          backgroundColor: AppColors.error,
-          textColor: Colors.white,
-        );
-        return;
-      }
+    // Every booking is priced by the server quote shown to the vendor.
+    if (!draft.hasValidQuote) {
+      Fluttertoast.showToast(
+        msg: draft.quoteId == null
+            ? 'No price yet for this route. Go back to the route step to get a quote.'
+            : 'The quote has expired. Go back to the route step to refresh the price.',
+        backgroundColor: AppColors.error,
+        textColor: Colors.white,
+      );
+      return;
     }
 
     final ratePerVehicle = _getRatePerVehicle(draft);
@@ -623,7 +565,12 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
     final combinedNotes = notesParts.join(' | ');
     final couponCode = _appliedCoupon?['code'] as String?;
 
-    if (draft.pickupLocation.trim().isEmpty || draft.dropLocation.trim().isEmpty) {
+    if (draft.pickupLocation.trim().isEmpty ||
+        draft.dropLocation.trim().isEmpty ||
+        draft.pickupLat == 0.0 ||
+        draft.pickupLng == 0.0 ||
+        draft.dropLat == 0.0 ||
+        draft.dropLng == 0.0) {
       Fluttertoast.showToast(
         msg: 'Please provide both pickup and drop locations.',
         backgroundColor: AppColors.error,
@@ -640,19 +587,17 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
         quantity: draft.quantity,
         fulfillmentMode: draft.fulfillmentMode,
         pickupAddress: draft.pickupLocation.trim(),
-        pickupLat: draft.pickupLat != 0.0 ? draft.pickupLat : 28.4595,
-        pickupLng: draft.pickupLng != 0.0 ? draft.pickupLng : 77.0266,
+        pickupLat: draft.pickupLat,
+        pickupLng: draft.pickupLng,
         dropAddress: draft.dropLocation.trim(),
-        dropLat: draft.dropLat != 0.0 ? draft.dropLat : 28.5562,
-        dropLng: draft.dropLng != 0.0 ? draft.dropLng : 77.1000,
+        dropLat: draft.dropLat,
+        dropLng: draft.dropLng,
         reportingTime: draft.reportingDateTime,
         ratePerVehicle: ratePerVehicle,
         suggestedBudget: null,
         notes: combinedNotes.isNotEmpty ? combinedNotes : 'Standard Booking Requirement',
         couponCode: couponCode,
-        zonalQuoteId: draft.zonalEnabled
-            ? (draft.zonalQuote?['quoteId'] as String?)
-            : null,
+        quoteId: draft.quoteId,
       );
 
       if (mounted) {
@@ -778,17 +723,8 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                     // Details Card Breakdown
                     Builder(
                       builder: (context) {
-                        final resolvedPickup = draft.pickupLocation.isNotEmpty
-                            ? draft.pickupLocation
-                            : (draft.zonalDirection == 'OUTBOUND_FROM_OFFICE'
-                                ? OfficeHubDetector.defaultLocationForHub(draft.zonalOfficeHubId)['address'] as String
-                                : (draft.zonalLocality != null ? '${draft.zonalLocality!['name']}, Hyderabad, Telangana' : ''));
-
-                        final resolvedDrop = draft.dropLocation.isNotEmpty
-                            ? draft.dropLocation
-                            : (draft.zonalDirection == 'INBOUND_TO_OFFICE'
-                                ? OfficeHubDetector.defaultLocationForHub(draft.zonalOfficeHubId)['address'] as String
-                                : (draft.zonalLocality != null ? '${draft.zonalLocality!['name']}, Hyderabad, Telangana' : ''));
+                        final resolvedPickup = draft.pickupIsOffice ? '${draft.pickupLocation} (Office)' : draft.pickupLocation;
+                        final resolvedDrop = draft.dropIsOffice ? '${draft.dropLocation} (Office)' : draft.dropLocation;
 
                         return Container(
                           padding: const EdgeInsets.all(AppSpacing.md),
@@ -854,76 +790,16 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                                 isDark,
                               ),
                               const Divider(),
-                              if (draft.fulfillmentMode == 'DIRECT_DISPATCH' && draft.zonalEnabled) ...[
+                              if (draft.quote != null) ...[
                                 _buildReviewRow(
                                   context,
                                   Icons.verified_rounded,
-                                  'Pricing Model',
-                                  'Corporate Zonal Rate Card (Fixed Fare)',
+                                  'Pricing',
+                                  'Distance rate${draft.quote!['displayedKm'] is num ? ' · ${(draft.quote!['displayedKm'] as num).toStringAsFixed(1)} km' : ''}${draft.quote!['planVersion'] != null ? ' · plan ${draft.quote!['planVersion']}' : ''}',
                                   isDark,
                                   valueColor: AppColors.primary,
                                 ),
                                 const Divider(),
-                                _buildReviewRow(
-                                  context,
-                                  Icons.business_rounded,
-                                  'Office Hub',
-                                  draft.zonalOfficeHubId == 'KOKAPET' ? 'Kokapet Hub' : 'HITEC / Nanakramguda',
-                                  isDark,
-                                ),
-                                const Divider(),
-                                if (draft.zonalLocality != null) ...[
-                                  _buildReviewRow(
-                                    context,
-                                    Icons.location_city_rounded,
-                                    'Employee Locality',
-                                    '${draft.zonalLocality!['name']} (${draft.zonalLocality!['zoneLabel'] ?? 'Zone 4'})',
-                                    isDark,
-                                  ),
-                                  const Divider(),
-                                ],
-                                _buildReviewRow(
-                                  context,
-                                  Icons.swap_horiz_rounded,
-                                  'Direction',
-                                  draft.zonalDirection == 'OUTBOUND_FROM_OFFICE' ? 'Office → Home' : 'Home → Office',
-                                  isDark,
-                                ),
-                                const Divider(),
-                                _buildReviewRow(
-                                  context,
-                                  Icons.security_rounded,
-                                  'Security Escort',
-                                  draft.zonalHasEscort
-                                      ? (draft.zonalQuote != null && draft.zonalQuote!['escortFee'] != null
-                                          ? 'Included (+ ₹${(draft.zonalQuote!['escortFee'] as num).toInt()})'
-                                          : 'Included')
-                                      : 'Not Selected',
-                                  isDark,
-                                  valueColor: draft.zonalHasEscort ? AppColors.accentPurple : null,
-                                ),
-                                const Divider(),
-                              ],
-                              if (draft.zonalEnabled && draft.zonalQuote != null) ...[
-                                _buildReviewRow(
-                                  context,
-                                  Icons.receipt_long_outlined,
-                                  'Base Fare (${draft.zonalLocality?['zoneLabel'] ?? 'Zone'})',
-                                  '₹${draft.zonalQuote!['baseFare'] ?? 800}',
-                                  isDark,
-                                ),
-                                const Divider(),
-                                if (draft.zonalHasEscort) ...[
-                                  _buildReviewRow(
-                                    context,
-                                    Icons.shield_outlined,
-                                    'Security Escort Fee',
-                                    '+ ₹${((draft.zonalQuote!['escortFee'] as num?)?.toDouble() ?? 0).toInt()}',
-                                    isDark,
-                                    valueColor: AppColors.accentPurple,
-                                  ),
-                                  const Divider(),
-                                ],
                               ],
                               _buildReviewRow(context, Icons.currency_rupee, 'Rate per Vehicle', '₹${_getRatePerVehicle(draft).toStringAsFixed(0)}', isDark),
                               const Divider(),

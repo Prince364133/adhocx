@@ -55,13 +55,7 @@ void main() {
         vehicleType: 'SEDAN',
         vehicleLabel: 'Prime Sedan',
         passengers: 4,
-        direction: 'OUTBOUND_FROM_OFFICE',
-        officeHubId: 'HITEC_NANAKRAMGUDA',
-        officeAddress: 'HITEC City, Hyderabad',
-        officeLat: 17.4435,
-        officeLng: 78.3772,
-        locality: {'name': 'Malakpet', 'lat': 17.3753, 'lng': 78.4983},
-        localityName: 'Malakpet',
+        pickupIsOffice: true,
         pickupAddress: 'HITEC City, Hyderabad, Telangana',
         pickupLat: 17.4435,
         pickupLng: 78.3772,
@@ -99,7 +93,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify expanded details
-    expect(find.textContaining('Direction:'), findsOneWidget);
+    expect(find.textContaining('Route:'), findsOneWidget);
     expect(find.textContaining('Pickup: HITEC City'), findsOneWidget);
 
     // Duplicate/clone cab

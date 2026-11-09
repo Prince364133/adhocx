@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import '../../../core/networking/api_client.dart' show ApiException;
 import '../../../services/user_service.dart';
 import '../../../shared/theme/app_colors.dart';
 
+/// Vendor rate card: the vendor charge per road-distance band, loaded from the active distance plan.
+/// Nothing is bundled in the app; when the server has no active plan the card says so.
 class VendorRateCardModal extends StatefulWidget {
   const VendorRateCardModal({super.key});
 
@@ -10,504 +13,172 @@ class VendorRateCardModal extends StatefulWidget {
 }
 
 class _VendorRateCardModalState extends State<VendorRateCardModal> {
-  String _selectedHub = 'HITEC_NANAKRAMGUDA';
   String _selectedVehicle = 'SEDAN';
-  String _localitySearch = '';
-  final TextEditingController _searchCtrl = TextEditingController();
-
-  // Canonical Vendor 2026 Rate Card Matrix (matching users.pdf PRD)
-  static const Map<String, Map<String, Map<String, dynamic>>>
-      _vendorZonalMatrix = {
-    'HITEC_NANAKRAMGUDA': {
-      'Extra (E)': {'SEDAN': 500, 'SUV': 700, 'escort': '+₹200 / +₹300'},
-      'Zone 6': {'SEDAN': 600, 'SUV': 900, 'escort': '+₹200 / +₹300'},
-      'Zone 5': {'SEDAN': 700, 'SUV': 1000, 'escort': '+₹300 / +₹400'},
-      'Zone 4': {'SEDAN': 800, 'SUV': 1100, 'escort': '+₹300 / +₹400'},
-      'Zone 3': {'SEDAN': 900, 'SUV': 1200, 'escort': '+₹400 / +₹500'},
-      'Zone 2': {'SEDAN': 1000, 'SUV': 1300, 'escort': '+₹400 / +₹500'},
-      'Zone 1': {'SEDAN': 1100, 'SUV': 1400, 'escort': '+₹400 / +₹500'},
-    },
-    'KOKAPET': {
-      'Extra (E)': {'SEDAN': 600, 'SUV': 800, 'escort': '+₹300 / +₹400'},
-      'Zone 6': {'SEDAN': 700, 'SUV': 900, 'escort': '+₹300 / +₹400'},
-      'Zone 5': {'SEDAN': 800, 'SUV': 1100, 'escort': '+₹300 / +₹400'},
-      'Zone 4': {'SEDAN': 900, 'SUV': 1200, 'escort': '+₹300 / +₹400'},
-      'Zone 3': {'SEDAN': 1000, 'SUV': 1300, 'escort': '+₹400 / +₹500'},
-      'Zone 2': {'SEDAN': 1100, 'SUV': 1400, 'escort': '+₹400 / +₹500'},
-      'Zone 1': {'SEDAN': 1200, 'SUV': 1500, 'escort': '+₹400 / +₹500'},
-    },
-  };
-
-  // Sample quick locality reference
-  static const Map<String, String> _sampleLocalities = {
-    'Gachibowli': 'Extra (E)',
-    'HITEC City': 'Extra (E)',
-    'Madhapur': 'Extra (E)',
-    'KPHB': 'Zone 6',
-    'Manikonda': 'Zone 6',
-    'Tolichowki': 'Zone 6',
-    'Kukatpally': 'Zone 5',
-    'Miyapur': 'Zone 5',
-    'Begumpet': 'Zone 5',
-    'Malakpet': 'Zone 4',
-    'Dilsukhnagar': 'Zone 4',
-    'Secunderabad': 'Zone 4',
-    'LB Nagar': 'Zone 3',
-    'Uppal': 'Zone 3',
-    'Shamshabad': 'Zone 3',
-    'Pocharam': 'Zone 2',
-    'Cherlapally': 'Zone 2',
-    'Hayathnagar': 'Zone 2',
-    'Ghatkesar': 'Zone 1',
-    'Shamirpet': 'Zone 1',
-    'Medchal': 'Zone 1',
-  };
+  bool _isLoading = true;
+  String? _error;
+  String? _planVersion;
+  String? _planCategory;
+  List<Map<String, dynamic>> _slabs = [];
 
   @override
   void initState() {
     super.initState();
-    _loadRemoteRateCard();
+    _load();
   }
 
-  @override
-  void dispose() {
-    _searchCtrl.dispose();
-    super.dispose();
-  }
-
-  /// Live active rate card from the server (null while loading or offline; the bundled card is shown then).
-  Map<String, dynamic>? _remoteCard;
-
-  Future<void> _loadRemoteRateCard() async {
-    final card =
-        await UserService.instance.getVendorZonalRateCard(forceRefresh: true);
-    if (mounted && card != null && card['matrix'] is Map) {
-      setState(() => _remoteCard = card);
+  Future<void> _load() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      final card = await UserService.instance.getVendorRateCard(vehicleCategory: _selectedVehicle, forceRefresh: true);
+      final slabs = (card['slabs'] as List?)?.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList() ?? [];
+      if (!mounted) return;
+      setState(() {
+        _slabs = slabs;
+        _planVersion = card['version']?.toString();
+        _planCategory = card['vehicleCategory']?.toString();
+        _isLoading = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _slabs = [];
+        _error = e.message;
+        _isLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _slabs = [];
+        _error = 'Could not load the rate card. Check your connection and try again.';
+        _isLoading = false;
+      });
     }
-  }
-
-  /// Rows for the selected hub: [zone label, fare for selected vehicle, escort ceiling for selected vehicle].
-  List<List<String>> _zoneRows() {
-    final card = _remoteCard;
-    if (card != null) {
-      final hubMatrix = (card['matrix'] as Map)[_selectedHub];
-      final zones =
-          (card['zones'] as List?)?.whereType<Map>().toList() ?? const [];
-      if (hubMatrix is Map && zones.isNotEmpty) {
-        return zones.map((z) {
-          final cell = hubMatrix[z['id']] as Map? ?? const {};
-          final isSuv = _selectedVehicle == 'SUV';
-          final fare = (isSuv ? cell['suv'] : cell['sedan']) as num? ?? 0;
-          final escort =
-              (isSuv ? cell['escortSuv'] : cell['escortSedan']) as num? ?? 0;
-          return [
-            '${z['label']}',
-            '₹${fare.toStringAsFixed(0)}',
-            'Escort up to +₹${escort.toStringAsFixed(0)} if selected'
-          ];
-        }).toList();
-      }
-    }
-    final hubData = _vendorZonalMatrix[_selectedHub] ??
-        _vendorZonalMatrix['HITEC_NANAKRAMGUDA']!;
-    return hubData.entries
-        .map((e) => [
-              e.key,
-              '₹${e.value[_selectedVehicle] ?? 0}',
-              'Escort ${e.value['escort'] ?? ''} if selected'
-            ])
-        .toList();
-  }
-
-  /// Locality guide entries: name, zone label and whether the record can auto-quote.
-  List<({String name, String zoneLabel, bool bookable})> _localities() {
-    final list = _remoteCard?['localities'];
-    if (list is List && list.isNotEmpty) {
-      return list
-          .whereType<Map>()
-          .map((l) => (
-                name: '${l['name']}',
-                zoneLabel: '${l['zoneLabel']}',
-                bookable: l['bookable'] == true
-              ))
-          .toList();
-    }
-    return _sampleLocalities.entries
-        .map((e) => (name: e.key, zoneLabel: e.value, bookable: true))
-        .toList();
-  }
-
-  String _fareForZoneLabel(String zoneLabel) {
-    final row = _zoneRows().firstWhere((r) => r[0] == zoneLabel,
-        orElse: () => const ['', '—', '']);
-    return row[1];
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryText = isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight;
+    final muted = isDark ? AppColors.textMutedDark : AppColors.textMutedLight;
 
     return Container(
       padding: const EdgeInsets.all(20),
+      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
       decoration: BoxDecoration(
         color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border(
-          top: BorderSide(
-            color: isDark ? AppColors.borderDark : AppColors.borderLight,
-            width: 1.2,
-          ),
-        ),
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Drag handle
-            Center(
-              child: Container(
-                width: 38,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-
-            // Header
-            Row(
-              children: [
-                const Icon(Icons.receipt_long_rounded,
-                    color: AppColors.primary, size: 22),
-                const SizedBox(width: 10),
-                Text(
-                  'Corporate Zonal Rate Card (2026)',
-                  style: TextStyle(
-                    color: isDark
-                        ? AppColors.textPrimaryDark
-                        : AppColors.textPrimaryLight,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(width: 4, height: 4),
-            Text(
-              'Guaranteed flat rate pricing for Hyderabad employee fleet transport.',
-              style: TextStyle(
-                color: isDark
-                    ? AppColors.textMutedDark
-                    : AppColors.textSecondaryLight,
-                fontSize: 12,
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Hub Selector Pills
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () =>
-                        setState(() => _selectedHub = 'HITEC_NANAKRAMGUDA'),
-                    style: OutlinedButton.styleFrom(
-                      backgroundColor: _selectedHub == 'HITEC_NANAKRAMGUDA'
-                          ? AppColors.primary.withValues(alpha: 0.15)
-                          : Colors.transparent,
-                      side: BorderSide(
-                        color: _selectedHub == 'HITEC_NANAKRAMGUDA'
-                            ? AppColors.primary
-                            : Colors.grey.shade400,
-                      ),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
-                    ),
-                    child: Text(
-                      'HITEC / Nanakramguda',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: _selectedHub == 'HITEC_NANAKRAMGUDA'
-                            ? AppColors.primary
-                            : (isDark ? Colors.white70 : Colors.black87),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => setState(() => _selectedHub = 'KOKAPET'),
-                    style: OutlinedButton.styleFrom(
-                      backgroundColor: _selectedHub == 'KOKAPET'
-                          ? AppColors.primary.withValues(alpha: 0.15)
-                          : Colors.transparent,
-                      side: BorderSide(
-                        color: _selectedHub == 'KOKAPET'
-                            ? AppColors.primary
-                            : Colors.grey.shade400,
-                      ),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
-                    ),
-                    child: Text(
-                      'Kokapet Hub',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: _selectedHub == 'KOKAPET'
-                            ? AppColors.primary
-                            : (isDark ? Colors.white70 : Colors.black87),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            // Vehicle Category Toggle
-            Row(
-              children: [
-                ChoiceChip(
-                  label: const Text('Sedan (4+1)'),
-                  selected: _selectedVehicle == 'SEDAN',
-                  onSelected: (val) =>
-                      setState(() => _selectedVehicle = 'SEDAN'),
-                  selectedColor: AppColors.primary.withValues(alpha: 0.2),
-                ),
-                const SizedBox(width: 8),
-                ChoiceChip(
-                  label: const Text('SUV (6+1)'),
-                  selected: _selectedVehicle == 'SUV',
-                  onSelected: (val) => setState(() => _selectedVehicle = 'SUV'),
-                  selectedColor: AppColors.primary.withValues(alpha: 0.2),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // Quick Locality Lookup Search Bar
-            TextField(
-              controller: _searchCtrl,
-              onChanged: (val) => setState(() => _localitySearch = val.trim()),
-              decoration: InputDecoration(
-                hintText:
-                    'Search locality (e.g. Malakpet, Shamirpet, Miyapur)...',
-                hintStyle: TextStyle(
-                  fontSize: 12,
-                  color: isDark
-                      ? AppColors.textMutedDark
-                      : AppColors.textMutedLight,
-                ),
-                prefixIcon: const Icon(Icons.search, size: 18),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(
-                      color: isDark
-                          ? AppColors.borderDark
-                          : AppColors.borderLight),
-                ),
-              ),
-            ),
-            if (_localitySearch.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              _buildSearchResultCard(context, isDark),
-            ],
-            const SizedBox(height: 14),
-
-            // Rate Matrix Table
-            _buildRateMatrix(context, isDark),
-            const SizedBox(height: 14),
-
-            // Enterprise SLA Banner
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                    color: AppColors.primary.withValues(alpha: 0.25)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.shield_outlined,
-                      color: AppColors.primary, size: 20),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Fixed B2B Contract: Zero dynamic surge, zero per-km meter fees. Escort service available for late-night employee compliance.',
-                      style: TextStyle(
-                        color:
-                            isDark ? AppColors.primaryLight : AppColors.primary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSearchResultCard(BuildContext context, bool isDark) {
-    final q = _localitySearch.toLowerCase();
-    final matches = _localities()
-        .where((l) => l.name.toLowerCase().contains(q))
-        .take(4)
-        .toList();
-
-    if (matches.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: Colors.amber.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          'Not in the approved locality list. Unlisted places need operations review before a zonal fare is offered.',
-          style: TextStyle(
-              fontSize: 11,
-              color: isDark ? Colors.amber.shade200 : Colors.amber.shade900),
-        ),
-      );
-    }
-
-    return Column(
-        children: matches.map((m) => _localityResultTile(m, isDark)).toList());
-  }
-
-  Widget _localityResultTile(
-      ({String name, String zoneLabel, bool bookable}) entry, bool isDark) {
-    final fare = entry.bookable
-        ? '${_fareForZoneLabel(entry.zoneLabel)} Flat'
-        : 'Ops review';
-    return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.primary),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  entry.name,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 13),
-                ),
-                Text(
-                  entry.bookable
-                      ? 'Assigned to ${entry.zoneLabel}'
-                      : '${entry.zoneLabel} · pending pin verification',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: isDark
-                        ? AppColors.textMutedDark
-                        : AppColors.textSecondaryLight,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            fare,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              color: AppColors.primary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRateMatrix(BuildContext context, bool isDark) {
-    final rows = _zoneRows();
-
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark
-            ? AppColors.surfaceElevatedDark
-            : AppColors.surfaceElevatedLight,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-            color: isDark ? AppColors.borderDark : AppColors.borderLight),
       ),
       child: Column(
-        children: rows.asMap().entries.map((entry) {
-          final i = entry.key;
-          final row = entry.value;
-          return Column(
-            children: [
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          row[0],
-                          style: TextStyle(
-                            color: isDark
-                                ? AppColors.textPrimaryDark
-                                : AppColors.textPrimaryLight,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Text(
-                          row[2],
-                          style: TextStyle(
-                            color: isDark
-                                ? AppColors.textMutedDark
-                                : AppColors.textSecondaryLight,
-                            fontSize: 10,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Text(
-                      row[1],
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ],
-                ),
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 38,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                borderRadius: BorderRadius.circular(2),
               ),
-              if (i < rows.length - 1)
-                Divider(
-                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                  height: 1,
+            ),
+          ),
+          Row(
+            children: [
+              const Icon(Icons.receipt_long_rounded, color: AppColors.primary, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text('Rate Card', style: TextStyle(color: primaryText, fontSize: 17, fontWeight: FontWeight.w700)),
+              ),
+              if (_planVersion != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text('v$_planVersion',
+                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary)),
                 ),
             ],
-          );
-        }).toList(),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Fixed price per vehicle by Google Maps road distance between pickup and drop. No surge.',
+            style: TextStyle(fontSize: 12, color: muted),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            children: [
+              for (final v in const [('SEDAN', 'Sedan'), ('SUV', 'SUV')])
+                ChoiceChip(
+                  label: Text(v.$2),
+                  selected: _selectedVehicle == v.$1,
+                  onSelected: (_) {
+                    setState(() => _selectedVehicle = v.$1);
+                    _load();
+                  },
+                  selectedColor: AppColors.primary.withValues(alpha: 0.2),
+                ),
+            ],
+          ),
+          if (_planCategory == 'ALL' && !_isLoading && _error == null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text('Using the standard rate for all vehicle types.', style: TextStyle(fontSize: 11, color: muted)),
+            ),
+          const SizedBox(height: 12),
+          Flexible(
+            child: _isLoading
+                ? const Center(child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator()))
+                : (_error != null || _slabs.isEmpty)
+                    ? Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        child: Text(_error ?? 'No rates are published for this vehicle type yet.',
+                            style: TextStyle(fontSize: 12, color: muted)),
+                      )
+                    : Container(
+                        decoration: BoxDecoration(
+                          color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceElevatedLight,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                        ),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: _slabs.length,
+                          separatorBuilder: (_, __) =>
+                              Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                          itemBuilder: (_, i) {
+                            final s = _slabs[i];
+                            final rupees = (s['vendorPriceRupees'] as num?) ??
+                                ((s['vendorPricePaise'] as num?) != null ? (s['vendorPricePaise'] as num) / 100 : null);
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(s['range']?.toString() ?? '${s['minKm']}–${s['maxKm']} km',
+                                        style: TextStyle(color: primaryText, fontSize: 13, fontWeight: FontWeight.bold)),
+                                  ),
+                                  Text(rupees != null ? '₹${rupees.toStringAsFixed(0)}' : '₹--',
+                                      style: const TextStyle(color: AppColors.primary, fontSize: 14, fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'The price shown when you book is locked for that booking. Longer routes than the last band need an operations quote.',
+            style: TextStyle(fontSize: 11, color: muted, fontStyle: FontStyle.italic),
+          ),
+        ],
       ),
     );
   }

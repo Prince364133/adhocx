@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../routes/app_routes.dart';
+import '../../../core/networking/api_client.dart' show ApiException;
 import '../../../services/driver_service.dart';
 import '../../../services/user_service.dart';
 import '../../../shared/theme/app_colors.dart';
@@ -8,7 +9,6 @@ import '../../../shared/theme/app_radius.dart';
 import '../../../shared/theme/app_spacing.dart';
 import '../../../shared/theme/app_typography.dart';
 import '../models/cab_cart_item.dart';
-import '../utils/office_hub_detector.dart';
 import 'select_route_sub_bottom_sheet.dart';
 import 'select_date_time_sub_bottom_sheet.dart';
 
@@ -31,20 +31,15 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
   late String _vehicleLabel;
   late int _passengers;
 
-  // Locations state
-  String _direction = 'OUTBOUND_FROM_OFFICE';
-  String _officeHubId = OfficeHubDetector.hitecId;
-  String _officeAddress = '';
-  double _officeLat = 0.0;
-  double _officeLng = 0.0;
-  Map<String, dynamic>? _locality;
-  String _localityName = '';
+  // Locations state (any two places; either may be labelled "office")
   String _pickupAddress = '';
   double _pickupLat = 0.0;
   double _pickupLng = 0.0;
+  bool _pickupIsOffice = false;
   String _dropAddress = '';
   double _dropLat = 0.0;
   double _dropLng = 0.0;
+  bool _dropIsOffice = false;
   double _distanceKm = 0.0;
   int _durationMinutes = 0;
   String _formattedDistance = '';
@@ -52,11 +47,15 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
 
   // Trip options
   static const String _tripType = 'One Way';
-  bool _hasEscort = false;
-  Map<String, dynamic>? _zonalQuote;
-  double _estimatedFare = 0.0;
   String _pickupInstructions = '';
   String _dropInstructions = '';
+
+  // Server quote for this route and vehicle type (the booked price)
+  Map<String, dynamic>? _quote;
+  bool _quoting = false;
+  String? _quoteError;
+  int _quoteRequestSeq = 0;
+  double get _estimatedFare => (_quote?['totalAmount'] as num?)?.toDouble() ?? 0.0;
 
   // Date and Time
   bool _isScheduled = false;
@@ -80,24 +79,25 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
       _vehicleType = item.vehicleType;
       _vehicleLabel = item.vehicleLabel;
       _passengers = item.passengers;
-      _direction = item.direction;
-      _officeHubId = item.officeHubId;
-      _officeAddress = item.officeAddress;
-      _officeLat = item.officeLat;
-      _officeLng = item.officeLng;
-      _locality = item.locality;
-      _localityName = item.localityName;
       _pickupAddress = item.pickupAddress;
       _pickupLat = item.pickupLat;
       _pickupLng = item.pickupLng;
+      _pickupIsOffice = item.pickupIsOffice;
       _dropAddress = item.dropAddress;
       _dropLat = item.dropLat;
       _dropLng = item.dropLng;
+      _dropIsOffice = item.dropIsOffice;
+      if (item.hasValidQuote) {
+        _quote = {
+          'quoteId': item.quoteId,
+          'expiresAt': item.quoteExpiresAt?.toIso8601String(),
+          'totalAmount': item.estimatedFare,
+        };
+      }
       _distanceKm = item.distanceKm;
       _durationMinutes = item.durationMinutes;
       _formattedDistance = item.formattedDistance;
       _formattedEta = item.formattedEta;
-      _hasEscort = item.hasEscort;
       _pickupInstructions = item.pickupInstructions;
       _dropInstructions = item.dropInstructions;
       _pickupDate = item.pickupDate;
@@ -110,10 +110,6 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
       _vehicleType = '';
       _vehicleLabel = '';
       _passengers = 4;
-      final def = OfficeHubDetector.defaultLocationForHub(_officeHubId);
-      _officeAddress = def['address'] as String;
-      _officeLat = (def['lat'] as num).toDouble();
-      _officeLng = (def['lng'] as num).toDouble();
 
       final now = DateTime.now();
       _isScheduled = false;
@@ -123,16 +119,8 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
       _pickupTime = 'Now (ASAP)';
       _notesController = TextEditingController();
     }
-    final hasExistingLocation = widget.existingItem != null &&
-        widget.existingItem!.locality != null &&
-        widget.existingItem!.pickupAddress.isNotEmpty;
-    _estimatedFare = hasExistingLocation ? widget.existingItem!.estimatedFare : 0.0;
-    // Preload live rate card from dedicated backend pricing service
-    UserService.instance.getVendorZonalRateCard();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_locality != null && _pickupAddress.isNotEmpty) {
-        _refreshLiveFare();
-      }
+      if (_hasRoute && _quote == null) _refreshLiveFare();
     });
   }
 
@@ -184,9 +172,6 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
               'label': label,
               'subtitle': seating,
               'maxSeats': maxSeats,
-              'baseRate': (t['baseFare'] as num?)?.toDouble() ?? 0.0,
-              'baseKm': (t['baseKm'] as num?)?.toDouble() ?? 0.0,
-              'perKmRate': (t['perKmRate'] as num?)?.toDouble() ?? 0.0,
               'icon': icon,
             };
           }).toList();
@@ -202,9 +187,7 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
           }
           _isLoadingCabs = false;
         });
-        if (_locality != null && _pickupAddress.isNotEmpty) {
-          _refreshLiveFare();
-        }
+        if (_hasRoute && _quote == null) _refreshLiveFare();
         return;
       }
     } catch (e) {
@@ -237,9 +220,6 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
       'id': _vehicleType.isNotEmpty ? _vehicleType : '',
       'label': _vehicleLabel.isNotEmpty ? _vehicleLabel : '',
       'maxSeats': isSuv ? 7 : 4,
-      'baseRate': 0.0,
-      'baseKm': 0.0,
-      'perKmRate': 0.0,
       'icon': isSuv ? Icons.airport_shuttle_rounded : Icons.directions_car_rounded,
     };
   }
@@ -249,97 +229,55 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
     return (opt['maxSeats'] as num?)?.toInt() ?? 4;
   }
 
-  /// Recalculates real fare using the dedicated pricing service.
-  /// Decides real rates on calculation without any hardcoded values in UI components.
+  bool get _hasRoute => _pickupLat != 0.0 && _pickupLng != 0.0 && _dropLat != 0.0 && _dropLng != 0.0;
+
+  /// Gets the server quote for the chosen route and vehicle type. No price is shown or saved
+  /// unless the server returns one.
   Future<void> _refreshLiveFare() async {
-    // If no location / locality is selected, do not compute or display any fare
-    if (_locality == null || _pickupAddress.isEmpty) {
-      if (mounted) {
-        setState(() {
-          _estimatedFare = 0.0;
-          _zonalQuote = null;
-        });
-      }
+    if (!_hasRoute || _vehicleType.isEmpty) {
+      if (mounted) setState(() => _quote = null);
       return;
     }
-
-    // 1. Instant responsive calculation using dedicated service cached rate card & tiers
-    final syncFare = UserService.instance.calculateSynchronousFare(
-      vehicleType: _vehicleType,
-      officeHubId: _officeHubId,
-      locality: _locality,
-      hasEscort: _hasEscort,
-      distanceKm: _distanceKm,
-      vehicleTiers: _vehicleOptions,
-      existingQuote: _zonalQuote,
-    );
-    if (mounted) {
-      setState(() {
-        _estimatedFare = syncFare;
-      });
-    }
-
-    // 2. Query dedicated backend pricing service for authoritative quotation
+    final seq = ++_quoteRequestSeq;
+    setState(() {
+      _quoting = true;
+      _quoteError = null;
+      _quote = null;
+    });
     try {
-      final localityId = _locality?['id']?.toString();
-      if (localityId != null && localityId.isNotEmpty) {
-        final effectivePickupLat = _pickupLat != 0.0
-            ? _pickupLat
-            : (_direction == 'OUTBOUND_FROM_OFFICE' ? (_officeLat != 0.0 ? _officeLat : 17.4435) : 17.3850);
-        final effectivePickupLng = _pickupLng != 0.0
-            ? _pickupLng
-            : (_direction == 'OUTBOUND_FROM_OFFICE' ? (_officeLng != 0.0 ? _officeLng : 78.3772) : 78.4867);
-        final effectiveDropLat = _dropLat != 0.0
-            ? _dropLat
-            : (_direction == 'INBOUND_TO_OFFICE' ? (_officeLat != 0.0 ? _officeLat : 17.4435) : 17.3850);
-        final effectiveDropLng = _dropLng != 0.0
-            ? _dropLng
-            : (_direction == 'INBOUND_TO_OFFICE' ? (_officeLng != 0.0 ? _officeLng : 78.3772) : 78.4867);
-
-        final quote = await UserService.instance.createZonalQuote(
-          officeHubId: _officeHubId,
-          direction: _direction,
-          localityId: localityId,
-          vehicleType: _vehicleType.isNotEmpty ? _vehicleType : 'SEDAN',
-          hasEscort: _hasEscort,
-          pickupLat: effectivePickupLat,
-          pickupLng: effectivePickupLng,
-          dropLat: effectiveDropLat,
-          dropLng: effectiveDropLng,
-        );
-        if (mounted && quote.isNotEmpty && quote['canAutoQuote'] != false) {
-          setState(() {
-            _zonalQuote = quote;
-            final total = (quote['totalAmount'] as num?)?.toDouble();
-            if (total != null && total > 0) {
-              _estimatedFare = total.roundToDouble();
-            }
-          });
-          return;
-        }
-      }
-
-      // Authoritative pricing service calculation
-      final serverFare = await UserService.instance.calculateEstimatedFare(
-        vehicleType: _vehicleType,
-        officeHubId: _officeHubId,
-        direction: _direction,
-        locality: _locality,
-        hasEscort: _hasEscort,
-        distanceKm: _distanceKm,
-        durationMinutes: _durationMinutes,
+      final quote = await UserService.instance.createDistanceTripQuote(
         pickupLat: _pickupLat,
         pickupLng: _pickupLng,
+        pickupAddress: _pickupAddress,
         dropLat: _dropLat,
         dropLng: _dropLng,
-        existingQuote: _zonalQuote,
+        dropAddress: _dropAddress,
+        vehicleCategory: _vehicleType,
+        pickupIsOffice: _pickupIsOffice,
+        dropIsOffice: _dropIsOffice,
       );
-      if (mounted) {
-        setState(() {
-          _estimatedFare = serverFare;
-        });
-      }
-    } catch (_) {}
+      if (!mounted || seq != _quoteRequestSeq) return;
+      setState(() {
+        _quoting = false;
+        if (quote['quoteId'] != null && quote['totalAmount'] != null) {
+          _quote = quote;
+        } else {
+          _quoteError = (quote['errorMessage'] as String?) ?? 'This route could not be priced.';
+        }
+      });
+    } on ApiException catch (e) {
+      if (!mounted || seq != _quoteRequestSeq) return;
+      setState(() {
+        _quoting = false;
+        _quoteError = e.message;
+      });
+    } catch (_) {
+      if (!mounted || seq != _quoteRequestSeq) return;
+      setState(() {
+        _quoting = false;
+        _quoteError = 'Could not get a price. Check your connection and try again.';
+      });
+    }
   }
 
   Future<void> _openSelectRouteSubSheet() async {
@@ -349,12 +287,14 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => SelectRouteSubBottomSheet(
-        initialDirection: _direction,
-        initialOfficeHubId: _officeHubId,
-        initialOfficeAddress: _officeAddress,
-        initialOfficeLat: _officeLat,
-        initialOfficeLng: _officeLng,
-        initialLocality: _locality,
+        initialPickupAddress: _pickupAddress,
+        initialPickupLat: _pickupLat,
+        initialPickupLng: _pickupLng,
+        initialPickupIsOffice: _pickupIsOffice,
+        initialDropAddress: _dropAddress,
+        initialDropLat: _dropLat,
+        initialDropLng: _dropLng,
+        initialDropIsOffice: _dropIsOffice,
         initialPickupInstructions: _pickupInstructions,
         initialDropInstructions: _dropInstructions,
       ),
@@ -362,20 +302,14 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
 
     if (result != null && mounted) {
       setState(() {
-        _zonalQuote = null;
-        _direction = (result['direction'] as String?) ?? 'OUTBOUND_FROM_OFFICE';
-        _officeHubId = (result['officeHubId'] as String?) ?? OfficeHubDetector.hitecId;
-        _officeAddress = (result['officeAddress'] as String?) ?? '';
-        _officeLat = (result['officeLat'] as num?)?.toDouble() ?? 0.0;
-        _officeLng = (result['officeLng'] as num?)?.toDouble() ?? 0.0;
-        _locality = result['locality'] as Map<String, dynamic>?;
-        _localityName = (result['localityName'] as String?) ?? '';
         _pickupAddress = (result['pickupAddress'] as String?) ?? '';
         _pickupLat = (result['pickupLat'] as num?)?.toDouble() ?? 0.0;
         _pickupLng = (result['pickupLng'] as num?)?.toDouble() ?? 0.0;
+        _pickupIsOffice = result['pickupIsOffice'] == true;
         _dropAddress = (result['dropAddress'] as String?) ?? '';
         _dropLat = (result['dropLat'] as num?)?.toDouble() ?? 0.0;
         _dropLng = (result['dropLng'] as num?)?.toDouble() ?? 0.0;
+        _dropIsOffice = result['dropIsOffice'] == true;
         _distanceKm = (result['distanceKm'] as num?)?.toDouble() ?? 0.0;
         _durationMinutes = (result['durationMinutes'] as num?)?.toInt() ?? 0;
         _formattedDistance = (result['formattedDistance'] as String?) ?? '';
@@ -476,10 +410,19 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
   }
 
   void _saveCab() {
-    if (_pickupAddress.isEmpty || _dropAddress.isEmpty || _locality == null) {
+    if (!_hasRoute || _pickupAddress.isEmpty || _dropAddress.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please select both Pickup and Destination locations via "Select Location".'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+    if (_quote == null || _quote!['quoteId'] == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_quoteError ?? 'Wait for the price to load before adding the cab.'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -494,41 +437,22 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
         .where((s) => s.isNotEmpty)
         .toList();
 
-    final effectivePickupLat = _pickupLat != 0.0
-        ? _pickupLat
-        : (_direction == 'OUTBOUND_FROM_OFFICE' ? (_officeLat != 0.0 ? _officeLat : 17.4435) : 17.3850);
-    final effectivePickupLng = _pickupLng != 0.0
-        ? _pickupLng
-        : (_direction == 'OUTBOUND_FROM_OFFICE' ? (_officeLng != 0.0 ? _officeLng : 78.3772) : 78.4867);
-    final effectiveDropLat = _dropLat != 0.0
-        ? _dropLat
-        : (_direction == 'INBOUND_TO_OFFICE' ? (_officeLat != 0.0 ? _officeLat : 17.4435) : 17.3850);
-    final effectiveDropLng = _dropLng != 0.0
-        ? _dropLng
-        : (_direction == 'INBOUND_TO_OFFICE' ? (_officeLng != 0.0 ? _officeLng : 78.3772) : 78.4867);
-
     final cab = CabCartItem(
       id: itemId,
       vehicleType: _vehicleType,
       vehicleLabel: _vehicleLabel,
       passengers: _passengers,
-      direction: _direction,
-      officeHubId: _officeHubId,
-      officeAddress: _officeAddress,
-      officeLat: _officeLat,
-      officeLng: _officeLng,
-      locality: _locality,
-      localityName: _localityName,
       pickupAddress: _pickupAddress,
-      pickupLat: effectivePickupLat,
-      pickupLng: effectivePickupLng,
+      pickupLat: _pickupLat,
+      pickupLng: _pickupLng,
+      pickupIsOffice: _pickupIsOffice,
       pickupInstructions: _pickupInstructions,
       dropAddress: _dropAddress,
-      dropLat: effectiveDropLat,
-      dropLng: effectiveDropLng,
+      dropLat: _dropLat,
+      dropLng: _dropLng,
+      dropIsOffice: _dropIsOffice,
       dropInstructions: _dropInstructions,
       tripType: _tripType,
-      hasEscort: _hasEscort,
       isScheduled: _isScheduled,
       pickupDate: _pickupDate,
       pickupTime: _pickupTime,
@@ -540,7 +464,8 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
       formattedDistance: _formattedDistance,
       formattedEta: _formattedEta,
       estimatedFare: _estimatedFare,
-      zonalQuoteId: _zonalQuote?['quoteId'] as String?,
+      quoteId: _quote!['quoteId'] as String?,
+      quoteExpiresAt: DateTime.tryParse(_quote!['expiresAt']?.toString() ?? ''),
     );
 
     Navigator.pop(context, cab);
@@ -552,7 +477,7 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
     final isDark = theme.brightness == Brightness.dark;
     final isEditing = widget.existingItem != null;
 
-    final hasRouteSelected = _locality != null && _pickupAddress.isNotEmpty;
+    final hasRouteSelected = _hasRoute && _pickupAddress.isNotEmpty;
     final estimatedFare = _estimatedFare;
 
     return Material(
@@ -722,7 +647,6 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
                           return GestureDetector(
                             onTap: () {
                               setState(() {
-                                _zonalQuote = null;
                                 _vehicleType = opt['id'] as String;
                                 _vehicleLabel = opt['label'] as String;
                                 final newMax = (opt['maxSeats'] as num?)?.toInt() ?? 4;
@@ -910,9 +834,9 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
                                             borderRadius: BorderRadius.circular(4),
                                           ),
                                           child: Text(
-                                            _direction == 'OUTBOUND_FROM_OFFICE'
-                                                ? '🏢 → 🏠 Office → Home'
-                                                : '🏠 → 🏢 Home → Office',
+                                            _pickupIsOffice
+                                                ? (_dropIsOffice ? 'Office → Office' : 'From office')
+                                                : (_dropIsOffice ? 'To office' : 'Point to point'),
                                             style: const TextStyle(
                                               fontSize: 11,
                                               fontWeight: FontWeight.bold,
@@ -1000,7 +924,7 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
                                       ),
                                       SizedBox(height: 2),
                                       Text(
-                                        'Choose Office Hub and Employee Locality',
+                                        'Any pickup and drop; mark either as office',
                                         style: TextStyle(fontSize: 11, color: AppColors.slate600),
                                       ),
                                     ],
@@ -1010,93 +934,6 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
                                     size: 16, color: AppColors.primary),
                               ],
                             ),
-                    ),
-                  ),
-
-                  const SizedBox(height: AppSpacing.lg),
-
-                  // ── 3. Security Escort ──────────────────────────
-                  InkWell(
-                    onTap: () {
-                      setState(() {
-                        _zonalQuote = null;
-                        _hasEscort = !_hasEscort;
-                      });
-                      _refreshLiveFare();
-                    },
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: _hasEscort
-                            ? AppColors.accentPurple.withValues(alpha: 0.08)
-                            : (isDark ? AppColors.bgDark : AppColors.bgLight),
-                        borderRadius: BorderRadius.circular(AppRadius.md),
-                        border: Border.all(
-                          color: _hasEscort
-                              ? AppColors.accentPurple.withValues(alpha: 0.45)
-                              : (isDark ? AppColors.borderDark : AppColors.borderLight),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.shield_outlined,
-                            size: 18,
-                            color: _hasEscort
-                                ? AppColors.accentPurple
-                                : (isDark ? AppColors.slate400 : AppColors.slate500),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Wrap(
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              spacing: 6,
-                              runSpacing: 2,
-                              children: [
-                                Text(
-                                  'Security Escort',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.accentPurple.withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: const Text(
-                                    'Approved Ceiling',
-                                    style: TextStyle(
-                                      fontSize: 9.5,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.accentPurple,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Transform.scale(
-                            scale: 0.8,
-                            child: Switch(
-                              value: _hasEscort,
-                              activeThumbColor: AppColors.accentPurple,
-                              onChanged: (val) {
-                                setState(() {
-                                  _zonalQuote = null;
-                                  _hasEscort = val;
-                                });
-                                _refreshLiveFare();
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
                     ),
                   ),
 
@@ -1520,7 +1357,7 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
                   const SizedBox(height: AppSpacing.lg),
 
                   // ── 7. Fare Summary Preview Card ────────────────────────────
-                  if (!hasRouteSelected)
+                  if (!hasRouteSelected || _quote == null)
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -1563,7 +1400,9 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
-                                        'Select pickup & drop location above to view fare',
+                                        !hasRouteSelected
+                                            ? 'Select pickup & drop location above to view fare'
+                                            : (_quoting ? 'Getting the price for this route…' : (_quoteError ?? 'No price yet')),
                                         style: TextStyle(
                                           fontSize: 10,
                                           color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
@@ -1622,11 +1461,11 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis),
                                       Text(
-                                        _locality != null
-                                            ? 'Fixed Rate (${_locality?['zoneLabel'] ?? 'Corporate Zonal'}) • ${_hasEscort ? 'Escort Included' : 'No Surge'}'
-                                            : (_formattedDistance.isNotEmpty
-                                                ? '$_formattedDistance • ${_hasEscort ? 'Security Escort' : 'Standard Duty'}'
-                                                : (_hasEscort ? 'Security Escort' : 'Standard Cab Duty')),
+                                        [
+                                          if (_quote?['displayedKm'] is num) '${(_quote!['displayedKm'] as num).toStringAsFixed(1)} km',
+                                          if (_quote?['planVersion'] != null) 'plan ${_quote!['planVersion']}',
+                                          'Fixed distance rate',
+                                        ].join(' • '),
                                         style: TextStyle(
                                           fontSize: 10,
                                           color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
@@ -1663,7 +1502,7 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
             child: SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: _saveCab,
+                onPressed: _quoting ? null : _saveCab,
                 icon: Icon(isEditing ? Icons.save_outlined : Icons.add_shopping_cart_rounded, size: 18),
                 label: Text(
                   isEditing ? 'Save Changes' : 'Add Cab to Booking',

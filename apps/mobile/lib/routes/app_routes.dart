@@ -149,6 +149,8 @@ class AppRoutes {
   static const String appSettingsScreen = profileScreen;
 
   // 4 Earnings & Financial Screens
+  static const String corporateEarningsScreen = walletScreen;
+  static const String corporateDutiesScreen = tripsScreen;
   static const String earningsTransactionsScreen = '/earnings/transactions';
   static const String earningsWithdrawScreen = '/earnings/withdraw';
   static const String earningsWithdrawalDetailsScreen = '/earnings/withdrawal-details';
@@ -928,7 +930,6 @@ final GoRouter appRouter = GoRouter(
           initialAddress: extra['initialAddress'] as String?,
           initialLat: (extra['initialLat'] as num?)?.toDouble(),
           initialLng: (extra['initialLng'] as num?)?.toDouble(),
-          officeHubOnly: extra['officeHubOnly'] as bool? ?? false,
         );
       },
     ),

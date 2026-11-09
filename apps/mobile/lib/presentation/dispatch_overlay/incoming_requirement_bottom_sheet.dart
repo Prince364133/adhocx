@@ -404,8 +404,6 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
         req?['hasEscort'] == true ||
         req?['escortRequired'] == true ||
         req?['isEscortRequired'] == true ||
-        offer['zonal']?['hasEscort'] == true ||
-        req?['zonalQuote']?['hasEscort'] == true ||
         (offer['notes']?.toString().toLowerCase().contains('escort') ?? false) ||
         (req?['notes']?.toString().toLowerCase().contains('escort') ?? false);
     final progress = _secondsRemaining / _totalSeconds;
