@@ -2695,11 +2695,11 @@ button .brand-inline,
   box-sizing: border-box;
 }
 
-/* 2-Column Asymmetric Grid: Left Copy & Value Checks : Right Dashboard Preview */
+/* 2-Column Balanced Grid: Left Copy & Value Checks : Right Dashboard Preview */
 .adhocx-hero-grid {
   display: grid;
-  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
-  gap: clamp(2.5rem, 4vw, 4.5rem);
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: clamp(2rem, 3.5vw, 4rem);
   align-items: center;
   position: relative;
   z-index: 2;
@@ -2711,27 +2711,107 @@ button .brand-inline,
 .hero-left-content {
   min-width: 0;
   width: 100%;
-  max-width: 600px;
+  max-width: 680px;
   box-sizing: border-box;
   position: relative;
   z-index: 10;
 }
 
-/* Master Typography (Completes in exactly 2 lines) */
-.adhocx-hero-h1 {
-  font-size: clamp(2rem, 3.2vw, 2.85rem);
-  font-weight: 800;
-  line-height: 1.18;
-  letter-spacing: -0.025em;
-  color: #0F172A;
-  margin-top: 0;
-  margin-bottom: 1.35rem;
-  word-break: normal;
-  overflow-wrap: break-word;
+/* Eyebrow Pill Badge (Cognitive Priming & Live Trust) */
+.hero-eyebrow-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  background: rgba(87, 40, 178, 0.06);
+  border: 1px solid rgba(87, 40, 178, 0.2);
+  border-radius: 9999px;
+  padding: 0.35rem 0.95rem;
+  margin-bottom: 1.15rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #5728B2;
+  letter-spacing: -0.01em;
+  transition: all 0.2s ease;
+  width: fit-content;
 }
 
+.hero-eyebrow-pill:hover {
+  background: rgba(87, 40, 178, 0.09);
+  border-color: rgba(87, 40, 178, 0.32);
+}
+
+.hero-eyebrow-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #16A34A;
+  box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.6);
+  animation: heroEyebrowPulse 2s infinite;
+  flex-shrink: 0;
+}
+
+@keyframes heroEyebrowPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.6);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(22, 163, 74, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(22, 163, 74, 0);
+  }
+}
+
+.hero-eyebrow-title {
+  color: #5728B2;
+  font-weight: 700;
+}
+
+.hero-eyebrow-sep {
+  color: #94A3B8;
+  font-size: 0.75rem;
+}
+
+.hero-eyebrow-subtitle {
+  color: #475569;
+  font-weight: 500;
+}
+
+/* Master Typography (Completes in exactly 2 balanced, harmonious lines) */
+.adhocx-hero-h1 {
+  font-size: clamp(2.05rem, 3.1vw, 2.75rem);
+  font-weight: 800;
+  line-height: 1.16;
+  letter-spacing: -0.028em;
+  color: #0F172A;
+  margin-top: 0;
+  margin-bottom: 1.25rem;
+  word-break: normal;
+  overflow-wrap: break-word;
+  text-wrap: balance;
+}
+
+.hero-h1-lead,
+.hero-h1-sub,
 .hero-h1-line {
   display: block;
+}
+
+@media (min-width: 860px) {
+  .hero-h1-lead,
+  .hero-h1-sub,
+  .hero-h1-line {
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 859px) {
+  .hero-h1-lead,
+  .hero-h1-sub,
+  .hero-h1-line {
+    white-space: normal;
+    text-wrap: balance;
+  }
 }
 
 .adhocx-hero-accent {
@@ -2739,14 +2819,15 @@ button .brand-inline,
 }
 
 .adhocx-hero-desc {
-  font-size: clamp(1.05rem, 1.35vw, 1.2rem);
+  font-size: clamp(1.025rem, 1.25vw, 1.15rem);
   color: #475569;
-  line-height: 1.65;
+  line-height: 1.68;
   margin-top: 0;
-  margin-bottom: 2.25rem;
+  margin-bottom: 2rem;
   word-break: normal;
   overflow-wrap: break-word;
-  max-width: 560px;
+  text-wrap: pretty;
+  max-width: 620px;
 }
 
 /* CTA Action Buttons (Guaranteed One Single Line) */
@@ -2754,43 +2835,28 @@ button .brand-inline,
   display: flex;
   gap: 1rem;
   align-items: center;
-  flex-wrap: nowrap;
-  margin-bottom: 2.25rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.95rem;
   width: 100%;
 }
 
-.btn-pill-primary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  background: #5728B2;
-  color: #FFFFFF;
-  font-size: 1.025rem;
-  font-weight: 700;
-  padding: 0.92rem 1.85rem;
-  border-radius: 9999px;
-  box-shadow: 0 4px 14px rgba(87, 40, 178, 0.35);
-  transition: all 0.2s ease;
-  text-decoration: none;
-  white-space: nowrap;
-  flex-shrink: 0;
+.btn-arrow {
+  display: inline-block;
+  transition: transform 0.2s ease;
 }
 
-.btn-pill-primary:hover {
-  background: #451E93;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(87, 40, 178, 0.45);
-  color: #FFFFFF;
+.btn-pill-primary:hover .btn-arrow {
+  transform: translateX(3px);
 }
 
 .btn-pill-secondary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 0.5rem;
   background: #FFFFFF;
   color: #0F172A;
-  border: 1.5px solid #E2E8F0;
+  border: 1.5px solid #CBD5E1;
   font-size: 1.025rem;
   font-weight: 600;
   padding: 0.92rem 1.85rem;
@@ -2804,29 +2870,88 @@ button .brand-inline,
 
 .btn-pill-secondary:hover {
   background: #F8FAFC;
-  border-color: #CBD5E1;
+  border-color: #94A3B8;
   color: #0F172A;
   transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.08);
 }
 
-/* 4 Enterprise Value Checks */
+.hero-assurance-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 0.8125rem;
+  color: #64748B;
+  font-weight: 500;
+  margin-bottom: 2.25rem;
+  flex-wrap: wrap;
+}
+
+.assurance-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #475569;
+}
+
+.assurance-dot {
+  color: #CBD5E1;
+  font-size: 0.75rem;
+}
+
+/* 4 Enterprise Value Checks: Verification Cards */
 .adhocx-hero-checks {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.95rem 1.85rem;
-  align-items: center;
+  gap: 0.75rem 1rem;
+  align-items: stretch;
   width: 100%;
-  max-width: 100%;
+  max-width: 620px;
 }
 
 .adhocx-check-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  padding: 0.65rem 0.85rem;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
+}
+
+.adhocx-check-item:hover {
+  background: #FFFFFF;
+  border-color: #CBD5E1;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+  transform: translateY(-1px);
+}
+
+.adhocx-check-badge {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #DCFCE7;
+  color: #16A34A;
   display: inline-flex;
   align-items: center;
-  gap: 0.55rem;
-  font-size: 0.975rem;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(22, 163, 74, 0.2);
+}
+
+.check-item-content {
+  min-width: 0;
+  flex: 1;
+}
+
+.check-title {
+  font-size: 0.875rem;
   font-weight: 600;
-  color: #334155;
-  line-height: 1.4;
+  color: #1E293B;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
   white-space: nowrap;
 }
 
@@ -3692,15 +3817,15 @@ button .brand-inline,
    Increases image size, positions ~30% of the screenshot behind hero text, and applies disappearing gradient mask */
 @media (min-width: 1025px) {
   .adhocx-hero-grid {
-    grid-template-columns: minmax(0, 0.84fr) minmax(0, 1.16fr);
-    gap: clamp(1.5rem, 2.5vw, 2.75rem);
+    grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.88fr);
+    gap: clamp(2rem, 3vw, 3.5rem);
     align-items: center;
     position: relative;
     width: 100%;
   }
 
   .hero-left-content {
-    max-width: 500px;
+    max-width: 680px;
     position: relative;
     z-index: 10;
   }

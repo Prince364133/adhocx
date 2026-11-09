@@ -5,7 +5,7 @@ import { Button } from '../../components/common/Button';
 import { Drawer } from '../../components/common/Drawer';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { opsApi } from '../../lib/api/opsClient';
-import { CorporateRouteItem, CorporateTenantOption, RouteStop } from '../../lib/api/opsTypes';
+import { CorporateRouteItem, CorporateTenantOption } from '../../lib/api/opsTypes';
 
 const COMPANY_STORAGE_KEY = 'adhocx_ops_corporate_tenant';
 

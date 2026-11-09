@@ -24,10 +24,10 @@
   <!-- Natural Typography Wordmark Centered -->
   <text
     x="256"
-    y="292"
+    y="294"
     text-anchor="middle"
     font-family="system-ui, -apple-system, 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
-    font-size="112"
+    font-size="114"
     font-weight="900"
     letter-spacing="-1.5"
   ><tspan fill="url(#iconAdhocGrad)">Adhoc</tspan><tspan fill="url(#iconOrangeGrad)">X</tspan></text>
