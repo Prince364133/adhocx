@@ -56,7 +56,7 @@ jobs:
         run: |
           if [ -n "$DATABASE_URL" ]; then
             cd apps/api
-            npx prisma db push --skip-generate
+            npx --yes prisma@6.4.1 db push --skip-generate
           else
             echo "DATABASE_URL secret not configured yet, skipping database schema sync."
           fi
