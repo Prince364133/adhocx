@@ -21,6 +21,7 @@
  *   SIMULATION_DATABASE_URL=postgresql://user:pass@127.0.0.1:5432/adhocx_sim npm run test:sim
  */
 import { ConflictException, ForbiddenException } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import {
   DriverAvailability,
@@ -297,12 +298,12 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
     );
     const audit: any = { log: async () => undefined };
     const distancePricing: any = {
-      createVendorQuote: async () => ({ quoteId: 'sim-quote-auto' }),
+      createVendorQuote: async () => ({ quoteId: randomUUID() }),
       lockPricingSnapshotForBooking: async (quoteId: string) => ({
-        quote: { id: quoteId, planId: 'sim-plan', createdAt: new Date() },
+        quote: { id: quoteId || randomUUID(), planId: null, createdAt: new Date() },
         planVersion: '1',
         distanceM: 32000,
-        slabId: 'slab-sim',
+        slabId: null,
         vendorPricePaise: RATE * 100,
         driverPayoutPaise: (RATE - 200) * 100,
         grossSpreadPaise: 20000,
