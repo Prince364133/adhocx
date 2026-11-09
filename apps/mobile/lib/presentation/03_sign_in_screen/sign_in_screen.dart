@@ -13,7 +13,6 @@ import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/common/app_primary_button.dart';
-import '../../widgets/common/app_segmented_control.dart';
 import '../../widgets/common/app_text_field.dart';
 
 /// Screen 3: Sign In with Mobile (+91) and SMS OTP / Password.
@@ -29,7 +28,6 @@ class _SignInScreenState extends State<SignInScreen> {
   final _formKey = GlobalKey<FormState>();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _showPasswordField = false;
   bool _obscurePassword = true;
   bool _isLoading = false;
   String? _inlineErrorMessage;
@@ -75,57 +73,6 @@ class _SignInScreenState extends State<SignInScreen> {
       return 'Please enter a valid 10-digit Indian mobile number (e.g. 9876543210)';
     }
     return null;
-  }
-
-  Future<void> _handleOtpSignIn() async {
-    final validationError = _validatePhone(_phoneController.text);
-    if (validationError != null) {
-      _formKey.currentState?.validate();
-      setState(() => _inlineErrorMessage = validationError);
-      AppToast.showError(validationError, context: context);
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-      _inlineErrorMessage = null;
-    });
-
-    try {
-      final authService = context.read<AuthService>();
-      final digits = _cleanIndianDigits(_phoneController.text);
-      final phoneE164 = '+91$digits';
-
-      final res = await authService.requestOtp(
-        phone: phoneE164,
-        channel: 'SMS',
-        isRegister: false,
-      );
-
-      if (mounted) {
-        final message = res is Map && res['message'] != null
-            ? res['message']
-            : 'SMS OTP sent to $phoneE164';
-        AppToast.showSuccess(message, context: context);
-
-        context.push(
-          AppRoutes.loginOtpScreen,
-          extra: {
-            'phone': phoneE164,
-            'role': 'DRIVER',
-            'isRegister': false,
-          },
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        final msg = AppToast.cleanErrorMessage(e);
-        setState(() => _inlineErrorMessage = msg);
-        AppToast.showError(msg, context: context);
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
   }
 
   Future<void> _handlePasswordSignIn() async {
@@ -268,37 +215,10 @@ class _SignInScreenState extends State<SignInScreen> {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      _showPasswordField
-                          ? 'Sign in with your mobile number and password'
-                          : 'Sign in with your mobile number via SMS OTP',
+                      'Sign in with your mobile number and password',
                       style: AppTypography.body(
                         color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                       ),
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-
-                    // ── Sign-In Method Switcher: SMS OTP vs Password ─────────
-                    AppSegmentedControl<bool>(
-                      items: const [
-                        SegmentItem(
-                          value: false,
-                          label: 'SMS OTP',
-                          icon: Icons.sms_outlined,
-                        ),
-                        SegmentItem(
-                          value: true,
-                          label: 'Password',
-                          icon: Icons.lock_outline_rounded,
-                        ),
-                      ],
-                      selectedValue: _showPasswordField,
-                      onValueChanged: (val) {
-                        setState(() {
-                          _showPasswordField = val;
-                          _inlineErrorMessage = null;
-                        });
-                      },
-                      activeColor: isDark ? AppColors.primaryLight : AppColors.primary,
                     ),
                     const SizedBox(height: AppSpacing.xl),
 
@@ -387,104 +307,67 @@ class _SignInScreenState extends State<SignInScreen> {
                       ),
                       validator: _validatePhone,
                     ),
+                    const SizedBox(height: AppSpacing.lg),
 
-                    // ── Optional Password Field (Toggled by user) ────────────
-                    if (_showPasswordField) ...[
-                      const SizedBox(height: AppSpacing.md),
-                      AppTextField(
-                        controller: _passwordController,
-                        label: 'Password',
-                        hintText: 'Enter your password',
-                        obscureText: _obscurePassword,
-                        prefixIcon: Icon(
-                          Icons.lock_outline_rounded,
+                    // ── Password Field ───────────────────────────────────────
+                    AppTextField(
+                      controller: _passwordController,
+                      label: 'Password *',
+                      hintText: 'Enter your password',
+                      obscureText: _obscurePassword,
+                      prefixIcon: Icon(
+                        Icons.lock_outline_rounded,
+                        size: 20,
+                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                      ),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
                           size: 20,
                           color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                         ),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _obscurePassword
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
-                            size: 20,
-                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                          ),
-                          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                        ),
-                        validator: (val) {
-                          if (val == null || val.trim().isEmpty) {
-                            return 'Please enter your password';
-                          }
-                          if (val.trim().length < 4) {
-                            return 'Password must be at least 4 characters';
-                          }
-                          return null;
-                        },
+                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                       ),
-                    ],
+                      validator: (val) {
+                        if (val == null || val.trim().isEmpty) {
+                          return 'Please enter your password';
+                        }
+                        if (val.trim().length < 4) {
+                          return 'Password must be at least 4 characters';
+                        }
+                        return null;
+                      },
+                    ),
                     const SizedBox(height: AppSpacing.sm),
 
-                    // ── Switch between SMS OTP & Password / Forgot Password ──
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Expanded(
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: TextButton(
-                              onPressed: () {
-                                setState(() {
-                                  _showPasswordField = !_showPasswordField;
-                                  _inlineErrorMessage = null;
-                                });
-                              },
-                              style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 4),
-                                minimumSize: Size.zero,
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              child: Text(
-                                _showPasswordField
-                                    ? 'Sign in with SMS OTP instead'
-                                    : 'Sign in with password instead',
-                                style: AppTypography.caption(
-                                  color: isDark ? AppColors.primaryLight : AppColors.primary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
+                    // ── Forgot Password Link ─────────────────────────────────
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () => context.push(AppRoutes.forgotPasswordScreen),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: Text(
+                          'Forgot Password?',
+                          style: AppTypography.caption(
+                            color: isDark ? AppColors.primaryLight : AppColors.primary,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                        if (_showPasswordField) ...[
-                          const SizedBox(width: 8),
-                          TextButton(
-                            onPressed: () => context.push(AppRoutes.forgotPasswordScreen),
-                            style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 4),
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
-                            child: Text(
-                              'Forgot Password?',
-                              style: AppTypography.caption(
-                                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.lg),
 
                     // ── Primary Action Button ────────────────────────────────
                     AppPrimaryButton(
-                      text: _showPasswordField ? 'Sign In with Password' : 'Continue with SMS OTP',
+                      text: 'Sign In',
                       isLoading: _isLoading,
-                      onPressed: _showPasswordField ? _handlePasswordSignIn : _handleOtpSignIn,
+                      onPressed: _handlePasswordSignIn,
                     ),
                     const SizedBox(height: AppSpacing.xxl),
 

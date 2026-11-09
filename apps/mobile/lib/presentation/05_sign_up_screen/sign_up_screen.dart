@@ -14,7 +14,6 @@ import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/common/app_primary_button.dart';
-import '../../widgets/common/app_segmented_control.dart';
 import '../../widgets/common/app_text_field.dart';
 
 /// Screen 5: Create your account (Sign Up) with Mobile (+91) SMS OTP.
@@ -215,68 +214,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.lg),
-
-                    // ── Role Selector: Vendor / Booker vs Driver Partner ──────
-                    AppSegmentedControl<String>(
-                      items: const [
-                        SegmentItem(
-                          value: 'VENDOR',
-                          label: 'Vendor / Booker',
-                          icon: Icons.business_rounded,
-                        ),
-                        SegmentItem(
-                          value: 'DRIVER',
-                          label: 'Driver Partner',
-                          icon: Icons.drive_eta_rounded,
-                        ),
-                      ],
-                      selectedValue: isDriver ? 'DRIVER' : 'VENDOR',
-                      onValueChanged: (newRole) {
-                        onboarding.setRole(newRole);
-                      },
-                      activeColor: isDark ? AppColors.primaryLight : AppColors.primary,
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.md,
-                          vertical: AppSpacing.xs + 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(AppRadius.full),
-                          border: Border.all(
-                            color: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.25),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              isDriver ? Icons.directions_car_rounded : Icons.domain_rounded,
-                              size: 14,
-                              color: isDark ? AppColors.primaryLight : AppColors.primary,
-                            ),
-                            const SizedBox(width: 6),
-                            Flexible(
-                              child: Text(
-                                isDriver ? 'Driver Partner' : 'Corporate Vendor / Booker',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: isDark ? AppColors.primaryLight : AppColors.primary,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
                     const SizedBox(height: AppSpacing.xl),
 
                     // ── Input Field: Mobile Number (India +91) ───────────────
@@ -379,7 +316,32 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: AppSpacing.xl),
+                    const SizedBox(height: AppSpacing.sm),
+
+                    // ── Link-based Role Switcher (Below Privacy Policy) ──────
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: GestureDetector(
+                        onTap: () {
+                          onboarding.setRole(isDriver ? 'VENDOR' : 'DRIVER');
+                        },
+                        behavior: HitTestBehavior.opaque,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Text(
+                            isDriver ? 'Sign up as a Vendor' : 'Sign up as a Driver Partner',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? AppColors.primaryLight : AppColors.primary,
+                              decoration: TextDecoration.underline,
+                              decorationColor: (isDark ? AppColors.primaryLight : AppColors.primary).withValues(alpha: 0.5),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
 
                     // ── Primary Action: Continue with SMS OTP ────────────────
                     AppPrimaryButton(

@@ -25,7 +25,7 @@ import {
     ConfigModule.forRoot({
       isGlobal: true,
       load: configs,
-      envFilePath: ['.env.local', '.env'],
+      envFilePath: ['.env.local', '.env', '../../.env.local', '../../.env'],
     }),
 
     // Infrastructure
