@@ -11,10 +11,9 @@ import {
   canTransitionOffer,
   validateOfferTransition,
 } from '@adhocx/contracts';
-import { PricingService } from '../src/modules/pricing/pricing.service';
+import { priceFor } from './helpers/distance-pricing-fixtures';
 
 describe('AdhocX Unified Platform: 10 Comprehensive Feature Simulations (Direct Dispatch & Corporate)', () => {
-  let pricingService: PricingService;
 
   // Shared simulation state tracking
   const state = {
@@ -32,7 +31,6 @@ describe('AdhocX Unified Platform: 10 Comprehensive Feature Simulations (Direct 
   };
 
   beforeAll(() => {
-    pricingService = new PricingService();
 
     // 1. Setup Drivers
     state.drivers.set('drv-1', {
@@ -78,21 +76,13 @@ describe('AdhocX Unified Platform: 10 Comprehensive Feature Simulations (Direct 
   // =========================================================================
   // SIMULATION 1: Pricing Engine & Distance-Based Base Fare Floor
   // =========================================================================
-  it('Simulation 1: Pricing engine calculates deterministic driver rates and base fare floors', () => {
-    // Sedan: ₹800 base (includes 40km) + ₹14.5/km
-    const fareShort = pricingService.calculateMinimumFare(VehicleType.SEDAN, 15);
-    expect(fareShort).toBe(800);
-
-    const fareLong = pricingService.calculateMinimumFare(VehicleType.SEDAN, 120);
-    expect(fareLong).toBe(1960);
-
-    // SUV: ₹1400 base (includes 40km) + ₹19/km
-    const fareSuv = pricingService.calculateMinimumFare(VehicleType.SUV, 50);
-    expect(fareSuv).toBe(1590);
-
-    // Hatchback: ₹500 base (includes 20km) + ₹11/km
-    const fareHatch = pricingService.calculateMinimumFare(VehicleType.HATCHBACK, 20);
-    expect(fareHatch).toBe(500);
+  it('Simulation 1: Distance slabs price on unrounded meters (10,000 m -> first slab, 10,001 m -> second)', () => {
+    expect(priceFor(10000)).toMatchObject({ vendorRupees: 500, driverRupees: 400 });
+    expect(priceFor(10001)).toMatchObject({ vendorRupees: 650, driverRupees: 520 });
+    expect(priceFor(22400)).toMatchObject({ vendorRupees: 950, driverRupees: 780 });
+    expect(priceFor(40000)).toMatchObject({ vendorRupees: 1400, driverRupees: 1150 });
+    // Beyond the last configured band: no guessed price.
+    expect(() => priceFor(40001)).toThrow(/No price is configured/);
   });
 
   // =========================================================================
@@ -119,7 +109,7 @@ describe('AdhocX Unified Platform: 10 Comprehensive Feature Simulations (Direct 
   // SIMULATION 3: Direct Dispatch Mode 1 Single Trip Routing
   // =========================================================================
   it('Simulation 3: Mode 1 (DIRECT_DISPATCH) calculates fixed rates and sets requirement status', () => {
-    const fixedRate = pricingService.calculateDriverRate(VehicleType.SEDAN);
+    const fixedRate = priceFor(18000).vendorRupees; // 18 km -> >15-20 km slab
     expect(fixedRate).toBe(800);
 
     const corporateReq = {
@@ -143,7 +133,7 @@ describe('AdhocX Unified Platform: 10 Comprehensive Feature Simulations (Direct 
   // SIMULATION 4: Multi-Vehicle Corporate Bulk Requirement Placement
   // =========================================================================
   it('Simulation 4: Creates multi-vehicle corporate requirement with progressive capacity tracking', () => {
-    const fixedRate = pricingService.calculateDriverRate(VehicleType.SEDAN);
+    const fixedRate = priceFor(18000).vendorRupees;
     const bulkReq = {
       id: 'req-corporate-bulk',
       vendorId: 'vnd-1',

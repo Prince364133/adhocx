@@ -1,0 +1,18 @@
+{
+  "_comment": "One-time starting rates for an empty database (PRD v1.0 illustrative table, not approved production rates). Loaded only by scripts/seed-distance-pricing.js when a category has no plan yet. After that, change prices only in Admin > Pricing Management (draft -> publish). Amounts are integer paise.",
+  "plans": [
+    {
+      "vehicleCategory": "ALL",
+      "name": "Default distance plan (vehicle types without their own plan)",
+      "slabs": [
+        { "minDistanceMExclusive": 0, "maxDistanceMInclusive": 10000, "vendorPricePaise": 50000, "driverPayoutPaise": 40000 },
+        { "minDistanceMExclusive": 10000, "maxDistanceMInclusive": 15000, "vendorPricePaise": 65000, "driverPayoutPaise": 52000 },
+        { "minDistanceMExclusive": 15000, "maxDistanceMInclusive": 20000, "vendorPricePaise": 80000, "driverPayoutPaise": 65000 },
+        { "minDistanceMExclusive": 20000, "maxDistanceMInclusive": 25000, "vendorPricePaise": 95000, "driverPayoutPaise": 78000 },
+        { "minDistanceMExclusive": 25000, "maxDistanceMInclusive": 30000, "vendorPricePaise": 110000, "driverPayoutPaise": 90000 },
+        { "minDistanceMExclusive": 30000, "maxDistanceMInclusive": 35000, "vendorPricePaise": 125000, "driverPayoutPaise": 102000 },
+        { "minDistanceMExclusive": 35000, "maxDistanceMInclusive": 40000, "vendorPricePaise": 140000, "driverPayoutPaise": 115000 }
+      ]
+    }
+  ]
+}

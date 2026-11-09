@@ -5,8 +5,7 @@ import { DispatchSchedulerService } from '../src/modules/dispatch/dispatch-sched
 import { DatabaseService } from '../src/database/database.service';
 import { NotificationsService } from '../src/modules/notifications/notifications.service';
 import { AuditService } from '../src/modules/audit/audit.service';
-import { PricingService } from '../src/modules/pricing/pricing.service';
-import { ZonalPricingService } from '../src/modules/pricing/zonal-pricing.service';
+import { DistancePricingService } from '../src/modules/pricing/distance-pricing.service';
 import { RedisService } from '../src/redis/redis.service';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -23,7 +22,6 @@ describe('Scheduled Trips & Automated 30s Pre-Dispatch Simulation Suite', () => 
   let notifications: any;
   let audit: any;
   let pricingService: any;
-  let zonalPricing: any;
 
   beforeEach(async () => {
     // In-memory fallback Redis
@@ -64,6 +62,7 @@ describe('Scheduled Trips & Automated 30s Pre-Dispatch Simulation Suite', () => 
       payment: {
         create: jest.fn().mockResolvedValue({ id: 'pay-1' }),
       },
+      tripPricingSnapshot: { create: jest.fn().mockResolvedValue({ id: 'snap-1' }) },
       $transaction: jest.fn().mockImplementation(async (cb: any) => cb(db)),
     };
 
@@ -77,23 +76,20 @@ describe('Scheduled Trips & Automated 30s Pre-Dispatch Simulation Suite', () => 
       log: jest.fn().mockResolvedValue(undefined),
     };
 
+    // Distance engine double: every booking is priced at ₹800 per vehicle.
     pricingService = {
-      calculateDistanceKm: jest.fn().mockReturnValue(15),
-      calculateRoadDistanceAndEta: jest.fn().mockResolvedValue({
-        distanceKm: 15,
-        durationMinutes: 30,
-        durationSeconds: 1800,
-        isRealRoad: true,
-      }),
-      calculateDriverRate: jest.fn().mockReturnValue(800),
-      calculateMinimumFare: jest.fn().mockReturnValue(800),
-      calculateSurgeMultiplier: jest.fn().mockReturnValue(1.0),
-    };
-
-    zonalPricing = {
-      validateQuoteForBooking: jest.fn(),
+      createVendorQuote: jest.fn().mockResolvedValue({ quoteId: 'q-auto' }),
+      lockPricingSnapshotForBooking: jest.fn(async (quoteId: string) => ({
+        quote: { id: quoteId, planId: 'plan-1', createdAt: new Date() },
+        planVersion: '1',
+        distanceM: 15000,
+        slabId: 'slab-2',
+        vendorPricePaise: 80000,
+        driverPayoutPaise: 64000,
+        grossSpreadPaise: 16000,
+      })),
       consumeQuote: jest.fn().mockResolvedValue(undefined),
-      quoteView: jest.fn((snap: any) => ({ quoteId: snap.id })),
+      findBookingForQuote: jest.fn().mockResolvedValue(null),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -111,8 +107,7 @@ describe('Scheduled Trips & Automated 30s Pre-Dispatch Simulation Suite', () => 
         { provide: DatabaseService, useValue: db },
         { provide: NotificationsService, useValue: notifications },
         { provide: AuditService, useValue: audit },
-        { provide: PricingService, useValue: pricingService },
-        { provide: ZonalPricingService, useValue: zonalPricing },
+        { provide: DistancePricingService, useValue: pricingService },
         { provide: DispatchSchedulerService, useValue: scheduler },
       ],
     }).compile();

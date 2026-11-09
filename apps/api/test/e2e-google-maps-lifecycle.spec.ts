@@ -7,15 +7,13 @@ import {
   OfferStatus,
 } from '@adhocx/contracts';
 import { GoogleMapsService } from '../src/modules/locations/google-maps.service';
-import { PricingService } from '../src/modules/pricing/pricing.service';
+import { PRD_SAMPLE_SLABS, priceFor, samplePlan } from './helpers/distance-pricing-fixtures';
 
 describe('AdhocX End-to-End: Google Maps Road Distance, Pricing, Dispatch & Complete Lifecycle Simulation', () => {
   let googleMapsService: GoogleMapsService;
-  let pricingService: PricingService;
 
   beforeAll(() => {
     googleMapsService = new GoogleMapsService();
-    pricingService = new PricingService(undefined, googleMapsService);
   });
 
   // =========================================================================
@@ -88,37 +86,23 @@ describe('AdhocX End-to-End: Google Maps Road Distance, Pricing, Dispatch & Comp
   // SUITE 2: PRICING ENGINE, TARIFF SCHEDULES & CENTRAL PLATFORM PROFIT
   // =========================================================================
   describe('Suite 2: Pricing Engine Fare Calculation & Platform Commission Margin', () => {
-    it('Calculation 1: Sedan fare calculation over real Google Maps road distance', async () => {
-      // CP to Noida Sector 62: ~18.4 km
-      const quote = await pricingService.calculateQuote({
-        vehicleType: 'SEDAN',
-        pickupLocation: { latitude: 28.6304, longitude: 77.2177 },
-        dropLocation: { latitude: 28.6239, longitude: 77.3647 },
-      });
-
-      expect(quote.vehicleType).toBe('SEDAN');
-      expect(quote.distanceKm).toBeGreaterThan(15);
-      expect(quote.durationMinutes).toBeGreaterThan(0);
-      expect(quote.ratePerVehicle).toBeGreaterThan(0);
-      expect(quote.estimatedTotal).toBe(quote.ratePerVehicle);
-
-      // Central platform profit margin: 10% commission
-      const expectedPlatformFee = Math.round((quote.estimatedTotal * 10) / 100);
-      expect(quote.platformFee).toBe(expectedPlatformFee);
-      expect(quote.driverNetPayout).toBe(quote.estimatedTotal - quote.platformFee);
+    it('Calculation 1: a route is priced from its road distance slab (vendor charge > driver payout)', async () => {
+      // CP to Noida Sector 62
+      const route = await googleMapsService.computeRoadRoute(
+        { latitude: 28.6304, longitude: 77.2177 },
+        { latitude: 28.6239, longitude: 77.3647 },
+      );
+      expect(route.distanceMeters).toBeGreaterThan(0);
+      const price = priceFor(Math.min(route.distanceMeters, 40000));
+      expect(price.vendorRupees).toBeGreaterThan(price.driverRupees);
     });
 
-    it('Calculation 2: Rate card hierarchy across all vehicle categories', () => {
-      const distanceKm = 20.0;
-      const hatchbackFare = pricingService.calculateMinimumFare('HATCHBACK', distanceKm);
-      const sedanFare = pricingService.calculateMinimumFare('SEDAN', distanceKm);
-      const suvFare = pricingService.calculateMinimumFare('SUV', distanceKm);
-      const tempoFare = pricingService.calculateMinimumFare('TEMPO_TRAVELLER', distanceKm);
-
-      expect(hatchbackFare).toBeGreaterThan(0);
-      expect(sedanFare).toBeGreaterThan(hatchbackFare);
-      expect(suvFare).toBeGreaterThan(sedanFare);
-      expect(tempoFare).toBeGreaterThan(suvFare);
+    it('Calculation 2: plans are isolated per vehicle category', () => {
+      const suvPlan = samplePlan(
+        'SUV',
+        PRD_SAMPLE_SLABS.map((s) => ({ ...s, vendorPricePaise: s.vendorPricePaise + 20000, driverPayoutPaise: s.driverPayoutPaise + 15000 })),
+      );
+      expect(priceFor(20000, suvPlan).vendorRupees).toBeGreaterThan(priceFor(20000).vendorRupees);
     });
   });
 
@@ -168,9 +152,9 @@ describe('AdhocX End-to-End: Google Maps Road Distance, Pricing, Dispatch & Comp
       const destination = { latitude: 28.5553, longitude: 77.0857 };
 
       const route = await googleMapsService.computeRoadRoute(origin, destination);
-      const fare = pricingService.calculateTripFare('SEDAN', route.distanceKm);
+      const fare = priceFor(Math.min(route.distanceMeters, 40000));
 
-      const requiredFare = fare.estimatedTotal;
+      const requiredFare = fare.vendorRupees;
       expect(simulationState.vendor.walletEscrowBalance).toBeGreaterThanOrEqual(requiredFare);
 
       // Debit vendor wallet into escrow

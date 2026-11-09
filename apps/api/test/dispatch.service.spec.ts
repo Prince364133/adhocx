@@ -65,6 +65,52 @@ describe('DispatchService Unit Tests', () => {
     service = module.get<DispatchService>(DispatchService);
   });
 
+  it('a booking without a pricing snapshot that cannot be priced is not dispatched at a guessed payout', async () => {
+    const now = new Date();
+    db.requirement.findUnique.mockResolvedValue({
+      id: 'req-legacy', vendorId: 'vnd-1', vehicleType: VehicleType.SEDAN, quantity: 1, assignedQuantity: 0,
+      pickupLat: 28.6139, pickupLng: 77.209, dropLat: 28.62, dropLng: 77.36, pickupAddress: 'CP', dropAddress: 'Noida',
+      reportingTime: now, ratePerVehicle: 1500, pricingSnapshot: null, status: RequirementStatus.POSTED, offers: [],
+      vendor: { userId: 'usr-vnd-1' },
+    });
+    locationsService.findNearbyDrivers.mockResolvedValue([{ driverId: 'drv-1', distanceKm: 3.2 }]);
+    db.driver.findMany.mockResolvedValue([
+      { id: 'drv-1', verificationStatus: VerificationStatus.VERIFIED, availabilityStatus: DriverAvailability.AVAILABLE, user: { status: UserStatus.ACTIVE }, trips: [] },
+    ]);
+    // Pricing engine present but the route cannot be priced (e.g. Maps down).
+    jest.spyOn(service as any, 'distancePricing').mockReturnValue({
+      driverPayoutForRoute: jest.fn().mockRejectedValue(new Error('PRICING_ROUTE_UNAVAILABLE')),
+    });
+
+    const result = await service.dispatchRequirement('req-legacy');
+
+    expect(result.offersCreated).toBe(0);
+    expect(db.offer.create).not.toHaveBeenCalled();
+    expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'DISPATCH_BLOCKED_NO_PRICE', entityId: 'req-legacy' }));
+  });
+
+  it('a pre-engine booking is priced from the database plan, never from the vendor rate', async () => {
+    const now = new Date();
+    db.requirement.findUnique.mockResolvedValue({
+      id: 'req-legacy', vendorId: 'vnd-1', vehicleType: VehicleType.SEDAN, quantity: 1, assignedQuantity: 0,
+      pickupLat: 28.6139, pickupLng: 77.209, dropLat: 28.62, dropLng: 77.36, pickupAddress: 'CP', dropAddress: 'Noida',
+      reportingTime: now, ratePerVehicle: 1500, pricingSnapshot: null, status: RequirementStatus.POSTED, offers: [],
+      vendor: { userId: 'usr-vnd-1' },
+    });
+    locationsService.findNearbyDrivers.mockResolvedValue([{ driverId: 'drv-1', distanceKm: 3.2 }]);
+    db.driver.findMany.mockResolvedValue([
+      { id: 'drv-1', verificationStatus: VerificationStatus.VERIFIED, availabilityStatus: DriverAvailability.AVAILABLE, user: { status: UserStatus.ACTIVE }, trips: [] },
+    ]);
+    jest.spyOn(service as any, 'distancePricing').mockReturnValue({
+      driverPayoutForRoute: jest.fn().mockResolvedValue({ driverPayoutPaise: 52000, distanceMeters: 12000, planVersion: '1', slabId: 's2' }),
+    });
+
+    await service.dispatchRequirement('req-legacy');
+
+    expect(db.offer.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ offeredRate: 520 }) }));
+    expect(db.offer.create).not.toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ offeredRate: 1275 }) }));
+  });
+
   it('should find eligible candidates, create wave offers, and set requirement status to DISPATCHING', async () => {
     const now = new Date();
     db.requirement.findUnique.mockResolvedValue({
@@ -79,6 +125,7 @@ describe('DispatchService Unit Tests', () => {
       dropAddress: 'Noida',
       reportingTime: now,
       ratePerVehicle: 1500,
+      pricingSnapshot: { vendorPricePaise: 150000, driverPayoutPaise: 120000, grossSpreadPaise: 30000 },
       status: RequirementStatus.POSTED,
       offers: [],
       vendor: { userId: 'usr-vnd-1' },
@@ -146,6 +193,7 @@ describe('DispatchService Unit Tests', () => {
       dropAddress: 'Noida',
       reportingTime: now,
       ratePerVehicle: 1500,
+      pricingSnapshot: { vendorPricePaise: 150000, driverPayoutPaise: 120000, grossSpreadPaise: 30000 },
       status: RequirementStatus.POSTED,
       offers: [],
       vendor: { userId: 'usr-vnd-1' },

@@ -1,4 +1,5 @@
 import { Injectable, Logger, NotFoundException, Optional, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
 import {
   RequirementStatus,
   OfferStatus,
@@ -18,7 +19,7 @@ import { GoogleMapsService } from '../locations/google-maps.service';
 import { DispatchSchedulerService } from './dispatch-scheduler.service';
 import { DriverBehaviorService } from './driver-behavior.service';
 import { DispatchConfig } from './dispatch.config';
-import { ZonalPricingService } from '../pricing/zonal-pricing.service';
+import type { DistancePricingService } from '../pricing/distance-pricing.service';
 
 export interface DispatchResult {
   requirementId: string;
@@ -63,8 +64,22 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
     @Optional() private readonly redis?: RedisService,
     @Optional() private readonly scheduler?: DispatchSchedulerService,
     @Optional() private readonly behavior?: DriverBehaviorService,
-    @Optional() private readonly zonalPricing?: ZonalPricingService,
+    @Optional() private readonly moduleRef?: ModuleRef,
   ) {}
+
+  /**
+   * Resolved lazily: PricingModule depends (via RequirementsModule) on this module, so a constructor
+   * dependency would be circular.
+   */
+  private distancePricing(): DistancePricingService | null {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { DistancePricingService: Svc } = require('../pricing/distance-pricing.service');
+      return this.moduleRef?.get(Svc, { strict: false }) ?? null;
+    } catch {
+      return null;
+    }
+  }
 
   onModuleInit() {
     this.scheduler?.registerHandler((member) => this.handleScheduledJob(member));
@@ -338,7 +353,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
       include: {
         vendor: true,
         offers: true,
-        zonalQuote: true,
+        pricingSnapshot: true,
       },
     });
 
@@ -726,32 +741,36 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
     const dropLat = Number(requirement.dropLat || 0);
     const dropLng = Number(requirement.dropLng || 0);
 
+    // Driver payout comes only from the booking's pricing snapshot. Bookings made before the
+    // distance engine (no snapshot) are priced from the current database plan and verified road
+    // distance; never from the vendor rate. If that is impossible, no offers go out.
     let driverOfferedRate = 0;
-    if (requirement.zonalQuote && requirement.zonalQuote.driverFarePaise > 0) {
-      driverOfferedRate = requirement.zonalQuote.driverFarePaise / 100;
+    const pricingSnapshot = (requirement as any).pricingSnapshot;
+    if (pricingSnapshot && pricingSnapshot.driverPayoutPaise > 0) {
+      driverOfferedRate = pricingSnapshot.driverPayoutPaise / 100;
     } else {
-      // Look up authoritative driver rate card so vendor pricing is strictly protected
-      const vType = requirement.vehicleType || 'SEDAN';
-      if (this.zonalPricing && pickupLat && dropLat) {
-        try {
-          const calculatedQuote = (this.zonalPricing as any).calculateQuote?.({
-            pickupLat,
-            pickupLng,
-            dropLat,
-            dropLng,
-            pickupAddress: requirement.pickupAddress,
-            dropAddress: requirement.dropAddress,
-            vehicleType: vType as any,
-          });
-          if (calculatedQuote && calculatedQuote.driverFarePaise > 0) {
-            driverOfferedRate = calculatedQuote.driverFarePaise / 100;
-          }
-        } catch (_) {}
-      }
-      if (driverOfferedRate <= 0) {
-        // Enforce 15% platform margin ceiling; drivers must NEVER see 100% vendor price
-        const vendorRate = Number(requirement.ratePerVehicle ?? 0);
-        driverOfferedRate = Math.round(vendorRate * 0.85);
+      try {
+        const engine = this.distancePricing();
+        if (!engine) throw new Error('pricing engine unavailable');
+        const priced = await engine.driverPayoutForRoute(
+          { latitude: pickupLat, longitude: pickupLng },
+          { latitude: dropLat, longitude: dropLng },
+          String(requirement.vehicleType || ''),
+        );
+        driverOfferedRate = priced.driverPayoutPaise / 100;
+      } catch (err: any) {
+        this.logger.error(
+          `Requirement ${requirementId} has no pricing snapshot and could not be priced (${err?.message ?? err}); no offers sent.`,
+        );
+        await this.audit
+          .log({
+            action: 'DISPATCH_BLOCKED_NO_PRICE',
+            entityType: 'REQUIREMENT',
+            entityId: requirementId,
+            metadata: { reason: String(err?.message ?? err) },
+          })
+          .catch(() => undefined);
+        return noop(requirement.status as RequirementStatus);
       }
     }
     const h3PickupCell = this.locationsService.latLngToH3(pickupLat, pickupLng);
@@ -762,7 +781,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
       { latitude: pickupLat, longitude: pickupLng },
       { latitude: dropLat, longitude: dropLng },
     );
-    const hasEscort = Boolean(requirement.zonalQuote?.hasEscort);
+    const hasEscort = false;
 
     const createdOffers = await Promise.all(
       selectedCandidates.map(async (candidate) => {
@@ -788,9 +807,6 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
           vehicleType: requirement.vehicleType,
           offeredRate: driverOfferedRate,
           offeredEarnings: `₹${driverOfferedRate.toFixed(2)} Net Guaranteed`,
-          isZonalQuote: Boolean(requirement.zonalQuote),
-          zoneId: requirement.zonalQuote?.zoneId,
-          hubId: requirement.zonalQuote?.hubId,
           h3PickupCell,
           pickupAddress: requirement.pickupAddress,
           dropAddress: requirement.dropAddress,
@@ -824,9 +840,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
 
         const targetUserId = candidate.driver?.userId || driverId;
         await this.notifications.sendPushToUser(targetUserId, {
-          title: requirement.zonalQuote
-            ? (hasEscort ? '🚖 Corporate Fleet Offer (Escort Required)!' : '🚖 Corporate Fleet Offer (Net Guaranteed)!')
-            : '🚖 New Trip Offer Available!',
+          title: '🚖 New Trip Offer Available!',
           body: `Guaranteed net payout of ₹${driverOfferedRate.toFixed(2)} for ${requirement.vehicleType} pickup at ${requirement.pickupAddress} (${tripRoute.distanceKm} km). ${expiresInSeconds}s to accept!`,
           type: NotificationType.TRIP_OFFER,
           data: {

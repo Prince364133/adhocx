@@ -125,7 +125,7 @@ export class TripsService {
       orderBy: { createdAt: 'desc' },
     });
 
-    return trips.map((t) => this.mapToDto(t));
+    return trips.map((t) => redactForVendor(this.mapToDto(t), t));
   }
 
   /**
@@ -209,7 +209,7 @@ export class TripsService {
     const vendorPhoneNumber = vendorRecord?.phone || vendorRecord?.user?.phone || undefined;
     const vendorOrgName = sanitizeRealName(vendorRecord?.organizationName) || undefined;
 
-    return {
+    const detail = {
       ...baseDto,
       driverName: driverFullName,
       driverPhone: driverPhoneNumber,
@@ -254,11 +254,18 @@ export class TripsService {
               pickupLng: trip.requirement.pickupLng ? Number(trip.requirement.pickupLng) : undefined,
               dropLat: trip.requirement.dropLat ? Number(trip.requirement.dropLat) : undefined,
               dropLng: trip.requirement.dropLng ? Number(trip.requirement.dropLng) : undefined,
-              // Strictly protect vendor pricing from drivers:
-              ratePerVehicle: Number(baseDto.driverRate || baseDto.driverEarnings),
-              budgetPerVehicle: Number(baseDto.driverRate || baseDto.driverEarnings),
-              suggestedBudget: Number(baseDto.driverRate || baseDto.driverEarnings),
-              totalAmount: Number(baseDto.driverRate || baseDto.driverEarnings),
+              // Drivers see their payout here; vendors see their own charge; never the other side's amount.
+              ...(role === UserRole.VENDOR
+                ? {
+                    ratePerVehicle: Number(trip.requirement.ratePerVehicle ?? 0),
+                    totalAmount: Number(trip.requirement.totalAmount ?? 0),
+                  }
+                : {
+                    ratePerVehicle: Number(baseDto.driverRate || baseDto.driverEarnings),
+                    budgetPerVehicle: Number(baseDto.driverRate || baseDto.driverEarnings),
+                    suggestedBudget: Number(baseDto.driverRate || baseDto.driverEarnings),
+                    totalAmount: Number(baseDto.driverRate || baseDto.driverEarnings),
+                  }),
               notes: trip.requirement.notes,
               vendor: {
                 organizationName: vendorOrgName,
@@ -278,6 +285,7 @@ export class TripsService {
         createdAt: e.createdAt.toISOString(),
       })),
     };
+    return (role === UserRole.VENDOR ? redactForVendor(detail, trip) : detail) as TripDetailResponseDto;
   }
 
   /**
@@ -659,14 +667,17 @@ export class TripsService {
     }
     validateTripTransition(trip.status as TripStatus, TripStatus.COMPLETED);
 
+    const pricingSnapshot = (trip as any)?.pricingSnapshot ?? (trip.requirement as any)?.pricingSnapshot ?? null;
     const zonalQuote = (trip.requirement as any)?.zonalQuote ?? null;
     const claimedToll = dto.tollCharges || 0;
     const claimedParking = dto.parkingCharges || 0;
-    // Corporate zonal trips: driver earnings come only from the accepted quote snapshot. Tolls/parking are
-    // recorded as claims for operations approval and never auto-paid (Driver PRD: undefined cases).
-    const tollCharges = zonalQuote ? 0 : claimedToll;
-    const parkingCharges = zonalQuote ? 0 : claimedParking;
-    const fareAmount = zonalQuote ? zonalQuote.driverFarePaise / 100 : Number(trip.driverRate);
+    // Driver earnings come from the booking's pricing snapshot (or, for bookings made before the
+    // distance engine, the legacy zonal quote snapshot they were accepted under).
+    const tollCharges = (pricingSnapshot || zonalQuote) ? 0 : claimedToll;
+    const parkingCharges = (pricingSnapshot || zonalQuote) ? 0 : claimedParking;
+    const fareAmount = pricingSnapshot
+      ? pricingSnapshot.driverPayoutPaise / 100
+      : (zonalQuote ? zonalQuote.driverFarePaise / 100 : Number(trip.driverRate));
 
     // Dynamic platform commission from Admin Policy Config (default 10%, configurable in Admin Panel)
     let commissionPercent = 10.0;
@@ -677,7 +688,8 @@ export class TripsService {
       }
     } catch (_) {}
 
-    const commission = zonalQuote ? 0 : Math.round(fareAmount * (commissionPercent / 100));
+    // Distance engine pricing and zonal quotes have fixed net driver payout (no extra commission cut)
+    const commission = (pricingSnapshot || zonalQuote) ? 0 : Math.round(fareAmount * (commissionPercent / 100));
     const totalDriverEarnings = fareAmount - commission + tollCharges + parkingCharges;
     const now = new Date();
 
@@ -761,7 +773,23 @@ export class TripsService {
       }
 
 
-      // 7. Corporate zonal trip: record platform spread and escort payable separately from driver earnings.
+      // 7. Distance engine platform spread
+      if (pricingSnapshot && pricingSnapshot.grossSpreadPaise > 0) {
+        await tx.ledgerEntry.create({
+          data: {
+            accountType: 'PLATFORM',
+            accountId: trip.vendorId,
+            entryType: 'CREDIT',
+            amount: pricingSnapshot.grossSpreadPaise / 100,
+            balanceAfter: pricingSnapshot.grossSpreadPaise / 100,
+            referenceType: 'DISTANCE_PLATFORM_SPREAD',
+            referenceId: trip.id,
+            description: `Distance spread for trip ${trip.id.slice(-6)} (${(pricingSnapshot.distanceM / 1000).toFixed(1)} km, plan ${pricingSnapshot.planVersion})`,
+          },
+        });
+      }
+
+      // 7b. Legacy (pre-distance-engine) zonal booking: record its agreed spread and escort payable.
       if (zonalQuote) {
         if (zonalQuote.platformFeePaise > 0) {
           await tx.ledgerEntry.create({
@@ -1051,7 +1079,8 @@ export class TripsService {
       metadata: { reason: dto.reason, cancelledByRole: role },
     });
 
-    return this.mapToDto(updated);
+    const result = this.mapToDto(updated);
+    return role === UserRole.VENDOR ? redactForVendor(result, trip) : result;
   }
 
   /**
@@ -1202,7 +1231,11 @@ export class TripsService {
   private async findAndVerifyDriverTrip(tripId: string, driverUserId: string) {
     const trip = await this.db.trip.findUnique({
       where: { id: tripId },
-      include: { driver: true, requirement: { include: { zonalQuote: true } } },
+      include: {
+        driver: true,
+        pricingSnapshot: true,
+        requirement: { include: { pricingSnapshot: true, zonalQuote: true } },
+      },
     });
     if (!trip) {
       throw new NotFoundException('Trip not found');
@@ -1257,32 +1290,13 @@ export class TripsService {
       completedAt: t.completedAt?.toISOString(),
       cancelledAt: t.cancelledAt?.toISOString(),
       status: t.status as TripStatus,
-      driverRate: (() => {
-        let r = Number(t.driverRate || 0);
-        if (r <= 0) {
-          if (t.totalDriverEarnings && Number(t.totalDriverEarnings) > 0) {
-            r = Number(t.totalDriverEarnings);
-          } else if (t.requirement?.ratePerVehicle) {
-            r = Math.round(Number(t.requirement.ratePerVehicle) * 0.85);
-          }
-        }
-        return r;
-      })(),
-      fare: (() => {
-        let r = Number(t.driverRate || 0);
-        if (r <= 0) {
-          if (t.totalDriverEarnings && Number(t.totalDriverEarnings) > 0) {
-            r = Number(t.totalDriverEarnings);
-          } else if (t.requirement?.ratePerVehicle) {
-            r = Math.round(Number(t.requirement.ratePerVehicle) * 0.85);
-          }
-        }
-        return r;
-      })(),
-      driverEarnings: Number(t.totalDriverEarnings || t.driverRate || (t.requirement?.ratePerVehicle ? Math.round(Number(t.requirement.ratePerVehicle) * 0.85) : 0)),
+      // Driver amounts come from the trip / its pricing snapshot only, never derived from the vendor rate.
+      driverRate: driverPayoutOf(t),
+      fare: driverPayoutOf(t),
+      driverEarnings: Number(t.totalDriverEarnings || 0) || driverPayoutOf(t),
       tollCharges: t.tollCharges ? Number(t.tollCharges) : undefined,
       parkingCharges: t.parkingCharges ? Number(t.parkingCharges) : undefined,
-      totalDriverEarnings: Number(t.totalDriverEarnings || t.driverRate || (t.requirement?.ratePerVehicle ? Math.round(Number(t.requirement.ratePerVehicle) * 0.85) : 0)),
+      totalDriverEarnings: Number(t.totalDriverEarnings || 0) || driverPayoutOf(t),
       createdAt: t.createdAt.toISOString(),
       updatedAt: t.updatedAt.toISOString(),
       vendorName: vendorFullName,
@@ -1319,4 +1333,28 @@ export class TripsService {
         : {}),
     } as any;
   }
+}
+
+/** Driver payout of a trip: agreed rate, else the booking's pricing snapshot. Never the vendor rate. */
+function driverPayoutOf(t: any): number {
+  const rate = Number(t?.driverRate || 0);
+  if (rate > 0) return rate;
+  const snapshot = t?.pricingSnapshot ?? t?.requirement?.pricingSnapshot;
+  if (snapshot?.driverPayoutPaise) return snapshot.driverPayoutPaise / 100;
+  const earned = Number(t?.totalDriverEarnings || 0);
+  return earned > 0 ? earned : 0;
+}
+
+/**
+ * Vendor view of a trip: the driver payout (and anything derived from it) is removed, and the
+ * vendor's own charge is shown instead (pricing PRD 3 / 11).
+ */
+function redactForVendor<T extends Record<string, any>>(dto: T, trip: any): T {
+  const out: Record<string, any> = { ...dto };
+  for (const key of ['driverRate', 'fare', 'driverEarnings', 'totalDriverEarnings', 'commission', 'netEarnings']) {
+    delete out[key];
+  }
+  const vendorRate = Number(trip?.requirement?.ratePerVehicle ?? 0);
+  if (vendorRate > 0) out.vendorCharge = vendorRate;
+  return out as T;
 }

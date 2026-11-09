@@ -93,6 +93,11 @@ describe('OffersService Unit Tests', () => {
         otp: '4321',
       }),
     },
+    // The booking's pricing snapshot is linked to the trip it produced.
+    tripPricingSnapshot: {
+      findUnique: jest.fn().mockResolvedValue({ id: 'snap-1', requirementId: 'req-1', tripId: null }),
+      update: jest.fn().mockResolvedValue({}),
+    },
   });
 
   beforeEach(async () => {

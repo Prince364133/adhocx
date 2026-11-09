@@ -58,7 +58,12 @@ export class CreateRequirementDto {
   @IsString()
   couponCode?: string;
 
-  /** Server-stored corporate zonal quote ID (POST /pricing/zonal/quote). Prices the trip from the quote snapshot. */
+  /** Server-stored quote ID (distance engine or legacy zonal). Prices the trip from the quote snapshot. */
+  @IsOptional()
+  @IsUUID('4', { message: 'quoteId must be a valid quote ID' })
+  quoteId?: string;
+
+  /** Server-stored corporate zonal quote ID (deprecated: use quoteId). Prices the trip from the quote snapshot. */
   @IsOptional()
   @IsUUID('4', { message: 'zonalQuoteId must be a valid quote ID' })
   zonalQuoteId?: string;
@@ -91,8 +96,15 @@ export class RequirementResponseDto {
   notes?: string;
   isScheduled?: boolean;
   scheduledTriggerTime?: string;
-  /** Audience-filtered zonal quote snapshot (vendors never receive driver payout or margin). */
-  zonalQuote?: Record<string, unknown>;
+  /** Locked distance-pricing snapshot. Present only in admin responses (vendors never receive payout or spread). */
+  pricing?: {
+    planVersion: string;
+    distanceM: number;
+    vendorPricePaise: number;
+    driverPayoutPaise: number;
+    grossSpreadPaise: number;
+    quotedAt: string;
+  };
   createdAt!: string;
   updatedAt!: string;
 }

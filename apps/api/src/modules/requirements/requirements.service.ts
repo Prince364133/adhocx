@@ -6,6 +6,7 @@ import {
   ConflictException,
   Logger,
   Optional,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import {
   CreateRequirementDto,
@@ -27,8 +28,7 @@ import {
 import { DatabaseService } from '../../database/database.service';
 import { DispatchService } from '../dispatch/dispatch.service';
 import { DispatchSchedulerService } from '../dispatch/dispatch-scheduler.service';
-import { PricingService } from '../pricing/pricing.service';
-import { ZonalPricingService } from '../pricing/zonal-pricing.service';
+import { DistancePricingService } from '../pricing/distance-pricing.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../audit/audit.service';
 import { assertNoPendingReview } from '../reviews/pending-review';
@@ -42,10 +42,9 @@ export class RequirementsService {
   constructor(
     private readonly db: DatabaseService,
     private readonly dispatchService: DispatchService,
-    private readonly pricingService: PricingService,
-    private readonly zonalPricing: ZonalPricingService,
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
+    @Optional() private readonly distancePricing?: DistancePricingService,
     @Optional() private readonly scheduler?: DispatchSchedulerService,
   ) {}
 
@@ -82,75 +81,45 @@ export class RequirementsService {
 
     const mode = dto.fulfillmentMode || FulfillmentMode.DIRECT_DISPATCH;
 
-    // Corporate zonal quote (optional): validate ownership, expiry and route before any money moves.
-    let zonalSnapshot: any = null;
-    if (dto.zonalQuoteId) {
-      if (mode !== FulfillmentMode.DIRECT_DISPATCH) {
-        throw new BadRequestException('Corporate zonal quotes can only be booked as direct dispatch trips.');
-      }
-      const { snapshot, alreadyBookedRequirementId } = await this.zonalPricing.validateQuoteForBooking(
-        dto.zonalQuoteId,
-        vendorUserId,
-        {
-          vehicleType: dto.vehicleType,
-          pickupLat: dto.pickupLocation.latitude,
-          pickupLng: dto.pickupLocation.longitude,
-          dropLat: dto.dropLocation.latitude,
-          dropLng: dto.dropLocation.longitude,
-        },
-      );
-      if (alreadyBookedRequirementId) {
-        // Duplicate submission of an already-booked quote: return the original booking, never a second trip.
-        const existing = await this.db.requirement.findUnique({
-          where: { id: alreadyBookedRequirementId },
-          include: { zonalQuote: true },
-        });
+    // Pricing: the distance engine is the only source of the vendor charge and the driver payout.
+    // No fallback: if no verified route distance, plan or slab exists, the booking is refused.
+    if (!this.distancePricing) {
+      throw new ServiceUnavailableException('Pricing is unavailable right now. Please try again shortly.');
+    }
+    const quoteId = dto.quoteId || dto.zonalQuoteId; // zonalQuoteId: field name sent by older app builds
+    let pricingSnapshotData: Awaited<ReturnType<DistancePricingService['lockPricingSnapshotForBooking']>>;
+    if (quoteId) {
+      // Idempotent replay of a booking already made from this quote: return it, never a second trip.
+      const bookedRequirementId = await this.distancePricing.findBookingForQuote(quoteId, vendorUserId);
+      if (bookedRequirementId) {
+        const existing = await this.db.requirement.findUnique({ where: { id: bookedRequirementId } });
         if (existing && existing.vendorId === vendorId) return this.mapToDto(existing);
-        throw new ConflictException('This quote has already been used for a booking.');
       }
-      zonalSnapshot = snapshot;
-    }
-
-    // Route distance & traffic ETA calculation via Google Maps
-    const roadRoute = await this.pricingService.calculateRoadDistanceAndEta(
-      dto.pickupLocation.latitude,
-      dto.pickupLocation.longitude,
-      dto.dropLocation.latitude,
-      dto.dropLocation.longitude,
-    );
-    const distanceKm = roadRoute.distanceKm;
-
-    let ratePerVehicle = dto.ratePerVehicle;
-    const suggestedBudget = dto.suggestedBudget;
-    let totalAmount = 0;
-
-    if (zonalSnapshot) {
-      // Corporate zonal trip: the stored quote is authoritative. Never trust client-supplied amounts.
-      const quotedRate = zonalSnapshot.totalFarePaise / 100;
-      if (dto.ratePerVehicle !== undefined && dto.ratePerVehicle !== null && Number(dto.ratePerVehicle) !== quotedRate) {
-        this.logger.warn(
-          `Zonal amount mismatch for quote ${zonalSnapshot.id}: client sent ₹${dto.ratePerVehicle}, quote is ₹${quotedRate}`,
-        );
-        await this.audit.log({
-          userId: vendorUserId,
-          action: 'ZONAL_QUOTE_AMOUNT_MISMATCH',
-          entityType: 'ZONAL_QUOTE',
-          entityId: zonalSnapshot.id,
-          metadata: { clientRate: dto.ratePerVehicle, quotedRate },
-        });
-        throw new BadRequestException(
-          `Fare ₹${dto.ratePerVehicle} does not match the quoted corporate rate ₹${quotedRate}. Refresh the quote and confirm.`,
-        );
-      }
-      ratePerVehicle = quotedRate;
-      totalAmount = (dto.quantity || 1) * quotedRate;
+      pricingSnapshotData = await this.distancePricing.lockPricingSnapshotForBooking(quoteId, vendorUserId, {
+        pickup: dto.pickupLocation,
+        drop: dto.dropLocation,
+        vehicleCategory: dto.vehicleType,
+      });
     } else {
-      // Direct Dispatch Mode: Fixed rate per vehicle
-      if (!ratePerVehicle || ratePerVehicle <= 0) {
-        ratePerVehicle = this.pricingService.calculateDriverRate(dto.vehicleType, distanceKm);
-      }
-      totalAmount = (dto.quantity || 1) * ratePerVehicle;
+      const autoQuote = await this.distancePricing.createVendorQuote(
+        { pickup: dto.pickupLocation, drop: dto.dropLocation, vehicleCategory: dto.vehicleType },
+        vendorUserId,
+      );
+      pricingSnapshotData = await this.distancePricing.lockPricingSnapshotForBooking(autoQuote.quoteId, vendorUserId);
     }
+
+    if (dto.ratePerVehicle !== undefined && dto.ratePerVehicle !== null && Number(dto.ratePerVehicle) * 100 !== pricingSnapshotData.vendorPricePaise) {
+      // The client never sets the price; a stale on-screen amount is logged and ignored.
+      this.logger.warn(
+        `Client rate ₹${dto.ratePerVehicle} ignored for quote ${pricingSnapshotData.quote.id}; server price is ₹${pricingSnapshotData.vendorPricePaise / 100}`,
+      );
+    }
+
+    const distanceKm = pricingSnapshotData.distanceM / 1000;
+    const ratePerVehicle = pricingSnapshotData.vendorPricePaise / 100;
+    const suggestedBudget = dto.suggestedBudget;
+    let totalAmount = (dto.quantity || 1) * ratePerVehicle;
+    void distanceKm;
 
     // Check if coupon promo is applied
     let couponToRedeem: any = null;
@@ -226,6 +195,12 @@ export class RequirementsService {
           escrowBalance: { decrement: totalAmount },
         },
       });
+      // The balance was checked before the transaction; a concurrent booking may have spent it since.
+      if (Number(v.escrowBalance) < 0) {
+        throw new BadRequestException(
+          `Insufficient AdhocX Wallet balance: required ₹${totalAmount}. Please top up your wallet and try again.`,
+        );
+      }
 
       // 2. Create requirement
       const req = await tx.requirement.create({
@@ -250,9 +225,24 @@ export class RequirementsService {
         },
       });
 
-      // 2b. Bind the corporate zonal quote to this requirement (atomic; rolls back the debit on reuse).
-      if (zonalSnapshot) {
-        await this.zonalPricing.consumeQuote(tx, zonalSnapshot.id, req.id);
+      // 2b. Consume the quote (atomic: a second booking from the same quote is rejected and rolled
+      //     back) and store the immutable pricing snapshot for this booking.
+      {
+        await this.distancePricing!.consumeQuote(tx, pricingSnapshotData.quote.id, req.id);
+        await tx.tripPricingSnapshot.create({
+          data: {
+            requirementId: req.id,
+            quoteId: pricingSnapshotData.quote.id,
+            planId: pricingSnapshotData.quote.planId,
+            planVersion: pricingSnapshotData.planVersion,
+            distanceM: pricingSnapshotData.distanceM,
+            slabId: pricingSnapshotData.slabId,
+            vendorPricePaise: pricingSnapshotData.vendorPricePaise,
+            driverPayoutPaise: pricingSnapshotData.driverPayoutPaise,
+            grossSpreadPaise: pricingSnapshotData.grossSpreadPaise,
+            quotedAt: pricingSnapshotData.quote.createdAt,
+          },
+        });
       }
 
       // 3. Create immutable ledger debit entry
@@ -350,7 +340,7 @@ export class RequirementsService {
       }
     }
 
-    return this.mapToDto(zonalSnapshot ? { ...requirement, zonalQuote: { ...zonalSnapshot, requirementId: requirement.id } } : requirement);
+    return this.mapToDto(requirement);
   }
 
   /**
@@ -383,7 +373,6 @@ export class RequirementsService {
         skip,
         take: limit,
         include: {
-          zonalQuote: true,
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -477,12 +466,12 @@ export class RequirementsService {
         skip,
         take: limit,
         include: {
-          zonalQuote: true,
           vendor: {
             include: { user: true },
           },
           offers: true,
           assignments: true,
+          pricingSnapshot: true,
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -558,7 +547,6 @@ export class RequirementsService {
     const requirement = await this.db.requirement.findUnique({
       where: { id },
       include: {
-        zonalQuote: true,
         offers: {
           include: {
             driver: {
@@ -576,6 +564,7 @@ export class RequirementsService {
             trip: true,
           },
         },
+        pricingSnapshot: true,
       },
     });
 
@@ -586,8 +575,8 @@ export class RequirementsService {
     if (!isAdmin && (!vendor || requirement.vendorId !== vendor.id)) {
       throw new ForbiddenException('Not authorized to access this requirement');
     }
-    // Zonal driver payout is internal; vendors never see it (PRD V AT10).
-    const hideDriverPayout = !isAdmin && Boolean(requirement.zonalQuote);
+    // The driver payout is internal: vendors never see it (pricing PRD 3 / 11), only admins do.
+    const hideDriverPayout = !isAdmin;
 
     // Auto-timeout check: If requirement is in POSTED or DISPATCHING state but last active > 15 mins ago
     // with no active unexpired offers, auto-transition to NO_DRIVER_AVAILABLE or PARTIALLY_FULFILLED
@@ -845,6 +834,7 @@ export class RequirementsService {
   }
 
   private mapToDto(r: any, viewer: 'VENDOR' | 'ADMIN' = 'VENDOR'): RequirementResponseDto {
+    const snap = r.pricingSnapshot;
     const reportingTimeMs = new Date(r.reportingTime).getTime();
     const isScheduled = r.status === RequirementStatus.POSTED && (reportingTimeMs - Date.now() > 5 * 60 * 1000);
     return {
@@ -871,7 +861,18 @@ export class RequirementsService {
       status: r.status as RequirementStatus,
       notes: r.notes || undefined,
       isScheduled,
-      zonalQuote: r.zonalQuote ? (this.zonalPricing.quoteView(r.zonalQuote, viewer) as Record<string, unknown>) : undefined,
+      ...(viewer === 'ADMIN' && snap
+        ? {
+            pricing: {
+              planVersion: snap.planVersion,
+              distanceM: snap.distanceM,
+              vendorPricePaise: snap.vendorPricePaise,
+              driverPayoutPaise: snap.driverPayoutPaise,
+              grossSpreadPaise: snap.grossSpreadPaise,
+              quotedAt: new Date(snap.quotedAt).toISOString(),
+            },
+          }
+        : {}),
       createdAt: r.createdAt.toISOString(),
       updatedAt: r.updatedAt.toISOString(),
     };

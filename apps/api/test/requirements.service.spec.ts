@@ -4,8 +4,8 @@ import { DatabaseService } from '../src/database/database.service';
 import { DispatchService } from '../src/modules/dispatch/dispatch.service';
 import { NotificationsService } from '../src/modules/notifications/notifications.service';
 import { AuditService } from '../src/modules/audit/audit.service';
-import { PricingService } from '../src/modules/pricing/pricing.service';
-import { ZonalPricingService } from '../src/modules/pricing/zonal-pricing.service';
+import { DistancePricingService } from '../src/modules/pricing/distance-pricing.service';
+import { HttpException, HttpStatus } from '@nestjs/common';
 import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter';
 import {
   RequirementStatus,
@@ -19,10 +19,10 @@ describe('RequirementsService Unit Tests', () => {
   let service: RequirementsService;
   let db: any;
   let dispatchService: any;
-  let pricingService: any;
+  let distancePricing: any;
   let notifications: any;
   let audit: any;
-  let zonalPricing: any;
+  const quotedAt = new Date();
 
   beforeEach(async () => {
     db = {
@@ -50,6 +50,7 @@ describe('RequirementsService Unit Tests', () => {
         findFirst: jest.fn().mockResolvedValue(null),
         count: jest.fn().mockResolvedValue(0),
       },
+      tripPricingSnapshot: { create: jest.fn().mockResolvedValue({ id: 'snap-1' }) },
       $transaction: jest.fn().mockImplementation(async (cb: any) => cb(db)),
     };
 
@@ -57,12 +58,20 @@ describe('RequirementsService Unit Tests', () => {
       dispatchRequirement: jest.fn().mockResolvedValue({ offersCreated: 2 }),
     };
 
-    pricingService = {
-      calculateDistanceKm: jest.fn().mockReturnValue(15),
-      calculateRoadDistanceAndEta: jest.fn().mockResolvedValue({ distanceKm: 15, durationMinutes: 30, durationSeconds: 1800, isRealRoad: true }),
-      calculateDriverRate: jest.fn().mockReturnValue(800),
-      calculateMinimumFare: jest.fn().mockReturnValue(800),
-      calculateSurgeMultiplier: jest.fn().mockReturnValue(1.0),
+    // Distance engine double: a quote of ₹1,500 per vehicle (driver payout ₹1,200).
+    distancePricing = {
+      createVendorQuote: jest.fn().mockResolvedValue({ quoteId: 'q-auto' }),
+      lockPricingSnapshotForBooking: jest.fn(async (quoteId: string) => ({
+        quote: { id: quoteId, planId: 'plan-1', createdAt: quotedAt },
+        planVersion: '1',
+        distanceM: 22400,
+        slabId: 'slab-4',
+        vendorPricePaise: 150000,
+        driverPayoutPaise: 120000,
+        grossSpreadPaise: 30000,
+      })),
+      consumeQuote: jest.fn().mockResolvedValue(undefined),
+      findBookingForQuote: jest.fn().mockResolvedValue(null),
     };
 
     notifications = {
@@ -74,21 +83,12 @@ describe('RequirementsService Unit Tests', () => {
       log: jest.fn().mockResolvedValue(undefined),
     };
 
-    zonalPricing = {
-      validateQuoteForBooking: jest.fn(),
-      consumeQuote: jest.fn().mockResolvedValue(undefined),
-      quoteView: jest.fn((snap: any, viewer: string) =>
-        viewer === 'ADMIN' ? { quoteId: snap.id, internal: { driverEarning: snap.driverFarePaise / 100 } } : { quoteId: snap.id },
-      ),
-    };
-
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RequirementsService,
         { provide: DatabaseService, useValue: db },
         { provide: DispatchService, useValue: dispatchService },
-        { provide: ZonalPricingService, useValue: zonalPricing },
-        { provide: PricingService, useValue: pricingService },
+        { provide: DistancePricingService, useValue: distancePricing },
         { provide: NotificationsService, useValue: notifications },
         { provide: AuditService, useValue: audit },
       ],
@@ -355,22 +355,15 @@ describe('RequirementsService Unit Tests', () => {
     ).rejects.toThrow(InvalidStateTransitionError);
   });
 
-  describe('corporate zonal bookings', () => {
+  describe('distance-priced bookings', () => {
     const now = new Date();
-    const snapshot = {
-      id: '11111111-1111-4111-8111-111111111111',
-      requirementId: null,
-      totalFarePaise: 80000,
-      driverFarePaise: 68000,
-      platformFeePaise: 12000,
-    };
-    const zonalDto: any = {
+    const dto: any = {
       vehicleType: VehicleType.SEDAN,
       quantity: 1,
       pickupLocation: { latitude: 17.3753, longitude: 78.4983, address: 'Malakpet' },
       dropLocation: { latitude: 17.4435, longitude: 78.3772, address: 'HITEC City' },
       reportingTime: now.toISOString(),
-      zonalQuoteId: snapshot.id,
+      quoteId: '11111111-1111-4111-8111-111111111111',
     };
 
     beforeEach(() => {
@@ -380,71 +373,78 @@ describe('RequirementsService Unit Tests', () => {
         verificationStatus: VerificationStatus.VERIFIED,
         escrowBalance: 10000,
       });
-      db.requirement.create.mockImplementation(async ({ data }: any) => ({ id: 'req-z1', ...data, createdAt: now, updatedAt: now }));
+      db.vendor.update.mockResolvedValue({ id: 'vnd-1', escrowBalance: 8500 });
+      db.requirement.create.mockImplementation(async ({ data }: any) => ({ id: 'req-d1', ...data, createdAt: now, updatedAt: now }));
     });
 
-    it('prices the trip from the stored quote and consumes it inside the booking transaction', async () => {
-      zonalPricing.validateQuoteForBooking.mockResolvedValue({ snapshot });
+    it('prices from the quote, consumes it and stores the snapshot inside the booking transaction', async () => {
+      const result = await service.createRequirement('usr-vnd-1', dto);
 
-      const result = await service.createRequirement('usr-vnd-1', zonalDto);
-
-      expect(db.requirement.create).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ ratePerVehicle: 800, totalAmount: 800 }) }),
-      );
-      expect(zonalPricing.consumeQuote).toHaveBeenCalledWith(db, snapshot.id, 'req-z1');
-      expect(db.vendor.update).toHaveBeenCalledWith(expect.objectContaining({ data: { escrowBalance: { decrement: 800 } } }));
-      expect(pricingService.calculateDriverRate).not.toHaveBeenCalled();
-      // Vendor response never carries driver payout or margin (V AT10).
-      expect(JSON.stringify(result.zonalQuote)).not.toMatch(/driver|platform|internal/i);
-    });
-
-    it('V AT06: rejects a client amount that differs from the quote (e.g. +20 platform fee) and logs it', async () => {
-      zonalPricing.validateQuoteForBooking.mockResolvedValue({ snapshot });
-
-      await expect(service.createRequirement('usr-vnd-1', { ...zonalDto, ratePerVehicle: 820 })).rejects.toThrow(
-        /does not match the quoted corporate rate/,
-      );
-      expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'ZONAL_QUOTE_AMOUNT_MISMATCH' }));
-      expect(db.requirement.create).not.toHaveBeenCalled();
-      expect(db.vendor.update).not.toHaveBeenCalled();
-    });
-
-    it('V AT08: resubmitting an already-booked quote returns the original trip without a second debit', async () => {
-      zonalPricing.validateQuoteForBooking.mockResolvedValue({ snapshot, alreadyBookedRequirementId: 'req-z1' });
-      db.requirement.findUnique.mockResolvedValue({
-        id: 'req-z1',
-        vendorId: 'vnd-1',
-        vehicleType: VehicleType.SEDAN,
-        quantity: 1,
-        assignedQuantity: 0,
-        pickupLat: 17.3753,
-        pickupLng: 78.4983,
-        pickupAddress: 'Malakpet',
-        dropLat: 17.4435,
-        dropLng: 78.3772,
-        dropAddress: 'HITEC City',
-        reportingTime: now,
-        ratePerVehicle: 800,
-        totalAmount: 800,
-        status: RequirementStatus.POSTED,
-        createdAt: now,
-        updatedAt: now,
-        zonalQuote: { ...snapshot, requirementId: 'req-z1' },
+      expect(distancePricing.lockPricingSnapshotForBooking).toHaveBeenCalledWith(dto.quoteId, 'usr-vnd-1', {
+        pickup: dto.pickupLocation,
+        drop: dto.dropLocation,
+        vehicleCategory: VehicleType.SEDAN,
       });
-
-      const result = await service.createRequirement('usr-vnd-1', zonalDto);
-
-      expect(result.id).toBe('req-z1');
-      expect(db.requirement.create).not.toHaveBeenCalled();
-      expect(db.vendor.update).not.toHaveBeenCalled();
-      expect(dispatchService.dispatchRequirement).not.toHaveBeenCalled();
+      expect(db.requirement.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ ratePerVehicle: 1500, totalAmount: 1500 }) }),
+      );
+      expect(distancePricing.consumeQuote).toHaveBeenCalledWith(db, dto.quoteId, 'req-d1');
+      expect(db.tripPricingSnapshot.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ requirementId: 'req-d1', vendorPricePaise: 150000, driverPayoutPaise: 120000, distanceM: 22400 }),
+      });
+      expect(db.vendor.update).toHaveBeenCalledWith(expect.objectContaining({ data: { escrowBalance: { decrement: 1500 } } }));
+      // The vendor response never carries the driver payout or the spread.
+      expect(JSON.stringify(result)).not.toMatch(/driverPayout|grossSpread|120000|1200\b/);
     });
 
-    it('non-zonal direct dispatch trips keep standard pricing (no implicit zonal quote)', async () => {
-      await service.createRequirement('usr-vnd-1', { ...zonalDto, zonalQuoteId: undefined });
-      expect(zonalPricing.validateQuoteForBooking).not.toHaveBeenCalled();
-      expect(pricingService.calculateDriverRate).toHaveBeenCalled();
-      expect(zonalPricing.consumeQuote).not.toHaveBeenCalled();
+    it('never trusts a client-supplied price: the server quote wins', async () => {
+      await service.createRequirement('usr-vnd-1', { ...dto, ratePerVehicle: 1 });
+      expect(db.requirement.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ ratePerVehicle: 1500 }) }),
+      );
+    });
+
+    it('re-sending an already-booked quote returns the original booking without a second debit', async () => {
+      distancePricing.findBookingForQuote.mockResolvedValue('req-d1');
+      db.requirement.findUnique.mockResolvedValue({
+        id: 'req-d1', vendorId: 'vnd-1', vehicleType: VehicleType.SEDAN, quantity: 1, assignedQuantity: 0,
+        pickupLat: 17.3753, pickupLng: 78.4983, pickupAddress: 'Malakpet', dropLat: 17.4435, dropLng: 78.3772,
+        dropAddress: 'HITEC City', reportingTime: now, ratePerVehicle: 1500, totalAmount: 1500,
+        status: RequirementStatus.POSTED, createdAt: now, updatedAt: now,
+      });
+      const result = await service.createRequirement('usr-vnd-1', dto);
+      expect(result.id).toBe('req-d1');
+      expect(db.requirement.create).not.toHaveBeenCalled();
+      expect(db.vendor.update).not.toHaveBeenCalled();
+    });
+
+    it('without a quote, an automatic quote is made; if pricing fails the booking is refused (no fallback price)', async () => {
+      distancePricing.createVendorQuote.mockRejectedValueOnce(
+        new HttpException({ code: 'PRICING_ROUTE_UNAVAILABLE', message: 'Maps down' }, HttpStatus.SERVICE_UNAVAILABLE),
+      );
+      await expect(service.createRequirement('usr-vnd-1', { ...dto, quoteId: undefined })).rejects.toMatchObject({
+        status: HttpStatus.SERVICE_UNAVAILABLE,
+      });
+      expect(db.requirement.create).not.toHaveBeenCalled();
+      expect(db.vendor.update).not.toHaveBeenCalled();
+
+      await service.createRequirement('usr-vnd-1', { ...dto, quoteId: undefined });
+      expect(distancePricing.createVendorQuote).toHaveBeenLastCalledWith(
+        { pickup: dto.pickupLocation, drop: dto.dropLocation, vehicleCategory: VehicleType.SEDAN },
+        'usr-vnd-1',
+      );
+    });
+
+    it('a quote used by a concurrent booking aborts the transaction', async () => {
+      distancePricing.consumeQuote.mockRejectedValueOnce(new HttpException('This quote has already been used', HttpStatus.CONFLICT));
+      await expect(service.createRequirement('usr-vnd-1', dto)).rejects.toMatchObject({ status: HttpStatus.CONFLICT });
+      expect(db.tripPricingSnapshot.create).not.toHaveBeenCalled();
+    });
+
+    it('a concurrent booking that spent the wallet makes this one fail instead of overdrawing', async () => {
+      db.vendor.update.mockResolvedValueOnce({ id: 'vnd-1', escrowBalance: -500 });
+      await expect(service.createRequirement('usr-vnd-1', dto)).rejects.toThrow(/Insufficient AdhocX Wallet balance/);
+      expect(distancePricing.consumeQuote).not.toHaveBeenCalled();
     });
 
     it('vendor-role accounts without a vendor profile cannot read other requirements', async () => {

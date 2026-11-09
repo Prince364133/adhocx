@@ -48,10 +48,11 @@ describe('Uber-Grade Sequential Waterfall Dispatch & Ring Expansion (4-Device Te
       status: RequirementStatus.POSTED,
       offers: [],
       vendor: { userId: 'usr-vnd-1' },
-      zonalQuote: {
-        driverFarePaise: 76500, // ₹765 Driver Rate Card
-        vendorFarePaise: 90000, // ₹900 Vendor Rate Card
-        hasEscort: false,
+      // Booking's pricing snapshot: ₹900 vendor charge, ₹765 driver payout.
+      pricingSnapshot: {
+        vendorPricePaise: 90000,
+        driverPayoutPaise: 76500,
+        grossSpreadPaise: 13500,
       },
     };
 

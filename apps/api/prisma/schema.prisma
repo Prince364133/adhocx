@@ -298,12 +298,14 @@ model Requirement {
   createdAt        DateTime          @default(now()) @map("created_at")
   updatedAt        DateTime          @updatedAt @map("updated_at")
 
-  vendor      Vendor              @relation(fields: [vendorId], references: [id], onDelete: Cascade)
-  offers      Offer[]
-  assignments Assignment[]
-  trips       Trip[]
-  payments    Payment[]
-  zonalQuote  ZonalQuoteSnapshot?
+  vendor          Vendor              @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  offers          Offer[]
+  assignments     Assignment[]
+  trips           Trip[]
+  payments        Payment[]
+  zonalQuote      ZonalQuoteSnapshot?
+  pricingSnapshot TripPricingSnapshot?
+  tripQuote       TripQuote?
 
   @@map("requirements")
 }
@@ -386,9 +388,10 @@ model Trip {
   vendor      Vendor      @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   driver      Driver      @relation(fields: [driverId], references: [id], onDelete: Cascade)
   vehicle     Vehicle?    @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
-  events      TripEvent[]
-  reviews     Review[]
-  disputes    Dispute[]
+  events          TripEvent[]
+  reviews         Review[]
+  disputes        Dispute[]
+  pricingSnapshot TripPricingSnapshot?
 
   @@index([vendorId, status, completedAt])
   @@map("trips")
@@ -871,6 +874,124 @@ model ZonalQuoteSnapshot {
 
   @@index([requestedBy, createdAt])
   @@map("zonal_quote_snapshots")
+}
+
+// ==========================================
+// DYNAMIC DISTANCE-BASED PRICING ENGINE (PRD v1.0)
+// ==========================================
+
+model PricingPlan {
+  id              String                @id @default(uuid()) @db.Uuid
+  vehicleCategory String                @default("ALL") @map("vehicle_category") @db.VarChar(50)
+  version         String
+  name            String?
+  status          String                @default("DRAFT") // DRAFT, ACTIVE, SCHEDULED, RETIRED
+  effectiveFrom   DateTime              @default(now()) @map("effective_from")
+  effectiveTo     DateTime?             @map("effective_to")
+  createdBy       String?               @map("created_by")
+  publishedBy     String?               @map("published_by")
+  publishedAt     DateTime?             @map("published_at")
+  createdAt       DateTime              @default(now()) @map("created_at")
+  updatedAt       DateTime              @default(now()) @updatedAt @map("updated_at")
+
+  slabs           PricingSlab[]
+  quotes          TripQuote[]
+  snapshots       TripPricingSnapshot[]
+
+  @@unique([vehicleCategory, version])
+  @@index([vehicleCategory, status])
+  @@map("pricing_plans")
+}
+
+model PricingSlab {
+  id                    String      @id @default(uuid()) @db.Uuid
+  planId                String      @map("plan_id") @db.Uuid
+  minDistanceMExclusive Int         @map("min_distance_m_exclusive")
+  maxDistanceMInclusive Int         @map("max_distance_m_inclusive")
+  vendorPricePaise      Int         @map("vendor_price_paise")
+  driverPayoutPaise     Int         @map("driver_payout_paise")
+  active                Boolean     @default(true)
+  sortOrder             Int         @default(0) @map("sort_order")
+
+  plan                  PricingPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId, active])
+  @@map("pricing_slabs")
+}
+
+model PricingAudit {
+  id            String   @id @default(uuid()) @db.Uuid
+  actorId       String?  @map("actor_id")
+  actorName     String?  @map("actor_name")
+  action        String   // CREATE_PLAN, UPDATE_SLABS, PUBLISH_PLAN, RETIRE_PLAN
+  entityType    String   @default("PRICING_PLAN") @map("entity_type")
+  entityId      String   @map("entity_id")
+  oldValueJson  Json?    @map("old_value_json")
+  newValueJson  Json?    @map("new_value_json")
+  reason        String?
+  timestamp     DateTime @default(now())
+
+  @@index([entityId])
+  @@index([timestamp])
+  @@map("pricing_audit")
+}
+
+model TripQuote {
+  id                String       @id @default(uuid()) @db.Uuid
+  vendorId          String       @map("vendor_id")
+  pickupAddress     String?      @map("pickup_address")
+  pickupLat         Decimal?     @map("pickup_lat") @db.Decimal(10, 7)
+  pickupLng         Decimal?     @map("pickup_lng") @db.Decimal(10, 7)
+  dropAddress       String?      @map("drop_address")
+  dropLat           Decimal?     @map("drop_lat") @db.Decimal(10, 7)
+  dropLng           Decimal?     @map("drop_lng") @db.Decimal(10, 7)
+  vehicleCategory   String       @default("ALL") @map("vehicle_category") @db.VarChar(50)
+  routeDistanceM    Int          @map("route_distance_m")
+  planId            String?      @map("plan_id") @db.Uuid
+  planVersion       String?      @map("plan_version")
+  slabId            String?      @map("slab_id") @db.Uuid
+  vendorPricePaise  Int          @map("vendor_price_paise")
+  driverPayoutPaise Int          @map("driver_payout_paise")
+  expiresAt         DateTime     @map("expires_at")
+  status            String       @default("ACTIVE") // ACTIVE, CONFIRMED, EXPIRED
+  routeSummary      String?      @map("route_summary")
+  /// Distance source and routing policy used (PRD 6 audit), e.g. GOOGLE_ROUTES / TRAFFIC_UNAWARE.
+  routeSource       String?      @map("route_source") @db.VarChar(32)
+  routingPreference String?      @map("routing_preference") @db.VarChar(32)
+  requirementId     String?      @unique @map("requirement_id") @db.Uuid
+  consumedAt        DateTime?    @map("consumed_at")
+  createdAt         DateTime     @default(now()) @map("created_at")
+
+  // Restrict: a plan version referenced by a quote or trip can never be hard-deleted (PRD 4).
+  plan              PricingPlan? @relation(fields: [planId], references: [id], onDelete: Restrict)
+  requirement       Requirement? @relation(fields: [requirementId], references: [id], onDelete: SetNull)
+
+  @@index([vendorId, status])
+  @@map("trip_quotes")
+}
+
+model TripPricingSnapshot {
+  id                String       @id @default(uuid()) @db.Uuid
+  tripId            String?      @unique @map("trip_id") @db.Uuid
+  requirementId     String?      @unique @map("requirement_id") @db.Uuid
+  quoteId           String?      @map("quote_id") @db.Uuid
+  planId            String?      @map("plan_id") @db.Uuid
+  planVersion       String       @map("plan_version")
+  distanceM         Int          @map("distance_m")
+  slabId            String?      @map("slab_id") @db.Uuid
+  vendorPricePaise  Int          @map("vendor_price_paise")
+  driverPayoutPaise Int          @map("driver_payout_paise")
+  grossSpreadPaise  Int          @map("gross_spread_paise")
+  quotedAt          DateTime     @default(now()) @map("quoted_at")
+  overrideReason    String?      @map("override_reason")
+  createdAt         DateTime     @default(now()) @map("created_at")
+
+  trip              Trip?        @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  requirement       Requirement? @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  plan              PricingPlan? @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  @@index([planVersion])
+  @@map("trip_pricing_snapshots")
 }
 
 // ==========================================

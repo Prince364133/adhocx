@@ -6,6 +6,26 @@ export interface LatLng {
   longitude: number;
 }
 
+export interface VerifiedRoadDistance {
+  distanceMeters: number;
+  durationSeconds: number;
+  routeDescription?: string;
+  /** Recorded on quotes for audit (PRD 6): traffic-unaware standard driving route. */
+  routingPreference: 'TRAFFIC_UNAWARE';
+  source: 'GOOGLE_ROUTES';
+}
+
+/** Thrown when a trustworthy road distance cannot be obtained; never price on a guess. */
+export class RouteUnavailableError extends Error {
+  constructor(
+    public readonly reason: 'NO_API_KEY' | 'MAPS_ERROR' | 'NO_ROUTE' | 'INVALID_COORDINATES',
+    message: string,
+  ) {
+    super(message);
+    this.name = 'RouteUnavailableError';
+  }
+}
+
 export interface RoadRouteResult {
   distanceKm: number;
   distanceMeters: number;
@@ -27,6 +47,7 @@ export class GoogleMapsService {
   private readonly logger = new Logger(GoogleMapsService.name);
   private readonly apiKey: string;
   private readonly routeCache = new Map<string, { result: RoadRouteResult; expiresAt: number }>();
+  private readonly verifiedRouteCache = new Map<string, { result: VerifiedRoadDistance; expiresAt: number }>();
   private readonly CACHE_TTL_MS = 60 * 60 * 1000; // 1 Hour in-memory cache
 
   // Driver->pickup ETA matrix: short cache (traffic changes) + circuit breaker for quota/outages
@@ -249,6 +270,66 @@ export class GoogleMapsService {
     } else {
       this.logger.warn(`[GoogleMapsService] Route matrix failed (${err.message}); using road-factor estimate`);
     }
+  }
+
+  /**
+   * Road distance for PRICING. Unlike computeRoadRoute this never estimates: it throws
+   * RouteUnavailableError when there is no API key, Google errors or times out, or no drivable
+   * route exists, so callers can refuse to price instead of inventing a distance.
+   * Uses TRAFFIC_UNAWARE (the standard driving route, independent of live traffic) so the same
+   * trip gets the same distance; duration is informational only and never used for price.
+   */
+  async computeVerifiedRoadDistance(origin: LatLng, destination: LatLng): Promise<VerifiedRoadDistance> {
+    const oLat = Number(origin.latitude);
+    const oLng = Number(origin.longitude);
+    const dLat = Number(destination.latitude);
+    const dLng = Number(destination.longitude);
+    if (![oLat, oLng, dLat, dLng].every(Number.isFinite)) {
+      throw new RouteUnavailableError('INVALID_COORDINATES', 'Pickup and drop coordinates are invalid.');
+    }
+    if (!this.apiKey) {
+      throw new RouteUnavailableError('NO_API_KEY', 'Route distance service is not configured.');
+    }
+    // ~1 m precision: two quotes only share a cached distance when they are the same points.
+    const cacheKey = `verified:${oLat.toFixed(5)},${oLng.toFixed(5)}->${dLat.toFixed(5)},${dLng.toFixed(5)}`;
+    const cached = this.verifiedRouteCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) return cached.result;
+
+    let responseData: any;
+    try {
+      responseData = await this.postJson(
+        'routes.googleapis.com',
+        '/directions/v2:computeRoutes',
+        JSON.stringify({
+          origin: { location: { latLng: { latitude: oLat, longitude: oLng } } },
+          destination: { location: { latLng: { latitude: dLat, longitude: dLng } } },
+          travelMode: 'DRIVE',
+          routingPreference: 'TRAFFIC_UNAWARE',
+          computeAlternativeRoutes: false,
+        }),
+        {
+          'X-Goog-Api-Key': this.apiKey,
+          'X-Goog-FieldMask': 'routes.distanceMeters,routes.duration,routes.description',
+        },
+      );
+    } catch (err: any) {
+      this.logger.warn(`[GoogleMapsService] Verified route lookup failed: ${err?.message ?? err}`);
+      throw new RouteUnavailableError('MAPS_ERROR', 'Route distance service is temporarily unavailable.');
+    }
+    const top = responseData?.routes?.[0];
+    const distanceMeters = Math.round(Number(top?.distanceMeters ?? 0));
+    if (!top || !Number.isFinite(distanceMeters) || distanceMeters <= 0) {
+      throw new RouteUnavailableError('NO_ROUTE', 'No drivable route was found between pickup and drop.');
+    }
+    const result: VerifiedRoadDistance = {
+      distanceMeters,
+      durationSeconds: top.duration ? Math.round(parseFloat(String(top.duration).replace('s', ''))) : 0,
+      routeDescription: top.description || undefined,
+      routingPreference: 'TRAFFIC_UNAWARE',
+      source: 'GOOGLE_ROUTES',
+    };
+    this.verifiedRouteCache.set(cacheKey, { result, expiresAt: Date.now() + this.CACHE_TTL_MS });
+    return result;
   }
 
   /**

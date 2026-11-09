@@ -24,7 +24,6 @@ import { DatabaseService } from '../../database/database.service';
 import { DispatchService } from '../dispatch/dispatch.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../audit/audit.service';
-import { ZonalPricingService } from '../pricing/zonal-pricing.service';
 import { DriverBehaviorService } from '../dispatch/driver-behavior.service';
 import { GoogleMapsService } from '../locations/google-maps.service';
 
@@ -37,7 +36,6 @@ export class OffersService {
     private readonly dispatchService: DispatchService,
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
-    @Optional() private readonly zonalPricing?: ZonalPricingService,
     @Optional() private readonly behavior?: DriverBehaviorService,
     @Optional() private readonly googleMapsService?: GoogleMapsService,
   ) {}
@@ -113,7 +111,7 @@ export class OffersService {
         where,
         include: {
           requirement: {
-            include: { vendor: true, zonalQuote: true },
+            include: { vendor: true },
           },
         },
         orderBy: { createdAt: 'desc' },
@@ -159,7 +157,7 @@ export class OffersService {
           { latitude: pLat, longitude: pLng },
           { latitude: dLat, longitude: dLng },
         );
-        const hasEscort = Boolean(o.requirement.zonalQuote?.hasEscort);
+        const hasEscort = false;
 
         return {
           id: o.id,
@@ -191,10 +189,6 @@ export class OffersService {
           expiresAt: o.expiresAt.toISOString(),
           expiresInSeconds,
           vendorOrganizationName: o.requirement.vendor.organizationName,
-          // Driver-filtered zonal context (hub, zone, earnings line items). Never includes vendor amounts.
-          zonal: o.requirement.zonalQuote
-            ? (this.zonalPricing?.quoteView(o.requirement.zonalQuote, 'DRIVER') as Record<string, unknown>)
-            : undefined,
           createdAt: o.createdAt.toISOString(),
         };
       }),
@@ -339,6 +333,17 @@ export class OffersService {
           driverRate: offer.offeredRate,
         },
       });
+
+      // Link distance pricing snapshot to trip if created from requirement quote
+      const existingSnapshot = await tx.tripPricingSnapshot.findUnique({
+        where: { requirementId: requirement.id },
+      });
+      if (existingSnapshot && !existingSnapshot.tripId) {
+        await tx.tripPricingSnapshot.update({
+          where: { id: existingSnapshot.id },
+          data: { tripId: trip.id },
+        });
+      }
 
       return {
         updatedOffer,

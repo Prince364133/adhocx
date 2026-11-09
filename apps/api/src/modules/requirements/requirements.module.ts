@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { DispatchModule } from '../dispatch/dispatch.module';
 import { PricingModule } from '../pricing/pricing.module';
@@ -6,7 +6,7 @@ import { RequirementsService } from './requirements.service';
 import { RequirementsController } from './requirements.controller';
 
 @Module({
-  imports: [AuthModule, DispatchModule, PricingModule],
+  imports: [AuthModule, DispatchModule, forwardRef(() => PricingModule)],
   controllers: [RequirementsController],
   providers: [RequirementsService],
   exports: [RequirementsService],
