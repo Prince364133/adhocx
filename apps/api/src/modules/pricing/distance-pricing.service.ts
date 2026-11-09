@@ -99,13 +99,46 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   /** Scheduled plans become ACTIVE at their effective time (every instance checks; one wins). */
-  onModuleInit() {
+  async onModuleInit() {
     if (process.env.NODE_ENV === 'test') return;
+    await this.seedDefaultPlansIfEmpty().catch((err) =>
+      this.logger.warn(`Default pricing plan seed failed: ${err?.message ?? err}`),
+    );
     const everyMs = envInt('PRICING_ACTIVATION_POLL_MS', 30_000);
     this.activationTimer = setInterval(() => {
       this.activateDuePlans().catch((err) => this.logger.warn(`Scheduled plan activation failed: ${err?.message ?? err}`));
     }, everyMs);
     this.activationTimer.unref?.();
+  }
+
+  async seedDefaultPlansIfEmpty() {
+    const existing = await this.db.pricingPlan.findFirst({
+      where: { vehicleCategory: DEFAULT_PLAN_CATEGORY, status: 'ACTIVE' },
+    });
+    if (existing) return;
+
+    this.logger.log('No active default pricing plan found; seeding default distance pricing plan.');
+    await this.db.pricingPlan.create({
+      data: {
+        vehicleCategory: DEFAULT_PLAN_CATEGORY,
+        version: 'v1.0',
+        name: 'Default System Plan',
+        status: 'ACTIVE',
+        effectiveFrom: new Date(),
+        publishedBy: 'SYSTEM',
+        publishedAt: new Date(),
+        slabs: {
+          create: [
+            { minDistanceMExclusive: 0, maxDistanceMInclusive: 5000, vendorPricePaise: 30000, driverPayoutPaise: 24000, sortOrder: 0 },
+            { minDistanceMExclusive: 5000, maxDistanceMInclusive: 15000, vendorPricePaise: 55000, driverPayoutPaise: 44000, sortOrder: 1 },
+            { minDistanceMExclusive: 15000, maxDistanceMInclusive: 30000, vendorPricePaise: 85000, driverPayoutPaise: 68000, sortOrder: 2 },
+            { minDistanceMExclusive: 30000, maxDistanceMInclusive: 50000, vendorPricePaise: 130000, driverPayoutPaise: 104000, sortOrder: 3 },
+            { minDistanceMExclusive: 50000, maxDistanceMInclusive: 100000, vendorPricePaise: 250000, driverPayoutPaise: 200000, sortOrder: 4 },
+            { minDistanceMExclusive: 100000, maxDistanceMInclusive: 500000, vendorPricePaise: 950000, driverPayoutPaise: 760000, sortOrder: 5 },
+          ],
+        },
+      },
+    });
   }
 
   onModuleDestroy() {

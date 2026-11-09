@@ -204,12 +204,12 @@ describe('wire/safety-support: SOS lifecycle, escalation scheduler, support tick
   describe('1. SOS lifecycle endpoints', () => {
     const LIFECYCLE = ['acknowledgeAlert', 'investigateAlert', 'escalateAlert', 'closeAlert', 'resolveAlert'];
 
-    it('every lifecycle endpoint is ADMIN-only, guarded, scoped to the sos resource and routed as POST alerts/:id/<action>', () => {
+    it('every lifecycle endpoint is ADMIN/OPS-only, guarded, scoped to the sos resource and routed as POST alerts/:id/<action>', () => {
       const classGuards = Reflect.getMetadata(GUARDS_METADATA, CorporateSafetyController);
       expect(classGuards).toEqual([JwtAuthGuard, RolesGuard, CorporateAccessGuard]);
       const paths: string[] = [];
       for (const m of LIFECYCLE) {
-        expect(meta(CorporateSafetyController, m, ROLES_KEY)).toEqual([UserRole.ADMIN]);
+        expect(meta(CorporateSafetyController, m, ROLES_KEY)).toEqual([UserRole.ADMIN, UserRole.OPS]);
         expect(meta(CorporateSafetyController, m, CORPORATE_RESOURCE_KEY)).toEqual(
           expect.objectContaining({ kind: 'sos', param: 'id', from: 'params' }),
         );

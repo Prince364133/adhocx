@@ -478,10 +478,10 @@ describe('Corporate access control', () => {
       expect(problems).toEqual([]);
     });
 
-    it('privileged operations are ADMIN-only', () => {
+    it('privileged operations are ADMIN/OPS-only', () => {
       const rolesOf = (c: any, m: string) => Reflect.getMetadata(ROLES_KEY, c.prototype[m]);
       expect(rolesOf(CorporateTripExecutionController, 'adminRescheduleOrCancel')).toEqual([UserRole.ADMIN]);
-      expect(rolesOf(CorporateDispatchController, 'forceStartDispatch')).toEqual([UserRole.ADMIN]);
+      expect(rolesOf(CorporateDispatchController, 'forceStartDispatch')).toEqual([UserRole.ADMIN, UserRole.OPS]);
       expect(rolesOf(CorporateTenantController, 'createTenant')).toEqual([UserRole.ADMIN]);
       expect(rolesOf(CorporateTenantController, 'listTenants')).toEqual([UserRole.ADMIN, UserRole.OPS]);
       expect(rolesOf(CorporateTenantController, 'updateTenant')).toEqual([UserRole.ADMIN]);
@@ -490,7 +490,7 @@ describe('Corporate access control', () => {
       expect(rolesOf(CorporateBillingController, 'approvePayoutBatch')).toEqual([UserRole.ADMIN]);
       expect(rolesOf(CorporateBillingController, 'submitPayoutBatch')).toEqual([UserRole.ADMIN]);
       expect(rolesOf(CorporateRouteCancellationController, 'cancel')).toEqual([UserRole.ADMIN]);
-      expect(rolesOf(CorporateSafetyController, 'resolveAlert')).toEqual([UserRole.ADMIN]);
+      expect(rolesOf(CorporateSafetyController, 'resolveAlert')).toEqual([UserRole.ADMIN, UserRole.OPS]);
     });
   });
 });

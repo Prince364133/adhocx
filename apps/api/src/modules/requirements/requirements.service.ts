@@ -84,29 +84,25 @@ export class RequirementsService {
 
     let pricingSnapshotData: any;
     if (this.distancePricing) {
-      try {
-        const quoteId = dto.quoteId || dto.zonalQuoteId; // zonalQuoteId: field name sent by older app builds
-        if (quoteId) {
-          // Idempotent replay of a booking already made from this quote: return it, never a second trip.
-          const bookedRequirementId = await this.distancePricing.findBookingForQuote(quoteId, vendorUserId);
-          if (bookedRequirementId) {
-            const existing = await this.db.requirement.findUnique({ where: { id: bookedRequirementId } });
-            if (existing && existing.vendorId === vendorId) return this.mapToDto(existing);
-          }
-          pricingSnapshotData = await this.distancePricing.lockPricingSnapshotForBooking(quoteId, vendorUserId, {
-            pickup: dto.pickupLocation,
-            drop: dto.dropLocation,
-            vehicleCategory: dto.vehicleType,
-          });
-        } else {
-          const autoQuote = await this.distancePricing.createVendorQuote(
-            { pickup: dto.pickupLocation, drop: dto.dropLocation, vehicleCategory: dto.vehicleType },
-            vendorUserId,
-          );
-          pricingSnapshotData = await this.distancePricing.lockPricingSnapshotForBooking(autoQuote.quoteId, vendorUserId);
+      const quoteId = dto.quoteId || dto.zonalQuoteId; // zonalQuoteId: field name sent by older app builds
+      if (quoteId) {
+        // Idempotent replay of a booking already made from this quote: return it, never a second trip.
+        const bookedRequirementId = await this.distancePricing.findBookingForQuote(quoteId, vendorUserId);
+        if (bookedRequirementId) {
+          const existing = await this.db.requirement.findUnique({ where: { id: bookedRequirementId } });
+          if (existing && existing.vendorId === vendorId) return this.mapToDto(existing);
         }
-      } catch (pricingErr: any) {
-        this.logger.warn(`Dynamic distance pricing failed: ${pricingErr.message}. Falling back to default requirement rates.`);
+        pricingSnapshotData = await this.distancePricing.lockPricingSnapshotForBooking(quoteId, vendorUserId, {
+          pickup: dto.pickupLocation,
+          drop: dto.dropLocation,
+          vehicleCategory: dto.vehicleType,
+        });
+      } else {
+        const autoQuote = await this.distancePricing.createVendorQuote(
+          { pickup: dto.pickupLocation, drop: dto.dropLocation, vehicleCategory: dto.vehicleType },
+          vendorUserId,
+        );
+        pricingSnapshotData = await this.distancePricing.lockPricingSnapshotForBooking(autoQuote.quoteId, vendorUserId);
       }
     }
 
