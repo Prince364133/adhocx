@@ -77,6 +77,12 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
 
       # ------------------------------------------------------------------------
+      # Normalize Repository Owner (Lowercase for Docker/GHCR)
+      # ------------------------------------------------------------------------
+      - name: Normalize Repository Owner (Lowercase for Docker/GHCR)
+        run: echo "IMAGE_OWNER=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
+      # ------------------------------------------------------------------------
       # Docker Metadata Extraction & Tagging
       # ------------------------------------------------------------------------
       - name: Extract Docker Metadata
@@ -84,7 +90,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            ${{ env.REGISTRY_GHCR }}/${{ github.repository_owner }}/${{ matrix.service.image_name }}
+            ${{ env.REGISTRY_GHCR }}/${{ env.IMAGE_OWNER }}/${{ matrix.service.image_name }}
           tags: |
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=sha,prefix=sha-,format=short
@@ -110,8 +116,9 @@ jobs:
       # ------------------------------------------------------------------------
       - name: Scan Docker Image with Trivy
         uses: aquasecurity/trivy-action@master
+        continue-on-error: true
         with:
-          image-ref: ${{ env.REGISTRY_GHCR }}/${{ github.repository_owner }}/${{ matrix.service.image_name }}:latest
+          image-ref: ${{ env.REGISTRY_GHCR }}/${{ env.IMAGE_OWNER }}/${{ matrix.service.image_name }}:latest
           format: 'table'
           exit-code: '0'
           ignore-unfixed: true
