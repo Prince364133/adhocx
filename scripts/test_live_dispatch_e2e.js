@@ -42,19 +42,39 @@ async function request(path, options = {}) {
 }
 
 async function loginUser(phone, role, fullName) {
-  // Request OTP
-  await request('/auth/otp/request', {
-    method: 'POST',
-    body: JSON.stringify({
-      phone,
-      channel: 'SMS',
-      role,
-      fullName,
-      isRegister: false,
-    }),
-  });
+  // First attempt with isRegister: true (since test users have dynamic random numbers).
+  // If the user already exists (409 Conflict), fall back to isRegister: false.
+  let isRegister = true;
+  try {
+    await request('/auth/otp/request', {
+      method: 'POST',
+      body: JSON.stringify({
+        phone,
+        channel: 'SMS',
+        role,
+        fullName,
+        isRegister: true,
+      }),
+    });
+  } catch (err) {
+    if (err.message && (err.message.includes('already registered') || err.message.includes('sign in instead'))) {
+      isRegister = false;
+      await request('/auth/otp/request', {
+        method: 'POST',
+        body: JSON.stringify({
+          phone,
+          channel: 'SMS',
+          role,
+          fullName,
+          isRegister: false,
+        }),
+      });
+    } else {
+      throw err;
+    }
+  }
 
-  // Verify OTP (using dev master OTP '123456')
+  // Verify OTP (using dev/test master OTP '123456')
   const auth = await request('/auth/otp/verify', {
     method: 'POST',
     body: JSON.stringify({
@@ -62,6 +82,7 @@ async function loginUser(phone, role, fullName) {
       otp: '123456',
       role,
       fullName,
+      isRegister,
     }),
   });
 
@@ -100,7 +121,17 @@ async function runVerification() {
   const driverHeaders = { Authorization: `Bearer ${driverAuth.token}` };
 
   // 3. Driver Goes Online
-  console.log('\n[STEP 3] Driver Setting Availability to AVAILABLE at Gurugram Cyber Hub...');
+  console.log('\n[STEP 3] Configuring Driver Profile with SEDAN vehicle and setting Availability...');
+  await request('/drivers/profile', {
+    method: 'PATCH',
+    headers: driverHeaders,
+    body: JSON.stringify({
+      vehicleType: 'SEDAN',
+      vehicleModel: 'Maruti Suzuki Dzire',
+      vehiclePlate: `DL01${timestamp}`,
+    }),
+  });
+
   const availability = await request('/drivers/availability', {
     method: 'PATCH',
     headers: driverHeaders,
@@ -178,7 +209,14 @@ async function runVerification() {
   console.log(`✓ Driver arrived. Trip Status: ${arrivedTrip.status}`);
 
   console.log('\nDriver starts trip with Passenger OTP...');
-  const otpToUse = arrivedTrip.startOtp || arrivedTrip.otp || activeTrip.startOtp || '1234';
+  let otpToUse = arrivedTrip.startOtp || arrivedTrip.otp || activeTrip.startOtp;
+  if (!otpToUse) {
+    try {
+      const vendorTrip = await request(`/trips/${activeTrip.id}`, { headers: vendorHeaders });
+      otpToUse = vendorTrip.startOtp || vendorTrip.otp;
+    } catch (_) {}
+  }
+  otpToUse = otpToUse || '1234';
   const startedTrip = await request(`/trips/${activeTrip.id}/start`, {
     method: 'POST',
     headers: driverHeaders,
