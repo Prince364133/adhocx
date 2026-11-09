@@ -149,6 +149,7 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
       dropLocation: DROP,
       reportingTime: new Date(Date.now() + 3600_000).toISOString(),
       ratePerVehicle: RATE,
+      isScheduled: false,
     } as any);
     ridesBooked++;
     return res.id;
@@ -318,7 +319,7 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
     dispatch = new DispatchService(db, locations, notifications, audit, routing as any, undefined, scheduler, behavior);
     scheduler.registerHandler((m) => dispatch.handleScheduledJob(m));
     offers = new OffersService(db, dispatch, notifications, audit, behavior);
-    requirements = new RequirementsService(db, dispatch, notifications, audit, distancePricing, scheduler);
+    requirements = new RequirementsService(db, dispatch, notifications, audit, distancePricing);
     trips = new TripsService(db, dispatch, notifications, audit, locations);
     reviews = new ReviewsService(db, notifications, audit);
 
