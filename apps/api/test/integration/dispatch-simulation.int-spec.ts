@@ -296,12 +296,19 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
       },
     );
     const audit: any = { log: async () => undefined };
-    const pricing: any = {
-      calculateRoadDistanceAndEta: async () => ({ distanceKm: 32, durationMinutes: 55, durationSeconds: 3300, isRealRoad: true }),
-      calculateDriverRate: () => RATE,
-      calculateMinimumFare: () => RATE,
-      calculateDistanceKm: () => 32,
-      calculateSurgeMultiplier: () => 1,
+    const distancePricing: any = {
+      createVendorQuote: async () => ({ quoteId: 'sim-quote-auto' }),
+      lockPricingSnapshotForBooking: async (quoteId: string) => ({
+        quote: { id: quoteId, planId: 'sim-plan', createdAt: new Date() },
+        planVersion: '1',
+        distanceM: 32000,
+        slabId: 'slab-sim',
+        vendorPricePaise: RATE * 100,
+        driverPayoutPaise: (RATE - 200) * 100,
+        grossSpreadPaise: 20000,
+      }),
+      consumeQuote: async () => undefined,
+      findBookingForQuote: async () => null,
     };
 
     const locations = new LocationsService(db, new H3Service(), undefined);
@@ -310,7 +317,7 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
     dispatch = new DispatchService(db, locations, notifications, audit, routing as any, undefined, scheduler, behavior);
     scheduler.registerHandler((m) => dispatch.handleScheduledJob(m));
     offers = new OffersService(db, dispatch, notifications, audit, behavior);
-    requirements = new RequirementsService(db, dispatch, pricing, {} as any, notifications, audit);
+    requirements = new RequirementsService(db, dispatch, notifications, audit, distancePricing, scheduler);
     trips = new TripsService(db, dispatch, notifications, audit, locations);
     reviews = new ReviewsService(db, notifications, audit);
 
