@@ -17,91 +17,102 @@ export default function CorporateEstimator() {
   return (
     <div className="estimator-container">
       <div className="estimator-grid">
-        {/* Controls Column */}
-        <div className="estimator-controls">
-          <div className="estimator-field">
-            <div className="estimator-label-row">
-              <label htmlFor="commuter-range" className="estimator-label">Daily Commuter Headcount</label>
-              <span className="estimator-value-badge">{commuters.toLocaleString()} Employees</span>
+        {/* Controls Card Column (Left Box) */}
+        <div className="estimator-card estimator-controls-card">
+          <div className="estimator-card-header">
+            <div>
+              <span className="estimator-card-sub">COMMUTE SPECIFICATIONS</span>
+              <h4 className="estimator-card-title">Shift & Fleet Parameters</h4>
             </div>
-            <input
-              id="commuter-range"
-              type="range"
-              min="50"
-              max="2500"
-              step="25"
-              value={commuters}
-              onChange={(e) => setCommuters(parseInt(e.target.value, 10))}
-              className="estimator-slider"
-              aria-label="Daily Commuter Headcount"
-            />
-            <div className="estimator-scale">
-              <span>50</span>
-              <span>500</span>
-              <span>1,200</span>
-              <span>2,500+</span>
-            </div>
+            <span className="estimator-status-pill estimator-status-pill-purple">● Live Calculator</span>
           </div>
 
-          {/* Shift Model Selector */}
-          <div className="estimator-field">
-            <span className="estimator-label">Shift Operating Model</span>
-            <div className="estimator-toggle-group">
-              <button
-                type="button"
-                className={`estimator-toggle-btn ${shiftModel === '3-shift' ? 'active' : ''}`}
-                onClick={() => setShiftModel('3-shift')}
-              >
-                24/7 (3 Shifts)
-              </button>
-              <button
-                type="button"
-                className={`estimator-toggle-btn ${shiftModel === '2-shift' ? 'active' : ''}`}
-                onClick={() => setShiftModel('2-shift')}
-              >
-                Day & Evening (2 Shifts)
-              </button>
-              <button
-                type="button"
-                className={`estimator-toggle-btn ${shiftModel === 'general' ? 'active' : ''}`}
-                onClick={() => setShiftModel('general')}
-              >
-                General Office
-              </button>
+          <div className="estimator-controls-body">
+            {/* Daily Commuter Headcount */}
+            <div className="estimator-field">
+              <div className="estimator-label-row">
+                <label htmlFor="commuter-range" className="estimator-label">Daily Commuter Headcount</label>
+                <span className="estimator-value-badge">{commuters.toLocaleString()} Employees</span>
+              </div>
+              <input
+                id="commuter-range"
+                type="range"
+                min="50"
+                max="2500"
+                step="25"
+                value={commuters}
+                onChange={(e) => setCommuters(parseInt(e.target.value, 10))}
+                className="estimator-slider"
+                aria-label="Daily Commuter Headcount"
+              />
+              <div className="estimator-scale">
+                <span>50</span>
+                <span>500</span>
+                <span>1,200</span>
+                <span>2,500+</span>
+              </div>
             </div>
-          </div>
 
-          {/* Vehicle Mix Selector */}
-          <div className="estimator-field">
-            <span className="estimator-label">Fleet Mix Preference</span>
-            <div className="estimator-toggle-group">
-              <button
-                type="button"
-                className={`estimator-toggle-btn ${vehicleMix === 'hybrid' ? 'active' : ''}`}
-                onClick={() => setVehicleMix('hybrid')}
-              >
-                Optimized Hybrid (Sedan + MUV)
-              </button>
-              <button
-                type="button"
-                className={`estimator-toggle-btn ${vehicleMix === 'sedan' ? 'active' : ''}`}
-                onClick={() => setVehicleMix('sedan')}
-              >
-                4-Seater Sedans Only
-              </button>
-              <button
-                type="button"
-                className={`estimator-toggle-btn ${vehicleMix === 'muv' ? 'active' : ''}`}
-                onClick={() => setVehicleMix('muv')}
-              >
-                6/7-Seater MUVs Only
-              </button>
+            {/* Shift Model Selector */}
+            <div className="estimator-field">
+              <span className="estimator-label">Shift Operating Model</span>
+              <div className="estimator-toggle-group">
+                <button
+                  type="button"
+                  className={`estimator-toggle-btn ${shiftModel === '3-shift' ? 'active' : ''}`}
+                  onClick={() => setShiftModel('3-shift')}
+                >
+                  24/7 (3 Shifts)
+                </button>
+                <button
+                  type="button"
+                  className={`estimator-toggle-btn ${shiftModel === '2-shift' ? 'active' : ''}`}
+                  onClick={() => setShiftModel('2-shift')}
+                >
+                  Day & Evening (2 Shifts)
+                </button>
+                <button
+                  type="button"
+                  className={`estimator-toggle-btn ${shiftModel === 'general' ? 'active' : ''}`}
+                  onClick={() => setShiftModel('general')}
+                >
+                  General Office
+                </button>
+              </div>
+            </div>
+
+            {/* Vehicle Mix Selector */}
+            <div className="estimator-field">
+              <span className="estimator-label">Fleet Mix Preference</span>
+              <div className="estimator-toggle-group">
+                <button
+                  type="button"
+                  className={`estimator-toggle-btn ${vehicleMix === 'hybrid' ? 'active' : ''}`}
+                  onClick={() => setVehicleMix('hybrid')}
+                >
+                  Optimized Hybrid (Sedan + MUV)
+                </button>
+                <button
+                  type="button"
+                  className={`estimator-toggle-btn ${vehicleMix === 'sedan' ? 'active' : ''}`}
+                  onClick={() => setVehicleMix('sedan')}
+                >
+                  4-Seater Sedans Only
+                </button>
+                <button
+                  type="button"
+                  className={`estimator-toggle-btn ${vehicleMix === 'muv' ? 'active' : ''}`}
+                  onClick={() => setVehicleMix('muv')}
+                >
+                  6/7-Seater MUVs Only
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Results Card Column */}
-        <div className="estimator-card">
+        {/* Results Card Column (Right Box) */}
+        <div className="estimator-card estimator-results-card">
           <div className="estimator-card-header">
             <div>
               <span className="estimator-card-sub">ESTIMATED REQUIREMENTS</span>

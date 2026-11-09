@@ -120,125 +120,116 @@ const jsonLd = [
        "Every corporate cab trip. One system from booking to billing."
        ========================================================================= -->
   <section class="adhocx-hero-section" id="hero">
-    <div class="container adhocx-hero-grid">
-      <!-- Left Hero Column: Copy, Scenarios & Actions -->
-      <div class="hero-left-content">
-        <!-- H1 Title -->
-        <h1 class="adhocx-hero-h1">
-          Every corporate cab trip. <span class="adhocx-hero-accent">One system from booking to billing.</span>
-        </h1>
+    <div class="container hero-container">
+      <div class="adhocx-hero-grid">
+        <!-- Left Hero Column: Copy, Value Checks & Actions -->
+        <div class="hero-left-content">
+          <!-- H1 Title (Completed in exactly 2 lines) -->
+          <h1 class="adhocx-hero-h1">
+            <span class="hero-h1-line">Every corporate cab trip.</span>
+            <span class="hero-h1-line adhocx-hero-accent">One system from booking to billing.</span>
+          </h1>
 
-        <!-- Subtitle Description -->
-        <p class="adhocx-hero-desc">
-          AdhocX is the operating system for corporate ground transport. Companies book and control trips, rental operators run their business, and travel companies fulfil demand across India.
-        </p>
+          <!-- Subtitle Description -->
+          <p class="adhocx-hero-desc">
+            AdhocX is the operating system for corporate ground transport. Companies book and control trips, rental operators run their business, and travel companies fulfil demand across India.
+          </p>
 
-        <!-- Interactive Scenario Selector -->
-        <div class="hero-scenario-selector" role="group" aria-label="Corporate mobility dispatch scenarios">
-          <span class="hero-scenario-label">Live Scenarios:</span>
-          <button type="button" class="hero-scenario-btn active" data-scenario="ets" id="btn-scen-ets">
-            <span>🌙 Night Shift ETS</span>
-          </button>
-          <button type="button" class="hero-scenario-btn" data-scenario="airport" id="btn-scen-airport">
-            <span>✈️ RGIA Airport Spot</span>
-          </button>
-          <button type="button" class="hero-scenario-btn" data-scenario="campus" id="btn-scen-campus">
-            <span>🏢 Inter-Campus Hop</span>
-          </button>
-        </div>
-
-        <!-- CTA Buttons -->
-        <div class="adhocx-hero-actions">
-          <a href="#corporate-rfp" class="btn-pill-primary" id="btn-hero-demo">
-            <span>Book a demo</span>
-            <span aria-hidden="true">→</span>
-          </a>
-          <a href="#estimator" class="btn-pill-secondary" id="btn-hero-estimator">
-            Calculate Commute Sizing
-          </a>
-        </div>
-
-        <!-- 4 Enterprise Value Checks -->
-        <div class="adhocx-hero-checks">
-          <div class="adhocx-check-item">
-            <svg class="adhocx-check-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-              <polyline points="22 4 12 14.01 9 11.01"></polyline>
-            </svg>
-            <span>100% Commercial Yellow-Plate</span>
+          <!-- CTA Buttons -->
+          <div class="adhocx-hero-actions">
+            <a href="#corporate-rfp" class="btn-pill-primary" id="btn-hero-demo">
+              <span>Book a demo</span>
+              <span aria-hidden="true">→</span>
+            </a>
+            <a href="#estimator" class="btn-pill-secondary" id="btn-hero-estimator">
+              Calculate Commute Sizing
+            </a>
           </div>
 
-          <div class="adhocx-check-item">
-            <svg class="adhocx-check-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-              <polyline points="22 4 12 14.01 9 11.01"></polyline>
-            </svg>
-            <span>99.8% On-Time SLA Adherence</span>
-          </div>
+          <!-- 4 Enterprise Value Checks -->
+          <div class="adhocx-hero-checks">
+            <div class="adhocx-check-item">
+              <svg class="adhocx-check-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
+              <span>100% Commercial Yellow-Plate</span>
+            </div>
 
-          <div class="adhocx-check-item">
-            <svg class="adhocx-check-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-              <polyline points="22 4 12 14.01 9 11.01"></polyline>
-            </svg>
-            <span>100% Telemetry Duty Slips</span>
-          </div>
+            <div class="adhocx-check-item">
+              <svg class="adhocx-check-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
+              <span>99.8% On-Time SLA Adherence</span>
+            </div>
 
-          <div class="adhocx-check-item">
-            <svg class="adhocx-check-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-              <polyline points="22 4 12 14.01 9 11.01"></polyline>
-            </svg>
-            <span>Zero Surge Pricing Guarantee</span>
+            <div class="adhocx-check-item">
+              <svg class="adhocx-check-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
+              <span>100% Telemetry Duty Slips</span>
+            </div>
+
+            <div class="adhocx-check-item">
+              <svg class="adhocx-check-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
+              <span>Zero Surge Pricing Guarantee</span>
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- Right Hero Column: Corporate Dashboard Showcase & Interactive Telemetry Window -->
-      <div class="hero-mockup-wrapper">
-        <div class="hero-blueprint-grid"></div>
+        <!-- Right Hero Column: Coordinated Product Console Showcase -->
+        <div class="hero-showcase-column">
+          <!-- Main Dashboard Hardware Frame -->
+          <div class="hero-dashboard-window">
+            <!-- Modern Browser Chrome Header -->
+            <div class="dashboard-topbar">
+              <div class="topbar-controls">
+                <span class="control-dot dot-close"></span>
+                <span class="control-dot dot-min"></span>
+                <span class="control-dot dot-max"></span>
+                <div class="topbar-url-pill">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                  </svg>
+                  <span>portal.adhocx.com/overview</span>
+                </div>
+              </div>
 
-        <!-- Central Dashboard Frame -->
-        <div class="hero-dashboard-window">
-          <!-- Top Window Bar -->
-          <div class="dashboard-topbar">
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
-              <span style="width: 10px; height: 10px; border-radius: 50%; background: #EF4444; display: inline-block;"></span>
-              <span style="width: 10px; height: 10px; border-radius: 50%; background: #F59E0B; display: inline-block;"></span>
-              <span style="width: 10px; height: 10px; border-radius: 50%; background: #10B981; display: inline-block;"></span>
-              <div class="dashboard-search-sim" style="margin-left: 0.5rem;">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                </svg>
-                <span style="color: #64748B; font-weight: 500;">portal.adhocx.com/overview</span>
+              <div class="topbar-meta">
+                <div class="showcase-status-indicator">
+                  <span class="status-live-beacon"></span>
+                  <span>Live Operations &bull; 142 Active Cabs</span>
+                </div>
+                <button type="button" class="dashboard-zoom-btn" id="btn-hero-zoom" aria-label="Expand console preview">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 3 21 3 21 9"></polyline>
+                    <polyline points="9 21 3 21 3 15"></polyline>
+                    <line x1="21" y1="3" x2="14" y2="10"></line>
+                    <line x1="3" y1="21" x2="10" y2="14"></line>
+                  </svg>
+                  <span>Expand</span>
+                </button>
               </div>
             </div>
-            <div style="display: flex; align-items: center; gap: 0.875rem;">
-              <span class="dashboard-live-badge">
-                <span style="width: 6px; height: 6px; border-radius: 50%; background: var(--color-success); display: inline-block;"></span>
-                Live Operations • 142 Active Cabs
-              </span>
-              <button type="button" class="dashboard-zoom-btn" id="btn-hero-zoom" aria-label="Zoom console screenshot">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                  <circle cx="11" cy="11" r="8"></circle>
-                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                </svg>
-                <span>Expand</span>
-              </button>
-            </div>
-          </div>
 
-          <!-- Real Corporate Dashboard Screenshot from Image 1 -->
-          <div class="hero-dashboard-img-wrap" id="hero-img-wrap">
-            <img 
-              src="/images/corporate-dashboard.png" 
-              alt="AdhocX Corporate Operations & Executive Dashboard" 
-              class="hero-dashboard-img"
-              width="1024"
-              height="479"
-              loading="eager"
-            />
+            <!-- Screenshot Display Wrap -->
+            <div class="hero-dashboard-img-wrap" id="hero-img-wrap" title="Click to view full console in high resolution">
+              <img 
+                src="/images/corporate-dashboard.png" 
+                alt="AdhocX Corporate Operations and Executive Commute Management Dashboard" 
+                class="hero-dashboard-img"
+                width="1024"
+                height="479"
+                loading="eager"
+                decoding="async"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -1202,16 +1193,6 @@ const jsonLd = [
 </BaseLayout>
 
 <script>
-  // Scenario selector switcher
-  const scenarioBtns = document.querySelectorAll<HTMLButtonElement>('.hero-scenario-btn');
-
-  scenarioBtns.forEach((btn) => {
-    btn.addEventListener('click', () => {
-      scenarioBtns.forEach((b) => b.classList.remove('active'));
-      btn.classList.add('active');
-    });
-  });
-
   // Lightbox Modal open/close
   const zoomBtn = document.getElementById('btn-hero-zoom');
   const heroImgWrap = document.getElementById('hero-img-wrap');

@@ -422,12 +422,13 @@
   <style>
     #adhocx-hot-reload-toolbar {
       position: fixed;
-      bottom: 24px;
-      right: 24px;
+      top: 14px;
+      right: 16px;
       z-index: 2147483647;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       user-select: none;
-      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      touch-action: none;
+      transition: box-shadow 0.2s ease, opacity 0.2s ease;
     }
     .adhocx-tb-container {
       background: rgba(15, 23, 42, 0.94);
@@ -435,23 +436,44 @@
       -webkit-backdrop-filter: blur(14px);
       border: 1px solid rgba(255, 255, 255, 0.18);
       border-radius: 9999px;
-      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08);
-      padding: 6px 10px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.08);
+      padding: 5px 8px;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
+      cursor: grab;
+    }
+    .adhocx-tb-container:active {
+      cursor: grabbing;
+    }
+    .adhocx-tb-drag-handle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #64748B;
+      padding: 0 2px 0 4px;
+      cursor: grab;
+      font-size: 13px;
+      line-height: 1;
+      opacity: 0.7;
+      transition: opacity 0.15s, color 0.15s;
+    }
+    .adhocx-tb-drag-handle:hover {
+      opacity: 1;
+      color: #94A3B8;
     }
     .adhocx-tb-brand {
       display: flex;
       align-items: center;
       gap: 6px;
-      padding: 0 6px 0 8px;
+      padding: 0 6px 0 2px;
       border-right: 1px solid rgba(255, 255, 255, 0.15);
       color: #94A3B8;
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 700;
       letter-spacing: 0.5px;
       text-transform: uppercase;
+      cursor: grab;
     }
     .adhocx-tb-dot {
       width: 7px;
@@ -468,13 +490,13 @@
     .adhocx-btn {
       border: none;
       border-radius: 9999px;
-      padding: 8px 16px;
-      font-size: 13px;
+      padding: 6px 13px;
+      font-size: 12px;
       font-weight: 700;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
       color: #FFFFFF;
       transition: all 0.15s ease;
       outline: none;
@@ -502,14 +524,14 @@
       background: rgba(255, 255, 255, 0.1);
       border: none;
       color: #94A3B8;
-      width: 26px;
-      height: 26px;
+      width: 24px;
+      height: 24px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      font-size: 13px;
+      font-size: 12px;
       line-height: 1;
       transition: background 0.15s, color 0.15s;
     }
@@ -523,9 +545,9 @@
       backdrop-filter: blur(12px);
       border: 1px solid rgba(255, 255, 255, 0.2);
       border-radius: 9999px;
-      padding: 8px 14px;
+      padding: 6px 12px;
       color: #F8FAFC;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 700;
       cursor: pointer;
       box-shadow: 0 8px 24px rgba(0,0,0,0.4);
@@ -567,8 +589,9 @@
 
   <div id="adhocx-dev-toast"></div>
 
-  <div id="adhocx-hot-reload-toolbar">
+  <div id="adhocx-hot-reload-toolbar" title="Drag to move anywhere">
     <div class="adhocx-tb-container" id="adhocx-tb-expanded">
+      <div class="adhocx-tb-drag-handle" title="Drag to move anywhere">⠿</div>
       <div class="adhocx-tb-brand">
         <span class="adhocx-tb-dot"></span>
         <span>Live</span>
@@ -593,7 +616,7 @@
     <!-- Collapsed Pill Badge -->
     <div class="adhocx-tb-collapsed" id="adhocx-tb-collapsed" title="Click to expand dev controls">
       <span class="adhocx-tb-dot"></span>
-      <span>⚡ Hot / Total Load</span>
+      <span>⚡ Hot Load</span>
     </div>
   </div>
 
@@ -681,6 +704,81 @@
       // Button listeners
       if (hotBtn) hotBtn.addEventListener('click', triggerHotLoad);
       if (totalBtn) totalBtn.addEventListener('click', triggerTotalLoad);
+
+      // Free drag-and-drop & position persistence
+      var toolbar = document.getElementById('adhocx-hot-reload-toolbar');
+      var isDragging = false;
+      var startX = 0, startY = 0;
+      var initialLeft = 0, initialTop = 0;
+      var hasMoved = false;
+
+      try {
+        var savedPos = localStorage.getItem('adhocx_toolbar_pos');
+        if (savedPos) {
+          var pos = JSON.parse(savedPos);
+          if (pos && typeof pos.top === 'number' && typeof pos.left === 'number') {
+            var maxL = Math.max(10, window.innerWidth - 70);
+            var maxT = Math.max(10, window.innerHeight - 40);
+            toolbar.style.top = Math.max(8, Math.min(pos.top, maxT)) + 'px';
+            toolbar.style.left = Math.max(8, Math.min(pos.left, maxL)) + 'px';
+            toolbar.style.right = 'auto';
+            toolbar.style.bottom = 'auto';
+          }
+        }
+      } catch (_) {}
+
+      function onPointerDown(e) {
+        if (e.target.closest('#adhocx-btn-hot') || e.target.closest('#adhocx-btn-total') || e.target.closest('#adhocx-btn-minimize')) {
+          return;
+        }
+        isDragging = true;
+        hasMoved = false;
+        var cx = e.clientX || (e.touches && e.touches[0].clientX) || 0;
+        var cy = e.clientY || (e.touches && e.touches[0].clientY) || 0;
+        startX = cx;
+        startY = cy;
+        var rect = toolbar.getBoundingClientRect();
+        initialLeft = rect.left;
+        initialTop = rect.top;
+      }
+
+      function onPointerMove(e) {
+        if (!isDragging) return;
+        var cx = e.clientX || (e.touches && e.touches[0].clientX) || 0;
+        var cy = e.clientY || (e.touches && e.touches[0].clientY) || 0;
+        var dx = cx - startX;
+        var dy = cy - startY;
+        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+          hasMoved = true;
+        }
+        var newLeft = Math.max(8, Math.min(window.innerWidth - toolbar.offsetWidth - 8, initialLeft + dx));
+        var newTop = Math.max(8, Math.min(window.innerHeight - toolbar.offsetHeight - 8, initialTop + dy));
+        toolbar.style.left = newLeft + 'px';
+        toolbar.style.top = newTop + 'px';
+        toolbar.style.right = 'auto';
+        toolbar.style.bottom = 'auto';
+      }
+
+      function onPointerUp() {
+        if (!isDragging) return;
+        isDragging = false;
+        if (hasMoved) {
+          try {
+            var rect = toolbar.getBoundingClientRect();
+            localStorage.setItem('adhocx_toolbar_pos', JSON.stringify({ top: rect.top, left: rect.left }));
+          } catch (_) {}
+        }
+      }
+
+      if (toolbar) {
+        toolbar.addEventListener('mousedown', onPointerDown);
+        document.addEventListener('mousemove', onPointerMove);
+        document.addEventListener('mouseup', onPointerUp);
+
+        toolbar.addEventListener('touchstart', onPointerDown, { passive: true });
+        document.addEventListener('touchmove', onPointerMove, { passive: true });
+        document.addEventListener('touchend', onPointerUp);
+      }
 
       // Minimize / Expand Toggle
       if (minimizeBtn && expandedBar && collapsedBar) {
