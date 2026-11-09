@@ -1,7 +1,24 @@
 // @ts-check
 const path = require('path');
-require(path.resolve(__dirname, '../apps/api/node_modules/dotenv')).config({ path: path.resolve(__dirname, '../.env') });
-const { PrismaClient } = require(path.resolve(__dirname, '../apps/api/node_modules/@prisma/client'));
+
+function safeRequire(id) {
+  try {
+    return require(id);
+  } catch {
+    try {
+      const resolved = require.resolve(id, { paths: [process.cwd(), path.resolve(__dirname, '../apps/api'), path.resolve(__dirname, '..')] });
+      return require(resolved);
+    } catch {
+      return require(path.resolve(__dirname, `../apps/api/node_modules/${id}`));
+    }
+  }
+}
+
+const dotenv = safeRequire('dotenv');
+if (dotenv && dotenv.config) {
+  dotenv.config({ path: path.resolve(__dirname, '../.env') });
+}
+const { PrismaClient } = safeRequire('@prisma/client');
 const prisma = new PrismaClient();
 
 async function main() {
