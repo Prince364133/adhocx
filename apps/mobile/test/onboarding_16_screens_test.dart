@@ -47,41 +47,40 @@ void main() {
       expect(find.text('Get Started'), findsOneWidget);
     });
 
-    testWidgets('Screen 3: Sign In Screen renders email login with password and supports email OTP & Google',
+    testWidgets('Screen 3: Sign In Screen renders mobile login with SMS OTP and password',
         (WidgetTester tester) async {
       await tester.pumpWidget(createTestApp(const SignInScreen()));
 
       expect(find.text('Welcome back!'), findsOneWidget);
-      expect(find.text('Email Address'), findsWidgets);
-      expect(find.text('Password'), findsOneWidget);
-      expect(find.text('Sign In'), findsOneWidget);
-      expect(find.text('Sign in with Email OTP instead'), findsOneWidget);
-      expect(find.text('Forgot Password?'), findsOneWidget);
-      expect(find.text('Continue with Google'), findsOneWidget);
+      expect(find.text('Mobile Number (India) *'), findsOneWidget);
+      expect(find.text('Continue with SMS OTP'), findsOneWidget);
+      expect(find.text('Sign in with password instead'), findsOneWidget);
       expect(find.text("Don't have an account? "), findsOneWidget);
-      // Ensure Mobile Number option is NOT present on Sign In
-      expect(find.text('Mobile Number'), findsNothing);
+      // Ensure Email Address and Google options are NOT present on Sign In
+      expect(find.text('Email Address'), findsNothing);
+      expect(find.text('Continue with Google'), findsNothing);
 
-      // Switch to Email OTP mode
-      await tester.tap(find.text('Sign in with Email OTP instead'));
+      // Switch to password mode
+      await tester.tap(find.text('Sign in with password instead'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Continue with Email OTP'), findsOneWidget);
-      expect(find.text('Sign in with password instead'), findsOneWidget);
+      expect(find.text('Password'), findsOneWidget);
+      expect(find.text('Sign In with Password'), findsOneWidget);
+      expect(find.text('Sign in with SMS OTP instead'), findsOneWidget);
+      expect(find.text('Forgot Password?'), findsOneWidget);
     });
 
-    testWidgets('Screen 5: Sign Up Screen renders email registration without mobile option and Driver CTA',
+    testWidgets('Screen 5: Sign Up Screen renders mobile registration with SMS OTP and terms checkbox',
         (WidgetTester tester) async {
       await tester.pumpWidget(createTestApp(const SignUpScreen(), role: 'VENDOR'));
 
       expect(find.text('Create your account'), findsOneWidget);
-      expect(find.text('Corporate Email Address *'), findsOneWidget);
-      expect(find.text('Continue with Email OTP'), findsOneWidget);
-      expect(find.text('Registering as a Commercial Driver?'), findsOneWidget);
-      expect(find.text('Switch to Driver'), findsOneWidget);
-      // Ensure Mobile Number option is NOT present on Sign Up
-      expect(find.text('Mobile Number'), findsNothing);
-      expect(find.text('Work Mobile Number *'), findsNothing);
+      expect(find.text('Mobile Number (India) *'), findsOneWidget);
+      expect(find.text('Continue with SMS OTP'), findsOneWidget);
+      expect(find.text('Already have an account? '), findsOneWidget);
+      // Ensure Email Address options are NOT present on Sign Up
+      expect(find.text('Email Address'), findsNothing);
+      expect(find.text('Corporate Email Address *'), findsNothing);
     });
 
     testWidgets('Screen 6: Set Password Screen renders password fields',

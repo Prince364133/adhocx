@@ -160,7 +160,7 @@ class _ForgotPasswordOtpScreenState extends State<ForgotPasswordOtpScreen> {
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    "We've sent a 6-digit code to ${widget.email ?? widget.phone ?? 'your device'}",
+                    "We've sent a 6-digit SMS OTP to ${widget.phone ?? 'your registered mobile number'}",
                     style: AppTypography.body(
                       color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                     ),

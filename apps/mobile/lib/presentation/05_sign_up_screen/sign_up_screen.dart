@@ -327,8 +327,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     const SizedBox(height: AppSpacing.xxl),
 
                     // ── Footer: Already have an account? Sign in ─────────────
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Text(
                           'Already have an account? ',
