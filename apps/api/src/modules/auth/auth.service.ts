@@ -941,8 +941,8 @@ export class AuthService implements OnModuleInit {
       ...(await this.buildCorporateClaims(user)),
     };
 
-    const accessSecret = this.configService.get<string>('auth.jwtAccessSecret') || process.env.JWT_ACCESS_SECRET;
-    const refreshSecret = this.configService.get<string>('auth.jwtRefreshSecret') || process.env.JWT_REFRESH_SECRET;
+    const accessSecret = this.configService.get<string>('auth.jwtAccessSecret') || process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET || 'adhocx_default_jwt_secret_dev_2026';
+    const refreshSecret = this.configService.get<string>('auth.jwtRefreshSecret') || process.env.JWT_REFRESH_SECRET || 'adhocx_default_jwt_refresh_secret_dev_2026';
 
     const accessToken = await this.jwtService.signAsync(tokenPayload, {
       secret: accessSecret,
@@ -1144,7 +1144,7 @@ export class AuthService implements OnModuleInit {
       ...(await this.buildCorporateClaims(user ? { ...user, role: payload.role } : null)),
     };
 
-    const accessSecret = this.configService.get<string>('auth.jwtAccessSecret') || process.env.JWT_ACCESS_SECRET;
+    const accessSecret = this.configService.get<string>('auth.jwtAccessSecret') || process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET || 'adhocx_default_jwt_secret_dev_2026';
     const newAccessToken = await this.jwtService.signAsync(tokenPayload, {
       secret: accessSecret,
       expiresIn: this.configService.get<string>('auth.jwtAccessExpiresIn') || '7d',

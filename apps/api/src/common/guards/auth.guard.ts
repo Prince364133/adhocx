@@ -45,7 +45,7 @@ export class JwtAuthGuard implements CanActivate {
         }
       }
 
-      const secret = this.configService.get<string>('auth.jwtAccessSecret') || process.env.JWT_ACCESS_SECRET;
+      const secret = this.configService.get<string>('auth.jwtAccessSecret') || process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET || 'adhocx_default_jwt_secret_dev_2026';
       const payload = await this.jwtService.verifyAsync(token, { secret });
       const userId = payload.id || payload.sub;
 
