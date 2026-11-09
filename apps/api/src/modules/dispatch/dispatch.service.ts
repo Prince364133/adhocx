@@ -400,9 +400,12 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
     }
 
     // Uber-grade Sequential Dispatch:
-    // For single-vehicle requests, dispatch strictly 1-by-1 (offerBudget = 1) to prevent race conditions.
-    // For multi-vehicle requirements (e.g. 5 cabs for corporate shift), dispatch up to 'remaining'.
-    const targetLiveOffers = requirement.quantity === 1 ? 1 : remaining;
+    // By default, single-vehicle requests dispatch strictly 1-by-1 (offerBudget = 1) to prevent race conditions.
+    // If DISPATCH_OFFERS_PER_VEHICLE is configured (e.g. 2 for concurrent race testing), respect the multiplier.
+    const offersPerVehicle = Number(process.env.DISPATCH_OFFERS_PER_VEHICLE || 1);
+    const targetLiveOffers = offersPerVehicle > 1
+      ? remaining * offersPerVehicle
+      : (requirement.quantity === 1 ? 1 : remaining);
     const offerBudget = Math.max(0, targetLiveOffers - liveOffers);
     if (offerBudget <= 0) {
       this.logger.debug(`Requirement ${requirementId} already has ${liveOffers} live offers; no new wave needed`);

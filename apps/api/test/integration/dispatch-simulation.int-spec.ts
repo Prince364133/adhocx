@@ -287,6 +287,7 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
     process.env.REVIEW_GATE_START_AT = '2020-01-01T00:00:00.000Z';
     process.env.DISPATCH_MAX_WAVES = '5';
     process.env.AR_PENALTY_MODE = 'enforce';
+    process.env.DISPATCH_OFFERS_PER_VEHICLE = '2';
 
     prisma = new PrismaClient({ datasources: { db: { url: SIM_URL } } });
     await prisma.$connect();
