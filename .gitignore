@@ -6,6 +6,7 @@ node_modules/
 dist/
 build/
 .next/
+.next-dev/
 out/
 .astro/
 .turbo/
@@ -73,4 +74,3 @@ scratch/
 apps/api/load-test/.out/
 
 .claude/
-

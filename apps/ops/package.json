@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --port 7004",
-    "build": "next build",
-    "start": "next start --port 7004",
+    "dev": "node scripts/next-with-root-env.js dev --port 7004",
+    "build": "node scripts/next-with-root-env.js build",
+    "start": "node scripts/next-with-root-env.js start --port 7004",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit"
   },
@@ -23,4 +23,3 @@
     "typescript": "^5.3.3"
   }
 }
-

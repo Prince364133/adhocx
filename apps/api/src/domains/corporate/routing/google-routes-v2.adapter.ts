@@ -12,6 +12,8 @@ export interface RouteLeg {
   encodedPolyline?: string;
 }
 
+export type RoutingPreference = 'TRAFFIC_UNAWARE' | 'TRAFFIC_AWARE' | 'TRAFFIC_AWARE_OPTIMAL';
+
 export interface ComputedRouteResult {
   durationSeconds: number;
   distanceMeters: number;
@@ -24,7 +26,7 @@ export interface ComputedRouteResult {
 }
 
 export interface RouteRequestOptions {
-  routingPreference?: 'TRAFFIC_AWARE' | 'TRAFFIC_AWARE_OPTIMAL';
+  routingPreference?: RoutingPreference;
   avoidTolls?: boolean;
   avoidHighways?: boolean;
 }
@@ -96,7 +98,7 @@ export class GoogleRoutesV2Adapter {
   }
 
   /**
-   * Computes multi-stop traffic-aware route via Google Routes API v2 (Directions).
+   * Computes a multi-stop route via Google Routes API v2.
    */
   async computeRoute(
     origin: RouteCoord,
@@ -106,6 +108,9 @@ export class GoogleRoutesV2Adapter {
     options: RouteRequestOptions = {},
   ): Promise<ComputedRouteResult> {
     if (!this.apiKey) {
+      if (options.avoidTolls) {
+        this.logger.warn('Google Maps API key is missing; toll avoidance cannot be guaranteed by the fallback route.');
+      }
       return this.fallbackMultiStopRoute(origin, stops, destination, departureTime);
     }
 
@@ -113,7 +118,7 @@ export class GoogleRoutesV2Adapter {
       origin: { location: { latLng: { latitude: origin.lat, longitude: origin.lng } } },
       destination: { location: { latLng: { latitude: destination.lat, longitude: destination.lng } } },
       travelMode: 'DRIVE',
-      routingPreference: options.routingPreference || 'TRAFFIC_AWARE',
+      routingPreference: options.routingPreference || 'TRAFFIC_UNAWARE',
       departureTime: departureTime.toISOString(),
     };
 
@@ -176,7 +181,9 @@ export class GoogleRoutesV2Adapter {
         isRealRoad: true,
       };
     } catch (err: any) {
-      this.logger.warn(`Google Routes v2 API failed (${err.message}). Using road-factor multi-stop fallback.`);
+      this.logger.warn(
+        `Google Routes v2 API failed (${err.message}). Using road-factor multi-stop fallback; toll avoidance cannot be guaranteed.`,
+      );
       return this.fallbackMultiStopRoute(origin, stops, destination, departureTime);
     }
   }
@@ -292,4 +299,3 @@ export class GoogleRoutesV2Adapter {
     });
   }
 }
-

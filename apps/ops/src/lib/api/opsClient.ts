@@ -2,6 +2,7 @@ import {
   CorporateTenantOption,
   CorporateRouteItem,
   OpsBoardResponse,
+  RouteWaypointsResponse,
   SosAlertItem,
   RoutePlanningResult,
 } from './opsTypes';
@@ -26,27 +27,28 @@ export {
 export type { OpsUser };
 
 export function getApiBaseUrl(): string {
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
-  }
-
   if (typeof window !== 'undefined') {
     const host = window.location.hostname.toLowerCase();
     const port = window.location.port;
+
+    // Local app development must use the local API, even when the root .env
+    // contains the production URL for deployed applications.
+    if (host === 'localhost' || host === '127.0.0.1' || ['7002', '7003', '7004', '7005', '7006'].includes(port)) {
+      return `${window.location.protocol}//${host}:7001/api/v1`;
+    }
 
     if (host.includes('adhocx.com')) {
       return '/api/v1';
     }
 
-    if (port === '7004' || port === '7003' || port === '7002' || host === 'localhost' || host === '127.0.0.1') {
-      const protocol = window.location.protocol;
-      return `${protocol}//${host}:7001/api/v1`;
+    if (process.env.NEXT_PUBLIC_API_URL) {
+      return process.env.NEXT_PUBLIC_API_URL;
     }
 
     return `${window.location.origin}/api/v1`;
   }
 
-  return 'https://api.adhocx.com/api/v1';
+  return process.env.NEXT_PUBLIC_API_URL || 'https://api.adhocx.com/api/v1';
 }
 
 let isRefreshing = false;
@@ -96,14 +98,16 @@ function handleAuthFailure(status: number, anonymous?: boolean) {
 type RequestOptions = RequestInit & {
   anonymous?: boolean;
   _retry?: boolean;
+  responseType?: 'blob';
 };
 
 async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
   const baseUrl = getApiBaseUrl();
   const token = getStoredOpsToken();
+  const { responseType, ...fetchOptions } = options;
 
   const headers: Record<string, string> = {
-    ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+    ...(fetchOptions.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
     ...(options.headers as Record<string, string>),
   };
 
@@ -114,11 +118,13 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
   let response: Response;
   try {
     response = await fetch(`${baseUrl}${endpoint}`, {
-      ...options,
+      ...fetchOptions,
       headers,
     });
   } catch (err: any) {
-    throw new Error(`Network failure: ${err?.message || 'Unable to reach backend'}`);
+    throw new Error(`Could not connect to the API at ${baseUrl}. Check that the API service is running and accessible.`, {
+      cause: err,
+    });
   }
 
   // Silent refresh token rotation on 401
@@ -155,7 +161,7 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     throw new Error(`API Error [${response.status}]: ${errorDetail}`);
   }
 
-  return response.json() as Promise<T>;
+  return (responseType === 'blob' ? response.blob() : response.json()) as Promise<T>;
 }
 
 export const opsApi = {
@@ -194,7 +200,15 @@ export const opsApi = {
   },
 
   getRouteDetail: async (routeId: string): Promise<CorporateRouteItem> => {
-    return request<CorporateRouteItem>(`/corporate/ops/routes/${routeId}/detail`);
+    const detail = await request<{
+      route: CorporateRouteItem;
+      livePosition: NonNullable<CorporateRouteItem['gps']>;
+    }>(`/corporate/ops/routes/${routeId}/detail`);
+    return { ...detail.route, gps: detail.livePosition };
+  },
+
+  getRouteWaypoints: async (routeId: string): Promise<RouteWaypointsResponse> => {
+    return request<RouteWaypointsResponse>(`/corporate/trips/routes/${routeId}/waypoints`);
   },
 
   // ── Companies / Tenants ──
@@ -268,9 +282,6 @@ export const opsApi = {
     return request<{ success: boolean; routeId: string; message: string }>(`/corporate/trips/routes/${routeId}/cancel`, {
       method: 'POST',
       body: JSON.stringify(payload),
-    }).catch(async () => {
-      // Fallback to updating route status if cancel endpoint varies
-      return { success: true, routeId, message: 'Route cancellation recorded in audit trail.' };
     });
   },
 
@@ -327,13 +338,51 @@ export const opsApi = {
   ): Promise<RoutePlanningResult> => {
     const baseUrl = getApiBaseUrl();
     const token = getStoredOpsToken();
-    const res = await fetch(`${baseUrl}/corporate/routes/plan-stream`, {
+    const controller = new AbortController();
+    const deadline = Date.now() + 30 * 60 * 1000;
+    const awaitWithTimeout = async <T>(promise: Promise<T>, idleMs: number, idleMessage: string): Promise<T> => {
+      const remainingMs = deadline - Date.now();
+      if (remainingMs <= 0) {
+        controller.abort();
+        throw new Error('Route planning exceeded 30 minutes. Please retry with a smaller roster or contact support.');
+      }
+
+      let timeout: ReturnType<typeof setTimeout>;
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => {
+          const timeoutError =
+            remainingMs <= idleMs
+              ? new Error('Route planning exceeded 30 minutes. Please retry with a smaller roster or contact support.')
+              : new Error(idleMessage);
+          reject(timeoutError);
+          controller.abort();
+        }, Math.min(idleMs, remainingMs));
+      });
+
+      try {
+        return await Promise.race([promise, timeoutPromise]);
+      } finally {
+        clearTimeout(timeout!);
+      }
+    };
+    const fetchRequest = fetch(`${baseUrl}/corporate/routes/plan-stream`, {
       method: 'POST',
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: formData,
+      signal: controller.signal,
+    }).catch((error: unknown) => {
+      if (controller.signal.aborted) throw error;
+      throw new Error(`Could not connect to the route-planning API at ${baseUrl}. Check that the API service is running.`, {
+        cause: error,
+      });
     });
+    const res = await awaitWithTimeout(
+      fetchRequest,
+      2 * 60 * 1000,
+      'No response received from the route-planning service for 2 minutes. Check the API connection and retry.',
+    );
 
     if (!res.ok) {
       const errText = await res.text();
@@ -357,10 +406,14 @@ export const opsApi = {
     let finalPlan: RoutePlanningResult | null = null;
 
     while (true) {
-      const { done, value } = await reader.read();
+      const { done, value } = await awaitWithTimeout(
+        reader.read(),
+        90 * 1000,
+        'Route-planning progress stopped for 90 seconds. The API may be unavailable; retry the calculation.',
+      );
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n\n');
+      const lines = buffer.split(/\r?\n\r?\n/);
       buffer = lines.pop() || '';
 
       for (const block of lines) {
@@ -408,9 +461,11 @@ export const opsApi = {
     });
   },
 
-  getSampleTemplateUrl: (format = 'xlsx'): string => {
-    const baseUrl = getApiBaseUrl();
-    return `${baseUrl}/corporate/routes/sample-template?format=${format}`;
+  downloadSampleTemplate: (format: 'xlsx' | 'csv'): Promise<Blob> => {
+    const query = new URLSearchParams({ format });
+    return request<Blob>(`/corporate/routes/sample-template?${query.toString()}`, {
+      responseType: 'blob',
+    });
   },
 
   exportPlanExcel: async (plan: RoutePlanningResult): Promise<Blob> => {
@@ -432,11 +487,7 @@ export const opsApi = {
 
   // ── SOS Crisis Cockpit ──
   getSosAlerts: async (): Promise<SosAlertItem[]> => {
-    try {
-      return await request<SosAlertItem[]>(`/corporate/safety/alerts`);
-    } catch {
-      return [];
-    }
+    return request<SosAlertItem[]>(`/corporate/safety/alerts`);
   },
 
   acknowledgeSosAlert: async (alertId: string): Promise<any> => {
@@ -450,11 +501,14 @@ export const opsApi = {
   resolveSosAlert: async (alertId: string, notes: string): Promise<any> => {
     return request(`/corporate/safety/alerts/${alertId}/resolve`, {
       method: 'POST',
-      body: JSON.stringify({ notes }),
+      body: JSON.stringify({ resolutionNotes: notes, status: 'RESOLVED' }),
     });
   },
 
-  escalateSosAlert: async (alertId: string): Promise<any> => {
-    return request(`/corporate/safety/alerts/${alertId}/escalate`, { method: 'POST', body: JSON.stringify({}) });
+  escalateSosAlert: async (alertId: string, notes = 'Escalated by OPS command centre'): Promise<any> => {
+    return request(`/corporate/safety/alerts/${alertId}/escalate`, {
+      method: 'POST',
+      body: JSON.stringify({ notes }),
+    });
   },
 };

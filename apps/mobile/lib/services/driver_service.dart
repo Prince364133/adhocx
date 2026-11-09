@@ -1041,12 +1041,6 @@ class DriverService {
     return await _api.get('/corporate/trips/routes/$routeId/waypoints');
   }
 
-  /// Confirm safe drop for female passenger after 8:00 PM
-  Future<dynamic> confirmCorporateSafeDrop(String routeId, String stopId) async {
-    await _ensureDriverSession();
-    return await _api.post('/corporate/safety/routes/$routeId/stops/$stopId/confirm-safe-drop');
-  }
-
   /// Trigger emergency SOS distress alert directly to Command Centre.
   /// Body follows TriggerSosAlertDto: routeId, stopId?, latitude, longitude, batteryPct?, triggerReason?.
   Future<dynamic> triggerCorporateSos(

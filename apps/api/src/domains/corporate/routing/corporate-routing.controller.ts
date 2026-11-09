@@ -40,7 +40,7 @@ export class CorporateRoutingController {
   ) {}
 
   @Post('plan-from-file')
-  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
   @CorporateTenantScoped()
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
@@ -90,8 +90,8 @@ export class CorporateRoutingController {
         bufferMinutes: body.bufferMinutes ? Number(body.bufferMinutes) : 15,
         pickupWaitMinutes: body.pickupWaitMinutes ? Number(body.pickupWaitMinutes) : 5,
         cabCapacity: body.cabCapacity ? Number(body.cabCapacity) : 4,
-        routingPreference: body.routingPreference || 'TRAFFIC_AWARE',
-        avoidTolls: body.avoidTolls === 'true' || body.avoidTolls === true,
+        routingPreference: body.routingPreference || 'TRAFFIC_UNAWARE',
+        avoidTolls: body.avoidTolls === undefined ? true : body.avoidTolls === 'true' || body.avoidTolls === true,
         avoidHighways: body.avoidHighways === 'true' || body.avoidHighways === true,
         excludedEmployees: excluded,
         pricingConfig,
@@ -100,7 +100,7 @@ export class CorporateRoutingController {
   }
 
   @Post('plan-stream')
-  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
   @CorporateTenantScoped()
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
@@ -131,12 +131,30 @@ export class CorporateRoutingController {
       (res as any).flushHeaders();
     }
 
+    let latestPercent = 2;
+    let streamClosed = false;
+    let heartbeat: NodeJS.Timeout | undefined;
     const sendSse = (event: string, payload: any) => {
+      if (streamClosed || res.writableEnded || (res as any).destroyed) return;
       res.write(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`);
     };
+    const stopHeartbeat = () => {
+      streamClosed = true;
+      clearInterval(heartbeat);
+    };
+    if (typeof (res as any).once === 'function') {
+      (res as any).once('close', stopHeartbeat);
+    }
 
     try {
       sendSse('progress', { stage: 'INIT', percent: 2, message: 'Initiating solver & loading roster...' });
+      heartbeat = setInterval(() => {
+        sendSse('progress', {
+          stage: 'heartbeat',
+          percent: latestPercent,
+          message: 'Route planning is still running...',
+        });
+      }, 15_000);
 
       const excluded = body.excludedEmployees
         ? typeof body.excludedEmployees === 'string'
@@ -165,27 +183,35 @@ export class CorporateRoutingController {
           bufferMinutes: body.bufferMinutes ? Number(body.bufferMinutes) : 15,
           pickupWaitMinutes: body.pickupWaitMinutes ? Number(body.pickupWaitMinutes) : 5,
           cabCapacity: body.cabCapacity ? Number(body.cabCapacity) : 4,
-          routingPreference: body.routingPreference || 'TRAFFIC_AWARE',
-          avoidTolls: body.avoidTolls === 'true' || body.avoidTolls === true,
+          routingPreference: body.routingPreference || 'TRAFFIC_UNAWARE',
+          avoidTolls: body.avoidTolls === undefined ? true : body.avoidTolls === 'true' || body.avoidTolls === true,
           avoidHighways: body.avoidHighways === 'true' || body.avoidHighways === true,
           excludedEmployees: excluded,
           pricingConfig,
         },
         (type, percent, message, data) => {
+          latestPercent = percent;
           sendSse('progress', { stage: type, percent, message, data });
         },
       );
 
       sendSse('complete', { stage: 'COMPLETED', percent: 100, message: 'Route calculation completed successfully!', plan });
+      stopHeartbeat();
       res.end();
     } catch (err: any) {
       sendSse('error', { stage: 'FAILED', percent: 0, message: err.message || 'Route planning encountered an error' });
+      stopHeartbeat();
       res.end();
+    } finally {
+      stopHeartbeat();
+      if (typeof (res as any).removeListener === 'function') {
+        (res as any).removeListener('close', stopHeartbeat);
+      }
     }
   }
 
   @Post('plan-from-file/stream')
-  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
   @CorporateTenantScoped()
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
@@ -199,7 +225,7 @@ export class CorporateRoutingController {
   }
 
   @Post('commit-plan')
-  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN)
   @CorporateTenantScoped()
   @ApiOperation({ summary: 'Commit calculated route plan into active corporate routes in the database' })
   public async commitPlan(@Body() body: CommitPlanDto) {
@@ -210,7 +236,7 @@ export class CorporateRoutingController {
   }
 
   @Get('sample-template')
-  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
   @CorporateTenantScoped()
   @ApiOperation({ summary: 'Download sample Excel or CSV template for employee pickup routing' })
   public async downloadSampleTemplate(@Query('format') format: string, @Res() res: Response) {
@@ -230,7 +256,7 @@ export class CorporateRoutingController {
   }
 
   @Post('export-plan')
-  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
   @CorporateTenantScoped()
   @ApiOperation({ summary: 'Export calculated route plan to formatted multi-sheet Excel file' })
   public async exportPlanToExcel(@Body() plan: PlanRoutesResult, @Res() res: Response) {
@@ -244,7 +270,7 @@ export class CorporateRoutingController {
   }
 
   @Post('optimize')
-  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN)
   @CorporateTenantScoped()
   @ApiOperation({ summary: 'Plan capacity- and ride-time-constrained corporate routes for a shift on road travel times' })
   @ApiBody({
@@ -276,7 +302,7 @@ export class CorporateRoutingController {
   }
 
   @Get()
-  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
   @CorporateTenantScoped()
   @ApiOperation({ summary: 'List corporate routes with optional filters (paged: limit default 500, max 1000; offset)' })
   public async listRoutes(

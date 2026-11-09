@@ -92,6 +92,15 @@ export interface CorporateRouteItem {
     freshnessSeconds: number;
     isStale: boolean;
   };
+  gps?: {
+    latitude?: number;
+    longitude?: number;
+    heading?: number;
+    speedMps?: number;
+    lastSeenAt: string | null;
+    ageSeconds: number | null;
+    freshness: 'LIVE' | 'STALE' | 'OFFLINE';
+  } | null;
   isAtRisk?: boolean;
   delayMinutes?: number;
 }
@@ -113,6 +122,30 @@ export interface OpsBoardResponse {
   routes: CorporateRouteItem[];
   atRisk: CorporateRouteItem[];
   staleGps: CorporateRouteItem[];
+}
+
+export interface RouteWaypointsResponse {
+  routeId: string;
+  direction: 'LOGIN' | 'LOGOUT';
+  status: string;
+  stops: Array<{
+    stopId: string;
+    stopSequence: number;
+    stopType: 'PICKUP' | 'DROPOFF';
+    status: string;
+    latitude: number;
+    longitude: number;
+    addressText: string;
+    employeeName?: string;
+    plannedEta: string;
+  }>;
+  officeHub: {
+    id: string;
+    name: string;
+    latitude: number;
+    longitude: number;
+    addressText: string;
+  };
 }
 
 export interface SosAlertItem {
@@ -222,4 +255,3 @@ export interface RoutePlanningResult {
   expectedCorporateRevenue?: number;
   projectedMargin?: number;
 }
-

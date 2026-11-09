@@ -1,0 +1,30 @@
+{
+  "employee_revenue": 1800.0,
+  "revenue_per_km": 0.0,
+  "cab_types": [
+    {
+      "name": "sedan",
+      "capacity": 4,
+      "fleet_count": 100,
+      "fixed_charge": 350.0,
+      "per_km_charge": 14.0,
+      "distance_slabs": [
+        {"up_to_km": 10, "rate_per_km": 14.0},
+        {"up_to_km": 25, "rate_per_km": 12.0},
+        {"up_to_km": 1000, "rate_per_km": 10.0}
+      ]
+    },
+    {
+      "name": "suv",
+      "capacity": 6,
+      "fleet_count": 50,
+      "fixed_charge": 500.0,
+      "per_km_charge": 16.0,
+      "distance_slabs": [
+        {"up_to_km": 10, "rate_per_km": 16.0},
+        {"up_to_km": 25, "rate_per_km": 14.0},
+        {"up_to_km": 1000, "rate_per_km": 12.0}
+      ]
+    }
+  ]
+}
