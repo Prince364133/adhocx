@@ -408,8 +408,24 @@ describe('Corporate ETS Enterprise 500-Commuter Full-Lifecycle Simulation & Stre
         findMany: jest.fn(async () => Array.from(simDb.sosAlerts.values())),
       },
       driver: {
-        findUnique: jest.fn(async ({ where }) => simDb.drivers.get(where.id)),
-        findMany: jest.fn(async () => Array.from(simDb.drivers.values())),
+        findUnique: jest.fn(async ({ where }: any) => {
+          const d = simDb.drivers.get(where.id);
+          if (!d) return null;
+          return {
+            ...d,
+            vehicles: Array.from(simDb.vehicles.values()).filter((v: any) => v.driverId === d.id),
+          };
+        }),
+        findMany: jest.fn(async ({ where }: any = {}) => {
+          let list = Array.from(simDb.drivers.values());
+          if (where?.id?.in) {
+            list = list.filter((d: any) => where.id.in.includes(d.id));
+          }
+          return list.map((d: any) => ({
+            ...d,
+            vehicles: Array.from(simDb.vehicles.values()).filter((v: any) => v.driverId === d.id),
+          }));
+        }),
       },
       vehicle: {
         findFirst: jest.fn(async ({ where }) => {
@@ -530,6 +546,8 @@ describe('Corporate ETS Enterprise 500-Commuter Full-Lifecycle Simulation & Stre
         model: vCategory === 'SEDAN' ? 'Dzire' : 'Innova',
         plateNumber: `TS09AB${(1000 + i).toString()}`,
         verificationStatus: 'VERIFIED',
+        vehicleType: vCategory,
+        insuranceExpiry: new Date('2028-01-01T00:00:00.000Z'),
       };
       simDb.vehicles.set(veh.id, veh);
     }

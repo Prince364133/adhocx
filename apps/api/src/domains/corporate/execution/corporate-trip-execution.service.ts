@@ -245,6 +245,7 @@ export class CorporateTripExecutionService {
       data: {
         status: 'ARRIVED',
         actualArrivalTime: arrivalTime,
+        ...(stop.stopType === 'DROPOFF' && !stop.employeeId ? { actualDepartureTime: arrivalTime } : {}),
       },
     });
 
@@ -1214,6 +1215,10 @@ export class CorporateTripExecutionService {
     }
 
     const droppedAt = new Date();
+    await this.db.corporateRouteStop.update({
+      where: { id: stopId },
+      data: { actualDepartureTime: droppedAt },
+    });
     await this.tripEvents?.record({
       tenantId: stop.route.tenantId,
       routeId,

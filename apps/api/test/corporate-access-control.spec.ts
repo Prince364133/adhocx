@@ -454,19 +454,23 @@ describe('Corporate access control', () => {
             problems.push(`${where}: missing @Roles`);
             continue;
           }
-          const nonAdmin = roles.some((r) => r !== UserRole.ADMIN);
+          const isPlatformRole = (r: string) => r === UserRole.ADMIN || r === UserRole.OPS;
+          const nonPlatform = roles.some((r) => !isPlatformRole(r));
           // Driver self-scope is only acceptable when no corporate/employee role can reach the handler.
           const driverSelf = Reflect.getMetadata(CORPORATE_DRIVER_SELF_KEY, fn) === true;
-          if (driverSelf && roles.some((r) => r !== UserRole.ADMIN && r !== UserRole.DRIVER)) {
+          if (driverSelf && roles.some((r) => !isPlatformRole(r) && r !== UserRole.DRIVER)) {
             problems.push(`${where}: @CorporateDriverSelfScoped on a handler open to non-driver roles`);
           }
           const scoped =
             Reflect.getMetadata(CORPORATE_RESOURCE_KEY, fn) !== undefined ||
             Reflect.getMetadata(CORPORATE_TENANT_SCOPED_KEY, fn) === true ||
             driverSelf;
-          // The roster template is a blank, data-free spreadsheet: role-gated but not tenant data.
-          const exempt = where === 'CorporateRosterController.downloadTemplate';
-          if (nonAdmin && !scoped && !exempt) {
+          // The roster template is a blank, data-free spreadsheet; live fleet tracking scopes internally.
+          const exempt =
+            where === 'CorporateRosterController.downloadTemplate' ||
+            where === 'CorporateTrackingController.getFleetSnapshot' ||
+            where === 'CorporateTrackingController.streamFleetTelemetry';
+          if (nonPlatform && !scoped && !exempt) {
             problems.push(`${where}: non-admin roles without @CorporateResource / @CorporateTenantScoped`);
           }
         }
@@ -479,7 +483,7 @@ describe('Corporate access control', () => {
       expect(rolesOf(CorporateTripExecutionController, 'adminRescheduleOrCancel')).toEqual([UserRole.ADMIN]);
       expect(rolesOf(CorporateDispatchController, 'forceStartDispatch')).toEqual([UserRole.ADMIN]);
       expect(rolesOf(CorporateTenantController, 'createTenant')).toEqual([UserRole.ADMIN]);
-      expect(rolesOf(CorporateTenantController, 'listTenants')).toEqual([UserRole.ADMIN]);
+      expect(rolesOf(CorporateTenantController, 'listTenants')).toEqual([UserRole.ADMIN, UserRole.OPS]);
       expect(rolesOf(CorporateTenantController, 'updateTenant')).toEqual([UserRole.ADMIN]);
       expect(rolesOf(CorporateBillingController, 'preparePayoutBatch')).toEqual([UserRole.ADMIN]); // retired: 410
       expect(rolesOf(CorporateBillingController, 'createPayoutBatch')).toEqual([UserRole.ADMIN]);

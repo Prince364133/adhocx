@@ -37,7 +37,7 @@ import {
   UpdateCorporateUserInput,
 } from './corporate-tenant-users.service';
 
-const CORPORATE_PORTAL_ROLES = [UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER] as const;
+const CORPORATE_PORTAL_ROLES = [UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER] as const;
 
 /** Office scope bound by CorporateAccessGuard (null = all offices / platform admin). */
 const scopeOf = (req: any): string[] | null => req?.corporateOfficeScope ?? null;

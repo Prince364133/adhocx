@@ -117,8 +117,15 @@ function seed(db: FakeDb) {
       availabilityStatus: 'AVAILABLE',
       vehicleType,
     });
+    db.insert('vehicle', {
+      id: `veh-${id}`,
+      driverId: id,
+      registrationNumber: `TS09${id}`,
+      verificationStatus: status,
+      vehicleType,
+      insuranceExpiry: iso('2028-01-01T00:00:00.000Z'),
+    });
   }
-  db.insert('vehicle', { id: 'veh-new', driverId: 'drv-new', registrationNumber: 'TS09NEW', verificationStatus: 'VERIFIED' });
 }
 
 let seq = 0;

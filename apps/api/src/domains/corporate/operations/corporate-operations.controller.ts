@@ -76,7 +76,7 @@ export class CorporateRouteCancellationController {
 
   @Post('routes/:id/cancel')
   @HttpCode(200)
-  @Roles(UserRole.ADMIN, UserRole.OPS)
+  @Roles(UserRole.ADMIN)
   @CorporateResource('route', 'id')
   @ApiOperation({
     summary:

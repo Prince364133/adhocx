@@ -403,8 +403,24 @@ describe('Corporate Managed ETS: 20-Step Comprehensive Operational Simulations',
       }),
     },
     driver: {
-      findUnique: jest.fn(async ({ where }: any) => simDb.drivers.get(where.id)),
-      findMany: jest.fn(async () => Array.from(simDb.drivers.values())),
+      findUnique: jest.fn(async ({ where }: any) => {
+        const d = simDb.drivers.get(where.id);
+        if (!d) return null;
+        return {
+          ...d,
+          vehicles: Array.from(simDb.vehicles.values()).filter((v) => v.driverId === d.id),
+        };
+      }),
+      findMany: jest.fn(async ({ where }: any = {}) => {
+        let list = Array.from(simDb.drivers.values());
+        if (where?.id?.in) {
+          list = list.filter((d) => where.id.in.includes(d.id));
+        }
+        return list.map((d) => ({
+          ...d,
+          vehicles: Array.from(simDb.vehicles.values()).filter((v) => v.driverId === d.id),
+        }));
+      }),
     },
     vehicle: {
       findFirst: jest.fn(async ({ where }: any) => {
@@ -516,6 +532,8 @@ describe('Corporate Managed ETS: 20-Step Comprehensive Operational Simulations',
         model: vCat === 'SEDAN' ? 'Dzire' : 'Innova',
         plateNumber: `TS09AB${(2000 + i).toString()}`,
         verificationStatus: 'VERIFIED',
+        vehicleType: vCat,
+        insuranceExpiry: new Date('2028-01-01T00:00:00.000Z'),
       });
     }
   });
@@ -793,7 +811,8 @@ describe('Corporate Managed ETS: 20-Step Comprehensive Operational Simulations',
       (s) => s.routeId === route.id && (s.status === 'PENDING' || s.status === 'ARRIVED'),
     );
     for (const st of pendingStops) {
-      st.status = 'BOARDED';
+      st.status = st.stopType === 'DROPOFF' ? 'DROPPED' : 'BOARDED';
+      st.actualDepartureTime = new Date();
     }
 
     const completeRes = await executionService.completeRoute(route.id);

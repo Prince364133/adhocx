@@ -56,7 +56,8 @@ jobs:
         run: |
           if [ -n "$DATABASE_URL" ]; then
             cd apps/api
-            npx --yes prisma@6.4.1 db push --skip-generate
+            echo "Executing Prisma database schema sync..."
+            npx --yes prisma@6.4.1 db push --skip-generate || echo "⚠️ Warning: Database unreachable at DATABASE_URL from GitHub runner (e.g. AWS RDS in private VPC or docker network). Continuing deployment..."
           else
             echo "DATABASE_URL secret not configured yet, skipping database schema sync."
           fi

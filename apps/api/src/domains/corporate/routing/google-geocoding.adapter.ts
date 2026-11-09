@@ -160,6 +160,9 @@ export class GoogleGeocodingAdapter {
     const lower = address.toLowerCase();
 
     // Known Hyderabad tech corridor coordinates
+    if (lower.includes('shamshabad') || lower.includes('airport')) {
+      return { lat: 17.2403, lng: 78.4294, matchedAddress: 'RGIA Shamshabad Airport, Hyderabad, Telangana', partialMatch: false, isRealGeocode: false };
+    }
     if (lower.includes('hitec') || lower.includes('cyber') || lower.includes('mindspace')) {
       return { lat: 17.4435, lng: 78.3772, matchedAddress: 'Hitec City, Hyderabad, Telangana', partialMatch: false, isRealGeocode: false };
     }

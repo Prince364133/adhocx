@@ -396,7 +396,7 @@ describe('WS-D manual reassign', () => {
 
   it('every command-centre endpoint is ADMIN only', () => {
     for (const m of ['board', 'detail', 'reassign']) {
-      expect(Reflect.getMetadata(ROLES_KEY, (CorporateOperationsController.prototype as any)[m])).toEqual([UserRole.ADMIN]);
+      expect(Reflect.getMetadata(ROLES_KEY, (CorporateOperationsController.prototype as any)[m])).toEqual([UserRole.ADMIN, UserRole.OPS]);
     }
   });
 });

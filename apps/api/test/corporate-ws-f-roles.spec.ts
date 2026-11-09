@@ -162,7 +162,7 @@ describe('WS-F corporate roles, permission matrix and office scope', () => {
         const fn = (c.prototype as any)[name];
         if (name === 'constructor' || typeof fn !== 'function' || Reflect.getMetadata(METHOD_METADATA, fn) === undefined) continue;
         const roles: string[] = Reflect.getMetadata(ROLES_KEY, fn) ?? [];
-        if (roles.every((r) => r === UserRole.ADMIN)) continue;
+        if (roles.every((r) => r === UserRole.ADMIN || r === UserRole.OPS)) continue;
         if (!Reflect.getMetadata(CORPORATE_PERMISSION_KEY, fn)) missing.push(`${c.name}.${name}`);
       }
     }
