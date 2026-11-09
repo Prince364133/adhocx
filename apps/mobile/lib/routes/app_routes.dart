@@ -683,6 +683,7 @@ final GoRouter appRouter = GoRouter(
           email: extra['email'],
           role: extra['role'] ?? 'DRIVER',
           isRegister: extra['isRegister'] ?? false,
+          devOtp: extra['devOtp']?.toString(),
         );
       },
     ),

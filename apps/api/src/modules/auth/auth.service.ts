@@ -495,11 +495,13 @@ export class AuthService implements OnModuleInit {
       fullName: dto.fullName,
     });
 
+    const isProd = process.env.NODE_ENV === 'production';
     return {
       requestId,
       expiresAt: new Date(expiresAt).toISOString(),
       retryAfterSeconds: this.configService.get<number>('auth.otpResendDelaySeconds') || 30,
-      message: `OTP sent successfully to ${value} via ${channel}`,
+      otp: !isProd ? otp : undefined,
+      message: !isProd ? `OTP sent! (Dev Code: ${otp})` : `OTP sent successfully to ${value} via ${channel}`,
     };
   }
 

@@ -74,14 +74,18 @@ class AppSegmentedControl<T> extends StatelessWidget {
                       ),
                       const SizedBox(width: AppSpacing.xs),
                     ],
-                    Text(
-                      item.label,
-                      style: AppTypography.bodyMedium(
-                        color: isSelected
-                            ? Colors.white
-                            : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
-                      ).copyWith(
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                    Flexible(
+                      child: Text(
+                        item.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.bodyMedium(
+                          color: isSelected
+                              ? Colors.white
+                              : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+                        ).copyWith(
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                        ),
                       ),
                     ),
                   ],

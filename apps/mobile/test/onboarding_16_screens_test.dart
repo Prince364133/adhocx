@@ -64,7 +64,7 @@ void main() {
       await tester.tap(find.text('Sign in with password instead'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Password'), findsOneWidget);
+      expect(find.text('Password'), findsNWidgets(2));
       expect(find.text('Sign In with Password'), findsOneWidget);
       expect(find.text('Sign in with SMS OTP instead'), findsOneWidget);
       expect(find.text('Forgot Password?'), findsOneWidget);

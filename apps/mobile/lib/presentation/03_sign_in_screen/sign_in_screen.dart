@@ -13,6 +13,7 @@ import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/common/app_primary_button.dart';
+import '../../widgets/common/app_segmented_control.dart';
 import '../../widgets/common/app_text_field.dart';
 
 /// Screen 3: Sign In with Mobile (+91) and SMS OTP / Password.
@@ -102,6 +103,7 @@ class _SignInScreenState extends State<SignInScreen> {
       );
 
       if (mounted) {
+        final devOtp = res is Map ? (res['otp'] ?? res['data']?['otp'])?.toString() : null;
         final message = res is Map && res['message'] != null
             ? res['message']
             : 'SMS OTP sent to $phoneE164';
@@ -113,6 +115,7 @@ class _SignInScreenState extends State<SignInScreen> {
             'phone': phoneE164,
             'role': 'DRIVER',
             'isRegister': false,
+            'devOtp': devOtp,
           },
         );
       }
@@ -267,10 +270,37 @@ class _SignInScreenState extends State<SignInScreen> {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      'Sign in with your mobile number via SMS OTP',
+                      _showPasswordField
+                          ? 'Sign in with your mobile number and password'
+                          : 'Sign in with your mobile number via SMS OTP',
                       style: AppTypography.body(
                         color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                       ),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+
+                    // ── Sign-In Method Switcher: SMS OTP vs Password ─────────
+                    AppSegmentedControl<bool>(
+                      items: const [
+                        SegmentItem(
+                          value: false,
+                          label: 'SMS OTP',
+                          icon: Icons.sms_outlined,
+                        ),
+                        SegmentItem(
+                          value: true,
+                          label: 'Password',
+                          icon: Icons.lock_outline_rounded,
+                        ),
+                      ],
+                      selectedValue: _showPasswordField,
+                      onValueChanged: (val) {
+                        setState(() {
+                          _showPasswordField = val;
+                          _inlineErrorMessage = null;
+                        });
+                      },
+                      activeColor: isDark ? AppColors.primaryLight : AppColors.primary,
                     ),
                     const SizedBox(height: AppSpacing.xl),
 

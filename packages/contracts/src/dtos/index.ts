@@ -15,3 +15,4 @@ export * from './coupon.dto';
 export * from './notification.dto';
 export * from './corporate';
 export * from './distance-pricing.dto';
+export * from './telemetry.dto';
