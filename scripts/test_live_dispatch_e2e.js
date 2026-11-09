@@ -154,6 +154,7 @@ async function runVerification() {
     body: JSON.stringify({
       vehicleType: 'SEDAN',
       quantity: 1,
+      isScheduled: false,
       pickupLocation: {
         latitude: 28.4950,
         longitude: 77.0895,
@@ -164,7 +165,7 @@ async function runVerification() {
         longitude: 77.1000,
         address: 'Indira Gandhi International Airport, Terminal 3, Delhi',
       },
-      reportingTime: new Date(Date.now() + 3600000).toISOString(),
+      reportingTime: new Date().toISOString(),
       suggestedBudget: 850,
       ratePerVehicle: 850,
       fulfillmentMode: 'DIRECT_DISPATCH',
