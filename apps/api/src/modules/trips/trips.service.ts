@@ -34,6 +34,8 @@ import { findPendingReviewTrip } from '../reviews/pending-review';
 import { DispatchConfig } from '../dispatch/dispatch.config';
 import { sanitizeRealName } from '../../common';
 import { RedisPubSubService } from '../../redis/redis-pubsub.service';
+import { RedisService } from '../../redis/redis.service';
+import { TelemetryChannels, TripTelemetryKeys, TRIP_LATEST_TTL_SEC } from '../../domains/corporate/tracking/tracking.types';
 import { LiveVehicleTelemetryPayload } from '@adhocx/contracts';
 
 @Injectable()
@@ -47,6 +49,7 @@ export class TripsService {
     private readonly audit: AuditService,
     @Optional() private readonly locations?: LocationsService,
     @Optional() private readonly pubsub?: RedisPubSubService,
+    @Optional() private readonly redis?: RedisService,
   ) {}
 
   /**
@@ -621,6 +624,11 @@ export class TripsService {
 
   /**
    * Update driver's live GPS telemetry during an active trip.
+   *
+   * Order matters for latency: the live-map fan-out (Pub/Sub + latest-position cache) and the
+   * dispatch geo index happen on every ping; the Postgres writes (driver position, LOCATION_PING
+   * breadcrumb) are throttled to one per TRIP_LOCATION_PERSIST_INTERVAL_SEC (default 10) per trip
+   * by a Redis SET NX gate. Without Redis every ping is persisted (fail safe).
    */
   async updateLocation(id: string, driverUserId: string, dto: TripLocationUpdateDto): Promise<void> {
     const trip = await this.findAndVerifyDriverTrip(id, driverUserId);
@@ -632,65 +640,96 @@ export class TripsService {
     }
 
     const now = new Date();
+    const { latitude, longitude } = dto.location;
 
-    // Update driver coordinates
+    // 1. Live map: latest-position cache + Pub/Sub fan-out (fire and forget). Speed arrives in m/s.
+    const hasSpeed = dto.speed !== undefined && dto.speed !== null && Number.isFinite(Number(dto.speed));
+    const hasHeading = dto.heading !== undefined && dto.heading !== null && Number.isFinite(Number(dto.heading));
+    const driver: any = (trip as any).driver;
+    const driverName = driver?.fullName || undefined;
+    const vehicleNumber = driver?.vehiclePlate || undefined;
+    const telemetryPayload: LiveVehicleTelemetryPayload = {
+      routeId: id,
+      kind: 'TRIP',
+      tripId: id,
+      driverId: trip.driverId ?? '',
+      ...(driverName ? { driverName } : {}),
+      ...(vehicleNumber ? { vehicleNumber } : {}),
+      lat: latitude,
+      lng: longitude,
+      speedKph: hasSpeed ? Math.round(Number(dto.speed) * 3.6) : 0,
+      heading: hasHeading ? Number(dto.heading) : 0,
+      // TripLocationUpdateDto carries no device timestamp yet: server receive time.
+      recordedAt: now.getTime(),
+      receivedAt: now.getTime(),
+      gpsState: 'LIVE',
+      status: trip.status,
+    };
+    const raw = JSON.stringify(telemetryPayload);
+    const client: any = this.redis?.getClient() ?? null;
+    if (client && typeof client.set === 'function') {
+      Promise.resolve(client.set(TripTelemetryKeys.latest(id), raw, 'EX', TRIP_LATEST_TTL_SEC)).catch(() => undefined);
+    } else if (this.redis) {
+      this.redis.set(TripTelemetryKeys.latest(id), raw, TRIP_LATEST_TTL_SEC).catch(() => undefined);
+    }
+    if (this.pubsub) {
+      this.pubsub.publish(TelemetryChannels.opsFleet, raw).catch(() => undefined);
+      this.pubsub.publish(TelemetryChannels.trip(id), raw).catch(() => undefined);
+    }
+
+    // 2. Keep the dispatch spatial index fresh (dispatch re-checks availability in the DB).
+    this.locations?.indexDriverLocation(trip.driverId, latitude, longitude, trip.vehicleType as string).catch(() => undefined);
+
+    // 3. Vendor channel (unchanged contract)
+    this.notifications.emitEvent(`vendor:${trip.vendorId}`, 'TRIP_LOCATION_UPDATE', {
+      tripId: id,
+      driverId: trip.driverId,
+      latitude,
+      longitude,
+      heading: dto.heading,
+      speed: dto.speed,
+      timestamp: now.toISOString(),
+    });
+
+    // 4. Postgres, throttled per trip.
+    if (!(await this.shouldPersistLocation(id))) return;
+
     await this.db.driver.update({
       where: { id: trip.driverId },
       data: {
-        currentLat: dto.location.latitude,
-        currentLng: dto.location.longitude,
+        currentLat: latitude,
+        currentLng: longitude,
         lastLocationAt: now,
       },
     });
 
-    // Keep the dispatch spatial index fresh (dispatch re-checks availability in the DB).
-    this.locations
-      ?.indexDriverLocation(trip.driverId, dto.location.latitude, dto.location.longitude, trip.vehicleType as string)
-      .catch(() => undefined);
-
-    // Append to TripEvent telemetry log
+    // Sampled breadcrumb (one per persist interval), not one row per ping.
     await this.db.tripEvent.create({
       data: {
         tripId: id,
         eventType: 'LOCATION_PING',
-        latitude: dto.location.latitude,
-        longitude: dto.location.longitude,
+        latitude,
+        longitude,
         metadata: {
           heading: dto.heading,
           speed: dto.speed,
         },
       },
     });
+  }
 
-    // Stream live location to vendor channel
-    this.notifications.emitEvent(`vendor:${trip.vendorId}`, 'TRIP_LOCATION_UPDATE', {
-      tripId: id,
-      driverId: trip.driverId,
-      latitude: dto.location.latitude,
-      longitude: dto.location.longitude,
-      heading: dto.heading,
-      speed: dto.speed,
-      timestamp: now.toISOString(),
-    });
-
-    // Live ops map fan-out (fire and forget). Speed arrives in m/s.
-    if (this.pubsub) {
-      const speedMps = Number(dto.speed);
-      const telemetryPayload: LiveVehicleTelemetryPayload = {
-        routeId: id,
-        tripId: id,
-        driverId: trip.driverId ?? '',
-        lat: dto.location.latitude,
-        lng: dto.location.longitude,
-        speedKph: Number.isFinite(speedMps) ? Math.round(speedMps * 3.6) : 0,
-        heading: Number.isFinite(Number(dto.heading)) ? Number(dto.heading) : 0,
-        recordedAt: now.getTime(),
-        receivedAt: now.getTime(),
-        gpsState: 'LIVE',
-        status: trip.status,
-      };
-      this.pubsub.publish('telemetry:ops:fleet', telemetryPayload).catch(() => undefined);
-      this.pubsub.publish(`telemetry:trip:${id}`, telemetryPayload).catch(() => undefined);
+  /** True at most once per TRIP_LOCATION_PERSIST_INTERVAL_SEC per trip; always true without Redis. */
+  private async shouldPersistLocation(tripId: string): Promise<boolean> {
+    const env = process.env.TRIP_LOCATION_PERSIST_INTERVAL_SEC;
+    const n = Number(env);
+    const intervalSec = env !== undefined && env !== '' && Number.isFinite(n) && n >= 0 ? Math.floor(n) : 10;
+    if (intervalSec === 0) return true;
+    const client: any = this.redis?.getClient() ?? null;
+    if (!client || typeof client.set !== 'function') return true;
+    try {
+      return (await client.set(TripTelemetryKeys.persistGate(tripId), '1', 'EX', intervalSec, 'NX')) !== null;
+    } catch {
+      return true;
     }
   }
 

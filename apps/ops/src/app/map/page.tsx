@@ -4,26 +4,62 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { opsApi, getApiBaseUrl, getStoredOpsToken } from '../../lib/api/opsClient';
 import { CorporateRouteItem } from '../../lib/api/opsTypes';
 import { Button } from '../../components/common/Button';
-import { StatusBadge } from '../../components/common/StatusBadge';
-import { LiveVehicleTelemetryPayload } from '@adhocx/contracts';
-import { ACTIVE_ROUTE_STATUSES, GPS_COLORS, gpsStateOf, MARKER_DROP_AFTER_SEC, shortestTurnDeg } from '../../lib/fleet-telemetry';
+import { VehicleListPanel } from '../../components/map/VehicleListPanel';
+import { VehicleDetailPanel } from '../../components/map/VehicleDetailPanel';
 import {
-  Car,
-  Radio,
-  Compass,
-  Phone,
-  RefreshCw,
-  Gauge,
-  Navigation,
-  Battery,
-  ShieldCheck,
-} from 'lucide-react';
+  ACTIVE_ROUTE_STATUSES,
+  FleetFix,
+  GPS_COLORS,
+  GpsState,
+  KIND_STROKE,
+  LatLngBoundsLiteral,
+  MARKER_DROP_AFTER_SEC,
+  VehicleKind,
+  VehicleListItem,
+  gpsStateOf,
+  isInViewport,
+  isValidFix,
+  kindOf,
+  lerp,
+  mergeFix,
+  needsRotationUpdate,
+  parseFixFrame,
+  segmentDurationMs,
+  segmentProgress,
+  stepHeading,
+  toListItem,
+  vehicleLabel,
+} from '../../lib/fleet-telemetry';
+import { Car, Radio, RefreshCw } from 'lucide-react';
 
 function todayIst(): string {
   return new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10);
 }
 
-interface VehicleInterpolationState {
+const DEFAULT_CENTER = { lat: 17.4435, lng: 78.3772 };
+const UI_TICK_MS = 1000;
+const FRESHNESS_SWEEP_MS = 5000;
+/** Navigation-arrow path for on-demand trips (corporate routes use the closed forward arrow). */
+const TRIP_MARKER_PATH = 'M 0,-3 L 2.2,2.4 L 0,1.2 L -2.2,2.4 Z';
+
+const DARK_STYLES = [
+  { elementType: 'geometry', stylers: [{ color: '#171717' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#0A0A0A' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#A3A3A3' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#262626' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#1F1F1F' }] },
+  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+];
+const LIGHT_STYLES = [
+  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+  { featureType: 'transit', stylers: [{ visibility: 'simplified' }] },
+];
+
+function isDarkTheme(): boolean {
+  return typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'dark';
+}
+
+interface VehicleState {
   // Animation segment: the marker moves from `from` to `to` over `durationMs`, starting at `startMs`.
   fromLat: number;
   fromLng: number;
@@ -35,31 +71,64 @@ interface VehicleInterpolationState {
   currentLng: number;
   currentHeading: number;
   targetHeading: number;
-  lastFixMs: number;
+  /** What the marker icon currently shows; setIcon is only called when these change enough. */
+  drawnRotation: number;
+  drawnColor: string;
+  kind: VehicleKind;
   marker: any;
-  telemetry: LiveVehicleTelemetryPayload;
+  telemetry: FleetFix;
+}
+
+interface UiSnapshot {
+  nowMs: number;
+  items: VehicleListItem[];
+  liveFixCount: number;
+  lastFixAt: number | null;
+}
+
+function makeIcon(g: any, kind: VehicleKind, color: string, rotation: number) {
+  return {
+    path: kind === 'TRIP' ? TRIP_MARKER_PATH : g.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+    scale: kind === 'TRIP' ? 4 : 5,
+    fillColor: color,
+    fillOpacity: 1,
+    strokeWeight: 2,
+    strokeColor: KIND_STROKE[kind],
+    rotation,
+  };
+}
+
+function redrawIcon(veh: VehicleState, color: string, rotation: number) {
+  const g = (window as any).google;
+  if (!g) return;
+  veh.drawnColor = color;
+  veh.drawnRotation = rotation;
+  veh.marker.setIcon(makeIcon(g, veh.kind, color, rotation));
 }
 
 export default function FleetLiveMapPage() {
   const [routes, setRoutes] = useState<CorporateRouteItem[]>([]);
-  const [selectedRoute, setSelectedRoute] = useState<CorporateRouteItem | null>(null);
-  const [selectedTelemetry, setSelectedTelemetry] = useState<LiveVehicleTelemetryPayload | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>(todayIst());
   const [connectionStatus, setConnectionStatus] = useState<'CONNECTING' | 'LIVE' | 'RECONNECTING'>('CONNECTING');
-  const [liveFixCount, setLiveFixCount] = useState<number>(0);
+  // Everything derived from the fix stream reaches React only on the 1 s UI tick (never per fix).
+  const [ui, setUi] = useState<UiSnapshot>({ nowMs: Date.now(), items: [], liveFixCount: 0, lastFixAt: null });
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const googleMapRef = useRef<any>(null);
-  const vehicleStatesRef = useRef<Map<string, VehicleInterpolationState>>(new Map());
+  const boundsRef = useRef<LatLngBoundsLiteral | null>(null);
+  const vehicleStatesRef = useRef<Map<string, VehicleState>>(new Map());
   const routesMapRef = useRef<Map<string, CorporateRouteItem>>(new Map());
-  const activePolylineRef = useRef<any>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const animationFrameRef = useRef<number | null>(null);
-
-  const centerLat = 17.4435;
-  const centerLng = 78.3772;
+  const liveFixCountRef = useRef(0);
+  const lastFixAtRef = useRef<number | null>(null);
+  const selectedIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    selectedIdRef.current = selectedId;
+  }, [selectedId]);
 
   // ─── 1. Google Maps Script Loader ───────────────────────────────────────────
   const loadGoogleMapsScript = useCallback((callback: () => void) => {
@@ -86,112 +155,106 @@ export default function FleetLiveMapPage() {
   }, []);
 
   // ─── 2. Initialize Google Map ───────────────────────────────────────────────
+  // No mapId: with a mapId, Google ignores `styles` (cloud styling), which broke the dark theme.
+  // Legacy Marker + styles work together without one.
   const initMap = useCallback(() => {
-    if (!mapContainerRef.current || !(window as any).google) return;
+    if (!mapContainerRef.current || !(window as any).google || googleMapRef.current) return;
     const google = (window as any).google;
+    const map = new google.maps.Map(mapContainerRef.current, {
+      center: DEFAULT_CENTER,
+      zoom: 12.5,
+      disableDefaultUI: false,
+      zoomControl: true,
+      mapTypeControl: false,
+      streetViewControl: false,
+      styles: isDarkTheme() ? DARK_STYLES : LIGHT_STYLES,
+    });
+    map.addListener('idle', () => {
+      const b = map.getBounds?.();
+      boundsRef.current = b ? (b.toJSON() as LatLngBoundsLiteral) : null;
+    });
+    googleMapRef.current = map;
+  }, []);
 
-    const isDark = typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'dark';
-
-    if (!googleMapRef.current) {
-      googleMapRef.current = new google.maps.Map(mapContainerRef.current, {
-        center: { lat: centerLat, lng: centerLng },
-        zoom: 12.5,
-        mapId: 'adhocx_ops_live_cockpit',
-        disableDefaultUI: false,
-        zoomControl: true,
-        mapTypeControl: false,
-        streetViewControl: false,
-        styles: isDark
-          ? [
-              { elementType: 'geometry', stylers: [{ color: '#171717' }] },
-              { elementType: 'labels.text.stroke', stylers: [{ color: '#0A0A0A' }] },
-              { elementType: 'labels.text.fill', stylers: [{ color: '#A3A3A3' }] },
-              { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#262626' }] },
-              { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#1F1F1F' }] },
-              { featureType: 'poi', stylers: [{ visibility: 'off' }] },
-            ]
-          : [
-              { featureType: 'poi', stylers: [{ visibility: 'off' }] },
-              { featureType: 'transit', stylers: [{ visibility: 'simplified' }] },
-            ],
-      });
-    }
-  }, [centerLat, centerLng]);
-
-  const selectedRouteRef = useRef<CorporateRouteItem | null>(null);
+  // Re-style when the theme toggle flips data-theme.
   useEffect(() => {
-    selectedRouteRef.current = selectedRoute;
-  }, [selectedRoute]);
+    if (typeof MutationObserver === 'undefined') return;
+    const obs = new MutationObserver(() => {
+      googleMapRef.current?.setOptions({ styles: isDarkTheme() ? DARK_STYLES : LIGHT_STYLES });
+    });
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => obs.disconnect();
+  }, []);
 
-  // ─── 3. Apply a fix (from the snapshot or the stream) ──────────────────────
-  const applyFix = useCallback((telemetry: LiveVehicleTelemetryPayload, countAsLive: boolean) => {
+  // ─── 3. Apply a fix (from the snapshot or the stream). Touches refs only. ───
+  const applyFix = useCallback((incoming: FleetFix, countAsLive: boolean) => {
     const g = (window as any).google;
-    if (!googleMapRef.current || !g) return;
-    if (!telemetry?.routeId || !Number.isFinite(telemetry.lat) || !Number.isFinite(telemetry.lng) || !Number.isFinite(telemetry.recordedAt)) return;
-    if (countAsLive) setLiveFixCount((prev) => prev + 1);
+    if (!googleMapRef.current || !g || !isValidFix(incoming)) return;
+    if (countAsLive) {
+      liveFixCountRef.current += 1;
+      lastFixAtRef.current = Date.now();
+    }
 
     const nowMs = performance.now();
-    const state = gpsStateOf(telemetry.recordedAt);
-    const fix = { ...telemetry, gpsState: state };
-    const existing = vehicleStatesRef.current.get(telemetry.routeId);
+    const existing = vehicleStatesRef.current.get(incoming.routeId);
 
     if (existing) {
-      if (telemetry.recordedAt < existing.telemetry.recordedAt) return; // older than what we show
+      if (incoming.recordedAt < existing.telemetry.recordedAt) return; // older than what we show
+      const merged = mergeFix(existing.telemetry, incoming);
+      const state = gpsStateOf(merged.recordedAt);
       // Animate from where the marker is now to the new fix over the gap between fixes,
       // so the cab keeps moving until the next fix instead of jumping and stopping.
       existing.fromLat = existing.currentLat;
       existing.fromLng = existing.currentLng;
-      existing.toLat = telemetry.lat;
-      existing.toLng = telemetry.lng;
+      existing.toLat = merged.lat;
+      existing.toLng = merged.lng;
       existing.startMs = nowMs;
-      existing.durationMs = Math.min(Math.max(telemetry.recordedAt - existing.telemetry.recordedAt, 500), 5000);
-      existing.targetHeading = telemetry.heading;
-      existing.lastFixMs = telemetry.recordedAt;
-      existing.telemetry = fix;
-      const icon = existing.marker.getIcon() as any;
-      if (icon) {
-        icon.fillColor = GPS_COLORS[state];
-        existing.marker.setIcon(icon);
+      existing.durationMs = segmentDurationMs(existing.telemetry.recordedAt, merged.recordedAt);
+      existing.targetHeading = Number.isFinite(merged.heading) ? merged.heading : existing.targetHeading;
+      existing.telemetry = { ...merged, gpsState: state };
+      const kind = kindOf(merged);
+      if (kind !== existing.kind) {
+        existing.kind = kind;
+        redrawIcon(existing, GPS_COLORS[state], existing.drawnRotation);
+      } else if (existing.drawnColor !== GPS_COLORS[state]) {
+        redrawIcon(existing, GPS_COLORS[state], existing.drawnRotation);
       }
-    } else {
-      const marker = new g.maps.Marker({
-        position: { lat: telemetry.lat, lng: telemetry.lng },
-        map: googleMapRef.current,
-        title: `${telemetry.driverName || 'Cab'} (RT-${telemetry.routeId.slice(0, 6)})`,
-        icon: {
-          path: g.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-          scale: 5,
-          fillColor: GPS_COLORS[state],
-          fillOpacity: 1,
-          strokeWeight: 2,
-          strokeColor: '#FFFFFF',
-          rotation: telemetry.heading,
-        },
-      });
-      marker.addListener('click', () => {
-        const route = routesMapRef.current.get(telemetry.routeId);
-        if (route) setSelectedRoute(route);
-        setSelectedTelemetry(vehicleStatesRef.current.get(telemetry.routeId)?.telemetry ?? fix);
-      });
-      vehicleStatesRef.current.set(telemetry.routeId, {
-        fromLat: telemetry.lat,
-        fromLng: telemetry.lng,
-        toLat: telemetry.lat,
-        toLng: telemetry.lng,
-        startMs: nowMs,
-        durationMs: 1,
-        currentLat: telemetry.lat,
-        currentLng: telemetry.lng,
-        currentHeading: telemetry.heading,
-        targetHeading: telemetry.heading,
-        lastFixMs: telemetry.recordedAt,
-        marker,
-        telemetry: fix,
-      });
+      return;
     }
 
-    if (selectedRouteRef.current?.id === telemetry.routeId) setSelectedTelemetry(fix);
+    const state = gpsStateOf(incoming.recordedAt);
+    const kind = kindOf(incoming);
+    const heading = Number.isFinite(incoming.heading) ? incoming.heading : 0;
+    const marker = new g.maps.Marker({
+      position: { lat: incoming.lat, lng: incoming.lng },
+      map: googleMapRef.current,
+      title: `${incoming.driverName || 'Cab'} (${vehicleLabel(incoming)})`,
+      icon: makeIcon(g, kind, GPS_COLORS[state], heading),
+      zIndex: kind === 'TRIP' ? 2 : 1,
+    });
+    marker.addListener('click', () => setSelectedId(incoming.routeId));
+    vehicleStatesRef.current.set(incoming.routeId, {
+      fromLat: incoming.lat,
+      fromLng: incoming.lng,
+      toLat: incoming.lat,
+      toLng: incoming.lng,
+      startMs: nowMs,
+      durationMs: 1,
+      currentLat: incoming.lat,
+      currentLng: incoming.lng,
+      currentHeading: heading,
+      targetHeading: heading,
+      drawnRotation: heading,
+      drawnColor: GPS_COLORS[state],
+      kind,
+      marker,
+      telemetry: { ...incoming, gpsState: state },
+    });
   }, []);
+
+  const applyFrame = useCallback((data: string) => {
+    parseFixFrame(data).forEach((f) => applyFix(f, true));
+  }, [applyFix]);
 
   const removeVehicle = useCallback((routeId: string) => {
     const v = vehicleStatesRef.current.get(routeId);
@@ -203,8 +266,8 @@ export default function FleetLiveMapPage() {
   // ─── 4. Snapshot: real last-known positions (never guessed) ────────────────
   const loadSnapshot = useCallback(async () => {
     try {
-      const fixes = await opsApi.getFleetSnapshot();
-      fixes.forEach((f) => applyFix(f, false));
+      const fixes = (await opsApi.getFleetSnapshot()) as FleetFix[];
+      (fixes || []).forEach((f) => applyFix(f, false));
     } catch {
       // the stream still delivers new fixes
     }
@@ -217,7 +280,12 @@ export default function FleetLiveMapPage() {
 
   const connectStream = useCallback(async () => {
     if (unmountedRef.current) return;
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
     eventSourceRef.current?.close();
+    eventSourceRef.current = null;
     // Loading the snapshot first also refreshes an expired access token before it goes in the URL.
     await loadSnapshot();
     if (unmountedRef.current) return;
@@ -229,66 +297,75 @@ export default function FleetLiveMapPage() {
       reconnectAttemptRef.current = 0;
       setConnectionStatus('LIVE');
     };
-    es.onmessage = (event) => {
-      try {
-        applyFix(JSON.parse(event.data) as LiveVehicleTelemetryPayload, true);
-      } catch {
-        // ignore malformed frames
-      }
-    };
+    // Batched frames (current API) and single-object/array default frames (older API builds).
+    es.addEventListener('fixes', (event) => applyFrame((event as MessageEvent).data));
+    es.onmessage = (event) => applyFrame(event.data);
+    // `heartbeat` events need no handler: named events never reach onmessage.
+    // The server is about to close because the token expires: reconnect now with a fresh token,
+    // without counting it as a failure.
+    es.addEventListener('reauth', () => {
+      es.onerror = null;
+      es.close();
+      if (eventSourceRef.current === es) eventSourceRef.current = null;
+      reconnectAttemptRef.current = 0;
+      void connectStream();
+    });
     es.onerror = () => {
       es.close();
+      if (eventSourceRef.current !== es) return; // superseded by a newer connection
+      eventSourceRef.current = null;
       setConnectionStatus('RECONNECTING');
       const attempt = reconnectAttemptRef.current++;
       const delay = Math.min(1000 * 2 ** attempt, 30_000);
       reconnectTimerRef.current = setTimeout(() => void connectStream(), delay);
     };
-  }, [applyFix, loadSnapshot]);
+  }, [applyFrame, loadSnapshot]);
 
-  // ─── 6. Animation loop + freshness sweep ───────────────────────────────────
+  // ─── 6. Animation loop (viewport-culled) + freshness sweep ─────────────────
   useEffect(() => {
     let cancelled = false;
     let lastSweep = 0;
     const loop = (now: number) => {
       if (cancelled) return;
+      const bounds = boundsRef.current;
       vehicleStatesRef.current.forEach((veh) => {
-        const t = Math.min(1, (now - veh.startMs) / veh.durationMs);
-        const lat = veh.fromLat + (veh.toLat - veh.fromLat) * t;
-        const lng = veh.fromLng + (veh.toLng - veh.fromLng) * t;
+        const onScreen = isInViewport(veh.toLat, veh.toLng, bounds) || isInViewport(veh.currentLat, veh.currentLng, bounds);
+        let lat: number;
+        let lng: number;
+        if (onScreen) {
+          const t = segmentProgress(now, veh.startMs, veh.durationMs);
+          lat = lerp(veh.fromLat, veh.toLat, t);
+          lng = lerp(veh.fromLng, veh.toLng, t);
+          veh.currentHeading = stepHeading(veh.currentHeading, veh.targetHeading);
+        } else {
+          // Off-screen cabs snap to their target: nobody sees them, so they cost no per-frame work.
+          lat = veh.toLat;
+          lng = veh.toLng;
+          veh.currentHeading = veh.targetHeading;
+        }
         if (lat !== veh.currentLat || lng !== veh.currentLng) {
           veh.currentLat = lat;
           veh.currentLng = lng;
           veh.marker.setPosition({ lat, lng });
         }
-        const turn = shortestTurnDeg(veh.currentHeading, veh.targetHeading);
-        if (Math.abs(turn) > 0.5) {
-          veh.currentHeading = (veh.currentHeading + turn * 0.15 + 360) % 360;
-          const icon = veh.marker.getIcon() as any;
-          if (icon) {
-            icon.rotation = Math.round(veh.currentHeading);
-            veh.marker.setIcon(icon);
-          }
+        if (needsRotationUpdate(veh.drawnRotation, veh.currentHeading)) {
+          redrawIcon(veh, veh.drawnColor, Math.round(veh.currentHeading));
         }
       });
       // Every 5 s: re-derive GPS freshness (a cab that stops reporting turns STALE, then OFFLINE)
       // and drop cabs that have been silent for a long time.
-      if (now - lastSweep > 5000) {
+      if (now - lastSweep > FRESHNESS_SWEEP_MS) {
         lastSweep = now;
         const nowMs = Date.now();
         vehicleStatesRef.current.forEach((veh, routeId) => {
-          if ((nowMs - veh.lastFixMs) / 1000 > MARKER_DROP_AFTER_SEC) {
+          if ((nowMs - veh.telemetry.recordedAt) / 1000 > MARKER_DROP_AFTER_SEC) {
             removeVehicle(routeId);
             return;
           }
-          const state = gpsStateOf(veh.lastFixMs, nowMs);
+          const state: GpsState = gpsStateOf(veh.telemetry.recordedAt, nowMs);
           if (state !== veh.telemetry.gpsState) {
             veh.telemetry = { ...veh.telemetry, gpsState: state };
-            const icon = veh.marker.getIcon() as any;
-            if (icon) {
-              icon.fillColor = GPS_COLORS[state];
-              veh.marker.setIcon(icon);
-            }
-            if (selectedRouteRef.current?.id === routeId) setSelectedTelemetry(veh.telemetry);
+            if (veh.drawnColor !== GPS_COLORS[state]) redrawIcon(veh, GPS_COLORS[state], veh.drawnRotation);
           }
         });
       }
@@ -301,7 +378,20 @@ export default function FleetLiveMapPage() {
     };
   }, [removeVehicle]);
 
-  // ─── 7. Route list for the selected date (no markers are invented here) ────
+  // ─── 7. UI tick: the only place stream-derived data enters React state ─────
+  useEffect(() => {
+    const publish = () => {
+      const nowMs = Date.now();
+      const items: VehicleListItem[] = [];
+      vehicleStatesRef.current.forEach((veh) => items.push(toListItem(veh.telemetry, nowMs)));
+      setUi({ nowMs, items, liveFixCount: liveFixCountRef.current, lastFixAt: lastFixAtRef.current });
+    };
+    publish();
+    const id = setInterval(publish, UI_TICK_MS);
+    return () => clearInterval(id);
+  }, []);
+
+  // ─── 8. Route list for the selected date (no markers are invented here) ────
   const loadMapData = useCallback(async () => {
     try {
       const board = await opsApi.getOpsBoard({ date: selectedDate });
@@ -317,9 +407,10 @@ export default function FleetLiveMapPage() {
     }
   }, [selectedDate]);
 
-  // ─── 8. Bootstrap once ─────────────────────────────────────────────────────
+  // ─── 9. Bootstrap once ─────────────────────────────────────────────────────
   useEffect(() => {
     unmountedRef.current = false;
+    const vehicles = vehicleStatesRef.current;
     loadGoogleMapsScript(() => {
       initMap();
       void connectStream();
@@ -328,6 +419,9 @@ export default function FleetLiveMapPage() {
       unmountedRef.current = true;
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       eventSourceRef.current?.close();
+      eventSourceRef.current = null;
+      vehicles.forEach((v) => v.marker.setMap(null));
+      vehicles.clear();
     };
     // connectStream / initMap / loadGoogleMapsScript are stable (no changing deps)
   }, [loadGoogleMapsScript, initMap, connectStream]);
@@ -342,25 +436,22 @@ export default function FleetLiveMapPage() {
     setRefreshing(false);
   }
 
-  // Draw active path when route is selected
+  // Pan/zoom to a cab when it is selected (from the map or the list).
   useEffect(() => {
-    if (!googleMapRef.current || !(window as any).google) return;
-
-    if (activePolylineRef.current) {
-      activePolylineRef.current.setMap(null);
-      activePolylineRef.current = null;
+    if (!selectedId || !googleMapRef.current) return;
+    const v = vehicleStatesRef.current.get(selectedId);
+    if (v) {
+      googleMapRef.current.panTo({ lat: v.toLat, lng: v.toLng });
+      googleMapRef.current.setZoom(14.5);
     }
+  }, [selectedId]);
 
-    if (selectedRoute) {
-      const vState = vehicleStatesRef.current.get(selectedRoute.id);
-      if (vState) {
-        googleMapRef.current.panTo({ lat: vState.currentLat, lng: vState.currentLng });
-        googleMapRef.current.setZoom(14.5);
-      }
-    }
-  }, [selectedRoute]);
-
-  const activeVehiclesCount = vehicleStatesRef.current.size;
+  const activeVehiclesCount = ui.items.length;
+  const reportingRoutes = ui.items.filter((i) => i.kind === 'CORPORATE_ROUTE' && routesMapRef.current.has(i.routeId)).length;
+  const tripCount = ui.items.length - ui.items.filter((i) => i.kind === 'CORPORATE_ROUTE').length;
+  const lastFixAgeSec = ui.lastFixAt ? Math.max(0, Math.round((ui.nowMs - ui.lastFixAt) / 1000)) : null;
+  const selectedVehicle = selectedId ? vehicleStatesRef.current.get(selectedId) : undefined;
+  const selectedRoute = selectedId ? routesMapRef.current.get(selectedId) ?? routes.find((r) => r.id === selectedId) ?? null : null;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 104px)', gap: '16px' }}>
@@ -379,7 +470,7 @@ export default function FleetLiveMapPage() {
           boxShadow: 'var(--shadow-card)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           {/* Connection Status Pill */}
           <div
             style={{
@@ -398,13 +489,17 @@ export default function FleetLiveMapPage() {
             <Radio size={13} className={connectionStatus === 'LIVE' ? 'pulse-warning' : 'spin'} />
             <span>
               {connectionStatus === 'LIVE'
-                ? `${activeVehiclesCount} of ${routes.length} active routes reporting GPS`
-                : 'Reconnecting Stream...'}
+                ? `${reportingRoutes} of ${routes.length} active routes reporting GPS${tripCount ? ` · ${tripCount} on-demand trips` : ''}`
+                : connectionStatus === 'CONNECTING'
+                  ? 'Connecting Stream...'
+                  : 'Reconnecting Stream...'}
             </span>
           </div>
 
           <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-            Corridor: Hyderabad Tech Hub (HITEC City · Financial District · Gachibowli)
+            {lastFixAgeSec === null
+              ? 'No live fix received yet'
+              : `Last live fix ${lastFixAgeSec}s ago (${new Date(ui.lastFixAt as number).toLocaleTimeString()})`}
           </span>
         </div>
 
@@ -413,6 +508,7 @@ export default function FleetLiveMapPage() {
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
+            title="Shift date used for corporate route details"
             style={{
               height: '32px',
               backgroundColor: 'var(--bg-input)',
@@ -437,9 +533,8 @@ export default function FleetLiveMapPage() {
         </div>
       </div>
 
-      {/* Main Map Canvas & Side Telemetry Pane */}
+      {/* Main Map Canvas & Side Pane */}
       <div style={{ display: 'flex', flex: 1, gap: '16px', overflow: 'hidden' }}>
-        {/* Native Google Map Canvas */}
         <div
           style={{
             flex: 1,
@@ -451,10 +546,8 @@ export default function FleetLiveMapPage() {
             boxShadow: 'var(--shadow-card)',
           }}
         >
-          {/* Map Mount Point */}
           <div ref={mapContainerRef} style={{ width: '100%', height: '100%' }} />
 
-          {/* Map Watermark & Telemetry Statistics */}
           <div
             style={{
               position: 'absolute',
@@ -472,7 +565,7 @@ export default function FleetLiveMapPage() {
               zIndex: 10,
             }}
           >
-            ENGINE: 60 FPS LERP · PROTOCOL: REDIS PUB/SUB SSE · PINGS: {liveFixCount}
+            CABS: {activeVehiclesCount} · LIVE FIXES: {ui.liveFixCount} · ▲ corporate · ◆ on-demand
           </div>
 
           {activeVehiclesCount === 0 && !loading && (
@@ -492,227 +585,24 @@ export default function FleetLiveMapPage() {
               }}
             >
               <Car size={32} color="var(--brand-blue-500, #5728B2)" style={{ marginBottom: '8px' }} />
-              <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>No active cabs on road</h3>
+              <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>No cabs reporting GPS</h3>
               <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                All scheduled routes for this date are in PLANNED or COMPLETED state.
+                Cabs appear here as soon as an active route or trip sends a location fix.
               </p>
             </div>
           )}
         </div>
 
-        {/* Selected Vehicle Telemetry Side Card */}
-        {selectedRoute ? (
-          <div
-            style={{
-              width: '340px',
-              backgroundColor: 'var(--bg-surface)',
-              borderRadius: 'var(--radius-lg, 10px)',
-              border: '1px solid var(--border-subtle)',
-              padding: '16px',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              boxShadow: 'var(--shadow-card)',
-              overflowY: 'auto',
-            }}
-          >
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                <span className="code-tag">RT-{selectedRoute.id.slice(0, 8).toUpperCase()}</span>
-                <StatusBadge status={selectedRoute.status} size="sm" />
-              </div>
-
-              <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                {selectedRoute.driver?.fullName || 'Unassigned Driver'}
-              </h3>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                {selectedRoute.vehicle?.model} · <span className="code-tag">{selectedRoute.vehicle?.registrationNumber || 'VEHICLE'}</span>
-              </p>
-
-              {/* Real-time Telemetry Grid */}
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: '8px',
-                  marginTop: '14px',
-                }}
-              >
-                <div
-                  style={{
-                    backgroundColor: 'var(--bg-surface-muted)',
-                    padding: '10px',
-                    borderRadius: 'var(--radius-md, 8px)',
-                    border: '1px solid var(--border-subtle)',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-muted)', fontSize: '11px' }}>
-                    <Gauge size={13} />
-                    <span>Velocity</span>
-                  </div>
-                  <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
-                    {selectedTelemetry?.speedKph ?? 0} <span style={{ fontSize: '11px', fontWeight: 400 }}>km/h</span>
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    backgroundColor: 'var(--bg-surface-muted)',
-                    padding: '10px',
-                    borderRadius: 'var(--radius-md, 8px)',
-                    border: '1px solid var(--border-subtle)',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-muted)', fontSize: '11px' }}>
-                    <Navigation size={13} />
-                    <span>Bearing</span>
-                  </div>
-                  <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
-                    {Math.round(selectedTelemetry?.heading ?? 0)}° <span style={{ fontSize: '11px', fontWeight: 400 }}>heading</span>
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    backgroundColor: 'var(--bg-surface-muted)',
-                    padding: '10px',
-                    borderRadius: 'var(--radius-md, 8px)',
-                    border: '1px solid var(--border-subtle)',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-muted)', fontSize: '11px' }}>
-                    <ShieldCheck size={13} />
-                    <span>GPS Signal</span>
-                  </div>
-                  <div
-                    style={{
-                      fontSize: '12px',
-                      fontWeight: 700,
-                      color: GPS_COLORS[selectedTelemetry?.gpsState ?? 'OFFLINE'],
-                      marginTop: '6px',
-                    }}
-                  >
-                    {selectedTelemetry?.gpsState ?? 'OFFLINE'}{selectedTelemetry?.accuracyM !== undefined ? ` (±${Math.round(selectedTelemetry.accuracyM)}m)` : ''}
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    backgroundColor: 'var(--bg-surface-muted)',
-                    padding: '10px',
-                    borderRadius: 'var(--radius-md, 8px)',
-                    border: '1px solid var(--border-subtle)',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-muted)', fontSize: '11px' }}>
-                    <Battery size={13} />
-                    <span>Battery</span>
-                  </div>
-                  <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '6px' }}>
-                    {selectedTelemetry?.batteryPct !== undefined ? `${selectedTelemetry.batteryPct}%` : '—'}
-                  </div>
-                </div>
-              </div>
-
-              {/* Route Summary */}
-              <div
-                style={{
-                  backgroundColor: 'var(--bg-surface-muted)',
-                  padding: '10px 12px',
-                  borderRadius: 'var(--radius-md, 8px)',
-                  border: '1px solid var(--border-subtle)',
-                  marginTop: '12px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                  fontSize: '12px',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Shift:</span>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                    {selectedRoute.shiftTime} ({selectedRoute.direction})
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Occupancy:</span>
-                  <span style={{ fontWeight: 600, color: 'var(--color-success, #16A34A)' }}>
-                    {selectedRoute.assignedPassengerCount} / {selectedRoute.maxCapacity} seats filled
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Destination:</span>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                    {selectedRoute.office?.name || 'Office Campus'}
-                  </span>
-                </div>
-              </div>
-
-              {selectedRoute.driver?.phone && (
-                <div style={{ marginTop: '16px' }}>
-                  <a
-                    href={`tel:${selectedRoute.driver.phone}`}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                      padding: '8px 12px',
-                      borderRadius: 'var(--radius-md, 8px)',
-                      backgroundColor: 'var(--brand-primary-subtle)',
-                      border: '1px solid var(--border-subtle)',
-                      color: 'var(--brand-blue-500, #5728B2)',
-                      textDecoration: 'none',
-                      fontSize: '13px',
-                      fontWeight: 600,
-                    }}
-                  >
-                    <Phone size={14} />
-                    <span>Call Driver ({selectedRoute.driver.phone})</span>
-                  </a>
-                </div>
-              )}
-            </div>
-
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                setSelectedRoute(null);
-                setSelectedTelemetry(null);
-              }}
-              style={{ width: '100%', marginTop: '16px' }}
-            >
-              Close Telemetry
-            </Button>
-          </div>
+        {selectedId ? (
+          <VehicleDetailPanel
+            routeId={selectedId}
+            route={selectedRoute}
+            telemetry={selectedVehicle?.telemetry ?? null}
+            nowMs={ui.nowMs}
+            onClose={() => setSelectedId(null)}
+          />
         ) : (
-          <div
-            style={{
-              width: '300px',
-              backgroundColor: 'var(--bg-surface)',
-              borderRadius: 'var(--radius-lg, 10px)',
-              border: '1px solid var(--border-subtle)',
-              padding: '16px',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              textAlign: 'center',
-              color: 'var(--text-muted)',
-              boxShadow: 'var(--shadow-card)',
-            }}
-          >
-            <Compass size={32} style={{ marginBottom: '8px', opacity: 0.6, color: 'var(--brand-blue-500, #5728B2)' }} />
-            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
-              Select Vehicle
-            </div>
-            <div style={{ fontSize: '11px', marginTop: '4px', color: 'var(--text-secondary)' }}>
-              Click any vehicle transponder on the map to inspect live driver telemetry and route progress.
-            </div>
-          </div>
+          <VehicleListPanel items={ui.items} nowMs={ui.nowMs} onSelect={setSelectedId} />
         )}
       </div>
     </div>

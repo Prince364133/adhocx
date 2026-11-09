@@ -1,4 +1,4 @@
-import { Controller, ForbiddenException, Get, MessageEvent, Param, Query, Req, Sse, UseGuards } from '@nestjs/common';
+import { Controller, ForbiddenException, Get, MessageEvent, Optional, Param, Query, Req, Sse, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Observable } from 'rxjs';
 import { UserRole } from '@adhocx/contracts';
@@ -10,8 +10,7 @@ import { CorporateResource } from '../../../common/decorators/corporate-resource
 import { CorporateTrackingService, TrackingScope } from './corporate-tracking.service';
 import { RedisPubSubService } from '../../../redis/redis-pubsub.service';
 import { TelemetryChannels } from './tracking.types';
-
-const SSE_HEARTBEAT_MS = 25_000;
+import { TelemetryStreamContext, TelemetryStreamHub } from './telemetry-stream-hub';
 
 const TENANT_BOUND_ROLES = new Set<string>([UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER, UserRole.EMPLOYEE]);
 
@@ -28,8 +27,13 @@ export function trackingScopeOf(req: any): TrackingScope {
 export class CorporateTrackingController {
   constructor(
     private readonly tracking: CorporateTrackingService,
-    private readonly pubsub: RedisPubSubService,
-  ) {}
+    pubsub: RedisPubSubService,
+    @Optional() hub?: TelemetryStreamHub,
+  ) {
+    this.hub = hub ?? new TelemetryStreamHub(pubsub);
+  }
+
+  private readonly hub: TelemetryStreamHub;
 
   @Get('routes/:id/tracking')
   @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER, UserRole.DRIVER, UserRole.EMPLOYEE)
@@ -78,40 +82,27 @@ export class CorporateTrackingController {
 
   @Sse('routes/fleet/live-stream')
   @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
-  @ApiOperation({ summary: 'Live stream (SSE) of fixes for every active cab in scope' })
+  @ApiOperation({
+    summary:
+      'Live stream (SSE) of every active cab in scope: `fixes` events carry a JSON array (newest fix per route, flushed every ~500 ms); `heartbeat` every 25 s; `reauth` then close when the token expires',
+  })
   streamFleetTelemetry(@Req() req: any): Observable<MessageEvent> {
     const scope = trackingScopeOf(req);
     // Tenant-bound callers only ever get their tenant's channel (none at all without a tenant).
     if ('tenantId' in scope && !scope.tenantId) throw new ForbiddenException('No corporate tenant on this account');
     const channel = scope.tenantId ? TelemetryChannels.tenantFleet(scope.tenantId) : TelemetryChannels.opsFleet;
-    return this.stream(req, channel);
+    return this.hub.openFleetStream(channel, streamContext(req));
   }
 
   @Sse('routes/:id/live-stream')
   @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER, UserRole.DRIVER, UserRole.EMPLOYEE)
   @CorporateResource('route', 'id')
-  @ApiOperation({ summary: 'Live stream (SSE) of fixes for one route' })
+  @ApiOperation({ summary: 'Live stream (SSE) of fixes for one route: one `message` event per fix; `heartbeat`; `reauth` then close on token expiry' })
   streamRouteTelemetry(@Req() req: any, @Param('id') routeId: string): Observable<MessageEvent> {
-    return this.stream(req, TelemetryChannels.route(routeId));
+    return this.hub.openRouteStream(TelemetryChannels.route(routeId), streamContext(req));
   }
+}
 
-  /** Relays one Pub/Sub channel as SSE, with a heartbeat so idle proxies keep the connection open. */
-  private stream(_req: any, channel: string): Observable<MessageEvent> {
-    // Nest's SSE response already sends X-Accel-Buffering: no and Cache-Control: no-transform.
-    return new Observable<MessageEvent>((subscriber) => {
-      const handler = (_ch: string, raw: string) => {
-        try {
-          subscriber.next({ data: JSON.parse(raw) } as MessageEvent);
-        } catch {
-          // ignore malformed frames
-        }
-      };
-      this.pubsub.subscribe(channel, handler).catch((err) => subscriber.error(err));
-      const heartbeat = setInterval(() => subscriber.next({ type: 'heartbeat', data: '{}' } as MessageEvent), SSE_HEARTBEAT_MS);
-      return () => {
-        clearInterval(heartbeat);
-        this.pubsub.unsubscribe(channel, handler).catch(() => undefined);
-      };
-    });
-  }
+function streamContext(req: any): TelemetryStreamContext {
+  return { userId: req?.user?.id ?? req?.user?.sub ?? null, tokenExpSec: req?.user?.exp ?? null, res: req?.res };
 }

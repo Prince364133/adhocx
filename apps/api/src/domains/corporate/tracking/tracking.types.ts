@@ -85,6 +85,11 @@ export interface LatestGpsFix {
   batteryPct?: number;
   driverId?: string | null;
   recordedAt: string;
+  /**
+   * recordedAt as epoch ms. Written since the atomic (Lua) ingest so Redis can compare fixes
+   * without parsing ISO dates; absent on entries written by older builds.
+   */
+  recordedAtMs?: number;
   receivedAt?: string;
 }
 
@@ -212,7 +217,14 @@ export interface RoutePlaybackView {
 
 /** Live map payload for a route's latest fix. Freshness comes from the device timestamp. */
 export function toLiveTelemetry(
-  route: { id: string; tenantId: string; status?: string | null; driverId?: string | null; driverName?: string | null },
+  route: {
+    id: string;
+    tenantId: string;
+    status?: string | null;
+    driverId?: string | null;
+    driverName?: string | null;
+    vehicleNumber?: string | null;
+  },
   fix: LatestGpsFix,
   now: Date = new Date(),
 ): LiveVehicleTelemetryPayload {
@@ -220,9 +232,11 @@ export function toLiveTelemetry(
   const receivedAt = fix.receivedAt ? Date.parse(fix.receivedAt) : NaN;
   return {
     routeId: route.id,
+    kind: 'CORPORATE_ROUTE',
     tenantId: route.tenantId,
     driverId: fix.driverId ?? route.driverId ?? '',
     ...(route.driverName ? { driverName: route.driverName } : {}),
+    ...(route.vehicleNumber ? { vehicleNumber: route.vehicleNumber } : {}),
     lat: fix.latitude,
     lng: fix.longitude,
     speedKph: Number.isFinite(Number(fix.speedMps)) ? Math.round(Number(fix.speedMps) * 3.6) : 0,
@@ -243,3 +257,47 @@ export const TelemetryChannels = {
   route: (routeId: string) => `telemetry:route:${routeId}`,
   trip: (tripId: string) => `telemetry:trip:${tripId}`,
 };
+
+/** On-demand (B2B/B2C) trips on the live map. */
+export const TripTelemetryKeys = {
+  /** Latest-position cache for an active on-demand trip (JSON LiveVehicleTelemetryPayload). */
+  latest: (tripId: string) => `trip:telemetry:${tripId}`,
+  /** Gate that throttles Postgres writes of a trip's location (SET NX EX). */
+  persistGate: (tripId: string) => `trip:telemetry:persist:${tripId}`,
+} as const;
+export const TRIP_LATEST_TTL_SEC = 900;
+export const ACTIVE_TRIP_STATUSES = ['ASSIGNED', 'ARRIVED', 'IN_PROGRESS'] as const;
+
+/**
+ * Atomic GPS apply (one round trip): de-duplicate, move the latest position forward only, and
+ * append to the history stream.
+ *
+ * KEYS[1] latest key, KEYS[2] seen key, KEYS[3] stream key
+ * ARGV[1] recordedAtMs, ARGV[2] latest JSON, ARGV[3] latest TTL s, ARGV[4] seen TTL s,
+ * ARGV[5] stream MAXLEN (approximate), ARGV[6] history record JSON ('' = no driver: no dedupe, no history)
+ *
+ * Returns {status, streamId}: status 0 duplicate, 1 latest updated, 2 out of order (latest kept);
+ * streamId '' when no history was written, '!' when XADD failed (caller buffers locally).
+ * A latest entry without recordedAtMs (written by an older build) is treated as older.
+ */
+export const GPS_APPLY_LUA = `
+if ARGV[6] ~= '' then
+  if not redis.call('SET', KEYS[2], '1', 'EX', ARGV[4], 'NX') then return {0, ''} end
+end
+local status = 1
+local prev = redis.call('GET', KEYS[1])
+if prev then
+  local ok, d = pcall(cjson.decode, prev)
+  if ok and type(d) == 'table' then
+    local prevMs = tonumber(d['recordedAtMs'])
+    if prevMs and prevMs > tonumber(ARGV[1]) then status = 2 end
+  end
+end
+if status == 1 then redis.call('SET', KEYS[1], ARGV[2], 'EX', ARGV[3]) end
+local sid = ''
+if ARGV[6] ~= '' then
+  local r = redis.pcall('XADD', KEYS[3], 'MAXLEN', '~', ARGV[5], '*', 'f', ARGV[6])
+  if type(r) == 'string' then sid = r else sid = '!' end
+end
+return {status, sid}
+`;

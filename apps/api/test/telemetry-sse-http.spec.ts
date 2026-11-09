@@ -62,17 +62,26 @@ describe('fleet live stream over HTTP (SSE wire format)', () => {
         let buf = '';
         res.on('data', (chunk) => {
           buf += chunk.toString();
-          if (buf.includes('"routeId":"r2"')) {
+          if (buf.includes('"recordedAt":2') && buf.lastIndexOf('\n\n') > buf.indexOf('"recordedAt":2')) {
             req.destroy();
             resolve(buf);
           }
         });
       });
       req.on('error', (e: any) => (e.code === 'ECONNRESET' ? undefined : reject(e)));
-      setTimeout(() => pubsub.publish(TelemetryChannels.opsFleet, { routeId: 'r2', lat: 17.4, lng: 78.4 }), 300);
+      // Publish until the stream has subscribed (on a loaded machine the request can take a while).
+      const pump = setInterval(() => {
+        void pubsub.publish(TelemetryChannels.opsFleet, { routeId: 'r2', lat: 17.0, lng: 78.0, recordedAt: 1 });
+        void pubsub.publish(TelemetryChannels.opsFleet, { routeId: 'r2', lat: 17.4, lng: 78.4, recordedAt: 2 });
+      }, 200);
+      req.on('close', () => clearInterval(pump));
     });
-    const dataLine = body.split('\n').find((l) => l.startsWith('data:'))!;
-    expect(JSON.parse(dataLine.slice(5))).toEqual({ routeId: 'r2', lat: 17.4, lng: 78.4 });
+    // One `fixes` event carrying the conflated batch (newest fix per route).
+    const lines = body.split('\n');
+    const eventIdx = lines.findIndex((l) => l.trim() === 'event: fixes');
+    expect(eventIdx).toBeGreaterThanOrEqual(0);
+    const dataLine = lines.slice(eventIdx).find((l) => l.startsWith('data:'))!;
+    expect(JSON.parse(dataLine.slice(5))).toEqual([{ routeId: 'r2', lat: 17.4, lng: 78.4, recordedAt: 2 }]);
     expect(body).not.toContain('"success"');
 
     const snap = await new Promise<any>((resolve) =>

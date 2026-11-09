@@ -11,6 +11,8 @@ import {
   RouteTrackingView,
   TimelineItem,
   TrackingPosition,
+  TripTelemetryKeys,
+  ACTIVE_TRIP_STATUSES,
 } from './tracking.types';
 
 /** Caller scope resolved by the controller. ADMIN: no tenant restriction. */
@@ -80,21 +82,99 @@ export class CorporateTrackingService {
    * stream delivers new fixes. Routes without a cached fix are omitted (never a guessed position).
    */
   async getFleetSnapshot(scope: TrackingScope = {}, now: Date = new Date()): Promise<LiveVehicleTelemetryPayload[]> {
+    const tenantScoped = 'tenantId' in scope;
     const routes: any[] = await this.db.corporateRoute.findMany({
       where: {
         status: { in: ['DISPATCHING', 'ASSIGNED', 'IN_TRANSIT'] as any },
-        ...('tenantId' in scope ? { tenantId: scope.tenantId ?? '__none__' } : {}),
+        ...(tenantScoped ? { tenantId: scope.tenantId ?? '__none__' } : {}),
       },
-      select: { id: true, tenantId: true, status: true, driverId: true, driver: { select: { fullName: true } } },
+      select: {
+        id: true,
+        tenantId: true,
+        status: true,
+        driverId: true,
+        driver: { select: { fullName: true } },
+        vehicle: { select: { registrationNumber: true } },
+      },
       take: 5000,
     });
+    const fixes = await this.gpsIngest.readLatestMany(routes.map((r) => r.id));
     const out: LiveVehicleTelemetryPayload[] = [];
-    await Promise.all(
-      routes.map(async (r) => {
-        const fix = await this.gpsIngest.readLatest(r.id);
-        if (fix) out.push(toLiveTelemetry({ ...r, driverName: r.driver?.fullName ?? null }, fix, now));
-      }),
-    );
+    for (const r of routes) {
+      const fix = fixes.get(r.id);
+      if (fix) {
+        out.push(
+          toLiveTelemetry(
+            { ...r, driverName: r.driver?.fullName ?? null, vehicleNumber: r.vehicle?.registrationNumber ?? null },
+            fix,
+            now,
+          ),
+        );
+      }
+    }
+    // On-demand trips have no corporate tenant: only unscoped (ops/admin) callers ever see them.
+    if (!tenantScoped) out.push(...(await this.activeTripSnapshot(now)));
+    return out;
+  }
+
+  /**
+   * Last known position of every active on-demand trip: the `trip:telemetry:{id}` cache written by
+   * TripsService.updateLocation, else the driver row's last persisted position. Trips with neither
+   * are omitted (never a guessed position).
+   */
+  private async activeTripSnapshot(now: Date): Promise<LiveVehicleTelemetryPayload[]> {
+    if (typeof this.db.trip?.findMany !== 'function') return [];
+    let trips: any[];
+    try {
+      trips = await this.db.trip.findMany({
+        where: { status: { in: [...ACTIVE_TRIP_STATUSES] as any } },
+        select: {
+          id: true,
+          status: true,
+          driverId: true,
+          driver: { select: { fullName: true, vehiclePlate: true, currentLat: true, currentLng: true, lastLocationAt: true } },
+          vehicle: { select: { registrationNumber: true } },
+        },
+        take: 5000,
+      });
+    } catch {
+      return [];
+    }
+    if (!trips.length) return [];
+    const cached = await this.gpsIngest.readRawMany(trips.map((t) => TripTelemetryKeys.latest(t.id)));
+    const out: LiveVehicleTelemetryPayload[] = [];
+    for (const t of trips) {
+      const driverName = t.driver?.fullName || undefined;
+      const vehicleNumber = t.vehicle?.registrationNumber || t.driver?.vehiclePlate || undefined;
+      const raw = cached.get(TripTelemetryKeys.latest(t.id));
+      let live: LiveVehicleTelemetryPayload | null = null;
+      if (raw) {
+        try {
+          const p = JSON.parse(raw);
+          if (Number.isFinite(p?.lat) && Number.isFinite(p?.lng) && Number.isFinite(p?.recordedAt)) live = p;
+        } catch {
+          // fall back to the driver row
+        }
+      }
+      if (!live) {
+        const lat = toNum(t.driver?.currentLat);
+        const lng = toNum(t.driver?.currentLng);
+        const at = t.driver?.lastLocationAt ? new Date(t.driver.lastLocationAt).getTime() : NaN;
+        if (lat === null || lng === null || !Number.isFinite(at)) continue;
+        live = { routeId: t.id, tripId: t.id, driverId: t.driverId ?? '', lat, lng, speedKph: 0, heading: 0, recordedAt: at, gpsState: 'OFFLINE' };
+      }
+      out.push({
+        ...live,
+        routeId: t.id,
+        tripId: t.id,
+        kind: 'TRIP',
+        driverId: live.driverId || t.driverId || '',
+        ...(driverName ? { driverName } : {}),
+        ...(vehicleNumber ? { vehicleNumber } : {}),
+        status: t.status,
+        gpsState: classifyGpsFreshness(live.recordedAt, now).gpsState,
+      });
+    }
     return out;
   }
 

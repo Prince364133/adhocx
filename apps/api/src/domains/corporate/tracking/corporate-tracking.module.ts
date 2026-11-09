@@ -7,6 +7,7 @@ import { CorporateGpsPartitionMaintenance } from './corporate-gps-partition-main
 import { TripEventRecorder } from './trip-event-recorder.service';
 import { CorporateTrackingService } from './corporate-tracking.service';
 import { CorporateTrackingController } from './corporate-tracking.controller';
+import { TelemetryStreamHub } from './telemetry-stream-hub';
 
 /**
  * Tracking bounded context (doc 19 WS-B): GPS ingest -> Redis Stream -> batched writer ->
@@ -22,6 +23,7 @@ import { CorporateTrackingController } from './corporate-tracking.controller';
     CorporateGpsIngestService,
     TripEventRecorder,
     CorporateTrackingService,
+    TelemetryStreamHub,
   ],
   controllers: [CorporateTrackingController],
   exports: [CorporateGpsIngestService, TripEventRecorder, CorporateTrackingService],

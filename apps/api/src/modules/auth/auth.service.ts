@@ -23,6 +23,7 @@ import {
 } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
 import { RedisService } from '../../redis/redis.service';
+import { resolveJwtSecret } from '../../config/auth.config';
 import { NotificationsService } from '../notifications/notifications.service';
 import { getPhoneVariants, assertPhoneAvailable, sanitizeRealName, isPlaceholderName } from '../../common';
 
@@ -941,8 +942,8 @@ export class AuthService implements OnModuleInit {
       ...(await this.buildCorporateClaims(user)),
     };
 
-    const accessSecret = this.configService.get<string>('auth.jwtAccessSecret') || process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET || 'adhocx_default_jwt_secret_dev_2026';
-    const refreshSecret = this.configService.get<string>('auth.jwtRefreshSecret') || process.env.JWT_REFRESH_SECRET || 'adhocx_default_jwt_refresh_secret_dev_2026';
+    const accessSecret = this.configService.get<string>('auth.jwtAccessSecret') || resolveJwtSecret('access');
+    const refreshSecret = this.configService.get<string>('auth.jwtRefreshSecret') || resolveJwtSecret('refresh');
 
     const accessToken = await this.jwtService.signAsync(tokenPayload, {
       secret: accessSecret,
@@ -1121,7 +1122,7 @@ export class AuthService implements OnModuleInit {
   }
 
   async refreshToken(refreshToken: string): Promise<AuthResponseDto> {
-    const refreshSecret = this.configService.get<string>('auth.jwtRefreshSecret') || process.env.JWT_REFRESH_SECRET;
+    const refreshSecret = this.configService.get<string>('auth.jwtRefreshSecret') || resolveJwtSecret('refresh');
     let payload: any;
     try {
       payload = await this.jwtService.verifyAsync(refreshToken, { secret: refreshSecret });
@@ -1144,7 +1145,7 @@ export class AuthService implements OnModuleInit {
       ...(await this.buildCorporateClaims(user ? { ...user, role: payload.role } : null)),
     };
 
-    const accessSecret = this.configService.get<string>('auth.jwtAccessSecret') || process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET || 'adhocx_default_jwt_secret_dev_2026';
+    const accessSecret = this.configService.get<string>('auth.jwtAccessSecret') || resolveJwtSecret('access');
     const newAccessToken = await this.jwtService.signAsync(tokenPayload, {
       secret: accessSecret,
       expiresIn: this.configService.get<string>('auth.jwtAccessExpiresIn') || '7d',

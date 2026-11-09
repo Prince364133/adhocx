@@ -34,7 +34,7 @@ export class FakeStreamRedis {
   private seq = 0;
   /** Number of XACK calls that should fail (simulates a lost ack => re-delivery). */
   failNextAcks = 0;
-  readonly calls = { xadd: 0, xreadgroup: 0, xack: 0, xautoclaim: 0 };
+  readonly calls = { xadd: 0, xreadgroup: 0, xack: 0, xautoclaim: 0, mget: 0, script: 0 };
   readonly xaddArgs: any[][] = [];
 
   constructor(private readonly clock: FakeClock = new FakeClock()) {}
@@ -59,6 +59,11 @@ export class FakeStreamRedis {
     if (nx && (await this.get(key)) !== null) return null;
     this.kv.set(key, { v: value, exp });
     return 'OK';
+  }
+
+  async mget(...keys: string[]): Promise<Array<string | null>> {
+    this.calls.mget++;
+    return Promise.all(keys.map((k) => this.get(k)));
   }
 
   async del(key: string): Promise<number> {
@@ -253,4 +258,45 @@ export function createFakePositionsDb() {
     findFirst: jest.fn(async (args: any): Promise<any> => (await delegate.findMany({ ...args, take: 1 }))[0] ?? null),
   };
   return { rows, state, delegate };
+}
+
+/**
+ * FakeStreamRedis plus ioredis `defineCommand`, with GPS_APPLY_LUA emulated in JS step for step
+ * (Lua itself cannot run here). Exercises the service's atomic-path orchestration.
+ */
+export class FakeLuaRedis extends FakeStreamRedis {
+  /** Make XADD inside the "script" fail (redis.pcall error => '!'). */
+  failScriptXadd = false;
+  /** Throw this message from the script call (e.g. CROSSSLOT). */
+  scriptError: string | null = null;
+  defined: string[] = [];
+
+  defineCommand(name: string, _def: { numberOfKeys: number; lua: string }): void {
+    this.defined.push(name);
+    (this as any)[name] = async (latestKey: string, seenKey: string, streamKey: string, ...argv: string[]) => {
+      this.calls.script++;
+      if (this.scriptError) throw new Error(this.scriptError);
+      const [recordedAtMs, latestJson, latestTtl, seenTtl, maxLen, recordJson] = argv;
+      if (recordJson !== '') {
+        if ((await this.set(seenKey, '1', 'EX', seenTtl, 'NX')) === null) return [0, ''];
+      }
+      let status = 1;
+      const prev = await this.get(latestKey);
+      if (prev) {
+        try {
+          const d = JSON.parse(prev);
+          const prevMs = Number(d?.recordedAtMs);
+          if (d && typeof d === 'object' && d.recordedAtMs !== undefined && Number.isFinite(prevMs) && prevMs > Number(recordedAtMs)) status = 2;
+        } catch {
+          // like pcall(cjson.decode)
+        }
+      }
+      if (status === 1) await this.set(latestKey, latestJson, 'EX', latestTtl);
+      let sid = '';
+      if (recordJson !== '') {
+        sid = this.failScriptXadd ? '!' : await this.xadd(streamKey, 'MAXLEN', '~', maxLen, '*', 'f', recordJson);
+      }
+      return [status, sid];
+    };
+  }
 }

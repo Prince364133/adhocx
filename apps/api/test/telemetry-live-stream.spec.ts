@@ -1,5 +1,5 @@
-import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
-import { lastValueFrom, take, toArray } from 'rxjs';
+import { ForbiddenException, HttpException, HttpStatus, UnauthorizedException } from '@nestjs/common';
+import { lastValueFrom } from 'rxjs';
 import { UserRole } from '@adhocx/contracts';
 import { allowsQueryToken, JwtAuthGuard } from '../src/common/guards/auth.guard';
 import { matchesPattern, RedisPubSubService } from '../src/redis/redis-pubsub.service';
@@ -10,6 +10,7 @@ import { CorporateGpsKeys, TelemetryChannels, toLiveTelemetry } from '../src/dom
 import { FakeClock, FakeStreamRedis } from './helpers/fake-gps-stream';
 import { of } from 'rxjs';
 import { TransformInterceptor } from '../src/common/interceptors/transform.interceptor';
+import { TelemetryStreamHub } from '../src/domains/corporate/tracking/telemetry-stream-hub';
 
 const TENANT_A = '11111111-1111-4111-8111-111111111111';
 const TENANT_B = '22222222-2222-4222-8222-222222222222';
@@ -100,29 +101,178 @@ describe('live telemetry: fleet snapshot', () => {
 });
 
 describe('live telemetry: SSE endpoints', () => {
-  function controller(pubsub: RedisPubSubService) {
-    return new CorporateTrackingController({} as any, pubsub);
+  function controller(pubsub: RedisPubSubService, hub?: TelemetryStreamHub) {
+    return new CorporateTrackingController({} as any, pubsub, hub);
   }
-  const req = (role: string, corporateTenantId?: string | null) => ({ user: { role, corporateTenantId }, res: { setHeader: jest.fn() } });
+  let nextUser = 0;
+  const req = (role: string, corporateTenantId?: string | null, extra: any = {}) => ({
+    user: { id: `u${++nextUser}`, role, corporateTenantId, ...extra.user },
+    res: extra.res ?? { setHeader: jest.fn() },
+  });
+  const flushMs = 500;
 
-  it('corporate admins only receive their own tenant; ops receive the whole fleet', async () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => {
+    jest.clearAllTimers();
+    jest.useRealTimers();
+  });
+
+  it('corporate admins only receive their own tenant; ops receive the whole fleet, batched as `fixes`', async () => {
     const pubsub = await bus();
     const c = controller(pubsub);
-    const admin$ = c.streamFleetTelemetry(req(UserRole.CORPORATE_ADMIN, TENANT_A));
-    const ops$ = c.streamFleetTelemetry(req(UserRole.OPS));
-    const adminGot = lastValueFrom(admin$.pipe(take(1), toArray()));
-    const opsGot = lastValueFrom(ops$.pipe(take(2), toArray()));
-    await new Promise((r) => setImmediate(r));
+    const adminGot: any[] = [];
+    const opsGot: any[] = [];
+    const s1 = c.streamFleetTelemetry(req(UserRole.CORPORATE_ADMIN, TENANT_A)).subscribe((e) => adminGot.push(e));
+    const s2 = c.streamFleetTelemetry(req(UserRole.OPS)).subscribe((e) => opsGot.push(e));
+    await Promise.resolve();
 
-    const fixB = { routeId: ROUTE_B, tenantId: TENANT_B };
-    const fixA = { routeId: ROUTE_A, tenantId: TENANT_A };
+    const fixB = { routeId: ROUTE_B, tenantId: TENANT_B, recordedAt: 1 };
+    const fixA = { routeId: ROUTE_A, tenantId: TENANT_A, recordedAt: 1 };
     await pubsub.publish(TelemetryChannels.opsFleet, fixB);
     await pubsub.publish(TelemetryChannels.tenantFleet(TENANT_B), fixB);
     await pubsub.publish(TelemetryChannels.opsFleet, fixA);
     await pubsub.publish(TelemetryChannels.tenantFleet(TENANT_A), fixA);
+    expect(adminGot).toEqual([]); // nothing until the flush tick
+    jest.advanceTimersByTime(flushMs);
 
-    expect((await adminGot).map((e: any) => e.data)).toEqual([fixA]);
-    expect((await opsGot).map((e: any) => e.data)).toEqual([fixB, fixA]);
+    expect(adminGot).toEqual([{ type: 'fixes', data: [fixA] }]);
+    expect(opsGot).toEqual([{ type: 'fixes', data: [fixB, fixA] }]);
+    s1.unsubscribe();
+    s2.unsubscribe();
+    await pubsub.onModuleDestroy();
+  });
+
+  it('conflates to the newest fix per route and skips empty flushes', async () => {
+    const pubsub = await bus();
+    const got: any[] = [];
+    const sub = controller(pubsub).streamFleetTelemetry(req(UserRole.OPS)).subscribe((e) => got.push(e));
+    await Promise.resolve();
+    await pubsub.publish(TelemetryChannels.opsFleet, { routeId: ROUTE_A, recordedAt: 1000, lat: 1 });
+    await pubsub.publish(TelemetryChannels.opsFleet, { routeId: ROUTE_A, recordedAt: 3000, lat: 3 });
+    await pubsub.publish(TelemetryChannels.opsFleet, { routeId: ROUTE_A, recordedAt: 2000, lat: 2 }); // late, older
+    await pubsub.publish(TelemetryChannels.opsFleet, { routeId: ROUTE_B, recordedAt: 1000, lat: 9 });
+    await pubsub.publish(TelemetryChannels.opsFleet, 'not json{');
+    jest.advanceTimersByTime(flushMs);
+    expect(got).toEqual([
+      {
+        type: 'fixes',
+        data: [
+          { routeId: ROUTE_A, recordedAt: 3000, lat: 3 },
+          { routeId: ROUTE_B, recordedAt: 1000, lat: 9 },
+        ],
+      },
+    ]);
+    jest.advanceTimersByTime(flushMs * 10);
+    expect(got).toHaveLength(1); // nothing new: no empty frames
+    sub.unsubscribe();
+    await pubsub.onModuleDestroy();
+  });
+
+  it('parses each message once and holds one Pub/Sub subscription per channel, however many viewers', async () => {
+    const pubsub = await bus();
+    const subscribe = jest.spyOn(pubsub, 'subscribe');
+    const unsubscribe = jest.spyOn(pubsub, 'unsubscribe');
+    const hub = new TelemetryStreamHub(pubsub);
+    const c = controller(pubsub, hub);
+    const subs = [1, 2, 3, 4].map(() => c.streamFleetTelemetry(req(UserRole.OPS)).subscribe());
+    await Promise.resolve();
+    expect(subscribe).toHaveBeenCalledTimes(1);
+    expect(hub.stats()).toMatchObject({ channels: 1, sinks: 4, streamsByUser: 4 });
+
+    const parse = jest.spyOn(JSON, 'parse');
+    try {
+      await pubsub.publish(TelemetryChannels.opsFleet, { routeId: ROUTE_A, recordedAt: 1 });
+      expect(parse).toHaveBeenCalledTimes(1);
+    } finally {
+      parse.mockRestore();
+    }
+
+    subs.forEach((s) => s.unsubscribe());
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+    expect(hub.stats()).toEqual({ channels: 0, sinks: 0, streamsByUser: 0 });
+    await pubsub.onModuleDestroy();
+  });
+
+  it('skips flushes while the socket is backed up, keeping only the newest fix', async () => {
+    const pubsub = await bus();
+    const res = { setHeader: jest.fn(), writableLength: 2 * 1024 * 1024 };
+    const got: any[] = [];
+    const sub = controller(pubsub).streamFleetTelemetry(req(UserRole.OPS, undefined, { res })).subscribe((e) => got.push(e));
+    await Promise.resolve();
+    await pubsub.publish(TelemetryChannels.opsFleet, { routeId: ROUTE_A, recordedAt: 1 });
+    jest.advanceTimersByTime(flushMs * 3);
+    await pubsub.publish(TelemetryChannels.opsFleet, { routeId: ROUTE_A, recordedAt: 2 });
+    jest.advanceTimersByTime(flushMs);
+    expect(got).toEqual([]);
+
+    res.writableLength = 0; // drained
+    jest.advanceTimersByTime(flushMs);
+    expect(got).toEqual([{ type: 'fixes', data: [{ routeId: ROUTE_A, recordedAt: 2 }] }]);
+    sub.unsubscribe();
+    await pubsub.onModuleDestroy();
+  });
+
+  it('sends `reauth` and closes when the token expires, flushing pending fixes first', async () => {
+    const pubsub = await bus();
+    const expSec = Math.floor(Date.now() / 1000) + 2;
+    const events: any[] = [];
+    let completed = false;
+    controller(pubsub)
+      .streamFleetTelemetry(req(UserRole.OPS, undefined, { user: { exp: expSec } }))
+      .subscribe({ next: (e) => events.push(e), complete: () => (completed = true) });
+    await Promise.resolve();
+    jest.advanceTimersByTime(1_000);
+    await pubsub.publish(TelemetryChannels.opsFleet, { routeId: ROUTE_A, recordedAt: 1 });
+    jest.advanceTimersByTime(1_200);
+    expect(completed).toBe(true);
+    expect(events[events.length - 1]).toEqual({ type: 'reauth', data: { reason: 'TOKEN_EXPIRED' } });
+    expect(events.filter((e) => e.type === 'fixes').flatMap((e) => e.data)).toEqual([{ routeId: ROUTE_A, recordedAt: 1 }]);
+    expect(jest.getTimerCount()).toBe(0); // no leaked heartbeat / flush timers
+    await pubsub.onModuleDestroy();
+  });
+
+  it('closes after the max lifetime even with a long-lived token', async () => {
+    process.env.TELEMETRY_SSE_MAX_LIFETIME_MS = '10000';
+    try {
+      const pubsub = await bus();
+      const events: any[] = [];
+      let completed = false;
+      controller(pubsub)
+        .streamRouteTelemetry(req(UserRole.OPS, undefined, { user: { exp: Math.floor(Date.now() / 1000) + 86_400 } }), ROUTE_A)
+        .subscribe({ next: (e) => events.push(e), complete: () => (completed = true) });
+      jest.advanceTimersByTime(9_999);
+      expect(completed).toBe(false);
+      jest.advanceTimersByTime(1);
+      expect(completed).toBe(true);
+      expect(events).toEqual([{ type: 'reauth', data: { reason: 'MAX_LIFETIME' } }]);
+      expect(jest.getTimerCount()).toBe(0);
+      await pubsub.onModuleDestroy();
+    } finally {
+      delete process.env.TELEMETRY_SSE_MAX_LIFETIME_MS;
+    }
+  });
+
+  it('caps concurrent streams per user (429) and frees the slot on disconnect', async () => {
+    const pubsub = await bus();
+    const c = controller(pubsub);
+    const sameUser = () => ({ user: { id: 'capped-user', role: UserRole.OPS }, res: { setHeader: jest.fn() } });
+    const subs = [1, 2, 3, 4, 5].map(() => c.streamFleetTelemetry(sameUser()).subscribe());
+    let err: any;
+    try {
+      c.streamFleetTelemetry(sameUser());
+    } catch (e) {
+      err = e;
+    }
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err.getStatus()).toBe(HttpStatus.TOO_MANY_REQUESTS);
+    expect(() => c.streamRouteTelemetry(sameUser(), ROUTE_A)).toThrow(HttpException);
+    expect(() => c.streamFleetTelemetry(req(UserRole.OPS)).subscribe().unsubscribe()).not.toThrow(); // other users unaffected
+
+    subs[0].unsubscribe();
+    expect(() => c.streamFleetTelemetry(sameUser()).subscribe().unsubscribe()).not.toThrow();
+    subs.slice(1).forEach((s) => s.unsubscribe());
     await pubsub.onModuleDestroy();
   });
 
@@ -132,25 +282,26 @@ describe('live telemetry: SSE endpoints', () => {
     await pubsub.onModuleDestroy();
   });
 
-  it('sends heartbeats and unsubscribes when the client disconnects', async () => {
-    jest.useFakeTimers();
-    try {
-      const pubsub = await bus();
-      const r = req(UserRole.OPS);
-      const events: any[] = [];
-      const sub = controller(pubsub).streamRouteTelemetry(r, ROUTE_A).subscribe((e) => events.push(e));
-      jest.advanceTimersByTime(25_000);
-      expect(events).toEqual([{ type: 'heartbeat', data: '{}' }]);
+  it('route stream: one message per fix, heartbeats, and full cleanup on disconnect', async () => {
+    const pubsub = await bus();
+    const events: any[] = [];
+    const sub = controller(pubsub)
+      .streamRouteTelemetry(req(UserRole.OPS), ROUTE_A)
+      .subscribe((e) => events.push(e));
+    await Promise.resolve();
+    await pubsub.publish(TelemetryChannels.route(ROUTE_A), { routeId: ROUTE_A, recordedAt: 1 });
+    jest.advanceTimersByTime(25_000);
+    expect(events).toEqual([{ data: { routeId: ROUTE_A, recordedAt: 1 } }, { type: 'heartbeat', data: '{}' }]);
 
-      sub.unsubscribe();
-      await Promise.resolve();
-      await pubsub.publish(TelemetryChannels.route(ROUTE_A), { routeId: ROUTE_A });
-      jest.advanceTimersByTime(60_000);
-      expect(events).toHaveLength(1);
-      await pubsub.onModuleDestroy();
-    } finally {
-      jest.useRealTimers();
-    }
+    sub.unsubscribe();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(jest.getTimerCount()).toBe(0);
+    await pubsub.publish(TelemetryChannels.route(ROUTE_A), { routeId: ROUTE_A });
+    jest.advanceTimersByTime(60_000);
+    expect(events).toHaveLength(2);
+    expect((pubsub as any).channelHandlers.size).toBe(0);
+    await pubsub.onModuleDestroy();
   });
 });
 

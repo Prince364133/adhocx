@@ -1,7 +1,15 @@
 export type GpsTelemetryState = 'LIVE' | 'STALE' | 'OFFLINE';
 
+/** What a live-map vehicle is serving: a corporate ETS route or an on-demand (B2B/B2C) trip. */
+export type LiveVehicleKind = 'CORPORATE_ROUTE' | 'TRIP';
+
 export interface LiveVehicleTelemetryPayload {
+  /** Corporate route id, or the trip id when kind is TRIP. Unique across both (UUIDs). */
   routeId: string;
+  /** Absent on payloads from older API builds; treat absent as CORPORATE_ROUTE. */
+  kind?: LiveVehicleKind;
+  /** Registration / plate number when cheaply known. */
+  vehicleNumber?: string;
   driverId: string;
   driverName?: string;
   tripId?: string;

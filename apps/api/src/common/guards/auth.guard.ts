@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 
 import { Optional } from '@nestjs/common';
 import { RedisService } from '../../redis/redis.service';
+import { resolveJwtSecret } from '../../config/auth.config';
 
 /** Server-Sent Events endpoints (`.../live-stream`) are the only routes that accept `?access_token=`. */
 export function allowsQueryToken(request: any): boolean {
@@ -45,7 +46,7 @@ export class JwtAuthGuard implements CanActivate {
         }
       }
 
-      const secret = this.configService.get<string>('auth.jwtAccessSecret') || process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET || 'adhocx_default_jwt_secret_dev_2026';
+      const secret = this.configService.get<string>('auth.jwtAccessSecret') || resolveJwtSecret('access');
       const payload = await this.jwtService.verifyAsync(token, { secret });
       const userId = payload.id || payload.sub;
 
