@@ -156,6 +156,7 @@ jobs:
         env:
           NODE_ENV: test
           PORT: 7001
+          ALLOW_TEST_OTP: "true"
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/adhocx_test?schema=public
           REDIS_URL: redis://localhost:6379
           JWT_SECRET: test_jwt_secret_key_32_characters_minimum!

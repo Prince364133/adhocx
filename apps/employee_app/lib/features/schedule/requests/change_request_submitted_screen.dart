@@ -12,10 +12,12 @@ class ChangeRequestSubmittedScreen extends StatefulWidget {
   const ChangeRequestSubmittedScreen({super.key});
 
   @override
-  State<ChangeRequestSubmittedScreen> createState() => _ChangeRequestSubmittedScreenState();
+  State<ChangeRequestSubmittedScreen> createState() =>
+      _ChangeRequestSubmittedScreenState();
 }
 
-class _ChangeRequestSubmittedScreenState extends State<ChangeRequestSubmittedScreen> {
+class _ChangeRequestSubmittedScreenState
+    extends State<ChangeRequestSubmittedScreen> {
   Map<String, dynamic>? _pendingData;
   bool _isLoading = true;
 
@@ -27,7 +29,8 @@ class _ChangeRequestSubmittedScreenState extends State<ChangeRequestSubmittedScr
 
   Future<void> _loadJsonData() async {
     final schedules = await MockDataService.getSchedules();
-    final changeRequests = schedules['change_requests'] as Map<String, dynamic>?;
+    final changeRequests =
+        schedules['change_requests'] as Map<String, dynamic>?;
     if (mounted) {
       setState(() {
         _pendingData = changeRequests?['pending'] as Map<String, dynamic>?;
@@ -40,11 +43,13 @@ class _ChangeRequestSubmittedScreenState extends State<ChangeRequestSubmittedScr
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: AppColors.primaryBlue)),
+        body: Center(
+            child: CircularProgressIndicator(color: AppColors.primaryBlue)),
       );
     }
 
-    final newLocation = _pendingData?['newLocation'] ?? 'Green Meadows, Kondapur';
+    final newLocation =
+        _pendingData?['newLocation'] ?? 'Green Meadows, Kondapur';
     final tripDate = _pendingData?['tripDate'] ?? 'Tue, 09 Dec 2026';
 
     return Scaffold(
@@ -102,7 +107,7 @@ class _ChangeRequestSubmittedScreenState extends State<ChangeRequestSubmittedScr
                   border: Border.all(color: AppColors.border),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.04),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -112,7 +117,8 @@ class _ChangeRequestSubmittedScreenState extends State<ChangeRequestSubmittedScr
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.location_on_outlined, color: AppColors.primaryBlue, size: 20),
+                        const Icon(Icons.location_on_outlined,
+                            color: AppColors.primaryBlue, size: 20),
                         const SizedBox(width: 14),
                         Expanded(
                           child: Column(
@@ -120,7 +126,8 @@ class _ChangeRequestSubmittedScreenState extends State<ChangeRequestSubmittedScr
                             children: [
                               Text(
                                 'New Pickup Location',
-                                style: GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted),
+                                style: GoogleFonts.inter(
+                                    fontSize: 11, color: AppColors.textMuted),
                               ),
                               Text(
                                 newLocation,
@@ -138,7 +145,8 @@ class _ChangeRequestSubmittedScreenState extends State<ChangeRequestSubmittedScr
                     const Divider(color: AppColors.border, height: 24),
                     Row(
                       children: [
-                        const Icon(Icons.calendar_month_outlined, color: AppColors.primaryBlue, size: 20),
+                        const Icon(Icons.calendar_month_outlined,
+                            color: AppColors.primaryBlue, size: 20),
                         const SizedBox(width: 14),
                         Expanded(
                           child: Column(
@@ -146,7 +154,8 @@ class _ChangeRequestSubmittedScreenState extends State<ChangeRequestSubmittedScr
                             children: [
                               Text(
                                 'For',
-                                style: GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted),
+                                style: GoogleFonts.inter(
+                                    fontSize: 11, color: AppColors.textMuted),
                               ),
                               Text(
                                 tripDate,
@@ -183,6 +192,3 @@ class _ChangeRequestSubmittedScreenState extends State<ChangeRequestSubmittedScr
     );
   }
 }
-
-
-

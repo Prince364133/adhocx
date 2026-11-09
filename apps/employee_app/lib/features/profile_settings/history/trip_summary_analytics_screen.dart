@@ -9,10 +9,12 @@ class TripSummaryAnalyticsScreen extends StatefulWidget {
   const TripSummaryAnalyticsScreen({super.key});
 
   @override
-  State<TripSummaryAnalyticsScreen> createState() => _TripSummaryAnalyticsScreenState();
+  State<TripSummaryAnalyticsScreen> createState() =>
+      _TripSummaryAnalyticsScreenState();
 }
 
-class _TripSummaryAnalyticsScreenState extends State<TripSummaryAnalyticsScreen> {
+class _TripSummaryAnalyticsScreenState
+    extends State<TripSummaryAnalyticsScreen> {
   Map<String, dynamic>? _analytics;
   bool _isLoading = true;
   int _selectedPeriod = 0; // 0: Week, 1: Month, 2: Year
@@ -51,7 +53,8 @@ class _TripSummaryAnalyticsScreenState extends State<TripSummaryAnalyticsScreen>
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              size: 18, color: AppColors.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
@@ -68,7 +71,8 @@ class _TripSummaryAnalyticsScreenState extends State<TripSummaryAnalyticsScreen>
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 child: Column(
                   children: [
                     // Period Selector
@@ -83,17 +87,22 @@ class _TripSummaryAnalyticsScreenState extends State<TripSummaryAnalyticsScreen>
                           final isSelected = _selectedPeriod == index;
                           return Expanded(
                             child: InkWell(
-                              onTap: () => setState(() => _selectedPeriod = index),
+                              onTap: () =>
+                                  setState(() => _selectedPeriod = index),
                               borderRadius: BorderRadius.circular(10),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 8),
                                 decoration: BoxDecoration(
-                                  color: isSelected ? Colors.white : Colors.transparent,
+                                  color: isSelected
+                                      ? Colors.white
+                                      : Colors.transparent,
                                   borderRadius: BorderRadius.circular(10),
                                   boxShadow: isSelected
                                       ? [
                                           BoxShadow(
-                                            color: Colors.black.withOpacity(0.06),
+                                            color: Colors.black
+                                                .withValues(alpha: 0.06),
                                             blurRadius: 4,
                                             offset: const Offset(0, 2),
                                           ),
@@ -105,8 +114,12 @@ class _TripSummaryAnalyticsScreenState extends State<TripSummaryAnalyticsScreen>
                                     _periods[index],
                                     style: GoogleFonts.inter(
                                       fontSize: 13,
-                                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                                      color: isSelected ? AppColors.primaryBlue : AppColors.textSecondary,
+                                      fontWeight: isSelected
+                                          ? FontWeight.w700
+                                          : FontWeight.w500,
+                                      color: isSelected
+                                          ? AppColors.primaryBlue
+                                          : AppColors.textSecondary,
                                     ),
                                   ),
                                 ),
@@ -120,7 +133,10 @@ class _TripSummaryAnalyticsScreenState extends State<TripSummaryAnalyticsScreen>
                     const SizedBox(height: 16),
                     Text(
                       dateRange,
-                      style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textMuted),
+                      style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textMuted),
                     ),
                     const SizedBox(height: 20),
 
@@ -184,21 +200,37 @@ class _TripSummaryAnalyticsScreenState extends State<TripSummaryAnalyticsScreen>
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.alt_route_rounded, size: 20, color: AppColors.textSecondary),
+                              const Icon(Icons.alt_route_rounded,
+                                  size: 20, color: AppColors.textSecondary),
                               const SizedBox(width: 12),
-                              Text('Total Distance', style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecondary)),
+                              Text('Total Distance',
+                                  style: GoogleFonts.inter(
+                                      fontSize: 14,
+                                      color: AppColors.textSecondary)),
                               const Spacer(),
-                              Text(distance, style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                              Text(distance,
+                                  style: GoogleFonts.inter(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.textPrimary)),
                             ],
                           ),
                           const Divider(height: 24),
                           Row(
                             children: [
-                              const Icon(Icons.access_time_rounded, size: 20, color: AppColors.textSecondary),
+                              const Icon(Icons.access_time_rounded,
+                                  size: 20, color: AppColors.textSecondary),
                               const SizedBox(width: 12),
-                              Text('Total Time', style: GoogleFonts.inter(fontSize: 14, color: AppColors.textSecondary)),
+                              Text('Total Time',
+                                  style: GoogleFonts.inter(
+                                      fontSize: 14,
+                                      color: AppColors.textSecondary)),
                               const Spacer(),
-                              Text(time, style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                              Text(time,
+                                  style: GoogleFonts.inter(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.textPrimary)),
                             ],
                           ),
                         ],
@@ -211,6 +243,3 @@ class _TripSummaryAnalyticsScreenState extends State<TripSummaryAnalyticsScreen>
     );
   }
 }
-
-
-

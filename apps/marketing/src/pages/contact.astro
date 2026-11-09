@@ -35,15 +35,15 @@ const jsonLd = {
 >
   <!-- Hero Section -->
   <section class="page-hero-section" style="background: linear-gradient(180deg, var(--color-primary-50) 0%, #ffffff 100%); padding: var(--space-16) 0 var(--space-12);">
-    <div class="container text-center" style="max-width: 860px; margin: 0 auto;">
+    <div class="container text-center">
       <div class="badge badge-blue" style="margin-bottom: var(--space-4);">
         <span class="status-dot-pulse"></span>
         <span>24/7 Enterprise Command Center &bull; HITEC City, Hyderabad</span>
       </div>
-      <h1 class="display-title" style="color: var(--color-text-primary); margin-bottom: var(--space-6);">
+      <h1 class="display-title contact-hero-title" style="color: var(--color-text-primary); margin-bottom: var(--space-6);">
         Let's Discuss Your Campus Mobility Strategy.
       </h1>
-      <p class="body-large" style="color: var(--color-text-secondary); margin-bottom: 0; line-height: 1.6;">
+      <p class="body-large" style="color: var(--color-text-secondary); margin: 0 auto; max-width: 860px; line-height: 1.6;">
         Whether you are managing daily shift transport for 200 engineers in Gachibowli or procuring executive airport transfers across Telangana, our enterprise logistics desk responds with verified rate cards and SLA guarantees.
       </p>
     </div>
@@ -160,11 +160,11 @@ const jsonLd = {
 
   <!-- Enterprise SLA Commitment Strip -->
   <section style="background: var(--color-surface-muted); border-top: 1px solid var(--color-border); padding: var(--space-12) 0;">
-    <div class="container text-center" style="max-width: 800px; margin: 0 auto var(--space-8);">
-      <h2 style="font-size: 1.75rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-2);">
+    <div class="container text-center" style="margin: 0 auto var(--space-8);">
+      <h2 class="contact-sla-title" style="font-size: 1.75rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-2);">
         Our Contracted Enterprise Support SLAs
       </h2>
-      <p style="font-size: 0.9375rem; color: var(--color-text-secondary); margin: 0;">
+      <p style="font-size: 0.9375rem; color: var(--color-text-secondary); margin: 0 auto; max-width: 760px;">
         We hold ourselves to rigorous, financially-backed performance targets specified in every Master Service Agreement.
       </p>
     </div>
@@ -206,3 +206,12 @@ const jsonLd = {
     </div>
   </section>
 </BaseLayout>
+
+<style>
+  @media (min-width: 800px) {
+    .contact-hero-title,
+    .contact-sla-title {
+      white-space: nowrap;
+    }
+  }
+</style>

@@ -12,10 +12,12 @@ class BoardingVerifyOptionsScreen extends StatefulWidget {
   const BoardingVerifyOptionsScreen({super.key});
 
   @override
-  State<BoardingVerifyOptionsScreen> createState() => _BoardingVerifyOptionsScreenState();
+  State<BoardingVerifyOptionsScreen> createState() =>
+      _BoardingVerifyOptionsScreenState();
 }
 
-class _BoardingVerifyOptionsScreenState extends State<BoardingVerifyOptionsScreen> {
+class _BoardingVerifyOptionsScreenState
+    extends State<BoardingVerifyOptionsScreen> {
   Map<String, dynamic>? _options;
   bool _isLoading = true;
 
@@ -38,7 +40,8 @@ class _BoardingVerifyOptionsScreenState extends State<BoardingVerifyOptionsScree
   @override
   Widget build(BuildContext context) {
     final title = _options?['title'] ?? 'Board Your Cab';
-    final subtitle = _options?['subtitle'] ?? 'Verify your boarding with a 6-digit OTP from the driver.';
+    final subtitle = _options?['subtitle'] ??
+        'Verify your boarding with a 6-digit OTP from the driver.';
     final tripType = _options?['tripType'] ?? 'Login (Pickup)';
     final driverName = _options?['driverName'] ?? 'Suresh R';
     final vehicleNumber = _options?['vehicleNumber'] ?? 'TS09UB7845';
@@ -49,7 +52,8 @@ class _BoardingVerifyOptionsScreenState extends State<BoardingVerifyOptionsScree
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              size: 18, color: AppColors.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -57,7 +61,8 @@ class _BoardingVerifyOptionsScreenState extends State<BoardingVerifyOptionsScree
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                 child: Column(
                   children: [
                     // Graphic container
@@ -69,12 +74,14 @@ class _BoardingVerifyOptionsScreenState extends State<BoardingVerifyOptionsScree
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(color: AppColors.border),
                       ),
-                      child: Column(
+                      child: const Column(
                         mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          Icon(Icons.directions_car_filled_rounded, size: 68, color: AppColors.primaryBlue),
+                        children: [
+                          Icon(Icons.directions_car_filled_rounded,
+                              size: 68, color: AppColors.primaryBlue),
                           SizedBox(height: 10),
-                          Icon(Icons.qr_code_scanner_rounded, size: 32, color: AppColors.secondaryOrange),
+                          Icon(Icons.qr_code_scanner_rounded,
+                              size: 32, color: AppColors.secondaryOrange),
                         ],
                       ),
                     ),
@@ -114,10 +121,12 @@ class _BoardingVerifyOptionsScreenState extends State<BoardingVerifyOptionsScree
                           Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: AppColors.primaryBlueLight.withOpacity(0.5),
+                              color: AppColors.primaryBlueLight
+                                  .withValues(alpha: 0.5),
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            child: const Icon(Icons.directions_car_rounded, color: AppColors.primaryBlue, size: 22),
+                            child: const Icon(Icons.directions_car_rounded,
+                                color: AppColors.primaryBlue, size: 22),
                           ),
                           const SizedBox(width: 14),
                           Expanded(
@@ -173,6 +182,3 @@ class _BoardingVerifyOptionsScreenState extends State<BoardingVerifyOptionsScree
     );
   }
 }
-
-
-

@@ -11,10 +11,12 @@ class ChangeRequestDetailsScreen extends StatefulWidget {
   const ChangeRequestDetailsScreen({super.key});
 
   @override
-  State<ChangeRequestDetailsScreen> createState() => _ChangeRequestDetailsScreenState();
+  State<ChangeRequestDetailsScreen> createState() =>
+      _ChangeRequestDetailsScreenState();
 }
 
-class _ChangeRequestDetailsScreenState extends State<ChangeRequestDetailsScreen> {
+class _ChangeRequestDetailsScreenState
+    extends State<ChangeRequestDetailsScreen> {
   final TextEditingController _reasonController = TextEditingController(
     text: 'Temporary change due to home renovation',
   );
@@ -31,7 +33,8 @@ class _ChangeRequestDetailsScreenState extends State<ChangeRequestDetailsScreen>
     final profile = await MockDataService.getEmployeeProfile();
     if (mounted) {
       setState(() {
-        _address = profile['homeAddress'] ?? 'Flat 402, Green Meadows, Kondapur, Hyderabad';
+        _address = profile['homeAddress'] ??
+            'Flat 402, Green Meadows, Kondapur, Hyderabad';
         _isLoading = false;
       });
     }
@@ -47,7 +50,8 @@ class _ChangeRequestDetailsScreenState extends State<ChangeRequestDetailsScreen>
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: AppColors.primaryBlue)),
+        body: Center(
+            child: CircularProgressIndicator(color: AppColors.primaryBlue)),
       );
     }
 
@@ -93,7 +97,7 @@ class _ChangeRequestDetailsScreenState extends State<ChangeRequestDetailsScreen>
                   border: Border.all(color: AppColors.border, width: 1.5),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.04),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -101,7 +105,8 @@ class _ChangeRequestDetailsScreenState extends State<ChangeRequestDetailsScreen>
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.location_on_rounded, color: AppColors.primaryBlue, size: 22),
+                    const Icon(Icons.location_on_rounded,
+                        color: AppColors.primaryBlue, size: 22),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
@@ -115,7 +120,8 @@ class _ChangeRequestDetailsScreenState extends State<ChangeRequestDetailsScreen>
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted, size: 22),
+                    const Icon(Icons.chevron_right_rounded,
+                        color: AppColors.textMuted, size: 22),
                   ],
                 ),
               ),
@@ -138,10 +144,12 @@ class _ChangeRequestDetailsScreenState extends State<ChangeRequestDetailsScreen>
                 controller: _reasonController,
                 maxLines: 4,
                 maxLength: 200,
-                style: GoogleFonts.inter(fontSize: 14, color: AppColors.textPrimary),
+                style: GoogleFonts.inter(
+                    fontSize: 14, color: AppColors.textPrimary),
                 decoration: InputDecoration(
                   hintText: 'Enter reason for change...',
-                  counterStyle: GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted),
+                  counterStyle: GoogleFonts.inter(
+                      fontSize: 11, color: AppColors.textMuted),
                   filled: true,
                   fillColor: AppColors.surfaceMuted,
                   border: OutlineInputBorder(
@@ -154,7 +162,8 @@ class _ChangeRequestDetailsScreenState extends State<ChangeRequestDetailsScreen>
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppColors.primaryBlue, width: 1.5),
+                    borderSide: const BorderSide(
+                        color: AppColors.primaryBlue, width: 1.5),
                   ),
                 ),
               ),
@@ -175,6 +184,3 @@ class _ChangeRequestDetailsScreenState extends State<ChangeRequestDetailsScreen>
     );
   }
 }
-
-
-

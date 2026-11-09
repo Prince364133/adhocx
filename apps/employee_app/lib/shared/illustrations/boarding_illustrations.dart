@@ -18,7 +18,7 @@ class BoardingQrFrame extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.12),
+            color: Colors.black.withValues(alpha: 0.12),
             blurRadius: 18,
             offset: const Offset(0, 6),
           ),
@@ -44,7 +44,7 @@ class BoardingQrFrame extends StatelessWidget {
                 borderRadius: BorderRadius.circular(2),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.primaryBlue.withOpacity(0.6),
+                    color: AppColors.primaryBlue.withValues(alpha: 0.6),
                     blurRadius: 6,
                     spreadRadius: 1,
                   ),
@@ -156,7 +156,8 @@ class BoardingIssueBadge extends StatelessWidget {
         border: Border.all(color: AppColors.warningBorder, width: 2),
       ),
       child: const Center(
-        child: Icon(Icons.warning_amber_rounded, size: 46, color: AppColors.warning),
+        child: Icon(Icons.warning_amber_rounded,
+            size: 46, color: AppColors.warning),
       ),
     );
   }
@@ -177,7 +178,8 @@ class SafeReachShieldBadge extends StatelessWidget {
         border: Border.all(color: const Color(0xFFBFDBFE), width: 2),
       ),
       child: const Center(
-        child: Icon(Icons.shield_outlined, size: 48, color: AppColors.primaryBlue),
+        child:
+            Icon(Icons.shield_outlined, size: 48, color: AppColors.primaryBlue),
       ),
     );
   }
@@ -196,9 +198,9 @@ class PostTripFinishGraphic extends StatelessWidget {
         color: const Color(0xFFEFF6FF),
         borderRadius: BorderRadius.circular(24),
       ),
-      child: Stack(
+      child: const Stack(
         alignment: Alignment.center,
-        children: const [
+        children: [
           Icon(
             Icons.directions_car_filled_rounded,
             size: 58,
@@ -218,5 +220,3 @@ class PostTripFinishGraphic extends StatelessWidget {
     );
   }
 }
-
-

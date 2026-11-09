@@ -36,7 +36,8 @@ class _TripInProgressScreenState extends State<TripInProgressScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: AppColors.primaryBlue)),
+        body: Center(
+            child: CircularProgressIndicator(color: AppColors.primaryBlue)),
       );
     }
 
@@ -65,7 +66,8 @@ class _TripInProgressScreenState extends State<TripInProgressScreen> {
 
               // In Progress Status Pill
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 decoration: BoxDecoration(
                   color: const Color(0xFFEFF6FF),
                   borderRadius: BorderRadius.circular(20),
@@ -98,7 +100,7 @@ class _TripInProgressScreenState extends State<TripInProgressScreen> {
                   border: Border.all(color: AppColors.border),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.04),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -111,7 +113,8 @@ class _TripInProgressScreenState extends State<TripInProgressScreen> {
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: AppColors.primaryBlueLight.withOpacity(0.4),
+                            color: AppColors.primaryBlueLight
+                                .withValues(alpha: 0.4),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
@@ -152,7 +155,8 @@ class _TripInProgressScreenState extends State<TripInProgressScreen> {
                       children: [
                         Row(
                           children: [
-                            const Icon(Icons.access_time_filled, color: AppColors.primaryBlue, size: 18),
+                            const Icon(Icons.access_time_filled,
+                                color: AppColors.primaryBlue, size: 18),
                             const SizedBox(width: 6),
                             Text(
                               'ETA ~ $etaMinutes min',
@@ -166,7 +170,8 @@ class _TripInProgressScreenState extends State<TripInProgressScreen> {
                         ),
                         Row(
                           children: [
-                            const Icon(Icons.route_outlined, color: AppColors.textMuted, size: 18),
+                            const Icon(Icons.route_outlined,
+                                color: AppColors.textMuted, size: 18),
                             const SizedBox(width: 6),
                             Text(
                               '$distanceKm km',
@@ -192,6 +197,3 @@ class _TripInProgressScreenState extends State<TripInProgressScreen> {
     );
   }
 }
-
-
-

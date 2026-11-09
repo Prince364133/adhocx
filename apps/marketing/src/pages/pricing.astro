@@ -2,237 +2,1732 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import EnterpriseLeadForm from '../components/EnterpriseLeadForm';
 
+// Comprehensive Schema.org JSON-LD for Enterprise Corporate Pricing & Commercial Proposals
 const jsonLd = {
   "@context": "https://schema.org",
-  "@type": "Service",
-  "name": "AdhocX Enterprise Corporate Transport Commercial Proposals",
-  "description": "Transparent, auditable corporate mobility commercial frameworks for Hyderabad enterprises. Custom shift packages, per-km commercial rate cards for 4-seater and 7-seater fleets, zero surge, and automated 3-way match reconciliation.",
-  "provider": {
-    "@type": "Organization",
-    "name": "AdhocX (Estemporaneo Technologies Private Limited)",
-    "url": "https://www.adhocx.com"
-  },
-  "areaServed": ["Telangana", "Hyderabad"]
+  "@graph": [
+    {
+      "@type": "WebPage",
+      "@id": "https://www.adhocx.com/pricing#webpage",
+      "url": "https://www.adhocx.com/pricing",
+      "name": "Predictable Enterprise Mobility Economics & Commercial Proposals | AdhocX Hyderabad",
+      "description": "Transparent, auditable corporate mobility commercial frameworks for Hyderabad enterprises. Custom shift packages, per-km commercial rate cards for 4-seater and 7-seater fleets, zero surge, and automated 3-way match reconciliation.",
+      "breadcrumb": {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://www.adhocx.com/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Enterprise Pricing & Rate Cards",
+            "item": "https://www.adhocx.com/pricing"
+          }
+        ]
+      }
+    },
+    {
+      "@type": "Service",
+      "@id": "https://www.adhocx.com/pricing#service",
+      "name": "AdhocX Enterprise Corporate Transport Commercial Proposals",
+      "serviceType": "B2B Employee Transportation Services & Corporate Cab Contracts",
+      "provider": {
+        "@type": "Organization",
+        "name": "AdhocX (Estemporaneo Technologies Private Limited)",
+        "url": "https://www.adhocx.com"
+      },
+      "areaServed": {
+        "@type": "City",
+        "name": "Hyderabad",
+        "containedInPlace": {
+          "@type": "State",
+          "name": "Telangana"
+        }
+      },
+      "description": "Direct corporate contract pricing across commercial 4-seater sedans, premium commercial SUVs, and executive airport transfers with automated 3-way match reconciliation.",
+      "hasOfferCatalog": {
+        "@type": "OfferCatalog",
+        "name": "Corporate Commute Commercial Models",
+        "itemListElement": [
+          {
+            "@type": "Offer",
+            "itemOffered": {
+              "@type": "Service",
+              "name": "4-Seater Commercial Sedans (Daily Shift Commutes)",
+              "description": "Optimized for employee doorstep and nodal shift transitions across Hyderabad tech corridors (Dzire, Etios, Tigor EV)."
+            }
+          },
+          {
+            "@type": "Offer",
+            "itemOffered": {
+              "@type": "Service",
+              "name": "Commercial SUVs & RGIA Transfers (Leadership Transport)",
+              "description": "Dedicated premium vehicles for senior leadership, business guests, and RGIA airport transfers (Innova Crysta, Hycross, VIP Fleets)."
+            }
+          }
+        ]
+      }
+    }
+  ]
 };
+
+const breadcrumbs = [
+  { name: 'Home', url: '/' },
+  { name: 'Enterprise Pricing', url: '/pricing' }
+];
 ---
 
 <BaseLayout
-  title="Corporate Commercial Framework & Custom Proposals — AdhocX Hyderabad"
-  description="Transparent, auditable corporate mobility commercial frameworks for Hyderabad enterprises. Custom shift packages, verified 4-seater and 7-seater fleets, zero surge, and automated 3-way match reconciliation."
+  title="Predictable Enterprise Mobility Economics & Commercial Proposals | AdhocX Hyderabad"
+  description="Eliminate unvetted vendor markups and opaque manual billing. AdhocX provides direct corporate contract pricing across commercial 4-seater sedans, premium commercial SUVs, and executive vehicles with automated 3-way match reconciliation."
   canonical="https://www.adhocx.com/pricing"
+  ogTitle="Predictable Enterprise Mobility Economics. Zero Hidden Surcharges | AdhocX"
+  ogDescription="Direct corporate contract pricing across commercial 4-seater sedans, premium commercial SUVs, and executive vehicles with automated 3-way match reconciliation in Hyderabad."
+  ogImage="https://www.adhocx.com/corporate-cab-fleet.jpg"
+  ogImageAlt="AdhocX Commercial Corporate Fleet and Rate Card Governance Hyderabad"
   activeNav="pricing"
+  breadcrumbs={breadcrumbs}
   jsonLd={jsonLd}
 >
-  <!-- Hero Section -->
-  <section class="page-hero-section" style="background: linear-gradient(180deg, var(--color-primary-50) 0%, #ffffff 100%); padding: var(--space-16) 0 var(--space-12);">
-    <div class="container text-center" style="max-width: 860px; margin: 0 auto;">
-      <div class="badge badge-blue" style="margin-bottom: var(--space-4);">
-        <span class="status-dot-pulse"></span>
-        <span>Transparent Commercial Governance &bull; Tailored Enterprise Quotations</span>
-      </div>
-      <h1 class="display-title" style="color: var(--color-text-primary); margin-bottom: var(--space-6);">
-        Predictable Enterprise Mobility Economics. Zero Hidden Surcharges.
-      </h1>
-      <p class="body-large" style="color: var(--color-text-secondary); margin-bottom: var(--space-8); line-height: 1.6;">
-        Eliminate unvetted vendor markups and opaque manual billing. <span class="logo-text" style="font-size: 1.15em;">Adhoc<span class="logo-accent">X</span></span> provides direct corporate contract pricing across commercial 4-seater sedans, 6/7-seater MUVs, and executive vehicles with automated 3-way match reconciliation.
-      </p>
-      <div style="display: flex; gap: var(--space-4); justify-content: center; flex-wrap: wrap;">
-        <a href="#request-quote" class="btn btn-primary btn-large">
-          Request Custom Corporate Rate Card &rarr;
-        </a>
-        <a href="#commercial-models" class="btn btn-secondary btn-large">
-          Explore Commercial Models
-        </a>
+  <!-- 1. Hero Section -->
+  <section class="pricing-hero-section">
+    <div class="pricing-hero-container">
+      <div class="pricing-hero-grid">
+        
+        <!-- Left Column: Value Proposition & CTAs -->
+        <div class="pricing-hero-content">
+          <h1 class="pricing-hero-h1">
+            Predictable Enterprise Mobility Economics. <span class="pricing-text-accent">Zero Hidden Surcharges.</span>
+          </h1>
+
+          <p class="pricing-hero-desc">
+            Eliminate unvetted vendor markups and opaque manual billing. <strong class="pricing-brand">Adhoc<span class="pricing-brand-x">X</span></strong> provides direct corporate contract pricing across commercial 4-seater sedans and premium commercial SUVs with automated 3-way match reconciliation.
+          </p>
+
+          <div class="pricing-hero-actions">
+            <a href="#request-quote" class="pricing-btn-primary">
+              <span>Request Custom Corporate Rate Card</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+              </svg>
+            </a>
+            <a href="#commercial-models" class="pricing-btn-secondary">
+              <span>Explore Commercial Models</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </a>
+          </div>
+
+          <!-- Micro Trust Stats -->
+          <div class="pricing-hero-badges">
+            <div class="pricing-hero-pill">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5728B2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+              </svg>
+              <span>100% Commercial Yellow-Plate Fleets</span>
+            </div>
+            <div class="pricing-hero-pill">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FF5F09" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                <circle cx="12" cy="10" r="3"></circle>
+              </svg>
+              <span>HITEC City &bull; Gachibowli &bull; Financial Dist.</span>
+            </div>
+            <div class="pricing-hero-pill">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              <span>Same-Day Rate Card Turnaround</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Visual Showcase (Fleet Photography + Audit Reconciliation Widget) -->
+        <div class="pricing-hero-media">
+          <div class="pricing-media-card">
+            <!-- Background Fleet Image -->
+            <div class="pricing-media-image-wrap">
+              <img
+                src="/corporate-cab-fleet.jpg"
+                alt="AdhocX Commercial Corporate Fleet outside Hyderabad IT Park"
+                class="pricing-media-img"
+                width="840"
+                height="560"
+                loading="eager"
+              />
+            </div>
+
+            <!-- Overlaid 3-Way Match Financial Control Card -->
+            <div class="pricing-audit-widget">
+              <div class="pricing-audit-header">
+                <div class="pricing-audit-title-wrap">
+                  <div class="pricing-audit-icon-box">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5728B2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                      <polyline points="2 17 12 22 22 17"></polyline>
+                      <polyline points="2 12 12 17 22 12"></polyline>
+                    </svg>
+                  </div>
+                  <div>
+                    <h2 class="pricing-audit-title">3-Way Match Audit Engine</h2>
+                    <p class="pricing-audit-sub">Automated Enterprise Reconciliation</p>
+                  </div>
+                </div>
+                <div class="pricing-audit-status-badge">
+                  <span>100% Reconciled</span>
+                </div>
+              </div>
+
+              <!-- Reconciliation Steps Mini Grid -->
+              <div class="pricing-audit-grid">
+                <div class="pricing-audit-cell">
+                  <div class="pricing-cell-label">Shift Roster</div>
+                  <div class="pricing-cell-val">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                    <span>ERP Synced</span>
+                  </div>
+                </div>
+                <div class="pricing-audit-cell">
+                  <div class="pricing-cell-label">GPS Geofence</div>
+                  <div class="pricing-cell-val">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                    <span>0 Deadhead KM</span>
+                  </div>
+                </div>
+                <div class="pricing-audit-cell">
+                  <div class="pricing-cell-label">GST Tax Invoice</div>
+                  <div class="pricing-cell-val">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                    <span>Itemized & Verified</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Audit Footer Guarantee -->
+              <div class="pricing-audit-footer">
+                <div class="pricing-audit-guarantee">
+                  <span class="pricing-badge-dot-orange"></span>
+                  <span>Zero Surge Algorithm &bull; 1-Hour Unserved SLA Credit Active</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
       </div>
     </div>
   </section>
 
-  <!-- 4 Commercial Value Guarantees -->
-  <section style="background: var(--color-surface); border-top: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border); padding: var(--space-8) 0;">
-    <div class="container">
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-6); text-align: center;">
-        <div>
-          <div style="font-size: 1.5rem; font-weight: 800; color: var(--color-primary-600);">Zero Surge</div>
-          <div style="font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary); margin-top: 4px;">Predictable Rates in Weather & Peak Hours</div>
+  <!-- 2. Trust Indicators (4 Commitments) -->
+  <section class="pricing-trust-strip" aria-label="Commercial Commitments and Guarantees">
+    <div class="pricing-section-container">
+      <div class="pricing-trust-grid">
+        
+        <!-- Trust Indicator 1: Zero Surge -->
+        <div class="pricing-trust-card">
+          <div class="pricing-trust-icon-box">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#5728B2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+              <line x1="8" y1="12" x2="16" y2="12"></line>
+            </svg>
+          </div>
+          <div class="pricing-trust-content">
+            <h3 class="pricing-trust-title">Zero Surge</h3>
+            <p class="pricing-trust-text">Predictable Rates in Weather &amp; Peak Hours</p>
+          </div>
         </div>
-        <div>
-          <div style="font-size: 1.5rem; font-weight: 800; color: var(--color-primary-600);">1-Hour SLA Credit</div>
-          <div style="font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary); margin-top: 4px;">Direct Commercial Guarantee on Unserved Demand</div>
+
+        <!-- Trust Indicator 2: 1-Hour SLA Credit -->
+        <div class="pricing-trust-card">
+          <div class="pricing-trust-icon-box">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FF5F09" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+          </div>
+          <div class="pricing-trust-content">
+            <h3 class="pricing-trust-title">1-Hour SLA Credit</h3>
+            <p class="pricing-trust-text">Direct Commercial Guarantee on Unserved Demand</p>
+          </div>
         </div>
-        <div>
-          <div style="font-size: 1.5rem; font-weight: 800; color: var(--color-primary-600);">3-Way Match</div>
-          <div style="font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary); margin-top: 4px;">Roster vs. GPS Geofence vs. GST Invoice</div>
+
+        <!-- Trust Indicator 3: 3-Way Match -->
+        <div class="pricing-trust-card">
+          <div class="pricing-trust-icon-box">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#5728B2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+              <polyline points="2 17 12 22 22 17"></polyline>
+              <polyline points="2 12 12 17 22 12"></polyline>
+            </svg>
+          </div>
+          <div class="pricing-trust-content">
+            <h3 class="pricing-trust-title">3-Way Match</h3>
+            <p class="pricing-trust-text">Roster vs. GPS Geofence vs. GST Invoice</p>
+          </div>
         </div>
-        <div>
-          <div style="font-size: 1.5rem; font-weight: 800; color: var(--color-primary-600);">100% Direct</div>
-          <div style="font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary); margin-top: 4px;">No Middleman Broker or Aggregator Deductions</div>
+
+        <!-- Trust Indicator 4: 100% Direct -->
+        <div class="pricing-trust-card">
+          <div class="pricing-trust-icon-box">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+          </div>
+          <div class="pricing-trust-content">
+            <h3 class="pricing-trust-title">100% Direct</h3>
+            <p class="pricing-trust-text">No Middleman Broker or Aggregator Deductions</p>
+          </div>
         </div>
+
       </div>
     </div>
   </section>
 
-  <!-- Commercial Models Breakdown -->
-  <section id="commercial-models" style="padding: var(--space-16) 0; background: var(--color-surface-muted);">
-    <div class="container">
-      <div class="text-center" style="max-width: 800px; margin: 0 auto var(--space-12);">
-        <span class="badge badge-warm" style="margin-bottom: var(--space-3);">Tailored B2B Contracts</span>
-        <h2 style="font-size: 2rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-4);">
+  <!-- 3. Commercial Models Section -->
+  <section id="commercial-models" class="pricing-models-section">
+    <div class="pricing-section-container">
+      
+      <!-- Section Header -->
+      <div class="pricing-section-header text-center">
+        <div class="pricing-section-eyebrow">
+          <span>Tailored B2B Contracts</span>
+        </div>
+        <h2 class="pricing-section-h2">
           Flexible Commercial Frameworks for Every Operation
         </h2>
-        <p style="color: var(--color-text-secondary); font-size: 1rem; line-height: 1.6;">
+        <p class="pricing-section-sub">
           Whether your enterprise operates 24/7 rotating shifts or daytime executive transit, our transparent rate structures are calibrated to your corporate corridors and headcount.
         </p>
       </div>
 
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-8);">
+      <!-- Models 2-Card Grid (Sedans & SUVs Only) -->
+      <div class="pricing-models-grid">
         
         <!-- Model 1: 4-Seater Commercial Sedans -->
-        <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; justify-content: space-between;">
-          <div>
-            <div class="badge badge-blue" style="margin-bottom: var(--space-3);">4-Seater Commercial Sedans</div>
-            <h3 style="font-size: 1.4rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-2);">
+        <article class="pricing-model-card">
+          <!-- Card Image Header -->
+          <div class="pricing-model-image-wrap">
+            <img
+              src="/images/fleet/fleet-dzire.jpg"
+              alt="4-Seater Commercial Sedan Dzire for corporate shift commutes"
+              class="pricing-model-img"
+              width="600"
+              height="360"
+              loading="lazy"
+            />
+            <div class="pricing-model-badge-top">
+              <span>4-Seater Commercial Sedans</span>
+            </div>
+          </div>
+
+          <!-- Card Body -->
+          <div class="pricing-model-body">
+            <h3 class="pricing-model-title">
               Daily Point-to-Point Shift Commutes
             </h3>
-            <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.5; margin-bottom: var(--space-6);">
+            <p class="pricing-model-desc">
               Optimized for employee doorstep and nodal shift transitions across Hyderabad tech corridors (Dzire, Etios, Tigor EV).
             </p>
 
-            <div style="display: flex; flex-direction: column; gap: var(--space-3); border-top: 1px solid var(--color-border); padding-top: var(--space-4); margin-bottom: var(--space-6);">
-              <div style="display: flex; align-items: flex-start; gap: 8px; font-size: 0.9rem; color: var(--color-text-secondary);">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                <span>Dedicated shift duration packages customized to your office hours</span>
-              </div>
-              <div style="display: flex; align-items: flex-start; gap: 8px; font-size: 0.9rem; color: var(--color-text-secondary);">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                <span>Automated multi-stop routing with geofenced pickup arrival timestamps</span>
-              </div>
-              <div style="display: flex; align-items: flex-start; gap: 8px; font-size: 0.9rem; color: var(--color-text-secondary);">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                <span>Clean yellow-board commercial vehicles with valid RTO passenger permits</span>
-              </div>
+            <!-- Vehicle Tags -->
+            <div class="pricing-vehicle-tags">
+              <span class="pricing-v-tag">Maruti Dzire</span>
+              <span class="pricing-v-tag">Toyota Etios</span>
+              <span class="pricing-v-tag">Tata Tigor EV</span>
+            </div>
+
+            <!-- Feature Bullet List -->
+            <ul class="pricing-feature-list" role="list">
+              <li class="pricing-feature-item">
+                <div class="pricing-feature-icon" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5728B2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </div>
+                <span>Dedicated shift duration packages customized to your office hours.</span>
+              </li>
+              <li class="pricing-feature-item">
+                <div class="pricing-feature-icon" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5728B2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </div>
+                <span>Automated multi-stop routing with geofenced pickup arrival timestamps.</span>
+              </li>
+              <li class="pricing-feature-item">
+                <div class="pricing-feature-icon" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5728B2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </div>
+                <span>Clean yellow-board commercial vehicles with valid RTO passenger permits.</span>
+              </li>
+            </ul>
+
+            <!-- Model CTA -->
+            <div class="pricing-model-footer">
+              <a href="#request-quote" class="pricing-model-btn-outline">
+                <span>Request Sedan Proposal</span>
+                <span aria-hidden="true">&rarr;</span>
+              </a>
+            </div>
+          </div>
+        </article>
+
+        <!-- Model 2: Commercial SUVs & Executive Transfers -->
+        <article class="pricing-model-card pricing-model-featured">
+          <!-- Floating Accent Ribbon -->
+          <div class="pricing-featured-ribbon">
+            <span class="pricing-pulse-dot-light" aria-hidden="true"></span>
+            <span>Premium Commercial Fleet</span>
+          </div>
+
+          <!-- Card Image Header -->
+          <div class="pricing-model-image-wrap">
+            <img
+              src="/images/fleet/fleet-innova-crysta.jpg"
+              alt="Executive Commercial SUV Toyota Innova Crysta for corporate client delegation and RGIA transfers"
+              class="pricing-model-img"
+              width="600"
+              height="360"
+              loading="lazy"
+            />
+            <div class="pricing-model-badge-top pricing-badge-featured">
+              <span>Executive Commercial SUVs</span>
             </div>
           </div>
 
-          <a href="#request-quote" class="btn btn-outline" style="width: 100%; text-align: center; justify-content: center;">
-            Request Sedan Proposal &rarr;
-          </a>
-        </div>
-
-        <!-- Model 2: 6/7-Seater MUVs -->
-        <div style="background: var(--color-surface); border: 2px solid var(--color-primary-600); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-lg); position: relative; display: flex; flex-direction: column; justify-content: space-between;">
-          <div style="position: absolute; top: -14px; right: 24px; background: var(--color-primary-600); color: #ffffff; font-size: 0.75rem; font-weight: 700; padding: 4px 12px; border-radius: var(--radius-full); text-transform: uppercase; letter-spacing: 0.05em;">
-            High-Efficiency ETS
-          </div>
-          <div>
-            <div class="badge badge-warm" style="margin-bottom: var(--space-3);">6 & 7-Seater Commercial MUVs</div>
-            <h3 style="font-size: 1.4rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-2);">
-              Grouped Shift Transit & Nodal Corridors
+          <!-- Card Body -->
+          <div class="pricing-model-body">
+            <h3 class="pricing-model-title">
+              Leadership &amp; Client Delegation Transport
             </h3>
-            <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.5; margin-bottom: var(--space-6);">
-              High-density workforce transit maximizing seat occupancy and reducing overall corporate mobility expenditure (Ertiga, XL6, Carens).
+            <p class="pricing-model-desc">
+              Dedicated premium commercial SUVs for senior leadership, business guests, team transit, and RGIA airport transfers (Innova Crysta, Hycross, VIP Fleets).
             </p>
 
-            <div style="display: flex; flex-direction: column; gap: var(--space-3); border-top: 1px solid var(--color-border); padding-top: var(--space-4); margin-bottom: var(--space-6);">
-              <div style="display: flex; align-items: flex-start; gap: 8px; font-size: 0.9rem; color: var(--color-text-secondary);">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                <span>Clustered employee routing minimizing route detour times</span>
-              </div>
-              <div style="display: flex; align-items: flex-start; gap: 8px; font-size: 0.9rem; color: var(--color-text-secondary);">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                <span>Automated female safe-drop sequencing for late-night & early-morning shifts</span>
-              </div>
-              <div style="display: flex; align-items: flex-start; gap: 8px; font-size: 0.9rem; color: var(--color-text-secondary);">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                <span>Dynamic OTP/QR boarding verification at every scheduled employee stop</span>
-              </div>
+            <!-- Vehicle Tags -->
+            <div class="pricing-vehicle-tags">
+              <span class="pricing-v-tag">Toyota Innova Crysta</span>
+              <span class="pricing-v-tag">Innova Hycross</span>
+              <span class="pricing-v-tag">VIP Fleets</span>
+            </div>
+
+            <!-- Feature Bullet List -->
+            <ul class="pricing-feature-list" role="list">
+              <li class="pricing-feature-item">
+                <div class="pricing-feature-icon" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FF5F09" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </div>
+                <span>Priority vehicle assignment with top-rated commercial chauffeurs.</span>
+              </li>
+              <li class="pricing-feature-item">
+                <div class="pricing-feature-icon" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FF5F09" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </div>
+                <span>Fixed corporate point-to-point airport agreements with flight delay tracking.</span>
+              </li>
+              <li class="pricing-feature-item">
+                <div class="pricing-feature-icon" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FF5F09" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </div>
+                <span>Executive vehicle sanitization standards and climate-controlled interiors.</span>
+              </li>
+            </ul>
+
+            <!-- Model CTA -->
+            <div class="pricing-model-footer">
+              <a href="#request-quote" class="pricing-model-btn-primary">
+                <span>Request SUV Proposal</span>
+                <span aria-hidden="true">&rarr;</span>
+              </a>
             </div>
           </div>
+        </article>
 
-          <a href="#request-quote" class="btn btn-primary" style="width: 100%; text-align: center; justify-content: center;">
-            Request MUV Proposal &rarr;
-          </a>
-        </div>
-
-        <!-- Model 3: Executive MPVs & Airport Spot Cabs -->
-        <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; justify-content: space-between;">
-          <div>
-            <div class="badge badge-blue" style="margin-bottom: var(--space-3);">Executive Mobility & RGIA Transfers</div>
-            <h3 style="font-size: 1.4rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-2);">
-              Leadership & Client Delegation Transport
-            </h3>
-            <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.5; margin-bottom: var(--space-6);">
-              Dedicated premium vehicles for senior leadership, business guests, and RGIA airport transfers (Innova Crysta, Hycross, VIP Fleets).
-            </p>
-
-            <div style="display: flex; flex-direction: column; gap: var(--space-3); border-top: 1px solid var(--color-border); padding-top: var(--space-4); margin-bottom: var(--space-6);">
-              <div style="display: flex; align-items: flex-start; gap: 8px; font-size: 0.9rem; color: var(--color-text-secondary);">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                <span>Priority vehicle assignment with top-rated commercial chauffeurs</span>
-              </div>
-              <div style="display: flex; align-items: flex-start; gap: 8px; font-size: 0.9rem; color: var(--color-text-secondary);">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                <span>Fixed corporate point-to-point airport agreements with flight delay tracking</span>
-              </div>
-              <div style="display: flex; align-items: flex-start; gap: 8px; font-size: 0.9rem; color: var(--color-text-secondary);">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                <span>Executive vehicle sanitization standards and climate-controlled interiors</span>
-              </div>
-            </div>
-          </div>
-
-          <a href="#request-quote" class="btn btn-outline" style="width: 100%; text-align: center; justify-content: center;">
-            Request Executive Proposal &rarr;
-          </a>
-        </div>
       </div>
     </div>
   </section>
 
-  <!-- Financial Audit & Transparency Engine -->
-  <section class="section-padding" style="background: var(--color-surface);">
-    <div class="container">
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-12); align-items: center;">
-        <div>
-          <span class="badge badge-primary" style="margin-bottom: var(--space-3);">Audit-Grade Financial Controls</span>
-          <h2 style="font-size: 2rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-4);">
-            How AdhocX Eliminates Corporate Transport Billing Leakage
-          </h2>
-          <p class="body-large" style="margin-bottom: var(--space-6);">
-            Traditional vendor desks rely on physical log sheets, manual odometer readings, and disputed fuel slips. AdhocX digitizes and verifies every billing milestone automatically.
-          </p>
+  <!-- 4. Billing Transparency & Financial Controls (3-Step Process) -->
+  <section class="pricing-financial-section">
+    <div class="pricing-section-container">
+      
+      <!-- Section Header -->
+      <div class="pricing-section-header text-center">
+        <div class="pricing-section-eyebrow">
+          <span>Audit-Grade Financial Controls</span>
+        </div>
+        <h2 class="pricing-section-h2">
+          How AdhocX Eliminates Corporate Transport Billing Leakage
+        </h2>
+        <p class="pricing-section-sub">
+          Traditional vendor desks rely on physical log sheets, manual odometer readings, and disputed fuel slips. AdhocX digitizes and verifies every billing milestone automatically.
+        </p>
+      </div>
 
-          <div style="display: flex; flex-direction: column; gap: var(--space-4);">
-            <div style="display: flex; gap: var(--space-3); align-items: flex-start;">
-              <div style="width: 2rem; height: 2rem; border-radius: 50%; background: #EFF6FF; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0;">1</div>
-              <div>
-                <strong style="color: var(--color-text-primary);">GPS & Geofence Verification:</strong>
-                <p style="font-size: 0.875rem; color: var(--color-text-secondary); margin-top: 2px;">Trips are audited against real vehicle movement timestamps. Deadhead mileage is eliminated from corporate invoicing.</p>
+      <!-- 3-Step Process / Connected Horizontal Timeline -->
+      <div class="pricing-timeline-wrapper">
+        <div class="pricing-timeline-line" aria-hidden="true"></div>
+        <div class="pricing-timeline-grid">
+          
+          <!-- Step 1: GPS & Geofence Verification -->
+          <div class="pricing-step-card">
+            <div class="pricing-step-number-wrap">
+              <span class="pricing-step-num">01</span>
+              <div class="pricing-step-icon-badge">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                  <circle cx="12" cy="10" r="3"></circle>
+                </svg>
               </div>
             </div>
-
-            <div style="display: flex; gap: var(--space-3); align-items: flex-start;">
-              <div style="width: 2rem; height: 2rem; border-radius: 50%; background: #EFF6FF; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0;">2</div>
-              <div>
-                <strong style="color: var(--color-text-primary);">Contract Rate Card Lock:</strong>
-                <p style="font-size: 0.875rem; color: var(--color-text-secondary); margin-top: 2px;">Your agreed master service agreement terms are permanently locked into the system, preventing unexpected fee spikes.</p>
-              </div>
-            </div>
-
-            <div style="display: flex; gap: var(--space-3); align-items: flex-start;">
-              <div style="width: 2rem; height: 2rem; border-radius: 50%; background: #EFF6FF; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0;">3</div>
-              <div>
-                <strong style="color: var(--color-text-primary);">Consolidated Monthly GST Invoicing:</strong>
-                <p style="font-size: 0.875rem; color: var(--color-text-secondary); margin-top: 2px;">Single itemized monthly GST invoice with internal cost center breakdowns for seamless ERP integration.</p>
+            <div class="pricing-step-content">
+              <div class="pricing-step-meta">Audit Milestone 01</div>
+              <h3 class="pricing-step-title">GPS &amp; Geofence Verification</h3>
+              <p class="pricing-step-desc">
+                Trips are audited against real vehicle movement timestamps. Deadhead mileage is eliminated from corporate invoicing.
+              </p>
+              <div class="pricing-step-tag">
+                <span class="pricing-tag-bullet"></span>
+                <span>Zero Deadhead Mileage Billed</span>
               </div>
             </div>
           </div>
+
+          <!-- Step 2: Contract Rate Card Lock -->
+          <div class="pricing-step-card">
+            <div class="pricing-step-number-wrap">
+              <span class="pricing-step-num">02</span>
+              <div class="pricing-step-icon-badge">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+              </div>
+            </div>
+            <div class="pricing-step-content">
+              <div class="pricing-step-meta">Audit Milestone 02</div>
+              <h3 class="pricing-step-title">Contract Rate Card Lock</h3>
+              <p class="pricing-step-desc">
+                Your agreed master service agreement terms are permanently locked into the system, preventing unexpected fee spikes.
+              </p>
+              <div class="pricing-step-tag">
+                <span class="pricing-tag-bullet"></span>
+                <span>System-Locked MSA Rates</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 3: Consolidated Monthly GST Invoicing -->
+          <div class="pricing-step-card">
+            <div class="pricing-step-number-wrap">
+              <span class="pricing-step-num">03</span>
+              <div class="pricing-step-icon-badge">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                  <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+              </div>
+            </div>
+            <div class="pricing-step-content">
+              <div class="pricing-step-meta">Audit Milestone 03</div>
+              <h3 class="pricing-step-title">Consolidated Monthly GST Invoicing</h3>
+              <p class="pricing-step-desc">
+                Single itemized monthly GST invoice with internal cost center breakdowns for seamless ERP integration.
+              </p>
+              <div class="pricing-step-tag">
+                <span class="pricing-tag-bullet"></span>
+                <span>Cost-Center ERP Allocation</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Financial Governance Assurance Callout -->
+      <div class="pricing-governance-callout">
+        <div class="pricing-gov-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#5728B2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="m9 12 2 2 4-4"></path>
+          </svg>
+        </div>
+        <div class="pricing-gov-text">
+          <strong>Enterprise Audit Trail Guarantee:</strong> Every trip ticket stores encrypted vehicle GPS coordinates, passenger OTP boarding confirmations, and route polygon timestamps accessible by corporate finance controllers 24/7.
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- 5. Enterprise Quotation Form Section (#request-quote) -->
+  <section id="request-quote" class="pricing-rfp-section">
+    <div class="pricing-section-container">
+      <div class="pricing-rfp-layout">
+        
+        <!-- Left Side: Enterprise Proposal Context & Trust Seals -->
+        <div class="pricing-rfp-info">
+          <div class="pricing-section-eyebrow">
+            <span>Direct Enterprise Sourcing</span>
+          </div>
+
+          <h2 class="pricing-rfp-h2">
+            Request Custom Corporate Quotation &amp; Proposal
+          </h2>
+
+          <p class="pricing-rfp-desc">
+            Tailored B2B contract pricing for 4-seater and 7-seater yellow-plate commercial fleets across Hyderabad tech corridors.
+          </p>
+
+          <!-- RFP Assurance List -->
+          <div class="pricing-rfp-assurances">
+            <div class="pricing-assurance-item">
+              <div class="pricing-assurance-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              </div>
+              <div>
+                <strong>Tailored Route &amp; Shift Modeling</strong>
+                <p>Custom cost analysis calibrated to your office shift rosters, nodal stop density, and multi-campus corridors.</p>
+              </div>
+            </div>
+
+            <div class="pricing-assurance-item">
+              <div class="pricing-assurance-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              </div>
+              <div>
+                <strong>100% Commercial Yellow-Plate Fleets</strong>
+                <p>Strictly commercial sedans and SUVs with valid commercial insurance, fitness certs, and police-verified chauffeurs.</p>
+              </div>
+            </div>
+
+            <div class="pricing-assurance-item">
+              <div class="pricing-assurance-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              </div>
+              <div>
+                <strong>Guaranteed Same-Day Commercial Response</strong>
+                <p>Our corporate accounts desk reviews operational parameters and delivers a detailed rate card proposal within 24 hours.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Direct Enterprise Contact Card -->
+          <div class="pricing-contact-card">
+            <h3 class="pricing-contact-heading">Enterprise Mobility Desk</h3>
+            <p class="pricing-contact-sub">Have an active RFP or immediate transport requirement?</p>
+            
+            <div class="pricing-contact-rows">
+              <div class="pricing-contact-row">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5728B2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                </svg>
+                <span>+91 78935 45818 / Enterprise Desk</span>
+              </div>
+              <div class="pricing-contact-row">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5728B2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                  <polyline points="22,6 12,13 2,6"></polyline>
+                </svg>
+                <span>support@adhocx.com</span>
+              </div>
+              <div class="pricing-contact-row">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5728B2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                  <circle cx="12" cy="10" r="3"></circle>
+                </svg>
+                <span>HITEC City, Hyderabad, Telangana</span>
+              </div>
+            </div>
+
+            <div class="pricing-nda-badge">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+              <span>Strictly Confidential &bull; Standard Enterprise NDA Protected</span>
+            </div>
+          </div>
+
         </div>
 
-        <!-- Right Side: Embedded Request Form Island -->
-        <div id="request-quote">
+        <!-- Right Side: Existing EnterpriseLeadForm Reused & Loaded -->
+        <div class="pricing-rfp-form-card">
           <EnterpriseLeadForm client:load defaultPurpose="Custom Corporate Quotation & Rate Card" />
         </div>
+
       </div>
     </div>
   </section>
 </BaseLayout>
+
+<style>
+  /* Root & Layout Utilities */
+  .pricing-section-container {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+  }
+
+  /* 1. Hero Section */
+  .pricing-hero-section {
+    position: relative;
+    background: linear-gradient(180deg, #F9F5FF 0%, #FFFFFF 100%);
+    padding: clamp(2rem, 3.5vw, 3.25rem) 0 clamp(2.5rem, 4vw, 3.5rem);
+    overflow: hidden;
+    border-bottom: 1px solid #E2E8F0;
+  }
+
+  .pricing-hero-container {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+  }
+
+  .pricing-hero-grid {
+    display: grid;
+    grid-template-columns: 1.08fr 0.92fr;
+    gap: clamp(1.75rem, 3.2vw, 3rem);
+    align-items: center;
+  }
+
+  .pricing-hero-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .pricing-hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #ECE6FE;
+    color: #5728B2;
+    padding: 0.3rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    margin-bottom: 0.875rem;
+    box-shadow: 0 1px 2px rgba(87, 40, 178, 0.08);
+  }
+
+  .pricing-pulse-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #5728B2;
+    box-shadow: 0 0 0 3px rgba(87, 40, 178, 0.25);
+    animation: pulse 2s infinite ease-in-out;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.85); }
+  }
+
+  .pricing-hero-h1 {
+    font-size: clamp(1.75rem, 2.35vw, 2.35rem);
+    font-weight: 800;
+    line-height: 1.2;
+    color: #0F172A;
+    letter-spacing: -0.025em;
+    margin: 0 0 0.875rem 0;
+  }
+
+  .pricing-text-accent {
+    color: #5728B2;
+  }
+
+  .pricing-hero-desc {
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    color: #475569;
+    margin: 0 0 1.35rem 0;
+    max-width: 32rem;
+  }
+
+  .pricing-brand {
+    color: #5728B2;
+    font-weight: 800;
+  }
+
+  .pricing-brand-x {
+    color: #FF5F09;
+  }
+
+  .pricing-hero-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.35rem;
+  }
+
+  .pricing-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #5728B2;
+    color: #ffffff;
+    font-size: 0.875rem;
+    font-weight: 600;
+    padding: 0.65rem 1.35rem;
+    border-radius: 9999px;
+    text-decoration: none;
+    box-shadow: 0 4px 14px rgba(87, 40, 178, 0.25);
+    transition: all 0.2s ease;
+  }
+
+  .pricing-btn-primary:hover {
+    background: #441F8C;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(87, 40, 178, 0.35);
+  }
+
+  .pricing-btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #ffffff;
+    color: #1E293B;
+    border: 1.5px solid #CBD5E1;
+    font-size: 0.875rem;
+    font-weight: 600;
+    padding: 0.65rem 1.35rem;
+    border-radius: 9999px;
+    text-decoration: none;
+    transition: all 0.2s ease;
+  }
+
+  .pricing-btn-secondary:hover {
+    background: #F8FAFC;
+    border-color: #94A3B8;
+    color: #5728B2;
+    transform: translateY(-2px);
+  }
+
+  .pricing-hero-badges {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .pricing-hero-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: #ffffff;
+    border: 1px solid #E2E8F0;
+    padding: 0.35rem 0.65rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #334155;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  }
+
+  /* Hero Media Right Column */
+  .pricing-hero-media {
+    position: relative;
+    width: 100%;
+    max-width: 520px;
+    margin-left: auto;
+  }
+
+  .pricing-media-card {
+    position: relative;
+    border-radius: 1rem;
+    box-shadow: 0 25px 50px -12px rgba(87, 40, 178, 0.18);
+  }
+
+  .pricing-media-image-wrap {
+    position: relative;
+    border-radius: 16px;
+    overflow: hidden;
+    aspect-ratio: 16 / 10;
+    border: 1px solid #E2E8F0;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  }
+
+  .pricing-media-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .pricing-media-gradient-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.1) 0%, rgba(15, 23, 42, 0.65) 100%);
+    pointer-events: none;
+  }
+
+  .pricing-floating-hub-badge {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(8px);
+    color: #ffffff;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.35rem 0.75rem;
+    border-radius: 9999px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .pricing-dot-live {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #16A34A;
+    box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.4);
+  }
+
+  /* Overlaid 3-Way Match Widget */
+  .pricing-audit-widget {
+    position: relative;
+    margin-top: -3.5rem;
+    margin-left: 1.25rem;
+    margin-right: 1.25rem;
+    background: #ffffff;
+    border: 1px solid #E2E8F0;
+    border-radius: 14px;
+    padding: 1.25rem;
+    box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.12);
+    z-index: 2;
+  }
+
+  .pricing-audit-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #F1F5F9;
+  }
+
+  .pricing-audit-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+  }
+
+  .pricing-audit-icon-box {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: #ECE6FE;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .pricing-audit-title {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: #0F172A;
+    margin: 0;
+  }
+
+  .pricing-audit-sub {
+    font-size: 0.75rem;
+    color: #64748B;
+    margin: 0;
+  }
+
+  .pricing-audit-status-badge {
+    background: #DCFCE7;
+    color: #15803D;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.25rem 0.6rem;
+    border-radius: 6px;
+  }
+
+  .pricing-audit-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.6rem;
+    margin-bottom: 0.85rem;
+  }
+
+  .pricing-audit-cell {
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    padding: 0.5rem 0.65rem;
+    text-align: left;
+  }
+
+  .pricing-cell-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #64748B;
+    margin-bottom: 0.2rem;
+  }
+
+  .pricing-cell-val {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.775rem;
+    font-weight: 700;
+    color: #0F172A;
+  }
+
+  .pricing-audit-footer {
+    padding-top: 0.5rem;
+    border-top: 1px dashed #E2E8F0;
+  }
+
+  .pricing-audit-guarantee {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #475569;
+  }
+
+  .pricing-badge-dot-orange {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #FF5F09;
+    flex-shrink: 0;
+  }
+
+  /* 2. Trust Indicators Strip */
+  .pricing-trust-strip {
+    background: #ffffff;
+    border-bottom: 1px solid #E2E8F0;
+    padding: 2.25rem 0;
+  }
+
+  .pricing-trust-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+  }
+
+  .pricing-trust-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+    padding: 1rem 1.15rem;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 12px;
+    transition: all 0.2s ease;
+  }
+
+  .pricing-trust-card:hover {
+    transform: translateY(-2px);
+    background: #ffffff;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05);
+    border-color: #CBD5E1;
+  }
+
+  .pricing-trust-icon-box {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    background: #ffffff;
+    border: 1px solid #E2E8F0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+  }
+
+  .pricing-trust-title {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #0F172A;
+    margin: 0 0 0.2rem 0;
+  }
+
+  .pricing-trust-text {
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    color: #64748B;
+    margin: 0;
+    font-weight: 500;
+  }
+
+  /* 3. Commercial Models Section */
+  .pricing-models-section {
+    padding: 5.5rem 0;
+    background: #F8FAFC;
+    border-bottom: 1px solid #E2E8F0;
+  }
+
+  .pricing-section-header {
+    max-width: 100%;
+    margin: 0 auto 3.5rem auto;
+    text-align: center;
+  }
+
+  .pricing-section-eyebrow {
+    display: inline-block;
+    background: #FFF0E8;
+    color: #E55508;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    padding: 0.35rem 0.9rem;
+    border-radius: 9999px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 1rem;
+  }
+
+  .pricing-section-h2 {
+    font-size: 2.25rem;
+    font-weight: 800;
+    color: #0F172A;
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+    margin: 0 0 1rem 0;
+  }
+
+  @media (min-width: 992px) {
+    .pricing-section-h2 {
+      white-space: nowrap;
+    }
+  }
+
+  .pricing-section-sub {
+    font-size: 1.05rem;
+    line-height: 1.6;
+    color: #64748B;
+    margin: 0;
+    max-width: 52rem;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .pricing-models-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    max-width: 960px;
+    margin: 0 auto;
+    gap: 2rem;
+    align-items: stretch;
+  }
+
+  .pricing-model-card {
+    background: #ffffff;
+    border: 1px solid #E2E8F0;
+    border-radius: 18px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+    transition: all 0.3s ease;
+    position: relative;
+  }
+
+  .pricing-model-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.08);
+    border-color: #CBD5E1;
+  }
+
+  .pricing-model-featured {
+    border: 2px solid #5728B2;
+    box-shadow: 0 12px 28px rgba(87, 40, 178, 0.12);
+  }
+
+  .pricing-featured-ribbon {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    z-index: 3;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: #FF5F09;
+    color: #ffffff;
+    font-size: 0.75rem;
+    font-weight: 800;
+    padding: 0.35rem 0.8rem;
+    border-radius: 9999px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    box-shadow: 0 2px 8px rgba(255, 95, 9, 0.4);
+  }
+
+  .pricing-pulse-dot-light {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #ffffff;
+    animation: pulse 1.5s infinite;
+  }
+
+  .pricing-model-image-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    overflow: hidden;
+    background: #F1F5F9;
+  }
+
+  .pricing-model-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.4s ease;
+  }
+
+  .pricing-model-card:hover .pricing-model-img {
+    transform: scale(1.04);
+  }
+
+  .pricing-model-badge-top {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(6px);
+    color: #ffffff;
+    font-size: 0.775rem;
+    font-weight: 700;
+    padding: 0.3rem 0.7rem;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+  }
+
+  .pricing-badge-featured {
+    background: rgba(87, 40, 178, 0.9);
+  }
+
+  .pricing-model-body {
+    padding: 1.75rem;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+  }
+
+  .pricing-model-title {
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: #0F172A;
+    line-height: 1.3;
+    margin: 0 0 0.75rem 0;
+  }
+
+  .pricing-model-desc {
+    font-size: 0.9rem;
+    line-height: 1.55;
+    color: #64748B;
+    margin: 0 0 1.25rem 0;
+  }
+
+  .pricing-vehicle-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid #F1F5F9;
+  }
+
+  .pricing-v-tag {
+    background: #F1F5F9;
+    color: #334155;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.55rem;
+    border-radius: 6px;
+    border: 1px solid #E2E8F0;
+  }
+
+  .pricing-feature-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 2rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    flex-grow: 1;
+  }
+
+  .pricing-feature-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    font-size: 0.875rem;
+    line-height: 1.45;
+    color: #334155;
+  }
+
+  .pricing-feature-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #ECE6FE;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .pricing-model-featured .pricing-feature-icon {
+    background: #FFF0E8;
+  }
+
+  .pricing-model-footer {
+    margin-top: auto;
+  }
+
+  .pricing-model-btn-outline {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.8rem 1.25rem;
+    background: #ffffff;
+    border: 1.5px solid #5728B2;
+    color: #5728B2;
+    font-size: 0.9rem;
+    font-weight: 700;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: all 0.2s ease;
+  }
+
+  .pricing-model-btn-outline:hover {
+    background: #5728B2;
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(87, 40, 178, 0.2);
+  }
+
+  .pricing-model-btn-primary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.85rem 1.25rem;
+    background: #5728B2;
+    color: #ffffff;
+    font-size: 0.9rem;
+    font-weight: 700;
+    border-radius: 8px;
+    text-decoration: none;
+    box-shadow: 0 4px 14px rgba(87, 40, 178, 0.25);
+    transition: all 0.2s ease;
+  }
+
+  .pricing-model-btn-primary:hover {
+    background: #441F8C;
+    box-shadow: 0 6px 18px rgba(87, 40, 178, 0.35);
+  }
+
+  /* 4. Financial Controls Timeline Section */
+  .pricing-financial-section {
+    padding: 5.5rem 0;
+    background: #ffffff;
+    border-bottom: 1px solid #E2E8F0;
+  }
+
+  .pricing-timeline-wrapper {
+    position: relative;
+    margin-bottom: 3.5rem;
+  }
+
+  .pricing-timeline-line {
+    display: none;
+  }
+
+  @media (min-width: 1024px) {
+    .pricing-timeline-line {
+      display: block;
+      position: absolute;
+      top: 36px;
+      left: 15%;
+      right: 15%;
+      height: 2px;
+      background: linear-gradient(90deg, #5728B2 0%, #FF5F09 50%, #16A34A 100%);
+      z-index: 1;
+    }
+  }
+
+  .pricing-timeline-grid {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+  }
+
+  .pricing-step-card {
+    background: #ffffff;
+    border: 1px solid #E2E8F0;
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+    transition: all 0.25s ease;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .pricing-step-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+    border-color: #CBD5E1;
+  }
+
+  .pricing-step-number-wrap {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+  }
+
+  .pricing-step-num {
+    font-size: 2.25rem;
+    font-weight: 900;
+    color: #E2E8F0;
+    line-height: 1;
+    font-family: monospace;
+  }
+
+  .pricing-step-icon-badge {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: #5728B2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 10px rgba(87, 40, 178, 0.2);
+  }
+
+  .pricing-step-card:nth-child(2) .pricing-step-icon-badge {
+    background: #FF5F09;
+    box-shadow: 0 4px 10px rgba(255, 95, 9, 0.2);
+  }
+
+  .pricing-step-card:nth-child(3) .pricing-step-icon-badge {
+    background: #16A34A;
+    box-shadow: 0 4px 10px rgba(22, 163, 74, 0.2);
+  }
+
+  .pricing-step-meta {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748B;
+    margin-bottom: 0.4rem;
+  }
+
+  .pricing-step-title {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #0F172A;
+    line-height: 1.35;
+    margin: 0 0 0.85rem 0;
+  }
+
+  .pricing-step-desc {
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: #475569;
+    margin: 0 0 1.25rem 0;
+    flex-grow: 1;
+  }
+
+  .pricing-step-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: #F1F5F9;
+    border: 1px solid #E2E8F0;
+    padding: 0.35rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #1E293B;
+  }
+
+  .pricing-tag-bullet {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #16A34A;
+  }
+
+  .pricing-governance-callout {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    background: #F9F5FF;
+    border: 1px solid #ECE6FE;
+    border-left: 4px solid #5728B2;
+    border-radius: 12px;
+    padding: 1.25rem 1.75rem;
+    max-width: 960px;
+    margin: 0 auto;
+  }
+
+  .pricing-gov-icon {
+    flex-shrink: 0;
+  }
+
+  .pricing-gov-text {
+    font-size: 0.9rem;
+    line-height: 1.55;
+    color: #334155;
+  }
+
+  /* 5. Enterprise RFP & Lead Form Section */
+  .pricing-rfp-section {
+    padding: clamp(2.25rem, 4.5vw, 3.5rem) 0;
+    background: #F8FAFC;
+  }
+
+  .pricing-rfp-layout {
+    display: grid;
+    grid-template-columns: 0.9fr 1.1fr;
+    gap: clamp(1.5rem, 3.5vw, 2.5rem);
+    align-items: flex-start;
+  }
+
+  .pricing-rfp-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .pricing-rfp-h2 {
+    font-size: clamp(1.25rem, 2.2vw, 1.6rem);
+    font-weight: 800;
+    color: #0F172A;
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+    margin: 0 0 0.5rem 0;
+  }
+
+  .pricing-rfp-desc {
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    color: #64748B;
+    margin: 0 0 1.25rem 0;
+  }
+
+  .pricing-rfp-assurances {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .pricing-assurance-item {
+    display: flex;
+    gap: 0.65rem;
+    align-items: flex-start;
+  }
+
+  .pricing-assurance-icon {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #DCFCE7;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .pricing-assurance-item strong {
+    display: block;
+    font-size: 0.95rem;
+    color: #0F172A;
+    margin-bottom: 0.2rem;
+  }
+
+  .pricing-assurance-item p {
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: #64748B;
+    margin: 0;
+  }
+
+  .pricing-contact-card {
+    background: #ffffff;
+    border: 1px solid #E2E8F0;
+    border-radius: 14px;
+    padding: 1.5rem;
+    width: 100%;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  }
+
+  .pricing-contact-heading {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #0F172A;
+    margin: 0 0 0.25rem 0;
+  }
+
+  .pricing-contact-sub {
+    font-size: 0.8125rem;
+    color: #64748B;
+    margin: 0 0 1rem 0;
+  }
+
+  .pricing-contact-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    margin-bottom: 1.25rem;
+    border-bottom: 1px solid #F1F5F9;
+    padding-bottom: 1rem;
+  }
+
+  .pricing-contact-row {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #334155;
+  }
+
+  .pricing-nda-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.775rem;
+    font-weight: 700;
+    color: #16A34A;
+  }
+
+  .pricing-rfp-form-card {
+    width: 100%;
+  }
+
+  /* Responsive Breakpoints */
+  @media (max-width: 1024px) {
+    .pricing-hero-grid {
+      grid-template-columns: 1fr;
+      gap: 3rem;
+    }
+
+    .pricing-hero-h1 {
+      font-size: 2.25rem;
+    }
+
+    .pricing-trust-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .pricing-models-grid {
+      grid-template-columns: 1fr;
+      max-width: 580px;
+      margin: 0 auto;
+    }
+
+    .pricing-timeline-grid {
+      grid-template-columns: 1fr;
+      max-width: 580px;
+      margin: 0 auto;
+    }
+
+    .pricing-rfp-layout {
+      grid-template-columns: 1fr;
+      gap: 3rem;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .pricing-hero-section {
+      padding: 3rem 0 2.5rem;
+    }
+
+    .pricing-hero-h1 {
+      font-size: 1.85rem;
+    }
+
+    .pricing-hero-desc {
+      font-size: 1rem;
+    }
+
+    .pricing-hero-actions {
+      flex-direction: column;
+      width: 100%;
+    }
+
+    .pricing-btn-primary,
+    .pricing-btn-secondary {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .pricing-audit-widget {
+      margin-left: 0.5rem;
+      margin-right: 0.5rem;
+      margin-top: -2.5rem;
+      padding: 1rem;
+    }
+
+    .pricing-audit-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .pricing-trust-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .pricing-section-h2,
+    .pricing-rfp-h2 {
+      font-size: 1.75rem;
+    }
+  }
+</style>

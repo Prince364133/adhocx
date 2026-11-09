@@ -11,7 +11,8 @@ class CancelTripRequestScreen extends StatefulWidget {
   const CancelTripRequestScreen({super.key});
 
   @override
-  State<CancelTripRequestScreen> createState() => _CancelTripRequestScreenState();
+  State<CancelTripRequestScreen> createState() =>
+      _CancelTripRequestScreenState();
 }
 
 class _CancelTripRequestScreenState extends State<CancelTripRequestScreen> {
@@ -60,7 +61,8 @@ class _CancelTripRequestScreenState extends State<CancelTripRequestScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: AppColors.primaryBlue)),
+        body: Center(
+            child: CircularProgressIndicator(color: AppColors.primaryBlue)),
       );
     }
 
@@ -94,7 +96,7 @@ class _CancelTripRequestScreenState extends State<CancelTripRequestScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFEF3C7).withOpacity(0.4),
+                  color: const Color(0xFFFEF3C7).withValues(alpha: 0.4),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: const Color(0xFFFDE68A)),
                 ),
@@ -166,7 +168,8 @@ class _CancelTripRequestScreenState extends State<CancelTripRequestScreen> {
                   child: DropdownButton<String>(
                     value: _selectedReason,
                     isExpanded: true,
-                    icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.textSecondary),
+                    icon: const Icon(Icons.keyboard_arrow_down_rounded,
+                        color: AppColors.textSecondary),
                     items: _cancellationReasons.map((r) {
                       return DropdownMenuItem<String>(
                         value: r,
@@ -205,9 +208,11 @@ class _CancelTripRequestScreenState extends State<CancelTripRequestScreen> {
                 controller: _notesController,
                 maxLines: 4,
                 maxLength: 200,
-                style: GoogleFonts.inter(fontSize: 14, color: AppColors.textPrimary),
+                style: GoogleFonts.inter(
+                    fontSize: 14, color: AppColors.textPrimary),
                 decoration: InputDecoration(
-                  counterStyle: GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted),
+                  counterStyle: GoogleFonts.inter(
+                      fontSize: 11, color: AppColors.textMuted),
                   filled: true,
                   fillColor: AppColors.surfaceMuted,
                   border: OutlineInputBorder(
@@ -220,7 +225,8 @@ class _CancelTripRequestScreenState extends State<CancelTripRequestScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppColors.primaryBlue, width: 1.5),
+                    borderSide: const BorderSide(
+                        color: AppColors.primaryBlue, width: 1.5),
                   ),
                 ),
               ),
@@ -242,6 +248,3 @@ class _CancelTripRequestScreenState extends State<CancelTripRequestScreen> {
     );
   }
 }
-
-
-

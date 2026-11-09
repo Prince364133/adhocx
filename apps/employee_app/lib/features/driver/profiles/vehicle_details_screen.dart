@@ -48,7 +48,8 @@ class _VehicleDetailsScreenState extends State<VehicleDetailsScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              size: 18, color: AppColors.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
@@ -65,7 +66,8 @@ class _VehicleDetailsScreenState extends State<VehicleDetailsScreen> {
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                 child: Column(
                   children: [
                     // Vehicle Illustration Graphic
@@ -82,8 +84,8 @@ class _VehicleDetailsScreenState extends State<VehicleDetailsScreen> {
                         children: [
                           Container(
                             padding: const EdgeInsets.all(18),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFEFF6FF),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFEFF6FF),
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(
@@ -119,11 +121,13 @@ class _VehicleDetailsScreenState extends State<VehicleDetailsScreen> {
 
                     // Plate Number Tag
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 6),
                       decoration: BoxDecoration(
                         color: const Color(0xFFFEF3C7),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFFF59E0B), width: 1.5),
+                        border: Border.all(
+                            color: const Color(0xFFF59E0B), width: 1.5),
                       ),
                       child: Text(
                         plateNumber,
@@ -144,9 +148,11 @@ class _VehicleDetailsScreenState extends State<VehicleDetailsScreen> {
                       children: [
                         _buildSpecPill(Icons.palette_outlined, '$color Color'),
                         const SizedBox(width: 8),
-                        _buildSpecPill(Icons.airline_seat_recline_normal_rounded, seating),
+                        _buildSpecPill(
+                            Icons.airline_seat_recline_normal_rounded, seating),
                         const SizedBox(width: 8),
-                        _buildSpecPill(Icons.local_gas_station_rounded, '$fuel Fuel'),
+                        _buildSpecPill(
+                            Icons.local_gas_station_rounded, '$fuel Fuel'),
                       ],
                     ),
 
@@ -211,10 +217,12 @@ class _VehicleDetailsScreenState extends State<VehicleDetailsScreen> {
     );
   }
 
-  Widget _buildVerificationRow({required String title, required String status}) {
+  Widget _buildVerificationRow(
+      {required String title, required String status}) {
     return Row(
       children: [
-        const Icon(Icons.check_circle_rounded, size: 20, color: AppColors.success),
+        const Icon(Icons.check_circle_rounded,
+            size: 20, color: AppColors.success),
         const SizedBox(width: 12),
         Expanded(
           child: Text(
@@ -238,6 +246,3 @@ class _VehicleDetailsScreenState extends State<VehicleDetailsScreen> {
     );
   }
 }
-
-
-

@@ -10,7 +10,8 @@ class PickupPointDetailsScreen extends StatefulWidget {
   const PickupPointDetailsScreen({super.key});
 
   @override
-  State<PickupPointDetailsScreen> createState() => _PickupPointDetailsScreenState();
+  State<PickupPointDetailsScreen> createState() =>
+      _PickupPointDetailsScreenState();
 }
 
 class _PickupPointDetailsScreenState extends State<PickupPointDetailsScreen> {
@@ -35,10 +36,12 @@ class _PickupPointDetailsScreenState extends State<PickupPointDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final title = _pickupPoint?['title'] ?? 'Home - Green Meadows, Kondapur, Hyderabad';
+    final title =
+        _pickupPoint?['title'] ?? 'Home - Green Meadows, Kondapur, Hyderabad';
     final walkTime = _pickupPoint?['walkingTime'] ?? '3 min (220 m)';
     final pickupTime = _pickupPoint?['scheduledTime'] ?? '8:15 AM';
-    final advisory = _pickupPoint?['advisory'] ?? 'Be at the pickup point 5 minutes early.';
+    final advisory =
+        _pickupPoint?['advisory'] ?? 'Be at the pickup point 5 minutes early.';
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -46,7 +49,8 @@ class _PickupPointDetailsScreenState extends State<PickupPointDetailsScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              size: 18, color: AppColors.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
@@ -63,7 +67,8 @@ class _PickupPointDetailsScreenState extends State<PickupPointDetailsScreen> {
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -82,10 +87,12 @@ class _PickupPointDetailsScreenState extends State<PickupPointDetailsScreen> {
                           Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: AppColors.primaryBlueLight.withOpacity(0.5),
+                              color: AppColors.primaryBlueLight
+                                  .withValues(alpha: 0.5),
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(Icons.apartment_rounded, size: 54, color: AppColors.primaryBlue),
+                            child: const Icon(Icons.apartment_rounded,
+                                size: 54, color: AppColors.primaryBlue),
                           ),
                           const SizedBox(height: 8),
                           Text(
@@ -105,7 +112,8 @@ class _PickupPointDetailsScreenState extends State<PickupPointDetailsScreen> {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.location_on_rounded, size: 22, color: AppColors.primaryBlue),
+                        const Icon(Icons.location_on_rounded,
+                            size: 22, color: AppColors.primaryBlue),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
@@ -126,8 +134,10 @@ class _PickupPointDetailsScreenState extends State<PickupPointDetailsScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
-                        onPressed: () => context.push(AppRoutes.walkingDirections),
-                        icon: const Icon(Icons.directions_walk_rounded, color: AppColors.primaryBlue),
+                        onPressed: () =>
+                            context.push(AppRoutes.walkingDirections),
+                        icon: const Icon(Icons.directions_walk_rounded,
+                            color: AppColors.primaryBlue),
                         label: Text(
                           'Get Directions',
                           style: GoogleFonts.inter(
@@ -139,7 +149,8 @@ class _PickupPointDetailsScreenState extends State<PickupPointDetailsScreen> {
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(color: AppColors.primaryBlue),
                           padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
                         ),
                       ),
                     ),
@@ -158,7 +169,8 @@ class _PickupPointDetailsScreenState extends State<PickupPointDetailsScreen> {
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.directions_walk_rounded, size: 20, color: AppColors.textSecondary),
+                              const Icon(Icons.directions_walk_rounded,
+                                  size: 20, color: AppColors.textSecondary),
                               const SizedBox(width: 12),
                               Text(
                                 'Walk to Pickup',
@@ -182,7 +194,8 @@ class _PickupPointDetailsScreenState extends State<PickupPointDetailsScreen> {
                           const Divider(height: 24),
                           Row(
                             children: [
-                              const Icon(Icons.access_time_rounded, size: 20, color: AppColors.textSecondary),
+                              const Icon(Icons.access_time_rounded,
+                                  size: 20, color: AppColors.textSecondary),
                               const SizedBox(width: 12),
                               Text(
                                 'Pickup Time',
@@ -220,7 +233,8 @@ class _PickupPointDetailsScreenState extends State<PickupPointDetailsScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.info_outline_rounded, color: AppColors.primaryBlue, size: 20),
+                          const Icon(Icons.info_outline_rounded,
+                              color: AppColors.primaryBlue, size: 20),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
@@ -242,6 +256,3 @@ class _PickupPointDetailsScreenState extends State<PickupPointDetailsScreen> {
     );
   }
 }
-
-
-

@@ -17,7 +17,8 @@ class BoardingOtpInputScreen extends StatefulWidget {
 class _BoardingOtpInputScreenState extends State<BoardingOtpInputScreen> {
   Map<String, dynamic>? _options;
   bool _isLoading = true;
-  final TextEditingController _otpController = TextEditingController();
+  final TextEditingController _otpController =
+      TextEditingController(text: '583271');
 
   @override
   void initState() {
@@ -52,7 +53,8 @@ class _BoardingOtpInputScreenState extends State<BoardingOtpInputScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              size: 18, color: AppColors.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -60,7 +62,8 @@ class _BoardingOtpInputScreenState extends State<BoardingOtpInputScreen> {
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                 child: Column(
                   children: [
                     const SizedBox(height: 12),
@@ -94,10 +97,12 @@ class _BoardingOtpInputScreenState extends State<BoardingOtpInputScreen> {
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AppColors.primaryBlue, width: 1.5),
+                            border: Border.all(
+                                color: AppColors.primaryBlue, width: 1.5),
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.primaryBlue.withOpacity(0.08),
+                                color: AppColors.primaryBlue
+                                    .withValues(alpha: 0.08),
                                 blurRadius: 6,
                                 offset: const Offset(0, 2),
                               ),
@@ -123,7 +128,8 @@ class _BoardingOtpInputScreenState extends State<BoardingOtpInputScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.access_time_rounded, size: 16, color: AppColors.textMuted),
+                        const Icon(Icons.access_time_rounded,
+                            size: 16, color: AppColors.textMuted),
                         const SizedBox(width: 6),
                         Text(
                           'OTP expires in $expiresIn',
@@ -144,12 +150,15 @@ class _BoardingOtpInputScreenState extends State<BoardingOtpInputScreen> {
                       children: [
                         Text(
                           "Didn't receive OTP? ",
-                          style: GoogleFonts.inter(fontSize: 13, color: AppColors.textMuted),
+                          style: GoogleFonts.inter(
+                              fontSize: 13, color: AppColors.textMuted),
                         ),
                         GestureDetector(
                           onTap: () {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('A fresh boarding OTP has been generated.')),
+                              const SnackBar(
+                                  content: Text(
+                                      'A fresh boarding OTP has been generated.')),
                             );
                           },
                           child: Text(
@@ -169,7 +178,8 @@ class _BoardingOtpInputScreenState extends State<BoardingOtpInputScreen> {
                     // Primary Button: Verify Boarding
                     EmployeePrimaryButton(
                       label: 'Verify Boarding',
-                      onPressed: () => context.push(AppRoutes.verifyingBoarding),
+                      onPressed: () =>
+                          context.push(AppRoutes.verifyingBoarding),
                     ),
                     const SizedBox(height: 16),
                   ],
@@ -179,6 +189,3 @@ class _BoardingOtpInputScreenState extends State<BoardingOtpInputScreen> {
     );
   }
 }
-
-
-

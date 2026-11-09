@@ -195,7 +195,45 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                       ),
               ),
 
+              // Dev hint card for testers (clickable for instant fill)
               const Spacer(),
+              InkWell(
+                onTap: () {
+                  setState(() {
+                    _otpCode = '528471';
+                    _hasError = false;
+                    _errorMessage = null;
+                  });
+                  _handleVerify();
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFBFDBFE)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.bolt, size: 16, color: AppColors.primaryBlue),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '⚡ 1-Click Dev Fill: Tap to fill & verify OTP (528471 or 123456)',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primaryBlue,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
               // "Verify & Continue" Pill Button
               EmployeePrimaryButton(
                 label: 'Verify & Continue',

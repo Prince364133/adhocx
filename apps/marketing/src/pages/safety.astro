@@ -24,15 +24,15 @@ const jsonLd = {
 >
   <!-- Hero Section -->
   <section class="page-hero-section" style="background: linear-gradient(180deg, var(--color-primary-50) 0%, #ffffff 100%); padding: var(--space-16) 0 var(--space-12);">
-    <div class="container text-center" style="max-width: 860px; margin: 0 auto;">
+    <div class="container text-center">
       <div class="badge badge-blue" style="margin-bottom: var(--space-4);">
         <span class="status-dot-pulse"></span>
         <span>Duty of Care &bull; Telangana RTA & Police Emergency Integration</span>
       </div>
-      <h1 class="display-title" style="color: var(--color-text-primary); margin-bottom: var(--space-6);">
+      <h1 class="display-title safety-hero-title" style="color: var(--color-text-primary); margin-bottom: var(--space-6);">
         Uncompromising Safety: Setting the Standard for Corporate Ground Transit.
       </h1>
-      <p class="body-large" style="color: var(--color-text-secondary); margin-bottom: var(--space-8); line-height: 1.6;">
+      <p class="body-large" style="color: var(--color-text-secondary); margin: 0 auto var(--space-8); max-width: 860px; line-height: 1.6;">
         Every employee commute on <span class="logo-text" style="font-size: 1.15em;">Adhoc<span class="logo-accent">X</span></span> is protected by multi-layered physical and digital security controls—from mandatory night escort guards to 24/7 telemetry monitoring and sub-15s emergency response.
       </p>
       <div style="display: flex; gap: var(--space-4); justify-content: center; flex-wrap: wrap;">
@@ -183,12 +183,12 @@ const jsonLd = {
 
   <!-- Section 3: 100% Commercial Fleet Verification -->
   <section style="padding: var(--space-16) 0; background: var(--color-surface-muted); border-top: 1px solid var(--color-border);">
-    <div class="container text-center" style="max-width: 800px; margin: 0 auto var(--space-10);">
+    <div class="container text-center" style="margin: 0 auto var(--space-10);">
       <span class="badge badge-warm" style="margin-bottom: var(--space-3);">Zero Private Cabs</span>
-      <h2 style="font-size: 2rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-4);">
+      <h2 class="safety-sec3-title" style="font-size: 2rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-4);">
         Rigorous Commercial Fleet & Driver Vetting
       </h2>
-      <p style="color: var(--color-text-secondary); font-size: 1rem; line-height: 1.6;">
+      <p style="color: var(--color-text-secondary); font-size: 1rem; line-height: 1.6; max-width: 760px; margin: 0 auto;">
         Every vehicle and driver on the AdhocX platform undergoes independent multi-step verification before executing corporate trips.
       </p>
     </div>
@@ -227,16 +227,16 @@ const jsonLd = {
   </section>
 
   <!-- CTA Strip -->
-  <section style="padding: var(--space-16) 0; background: linear-gradient(135deg, var(--color-primary-900) 0%, #032969 100%); color: #ffffff; text-align: center;">
-    <div class="container" style="max-width: 760px; margin: 0 auto;">
-      <h2 style="font-size: 2.25rem; font-weight: 800; margin-bottom: var(--space-4); color: #ffffff;">
+  <section style="padding: var(--space-16) 0; background: linear-gradient(135deg, var(--color-primary-900) 0%, #2E1065 100%); color: #ffffff; text-align: center;">
+    <div class="container" style="position: relative; z-index: 1;">
+      <h2 class="safety-cta-title" style="font-size: 2.25rem; font-weight: 800; margin-bottom: var(--space-4); color: #ffffff;">
         Review Our Complete Corporate Safety Handbook
       </h2>
-      <p style="font-size: 1.125rem; color: var(--color-primary-200); margin-bottom: var(--space-8); line-height: 1.6;">
+      <p style="font-size: 1.125rem; color: var(--color-primary-200); margin: 0 auto var(--space-8); max-width: 680px; line-height: 1.6;">
         Schedule an audit walk-through with our Hyderabad operations team or connect with our safety compliance desk.
       </p>
       <div style="display: flex; gap: var(--space-4); justify-content: center; flex-wrap: wrap;">
-        <a href="/contact" class="btn btn-primary btn-large" style="background: var(--color-brand-x); border-color: var(--color-brand-x);">
+        <a href="/contact" class="btn btn-primary btn-large" style="border-color: var(--color-primary-400); box-shadow: 0 4px 16px rgba(87, 40, 178, 0.5);">
           Contact Safety Command Desk &rarr;
         </a>
         <a href="/about" class="btn btn-outline btn-large" style="color: #ffffff; border-color: rgba(255,255,255,0.4);">
@@ -246,3 +246,18 @@ const jsonLd = {
     </div>
   </section>
 </BaseLayout>
+
+<style>
+  .safety-hero-title {
+    font-size: clamp(1.4rem, 2.15vw, 2.25rem);
+    letter-spacing: -0.025em;
+    line-height: 1.25;
+  }
+  @media (min-width: 1024px) {
+    .safety-hero-title,
+    .safety-sec3-title,
+    .safety-cta-title {
+      white-space: nowrap;
+    }
+  }
+</style>

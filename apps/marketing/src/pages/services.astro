@@ -2,251 +2,2006 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import EnterpriseLeadForm from '../components/EnterpriseLeadForm';
 
-const jsonLd = {
-  "@context": "https://schema.org",
-  "@type": "Service",
-  "name": "AdhocX Enterprise Employee Transportation Services (ETS)",
-  "provider": {
-    "@type": "Organization",
-    "name": "AdhocX (Estemporaneo Technologies Private Limited)",
-    "url": "https://www.adhocx.com"
+const pageTitle = "Corporate Employee Transportation Services in Hyderabad | AdhocX";
+const pageDescription = "Explore AdhocX corporate commute solutions in Hyderabad. Employee shift pickups, night safety, executive cabs and verified yellow-plate commercial fleets.";
+const canonicalUrl = "https://www.adhocx.com/services";
+
+const breadcrumbList = [
+  { name: "Home", url: "https://www.adhocx.com/" },
+  { name: "Services", url: canonicalUrl }
+];
+
+const jsonLd = [
+  {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "@id": "https://www.adhocx.com/services#webpage",
+    "url": canonicalUrl,
+    "name": pageTitle,
+    "description": pageDescription,
+    "isPartOf": {
+      "@type": "WebSite",
+      "@id": "https://www.adhocx.com/#website",
+      "name": "AdhocX",
+      "url": "https://www.adhocx.com"
+    },
+    "breadcrumb": {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Home",
+          "item": "https://www.adhocx.com/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Services",
+          "item": canonicalUrl
+        }
+      ]
+    }
   },
-  "serviceType": "Corporate Employee Commute Management",
-  "areaServed": ["Telangana", "Hyderabad", "HITEC City", "Gachibowli", "Financial District"],
-  "description": "Comprehensive corporate employee transportation services: automated shift roster fulfillment, commercial 4 & 7 seater yellow-plate fleets, 24/7 command center monitoring, and auditable single-invoice billing."
-};
+  {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    "@id": "https://www.adhocx.com/services#service",
+    "name": "AdhocX Corporate Employee Transportation Services in Hyderabad",
+    "serviceType": "Corporate Employee Commute Management",
+    "provider": {
+      "@type": "Organization",
+      "@id": "https://www.adhocx.com/#organization",
+      "name": "AdhocX (Estemporaneo Technologies Private Limited)",
+      "url": "https://www.adhocx.com",
+      "logo": "https://www.adhocx.com/adhocx-logo.png",
+      "telephone": "+91-7893545818",
+      "email": "support@adhocx.com"
+    },
+    "areaServed": [
+      {
+        "@type": "City",
+        "name": "Hyderabad"
+      },
+      {
+        "@type": "AdministrativeArea",
+        "name": "Telangana"
+      },
+      {
+        "@type": "Place",
+        "name": "HITEC City"
+      },
+      {
+        "@type": "Place",
+        "name": "Gachibowli"
+      },
+      {
+        "@type": "Place",
+        "name": "Financial District"
+      },
+      {
+        "@type": "Place",
+        "name": "Kondapur"
+      },
+      {
+        "@type": "Place",
+        "name": "Pocharam"
+      }
+    ],
+    "description": pageDescription,
+    "hasOfferCatalog": {
+      "@type": "OfferCatalog",
+      "name": "Corporate Ground Transportation Portfolio",
+      "itemListElement": [
+        {
+          "@type": "Offer",
+          "itemOffered": {
+            "@type": "Service",
+            "name": "Scheduled Shift Pickups & Drops",
+            "description": "Automated fulfillment of approved corporate rosters for morning logins, evening logouts, and overnight shifts with clustered routing."
+          }
+        },
+        {
+          "@type": "Offer",
+          "itemOffered": {
+            "@type": "Service",
+            "name": "Women's Night Safety & Escort Governance",
+            "description": "Telangana Transport and Cyberabad Security Council (SCSC) compliant night safety protocols, safe routing, and security guard escort integration."
+          }
+        },
+        {
+          "@type": "Offer",
+          "itemOffered": {
+            "@type": "Service",
+            "name": "Executive Travel & RGIA Airport Transfers",
+            "description": "On-demand executive spot cabs and pre-booked airport transfers with flight tracking and premium commercial vehicles."
+          }
+        },
+        {
+          "@type": "Offer",
+          "itemOffered": {
+            "@type": "Service",
+            "name": "Verified Commercial Yellow-Plate Fleet",
+            "description": "Strictly 100% yellow-board 4-seater sedans and 6/7-seater MUVs with calibrated speed governors and digitized document audits."
+          }
+        }
+      ]
+    }
+  }
+];
 ---
 
 <BaseLayout
-  title="Employee Transportation Services (ETS) — Enterprise Corporate Mobility | AdhocX"
-  description="End-to-end B2B corporate employee commute management across Hyderabad tech parks: automated shift routing, verified commercial 4 & 7 seater yellow-board fleets, female safe drops, and GPS-audited reconciliation."
-  canonical="https://www.adhocx.com/services"
+  title={pageTitle}
+  description={pageDescription}
+  canonical={canonicalUrl}
+  ogTitle={pageTitle}
+  ogDescription={pageDescription}
+  ogType="website"
+  ogImage="https://www.adhocx.com/images/hero-corporate-commute.jpg"
+  ogImageAlt="AdhocX Verified Commercial Cab Fleet and Employee Transportation in Hyderabad"
   activeNav="services"
+  breadcrumbs={breadcrumbList}
   jsonLd={jsonLd}
 >
-  <!-- Hero Section -->
-  <section class="page-hero-section" style="background: linear-gradient(180deg, var(--color-primary-50) 0%, #ffffff 100%); padding: var(--space-16) 0 var(--space-12);">
-    <div class="container text-center" style="max-width: 900px; margin: 0 auto;">
-      <div class="badge badge-blue" style="margin-bottom: var(--space-4);">
-        <span class="status-dot-pulse"></span>
-        <span>Corporate Commute Solutions &bull; Direct B2B Fulfillment</span>
-      </div>
-      <h1 class="display-title" style="color: var(--color-text-primary); margin-bottom: var(--space-6);">
-        Complete Employee Transportation. <br />
-        <span style="color: var(--color-primary-600);">Automated from Roster to Ride.</span>
-      </h1>
-      <p class="body-large" style="color: var(--color-text-secondary); margin-bottom: var(--space-8); line-height: 1.6;">
-        Replace fragmented WhatsApp groups, unvetted middleman brokers, and disputed paper duty slips. <span class="logo-text" style="font-size: 1.15em;">Adhoc<span class="logo-accent">X</span></span> contracts directly with enterprises to deliver safe, predictable employee commutes across Hyderabad's premier technology corridors.
-      </p>
-      <div style="display: flex; gap: var(--space-4); justify-content: center; flex-wrap: wrap;">
-        <a href="#request-proposal" class="btn btn-primary btn-large">
-          Request Corporate Mobility Proposal &rarr;
-        </a>
-        <a href="#commute-models" class="btn btn-secondary btn-large">
-          Explore Service Modules
-        </a>
+  <!-- =========================================================================
+       1. HERO SECTION
+       ========================================================================= -->
+  <section class="services-hero" id="overview">
+    <div class="container services-hero-container">
+      <div class="services-hero-grid">
+        <!-- Hero Content Column -->
+        <div class="services-hero-content">
+          <!-- Main H1 Headline -->
+          <h1 class="services-hero-h1">
+            Complete Employee Transportation. <span class="gradient-text">Automated from Roster to Ride.</span>
+          </h1>
+
+          <!-- Descriptive Lead Paragraph -->
+          <p class="services-hero-desc">
+            Replace fragmented WhatsApp groups, unvetted middleman brokers, and disputed paper duty slips. <strong>Adhoc<span style="color: var(--color-brand-x, #FF5F09);">X</span></strong> contracts directly with enterprises to deliver safe, predictable employee commutes across Hyderabad's premier technology corridors.
+          </p>
+
+          <!-- Primary CTAs -->
+          <div class="services-hero-ctas">
+            <a href="#request-proposal" class="btn btn-primary btn-large btn-cta-primary" id="btn-hero-quote">
+              <span>Request Corporate Mobility Proposal</span>
+              <span aria-hidden="true">&rarr;</span>
+            </a>
+            <a href="#core-services" class="btn btn-secondary btn-large btn-cta-secondary" id="btn-hero-explore">
+              <span>Explore Service Modules</span>
+              <span aria-hidden="true">&darr;</span>
+            </a>
+          </div>
+
+          <!-- Micro Trust SLA Note -->
+          <div class="hero-micro-trust">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+              <polyline points="9 12 11 14 15 10"></polyline>
+            </svg>
+            <span>Direct Enterprise Agreement &bull; Zero Broker Markups &bull; Same-Day Rate Card Turnaround</span>
+          </div>
+        </div>
+
+        <!-- Hero Visual Column: Vehicle Photography + Transportation Tracking Dashboard HUD -->
+        <div class="services-hero-visual">
+          <div class="hero-image-card">
+            <!-- Realistic Corporate Commercial Vehicle Photograph -->
+            <div class="hero-image-wrapper">
+              <img
+                src="/images/hero-corporate-commute.jpg"
+                alt="AdhocX White Commercial Sedan with Yellow Number Plate Stationed at HITEC City Hyderabad Tech Park"
+                width="1200"
+                height="670"
+                class="hero-main-photo"
+                loading="eager"
+                decoding="async"
+              />
+              <div class="hero-image-gradient-overlay" aria-hidden="true"></div>
+            </div>
+
+            <!-- Transportation Tracking Dashboard HUD -->
+            <div class="hero-tracking-hud" role="region" aria-label="Live Fleet Telemetry Dashboard HUD">
+              <div class="hud-top-bar">
+                <div class="hud-status-indicator">
+                  <span class="hud-live-ping" aria-hidden="true"></span>
+                  <span class="hud-status-text">COMMAND CENTER ACTIVE</span>
+                </div>
+                <span class="hud-corridor-tag">HITEC CITY &bull; GACHIBOWLI</span>
+              </div>
+
+              <div class="hud-details-grid">
+                <div class="hud-stat-cell">
+                  <span class="hud-stat-label">Active Vehicle Class</span>
+                  <strong class="hud-stat-value">Commercial White Dzire</strong>
+                  <span class="hud-stat-sub"><span class="badge-plate">TS 09 UB 4821</span> &bull; Yellow-Plate</span>
+                </div>
+                <div class="hud-stat-cell">
+                  <span class="hud-stat-label">Shift Commuter Load</span>
+                  <strong class="hud-stat-value">4 / 4 Commuters</strong>
+                  <span class="hud-stat-sub text-success-sm">&check; OTP Boarding Verified</span>
+                </div>
+                <div class="hud-stat-cell">
+                  <span class="hud-stat-label">PostGIS Geofence</span>
+                  <strong class="hud-stat-value">Corridor Enforced</strong>
+                  <span class="hud-stat-sub">0 Route Deviation</span>
+                </div>
+                <div class="hud-stat-cell">
+                  <span class="hud-stat-label">3-Way Reconciliation</span>
+                  <strong class="hud-stat-value">Automated Audit</strong>
+                  <span class="hud-stat-sub text-purple-sm">Roster = GPS = GST Invoice</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- Key Fleet & Operational Standards Bar -->
-  <section style="background: var(--color-surface); border-top: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border); padding: var(--space-8) 0;">
+  <!-- =========================================================================
+       2. FOUR TRUST INDICATORS BAR
+       ========================================================================= -->
+  <section class="trust-indicators-bar" aria-label="AdhocX Core Commitments and Fleet Standards">
     <div class="container">
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-6); text-align: center;">
-        <div>
-          <div style="font-size: 1.4rem; font-weight: 800; color: var(--color-primary-600);">100% Commercial</div>
-          <div style="font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary); margin-top: 4px;">Yellow-Board Fleet Only (Dzire, Ertiga, Innova)</div>
+      <div class="trust-indicators-grid">
+        <!-- Trust Indicator 1 -->
+        <div class="trust-card">
+          <div class="trust-icon-box" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="7" width="20" height="14" rx="2"></rect>
+              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+            </svg>
+          </div>
+          <div class="trust-content">
+            <h2 class="trust-title">100% Commercial</h2>
+            <p class="trust-desc">Yellow-Board Fleet Only (Dzire, Ertiga, Innova).</p>
+          </div>
         </div>
-        <div>
-          <div style="font-size: 1.4rem; font-weight: 800; color: var(--color-primary-600);">Direct Contract</div>
-          <div style="font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary); margin-top: 4px;">No Third-Party Broker Intermediaries</div>
+
+        <!-- Trust Indicator 2 -->
+        <div class="trust-card">
+          <div class="trust-icon-box" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+          </div>
+          <div class="trust-content">
+            <h2 class="trust-title">Direct Contract</h2>
+            <p class="trust-desc">No Third-Party Broker Intermediaries.</p>
+          </div>
         </div>
-        <div>
-          <div style="font-size: 1.4rem; font-weight: 800; color: var(--color-primary-600);">24/7 Command Center</div>
-          <div style="font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary); margin-top: 4px;">Live Telemetry, SOS & Rapid Dispatch Support</div>
+
+        <!-- Trust Indicator 3 -->
+        <div class="trust-card">
+          <div class="trust-icon-box" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="6" x2="12" y2="12"></line>
+              <line x1="12" y1="12" x2="16" y2="14"></line>
+            </svg>
+          </div>
+          <div class="trust-content">
+            <h2 class="trust-title">24/7 Command Center</h2>
+            <p class="trust-desc">Live Telemetry, SOS & Rapid Dispatch Support.</p>
+          </div>
         </div>
-        <div>
-          <div style="font-size: 1.4rem; font-weight: 800; color: var(--color-primary-600);">3-Way Audit</div>
-          <div style="font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary); margin-top: 4px;">Roster vs. GPS Geofence vs. GST Invoice</div>
+
+        <!-- Trust Indicator 4 -->
+        <div class="trust-card">
+          <div class="trust-icon-box" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </div>
+          <div class="trust-content">
+            <h2 class="trust-title">3-Way Audit</h2>
+            <p class="trust-desc">Roster vs. GPS Geofence vs. GST Invoice.</p>
+          </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- 3 Core Service Capabilities -->
-  <section id="commute-models" class="section-padding" style="background: var(--color-surface-muted);">
+  <!-- =========================================================================
+       3. CORE MOBILITY SERVICES (Alternating Image & Text Layouts)
+       ========================================================================= -->
+  <section class="section-padding core-services-section" id="core-services">
     <div class="container">
-      <div class="text-center" style="max-width: 800px; margin: 0 auto var(--space-12);">
-        <span class="badge badge-warm" style="margin-bottom: var(--space-3);">Core Mobility Services</span>
-        <h2 style="font-size: 2.25rem; font-weight: 800; color: var(--color-text-primary); margin-bottom: var(--space-4);">
-          Engineered for Corporate Scale and Commuter Peace of Mind
+      <!-- Section Header -->
+      <div class="section-intro text-center">
+        <h2 class="section-title">
+          Engineered for Corporate Scale and Commuter Peace of Mind.
         </h2>
-        <p style="color: var(--color-text-secondary); font-size: 1.05rem; line-height: 1.6;">
+        <p class="section-subtitle">
           From high-volume daily shift pickups to executive travel, AdhocX provides unified corporate ground transport under one service agreement.
         </p>
       </div>
 
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-8);">
-        
-        <!-- Service 1: Daily Shift Commute & Roster Fulfillment -->
-        <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; justify-content: space-between;">
-          <div>
-            <div style="width: 3rem; height: 3rem; border-radius: 0.75rem; background: #EFF6FF; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-4);">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                <line x1="16" y1="2" x2="16" y2="6"></line>
-                <line x1="8" y1="2" x2="8" y2="6"></line>
-                <line x1="3" y1="10" x2="21" y2="10"></line>
-              </svg>
+      <!-- Alternating Services Stack -->
+      <div class="services-stack">
+        <!-- SERVICE 01: SCHEDULED SHIFT PICKUPS & DROPS -->
+        <article class="service-item-row" id="shift-commute">
+          <div class="service-content-col">
+            <div class="service-badge-row">
+              <span class="badge badge-primary">SERVICE 01</span>
+              <span class="badge-text-sub">ROSTER AUTOMATION</span>
             </div>
-            <h3 style="font-size: 1.35rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-3);">
+            <h3 class="service-h3">
               Scheduled Shift Pickups & Drops
             </h3>
-            <p style="font-size: 0.9rem; color: var(--color-text-secondary); line-height: 1.6; margin-bottom: var(--space-6);">
+            <p class="service-paragraph">
               Automated fulfillment of approved corporate rosters for morning logins, evening logouts, and overnight shifts. Clustered routing groups employees logically to minimize commute durations.
             </p>
-            <ul style="display: flex; flex-direction: column; gap: 10px; font-size: 0.875rem; color: var(--color-text-secondary); border-top: 1px solid var(--color-border); padding-top: var(--space-4);">
-              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Doorstep & nodal stop optimization with 5-minute dwell buffers</li>
-              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Dynamic OTP/QR boarding verification prevents passenger mix-ups</li>
-              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Corporate cutoff policy enforcement for orderly roster changes</li>
-            </ul>
+            <div class="service-features-list">
+              <div class="service-feature-item">
+                <span class="feature-check" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </span>
+                <span class="feature-text">Doorstep & nodal stop optimization with 5-minute dwell buffers.</span>
+              </div>
+              <div class="service-feature-item">
+                <span class="feature-check" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </span>
+                <span class="feature-text">Dynamic OTP/QR boarding verification prevents passenger mix-ups.</span>
+              </div>
+              <div class="service-feature-item">
+                <span class="feature-check" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </span>
+                <span class="feature-text">Corporate cutoff policy enforcement for orderly roster changes.</span>
+              </div>
+            </div>
+            <div class="service-action-wrap">
+              <a href="#request-proposal" class="btn btn-primary" id="btn-cta-shift">
+                <span>Request Shift Commute Proposal</span>
+                <span aria-hidden="true">&rarr;</span>
+              </a>
+            </div>
           </div>
-          <div style="margin-top: var(--space-6);">
-            <a href="#request-proposal" class="btn btn-outline" style="width: 100%; text-align: center; justify-content: center;">
-              Request Shift Commute Proposal &rarr;
-            </a>
+
+          <div class="service-visual-col">
+            <div class="service-image-card">
+              <img
+                src="/images/service-shift-commute.jpg"
+                alt="AdhocX Corporate employees boarding yellow-board commercial cab outside HITEC City campus"
+                width="1200"
+                height="670"
+                class="service-img"
+                loading="lazy"
+                decoding="async"
+              />
+            </div>
+          </div>
+        </article>
+
+        <!-- SERVICE 02: WOMEN'S NIGHT SAFETY & ESCORT GOVERNANCE (Reversed Layout) -->
+        <article class="service-item-row service-item-reversed" id="night-safety">
+          <div class="service-content-col">
+            <div class="service-badge-row">
+              <span class="badge badge-primary">SERVICE 02</span>
+              <span class="badge-alert-pill">SAFETY ASSURED</span>
+            </div>
+            <h3 class="service-h3">
+              Women's Night Safety & Escort Governance
+            </h3>
+            <p class="service-paragraph">
+              Comprehensive night safety protocols designed in strict compliance with Telangana Department of Transport and Cyberabad Security Council (SCSC) guidelines for corporate night shifts.
+            </p>
+            <div class="service-features-list">
+              <div class="service-feature-item">
+                <span class="feature-check" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </span>
+                <span class="feature-text">First-pickup and last-drop female safety routing protocols.</span>
+              </div>
+              <div class="service-feature-item">
+                <span class="feature-check" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </span>
+                <span class="feature-text">Mandatory verified security guard escort integration where mandated.</span>
+              </div>
+              <div class="service-feature-item">
+                <span class="feature-check" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </span>
+                <span class="feature-text">In-app safe-reach confirmation and continuous GPS corridor tracking.</span>
+              </div>
+            </div>
+            <div class="service-action-wrap">
+              <a href="#request-proposal" class="btn btn-primary" id="btn-cta-safety">
+                <span>Request Night Safety Plan</span>
+                <span aria-hidden="true">&rarr;</span>
+              </a>
+            </div>
+          </div>
+
+          <div class="service-visual-col">
+            <div class="service-image-card">
+              <img
+                src="/images/service-night-safety.jpg"
+                alt="AdhocX Reassuring night corporate transportation environment with safe commercial cabs"
+                width="1200"
+                height="800"
+                class="service-img"
+                loading="lazy"
+                decoding="async"
+              />
+            </div>
+          </div>
+        </article>
+
+        <!-- SERVICE 03: EXECUTIVE TRAVEL & RGIA AIRPORT TRANSFERS -->
+        <article class="service-item-row" id="executive-airport">
+          <div class="service-content-col">
+            <div class="service-badge-row">
+              <span class="badge badge-primary">SERVICE 03</span>
+              <span class="badge-text-sub">EXECUTIVE MOBILITY</span>
+            </div>
+            <h3 class="service-h3">
+              Executive Travel & RGIA Airport Transfers
+            </h3>
+            <p class="service-paragraph">
+              On-demand executive spot cabs and pre-booked airport transfers for senior management, visiting client delegations, and corporate board members across Hyderabad.
+            </p>
+            <div class="service-features-list">
+              <div class="service-feature-item">
+                <span class="feature-check" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </span>
+                <span class="feature-text">Top-tier fleet: Innova Crysta, Hycross, Ertiga & executive sedans.</span>
+              </div>
+              <div class="service-feature-item">
+                <span class="feature-check" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </span>
+                <span class="feature-text">Flight tracking integration ensures drivers are stationed on time.</span>
+              </div>
+              <div class="service-feature-item">
+                <span class="feature-check" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </span>
+                <span class="feature-text">Masked virtual calling protects corporate executive contact privacy.</span>
+              </div>
+            </div>
+            <div class="service-action-wrap">
+              <a href="#request-proposal" class="btn btn-primary" id="btn-cta-exec">
+                <span>Request Executive Fleet Proposal</span>
+                <span aria-hidden="true">&rarr;</span>
+              </a>
+            </div>
+          </div>
+
+          <div class="service-visual-col">
+            <div class="service-image-card">
+              <img
+                src="/images/service-executive-airport.jpg"
+                alt="AdhocX Premium Innova Crysta Commercial Executive Sedan at RGIA Hyderabad Airport Pickup Curb"
+                width="1200"
+                height="670"
+                class="service-img"
+                loading="lazy"
+                decoding="async"
+              />
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================================
+       4. VERIFIED COMMERCIAL FLEET (Strictly Yellow-Plate)
+       ========================================================================= -->
+  <section class="section-padding fleet-section" id="fleet-categories">
+    <div class="container">
+      <!-- Section Header -->
+      <div class="section-intro text-center">
+        <h2 class="section-title">
+          Strictly Commercial Yellow-Plate Vehicles.
+        </h2>
+        <p class="section-subtitle">
+          AdhocX enforces a 100% yellow-plate commercial fleet mandate. We never dispatch private white-plate cars or uninspected vehicles.
+        </p>
+      </div>
+
+      <!-- Fleet Overview Hero Banner -->
+      <div class="fleet-overview-card">
+        <div class="fleet-overview-img-wrap">
+          <img
+            src="/corporate-cab-fleet.jpg"
+            alt="AdhocX Verified Commercial 4-Seater and 7-Seater Cab Fleet in Hyderabad"
+            width="1376"
+            height="768"
+            class="fleet-overview-img"
+            loading="lazy"
+            decoding="async"
+          />
+        </div>
+        <div class="fleet-overview-copy">
+          <div class="fleet-badge-row">
+            <span class="badge-plate-large">100% COMMERCIAL MANDATE</span>
+            <span class="fleet-reg-note">RTO Commercial Permits Only</span>
+          </div>
+          <h3 class="fleet-overview-title">Enterprise Commercial Cab Fleet in Hyderabad</h3>
+          <p class="fleet-overview-desc">
+            Serving HITEC City, Gachibowli, Financial District, Kondapur, and Pocharam. Every car operates under valid commercial contracts with digital compliance records maintained in the AdhocX enterprise repository.
+          </p>
+          <div class="fleet-quick-metrics">
+            <div class="quick-metric-item">
+              <strong>80 km/h</strong>
+              <span>Calibrated Speed Governor</span>
+            </div>
+            <div class="quick-metric-item">
+              <strong>AIS-140</strong>
+              <span>Live GPS Telemetry</span>
+            </div>
+            <div class="quick-metric-item">
+              <strong>100% Digital</strong>
+              <span>Pre-Dispatch Compliance Audit</span>
+            </div>
           </div>
         </div>
+      </div>
 
-        <!-- Service 2: Women's Night Shift Safety & Protocol -->
-        <div style="background: var(--color-surface); border: 2px solid var(--color-primary-600); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-lg); position: relative; display: flex; flex-direction: column; justify-content: space-between;">
-          <div style="position: absolute; top: -14px; right: 24px; background: var(--color-primary-600); color: #ffffff; font-size: 0.75rem; font-weight: 700; padding: 4px 12px; border-radius: var(--radius-full); text-transform: uppercase; letter-spacing: 0.05em;">
-            Safety Assured
-          </div>
+      <!-- FLEET CATEGORY 1: 4-SEATER COMMERCIAL SEDANS -->
+      <div class="fleet-category-block" id="sedan-fleet">
+        <div class="fleet-cat-header">
           <div>
-            <div style="width: 3rem; height: 3rem; border-radius: 0.75rem; background: #ECE6FE; color: #5728B2; display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-4);">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <div class="cat-pill">FLEET CLASS 01</div>
+            <h3 class="fleet-cat-h3">4-Seater Commercial Sedans</h3>
+            <p class="fleet-cat-desc">
+              Maruti Suzuki Dzire, Toyota Etios, Tata Tigor EV. Clean interiors, AC, calibrated speed governors, and GPS tracking.
+            </p>
+          </div>
+          <span class="badge badge-primary">Daily Commute & Point-to-Point</span>
+        </div>
+
+        <div class="vehicle-cards-grid">
+          <!-- Maruti Suzuki Dzire -->
+          <div class="vehicle-card">
+            <div class="vehicle-img-wrap">
+              <img
+                src="/images/fleet/fleet-dzire.jpg"
+                alt="Maruti Suzuki Dzire Commercial Fleet Sedan in Hyderabad"
+                width="800"
+                height="520"
+                class="vehicle-img"
+                loading="lazy"
+                decoding="async"
+              />
+              <span class="vehicle-tag">Maruti Suzuki</span>
+            </div>
+            <div class="vehicle-card-body">
+              <h4 class="vehicle-name">Maruti Suzuki Dzire</h4>
+              <div class="vehicle-specs">
+                <span class="spec-chip">4 Commuters + 1 Driver</span>
+                <span class="spec-chip">Commercial Yellow Plate</span>
+                <span class="spec-chip">Speed Governor 80 km/h</span>
+                <span class="spec-chip">High Mileage Efficiency</span>
+              </div>
+              <p class="vehicle-note">Hyderabad's benchmark corporate commute sedan. Dual airbags, calibrated AC, and spacious boot space for office shifts.</p>
+            </div>
+          </div>
+
+          <!-- Toyota Etios -->
+          <div class="vehicle-card">
+            <div class="vehicle-img-wrap">
+              <img
+                src="/images/fleet/fleet-etios.jpg"
+                alt="Toyota Etios Commercial Sedan for Corporate Ground Mobility"
+                width="800"
+                height="520"
+                class="vehicle-img"
+                loading="lazy"
+                decoding="async"
+              />
+              <span class="vehicle-tag">Toyota</span>
+            </div>
+            <div class="vehicle-card-body">
+              <h4 class="vehicle-name">Toyota Etios</h4>
+              <div class="vehicle-specs">
+                <span class="spec-chip">4 Commuters + 1 Driver</span>
+                <span class="spec-chip">Commercial Yellow Plate</span>
+                <span class="spec-chip">Extra Rear Legroom</span>
+                <span class="spec-chip">592L Trunk Capacity</span>
+              </div>
+              <p class="vehicle-note">Renowned Japanese durability with superior passenger cabin comfort and smooth highway suspension for long corridor transits.</p>
+            </div>
+          </div>
+
+          <!-- Tata Tigor EV -->
+          <div class="vehicle-card">
+            <div class="vehicle-img-wrap">
+              <img
+                src="/images/fleet/fleet-tigor-ev.jpg"
+                alt="Tata Tigor EV Zero-Emission Corporate Electric Sedan"
+                width="800"
+                height="520"
+                class="vehicle-img"
+                loading="lazy"
+                decoding="async"
+              />
+              <span class="vehicle-tag">Tata Motors</span>
+            </div>
+            <div class="vehicle-card-body">
+              <h4 class="vehicle-name">Tata Tigor EV</h4>
+              <div class="vehicle-specs">
+                <span class="spec-chip">4 Commuters + 1 Driver</span>
+                <span class="spec-chip">100% Electric (ESG Green)</span>
+                <span class="spec-chip">Commercial Plate</span>
+                <span class="spec-chip">Zero Carbon Tailpipe</span>
+              </div>
+              <p class="vehicle-note">Empowers enterprises to hit corporate sustainability and Scope-3 carbon reduction targets across daily employee commutes.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FLEET CATEGORY 2: 6 & 7-SEATER COMMERCIAL MUVs -->
+      <div class="fleet-category-block" id="muv-fleet">
+        <div class="fleet-cat-header">
+          <div>
+            <div class="cat-pill">FLEET CLASS 02</div>
+            <h3 class="fleet-cat-h3">6 & 7-Seater Commercial MUVs</h3>
+            <p class="fleet-cat-desc">
+              Maruti Ertiga, XL6, Kia Carens, Toyota Innova Crysta. Ideal for high-efficiency nodal routes and grouped team shifts.
+            </p>
+          </div>
+          <span class="badge badge-primary">High-Efficiency Nodal Shifts</span>
+        </div>
+
+        <div class="vehicle-cards-grid vehicle-grid-4">
+          <!-- Maruti Ertiga -->
+          <div class="vehicle-card">
+            <div class="vehicle-img-wrap">
+              <img
+                src="/images/fleet/fleet-ertiga.jpg"
+                alt="Maruti Suzuki Ertiga Commercial 6 and 7-Seater MUV"
+                width="800"
+                height="520"
+                class="vehicle-img"
+                loading="lazy"
+                decoding="async"
+              />
+              <span class="vehicle-tag">Maruti Suzuki</span>
+            </div>
+            <div class="vehicle-card-body">
+              <h4 class="vehicle-name">Maruti Suzuki Ertiga</h4>
+              <div class="vehicle-specs">
+                <span class="spec-chip">6–7 Commuters</span>
+                <span class="spec-chip">Commercial Yellow Plate</span>
+                <span class="spec-chip">Dual Roof AC Vents</span>
+              </div>
+              <p class="vehicle-note">The core workhorse for corporate shift clustering. Balances high seat occupancy with smooth passenger ingress and egress.</p>
+            </div>
+          </div>
+
+          <!-- Maruti XL6 -->
+          <div class="vehicle-card">
+            <div class="vehicle-img-wrap">
+              <img
+                src="/images/fleet/fleet-xl6.jpg"
+                alt="Maruti Suzuki XL6 Premium Commercial 6-Seater with Captain Seats"
+                width="800"
+                height="520"
+                class="vehicle-img"
+                loading="lazy"
+                decoding="async"
+              />
+              <span class="vehicle-tag">Maruti Suzuki</span>
+            </div>
+            <div class="vehicle-card-body">
+              <h4 class="vehicle-name">Maruti Suzuki XL6</h4>
+              <div class="vehicle-specs">
+                <span class="spec-chip">6 Commuters</span>
+                <span class="spec-chip">Middle-Row Captain Seats</span>
+                <span class="spec-chip">Yellow-Board Fleet</span>
+              </div>
+              <p class="vehicle-note">Premium 6-passenger layout featuring individual armrests and extra shoulder room for managerial commuters.</p>
+            </div>
+          </div>
+
+          <!-- Kia Carens -->
+          <div class="vehicle-card">
+            <div class="vehicle-img-wrap">
+              <img
+                src="/images/fleet/fleet-carens.jpg"
+                alt="Kia Carens Modern Enterprise Commercial 7-Seater MUV"
+                width="800"
+                height="520"
+                class="vehicle-img"
+                loading="lazy"
+                decoding="async"
+              />
+              <span class="vehicle-tag">Kia</span>
+            </div>
+            <div class="vehicle-card-body">
+              <h4 class="vehicle-name">Kia Carens</h4>
+              <div class="vehicle-specs">
+                <span class="spec-chip">6–7 Commuters</span>
+                <span class="spec-chip">Commercial Yellow Plate</span>
+                <span class="spec-chip">Air Purifier Cabin</span>
+              </div>
+              <p class="vehicle-note">Modern aerodynamic silhouette with one-touch electric tumble seating and dedicated row-level air circulation.</p>
+            </div>
+          </div>
+
+          <!-- Toyota Innova Crysta -->
+          <div class="vehicle-card vehicle-card-featured">
+            <div class="vehicle-img-wrap">
+              <img
+                src="/images/fleet/fleet-innova-crysta.jpg"
+                alt="Toyota Innova Crysta Premium Commercial Executive 7-Seater"
+                width="800"
+                height="520"
+                class="vehicle-img"
+                loading="lazy"
+                decoding="async"
+              />
+              <span class="vehicle-tag tag-featured">Executive Gold Standard</span>
+            </div>
+            <div class="vehicle-card-body">
+              <h4 class="vehicle-name">Toyota Innova Crysta</h4>
+              <div class="vehicle-specs">
+                <span class="spec-chip">7 Commuters</span>
+                <span class="spec-chip">Executive Class</span>
+                <span class="spec-chip">Commercial Yellow Plate</span>
+              </div>
+              <p class="vehicle-note">The premier enterprise executive transport and RGIA airport cab choice. Unmatched road presence, high comfort, and prestige.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FLEET CATEGORY 3: COMPLIANCE & DOCUMENT AUDITS -->
+      <div class="fleet-category-block" id="compliance-audits">
+        <div class="fleet-cat-header">
+          <div>
+            <div class="cat-pill">GOVERNANCE & TRUST</div>
+            <h3 class="fleet-cat-h3">Compliance & Document Audits</h3>
+            <p class="fleet-cat-desc">
+              Every vehicle RC, commercial fitness certificate, passenger liability insurance, and driver police verification is verified digitally before dispatch.
+            </p>
+          </div>
+          <span class="badge badge-success-outline">100% Automated Pre-Dispatch Check</span>
+        </div>
+
+        <div class="compliance-cards-grid">
+          <!-- Audit 1: Commercial Registration (RC) -->
+          <div class="audit-card">
+            <div class="audit-card-icon" aria-hidden="true">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#5728B2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+                <line x1="7" y1="8" x2="17" y2="8"></line>
+                <line x1="7" y1="12" x2="13" y2="12"></line>
+                <line x1="7" y1="16" x2="11" y2="16"></line>
+              </svg>
+            </div>
+            <h4 class="audit-title">Commercial RC & Yellow Plate Verification</h4>
+            <p class="audit-desc">
+              Mandatory Form 23 commercial registration verification. Every vehicle in the AdhocX network possesses active taxi permits; white-plate private cars are strictly blocked by software.
+            </p>
+            <div class="audit-status-tag">
+              <span class="status-check-circle">&check;</span>
+              <span>100% Yellow-Plate Enforced</span>
+            </div>
+          </div>
+
+          <!-- Audit 2: Commercial Fitness Certificate & Speed Governors -->
+          <div class="audit-card">
+            <div class="audit-card-icon" aria-hidden="true">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#5728B2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 14 14"></polyline>
+              </svg>
+            </div>
+            <h4 class="audit-title">RTO Fitness & Calibrated Speed Governors</h4>
+            <p class="audit-desc">
+              Rigorous annual RTO fitness certificate tracking. Speed limiters are electronically calibrated to 80 km/h in strict compliance with Central Motor Vehicles Rules (CMVR).
+            </p>
+            <div class="audit-status-tag">
+              <span class="status-check-circle">&check;</span>
+              <span>80 km/h Calibrated & Verified</span>
+            </div>
+          </div>
+
+          <!-- Audit 3: Passenger Liability Insurance -->
+          <div class="audit-card">
+            <div class="audit-card-icon" aria-hidden="true">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#5728B2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
               </svg>
             </div>
-            <h3 style="font-size: 1.35rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-3);">
-              Women's Night Safety & Escort Governance
-            </h3>
-            <p style="font-size: 0.9rem; color: var(--color-text-secondary); line-height: 1.6; margin-bottom: var(--space-6);">
-              Comprehensive night safety protocols designed in strict compliance with Telangana Department of Transport and Cyberabad Security Council (SCSC) guidelines for corporate night shifts.
+            <h4 class="audit-title">Commercial Passenger Liability Insurance</h4>
+            <p class="audit-desc">
+              Comprehensive commercial insurance with active passenger liability coverage across every seat. Policy validity is continuously monitored with automated expiration dispatch cutoffs.
             </p>
-            <ul style="display: flex; flex-direction: column; gap: 10px; font-size: 0.875rem; color: var(--color-text-secondary); border-top: 1px solid var(--color-border); padding-top: var(--space-4);">
-              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>First-pickup and last-drop female safety routing protocols</li>
-              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Mandatory verified security guard escort integration where mandated</li>
-              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>In-app safe-reach confirmation and continuous GPS corridor tracking</li>
-            </ul>
+            <div class="audit-status-tag">
+              <span class="status-check-circle">&check;</span>
+              <span>Full Passenger Liability Active</span>
+            </div>
           </div>
-          <div style="margin-top: var(--space-6);">
-            <a href="#request-proposal" class="btn btn-primary" style="width: 100%; text-align: center; justify-content: center;">
-              Request Night Safety Plan &rarr;
-            </a>
-          </div>
-        </div>
 
-        <!-- Service 3: Executive Travel & Airport Spot Mobility -->
-        <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-8); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; justify-content: space-between;">
-          <div>
-            <div style="width: 3rem; height: 3rem; border-radius: 0.75rem; background: #EFF6FF; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-4);">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="2" y1="12" x2="22" y2="12"></line>
-                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+          <!-- Audit 4: Driver Police Verification & ID Badge -->
+          <div class="audit-card">
+            <div class="audit-card-icon" aria-hidden="true">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#5728B2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
               </svg>
             </div>
-            <h3 style="font-size: 1.35rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: var(--space-3);">
-              Executive Travel & RGIA Airport Transfers
-            </h3>
-            <p style="font-size: 0.9rem; color: var(--color-text-secondary); line-height: 1.6; margin-bottom: var(--space-6);">
-              On-demand executive spot cabs and pre-booked airport transfers for senior management, visiting client delegations, and corporate board members across Hyderabad.
+            <h4 class="audit-title">Driver Police Verification & Badge Audits</h4>
+            <p class="audit-desc">
+              Telangana Police verification certificate, commercial public service vehicle (PSV) driver badge, and multi-factor KYC checks before any driver receives corporate trip assignments.
             </p>
-            <ul style="display: flex; flex-direction: column; gap: 10px; font-size: 0.875rem; color: var(--color-text-secondary); border-top: 1px solid var(--color-border); padding-top: var(--space-4);">
-              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Top-tier fleet: Innova Crysta, Hycross, Ertiga & executive sedans</li>
-              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Flight tracking integration ensures drivers are stationed on time</li>
-              <li style="display: flex; gap: 8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>Masked virtual calling protects corporate executive contact privacy</li>
-            </ul>
-          </div>
-          <div style="margin-top: var(--space-6);">
-            <a href="#request-proposal" class="btn btn-outline" style="width: 100%; text-align: center; justify-content: center;">
-              Request Executive Fleet Proposal &rarr;
-            </a>
+            <div class="audit-status-tag">
+              <span class="status-check-circle">&check;</span>
+              <span>Police Verified & Badged</span>
+            </div>
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- Commercial Fleet Composition -->
-  <section class="section-padding" style="background: var(--color-surface);">
+  <!-- =========================================================================
+       5. CORPORATE PROPOSAL FORM SECTION (Clean 2-Column Desktop Layout)
+       ========================================================================= -->
+  <section class="section-padding proposal-section" id="request-proposal">
     <div class="container">
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-12); align-items: center;">
-        <div>
-          <span class="badge badge-primary" style="margin-bottom: var(--space-3);">Verified Commercial Fleet</span>
-          <h2 style="font-size: 2.25rem; font-weight: 800; color: var(--color-text-primary); margin-bottom: var(--space-4);">
-            Strictly Commercial Yellow-Plate Vehicles
+      <div class="proposal-layout-grid">
+        <!-- Left Column: Corporate Proposal Introduction & Supporting Info -->
+        <div class="proposal-intro-col">
+          <h2 class="proposal-heading">
+            Request Custom Corporate Quotation & Proposal.
           </h2>
-          <p class="body-large" style="margin-bottom: var(--space-6); color: var(--color-text-secondary);">
-            AdhocX enforces a 100% yellow-plate commercial fleet mandate. We never dispatch private white-plate cars or uninspected vehicles.
+
+          <p class="proposal-desc">
+            Tailored B2B contract pricing for 4-seater and 7-seater yellow-plate commercial fleets across Hyderabad tech corridors.
           </p>
 
-          <div style="display: flex; flex-direction: column; gap: var(--space-4);">
-            <div style="display: flex; gap: var(--space-3); align-items: flex-start;">
-              <div style="width: 2rem; height: 2rem; border-radius: 6px; background: #CEE0FD; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="10" width="18" height="7" rx="2"></rect><circle cx="7" cy="17" r="2"></circle><circle cx="17" cy="17" r="2"></circle><path d="M5 10l2-5h10l2 5"></path></svg>
+          <!-- Key Enterprise Value Checklist -->
+          <div class="proposal-value-list">
+            <div class="proposal-value-item">
+              <div class="val-icon-box">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5728B2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
               </div>
               <div>
-                <strong style="color: var(--color-text-primary);">4-Seater Commercial Sedans:</strong>
-                <p style="font-size: 0.875rem; color: var(--color-text-secondary); margin-top: 2px;">Maruti Suzuki Dzire, Toyota Etios, Tata Tigor EV. Clean interiors, AC, calibrated speed governors, and GPS tracking.</p>
+                <strong>Direct Enterprise Agreement:</strong>
+                <p>Zero third-party broker markups. Direct bilateral Master Services Agreement (MSA) with AdhocX.</p>
               </div>
             </div>
 
-            <div style="display: flex; gap: var(--space-3); align-items: flex-start;">
-              <div style="width: 2rem; height: 2rem; border-radius: 6px; background: #CEE0FD; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="13" rx="2"></rect><circle cx="7" cy="17" r="2"></circle><circle cx="17" cy="17" r="2"></circle><path d="M5 7l2-4h10l2 4"></path></svg>
-              </div>
-              <div>
-                <strong style="color: var(--color-text-primary);">6 & 7-Seater Commercial MUVs:</strong>
-                <p style="font-size: 0.875rem; color: var(--color-text-secondary); margin-top: 2px;">Maruti Ertiga, XL6, Kia Carens, Toyota Innova Crysta. Ideal for high-efficiency nodal routes and grouped team shifts.</p>
-              </div>
-            </div>
-
-            <div style="display: flex; gap: var(--space-3); align-items: flex-start;">
-              <div style="width: 2rem; height: 2rem; border-radius: 6px; background: #CEE0FD; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-              </div>
-              <div>
-                <strong style="color: var(--color-text-primary);">Compliance & Document Audits:</strong>
-                <p style="font-size: 0.875rem; color: var(--color-text-secondary); margin-top: 2px;">Every vehicle RC, commercial fitness certificate, passenger liability insurance, and driver police verification is verified digitally before dispatch.</p>
-              </div>
-            </div>
           </div>
         </div>
 
-        <div>
-          <div style="border-radius: 1.25rem; overflow: hidden; box-shadow: var(--shadow-xl); border: 1px solid var(--color-border);">
-            <img
-              src="/corporate-cab-fleet.jpg"
-              alt="AdhocX Verified Commercial 4-Seater and 7-Seater Cab Fleet in Hyderabad"
-              width="640"
-              height="400"
-              style="width: 100%; height: auto; display: block; object-fit: cover; aspect-ratio: 16 / 10;"
-              loading="lazy"
-            />
-          </div>
+        <!-- Right Column: Enquiry Form Component -->
+        <div class="proposal-form-col">
+          <EnterpriseLeadForm client:load defaultPurpose="Enterprise Commute / ETS RFP Proposal" />
         </div>
       </div>
-    </div>
-  </section>
-
-  <!-- Lead Capture Section -->
-  <section id="request-proposal" class="section-padding" style="background: var(--color-surface-muted);">
-    <div class="container" style="max-width: 900px; margin: 0 auto;">
-      <EnterpriseLeadForm client:load defaultPurpose="Enterprise Commute / ETS RFP Proposal" />
     </div>
   </section>
 </BaseLayout>
 
+<style>
+  /* =========================================================================
+     PAGE SCOPED ENTERPRISE STYLES
+     Brand Colors: Primary Purple #5728B2 | Accent Orange #FF5F09
+     ========================================================================= */
+
+  /* Section Padding */
+  .section-padding {
+    padding: clamp(3rem, 6vw, 5.5rem) 0;
+  }
+
+  /* Eyebrows & Badges */
+  .eyebrow-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #ECE6FE;
+    color: #5728B2;
+    padding: 6px 16px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 1.25rem;
+    border: 1px solid rgba(87, 40, 178, 0.2);
+    max-width: 100%;
+    white-space: normal;
+    line-height: 1.4;
+    word-break: break-word;
+  }
+
+  .eyebrow-warm {
+    background: #FFF7ED;
+    color: #C2410C;
+    border-color: rgba(194, 65, 12, 0.2);
+  }
+
+  .eyebrow-purple {
+    background: #F3E8FF;
+    color: #5728B2;
+    border-color: rgba(87, 40, 178, 0.25);
+  }
+
+  .live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #FF5F09;
+    box-shadow: 0 0 0 2px rgba(255, 95, 9, 0.35);
+    animation: pulse-ring 2s infinite ease-in-out;
+  }
+
+  .live-dot-sm {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #10B981;
+    display: inline-block;
+  }
+
+  @keyframes pulse-ring {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 95, 9, 0.7); }
+    70% { transform: scale(1.05); box-shadow: 0 0 0 8px rgba(255, 95, 9, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 95, 9, 0); }
+  }
+
+  /* 1. HERO SECTION */
+  .services-hero {
+    background: linear-gradient(180deg, #FAF5FF 0%, #FFFFFF 100%);
+    padding: clamp(2rem, 3.5vw, 3.25rem) 0 clamp(2.5rem, 4vw, 3.5rem);
+    border-bottom: 1px solid #E2E8F0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .services-hero-container {
+    max-width: 1240px;
+  }
+
+  .services-hero-grid {
+    display: grid;
+    grid-template-columns: 1.08fr 0.92fr;
+    gap: clamp(1.75rem, 3.2vw, 3rem);
+    align-items: center;
+  }
+
+  .services-hero-h1 {
+    font-size: clamp(1.75rem, 2.35vw, 2.35rem);
+    font-weight: 850;
+    line-height: 1.2;
+    letter-spacing: -0.025em;
+    color: #0F172A;
+    margin-bottom: 0.875rem;
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+
+  .gradient-text {
+    background: linear-gradient(135deg, #5728B2 0%, #3B1780 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .services-hero-desc {
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    color: #475569;
+    margin-bottom: 1.35rem;
+    max-width: 32rem;
+  }
+
+  .services-hero-ctas {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.35rem;
+  }
+
+  .btn-cta-primary {
+    background: linear-gradient(135deg, #5728B2 0%, #431E8E 100%);
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 0.875rem;
+    padding: 0.65rem 1.35rem;
+    border-radius: 9999px;
+    box-shadow: 0 4px 14px rgba(87, 40, 178, 0.35);
+    transition: all 0.2s ease;
+  }
+
+  .btn-cta-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 22px rgba(87, 40, 178, 0.45);
+    color: #ffffff;
+  }
+
+  .btn-cta-secondary {
+    background: #FFFFFF;
+    color: #1E293B;
+    border: 1.5px solid #CBD5E1;
+    font-weight: 600;
+    font-size: 0.875rem;
+    padding: 0.65rem 1.35rem;
+    border-radius: 9999px;
+    transition: all 0.2s ease;
+  }
+
+  .btn-cta-secondary:hover {
+    border-color: #5728B2;
+    color: #5728B2;
+    background: #FAF5FF;
+  }
+
+  .hero-micro-trust {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 0.78125rem;
+    font-weight: 600;
+    color: #64748B;
+    line-height: 1.4;
+  }
+
+  .hero-micro-trust svg {
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  /* Hero Visual Card */
+  .services-hero-visual {
+    width: 100%;
+    max-width: 520px;
+    margin-left: auto;
+  }
+
+  .hero-image-card {
+    position: relative;
+    border-radius: 1rem;
+    background: #ffffff;
+    border: 1px solid rgba(87, 40, 178, 0.15);
+    box-shadow: 0 16px 36px -10px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.03);
+    overflow: hidden;
+  }
+
+  .hero-image-wrapper {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+  }
+
+  .hero-main-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .hero-image-card:hover .hero-main-photo {
+    transform: scale(1.025);
+  }
+
+  .hero-image-gradient-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(87, 40, 178, 0.04) 0%, rgba(38, 16, 83, 0.45) 100%);
+  }
+
+  /* Transportation Tracking Dashboard HUD */
+  .hero-tracking-hud {
+    background: linear-gradient(140deg, #5728B2 0%, #261053 100%);
+    color: #FFFFFF;
+    padding: 1.15rem 1.35rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.22);
+    border-bottom-left-radius: 1rem;
+    border-bottom-right-radius: 1rem;
+    box-shadow: 0 14px 32px -8px rgba(87, 40, 178, 0.38);
+  }
+
+  .hud-top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.85rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+    padding-bottom: 0.65rem;
+  }
+
+  .hud-status-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.71875rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: #FFD494;
+  }
+
+  .hud-live-ping {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #FF5F09;
+    box-shadow: 0 0 0 3px rgba(255, 95, 9, 0.35);
+  }
+
+  .hud-corridor-tag {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    color: #FFFFFF;
+    background: rgba(255, 255, 255, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    padding: 2.5px 10px;
+    border-radius: var(--radius-pill, 9999px);
+    letter-spacing: 0.04em;
+  }
+
+  .hud-details-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem 1.25rem;
+  }
+
+  .hud-stat-cell {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .hud-stat-label {
+    font-size: 0.65625rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #E9D8FD;
+    margin-bottom: 2px;
+    font-weight: 600;
+  }
+
+  .hud-stat-value {
+    font-size: 0.90625rem;
+    font-weight: 700;
+    color: #FFFFFF;
+    line-height: 1.3;
+  }
+
+  .hud-stat-sub {
+    font-size: 0.71875rem;
+    color: rgba(255, 255, 255, 0.85);
+    margin-top: 2px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .badge-plate {
+    background: #FEF08A;
+    color: #854D0E;
+    font-weight: 800;
+    font-size: 0.65625rem;
+    padding: 1px 5px;
+    border-radius: 3px;
+    border: 1px solid #CA8A04;
+    letter-spacing: 0.04em;
+  }
+
+  .text-success-sm {
+    color: #6EE7B7 !important;
+    font-weight: 600;
+  }
+
+  .text-purple-sm {
+    color: #FED7AA !important;
+    font-weight: 600;
+  }
+
+  /* 2. TRUST INDICATORS BAR */
+  .trust-indicators-bar {
+    background: #FFFFFF;
+    border-top: 1px solid #E2E8F0;
+    border-bottom: 1px solid #E2E8F0;
+    padding: 1.75rem 0;
+  }
+
+  .trust-indicators-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+  }
+
+  .trust-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .trust-icon-box {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    background: #F3E8FF;
+    color: #5728B2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .trust-title {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #5728B2;
+    margin-bottom: 4px;
+    line-height: 1.25;
+  }
+
+  .trust-desc {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: #475569;
+    line-height: 1.45;
+  }
+
+  /* 3. CORE MOBILITY SERVICES */
+  .core-services-section {
+    background: #F8FAFC;
+  }
+
+  .section-intro {
+    max-width: 100%;
+    margin: 0 auto clamp(2.5rem, 5vw, 4rem);
+  }
+
+  .section-title {
+    font-size: clamp(1.75rem, 2.8vw, 2.5rem);
+    font-weight: 850;
+    color: #0F172A;
+    letter-spacing: -0.025em;
+    line-height: 1.22;
+    margin-bottom: 1rem;
+  }
+
+  @media (min-width: 992px) {
+    .section-title {
+      white-space: nowrap;
+    }
+  }
+
+  .section-subtitle {
+    font-size: clamp(0.975rem, 1.2vw, 1.125rem);
+    color: #475569;
+    line-height: 1.6;
+    max-width: 52rem;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .services-stack {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(2.5rem, 5vw, 4.5rem);
+  }
+
+  .service-item-row {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 20px;
+    padding: clamp(1.75rem, 3.5vw, 3rem);
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: clamp(2rem, 4vw, 3.5rem);
+    align-items: center;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+  }
+
+  .service-item-row:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 30px rgba(87, 40, 178, 0.08);
+  }
+
+  .service-item-reversed {
+    grid-template-columns: 1fr 1.1fr;
+    border: 1.5px solid rgba(87, 40, 178, 0.35);
+  }
+
+  .service-item-reversed .service-content-col {
+    order: 2;
+  }
+
+  .service-item-reversed .service-visual-col {
+    order: 1;
+  }
+
+  .service-badge-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 1rem;
+  }
+
+  .badge-text-sub {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: #64748B;
+  }
+
+  .badge-alert-pill {
+    background: #5728B2;
+    color: #FFFFFF;
+    font-size: 0.6875rem;
+    font-weight: 800;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .service-h3 {
+    font-size: clamp(1.4rem, 2.2vw, 1.85rem);
+    font-weight: 800;
+    color: #0F172A;
+    line-height: 1.25;
+    margin-bottom: 1rem;
+  }
+
+  .service-paragraph {
+    font-size: 0.95rem;
+    line-height: 1.65;
+    color: #475569;
+    margin-bottom: 1.5rem;
+  }
+
+  .service-features-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    border-top: 1px solid #F1F5F9;
+    padding-top: 1.25rem;
+    margin-bottom: 2rem;
+  }
+
+  .service-feature-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .feature-check {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    background: #ECE6FE;
+    color: #5728B2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .feature-text {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #334155;
+    line-height: 1.5;
+  }
+
+  .service-image-card {
+    position: relative;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+    aspect-ratio: 16 / 10;
+    background: #E2E8F0;
+  }
+
+  .service-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.5s ease;
+  }
+
+  .service-image-card:hover .service-img {
+    transform: scale(1.03);
+  }
+
+  .service-image-overlay-pill {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(8px);
+    color: #FFFFFF;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+  }
+
+  .safety-pill {
+    background: rgba(87, 40, 178, 0.9);
+    border-color: rgba(255, 255, 255, 0.3);
+  }
+
+  /* 4. VERIFIED COMMERCIAL FLEET */
+  .fleet-section {
+    background: #FFFFFF;
+  }
+
+  .fleet-overview-card {
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 20px;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 2rem;
+    margin-bottom: 3.5rem;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.04);
+  }
+
+  .fleet-overview-img-wrap {
+    width: 100%;
+    height: 100%;
+    min-height: 320px;
+    background: #E2E8F0;
+  }
+
+  .fleet-overview-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .fleet-overview-copy {
+    padding: clamp(2rem, 3.5vw, 3rem) clamp(1.5rem, 3vw, 2.5rem);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .badge-plate-large {
+    background: #FEF08A;
+    color: #854D0E;
+    font-weight: 850;
+    font-size: 0.8125rem;
+    padding: 3px 10px;
+    border-radius: 4px;
+    border: 1.5px solid #CA8A04;
+    letter-spacing: 0.05em;
+  }
+
+  .fleet-badge-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 1rem;
+  }
+
+  .fleet-reg-note {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #64748B;
+  }
+
+  .fleet-overview-title {
+    font-size: clamp(1.35rem, 2vw, 1.75rem);
+    font-weight: 800;
+    color: #0F172A;
+    margin-bottom: 0.75rem;
+    line-height: 1.25;
+  }
+
+  .fleet-overview-desc {
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    color: #475569;
+    margin-bottom: 1.5rem;
+  }
+
+  .fleet-quick-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    border-top: 1px solid #E2E8F0;
+    padding-top: 1.25rem;
+  }
+
+  .quick-metric-item strong {
+    display: block;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #5728B2;
+  }
+
+  .quick-metric-item span {
+    font-size: 0.75rem;
+    color: #64748B;
+    font-weight: 500;
+    line-height: 1.35;
+  }
+
+  /* Fleet Category Blocks */
+  .fleet-category-block {
+    margin-bottom: clamp(3rem, 5vw, 4.5rem);
+  }
+
+  .fleet-cat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 2rem;
+    border-bottom: 2px solid #F1F5F9;
+    padding-bottom: 1.25rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .cat-pill {
+    font-size: 0.6875rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    color: #5728B2;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .fleet-cat-h3 {
+    font-size: clamp(1.35rem, 2.2vw, 1.75rem);
+    font-weight: 800;
+    color: #0F172A;
+    margin-bottom: 6px;
+  }
+
+  .fleet-cat-desc {
+    font-size: 0.9375rem;
+    color: #475569;
+    max-width: 650px;
+    line-height: 1.55;
+  }
+
+  /* Vehicle Cards Grid */
+  .vehicle-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.75rem;
+  }
+
+  .vehicle-grid-4 {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .vehicle-card {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  }
+
+  .vehicle-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(87, 40, 178, 0.1);
+    border-color: #C084FC;
+  }
+
+  .vehicle-card-featured {
+    border: 2px solid #5728B2;
+    position: relative;
+  }
+
+  .vehicle-img-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    background: #F1F5F9;
+    overflow: hidden;
+  }
+
+  .vehicle-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.4s ease;
+  }
+
+  .vehicle-card:hover .vehicle-img {
+    transform: scale(1.04);
+  }
+
+  .vehicle-tag {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(4px);
+    color: #FFFFFF;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.03em;
+  }
+
+  .tag-featured {
+    background: #5728B2;
+  }
+
+  .vehicle-card-body {
+    padding: 1.25rem 1.25rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+  }
+
+  .vehicle-name {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #0F172A;
+    margin-bottom: 0.75rem;
+  }
+
+  .vehicle-specs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 0.875rem;
+  }
+
+  .spec-chip {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    background: #F8FAFC;
+    color: #334155;
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 1px solid #E2E8F0;
+  }
+
+  .vehicle-note {
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    color: #64748B;
+    margin-top: auto;
+    border-top: 1px solid #F1F5F9;
+    padding-top: 0.75rem;
+  }
+
+  /* Compliance & Document Audits Grid */
+  .compliance-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+  }
+
+  .audit-card {
+    background: #FAF5FF;
+    border: 1px solid rgba(87, 40, 178, 0.18);
+    border-radius: 16px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.02);
+    transition: transform 0.2s ease, border-color 0.2s ease;
+  }
+
+  .audit-card:hover {
+    transform: translateY(-3px);
+    border-color: #5728B2;
+  }
+
+  .audit-card-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: #FFFFFF;
+    border: 1px solid rgba(87, 40, 178, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.25rem;
+    box-shadow: 0 2px 6px rgba(87, 40, 178, 0.08);
+  }
+
+  .audit-title {
+    font-size: 1rem;
+    font-weight: 800;
+    color: #1E293B;
+    margin-bottom: 0.5rem;
+    line-height: 1.35;
+  }
+
+  .audit-desc {
+    font-size: 0.8125rem;
+    color: #475569;
+    line-height: 1.55;
+    margin-bottom: 1.25rem;
+    flex-grow: 1;
+  }
+
+  .audit-status-tag {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #16A34A;
+    border-top: 1px solid rgba(87, 40, 178, 0.1);
+    padding-top: 0.75rem;
+  }
+
+  .status-check-circle {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #DCFCE7;
+    color: #16A34A;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6875rem;
+    font-weight: 800;
+  }
+
+  .badge-success-outline {
+    background: #DCFCE7;
+    color: #15803D;
+    font-weight: 700;
+    font-size: 0.75rem;
+    border: 1px solid #86EFAC;
+  }
+
+  /* 5. CORPORATE PROPOSAL SECTION */
+  .proposal-section {
+    background: #F1F5F9;
+    border-top: 1px solid #E2E8F0;
+  }
+
+  .proposal-layout-grid {
+    display: grid;
+    grid-template-columns: 1.05fr 1.15fr;
+    gap: clamp(2rem, 5vw, 4rem);
+    align-items: flex-start;
+  }
+
+  .proposal-intro-col {
+    padding-right: clamp(0.5rem, 2vw, 1.5rem);
+  }
+
+  .proposal-heading {
+    font-size: clamp(1.85rem, 3.2vw, 2.5rem);
+    font-weight: 850;
+    color: #0F172A;
+    letter-spacing: -0.025em;
+    line-height: 1.2;
+    margin-bottom: 1rem;
+  }
+
+  .proposal-desc {
+    font-size: 1.05rem;
+    line-height: 1.6;
+    color: #475569;
+    margin-bottom: 2rem;
+  }
+
+  .proposal-value-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    margin-bottom: 0;
+  }
+
+  .proposal-value-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    background: #FFFFFF;
+    padding: 1rem 1.25rem;
+    border-radius: 12px;
+    border: 1px solid #E2E8F0;
+  }
+
+  .val-icon-box {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: #ECE6FE;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .proposal-value-item strong {
+    display: block;
+    font-size: 0.9375rem;
+    color: #0F172A;
+    margin-bottom: 2px;
+  }
+
+  .proposal-value-item p {
+    font-size: 0.8125rem;
+    color: #475569;
+    line-height: 1.45;
+    margin: 0;
+  }
+
+
+  /* =========================================================================
+     RESPONSIVE BREAKPOINTS (Desktop, Tablet, Mobile)
+     ========================================================================= */
+
+  /* Tablet (<= 1024px) */
+  @media (max-width: 1024px) {
+    .services-hero-grid {
+      grid-template-columns: 1fr;
+      gap: 2.5rem;
+    }
+
+    .services-hero-content {
+      max-width: 720px;
+    }
+
+    .trust-indicators-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.25rem;
+    }
+
+    .fleet-overview-card {
+      grid-template-columns: 1fr;
+    }
+
+    .vehicle-cards-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .vehicle-grid-4 {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .compliance-cards-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .proposal-layout-grid {
+      grid-template-columns: 1fr;
+      gap: 2.5rem;
+    }
+
+    .proposal-intro-col {
+      padding-right: 0;
+    }
+  }
+
+  /* Mobile (<= 768px) */
+  @media (max-width: 768px) {
+    .services-hero {
+      padding: 2.5rem 0 2rem;
+    }
+
+    .service-item-row,
+    .service-item-reversed {
+      grid-template-columns: 1fr;
+      padding: 1.5rem;
+      gap: 1.75rem;
+    }
+
+    .service-item-reversed .service-content-col {
+      order: 1;
+    }
+
+    .service-item-reversed .service-visual-col {
+      order: 2;
+    }
+
+    .trust-indicators-grid {
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+
+    .trust-card {
+      padding: 0.5rem 0;
+    }
+
+    .vehicle-cards-grid,
+    .vehicle-grid-4,
+    .compliance-cards-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .fleet-quick-metrics {
+      grid-template-columns: 1fr;
+      gap: 0.75rem;
+    }
+
+    .hud-details-grid {
+      grid-template-columns: 1fr;
+      gap: 0.75rem;
+    }
+
+    .services-hero-ctas {
+      flex-direction: column;
+    }
+
+    .btn-cta-primary,
+    .btn-cta-secondary {
+      width: 100%;
+      text-align: center;
+      justify-content: center;
+    }
+  }
+
+  /* Mobile Small (<= 375px) */
+  @media (max-width: 375px) {
+    .services-hero-h1 {
+      font-size: 1.95rem;
+    }
+
+    .service-h3 {
+      font-size: 1.3rem;
+    }
+
+    .eyebrow-pill {
+      font-size: 0.6875rem;
+      padding: 4px 12px;
+    }
+  }
+
+  /* Reduced Motion Accessibility */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+</style>

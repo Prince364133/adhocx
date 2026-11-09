@@ -21,7 +21,7 @@ class WelcomeIllustration extends StatelessWidget {
           end: Alignment.bottomCenter,
           colors: [
             const Color(0xFFE8F1FD),
-            const Color(0xFFF3F7FD).withOpacity(0.8),
+            const Color(0xFFF3F7FD).withValues(alpha: 0.8),
             Colors.white,
           ],
         ),
@@ -39,7 +39,7 @@ class WelcomeIllustration extends StatelessWidget {
               height: 90,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFFD6E6FD).withOpacity(0.4),
+                color: const Color(0xFFD6E6FD).withValues(alpha: 0.4),
               ),
             ),
           ),
@@ -51,7 +51,7 @@ class WelcomeIllustration extends StatelessWidget {
               height: 110,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFFD6E6FD).withOpacity(0.4),
+                color: const Color(0xFFD6E6FD).withValues(alpha: 0.4),
               ),
             ),
           ),
@@ -64,9 +64,11 @@ class WelcomeIllustration extends StatelessWidget {
               children: [
                 _buildBuilding(38, 90, const Color(0xFFBFD7FC)),
                 const SizedBox(width: 4),
-                _buildBuilding(50, 120, const Color(0xFF9BBBFC), hasWindows: true),
+                _buildBuilding(50, 120, const Color(0xFF9BBBFC),
+                    hasWindows: true),
                 const SizedBox(width: 4),
-                _buildBuilding(54, 135, const Color(0xFF6F9EFA), hasWindows: true),
+                _buildBuilding(54, 135, const Color(0xFF6F9EFA),
+                    hasWindows: true),
                 const SizedBox(width: 4),
                 _buildBuilding(44, 105, const Color(0xFF9BBBFC)),
                 const SizedBox(width: 4),
@@ -98,7 +100,7 @@ class WelcomeIllustration extends StatelessWidget {
                 border: Border.all(color: const Color(0xFFCEE0FD), width: 1.5),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.primaryBlue.withOpacity(0.12),
+                    color: AppColors.primaryBlue.withValues(alpha: 0.12),
                     blurRadius: 16,
                     offset: const Offset(0, 8),
                   ),
@@ -130,7 +132,8 @@ class WelcomeIllustration extends StatelessWidget {
     );
   }
 
-  static Widget _buildBuilding(double width, double height, Color color, {bool hasWindows = false}) {
+  static Widget _buildBuilding(double width, double height, Color color,
+      {bool hasWindows = false}) {
     return Container(
       width: width,
       height: height,
@@ -147,8 +150,14 @@ class WelcomeIllustration extends StatelessWidget {
                 (_) => Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    Container(width: 4, height: 4, color: Colors.white.withOpacity(0.8)),
-                    Container(width: 4, height: 4, color: Colors.white.withOpacity(0.8)),
+                    Container(
+                        width: 4,
+                        height: 4,
+                        color: Colors.white.withValues(alpha: 0.8)),
+                    Container(
+                        width: 4,
+                        height: 4,
+                        color: Colors.white.withValues(alpha: 0.8)),
                   ],
                 ),
               ),
@@ -220,7 +229,7 @@ class CompanySsoBadge extends StatelessWidget {
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: AppColors.primaryBlue.withOpacity(0.18),
+            color: AppColors.primaryBlue.withValues(alpha: 0.18),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -252,7 +261,7 @@ class VerifiedAccountBadge extends StatelessWidget {
         border: Border.all(color: AppColors.successBorder, width: 2),
         boxShadow: [
           BoxShadow(
-            color: AppColors.success.withOpacity(0.18),
+            color: AppColors.success.withValues(alpha: 0.18),
             blurRadius: 18,
             offset: const Offset(0, 8),
           ),
@@ -292,7 +301,7 @@ class PermissionBadge extends StatelessWidget {
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: iconColor.withOpacity(0.16),
+            color: iconColor.withValues(alpha: 0.16),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -320,7 +329,7 @@ class CalendarScheduleIllustration extends StatelessWidget {
         border: Border.all(color: AppColors.border, width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primaryBlue.withOpacity(0.12),
+            color: AppColors.primaryBlue.withValues(alpha: 0.12),
             blurRadius: 24,
             offset: const Offset(0, 10),
           ),
@@ -340,7 +349,11 @@ class CalendarScheduleIllustration extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(width: 8, height: 8, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle)),
+                Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                        color: Colors.white, shape: BoxShape.circle)),
                 Text(
                   'ROSTER',
                   style: GoogleFonts.inter(
@@ -350,7 +363,11 @@ class CalendarScheduleIllustration extends StatelessWidget {
                     letterSpacing: 1.5,
                   ),
                 ),
-                Container(width: 8, height: 8, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle)),
+                Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                        color: Colors.white, shape: BoxShape.circle)),
               ],
             ),
           ),
@@ -372,7 +389,9 @@ class CalendarScheduleIllustration extends StatelessWidget {
                 final isSelected = index == 7;
                 return Container(
                   decoration: BoxDecoration(
-                    color: isSelected ? AppColors.secondaryOrange : const Color(0xFFF1F5F9),
+                    color: isSelected
+                        ? AppColors.secondaryOrange
+                        : const Color(0xFFF1F5F9),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Center(
@@ -380,8 +399,10 @@ class CalendarScheduleIllustration extends StatelessWidget {
                       '${index + 1}',
                       style: GoogleFonts.inter(
                         fontSize: 10,
-                        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-                        color: isSelected ? Colors.white : AppColors.textSecondary,
+                        fontWeight:
+                            isSelected ? FontWeight.w800 : FontWeight.w500,
+                        color:
+                            isSelected ? Colors.white : AppColors.textSecondary,
                       ),
                     ),
                   ),
@@ -402,7 +423,7 @@ class CalendarScheduleIllustration extends StatelessWidget {
                 border: Border.all(color: Colors.white, width: 3),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.secondaryOrange.withOpacity(0.35),
+                    color: AppColors.secondaryOrange.withValues(alpha: 0.35),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -436,7 +457,7 @@ class RouteMapIllustration extends StatelessWidget {
         border: Border.all(color: AppColors.border, width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primaryBlue.withOpacity(0.12),
+            color: AppColors.primaryBlue.withValues(alpha: 0.12),
             blurRadius: 24,
             offset: const Offset(0, 10),
           ),
@@ -463,7 +484,7 @@ class RouteMapIllustration extends StatelessWidget {
                 border: Border.all(color: Colors.white, width: 2.5),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.primaryBlue.withOpacity(0.35),
+                    color: AppColors.primaryBlue.withValues(alpha: 0.35),
                     blurRadius: 6,
                   ),
                 ],
@@ -481,7 +502,7 @@ class RouteMapIllustration extends StatelessWidget {
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
+                    color: Colors.black.withValues(alpha: 0.15),
                     blurRadius: 8,
                     offset: const Offset(0, 3),
                   ),
@@ -507,7 +528,7 @@ class RouteMapIllustration extends StatelessWidget {
                 border: Border.all(color: Colors.white, width: 2.5),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.secondaryOrange.withOpacity(0.4),
+                    color: AppColors.secondaryOrange.withValues(alpha: 0.4),
                     blurRadius: 8,
                     offset: const Offset(0, 4),
                   ),
@@ -570,7 +591,7 @@ class SosShieldIllustration extends StatelessWidget {
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: AppColors.secondaryOrange.withOpacity(0.25),
+            color: AppColors.secondaryOrange.withValues(alpha: 0.25),
             blurRadius: 28,
             offset: const Offset(0, 12),
           ),
@@ -636,7 +657,7 @@ class AllSetIllustration extends StatelessWidget {
         border: Border.all(color: AppColors.successBorder, width: 2),
         boxShadow: [
           BoxShadow(
-            color: AppColors.success.withOpacity(0.24),
+            color: AppColors.success.withValues(alpha: 0.24),
             blurRadius: 32,
             offset: const Offset(0, 12),
           ),
@@ -668,7 +689,7 @@ class AccessUnavailableBadge extends StatelessWidget {
         border: Border.all(color: AppColors.errorBorder, width: 2),
         boxShadow: [
           BoxShadow(
-            color: AppColors.error.withOpacity(0.2),
+            color: AppColors.error.withValues(alpha: 0.2),
             blurRadius: 24,
             offset: const Offset(0, 8),
           ),
@@ -684,5 +705,3 @@ class AccessUnavailableBadge extends StatelessWidget {
     );
   }
 }
-
-

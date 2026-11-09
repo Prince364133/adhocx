@@ -12,10 +12,12 @@ class TripInProgressEnRouteScreen extends StatefulWidget {
   const TripInProgressEnRouteScreen({super.key});
 
   @override
-  State<TripInProgressEnRouteScreen> createState() => _TripInProgressEnRouteScreenState();
+  State<TripInProgressEnRouteScreen> createState() =>
+      _TripInProgressEnRouteScreenState();
 }
 
-class _TripInProgressEnRouteScreenState extends State<TripInProgressEnRouteScreen> {
+class _TripInProgressEnRouteScreenState
+    extends State<TripInProgressEnRouteScreen> {
   Map<String, dynamic>? _tripData;
   bool _isLoading = true;
 
@@ -38,7 +40,8 @@ class _TripInProgressEnRouteScreenState extends State<TripInProgressEnRouteScree
   @override
   Widget build(BuildContext context) {
     final title = _tripData?['title'] ?? 'Trip In Progress';
-    final subtitle = _tripData?['subtitle'] ?? "You're on your way to the office.";
+    final subtitle =
+        _tripData?['subtitle'] ?? "You're on your way to the office.";
     final eta = _tripData?['eta'] ?? '24 min';
     final distance = _tripData?['distance'] ?? '12.4 km';
     final destination = _tripData?['destination'] ?? 'HITEC City Office';
@@ -49,7 +52,8 @@ class _TripInProgressEnRouteScreenState extends State<TripInProgressEnRouteScree
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              size: 18, color: AppColors.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -57,12 +61,14 @@ class _TripInProgressEnRouteScreenState extends State<TripInProgressEnRouteScree
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                 child: Column(
                   children: [
                     // Status Badge
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 4),
                       decoration: BoxDecoration(
                         color: AppColors.successLight,
                         borderRadius: BorderRadius.circular(16),
@@ -110,10 +116,12 @@ class _TripInProgressEnRouteScreenState extends State<TripInProgressEnRouteScree
                               Container(
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color: AppColors.primaryBlueLight.withOpacity(0.5),
+                                  color: AppColors.primaryBlueLight
+                                      .withValues(alpha: 0.5),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
-                                child: const Icon(Icons.business_rounded, color: AppColors.primaryBlue, size: 20),
+                                child: const Icon(Icons.business_rounded,
+                                    color: AppColors.primaryBlue, size: 20),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
@@ -122,7 +130,9 @@ class _TripInProgressEnRouteScreenState extends State<TripInProgressEnRouteScree
                                   children: [
                                     Text(
                                       'Destination',
-                                      style: GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted),
+                                      style: GoogleFonts.inter(
+                                          fontSize: 11,
+                                          color: AppColors.textMuted),
                                     ),
                                     Text(
                                       destination,
@@ -191,6 +201,3 @@ class _TripInProgressEnRouteScreenState extends State<TripInProgressEnRouteScree
     );
   }
 }
-
-
-

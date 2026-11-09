@@ -47,7 +47,8 @@ class _ScheduleDailyScreenState extends State<ScheduleDailyScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: AppColors.primaryBlue)),
+        body: Center(
+            child: CircularProgressIndicator(color: AppColors.primaryBlue)),
       );
     }
 
@@ -92,7 +93,8 @@ class _ScheduleDailyScreenState extends State<ScheduleDailyScreen> {
 
               // Date Navigation Selector
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   color: AppColors.surfaceMuted,
                   borderRadius: BorderRadius.circular(14),
@@ -101,7 +103,8 @@ class _ScheduleDailyScreenState extends State<ScheduleDailyScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Icon(Icons.chevron_left_rounded, color: AppColors.textSecondary),
+                    const Icon(Icons.chevron_left_rounded,
+                        color: AppColors.textSecondary),
                     Text(
                       date,
                       style: GoogleFonts.inter(
@@ -110,7 +113,8 @@ class _ScheduleDailyScreenState extends State<ScheduleDailyScreen> {
                         color: AppColors.textPrimary,
                       ),
                     ),
-                    const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+                    const Icon(Icons.chevron_right_rounded,
+                        color: AppColors.textSecondary),
                   ],
                 ),
               ),
@@ -182,7 +186,7 @@ class _ScheduleDailyScreenState extends State<ScheduleDailyScreen> {
             border: Border.all(color: AppColors.border),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -236,7 +240,8 @@ class _ScheduleDailyScreenState extends State<ScheduleDailyScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted, size: 20),
+              const Icon(Icons.chevron_right_rounded,
+                  color: AppColors.textMuted, size: 20),
             ],
           ),
         ),
@@ -244,6 +249,3 @@ class _ScheduleDailyScreenState extends State<ScheduleDailyScreen> {
     );
   }
 }
-
-
-

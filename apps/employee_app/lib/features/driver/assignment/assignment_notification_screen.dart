@@ -10,12 +10,14 @@ class AssignmentNotificationScreen extends StatefulWidget {
   const AssignmentNotificationScreen({super.key});
 
   @override
-  State<AssignmentNotificationScreen> createState() => _AssignmentNotificationScreenState();
+  State<AssignmentNotificationScreen> createState() =>
+      _AssignmentNotificationScreenState();
 }
 
-class _AssignmentNotificationScreenState extends State<AssignmentNotificationScreen> {
+class _AssignmentNotificationScreenState
+    extends State<AssignmentNotificationScreen> {
   Map<String, dynamic>? _notificationData;
-  
+
   @override
   void initState() {
     super.initState();
@@ -27,7 +29,7 @@ class _AssignmentNotificationScreenState extends State<AssignmentNotificationScr
     if (mounted) {
       setState(() {
         _notificationData = assignment['notification'] as Map<String, dynamic>?;
-              });
+      });
     }
   }
 
@@ -85,7 +87,7 @@ class _AssignmentNotificationScreenState extends State<AssignmentNotificationScr
                   style: GoogleFonts.inter(
                     fontSize: 18,
                     fontWeight: FontWeight.w500,
-                    color: Colors.white.withOpacity(0.85),
+                    color: Colors.white.withValues(alpha: 0.85),
                   ),
                 ),
 
@@ -100,11 +102,11 @@ class _AssignmentNotificationScreenState extends State<AssignmentNotificationScr
                     child: Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.95),
+                        color: Colors.white.withValues(alpha: 0.95),
                         borderRadius: BorderRadius.circular(18),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
+                            color: Colors.black.withValues(alpha: 0.2),
                             blurRadius: 20,
                             offset: const Offset(0, 10),
                           ),
@@ -179,17 +181,20 @@ class _AssignmentNotificationScreenState extends State<AssignmentNotificationScr
                 GestureDetector(
                   onTap: () => context.push(AppRoutes.cabAssignedOverview),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 12),
                     margin: const EdgeInsets.only(bottom: 24),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.15),
+                      color: Colors.white.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(30),
-                      border: Border.all(color: Colors.white.withOpacity(0.25)),
+                      border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.25)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.touch_app_rounded, color: Colors.white, size: 18),
+                        const Icon(Icons.touch_app_rounded,
+                            color: Colors.white, size: 18),
                         const SizedBox(width: 8),
                         Text(
                           'Tap notification to open app',
@@ -211,6 +216,3 @@ class _AssignmentNotificationScreenState extends State<AssignmentNotificationScr
     );
   }
 }
-
-
-

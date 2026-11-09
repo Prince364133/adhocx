@@ -214,6 +214,32 @@ const { activeNav = '', logoTag = '' } = Astro.props;
     }
   });
 
+  // Close drawer when clicking any link inside mobile navigation
+  navLinks?.querySelectorAll('a').forEach((link) => {
+    link.addEventListener('click', () => {
+      if (window.innerWidth <= 768 && navLinks.classList.contains('is-open')) {
+        navLinks.classList.remove('is-open');
+        toggleBtn?.setAttribute('aria-expanded', 'false');
+        if (hamburger && close) {
+          hamburger.style.display = 'block';
+          close.style.display = 'none';
+        }
+      }
+    });
+  });
+
+  // Auto-close mobile drawer if viewport is expanded to desktop
+  window.addEventListener('resize', () => {
+    if (window.innerWidth > 768 && navLinks?.classList.contains('is-open')) {
+      navLinks.classList.remove('is-open');
+      toggleBtn?.setAttribute('aria-expanded', 'false');
+      if (hamburger && close) {
+        hamburger.style.display = 'block';
+        close.style.display = 'none';
+      }
+    }
+  });
+
   // Header scroll shadow
   window.addEventListener('scroll', () => {
     if (window.scrollY > 20) {

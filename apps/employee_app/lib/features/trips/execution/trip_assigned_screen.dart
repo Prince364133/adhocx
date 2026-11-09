@@ -36,7 +36,8 @@ class _TripAssignedScreenState extends State<TripAssignedScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: AppColors.primaryBlue)),
+        body: Center(
+            child: CircularProgressIndicator(color: AppColors.primaryBlue)),
       );
     }
 
@@ -71,7 +72,8 @@ class _TripAssignedScreenState extends State<TripAssignedScreen> {
 
               // Assigned Status Pill
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 decoration: BoxDecoration(
                   color: AppColors.successLight,
                   borderRadius: BorderRadius.circular(20),
@@ -99,7 +101,7 @@ class _TripAssignedScreenState extends State<TripAssignedScreen> {
                   border: Border.all(color: AppColors.border),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.04),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -107,10 +109,11 @@ class _TripAssignedScreenState extends State<TripAssignedScreen> {
                 ),
                 child: Row(
                   children: [
-                    CircleAvatar(
+                    const CircleAvatar(
                       radius: 24,
                       backgroundColor: AppColors.primaryBlueLight,
-                      child: const Icon(Icons.person, color: AppColors.primaryBlue, size: 28),
+                      child: Icon(Icons.person,
+                          color: AppColors.primaryBlue, size: 28),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -128,7 +131,8 @@ class _TripAssignedScreenState extends State<TripAssignedScreen> {
                           const SizedBox(height: 3),
                           Row(
                             children: [
-                              const Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 16),
+                              const Icon(Icons.star_rounded,
+                                  color: Color(0xFFF59E0B), size: 16),
                               const SizedBox(width: 4),
                               Text(
                                 rating,
@@ -146,10 +150,12 @@ class _TripAssignedScreenState extends State<TripAssignedScreen> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: AppColors.primaryBlueLight.withOpacity(0.4),
+                        color:
+                            AppColors.primaryBlueLight.withValues(alpha: 0.4),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.phone, color: AppColors.primaryBlue, size: 20),
+                      child: const Icon(Icons.phone,
+                          color: AppColors.primaryBlue, size: 20),
                     ),
                   ],
                 ),
@@ -236,7 +242,7 @@ class _TripAssignedScreenState extends State<TripAssignedScreen> {
                   border: Border.all(color: AppColors.border),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.04),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -246,7 +252,8 @@ class _TripAssignedScreenState extends State<TripAssignedScreen> {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.location_on_outlined, color: AppColors.textMuted, size: 20),
+                        const Icon(Icons.location_on_outlined,
+                            color: AppColors.textMuted, size: 20),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
@@ -254,7 +261,8 @@ class _TripAssignedScreenState extends State<TripAssignedScreen> {
                             children: [
                               Text(
                                 'Pickup Point',
-                                style: GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted),
+                                style: GoogleFonts.inter(
+                                    fontSize: 11, color: AppColors.textMuted),
                               ),
                               Text(
                                 pickupPoint,
@@ -272,7 +280,8 @@ class _TripAssignedScreenState extends State<TripAssignedScreen> {
                     const Divider(color: AppColors.border, height: 24),
                     Row(
                       children: [
-                        const Icon(Icons.access_time_rounded, color: AppColors.textMuted, size: 20),
+                        const Icon(Icons.access_time_rounded,
+                            color: AppColors.textMuted, size: 20),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
@@ -280,7 +289,8 @@ class _TripAssignedScreenState extends State<TripAssignedScreen> {
                             children: [
                               Text(
                                 'Pickup Time',
-                                style: GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted),
+                                style: GoogleFonts.inter(
+                                    fontSize: 11, color: AppColors.textMuted),
                               ),
                               Text(
                                 pickupTime,
@@ -307,6 +317,3 @@ class _TripAssignedScreenState extends State<TripAssignedScreen> {
     );
   }
 }
-
-
-

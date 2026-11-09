@@ -14,7 +14,7 @@ class TripLiveMapFullScreen extends StatefulWidget {
 
 class _TripLiveMapFullScreenState extends State<TripLiveMapFullScreen> {
   Map<String, dynamic>? _liveState;
-  
+
   @override
   void initState() {
     super.initState();
@@ -26,7 +26,7 @@ class _TripLiveMapFullScreenState extends State<TripLiveMapFullScreen> {
     if (mounted) {
       setState(() {
         _liveState = tracking['liveState'] as Map<String, dynamic>?;
-              });
+      });
     }
   }
 
@@ -56,18 +56,20 @@ class _TripLiveMapFullScreenState extends State<TripLiveMapFullScreen> {
                   CircleAvatar(
                     backgroundColor: Colors.white,
                     child: IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 16, color: AppColors.textPrimary),
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                          size: 16, color: AppColors.textPrimary),
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.08),
+                          color: Colors.black.withValues(alpha: 0.08),
                           blurRadius: 10,
                           offset: const Offset(0, 3),
                         ),
@@ -85,7 +87,8 @@ class _TripLiveMapFullScreenState extends State<TripLiveMapFullScreen> {
                   CircleAvatar(
                     backgroundColor: Colors.white,
                     child: IconButton(
-                      icon: const Icon(Icons.layers_rounded, size: 20, color: AppColors.primaryBlue),
+                      icon: const Icon(Icons.layers_rounded,
+                          size: 20, color: AppColors.primaryBlue),
                       onPressed: () {},
                     ),
                   ),
@@ -107,7 +110,7 @@ class _TripLiveMapFullScreenState extends State<TripLiveMapFullScreen> {
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.12),
+                      color: Colors.black.withValues(alpha: 0.12),
                       blurRadius: 20,
                       offset: const Offset(0, 6),
                     ),
@@ -118,10 +121,12 @@ class _TripLiveMapFullScreenState extends State<TripLiveMapFullScreen> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: AppColors.primaryBlueLight.withOpacity(0.4),
+                        color:
+                            AppColors.primaryBlueLight.withValues(alpha: 0.4),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.directions_car_filled_rounded, color: AppColors.primaryBlue, size: 24),
+                      child: const Icon(Icons.directions_car_filled_rounded,
+                          color: AppColors.primaryBlue, size: 24),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -159,6 +164,3 @@ class _TripLiveMapFullScreenState extends State<TripLiveMapFullScreen> {
     );
   }
 }
-
-
-

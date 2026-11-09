@@ -16,7 +16,8 @@ class TripHistoryDetailsScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              size: 18, color: AppColors.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
@@ -55,14 +56,18 @@ class TripHistoryDetailsScreen extends StatelessWidget {
                       children: [
                         Text(
                           'Login Trip',
-                          style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                          style: GoogleFonts.inter(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.textPrimary),
                         ),
                         const TicketStatusPill(status: 'Completed'),
                       ],
                     ),
                     Text(
                       'Tue, 09 Dec 2026',
-                      style: GoogleFonts.inter(fontSize: 12, color: AppColors.textMuted),
+                      style: GoogleFonts.inter(
+                          fontSize: 12, color: AppColors.textMuted),
                     ),
                     const Divider(height: 24),
                     _buildRoutePoint(
@@ -101,8 +106,10 @@ class TripHistoryDetailsScreen extends StatelessWidget {
                       children: [
                         CircleAvatar(
                           radius: 22,
-                          backgroundColor: AppColors.primaryBlueLight.withOpacity(0.5),
-                          child: const Icon(Icons.person, color: AppColors.primaryBlue, size: 24),
+                          backgroundColor:
+                              AppColors.primaryBlueLight.withValues(alpha: 0.5),
+                          child: const Icon(Icons.person,
+                              color: AppColors.primaryBlue, size: 24),
                         ),
                         const SizedBox(width: 14),
                         Expanded(
@@ -111,13 +118,21 @@ class TripHistoryDetailsScreen extends StatelessWidget {
                             children: [
                               Text(
                                 'Suresh R',
-                                style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                                style: GoogleFonts.inter(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary),
                               ),
                               Row(
                                 children: [
-                                  const Icon(Icons.star_rounded, size: 15, color: Color(0xFFF59E0B)),
+                                  const Icon(Icons.star_rounded,
+                                      size: 15, color: Color(0xFFF59E0B)),
                                   const SizedBox(width: 4),
-                                  Text('4.8', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                                  Text('4.8',
+                                      style: GoogleFonts.inter(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.textSecondary)),
                                 ],
                               ),
                             ],
@@ -134,12 +149,16 @@ class TripHistoryDetailsScreen extends StatelessWidget {
                             color: const Color(0xFFF1F5F9),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Icon(Icons.directions_car_filled_rounded, color: AppColors.primaryBlue, size: 20),
+                          child: const Icon(Icons.directions_car_filled_rounded,
+                              color: AppColors.primaryBlue, size: 20),
                         ),
                         const SizedBox(width: 12),
                         Text(
                           'Maruti Ertiga  TS09UB7845',
-                          style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                          style: GoogleFonts.inter(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary),
                         ),
                       ],
                     ),
@@ -171,23 +190,29 @@ class TripHistoryDetailsScreen extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textMuted),
+                style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textMuted),
               ),
               Text(
                 location,
-                style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary),
               ),
             ],
           ),
         ),
         Text(
           time,
-          style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+          style: GoogleFonts.inter(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary),
         ),
       ],
     );
   }
 }
-
-
-

@@ -8,10 +8,12 @@ class ShiftDetailsOvernightScreen extends StatefulWidget {
   const ShiftDetailsOvernightScreen({super.key});
 
   @override
-  State<ShiftDetailsOvernightScreen> createState() => _ShiftDetailsOvernightScreenState();
+  State<ShiftDetailsOvernightScreen> createState() =>
+      _ShiftDetailsOvernightScreenState();
 }
 
-class _ShiftDetailsOvernightScreenState extends State<ShiftDetailsOvernightScreen> {
+class _ShiftDetailsOvernightScreenState
+    extends State<ShiftDetailsOvernightScreen> {
   Map<String, dynamic>? _shiftData;
   bool _isLoading = true;
 
@@ -25,7 +27,8 @@ class _ShiftDetailsOvernightScreenState extends State<ShiftDetailsOvernightScree
     final schedules = await MockDataService.getSchedules();
     if (mounted) {
       setState(() {
-        _shiftData = schedules['shift_details_overnight'] as Map<String, dynamic>?;
+        _shiftData =
+            schedules['shift_details_overnight'] as Map<String, dynamic>?;
         _isLoading = false;
       });
     }
@@ -35,7 +38,8 @@ class _ShiftDetailsOvernightScreenState extends State<ShiftDetailsOvernightScree
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: AppColors.primaryBlue)),
+        body: Center(
+            child: CircularProgressIndicator(color: AppColors.primaryBlue)),
       );
     }
 
@@ -72,7 +76,8 @@ class _ShiftDetailsOvernightScreenState extends State<ShiftDetailsOvernightScree
 
               // Overnight Shift Status Pill
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF3E8FF),
                   borderRadius: BorderRadius.circular(20),
@@ -81,7 +86,8 @@ class _ShiftDetailsOvernightScreenState extends State<ShiftDetailsOvernightScree
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.nightlight_round, size: 14, color: Color(0xFF7E22CE)),
+                    const Icon(Icons.nightlight_round,
+                        size: 14, color: Color(0xFF7E22CE)),
                     const SizedBox(width: 6),
                     Text(
                       'Overnight Shift',
@@ -107,7 +113,7 @@ class _ShiftDetailsOvernightScreenState extends State<ShiftDetailsOvernightScree
                   border: Border.all(color: AppColors.border),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.04),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -153,7 +159,8 @@ class _ShiftDetailsOvernightScreenState extends State<ShiftDetailsOvernightScree
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.location_on, color: AppColors.success, size: 22),
+                        const Icon(Icons.location_on,
+                            color: AppColors.success, size: 22),
                         const SizedBox(width: 14),
                         Expanded(
                           child: Column(
@@ -182,7 +189,8 @@ class _ShiftDetailsOvernightScreenState extends State<ShiftDetailsOvernightScree
                     const Divider(color: AppColors.border, height: 28),
                     Row(
                       children: [
-                        const Icon(Icons.location_on, color: Color(0xFFD97706), size: 22),
+                        const Icon(Icons.location_on,
+                            color: Color(0xFFD97706), size: 22),
                         const SizedBox(width: 14),
                         Expanded(
                           child: Column(
@@ -239,6 +247,3 @@ class _ShiftDetailsOvernightScreenState extends State<ShiftDetailsOvernightScree
     );
   }
 }
-
-
-

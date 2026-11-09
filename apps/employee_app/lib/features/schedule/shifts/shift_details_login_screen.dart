@@ -8,7 +8,8 @@ class ShiftDetailsLoginScreen extends StatefulWidget {
   const ShiftDetailsLoginScreen({super.key});
 
   @override
-  State<ShiftDetailsLoginScreen> createState() => _ShiftDetailsLoginScreenState();
+  State<ShiftDetailsLoginScreen> createState() =>
+      _ShiftDetailsLoginScreenState();
 }
 
 class _ShiftDetailsLoginScreenState extends State<ShiftDetailsLoginScreen> {
@@ -25,7 +26,8 @@ class _ShiftDetailsLoginScreenState extends State<ShiftDetailsLoginScreen> {
     final schedules = await MockDataService.getSchedules();
     if (mounted) {
       setState(() {
-        _shiftData = schedules['shift_details_standard'] as Map<String, dynamic>?;
+        _shiftData =
+            schedules['shift_details_standard'] as Map<String, dynamic>?;
         _isLoading = false;
       });
     }
@@ -35,7 +37,8 @@ class _ShiftDetailsLoginScreenState extends State<ShiftDetailsLoginScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: AppColors.primaryBlue)),
+        body: Center(
+            child: CircularProgressIndicator(color: AppColors.primaryBlue)),
       );
     }
 
@@ -72,7 +75,8 @@ class _ShiftDetailsLoginScreenState extends State<ShiftDetailsLoginScreen> {
 
               // Login Shift Status Pill
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 decoration: BoxDecoration(
                   color: AppColors.successLight,
                   borderRadius: BorderRadius.circular(20),
@@ -100,7 +104,7 @@ class _ShiftDetailsLoginScreenState extends State<ShiftDetailsLoginScreen> {
                   border: Border.all(color: AppColors.border),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.04),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -146,7 +150,8 @@ class _ShiftDetailsLoginScreenState extends State<ShiftDetailsLoginScreen> {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.location_on, color: AppColors.success, size: 22),
+                        const Icon(Icons.location_on,
+                            color: AppColors.success, size: 22),
                         const SizedBox(width: 14),
                         Expanded(
                           child: Column(
@@ -175,7 +180,8 @@ class _ShiftDetailsLoginScreenState extends State<ShiftDetailsLoginScreen> {
                     const Divider(color: AppColors.border, height: 28),
                     Row(
                       children: [
-                        const Icon(Icons.location_on, color: Color(0xFFD97706), size: 22),
+                        const Icon(Icons.location_on,
+                            color: Color(0xFFD97706), size: 22),
                         const SizedBox(width: 14),
                         Expanded(
                           child: Column(
@@ -232,6 +238,3 @@ class _ShiftDetailsLoginScreenState extends State<ShiftDetailsLoginScreen> {
     );
   }
 }
-
-
-

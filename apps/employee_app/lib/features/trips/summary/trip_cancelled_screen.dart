@@ -39,11 +39,13 @@ class _TripCancelledScreenState extends State<TripCancelledScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: AppColors.primaryBlue)),
+        body: Center(
+            child: CircularProgressIndicator(color: AppColors.primaryBlue)),
       );
     }
 
-    final message = _tripData?['message'] ?? 'Your this trip has been cancelled as per your request.';
+    final message = _tripData?['message'] ??
+        'Your this trip has been cancelled as per your request.';
     final pickupPoint = _tripData?['pickupPoint'] ?? 'Home - Hitech City';
     final scheduledTime = _tripData?['scheduledTime'] ?? '8:15 AM';
     final cancelledAt = _tripData?['cancelledAt'] ?? 'Today, 7:42 AM';
@@ -69,7 +71,8 @@ class _TripCancelledScreenState extends State<TripCancelledScreen> {
 
               // Cancelled Status Pill
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 decoration: BoxDecoration(
                   color: AppColors.errorLight,
                   borderRadius: BorderRadius.circular(20),
@@ -125,7 +128,7 @@ class _TripCancelledScreenState extends State<TripCancelledScreen> {
                   border: Border.all(color: AppColors.border),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.04),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -189,7 +192,8 @@ class _TripCancelledScreenState extends State<TripCancelledScreen> {
             children: [
               Text(
                 label,
-                style: GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted),
+                style:
+                    GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted),
               ),
               const SizedBox(height: 2),
               Text(
@@ -207,6 +211,3 @@ class _TripCancelledScreenState extends State<TripCancelledScreen> {
     );
   }
 }
-
-
-

@@ -21,24 +21,120 @@ const getOpenAiKey = (): string => {
   return '';
 };
 
-const SYSTEM_PROMPT = `You are the official AI Corporate Assistant for AdhocX, operated by Estemporaneo Technologies Private Limited, headquartered in Hyderabad, Telangana.
-Your primary role is to assist corporate decision-makers (HR heads, Corporate Transport Managers, Facilities Admins, VP Operations, and Procurement) who are evaluating AdhocX for employee transportation services (ETS).
+// Human-centric, consultative system prompt tuned for short, conversational B2B responses
+const SYSTEM_PROMPT = `You are a warm, helpful, and consultative Human Corporate Mobility Advisor representing AdhocX (operated by Estemporaneo Technologies Private Limited, Hyderabad).
+You are having a live back-and-forth conversation with corporate decision-makers (HR Directors, Corporate Transport / ETS Managers, Admin Heads, Facilities Leads, Operations VPs) who are exploring employee transportation services for their company.
 
-Key Company & Platform Knowledge:
-1. Business Model: AdhocX contracts directly with corporate clients to plan and operate enterprise transportation. Drivers are independent commercial cab owners onboarded directly with yellow-plate cabs. There is NO vendor intermediary or middleman broker in our enterprise flow.
-2. Fleets: 100% yellow-plate commercial passenger vehicles. 4-seater sedans (Maruti Dzire, Toyota Etios, Tata Tigor EV) and 6/7-seater MUVs (Maruti Ertiga, XL6, Kia Carens, Toyota Innova Crysta).
-3. Operating Corridors: Hyderabad technology parks and enterprise hubs (HITEC City, Gachibowli, Financial District, Madhapur, Kondapur, Pocharam).
-4. Employee Mobile App: Corporate SSO & OTP authentication, live cab GPS tracking with age freshness indicator, walking directions to pickup spots, dynamic expiring OTP/QR boarding verification, 1-tap in-transit SOS emergency button connected to our 24/7 safety command desk, shift calendar view, and commuter feedback.
-5. Driver Partner App: Direct digital onboarding (KYC, commercial driving license, RC, passenger insurance, RTA fitness), transparent advance route offers, turn-by-turn navigation, boarding OTP scanner, and direct bank settlements on verified trip completion.
-6. Safety & Compliance: 24/7 safety command centre oversight, strict night-shift escort policies, female safe-drop sequencing (never leaving female employees as the first pickup or last drop alone at night), geofenced speed and deviation alarms.
-7. Industries Served: IT & ITES campuses, 24/7 BPO/KPO operations, Global Capability Centers (GCCs), Banking & Financial Services (BFSI), and Healthcare facilities.
-8. Pricing & Commercial Policy: AdhocX provides customized corporate contracts, monthly shift packages, and mileage-based rate cards tailored to each enterprise's specific shift schedules, headcount, and route density. You must NEVER invent or quote specific numeric prices, rates, or guarantees. Always explain that pricing is customized and guide the user to request a tailored corporate proposal.
-9. If a user asks a question you cannot answer with certainty, or asks for specific quotations, pricing, or contract finalization, politely inform them that our corporate sales team will provide an exact quotation and invite them to use the "Request Corporate Proposal" button.
+CONVERSATIONAL PERSONA & TONE:
+1. TALK LIKE A REAL HUMAN CONSULTANT:
+   - Always sound like a warm, supportive, knowledgeable human mobility partner ("I'd be glad to help with that!", "We work closely with IT and BPO firms in Hyderabad...", "I can help you arrange a pilot route for your team...").
+   - Vary your opening naturally. DO NOT use canned repetitive phrases like "I appreciate your interest" or "Thank you for reaching out". Speak naturally, directly, and with genuine warmth.
+   - NEVER sound like a robotic encyclopedia, search engine, or regurgitator. NEVER output massive numbered lists, textbook definitions, or walls of text.
+2. STRICT LENGTH LIMIT — KEEP IT SHORT & BITE-SIZED:
+   - Every response MUST be strictly 2 to 3 concise, punchy sentences (under 55 words total).
+   - If using bullet points, use at most 2 brief bullet points.
+   - The user is chatting on a compact widget. Short, back-and-forth dialogue keeps the user engaged without scrolling.
+3. CONVERSATIONAL DISCOVERY & PROACTIVE GUIDANCE (ALWAYS LEAD TO ACTION):
+   - Answer their specific question crisply first.
+   - Proactively guide them towards trying our services (e.g., offer a **risk-free 1-week pilot route** or a free route-cost assessment for their campus).
+   - Always end with an engaging discovery question about their company (e.g., asking about their office location in Hyderabad like HITEC City or Gachibowli, their shift timings, or employee headcount) so they can explore which service fits them best.
+4. COMPLETE ADHOCX CONSCIOUSNESS & WEBSITE FACTS:
+   - Direct Contract Model: Direct corporate enterprise agreements and direct commercial driver onboarding. Zero middleman brokers, zero hidden markups, transparent pre-agreed rate cards.
+   - 100% Commercial Yellow-Plate Fleet: 4-seater sedans (Maruti Dzire, Toyota Etios, Tata Tigor EV, Hyundai Aura) and 6/7-seater MUVs (Maruti Ertiga, XL6, Toyota Innova Crysta, Kia Carens). Strictly commercial yellow-board vehicles with calibrated speed governors (80 km/h) and real-time GPS tracking. Never private white-plate cars.
+   - Primary Operating Corridors: Hyderabad technology hubs (HITEC City, Gachibowli, Financial District, Madhapur, Kondapur, Pocharam, Uppal, Begumpet, Shamshabad RGIA).
+   - Core Services:
+     * Scheduled Shift Commutes: Clustered nodal routing for morning logins & evening logouts.
+     * 24/7 BPO & Operations Transit: Standby backup cabs, zero-dropout shift handoffs.
+     * Women Night Safety (SCSC Compliance): Telangana Transport & Cyberabad Security Council compliant; automated safe-drop sequences (female employees are never dropped first or last alone between 8 PM and 6 AM), verified security escorts, 1-tap SOS panic desk.
+     * Executive Mobility & Airport Transfers: Premium fleet with live flight-delay tracking and privacy calling proxy.
+     * Adhoc & Event Mobility: Spot corporate cabs for delegator campus visits, offsites, and client visits.
+   - Technology Suite (AdhocX ETS):
+     * Corporate Client Portal: PostGIS automated route clustering, live command center, audit-ready 3-way match billing (Duty Slip GPS = Invoiced KM = Corporate Approved Roster), single consolidated monthly GST tax invoice.
+     * Employee Mobile App: Sub-second live GPS tracking with age freshness indicator, walking directions to nodal pickup, dynamic 4-digit OTP/QR boarding pass, 1-tap in-transit SOS panic desk.
+     * Driver Mobile App: Advance shift offers with route preview, GPS navigation with ordered stops, digital duty slips, guaranteed weekly direct bank settlements.
+   - Trial / Pilot Offer: Companies can test AdhocX with a risk-free 1-week pilot route or shift assessment before committing to a contract.
+   - Pricing: Tailored to corridor mileage, shift schedules, and vehicle category. Never invent numeric rupee rates; invite them to request a tailored route simulation or pilot.
+5. FORMATTING & SCOPE:
+   - Use markdown asterisks for **bold text** on 1 or 2 key highlights (e.g. **1-week pilot route**, **100% commercial yellow-plate**, **safe-drop protocol**).
+   - Only answer queries related to employee transit, fleets, safety, and AdhocX corporate mobility. Politely decline off-topic queries with a human touch.`;
 
-Style & Tone Guidelines:
-- Highly professional, courteous, clear, and enterprise B2B friendly.
-- STRICT RULE: ZERO emojis in all messages.
-- Keep answers concise, direct, and structured with clean bullet points.`;
+/**
+ * Text formatting helper that converts **bold** or *bold* asterisks into <strong> elements
+ */
+function renderFormattedText(text: string): React.ReactNode {
+  const parts: React.ReactNode[] = [];
+  // Match **bold** or *bold*
+  const regex = /(\*\*([^*]+)\*\*|\*([^*]+)\*)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.substring(lastIndex, match.index));
+    }
+    const boldText = match[2] || match[3];
+    parts.push(
+      <strong key={match.index} style={{ fontWeight: 700, color: 'inherit' }}>
+        {boldText}
+      </strong>
+    );
+    lastIndex = regex.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.substring(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : text;
+}
+
+/**
+ * Multi-line message renderer supporting line breaks, bullet points, and bold asterisks
+ */
+function renderMessage(content: string, isUser: boolean): React.ReactNode {
+  const lines = content.split('\n');
+
+  return lines.map((line, idx) => {
+    const trimmed = line.trim();
+
+    // Paragraph spacing for empty lines
+    if (!trimmed) {
+      return <div key={idx} style={{ height: '6px' }} />;
+    }
+
+    // Bullet items: - , * , • or numbered list (1., 2.)
+    const bulletMatch = trimmed.match(/^([-*•]|\d+\.)\s+(.+)$/);
+    if (bulletMatch) {
+      const prefix = bulletMatch[1];
+      const text = bulletMatch[2];
+      const isOrdered = /^\d+\./.test(prefix);
+
+      return (
+        <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', margin: '4px 0' }}>
+          <span style={{
+            color: isUser ? '#ffffff' : 'var(--color-primary-600, #5728B2)',
+            fontWeight: 700,
+            fontSize: isOrdered ? '0.8rem' : '1rem',
+            lineHeight: 1.4,
+            flexShrink: 0
+          }}>
+            {isOrdered ? prefix : '•'}
+          </span>
+          <span style={{ flex: 1, lineHeight: 1.5 }}>
+            {renderFormattedText(text)}
+          </span>
+        </div>
+      );
+    }
+
+    // Standard paragraph line
+    return (
+      <div key={idx} style={{ margin: '2px 0', lineHeight: 1.55 }}>
+        {renderFormattedText(line)}
+      </div>
+    );
+  });
+}
 
 export default function CorporateAiAssistant() {
   const [isOpen, setIsOpen] = useState(false);
@@ -47,17 +143,19 @@ export default function CorporateAiAssistant() {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const STORAGE_KEY = 'adhocx_chat_history_v3';
+
   // Load conversation from sessionStorage
   useEffect(() => {
     try {
-      const saved = sessionStorage.getItem('adhocx_chat_history');
+      const saved = sessionStorage.getItem(STORAGE_KEY);
       if (saved) {
         setMessages(JSON.parse(saved));
       } else {
         setMessages([
           {
             role: 'assistant',
-            content: 'Hello. I am the AdhocX Corporate AI Assistant. How can I assist you with your enterprise employee transportation, mobile apps, or fleet requirements today?',
+            content: 'Hi there! I am your **AdhocX Corporate Mobility Advisor**.\n\nWe help companies across Hyderabad run reliable, safe employee commutes with 100% commercial yellow-plate fleets.\n\nWould you like to explore commute services for your company or try a **risk-free 1-week pilot route**?',
             showContactCta: false
           }
         ]);
@@ -71,7 +169,7 @@ export default function CorporateAiAssistant() {
   useEffect(() => {
     if (messages.length > 0) {
       try {
-        sessionStorage.setItem('adhocx_chat_history', JSON.stringify(messages));
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
       } catch {
         // Ignore storage errors
       }
@@ -110,8 +208,8 @@ export default function CorporateAiAssistant() {
         body: JSON.stringify({
           model: 'gpt-4o-mini',
           messages: apiMessages,
-          temperature: 0.3,
-          max_tokens: 450
+          temperature: 0.35,
+          max_tokens: 180 // Tuned for crisp, conversational 2-3 sentence executive replies
         })
       });
 
@@ -121,21 +219,28 @@ export default function CorporateAiAssistant() {
 
       const data = await res.json();
       const reply = data?.choices?.[0]?.message?.content ||
-        'Our corporate logistics team is available to assist with your specific inquiry. Please click below to request a tailored proposal.';
+        'Our corporate mobility team is ready to assist your company. Please feel free to request a 1-week pilot route or tailored quotation below.';
 
-      // Determine if a sales/contact CTA should be shown
+      // Determine if a sales/pilot CTA should be shown
       const lowerReply = reply.toLowerCase();
       const lowerText = text.toLowerCase();
       const triggersCta =
+        lowerReply.includes('pilot') ||
         lowerReply.includes('proposal') ||
         lowerReply.includes('contact') ||
         lowerReply.includes('sales') ||
         lowerReply.includes('quotation') ||
+        lowerReply.includes('simulation') ||
+        lowerReply.includes('assessment') ||
+        lowerText.includes('pilot') ||
+        lowerText.includes('try') ||
+        lowerText.includes('trial') ||
         lowerText.includes('price') ||
         lowerText.includes('cost') ||
         lowerText.includes('quote') ||
         lowerText.includes('rate') ||
-        lowerText.includes('contract');
+        lowerText.includes('contract') ||
+        lowerText.includes('rfp');
 
       setMessages(prev => [
         ...prev,
@@ -150,7 +255,7 @@ export default function CorporateAiAssistant() {
         ...prev,
         {
           role: 'assistant',
-          content: 'I apologize, but I am currently unable to fetch a real-time response. For detailed corporate quotations, shift pilot assessments, or fleet inquiries, our sales team is standing by to assist you.',
+          content: 'I apologize for the brief pause! For immediate corporate quotations, 1-week pilot route assessments, or fleet inquiries, our mobility desk is on standby to help your team.',
           showContactCta: true
         }
       ]);
@@ -160,15 +265,15 @@ export default function CorporateAiAssistant() {
   };
 
   const quickPrompts = [
-    'What services does AdhocX provide?',
+    'Can our company try a 1-week pilot?',
+    'What commute services do you provide?',
     'How does women night safety work?',
     'What vehicles are in your commercial fleet?',
-    'How does the Employee Mobile App work?',
-    'How do I request a corporate quotation?'
+    'How do I request a corporate rate card?'
   ];
 
   return (
-    <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 9999, fontFamily: 'Inter, -apple-system, sans-serif' }}>
+    <div className="corporate-ai-root">
       {/* Floating Toggle Button */}
       {!isOpen && (
         <button
@@ -177,9 +282,9 @@ export default function CorporateAiAssistant() {
             display: 'flex',
             alignItems: 'center',
             gap: '10px',
-            background: 'linear-gradient(135deg, #5728B2 0%, #0948AC 100%)',
+            background: 'linear-gradient(135deg, #5728B2 0%, #431E8E 100%)',
             color: '#ffffff',
-            padding: '14px 22px',
+            padding: '13px 20px',
             borderRadius: '9999px',
             boxShadow: '0 8px 25px rgba(87, 40, 178, 0.45)',
             border: 'none',
@@ -188,7 +293,8 @@ export default function CorporateAiAssistant() {
             fontSize: '0.95rem',
             transition: 'transform 0.2s ease, box-shadow 0.2s ease'
           }}
-          aria-label="Open AdhocX Corporate AI Assistant"
+          aria-label="Open AdhocX Mobility Advisor"
+          className="brand-logo"
         >
           <div style={{
             width: '26px',
@@ -197,19 +303,24 @@ export default function CorporateAiAssistant() {
             background: 'rgba(255, 255, 255, 0.25)',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center'
+            justifyContent: 'center',
+            flexShrink: 0
           }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
             </svg>
           </div>
-          <span>AdhocX Corporate AI</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', fontWeight: 800, fontSize: '0.95rem', letterSpacing: '-0.02em', lineHeight: 1 }}>
+            <span style={{ color: '#ffffff' }}>Adhoc</span>
+            <span style={{ color: '#FF5F09' }}>X</span>
+            <span style={{ color: '#ffffff', fontWeight: 600, fontSize: '0.85rem', marginLeft: '5px' }}>Advisor</span>
+          </span>
         </button>
       )}
 
       {/* Chat Dialog Box */}
       {isOpen && (
-        <div style={{
+        <div className="corporate-ai-dialog" style={{
           width: '380px',
           maxWidth: 'calc(100vw - 32px)',
           height: '560px',
@@ -224,9 +335,9 @@ export default function CorporateAiAssistant() {
         }}>
           {/* Header */}
           <div style={{
-            background: 'linear-gradient(135deg, #010D2D 0%, #0948AC 100%)',
+            background: 'linear-gradient(135deg, #1B0E38 0%, #2D145E 100%)',
             color: '#ffffff',
-            padding: '16px 18px',
+            padding: '14px 18px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -234,27 +345,42 @@ export default function CorporateAiAssistant() {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <div style={{
-                width: '34px',
-                height: '34px',
-                borderRadius: '8px',
-                background: 'rgba(255, 255, 255, 0.15)',
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #5728B2 0%, #FF5F09 100%)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#ffffff'
+                color: '#ffffff',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.25)',
+                position: 'relative',
+                flexShrink: 0
               }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 2a10 10 0 0 1 10 10c0 5.5-4.5 10-10 10S2 17.5 2 12 6.5 2 12 2z"></path>
-                  <circle cx="12" cy="12" r="3"></circle>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
                 </svg>
+                <span style={{
+                  position: 'absolute',
+                  bottom: '1px',
+                  right: '1px',
+                  width: '9px',
+                  height: '9px',
+                  borderRadius: '50%',
+                  background: '#22c55e',
+                  border: '2px solid #1B0E38'
+                }}></span>
               </div>
               <div>
-                <div style={{ fontWeight: 800, fontSize: '0.95rem', letterSpacing: '-0.01em' }}>
-                  AdhocX Assistant
+                <div style={{ fontWeight: 800, fontSize: '0.95rem', letterSpacing: '-0.01em', display: 'flex', alignItems: 'center' }}>
+                  <span style={{ color: '#ffffff' }}>Adhoc</span>
+                  <span style={{ color: '#FF5F09' }}>X</span>
+                  <span style={{ color: '#ffffff', marginLeft: '5px' }}>Mobility Advisor</span>
                 </div>
                 <div style={{ fontSize: '0.75rem', color: '#CEE0FD', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', display: 'inline-block' }}></span>
-                  Enterprise Mobility AI
+                  Online • Corporate Commute Specialist
                 </div>
               </div>
             </div>
@@ -297,7 +423,7 @@ export default function CorporateAiAssistant() {
                   key={idx}
                   style={{
                     alignSelf: isUser ? 'flex-end' : 'flex-start',
-                    maxWidth: '85%',
+                    maxWidth: '88%',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '6px'
@@ -311,33 +437,55 @@ export default function CorporateAiAssistant() {
                     fontSize: '0.875rem',
                     lineHeight: 1.55,
                     boxShadow: '0 2px 6px rgba(0, 0, 0, 0.05)',
-                    border: isUser ? 'none' : '1px solid #e2e8f0',
-                    whiteSpace: 'pre-wrap'
+                    border: isUser ? 'none' : '1px solid #e2e8f0'
                   }}>
-                    {m.content}
+                    {renderMessage(m.content, isUser)}
                   </div>
 
-                  {/* Fallback / Contact Sales Action Button */}
+                  {/* Fallback / Pilot & Contact Action Buttons */}
                   {m.showContactCta && (
-                    <div style={{ alignSelf: 'flex-start', marginTop: '2px' }}>
-                      <a
-                        href="/contact?purpose=quotation"
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          background: 'linear-gradient(135deg, #5728B2 0%, #3B1780 100%)',
-                          color: '#ffffff',
-                          padding: '8px 14px',
-                          borderRadius: '8px',
-                          fontSize: '0.8rem',
-                          fontWeight: 700,
-                          textDecoration: 'none',
-                          boxShadow: '0 3px 10px rgba(87, 40, 178, 0.3)'
-                        }}
-                      >
-                        <span>Request Custom Proposal &rarr;</span>
-                      </a>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px', alignSelf: 'flex-start' }}>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        <a
+                          href="/contact?purpose=pilot"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            background: 'linear-gradient(135deg, #5728B2 0%, #3B1780 100%)',
+                            color: '#ffffff',
+                            padding: '8px 14px',
+                            borderRadius: '8px',
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            textDecoration: 'none',
+                            boxShadow: '0 3px 10px rgba(87, 40, 178, 0.3)'
+                          }}
+                        >
+                          <span>Try 1-Week Pilot Route &rarr;</span>
+                        </a>
+                        <a
+                          href="tel:+917893545818"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            background: '#ffffff',
+                            color: '#5728B2',
+                            border: '1px solid #cbd5e1',
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            textDecoration: 'none'
+                          }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                          </svg>
+                          <span>Call Helpline</span>
+                        </a>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -357,15 +505,17 @@ export default function CorporateAiAssistant() {
                 fontSize: '0.8rem',
                 color: '#64748b'
               }}>
-                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#94a3b8', animation: 'ping 1s cubic-bezier(0, 0, 0.2, 1) infinite' }}></span>
-                <span>AdhocX AI is typing...</span>
+                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#5728B2', animation: 'ping 1s cubic-bezier(0, 0, 0.2, 1) infinite' }}></span>
+                <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                  <span>Adhoc</span><span style={{ color: '#FF5F09', fontWeight: 700 }}>X</span><span style={{ marginLeft: '4px' }}>Advisor is typing...</span>
+                </span>
               </div>
             )}
             <div ref={messagesEndRef} />
           </div>
 
           {/* Quick Prompts Pills (if conversation is short) */}
-          {messages.length <= 3 && !isLoading && (
+          {messages.length <= 4 && !isLoading && (
             <div style={{
               padding: '8px 14px',
               background: '#ffffff',
@@ -374,9 +524,9 @@ export default function CorporateAiAssistant() {
               gap: '6px',
               overflowX: 'auto',
               whiteSpace: 'nowrap',
-              scrollbarWidth: 'none'
+              scrollbarWidth: 'thin'
             }}>
-              {quickPrompts.slice(0, 3).map((prompt, pIdx) => (
+              {quickPrompts.map((prompt, pIdx) => (
                 <button
                   key={pIdx}
                   onClick={() => handleSendMessage(prompt)}
@@ -384,8 +534,8 @@ export default function CorporateAiAssistant() {
                     background: '#f1f5f9',
                     border: '1px solid #cbd5e1',
                     borderRadius: '9999px',
-                    padding: '4px 10px',
-                    fontSize: '0.725rem',
+                    padding: '5px 12px',
+                    fontSize: '0.75rem',
                     color: '#334155',
                     cursor: 'pointer',
                     fontWeight: 600,
@@ -414,7 +564,7 @@ export default function CorporateAiAssistant() {
           >
             <input
               type="text"
-              placeholder="Ask about corporate transport, apps, or fleets..."
+              placeholder="Ask about pilot routes, fleets, or commute services..."
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               disabled={isLoading}
@@ -455,4 +605,3 @@ export default function CorporateAiAssistant() {
     </div>
   );
 }
-

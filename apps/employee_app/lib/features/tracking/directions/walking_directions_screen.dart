@@ -9,12 +9,13 @@ class WalkingDirectionsScreen extends StatefulWidget {
   const WalkingDirectionsScreen({super.key});
 
   @override
-  State<WalkingDirectionsScreen> createState() => _WalkingDirectionsScreenState();
+  State<WalkingDirectionsScreen> createState() =>
+      _WalkingDirectionsScreenState();
 }
 
 class _WalkingDirectionsScreenState extends State<WalkingDirectionsScreen> {
   Map<String, dynamic>? _walkingData;
-  
+
   @override
   void initState() {
     super.initState();
@@ -26,14 +27,15 @@ class _WalkingDirectionsScreenState extends State<WalkingDirectionsScreen> {
     if (mounted) {
       setState(() {
         _walkingData = tracking['walkingDirections'] as Map<String, dynamic>?;
-              });
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final instruction = _walkingData?['instruction'] ?? 'Turn right in 100 m';
-    final subInstruction = _walkingData?['subInstruction'] ?? 'Green Meadows Main Road';
+    final subInstruction =
+        _walkingData?['subInstruction'] ?? 'Green Meadows Main Road';
     final distance = _walkingData?['distance'] ?? '220 m (3 min)';
     final target = _walkingData?['target'] ?? 'To your pickup point';
 
@@ -54,20 +56,22 @@ class _WalkingDirectionsScreenState extends State<WalkingDirectionsScreen> {
                   CircleAvatar(
                     backgroundColor: Colors.white,
                     child: IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 16, color: AppColors.textPrimary),
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                          size: 16, color: AppColors.textPrimary),
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
                         color: const Color(0xFF0F172A),
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
+                            color: Colors.black.withValues(alpha: 0.2),
                             blurRadius: 12,
                             offset: const Offset(0, 4),
                           ),
@@ -75,7 +79,8 @@ class _WalkingDirectionsScreenState extends State<WalkingDirectionsScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.turn_right_rounded, color: Colors.white, size: 28),
+                          const Icon(Icons.turn_right_rounded,
+                              color: Colors.white, size: 28),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
@@ -116,13 +121,14 @@ class _WalkingDirectionsScreenState extends State<WalkingDirectionsScreen> {
             bottom: 30,
             child: SafeArea(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.12),
+                      color: Colors.black.withValues(alpha: 0.12),
                       blurRadius: 18,
                       offset: const Offset(0, 6),
                     ),
@@ -133,10 +139,12 @@ class _WalkingDirectionsScreenState extends State<WalkingDirectionsScreen> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: AppColors.primaryBlueLight.withOpacity(0.4),
+                        color:
+                            AppColors.primaryBlueLight.withValues(alpha: 0.4),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.directions_walk_rounded, color: AppColors.primaryBlue, size: 22),
+                      child: const Icon(Icons.directions_walk_rounded,
+                          color: AppColors.primaryBlue, size: 22),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -163,7 +171,8 @@ class _WalkingDirectionsScreenState extends State<WalkingDirectionsScreen> {
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.map_rounded, color: AppColors.primaryBlue),
+                      icon: const Icon(Icons.map_rounded,
+                          color: AppColors.primaryBlue),
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                   ],
@@ -176,6 +185,3 @@ class _WalkingDirectionsScreenState extends State<WalkingDirectionsScreen> {
     );
   }
 }
-
-
-

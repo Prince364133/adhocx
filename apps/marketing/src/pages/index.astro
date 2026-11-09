@@ -1,20 +1,112 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import CorporateEstimator from '../components/CorporateEstimator';
+import EnterpriseLeadForm from '../components/EnterpriseLeadForm';
 
-const jsonLd = {
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  "name": "AdhocX Technologies Private Limited",
-  "url": "https://www.adhocx.com",
-  "logo": "https://www.adhocx.com/assets/logo.png",
-  "contactPoint": {
-    "@type": "ContactPoint",
-    "email": "support@adhocx.in",
-    "telephone": "+91-8490834945",
-    "contactType": "customer service",
-    "areaServed": "IN"
+const jsonLd = [
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "AdhocX Technologies Private Limited",
+    "legalName": "Estemporaneo Technologies Private Limited",
+    "url": "https://www.adhocx.com",
+    "logo": "https://www.adhocx.com/adhocx-logo.png",
+    "description": "Operating system for corporate ground transport. Companies book and control trips, rental operators run their business, and travel companies fulfil demand across India.",
+    "contactPoint": {
+      "@type": "ContactPoint",
+      "email": "support@adhocx.com",
+      "telephone": "+91-7893545818",
+      "contactType": "customer service",
+      "areaServed": "IN"
+    }
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    "serviceType": "Corporate Ground Transport Operating System",
+    "provider": {
+      "@type": "Organization",
+      "name": "AdhocX"
+    },
+    "areaServed": {
+      "@type": "AdministrativeArea",
+      "name": "Telangana, India"
+    },
+    "hasOfferCatalog": {
+      "@type": "OfferCatalog",
+      "name": "Corporate Mobility Solutions",
+      "itemListElement": [
+        {
+          "@type": "Offer",
+          "itemOffered": {
+            "@type": "Service",
+            "name": "Employee Transportation Services (ETS) Shift Rostering"
+          }
+        },
+        {
+          "@type": "Offer",
+          "itemOffered": {
+            "@type": "Service",
+            "name": "Executive Spot Cabs & RGIA Airport Mobility"
+          }
+        },
+        {
+          "@type": "Offer",
+          "itemOffered": {
+            "@type": "Service",
+            "name": "100% Commercial Yellow-Plate Fleet Orchestration"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "How does AdhocX guarantee 100% yellow-plate commercial cab compliance?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "AdhocX enforces strict zero-tolerance policy against private white-plate vehicles. Every vehicle onboarded must submit valid commercial RTO registration, fitness certificate, commercial passenger insurance, and driver police verification before taking corporate trips."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How does AdhocX enforce night-shift female employee escort protocols?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "In accordance with Telangana government labor regulations, our algorithm automatically pairs security escorts for female employees traveling between 8:00 PM and 6:00 AM, confirms first pickup/last drop safety protocols, and monitors rides through a 24/7 central emergency SOS desk."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can our enterprise keep existing transport vendors and negotiated rate cards?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. AdhocX is vendor-neutral orchestration software. You retain your existing contracted fleet vendors and pre-negotiated rate cards. AdhocX provides the dispatch technology, live GPS telemetry, SLA tracking, and consolidated digital billing."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How does AdhocX eliminate manual duty slip reconciliation for finance teams?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Every ride generates an OTP-authenticated digital duty slip linked directly to the driver's real-time GPS telemetry, eliminating paper vouchers. Invoices match duty slips line-by-line and automatically export to SAP, Oracle, Zoho Books, or CSV."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Which vehicle categories are available for corporate commute and spot travel?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "AdhocX supports commercial 4-seater sedans (Maruti Dzire, Toyota Etios), 6/7-seater MUVs (Maruti Ertiga, Kia Carens), and 7-seater executive vehicles (Toyota Innova Crysta), all carrying commercial yellow license plates."
+        }
+      }
+    ]
   }
-};
+];
 ---
 
 <BaseLayout
@@ -24,218 +116,182 @@ const jsonLd = {
   jsonLd={jsonLd}
 >
   <!-- =========================================================================
-       SECTION 1: HERO SECTION (Reference: Screenshot 1)
+       SECTION 1: HERO SECTION
        "Every corporate cab trip. One system from booking to billing."
        ========================================================================= -->
   <section class="adhocx-hero-section" id="hero">
-    <div class="container adhocx-hero-grid">
-      <!-- Left Hero Column: Copy & Actions -->
-      <div class="hero-left-content">
-        <!-- H1 Title -->
-        <h1 class="adhocx-hero-h1">
-          Every corporate cab trip. <span class="adhocx-hero-accent">One system from booking to billing.</span>
-        </h1>
+    <div class="container hero-container">
+      <div class="adhocx-hero-grid">
+        <!-- Left Hero Column: Copy, Value Checks & Actions -->
+        <div class="hero-left-content">
+          <!-- H1 Title (Completed in exactly 2 lines) -->
+          <h1 class="adhocx-hero-h1">
+            <span class="hero-h1-line">Every corporate cab trip.</span>
+            <span class="hero-h1-line adhocx-hero-accent">One system from booking to billing.</span>
+          </h1>
 
-        <!-- Subtitle Description -->
-        <p class="adhocx-hero-desc">
-          AdhocX is the operating system for corporate ground transport. Companies book and control trips, rental operators run their business, and travel companies fulfil demand across India.
-        </p>
+          <!-- Subtitle Description -->
+          <p class="adhocx-hero-desc">
+            AdhocX is the operating system for corporate ground transport. Companies book and control trips, rental operators run their business, and travel companies fulfil demand across India.
+          </p>
 
-        <!-- CTA Buttons -->
-        <div class="adhocx-hero-actions">
-          <a href="/vendors#corporate-form" class="btn-pill-primary" id="btn-hero-demo">
-            <span>Book a demo</span>
-            <span aria-hidden="true">→</span>
-          </a>
-          <a href="/vendors" class="btn-pill-secondary" id="btn-hero-path">
-            Choose your path
-          </a>
+          <!-- CTA Buttons -->
+          <div class="adhocx-hero-actions">
+            <a href="#corporate-rfp" class="btn-pill-primary" id="btn-hero-demo">
+              <span>Book a demo</span>
+              <span aria-hidden="true">→</span>
+            </a>
+            <a href="#estimator" class="btn-pill-secondary" id="btn-hero-estimator">
+              Calculate Commute Sizing
+            </a>
+          </div>
+
+          <!-- 4 Enterprise Value Checks -->
+          <div class="adhocx-hero-checks">
+            <div class="adhocx-check-item">
+              <svg class="adhocx-check-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
+              <span>100% Commercial Yellow-Plate</span>
+            </div>
+
+            <div class="adhocx-check-item">
+              <svg class="adhocx-check-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
+              <span>99.8% On-Time SLA Adherence</span>
+            </div>
+
+            <div class="adhocx-check-item">
+              <svg class="adhocx-check-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
+              <span>100% Telemetry Duty Slips</span>
+            </div>
+
+            <div class="adhocx-check-item">
+              <svg class="adhocx-check-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
+              <span>Zero Surge Pricing Guarantee</span>
+            </div>
+          </div>
         </div>
 
-        <!-- 3 Value Checks -->
-        <div class="adhocx-hero-checks">
-          <div class="adhocx-check-item">
-            <svg class="adhocx-check-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-              <polyline points="22 4 12 14.01 9 11.01"></polyline>
-            </svg>
-            <span>Bookings in one place</span>
-          </div>
+        <!-- Right Hero Column: Coordinated Product Console Showcase -->
+        <div class="hero-showcase-column">
+          <!-- Main Dashboard Hardware Frame -->
+          <div class="hero-dashboard-window">
+            <!-- Modern Browser Chrome Header -->
+            <div class="dashboard-topbar">
+              <div class="topbar-controls">
+                <span class="control-dot dot-close"></span>
+                <span class="control-dot dot-min"></span>
+                <span class="control-dot dot-max"></span>
+                <div class="topbar-url-pill">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                  </svg>
+                  <span>portal.adhocx.com/overview</span>
+                </div>
+              </div>
 
-          <div class="adhocx-check-item">
-            <svg class="adhocx-check-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-              <polyline points="22 4 12 14.01 9 11.01"></polyline>
-            </svg>
-            <span>Every trip tracked</span>
-          </div>
+              <div class="topbar-meta">
+                <div class="showcase-status-indicator">
+                  <span class="status-live-beacon"></span>
+                  <span>Live Operations &bull; 142 Active Cabs</span>
+                </div>
+                <button type="button" class="dashboard-zoom-btn" id="btn-hero-zoom" aria-label="Expand console preview">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 3 21 3 21 9"></polyline>
+                    <polyline points="9 21 3 21 3 15"></polyline>
+                    <line x1="21" y1="3" x2="14" y2="10"></line>
+                    <line x1="3" y1="21" x2="10" y2="14"></line>
+                  </svg>
+                  <span>Expand</span>
+                </button>
+              </div>
+            </div>
 
-          <div class="adhocx-check-item">
-            <svg class="adhocx-check-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-              <polyline points="22 4 12 14.01 9 11.01"></polyline>
-            </svg>
-            <span>Billing backed by trip records</span>
+            <!-- Screenshot Display Wrap -->
+            <div class="hero-dashboard-img-wrap" id="hero-img-wrap" title="Click to view full console in high resolution">
+              <img 
+                src="/images/corporate-dashboard.png" 
+                alt="AdhocX Corporate Operations and Executive Commute Management Dashboard" 
+                class="hero-dashboard-img"
+                width="1024"
+                height="479"
+                loading="eager"
+                decoding="async"
+              />
+            </div>
           </div>
         </div>
       </div>
+    </div>
+  </section>
 
-      <!-- Right Hero Column: Interactive SaaS Mockup Canvas -->
-      <div class="hero-mockup-wrapper">
-        <div class="hero-blueprint-grid"></div>
+  <!-- Lightbox Modal for Dashboard Zoom -->
+  <div class="dashboard-lightbox-modal" id="dashboard-lightbox" role="dialog" aria-modal="true" aria-label="Console Overview Large View">
+    <div class="dashboard-lightbox-content">
+      <button type="button" class="dashboard-lightbox-close" id="btn-close-lightbox" aria-label="Close modal">✕</button>
+      <img src="/images/corporate-dashboard.png" alt="AdhocX Corporate Operations Console - Detailed View" class="dashboard-lightbox-img" />
+    </div>
+  </div>
 
-        <!-- Overlaid Top Pill: New Booking -->
-        <div class="hero-floating-booking">
-          <div style="width: 2rem; height: 2rem; border-radius: 0.5rem; background: #EFF6FF; color: var(--color-primary-600); display: flex; align-items: center; justify-content: center;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.3c.4-.2.6-.6.5-1.1z"/>
-            </svg>
-          </div>
-          <div>
-            <div style="font-size: 0.6875rem; text-transform: uppercase; color: #64748B; font-weight: 700; letter-spacing: 0.05em;">NEW BOOKING</div>
-            <div style="font-size: 0.875rem; font-weight: 700; color: #191B1C;">Airport transfer</div>
-          </div>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" style="margin-left: 0.5rem;">
-            <circle cx="12" cy="12" r="10"></circle>
-            <polyline points="16 12 12 8 8 12"></polyline>
-          </svg>
+
+  <!-- =========================================================================
+       CORRIDOR TELEMETRY & TRUST METRICS STRIP
+       High-visibility real-time coverage across Hyderabad tech clusters
+       ========================================================================= -->
+  <section class="telemetry-strip-section" aria-label="Telangana Operating Corridors & Real-Time SLAs">
+    <div class="container telemetry-strip-grid">
+      <!-- Corridor Tags -->
+      <div class="telemetry-corridors-group">
+        <span class="telemetry-strip-tag">
+          <span style="width: 6px; height: 6px; border-radius: 50%; background: #EE9811; display: inline-block;"></span>
+          Active Corridors
+        </span>
+        <span class="telemetry-corridor-pill">
+          <span class="pill-dot"></span>
+          HITEC City & Madhapur
+        </span>
+        <span class="telemetry-corridor-pill">
+          <span class="pill-dot"></span>
+          Gachibowli & Financial District
+        </span>
+        <span class="telemetry-corridor-pill">
+          <span class="pill-dot"></span>
+          Pocharam & Uppal Hub
+        </span>
+        <span class="telemetry-corridor-pill">
+          <span class="pill-dot"></span>
+          RGIA Shamshabad Transit
+        </span>
+      </div>
+
+      <!-- Real-Time Metrics -->
+      <div class="telemetry-metrics-group">
+        <div class="telemetry-metric-item">
+          <strong>99.8%</strong>
+          <span>On-Time SLA</span>
         </div>
-
-        <!-- Central Dashboard Frame -->
-        <div class="hero-dashboard-window">
-          <!-- Top Window Bar -->
-          <div class="dashboard-topbar">
-            <div class="dashboard-search-sim">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="11" cy="11" r="8"></circle>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-              </svg>
-              <span style="color: #94A3B8;">Search bookings, cabs...</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 0.875rem;">
-              <span class="dashboard-live-badge">
-                <span style="width: 6px; height: 6px; border-radius: 50%; background: var(--color-success); display: inline-block;"></span>
-                Live
-              </span>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-              </svg>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                <circle cx="12" cy="7" r="4"></circle>
-              </svg>
-            </div>
-          </div>
-
-          <!-- Body with mini sidebar & simulated booking console -->
-          <div class="dashboard-body-split">
-            <!-- Mini icon sidebar -->
-            <div class="dashboard-sidebar-mini">
-              <span class="active">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-              </span>
-              <span>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3 3 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>
-              </span>
-              <span>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="9" y1="22" x2="9" y2="22.01"></line><line x1="15" y1="22" x2="15" y2="22.01"></line><line x1="9" y1="6" x2="9" y2="6.01"></line><line x1="15" y1="6" x2="15" y2="6.01"></line><line x1="9" y1="10" x2="9" y2="10.01"></line><line x1="15" y1="10" x2="15" y2="10.01"></line><line x1="9" y1="14" x2="9" y2="14.01"></line><line x1="15" y1="14" x2="15" y2="14.01"></line></svg>
-              </span>
-              <span>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
-              </span>
-              <span>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-              </span>
-            </div>
-
-            <!-- Booking Console Interface -->
-            <div class="dashboard-main-area">
-              <div class="hero-booking-form-sim">
-                <div class="hero-input-field">
-                  <div style="font-size: 0.625rem; color: #64748B;">PICKUP</div>
-                  <strong>RGIA Hyderabad Airport</strong>
-                </div>
-                <div class="hero-input-field">
-                  <div style="font-size: 0.625rem; color: #64748B;">DROP</div>
-                  <strong>HITEC City Tech Park</strong>
-                </div>
-              </div>
-
-              <!-- Commercial Sedan Graphic Card -->
-              <div class="hero-cab-visual">
-                <div>
-                  <div style="font-size: 0.8125rem; font-weight: 700; color: var(--color-text-primary);">Commercial Sedan (Dzire / Etios)</div>
-                  <div style="font-size: 0.6875rem; color: #64748B;">100% Commercial Yellow-Plate • AC</div>
-                </div>
-                <!-- Sedan Car SVG -->
-                <svg width="68" height="32" viewBox="0 0 68 32" fill="none">
-                  <path d="M4 22L12 12H44L56 16L64 22V28H4V22Z" fill="#FFFFFF" stroke="#5728B2" stroke-width="2"/>
-                  <circle cx="16" cy="28" r="4.5" fill="#191B1C"/>
-                  <circle cx="50" cy="28" r="4.5" fill="#191B1C"/>
-                  <line x1="26" y1="12" x2="26" y2="22" stroke="#91B9FB" stroke-width="1.5"/>
-                  <line x1="38" y1="12" x2="38" y2="22" stroke="#91B9FB" stroke-width="1.5"/>
-                </svg>
-              </div>
-
-              <!-- Auto-Dispatch Button Inside Simulated UI -->
-              <div style="margin-top: 1rem; display: flex; justify-content: flex-end;">
-                <div style="background: var(--color-primary-600); color: #FFFFFF; font-size: 0.75rem; font-weight: 700; padding: 0.45rem 1rem; border-radius: 0.375rem;">
-                  Auto-Allot Cab
-                </div>
-              </div>
-            </div>
-          </div>
+        <div class="telemetry-metric-item">
+          <strong>&lt; 90s</strong>
+          <span>Spot Allocation</span>
         </div>
-
-        <!-- Overlaid Dark Blue Floating Driver Card -->
-        <div class="hero-floating-driver">
-          <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.6875rem; opacity: 0.9; margin-bottom: 0.5rem;">
-            <span>TRIP TS-2841</span>
-            <span style="display: inline-flex; align-items: center; gap: 0.25rem;">
-              <span style="width: 5px; height: 5px; border-radius: 50%; background: #4ADE80; display: inline-block;"></span>
-              Live
-            </span>
-          </div>
-          <div style="font-size: 0.9375rem; font-weight: 700; margin-bottom: 0.75rem;">Driver en route</div>
-          <div style="font-size: 0.75rem; line-height: 1.5; margin-bottom: 0.75rem; border-left: 2px solid #5290F9; padding-left: 0.5rem;">
-            <div><strong>Pickup:</strong> RGIA Hyderabad Airport</div>
-            <div><strong>Drop:</strong> HITEC City Tech Hub</div>
-          </div>
-          <div style="display: flex; justify-content: flex-end;">
-            <span style="background: rgba(255, 255, 255, 0.2); font-size: 0.6875rem; padding: 0.2rem 0.5rem; border-radius: var(--radius-pill); font-weight: 600;">
-              Live tracking
-            </span>
-          </div>
+        <div class="telemetry-metric-item">
+          <strong style="color: #10B981;">100%</strong>
+          <span>Escort Compliance</span>
         </div>
-
-        <!-- Overlaid Billing Verified Pill -->
-        <div class="hero-floating-billing">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="20 6 9 17 4 12"></polyline>
-          </svg>
-          <div>
-            <div style="font-size: 0.625rem; color: #64748B; font-weight: 700;">BILLING</div>
-            <div style="font-weight: 700; color: #191B1C;">Trip verified</div>
-          </div>
-        </div>
-
-        <!-- Bottom Status Progression Pill -->
-        <div class="hero-status-progression">
-          <div class="prog-item">
-            <span class="prog-lbl">BOOK</span>
-            <span class="prog-val">Created</span>
-          </div>
-          <span style="color: #CBD5E1;">—</span>
-          <div class="prog-item">
-            <span class="prog-lbl">TRACK</span>
-            <span class="prog-val" style="color: var(--color-primary-600);">Live</span>
-          </div>
-          <span style="color: #CBD5E1;">—</span>
-          <div class="prog-item">
-            <span class="prog-lbl">BILL</span>
-            <span class="prog-val" style="color: var(--color-success);">Verified</span>
-          </div>
+        <div class="telemetry-metric-item">
+          <strong style="color: #F59E0B;">0%</strong>
+          <span>Surge Pricing</span>
         </div>
       </div>
     </div>
@@ -243,7 +299,7 @@ const jsonLd = {
 
 
   <!-- =========================================================================
-       SECTION 2: WHY ADHOCX (Reference: Screenshot 2)
+       SECTION 2: WHY ADHOCX
        "The difference shows up from day one"
        ========================================================================= -->
   <section class="why-adhocx-section" id="why-adhocx">
@@ -264,7 +320,7 @@ const jsonLd = {
         AdhocX does not replace the relationships that make transport work. It makes every booking, trip and payment visible.
       </p>
 
-      <!-- 3 Columns Comparison Grid with Top Blue Borders -->
+      <!-- 3 Columns Comparison Grid with Top Accent Borders -->
       <div class="why-grid">
         <!-- Col 01 -->
         <div class="why-card">
@@ -274,6 +330,20 @@ const jsonLd = {
             <p class="why-card-desc">
               Approvals, cost centres, GST e-invoicing, duty slips and HRMS sync are first-class — not bolted on top of a consumer ride app.
             </p>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.5rem; font-size: 0.8125rem; color: #475569;">
+              <div style="display: flex; align-items: center; gap: 0.4rem;">
+                <span style="color: #16A34A; font-weight: 800;">✓</span>
+                <span>Multi-level manager approvals by department and cost centre</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.4rem;">
+                <span style="color: #16A34A; font-weight: 800;">✓</span>
+                <span>Direct HRMS roster sync for shifts and hybrid office schedules</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.4rem;">
+                <span style="color: #16A34A; font-weight: 800;">✓</span>
+                <span>100% yellow-plate commercial cabs (zero private vehicle substitutions)</span>
+              </div>
+            </div>
           </div>
           <div class="why-compare-pill">
             <span class="dot"></span>
@@ -289,6 +359,20 @@ const jsonLd = {
             <p class="why-card-desc">
               Keep the suppliers and rates you've already negotiated. AdhocX auto-allots, tracks SLA and consolidates billing across all of them.
             </p>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.5rem; font-size: 0.8125rem; color: #475569;">
+              <div style="display: flex; align-items: center; gap: 0.4rem;">
+                <span style="color: #16A34A; font-weight: 800;">✓</span>
+                <span>Retain your existing trusted vendors and locked commercial rate cards</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.4rem;">
+                <span style="color: #16A34A; font-weight: 800;">✓</span>
+                <span>Performance-based auto-allocation prioritizing on-time drivers</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.4rem;">
+                <span style="color: #16A34A; font-weight: 800;">✓</span>
+                <span>24/7 central emergency SOS desk with instant supervisor alert</span>
+              </div>
+            </div>
           </div>
           <div class="why-compare-pill">
             <span class="dot"></span>
@@ -304,6 +388,20 @@ const jsonLd = {
             <p class="why-card-desc">
               Every invoice line is matched to GPS telemetry and a signed digital duty slip. Finance closes the month without reconciling spreadsheets.
             </p>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.5rem; font-size: 0.8125rem; color: #475569;">
+              <div style="display: flex; align-items: center; gap: 0.4rem;">
+                <span style="color: #16A34A; font-weight: 800;">✓</span>
+                <span>100% paperless digital duty slips with tamper-proof GPS geostamps</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.4rem;">
+                <span style="color: #16A34A; font-weight: 800;">✓</span>
+                <span>Direct ERP integration into SAP, Oracle, Zoho Books, or CSV</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.4rem;">
+                <span style="color: #16A34A; font-weight: 800;">✓</span>
+                <span>Elimination of ghost kilometers, manual billing disputes, and fraud</span>
+              </div>
+            </div>
           </div>
           <div class="why-compare-pill">
             <span class="dot"></span>
@@ -316,7 +414,101 @@ const jsonLd = {
 
 
   <!-- =========================================================================
-       SECTION 3: GOVERNANCE & COMPLIANCE (Reference: Screenshot 3)
+       SECTION 3: ENTERPRISE CONTRAST COMPARISON TABLE
+       Traditional Broker vs AdhocX Corporate Operating System
+       ========================================================================= -->
+  <section class="contrast-section" style="padding: clamp(3.5rem, 6vw, 5.5rem) 0; background: #F8FAFC; border-bottom: 1px solid var(--color-border);" id="comparison">
+    <div class="container">
+      <div style="text-align: center; max-width: 44rem; margin: 0 auto 2.5rem;">
+        <span style="font-size: 0.8125rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-primary-600); margin-bottom: 0.75rem; display: inline-block;">
+          SIDE-BY-SIDE EVALUATION
+        </span>
+        <h2 style="font-size: clamp(2rem, 3.8vw, 2.75rem); font-weight: 800; letter-spacing: -0.025em; color: var(--color-text-primary); line-height: 1.2; margin-bottom: 1rem;">
+          Traditional transport brokers vs. AdhocX
+        </h2>
+        <p style="font-size: 1rem; color: var(--color-text-secondary); line-height: 1.6;">
+          Why enterprise procurement, facility directors, and finance teams switch from fragmented manual operations to an audited operating system.
+        </p>
+      </div>
+
+      <div class="contrast-table-wrapper">
+        <table class="contrast-table" aria-label="Feature comparison between traditional brokers and AdhocX">
+          <thead>
+            <tr>
+              <th class="col-feature">OPERATIONAL CRITERIA</th>
+              <th class="col-traditional">
+                <span class="th-badge-neg">✕</span> TRADITIONAL VENDOR / BROKER
+              </th>
+              <th class="col-adhocx">
+                <span class="th-badge-pos">✓</span> ADHOCX CORPORATE OS
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="cell-feature">Fleet Verification</td>
+              <td class="cell-traditional">
+                <span class="cell-icon-neg">✕</span>
+                Unvetted white-plate substitutions, unverified driver documents, and inconsistent vehicle maintenance.
+              </td>
+              <td class="cell-adhocx">
+                <span class="cell-icon-pos">✓</span>
+                <strong>100% Commercial Yellow-Plate Cabs</strong> (Dzire, Etios, Ertiga, Innova) with automated RTO and police verification.
+              </td>
+            </tr>
+            <tr>
+              <td class="cell-feature">Duty Slip Reconciliation</td>
+              <td class="cell-traditional">
+                <span class="cell-icon-neg">✕</span>
+                Weeks of paper duty slips, illegible signatures, and manual spreadsheet auditing subject to human error.
+              </td>
+              <td class="cell-adhocx">
+                <span class="cell-icon-pos">✓</span>
+                <strong>100% Telemetry GPS-Backed Duty Slips</strong> with OTP pickup/drop geostamps, zero paperwork, and instant audit trails.
+              </td>
+            </tr>
+            <tr>
+              <td class="cell-feature">Pricing & Surge Predictability</td>
+              <td class="cell-traditional">
+                <span class="cell-icon-neg">✕</span>
+                Unpredictable spot surge pricing during peak hours and rain, plus hidden toll and night-allowance markups.
+              </td>
+              <td class="cell-adhocx">
+                <span class="cell-icon-pos">✓</span>
+                <strong>Direct Contract-Locked Rates</strong> with a strict zero-surge guarantee, transparent toll reconciliation, and clear SLAs.
+              </td>
+            </tr>
+            <tr>
+              <td class="cell-feature">Night Shift Safety & Escorts</td>
+              <td class="cell-traditional">
+                <span class="cell-icon-neg">✕</span>
+                Manual guard allocation, unverified first/last drop safety, and no centralized SOS panic response.
+              </td>
+              <td class="cell-adhocx">
+                <span class="cell-icon-pos">✓</span>
+                <strong>Automated Security Escort Allocation</strong> between 8 PM - 6 AM, automated safe-drop SMS verification, and 24/7 SOS desk.
+              </td>
+            </tr>
+            <tr>
+              <td class="cell-feature">Finance & ERP Integration</td>
+              <td class="cell-traditional">
+                <span class="cell-icon-neg">✕</span>
+                Disputed invoices, delayed month-end books, and manual data re-entry into accounting software.
+              </td>
+              <td class="cell-adhocx">
+                <span class="cell-icon-pos">✓</span>
+                <strong>Direct API Sync into SAP, Oracle, Zoho & Workday</strong> with department cost-centre splitting and automated GST e-invoicing.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- =========================================================================
+       SECTION 4: GOVERNANCE & COMPLIANCE
        Dark Midnight Navy Card: Policy enforced at booking, not reconciled at month-end.
        ========================================================================= -->
   <section class="governance-section" id="governance">
@@ -383,7 +575,29 @@ const jsonLd = {
 
 
   <!-- =========================================================================
-       SECTION 4: BUILT FOR EVERY STAKEHOLDER (Reference: Screenshot 4)
+       SECTION 5: CORPORATE COMMUTE ESTIMATOR (INTERACTIVE ISLAND)
+       Real-Time Fleet Sizing & Shift Modeling Island
+       ========================================================================= -->
+  <section class="corporate-estimator-section" id="estimator">
+    <div class="container">
+      <div class="estimator-header">
+        <span class="estimator-tag">CORPORATE COMMUTE SIZING</span>
+        <h2 class="estimator-h2">
+          Plan your enterprise fleet with precision.
+        </h2>
+        <p class="estimator-desc">
+          Model your company's daily shift requirements, calculate vehicle mix, and estimate monthly administrative hours saved with AdhocX orchestration.
+        </p>
+      </div>
+
+      <!-- React Interactive Sizing Island -->
+      <CorporateEstimator client:visible />
+    </div>
+  </section>
+
+
+  <!-- =========================================================================
+       SECTION 6: BUILT FOR EVERY STAKEHOLDER
        Interactive 5-Tab Console: Everyone who touches a trip gets their own view.
        ========================================================================= -->
   <section class="stakeholders-section" id="stakeholders">
@@ -414,7 +628,7 @@ const jsonLd = {
 
       <!-- Tab Panels Container -->
       <div class="stakeholder-panels-container">
-        <!-- 1. HR & Mobility (Active in Screenshot 4) -->
+        <!-- 1. HR & Mobility -->
         <div class="stakeholder-panel active" id="panel-hr" role="tabpanel" aria-labelledby="tab-hr">
           <div class="panel-info-side">
             <h3 class="panel-title">Employee transport without the spreadsheets.</h3>
@@ -437,7 +651,7 @@ const jsonLd = {
             </div>
           </div>
 
-          <!-- Right Console Card Mockup (Exact Screenshot 4 Details) -->
+          <!-- Console Card Mockup -->
           <div class="console-card">
             <div class="console-card-title">Shift roster — Hyderabad • Night</div>
             
@@ -778,8 +992,9 @@ const jsonLd = {
     </div>
   </section>
 
+
   <!-- =========================================================================
-       SECTION 5: ADHOCX EMPLOYEE APP (Reference: Screenshot 2)
+       SECTION 7: ADHOCX EMPLOYEE APP
        "Travel, simplified — in every employee's pocket."
        ========================================================================= -->
   <section class="adhocx-app-section" id="employee-app">
@@ -829,7 +1044,7 @@ const jsonLd = {
         </div>
       </div>
 
-      <!-- Right Column: Modern SaaS Mobile App Illustration (Matches Screenshot 2) -->
+      <!-- Right Column: Modern SaaS Mobile App Illustration -->
       <div class="app-mockup-wrapper">
         <div class="app-illustration-frame">
           <img
@@ -868,9 +1083,132 @@ const jsonLd = {
       </div>
     </div>
   </section>
+
+
+  <!-- =========================================================================
+       SECTION 8: ENTERPRISE LEAD RFP & CUSTOM RATE CARD (INTERACTIVE FORM)
+       ========================================================================= -->
+  <section class="rfp-section" id="corporate-rfp">
+    <div class="container">
+      <div class="rfp-header">
+        <span class="rfp-tag">ENTERPRISE MOBILITY RFP & RATE CARD</span>
+        <h2 class="rfp-h2">
+          Request your custom corporate rate card.
+        </h2>
+        <p class="rfp-desc">
+          Submit your campus location, shift model, and commuter volume. Our enterprise solutions team will deliver a calibrated rate card and pilot plan within 24 business hours.
+        </p>
+      </div>
+
+      <!-- Embedded Enterprise RFP Form -->
+      <EnterpriseLeadForm client:visible defaultPurpose="Custom Corporate Quotation & Rate Card" />
+    </div>
+  </section>
+
+
+  <!-- =========================================================================
+       SECTION 9: ENTERPRISE FAQ & AI SEARCH ENGINE OPTIMIZATION
+       Structured accordions for procurement evaluation and AI answer engines
+       ========================================================================= -->
+  <section class="faq-homepage-section" id="faq">
+    <div class="container">
+      <div class="faq-header">
+        <span class="faq-tag">FREQUENTLY ASKED QUESTIONS</span>
+        <h2 class="faq-h2">
+          Enterprise mobility, decoded.
+        </h2>
+        <p class="faq-desc">
+          Answers to the most common questions asked by corporate transport managers, procurement heads, and CFOs.
+        </p>
+      </div>
+
+      <div class="faq-accordion-list">
+        <!-- Q1 -->
+        <details class="faq-accordion-item" open>
+          <summary class="faq-accordion-summary">
+            <span>How does AdhocX guarantee 100% yellow-plate commercial cab compliance?</span>
+            <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </summary>
+          <div class="faq-accordion-content">
+            AdhocX enforces a strict zero-tolerance policy against private white-plate vehicles. Every commercial cab on our platform must have an active RTO commercial permit, valid passenger vehicle fitness certificate, commercial insurance, and verified driver background checks. Unregistered vehicles are digitally blocked from receiving trip assignments.
+          </div>
+        </details>
+
+        <!-- Q2 -->
+        <details class="faq-accordion-item">
+          <summary class="faq-accordion-summary">
+            <span>How does AdhocX enforce night-shift female employee escort protocols?</span>
+            <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </summary>
+          <div class="faq-accordion-content">
+            Under Telangana State Labor Regulations, trips between 8:00 PM and 6:00 AM carrying female employees automatically trigger mandatory security escort allocation. The platform guarantees female commuters are neither picked up first nor dropped off last alone, tracks the route in real-time, and sends automated safe-drop SMS verification to company administrators.
+          </div>
+        </details>
+
+        <!-- Q3 -->
+        <details class="faq-accordion-item">
+          <summary class="faq-accordion-summary">
+            <span>Can our company retain existing transport suppliers and negotiated rates?</span>
+            <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </summary>
+          <div class="faq-accordion-content">
+            Yes. AdhocX functions as enterprise orchestration software, not a restrictive vendor monopoly. You can keep your existing contracted transport vendors and pre-negotiated rate cards. We provide the software to route shifts, monitor driver SLAs, automate digital duty slips, and consolidate monthly billing.
+          </div>
+        </details>
+
+        <!-- Q4 -->
+        <details class="faq-accordion-item">
+          <summary class="faq-accordion-summary">
+            <span>How does AdhocX eliminate manual duty slip reconciliation for finance?</span>
+            <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </summary>
+          <div class="faq-accordion-content">
+            Every ride produces an OTP-verified digital duty slip matched second-by-second to driver GPS telemetry. Tolls and parking fees are digitally verified against fastag and geofences. Month-end invoices match duty slips item-by-item and sync directly with SAP, Oracle, Zoho Books, or CSV, reducing month-end finance reconciliation from weeks to hours.
+          </div>
+        </details>
+
+        <!-- Q5 -->
+        <details class="faq-accordion-item">
+          <summary class="faq-accordion-summary">
+            <span>Which vehicle models are available in the AdhocX commercial fleet?</span>
+            <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </summary>
+          <div class="faq-accordion-content">
+            The platform provides commercial 4-seater sedans (Maruti Suzuki Dzire, Toyota Etios), 6/7-seater MUVs (Maruti Suzuki Ertiga, Kia Carens), and 7-seater executive MUVs (Toyota Innova Crysta), all carrying commercial yellow license plates and equipped with operational GPS devices.
+          </div>
+        </details>
+      </div>
+    </div>
+  </section>
 </BaseLayout>
 
 <script>
+  // Lightbox Modal open/close
+  const zoomBtn = document.getElementById('btn-hero-zoom');
+  const heroImgWrap = document.getElementById('hero-img-wrap');
+  const lightbox = document.getElementById('dashboard-lightbox');
+  const closeBtn = document.getElementById('btn-close-lightbox');
+
+  const openModal = () => lightbox?.classList.add('active');
+  const closeModal = () => lightbox?.classList.remove('active');
+
+  zoomBtn?.addEventListener('click', openModal);
+  heroImgWrap?.addEventListener('click', openModal);
+  closeBtn?.addEventListener('click', closeModal);
+  lightbox?.addEventListener('click', (e) => {
+    if (e.target === lightbox) closeModal();
+  });
+
   // Interactive App Illustration Variant Toggle
   const appImg = document.getElementById('employee-app-main-img') as HTMLImageElement | null;
   const toggleBtns = document.querySelectorAll<HTMLButtonElement>('.app-toggle-btn');
@@ -898,7 +1236,6 @@ const jsonLd = {
     btn.addEventListener('click', () => {
       const targetId = btn.getAttribute('data-tab');
 
-      // Update button active state & accessibility
       tabButtons.forEach((b) => {
         b.classList.remove('active');
         b.setAttribute('aria-selected', 'false');
@@ -906,7 +1243,6 @@ const jsonLd = {
       btn.classList.add('active');
       btn.setAttribute('aria-selected', 'true');
 
-      // Update panel visibility
       tabPanels.forEach((panel) => {
         if (panel.id === targetId) {
           panel.classList.add('active');

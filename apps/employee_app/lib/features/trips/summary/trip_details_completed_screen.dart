@@ -11,10 +11,12 @@ class TripDetailsCompletedScreen extends StatefulWidget {
   const TripDetailsCompletedScreen({super.key});
 
   @override
-  State<TripDetailsCompletedScreen> createState() => _TripDetailsCompletedScreenState();
+  State<TripDetailsCompletedScreen> createState() =>
+      _TripDetailsCompletedScreenState();
 }
 
-class _TripDetailsCompletedScreenState extends State<TripDetailsCompletedScreen> {
+class _TripDetailsCompletedScreenState
+    extends State<TripDetailsCompletedScreen> {
   Map<String, dynamic>? _tripData;
   bool _isLoading = true;
 
@@ -38,7 +40,8 @@ class _TripDetailsCompletedScreenState extends State<TripDetailsCompletedScreen>
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: AppColors.primaryBlue)),
+        body: Center(
+            child: CircularProgressIndicator(color: AppColors.primaryBlue)),
       );
     }
 
@@ -70,7 +73,8 @@ class _TripDetailsCompletedScreenState extends State<TripDetailsCompletedScreen>
               // Completed Status Pill
               Center(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                   decoration: BoxDecoration(
                     color: AppColors.successLight,
                     borderRadius: BorderRadius.circular(20),
@@ -110,7 +114,7 @@ class _TripDetailsCompletedScreenState extends State<TripDetailsCompletedScreen>
                   border: Border.all(color: AppColors.border),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.04),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -136,14 +140,16 @@ class _TripDetailsCompletedScreenState extends State<TripDetailsCompletedScreen>
                                   color: AppColors.success,
                                   shape: BoxShape.circle,
                                 ),
-                                child: const Icon(Icons.check, size: 14, color: Colors.white),
+                                child: const Icon(Icons.check,
+                                    size: 14, color: Colors.white),
                               ),
                               if (!isLast)
                                 Expanded(
                                   child: Container(
                                     width: 2,
                                     color: AppColors.successBorder,
-                                    margin: const EdgeInsets.symmetric(vertical: 4),
+                                    margin:
+                                        const EdgeInsets.symmetric(vertical: 4),
                                   ),
                                 ),
                             ],
@@ -200,6 +206,3 @@ class _TripDetailsCompletedScreenState extends State<TripDetailsCompletedScreen>
     );
   }
 }
-
-
-

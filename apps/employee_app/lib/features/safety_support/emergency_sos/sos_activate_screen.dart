@@ -56,7 +56,7 @@ class _SosActivateScreenState extends State<SosActivateScreen> {
                 style: GoogleFonts.inter(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: Colors.white.withOpacity(0.9),
+                  color: Colors.white.withValues(alpha: 0.9),
                   height: 1.4,
                 ),
               ),
@@ -69,9 +69,10 @@ class _SosActivateScreenState extends State<SosActivateScreen> {
                 height: 56,
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.25),
+                  color: Colors.black.withValues(alpha: 0.25),
                   borderRadius: BorderRadius.circular(30),
-                  border: Border.all(color: Colors.white.withOpacity(0.3)),
+                  border:
+                      Border.all(color: Colors.white.withValues(alpha: 0.3)),
                 ),
                 child: Stack(
                   alignment: Alignment.center,
@@ -81,12 +82,13 @@ class _SosActivateScreenState extends State<SosActivateScreen> {
                       style: GoogleFonts.inter(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color: Colors.white.withOpacity(0.85),
+                        color: Colors.white.withValues(alpha: 0.85),
                       ),
                     ),
                     SliderTheme(
                       data: SliderTheme.of(context).copyWith(
-                        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 22),
+                        thumbShape:
+                            const RoundSliderThumbShape(enabledThumbRadius: 22),
                         thumbColor: const Color(0xFFDC2626),
                         activeTrackColor: Colors.transparent,
                         inactiveTrackColor: Colors.transparent,
@@ -127,6 +129,3 @@ class _SosActivateScreenState extends State<SosActivateScreen> {
     );
   }
 }
-
-
-

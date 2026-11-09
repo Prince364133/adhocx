@@ -41,7 +41,8 @@ class _CabReassignedScreenState extends State<CabReassignedScreen> {
     final driverRating = (_reassignedCab?['driverRating'] ?? 4.7).toDouble();
     final vehicleModel = _reassignedCab?['vehicleModel'] ?? 'Swift Dzire';
     final plateNumber = _reassignedCab?['plateNumber'] ?? 'TS10UC9281';
-    final vehicleSpecs = '${_reassignedCab?['vehicleColor'] ?? "Silver"} • ${_reassignedCab?['capacity'] ?? "5 Seater"}';
+    final vehicleSpecs =
+        '${_reassignedCab?['vehicleColor'] ?? "Silver"} • ${_reassignedCab?['capacity'] ?? "5 Seater"}';
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -49,7 +50,8 @@ class _CabReassignedScreenState extends State<CabReassignedScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              size: 18, color: AppColors.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -57,7 +59,8 @@ class _CabReassignedScreenState extends State<CabReassignedScreen> {
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                 child: Column(
                   children: [
                     const SizedBox(height: 12),
@@ -95,10 +98,11 @@ class _CabReassignedScreenState extends State<CabReassignedScreen> {
                         children: [
                           Row(
                             children: [
-                              CircleAvatar(
+                              const CircleAvatar(
                                 radius: 24,
                                 backgroundColor: AppColors.primaryBlueLight,
-                                child: const Icon(Icons.person, color: AppColors.primaryBlue, size: 28),
+                                child: Icon(Icons.person,
+                                    color: AppColors.primaryBlue, size: 28),
                               ),
                               const SizedBox(width: 14),
                               Expanded(
@@ -116,7 +120,8 @@ class _CabReassignedScreenState extends State<CabReassignedScreen> {
                                     const SizedBox(height: 4),
                                     Row(
                                       children: [
-                                        const Icon(Icons.star_rounded, size: 16, color: Color(0xFFF59E0B)),
+                                        const Icon(Icons.star_rounded,
+                                            size: 16, color: Color(0xFFF59E0B)),
                                         const SizedBox(width: 4),
                                         Text(
                                           '$driverRating',
@@ -143,7 +148,10 @@ class _CabReassignedScreenState extends State<CabReassignedScreen> {
                                   color: const Color(0xFFF1F5F9),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: const Icon(Icons.directions_car_filled_rounded, color: AppColors.primaryBlue, size: 24),
+                                child: const Icon(
+                                    Icons.directions_car_filled_rounded,
+                                    color: AppColors.primaryBlue,
+                                    size: 24),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
@@ -179,7 +187,8 @@ class _CabReassignedScreenState extends State<CabReassignedScreen> {
                     // View Trip Details Button
                     EmployeePrimaryButton(
                       label: 'View Trip Details',
-                      onPressed: () => context.push(AppRoutes.cabAssignedOverview),
+                      onPressed: () =>
+                          context.push(AppRoutes.cabAssignedOverview),
                     ),
                     const SizedBox(height: 16),
                   ],
@@ -189,6 +198,3 @@ class _CabReassignedScreenState extends State<CabReassignedScreen> {
     );
   }
 }
-
-
-

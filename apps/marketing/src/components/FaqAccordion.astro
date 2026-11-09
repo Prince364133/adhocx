@@ -25,22 +25,22 @@ const {
 ---
 
 <section class="section-padding faq-accordion-section" id={id}>
-  <div class="container" style="max-width: 860px;">
+  <div class="container">
     {(badge || title) && (
       <div class="section-header" style="text-align: center; margin-bottom: var(--space-8);">
         {badge && <span class="badge badge-primary" style="margin-bottom: var(--space-3);">{badge}</span>}
-        {title && <h2 class="h2-title">{title}</h2>}
-        {description && <p class="body-large" style="margin: 0 auto; max-width: 600px;">{description}</p>}
+        {title && <h2 class="h2-title faq-main-title">{title}</h2>}
+        {description && <p class="body-large" style="margin: 0 auto; max-width: 650px;">{description}</p>}
       </div>
     )}
 
-    <div class="faq-list">
+    <div class="faq-list" style="max-width: 860px; margin: 0 auto;">
       {items.map((item, index) => {
         const itemIndex = index + 1;
         const answerId = `faq-ans-${id}-${itemIndex}`;
         const questionId = `faq-q-${id}-${itemIndex}`;
         return (
-          <div class="faq-item card" style="padding: 0; overflow: hidden; margin-bottom: var(--space-4);" data-faq-item>
+          <div class="faq-item" data-faq-item>
             <button
               class="faq-trigger"
               id={questionId}
@@ -49,7 +49,7 @@ const {
               type="button"
             >
               <span class="faq-question-text">{item.question}</span>
-              <span class="faq-icon-wrapper">
+              <span class="faq-icon-wrapper" aria-hidden="true">
                 <Icon name="chevron-down" size={18} class="faq-chevron" />
               </span>
             </button>
@@ -78,25 +78,54 @@ const {
 </section>
 
 <style>
+  .faq-accordion-section {
+    padding: clamp(3.5rem, 6vw, 5rem) 0;
+  }
+
+  .faq-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .faq-item {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.03);
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .faq-item:hover {
+    border-color: var(--color-primary-300);
+    box-shadow: 0 8px 24px -4px rgba(87, 40, 178, 0.1);
+  }
+
+  .faq-item.is-open {
+    border-color: var(--color-primary-400);
+    box-shadow: 0 8px 24px -4px rgba(87, 40, 178, 0.12);
+  }
+
   .faq-trigger {
     width: 100%;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: var(--space-5) var(--space-6);
-    background: transparent;
+    padding: 1.25rem 1.5rem;
+    background: #FFFFFF;
     border: none;
     text-align: left;
-    font-size: 1.05rem;
-    font-weight: 600;
+    font-size: 1.0625rem;
+    font-weight: 700;
     color: var(--color-text-primary);
     cursor: pointer;
     transition: background var(--transition-fast), color var(--transition-fast);
   }
 
   .faq-trigger:hover {
-    background: var(--color-surface-muted);
-    color: var(--color-primary-600);
+    background: #FAF5FF;
+    color: var(--color-text-primary);
   }
 
   .faq-trigger:focus-visible {
@@ -104,22 +133,41 @@ const {
     outline-offset: -2px;
   }
 
+  /* Scoped brand inline styles guaranteeing theme purple + orange inside questions */
+  .faq-trigger :global(.brand-inline) {
+    color: var(--color-brand-adhoc, #5728B2) !important;
+    font-weight: 800 !important;
+  }
+
+  .faq-trigger :global(.brand-inline .brand-accent),
+  .faq-trigger :global(.brand-inline .logo-accent) {
+    color: var(--color-brand-x, #FF5F09) !important;
+    font-weight: 800 !important;
+  }
+
   .faq-question-text {
     flex: 1;
     padding-right: var(--space-4);
-    line-height: 1.4;
+    line-height: 1.45;
+    letter-spacing: -0.01em;
   }
 
   .faq-icon-wrapper {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
+    width: 34px;
+    height: 34px;
     border-radius: var(--radius-full);
-    background: var(--color-surface-muted);
-    transition: transform var(--transition-base), background var(--transition-fast);
+    background: rgba(87, 40, 178, 0.06);
+    color: var(--color-primary-600);
+    transition: transform var(--transition-base), background var(--transition-fast), color var(--transition-fast);
     flex-shrink: 0;
+  }
+
+  .faq-trigger:hover .faq-icon-wrapper {
+    background: var(--color-primary-100);
+    color: var(--color-primary-700);
   }
 
   .faq-trigger[aria-expanded="true"] .faq-icon-wrapper {
@@ -129,11 +177,12 @@ const {
   }
 
   .faq-content {
-    border-top: 1px solid var(--color-border);
+    border-top: 1px solid #F1F5F9;
   }
 
   .faq-inner-body {
-    padding: var(--space-5) var(--space-6);
+    padding: 1.25rem 1.5rem 1.5rem;
+    background: #FFFFFF;
   }
 
   .faq-direct-answer-callout {
@@ -150,7 +199,10 @@ const {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: var(--color-primary-600);
+    color: var(--color-primary-700);
+    background: var(--color-primary-100);
+    padding: 0.15rem 0.5rem;
+    border-radius: var(--radius-sm);
     margin-bottom: 4px;
   }
 
@@ -164,8 +216,14 @@ const {
 
   .faq-detailed-answer {
     color: var(--color-text-secondary);
-    line-height: 1.6;
+    line-height: 1.65;
     margin: 0;
+  }
+
+  @media (min-width: 900px) {
+    .faq-main-title {
+      white-space: nowrap;
+    }
   }
 </style>
 
@@ -181,6 +239,11 @@ const {
         const isExpanded = trigger.getAttribute('aria-expanded') === 'true';
         trigger.setAttribute('aria-expanded', String(!isExpanded));
         content.hidden = isExpanded;
+        if (!isExpanded) {
+          item.classList.add('is-open');
+        } else {
+          item.classList.remove('is-open');
+        }
       });
     });
   }

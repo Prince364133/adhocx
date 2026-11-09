@@ -245,6 +245,102 @@ class _MobileNumberScreenState extends State<MobileNumberScreen> {
                       isLoading: authProvider.isLoading,
                       onPressed: isReady ? _handleSendOtp : null,
                     ),
+
+                    const SizedBox(height: 16),
+
+                    // 1-Click Instant Demo Commuter Access & Test Numbers
+                    Center(
+                      child: Column(
+                        children: [
+                          TextButton.icon(
+                            onPressed: authProvider.isLoading
+                                ? null
+                                : () async {
+                                    final res = await authProvider.loginWithPassword(
+                                      identifier: 'ravi.kumar@hitec.com',
+                                      password: 'Admin@AdhocX2026!',
+                                    );
+                                    if (context.mounted && res == AuthStatus.authenticated) {
+                                      context.go(AppRoutes.employeeVerified);
+                                    }
+                                  },
+                            icon: const Icon(Icons.bolt, size: 16, color: AppColors.primaryBlue),
+                            label: Text(
+                              '1-Click Demo Commuter (Ravi Kumar - EMP10204)',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primaryBlue,
+                              ),
+                            ),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              backgroundColor: const Color(0xFFEFF6FF),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'Test Numbers: ',
+                                style: GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted),
+                              ),
+                              InkWell(
+                                onTap: () {
+                                  setState(() {
+                                    _phoneNumber = '8888888888';
+                                    _phoneController.text = _phoneNumber;
+                                  });
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF3F4F6),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: AppColors.border),
+                                  ),
+                                  child: Text(
+                                    '8888888888',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.primaryBlue,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              InkWell(
+                                onTap: () {
+                                  setState(() {
+                                    _phoneNumber = '9876543203';
+                                    _phoneController.text = _phoneNumber;
+                                  });
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF3F4F6),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: AppColors.border),
+                                  ),
+                                  child: Text(
+                                    '9876543203',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.primaryBlue,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),

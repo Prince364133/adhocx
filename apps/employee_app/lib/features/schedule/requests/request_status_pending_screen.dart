@@ -12,10 +12,12 @@ class RequestStatusPendingScreen extends StatefulWidget {
   const RequestStatusPendingScreen({super.key});
 
   @override
-  State<RequestStatusPendingScreen> createState() => _RequestStatusPendingScreenState();
+  State<RequestStatusPendingScreen> createState() =>
+      _RequestStatusPendingScreenState();
 }
 
-class _RequestStatusPendingScreenState extends State<RequestStatusPendingScreen> {
+class _RequestStatusPendingScreenState
+    extends State<RequestStatusPendingScreen> {
   Map<String, dynamic>? _pendingData;
   bool _isLoading = true;
 
@@ -27,7 +29,8 @@ class _RequestStatusPendingScreenState extends State<RequestStatusPendingScreen>
 
   Future<void> _loadJsonData() async {
     final schedules = await MockDataService.getSchedules();
-    final changeRequests = schedules['change_requests'] as Map<String, dynamic>?;
+    final changeRequests =
+        schedules['change_requests'] as Map<String, dynamic>?;
     if (mounted) {
       setState(() {
         _pendingData = changeRequests?['pending'] as Map<String, dynamic>?;
@@ -40,14 +43,17 @@ class _RequestStatusPendingScreenState extends State<RequestStatusPendingScreen>
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: AppColors.primaryBlue)),
+        body: Center(
+            child: CircularProgressIndicator(color: AppColors.primaryBlue)),
       );
     }
 
     final message = _pendingData?['message'] ??
         'Your change request is under review by your transport team.';
-    final requestType = _pendingData?['requestType'] ?? 'Change Pickup Location';
-    final newLocation = _pendingData?['newLocation'] ?? 'Green Meadows, Kondapur';
+    final requestType =
+        _pendingData?['requestType'] ?? 'Change Pickup Location';
+    final newLocation =
+        _pendingData?['newLocation'] ?? 'Green Meadows, Kondapur';
     final tripDate = _pendingData?['tripDate'] ?? 'Tue, 09 Dec 2026';
 
     return Scaffold(
@@ -73,11 +79,13 @@ class _RequestStatusPendingScreenState extends State<RequestStatusPendingScreen>
               // Pending Approval Badge Box
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFFBEB),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFFFDE68A), width: 1.5),
+                  border:
+                      Border.all(color: const Color(0xFFFDE68A), width: 1.5),
                 ),
                 child: Column(
                   children: [
@@ -117,7 +125,7 @@ class _RequestStatusPendingScreenState extends State<RequestStatusPendingScreen>
                   border: Border.all(color: AppColors.border),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.04),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -174,7 +182,8 @@ class _RequestStatusPendingScreenState extends State<RequestStatusPendingScreen>
     );
   }
 
-  Widget _buildRow({required IconData icon, required String label, required String value}) {
+  Widget _buildRow(
+      {required IconData icon, required String label, required String value}) {
     return Row(
       children: [
         Icon(icon, size: 20, color: AppColors.textMuted),
@@ -185,7 +194,8 @@ class _RequestStatusPendingScreenState extends State<RequestStatusPendingScreen>
             children: [
               Text(
                 label,
-                style: GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted),
+                style:
+                    GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted),
               ),
               const SizedBox(height: 2),
               Text(
@@ -203,6 +213,3 @@ class _RequestStatusPendingScreenState extends State<RequestStatusPendingScreen>
     );
   }
 }
-
-
-

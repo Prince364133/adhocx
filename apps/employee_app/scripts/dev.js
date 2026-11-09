@@ -268,7 +268,16 @@ if (flutterCmd) {
     } catch (_) {}
   }
 
-  child.on('error', (err) => console.log('Employee App Process Notice:', err.message));
+  child.on('error', (err) => {
+    console.log('Employee App Process Notice:', err.message);
+    startAppServer();
+  });
+  child.on('exit', (code) => {
+    if (code !== 0 && code !== null) {
+      console.warn(`Flutter process stopped with code ${code}. Launching standalone preview server on port ${PORT}...`);
+      startAppServer();
+    }
+  });
 } else {
   console.warn(`========================================================================`);
   console.warn(`⚠️  NOTICE: FLUTTER SDK WAS NOT DETECTED ON THIS COMPUTER!`);
@@ -296,6 +305,31 @@ function getMockData() {
 
 function startAppServer() {
   startLiveReloadServer();
+  const buildWebDir = path.join(APP_DIR, 'build', 'web');
+  const webDir = path.join(APP_DIR, 'web');
+  const hasBuild = fs.existsSync(path.join(buildWebDir, 'index.html'));
+  const staticRoot = hasBuild ? buildWebDir : (fs.existsSync(path.join(webDir, 'index.html')) ? webDir : null);
+
+  const mimeTypes = {
+    '.html': 'text/html; charset=utf-8',
+    '.js': 'application/javascript; charset=utf-8',
+    '.mjs': 'application/javascript; charset=utf-8',
+    '.css': 'text/css; charset=utf-8',
+    '.json': 'application/json',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.gif': 'image/gif',
+    '.svg': 'image/svg+xml',
+    '.ico': 'image/x-icon',
+    '.wasm': 'application/wasm',
+    '.ttf': 'font/ttf',
+    '.otf': 'font/otf',
+    '.woff': 'font/woff',
+    '.woff2': 'font/woff2',
+    '.map': 'application/json',
+  };
+
   const server = http.createServer((req, res) => {
     const url = new URL(req.url, `http://localhost:${PORT}`);
 
@@ -319,6 +353,20 @@ function startAppServer() {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(getMockData()));
       return;
+    }
+
+    if (staticRoot) {
+      let relativePath = decodeURIComponent(url.pathname.replace(/^\/+/, ''));
+      if (!relativePath || relativePath === '') relativePath = 'index.html';
+      const filePath = path.normalize(path.join(staticRoot, relativePath));
+
+      if (filePath.startsWith(staticRoot) && fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+        const ext = path.extname(filePath).toLowerCase();
+        const contentType = mimeTypes[ext] || 'application/octet-stream';
+        res.writeHead(200, { 'Content-Type': contentType });
+        fs.createReadStream(filePath).pipe(res);
+        return;
+      }
     }
 
     const html = generateAppHtml(getMockData());
