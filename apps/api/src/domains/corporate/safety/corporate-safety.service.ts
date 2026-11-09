@@ -1116,7 +1116,7 @@ export class CorporateSafetyService {
     const client: any = this.redis?.getClient();
     if (!client) return [];
 
-    let droppedStopIds: string[] = [];
+    let droppedStopIds: string[];
     try {
       droppedStopIds = await client.smembers('corporate:active:dropped:stops');
     } catch {

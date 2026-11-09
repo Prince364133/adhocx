@@ -12,7 +12,6 @@ import {
   EyeOff,
   AlertTriangle,
   Loader2,
-  Sparkles,
   Compass,
 } from 'lucide-react';
 import { opsApi, setOpsSession } from '../../lib/api/opsClient';

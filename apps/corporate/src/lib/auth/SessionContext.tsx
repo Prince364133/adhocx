@@ -113,10 +113,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     reloadTenant,
     switchOffice,
   };
-    logout,
-    reloadTenant,
-    switchOffice,
-  };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

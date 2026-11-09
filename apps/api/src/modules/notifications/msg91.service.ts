@@ -34,7 +34,7 @@ export class Msg91Service {
    * which is the strict requirement for MSG91 recipients.
    */
   public normalizePhone(rawPhone: string): string {
-    const cleaned = rawPhone.replace(/[\s\-\(\)\+]/g, '');
+    const cleaned = rawPhone.replace(/[\s\-()+]/g, '');
 
     // 10-digit Indian standard mobile number -> prefix with 91
     if (cleaned.length === 10 && /^[6-9]\d{9}$/.test(cleaned)) {

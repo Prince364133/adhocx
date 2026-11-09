@@ -82,14 +82,20 @@ export default tseslint.config(
     languageOptions: { sourceType: 'commonjs' },
   },
 
-  // Admin panel (Next.js / React)
+  // React / Next.js client applications (Admin, Ops, Corporate)
   {
-    files: ['apps/admin/**/*.{ts,tsx}'],
+    files: ['apps/admin/**/*.{ts,tsx}', 'apps/ops/**/*.{ts,tsx}', 'apps/corporate/**/*.{ts,tsx}'],
     plugins: { 'react-hooks': reactHooks },
     languageOptions: { globals: { ...globals.browser, ...globals.node } },
     rules: {
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
+    },
+  },
+  {
+    files: ['apps/corporate/**/*.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/no-unused-vars': 'warn',
     },
   },
 );
