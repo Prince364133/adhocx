@@ -32,7 +32,7 @@ export class CorporateDispatchController {
   ) {}
 
   @Post('routes/:id/start-now')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateResource('route', 'id')
   @ApiOperation({
     summary: 'Manual Super Admin dispatch override: Immediately initiates H3 driver dispatch ("Start" button)',

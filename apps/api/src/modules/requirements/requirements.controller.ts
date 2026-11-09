@@ -31,13 +31,13 @@ export class RequirementsController {
   }
 
   @Get()
-  @Roles(UserRole.VENDOR, UserRole.ADMIN)
+  @Roles(UserRole.VENDOR, UserRole.ADMIN, UserRole.OPS)
   @ApiOperation({ summary: 'Get requirements created by current vendor or all requirements if admin' })
   async getRequirements(
     @CurrentUser() user: AuthUserDto,
     @Query() query: RequirementQueryDto,
   ) {
-    if (user.role === UserRole.ADMIN) {
+    if (user.role === UserRole.ADMIN || user.role === UserRole.OPS) {
       return this.requirementsService.getAllRequirements(query);
     }
     return this.requirementsService.getRequirementsByVendor(user.id, query);
@@ -54,7 +54,7 @@ export class RequirementsController {
   }
 
   @Get(':id')
-  @Roles(UserRole.VENDOR, UserRole.ADMIN)
+  @Roles(UserRole.VENDOR, UserRole.ADMIN, UserRole.OPS)
   @ApiOperation({ summary: 'Get detailed requirement view including offers, remaining capacity, and assigned drivers' })
   @SwaggerResponse({ status: 200, type: RequirementDetailResponseDto })
   async getRequirementDetails(

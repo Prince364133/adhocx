@@ -1,17 +1,12 @@
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { adminApi } from '../../lib/api/client';
-import { RequirementListItem } from '../../lib/api/types';
-import {
-  PageHeader,
-  FilterBar,
-  DataTable,
-  Column,
-  StatusBadge,
-  Button,
-  Drawer,
-} from '../../components/common';
+import { opsApi } from '../../lib/api/opsClient';
+import { RequirementListItem } from '../../lib/api/opsTypes';
+import { Button } from '../../components/common/Button';
+import { Drawer } from '../../components/common/Drawer';
+import { StatusBadge } from '../../components/common/StatusBadge';
+import { Column, DataTable, FilterBar, PageHeader } from '../../components/operations/OperationsTable';
 
 const STATUS_TABS = [
   { id: 'ALL', label: 'All Demands' },
@@ -30,6 +25,7 @@ export default function RequirementsPage() {
   const [search, setSearch] = useState('');
   const [requirements, setRequirements] = useState<RequirementListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedReq, setSelectedReq] = useState<RequirementListItem | null>(null);
 
   useEffect(() => {
@@ -38,9 +34,12 @@ export default function RequirementsPage() {
 
   async function loadRequirements(status: string) {
     setLoading(true);
+    setLoadError(null);
     try {
-      const data = await adminApi.getRequirements(status).catch(() => [] as RequirementListItem[]);
-      setRequirements(data);
+      setRequirements(await opsApi.getRequirements(status));
+    } catch (error) {
+      setRequirements([]);
+      setLoadError(error instanceof Error ? error.message : String(error));
     } finally {
       setLoading(false);
     }
@@ -144,7 +143,7 @@ export default function RequirementsPage() {
       key: 'status',
       label: 'Fulfillment Status',
       sortable: true,
-      render: (r) => <StatusBadge status={r.status} size="sm" showPulse />,
+      render: (r) => <StatusBadge status={r.status} size="sm" pulse />,
     },
     {
       key: 'actions',
@@ -174,6 +173,11 @@ export default function RequirementsPage() {
         onSearchChange={setSearch}
         searchPlaceholder="Search requirement ID, corporate client, route..."
       />
+      {loadError && (
+        <p role="alert" style={{ color: 'var(--color-danger)', margin: '0 0 1rem' }}>
+          Could not load requirements: {loadError}
+        </p>
+      )}
 
       <DataTable
         columns={columns}
@@ -191,13 +195,6 @@ export default function RequirementsPage() {
         title={selectedReq ? `Requirement REQ-${selectedReq.id.slice(0, 8).toUpperCase()}` : ''}
         subtitle={selectedReq ? `Client: ${selectedReq.vendorName}` : ''}
         width="580px"
-        footer={
-          <div style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'flex-end' }}>
-            <Button variant="secondary" size="sm" onClick={() => setSelectedReq(null)}>
-              Close
-            </Button>
-          </div>
-        }
       >
         {selectedReq && (
           <div>
@@ -212,7 +209,7 @@ export default function RequirementsPage() {
               <div style={{ background: 'var(--bg-surface-elevated)', padding: '1rem', borderRadius: 'var(--radius-lg)' }}>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Status</div>
                 <div style={{ marginTop: '0.35rem' }}>
-                  <StatusBadge status={selectedReq.status} showPulse />
+                  <StatusBadge status={selectedReq.status} pulse />
                 </div>
               </div>
               <div style={{ background: 'var(--bg-surface-elevated)', padding: '1rem', borderRadius: 'var(--radius-lg)' }}>
@@ -250,8 +247,8 @@ export default function RequirementsPage() {
                   <span style={{ fontSize: '0.875rem', fontWeight: 800, color: 'var(--brand-primary)' }}>
                     🛣️ Distance Rate Engine · Route Pricing Snapshot
                   </span>
-                  <span className="badge badge-info">
-                    {selectedReq.vehicleType} · plan {selectedReq.pricing.planVersion} · {(selectedReq.pricing.distanceM / 1000).toFixed(1)} km
+                  <span className="badge badge-info" style={{ fontSize: '0.6875rem', padding: '0.1rem 0.35rem', borderRadius: 'var(--radius-xs)', background: 'var(--color-info-bg)', color: 'var(--color-info)', fontWeight: 700 }}>
+                    {selectedReq.vehicleType} · plan {selectedReq.pricing?.planVersion ?? selectedReq.zonalQuote?.rateVersion ?? 'v1'} · {((selectedReq.pricing?.distanceM ?? 0) / 1000).toFixed(1)} km
                   </span>
                 </div>
 

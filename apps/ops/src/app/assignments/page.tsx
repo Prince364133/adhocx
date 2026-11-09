@@ -1,17 +1,12 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { adminApi } from '../../lib/api/client';
-import { AssignmentItem } from '../../lib/api/types';
-import {
-  PageHeader,
-  FilterBar,
-  DataTable,
-  Column,
-  StatusBadge,
-  Button,
-  Drawer,
-} from '../../components/common';
+import { opsApi } from '../../lib/api/opsClient';
+import { AssignmentItem } from '../../lib/api/opsTypes';
+import { Button } from '../../components/common/Button';
+import { Drawer } from '../../components/common/Drawer';
+import { StatusBadge } from '../../components/common/StatusBadge';
+import { Column, DataTable, FilterBar, PageHeader } from '../../components/operations/OperationsTable';
 
 const STATUS_TABS = [
   { id: 'ALL', label: 'All Assignments' },
@@ -28,6 +23,7 @@ export default function AssignmentsPage() {
   const [search, setSearch] = useState('');
   const [assignments, setAssignments] = useState<AssignmentItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedAsg, setSelectedAsg] = useState<AssignmentItem | null>(null);
 
   useEffect(() => {
@@ -36,12 +32,16 @@ export default function AssignmentsPage() {
 
   async function loadAssignments(status: string) {
     setLoading(true);
+    setLoadError(null);
     try {
-      const res = await adminApi.getAssignments({
+      const res = await opsApi.getAssignments({
         status: status !== 'ALL' ? status : undefined,
         limit: 100,
-      }).catch(() => []);
-      setAssignments(Array.isArray(res) ? res : []);
+      });
+      setAssignments(res);
+    } catch (error) {
+      setAssignments([]);
+      setLoadError(error instanceof Error ? error.message : String(error));
     } finally {
       setLoading(false);
     }
@@ -142,6 +142,11 @@ export default function AssignmentsPage() {
         onSearchChange={setSearch}
         searchPlaceholder="Search assignment ID, requirement, driver, plate..."
       />
+      {loadError && (
+        <p role="alert" style={{ color: 'var(--color-danger)', margin: '0 0 1rem' }}>
+          Could not load assignments: {loadError}
+        </p>
+      )}
 
       <DataTable
         columns={columns}
@@ -159,13 +164,6 @@ export default function AssignmentsPage() {
         title={selectedAsg ? `Assignment ${selectedAsg.id.toUpperCase()}` : ''}
         subtitle={selectedAsg ? `Requirement: ${selectedAsg.requirementId.toUpperCase()}` : ''}
         width="540px"
-        footer={
-          <div style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'flex-end' }}>
-            <Button variant="secondary" size="sm" onClick={() => setSelectedAsg(null)}>
-              Close
-            </Button>
-          </div>
-        }
       >
         {selectedAsg && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>

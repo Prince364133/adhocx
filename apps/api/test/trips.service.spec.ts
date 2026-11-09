@@ -128,6 +128,27 @@ describe('TripsService Unit Tests', () => {
     );
   });
 
+  it('lists platform trips for operations with status and pagination filters', async () => {
+    db.trip.findMany.mockResolvedValue([]);
+
+    await expect(
+      service.getTripsForOperations({
+        status: TripStatus.IN_PROGRESS,
+        page: 2,
+        limit: 10,
+      }),
+    ).resolves.toEqual([]);
+
+    expect(db.trip.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { status: TripStatus.IN_PROGRESS },
+        skip: 10,
+        take: 10,
+        orderBy: { createdAt: 'desc' },
+      }),
+    );
+  });
+
   it('should start trip with valid OTP and transition status to IN_PROGRESS', async () => {
     const now = new Date();
     db.trip.findUnique.mockResolvedValue({

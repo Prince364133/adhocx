@@ -1,69 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Button, StatusBadge, Drawer } from '../../components/common';
-import { adminApi } from '../../lib/api/client';
+import { Button } from '../../components/common/Button';
+import { Drawer } from '../../components/common/Drawer';
+import { StatusBadge } from '../../components/common/StatusBadge';
+import { opsApi } from '../../lib/api/opsClient';
+import { CorporateRouteItem, CorporateTenantOption, RouteStop } from '../../lib/api/opsTypes';
 
-export interface RouteStop {
-  id: string;
-  stopSequence: number;
-  stopType: 'PICKUP' | 'DROPOFF';
-  latitude: number;
-  longitude: number;
-  addressText: string;
-  plannedEta: string;
-  actualArrivalTime?: string;
-  actualDepartureTime?: string;
-  boardingOtp: string;
-  dwellBufferSeconds: number;
-  status: 'PENDING' | 'ARRIVED' | 'BOARDED' | 'NO_SHOW' | 'CANCELLED';
-  noShowReason?: string;
-  employee?: {
-    id: string;
-    employeeCode: string;
-    fullName: string;
-    gender: string;
-    phoneNumber: string;
-    department?: string;
-  };
-}
-
-export interface CorporateRouteItem {
-  id: string;
-  tenantId: string;
-  shiftDate: string;
-  shiftTime: string;
-  direction: 'LOGIN' | 'LOGOUT';
-  vehicleCategory: string;
-  maxCapacity: number;
-  assignedPassengerCount: number;
-  targetPickup1Time: string;
-  targetOfficeArrivalTime: string;
-  estDistanceMeters: number;
-  estDurationSeconds: number;
-  status: 'PLANNED' | 'DISPATCHING' | 'ASSIGNED' | 'IN_TRANSIT' | 'COMPLETED' | 'CANCELLED';
-  driver?: {
-    id: string;
-    fullName: string;
-    phone?: string;
-  };
-  vehicle?: {
-    id: string;
-    registrationNumber: string;
-    model: string;
-  };
-  office?: {
-    id: string;
-    code: string;
-    name: string;
-  };
-  stops?: RouteStop[];
-  _count?: {
-    stops: number;
-  };
-}
-
-const COMPANY_STORAGE_KEY = 'adhocx_admin_corporate_tenant';
+const COMPANY_STORAGE_KEY = 'adhocx_ops_corporate_tenant';
 
 /** Today's date in IST as YYYY-MM-DD (shift dates are Indian calendar days). */
 function todayIst(): string {
@@ -72,13 +16,6 @@ function todayIst(): string {
 
 const istTime = (iso: string) =>
   new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' });
-
-interface CorporateTenantOption {
-  id: string;
-  code: string;
-  name: string;
-  status: string;
-}
 
 const DISPATCH_OUTCOME_TEXT: Record<string, (r: any) => string> = {
   OFFERED: (r) =>
@@ -103,12 +40,12 @@ export function CorporateRouteManagementSection() {
   const [itineraryLoading, setItineraryLoading] = useState(false);
   const [notificationMsg, setNotificationMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // Companies: load once; restore the last company this admin looked at.
+  // Companies: load once and restore the last company selected in Ops.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const res = await adminApi.getCorporateTenants({ limit: 100 });
+        const res = await opsApi.getTenants({ limit: 100 });
         if (cancelled) return;
         const items = res?.items ?? [];
         setTenants(items);
@@ -153,7 +90,7 @@ export function CorporateRouteManagementSection() {
     setLoading(true);
     setLoadError(null);
     try {
-      const data = await adminApi.getCorporateRoutes({
+      const data = await opsApi.getRoutes({
         tenantId: selectedTenantId,
         shiftDate: selectedDate,
         shiftTime: selectedShift,
@@ -169,12 +106,12 @@ export function CorporateRouteManagementSection() {
     }
   }
 
-  // Manual Super Admin Dispatch Override ("Start" button)
+  // Manual operations dispatch override.
   async function handleForceStartDispatch(routeId: string) {
     setDispatchingRouteId(routeId);
     setNotificationMsg(null);
     try {
-      const result = await adminApi.startCorporateRouteDispatch(routeId);
+      const result = await opsApi.forceDispatchRoute(routeId);
       const describe = DISPATCH_OUTCOME_TEXT[result?.status] ?? (() => `Dispatch result: ${result?.status ?? 'unknown'}`);
       setNotificationMsg({
         type: result?.status === 'OFFERED' || result?.status === 'ALREADY_ASSIGNED' ? 'success' : 'error',
@@ -195,7 +132,7 @@ export function CorporateRouteManagementSection() {
     setSelectedRoute(route);
     setItineraryLoading(true);
     try {
-      const full = await adminApi.getCorporateRoute(route.id);
+      const full = await opsApi.getRouteDetail(route.id);
       if (full) setSelectedRoute(full);
     } catch (err) {
       setNotificationMsg({
@@ -454,7 +391,7 @@ export function CorporateRouteManagementSection() {
               <th style={{ padding: '0.875rem 1rem', fontWeight: 600 }}>Stop 1 Target Pickup</th>
               <th style={{ padding: '0.875rem 1rem', fontWeight: 600 }}>Assigned Driver & Cab</th>
               <th style={{ padding: '0.875rem 1rem', fontWeight: 600 }}>Status</th>
-              <th style={{ padding: '0.875rem 1rem', fontWeight: 600, textAlign: 'right' }}>Admin Actions</th>
+              <th style={{ padding: '0.875rem 1rem', fontWeight: 600, textAlign: 'right' }}>Ops Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -524,7 +461,7 @@ export function CorporateRouteManagementSection() {
                       {route.vehicleCategory} ({route.assignedPassengerCount}/{route.maxCapacity} Pax)
                     </div>
                     <div style={{ fontSize: '0.75rem', color: '#10B981', marginTop: '0.2rem' }}>
-                      {(route.estDistanceMeters / 1000).toFixed(1)} km · ~{Math.round(route.estDurationSeconds / 60)} min
+                      {((route.estDistanceMeters ?? 0) / 1000).toFixed(1)} km · ~{Math.round((route.estDurationSeconds ?? 0) / 60)} min
                     </div>
                   </td>
 
@@ -554,7 +491,7 @@ export function CorporateRouteManagementSection() {
                   </td>
 
                   <td style={{ padding: '1rem' }}>
-                    <StatusBadge status={route.status} size="sm" showPulse={route.status === 'DISPATCHING' || route.status === 'IN_TRANSIT'} />
+                    <StatusBadge status={route.status} size="sm" pulse={route.status === 'DISPATCHING' || route.status === 'IN_TRANSIT'} />
                   </td>
 
                   <td style={{ padding: '1rem', textAlign: 'right' }}>
@@ -631,7 +568,7 @@ export function CorporateRouteManagementSection() {
               <div>
                 <div style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Distance & Dwell</div>
                 <div style={{ fontWeight: 700, color: '#38BDF8', marginTop: '0.2rem' }}>
-                  {(selectedRoute.estDistanceMeters / 1000).toFixed(1)} km · 5m/stop
+                  {((selectedRoute.estDistanceMeters ?? 0) / 1000).toFixed(1)} km · 5m/stop
                 </div>
               </div>
             </div>
@@ -753,4 +690,3 @@ export function CorporateRouteManagementSection() {
     </div>
   );
 }
-

@@ -23,13 +23,16 @@ export class TripsController {
   constructor(private readonly tripsService: TripsService) {}
 
   @Get()
-  @Roles(UserRole.DRIVER, UserRole.VENDOR, UserRole.ADMIN)
+  @Roles(UserRole.DRIVER, UserRole.VENDOR, UserRole.ADMIN, UserRole.OPS)
   @ApiOperation({ summary: 'Get trips for current user (driver or vendor) with filters' })
   @SwaggerResponse({ status: 200, type: [TripResponseDto] })
   async getTrips(
     @CurrentUser() user: AuthUserDto,
     @Query() query: TripQueryDto,
   ) {
+    if (user.role === UserRole.OPS) {
+      return this.tripsService.getTripsForOperations(query);
+    }
     if (user.role === UserRole.VENDOR) {
       return this.tripsService.getTripsForVendor(user.id, query);
     }
@@ -44,7 +47,7 @@ export class TripsController {
   }
 
   @Get(':id')
-  @Roles(UserRole.DRIVER, UserRole.VENDOR, UserRole.ADMIN)
+  @Roles(UserRole.DRIVER, UserRole.VENDOR, UserRole.ADMIN, UserRole.OPS)
   @ApiOperation({ summary: 'Get full trip details with driver info, vehicle, and events' })
   @SwaggerResponse({ status: 200, type: TripDetailResponseDto })
   async getTrip(
@@ -55,7 +58,7 @@ export class TripsController {
   }
 
   @Get(':id/events')
-  @Roles(UserRole.DRIVER, UserRole.VENDOR, UserRole.ADMIN)
+  @Roles(UserRole.DRIVER, UserRole.VENDOR, UserRole.ADMIN, UserRole.OPS)
   @ApiOperation({ summary: 'Get GPS breadcrumbs and tracking telemetry history for route playback' })
   @SwaggerResponse({ status: 200, type: [TripEventResponseDto] })
   async getTripEvents(

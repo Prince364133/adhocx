@@ -5,8 +5,8 @@
   "description": "AdhocX B2B Cab Sourcing & Fulfillment Marketplace",
   "packageManager": "pnpm@10.17.1",
   "scripts": {
-    "dev": "pnpm -r --parallel --if-present run dev",
-    "dev:all": "pnpm -r --parallel --if-present run dev",
+    "dev": "pnpm --parallel --filter \"./apps/*\" --filter \"./packages/*\" --if-present run dev",
+    "dev:all": "pnpm --parallel --filter \"./apps/*\" --filter \"./packages/*\" --if-present run dev",
     "dev:api": "pnpm --filter @adhocx/api run dev",
     "dev:admin": "pnpm --filter @adhocx/admin run dev",
     "dev:ops": "pnpm --filter @adhocx/ops run dev",

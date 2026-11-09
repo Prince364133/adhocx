@@ -11,6 +11,8 @@ import {
   ShieldAlert,
   Route,
   ExternalLink,
+  ClipboardList,
+  Truck,
 } from 'lucide-react';
 
 interface NavItem {
@@ -58,8 +60,83 @@ const NAV_ITEMS: NavItem[] = [
   },
 ];
 
+const OPERATIONS_ITEMS: NavItem[] = [
+  {
+    href: '/requirements',
+    label: 'Requirements',
+    icon: <ClipboardList size={18} />,
+  },
+  {
+    href: '/trips',
+    label: 'Trips & Telemetry',
+    icon: <Navigation size={18} />,
+  },
+  {
+    href: '/assignments',
+    label: 'Assignments',
+    icon: <Truck size={18} />,
+  },
+];
+
 export const OpsSidebar: React.FC = () => {
   const pathname = usePathname();
+
+  const renderNavItem = (item: NavItem) => {
+    const isActive =
+      pathname === item.href || (item.href !== '/' && pathname.startsWith(`${item.href}/`));
+
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '8px 12px',
+          borderRadius: 'var(--radius-md, 8px)',
+          textDecoration: 'none',
+          fontSize: '13px',
+          fontWeight: isActive ? 600 : 500,
+          color: isActive ? '#FFFFFF' : 'var(--text-secondary)',
+          backgroundColor: isActive ? 'var(--brand-blue-500, #5728B2)' : 'transparent',
+          transition: 'all 0.15s ease-in-out',
+        }}
+        onMouseEnter={(e) => {
+          if (!isActive) e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)';
+        }}
+        onMouseLeave={(e) => {
+          if (!isActive) e.currentTarget.style.backgroundColor = 'transparent';
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ color: isActive ? '#FFFFFF' : 'var(--brand-blue-500, #5728B2)' }}>
+            {item.icon}
+          </span>
+          <span>{item.label}</span>
+        </div>
+
+        {item.badge && (
+          <span
+            style={{
+              fontSize: '10px',
+              fontWeight: 700,
+              padding: '2px 6px',
+              borderRadius: 'var(--radius-pill)',
+              backgroundColor: item.badgeColor
+                ? `rgba(${item.badgeColor === '#DC2626' ? '220, 38, 38' : '22, 163, 74'}, 0.15)`
+                : isActive
+                  ? 'rgba(255, 255, 255, 0.25)'
+                  : 'var(--bg-surface-muted)',
+              color: item.badgeColor || (isActive ? '#FFFFFF' : 'var(--text-secondary)'),
+            }}
+          >
+            {item.badge}
+          </span>
+        )}
+      </Link>
+    );
+  };
 
   return (
     <aside
@@ -90,64 +167,29 @@ export const OpsSidebar: React.FC = () => {
             marginBottom: '8px',
           }}
         >
+          OPERATIONS
+        </div>
+
+        <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '16px' }}>
+          {OPERATIONS_ITEMS.map(renderNavItem)}
+        </nav>
+
+        <div
+          style={{
+            fontSize: '11px',
+            fontWeight: 700,
+            color: 'var(--text-muted)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.06em',
+            padding: '0 8px',
+            marginBottom: '8px',
+          }}
+        >
           TACTICAL AIR-TRAFFIC
         </div>
 
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          {NAV_ITEMS.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '8px 12px',
-                  borderRadius: 'var(--radius-md, 8px)',
-                  textDecoration: 'none',
-                  fontSize: '13px',
-                  fontWeight: isActive ? 600 : 500,
-                  color: isActive ? '#FFFFFF' : 'var(--text-secondary)',
-                  backgroundColor: isActive ? 'var(--brand-blue-500, #5728B2)' : 'transparent',
-                  transition: 'all 0.15s ease-in-out',
-                }}
-                onMouseEnter={(e) => {
-                  if (!isActive) e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)';
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive) e.currentTarget.style.backgroundColor = 'transparent';
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ color: isActive ? '#FFFFFF' : 'var(--brand-blue-500, #5728B2)' }}>
-                    {item.icon}
-                  </span>
-                  <span>{item.label}</span>
-                </div>
-
-                {item.badge && (
-                  <span
-                    style={{
-                      fontSize: '10px',
-                      fontWeight: 700,
-                      padding: '2px 6px',
-                      borderRadius: 'var(--radius-pill)',
-                      backgroundColor: item.badgeColor
-                        ? `rgba(${item.badgeColor === '#DC2626' ? '220, 38, 38' : '22, 163, 74'}, 0.15)`
-                        : isActive
-                        ? 'rgba(255, 255, 255, 0.25)'
-                        : 'var(--bg-surface-muted)',
-                      color: item.badgeColor || (isActive ? '#FFFFFF' : 'var(--text-secondary)'),
-                    }}
-                  >
-                    {item.badge}
-                  </span>
-                )}
-              </Link>
-            );
-          })}
+          {NAV_ITEMS.map(renderNavItem)}
         </nav>
       </div>
 
