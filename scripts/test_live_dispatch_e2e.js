@@ -246,6 +246,19 @@ async function runVerification() {
   });
   console.log(`✓ Trip Completed! Status: ${completedTrip.status}, Final Fare: ₹${completedTrip.finalFare || completedTrip.fareAmount || completedTrip.driverRate || completedTrip.totalDriverEarnings || 0}`);
 
+  // Satisfy Mandatory Review Gate before next booking
+  console.log('\nVendor rating completed trip to satisfy review gate (/reviews)...');
+  await request('/reviews', {
+    method: 'POST',
+    headers: vendorHeaders,
+    body: JSON.stringify({
+      tripId: activeTrip.id,
+      rating: 5,
+      feedback: 'Excellent trip, driver on time!',
+    }),
+  });
+  console.log('✓ Trip rated successfully.');
+
   // 6. TEST CASE 2: Second Direct Dispatch Requirement Flow
   console.log('\n[STEP 5] --- TEST CASE 2: Second Direct Dispatch Sourcing Flow ---');
   console.log('Vendor posting second direct dispatch requirement for SUV...');
@@ -255,6 +268,7 @@ async function runVerification() {
     body: JSON.stringify({
       vehicleType: 'SUV',
       quantity: 1,
+      isScheduled: false,
       pickupLocation: {
         latitude: 28.6315,
         longitude: 77.2167,
@@ -265,7 +279,7 @@ async function runVerification() {
         longitude: 78.0421,
         address: 'Taj Mahal East Gate, Agra',
       },
-      reportingTime: new Date(Date.now() + 7200000).toISOString(),
+      reportingTime: new Date().toISOString(),
       ratePerVehicle: 4500,
       fulfillmentMode: 'DIRECT_DISPATCH',
       notes: 'Delhi to Agra Outstation Trip',
