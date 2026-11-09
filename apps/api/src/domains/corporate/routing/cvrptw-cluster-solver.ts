@@ -28,7 +28,7 @@ export interface SolverConfig {
   cabCapacity: number; // default 4
   officeRadiusKm: number; // default 50
   maxTripKm?: number; // default 50
-  routingPreference?: 'TRAFFIC_AWARE' | 'TRAFFIC_AWARE_OPTIMAL';
+  routingPreference?: RouteRequestOptions['routingPreference'];
   avoidTolls?: boolean;
   avoidHighways?: boolean;
   pricingConfig?: PricingConfig;
@@ -190,7 +190,7 @@ export async function solveCabRoute(
   const initialDeparture = new Date(Math.max(targetArrival.getTime() - 2 * 3600_000, earliestDeparture.getTime()));
 
   const options: RouteRequestOptions = {
-    routingPreference: config.routingPreference || 'TRAFFIC_AWARE',
+    routingPreference: config.routingPreference || 'TRAFFIC_UNAWARE',
     avoidTolls: config.avoidTolls,
     avoidHighways: config.avoidHighways,
   };
@@ -336,4 +336,3 @@ export async function solveCabRoute(
     _departureSort: departure,
   };
 }
-

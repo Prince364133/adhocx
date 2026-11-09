@@ -65,6 +65,38 @@ describe('Corporate ETS - Route Planner Engine & Spatial Clustering Suite', () =
     geocodingAdapter = module.get<GoogleGeocodingAdapter>(GoogleGeocodingAdapter);
   });
 
+  describe('Google Routes toll avoidance and distance preference', () => {
+    it('sends the shortest-distance preference and toll avoidance modifier to Google', async () => {
+      const previousApiKey = process.env.GOOGLE_MAPS_API_KEY;
+      process.env.GOOGLE_MAPS_API_KEY = 'test-api-key';
+      const adapter = new GoogleRoutesV2Adapter();
+      const postJson = jest.spyOn(adapter as any, 'postJson').mockResolvedValue({
+        routes: [{ duration: '300s', distanceMeters: 9000, legs: [], polyline: { encodedPolyline: '' } }],
+      });
+
+      try {
+        await adapter.computeRoute(
+          { lat: 17.4, lng: 78.4 },
+          [{ lat: 17.41, lng: 78.41 }],
+          { lat: 17.42, lng: 78.42 },
+          new Date('2026-11-10T08:00:00Z'),
+          { routingPreference: 'TRAFFIC_UNAWARE', avoidTolls: true },
+        );
+
+        const payload = JSON.parse(String(postJson.mock.calls[0][2]));
+        expect(payload.routingPreference).toBe('TRAFFIC_UNAWARE');
+        expect(payload.routeModifiers).toEqual({ avoidTolls: true, avoidHighways: false });
+      } finally {
+        postJson.mockRestore();
+        if (previousApiKey === undefined) {
+          delete process.env.GOOGLE_MAPS_API_KEY;
+        } else {
+          process.env.GOOGLE_MAPS_API_KEY = previousApiKey;
+        }
+      }
+    });
+  });
+
   afterEach(() => {
     jest.clearAllMocks();
   });

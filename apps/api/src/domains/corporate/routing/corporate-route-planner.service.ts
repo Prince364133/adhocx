@@ -2,7 +2,7 @@ import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
 import { DatabaseService } from '../../../database/database.service';
 import { GoogleGeocodingAdapter } from './google-geocoding.adapter';
-import { GoogleRoutesV2Adapter, haversineKm } from './google-routes-v2.adapter';
+import { GoogleRoutesV2Adapter, RouteRequestOptions, haversineKm } from './google-routes-v2.adapter';
 import {
   clusterEmployees,
   solveCabRoute,
@@ -25,7 +25,7 @@ export interface PlanRoutesFromFileOptions {
   bufferMinutes?: number; // default 15
   pickupWaitMinutes?: number; // default 5
   cabCapacity?: number; // default 4
-  routingPreference?: 'TRAFFIC_AWARE' | 'TRAFFIC_AWARE_OPTIMAL';
+  routingPreference?: RouteRequestOptions['routingPreference'];
   avoidTolls?: boolean;
   avoidHighways?: boolean;
   excludedEmployees?: string[];
@@ -136,8 +136,8 @@ export class CorporateRoutePlannerService {
       bufferMinutes: Number(options.bufferMinutes) || 15,
       pickupWaitMinutes: Number(options.pickupWaitMinutes) || 5,
       cabCapacity: Number(options.cabCapacity) || 4,
-      routingPreference: options.routingPreference || 'TRAFFIC_AWARE',
-      avoidTolls: Boolean(options.avoidTolls),
+      routingPreference: options.routingPreference || 'TRAFFIC_UNAWARE',
+      avoidTolls: options.avoidTolls !== false,
       avoidHighways: Boolean(options.avoidHighways),
       pricingConfig,
     };
@@ -646,4 +646,3 @@ export class CorporateRoutePlannerService {
     return result;
   }
 }
-

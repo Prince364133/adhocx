@@ -114,19 +114,23 @@ cp apps/marketing/.env.example apps/marketing/.env
 
 ### 3. Running Services Locally
 
-Start all workspace applications in parallel:
+Start the API, Admin, Ops, Corporate, Marketing, Driver, and Employee apps in parallel:
 
 ```bash
-# Run all projects concurrently via Turborepo
+# Start all workspace apps and shared-package watchers
 pnpm dev
 
-# Or run specific applications:
-pnpm --filter @adhocx/marketing dev  # Marketing site on http://localhost:4321
-pnpm --filter @adhocx/admin dev      # Admin portal on http://localhost:7002
-pnpm --filter @adhocx/ops dev        # Operations portal on http://localhost:7004
-pnpm --filter @adhocx/api dev        # Backend API on http://localhost:7001
-pnpm --filter @adhocx/mobile dev     # Flutter mobile application
+# Or run individual apps:
+pnpm dev:api        # API on http://localhost:7001
+pnpm dev:admin      # Admin on http://localhost:7002
+pnpm dev:mobile     # Driver app on http://localhost:7003 (Flutter web)
+pnpm dev:ops        # Ops on http://localhost:7004
+pnpm dev:employee   # Employee app on http://localhost:7005 (Flutter web)
+pnpm dev:corporate  # Corporate on http://localhost:7006
+pnpm dev:marketing  # Marketing on http://localhost:4321
 ```
+
+Flutter apps require the Flutter SDK. The API requires a local database and Redis; use local development credentials in `apps/api/.env`, not production credentials.
 
 ---
 

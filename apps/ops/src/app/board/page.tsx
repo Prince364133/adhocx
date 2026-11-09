@@ -483,7 +483,12 @@ function LiveRouteDeckContent() {
                 try {
                   const detail = await opsApi.getRouteDetail(r.id);
                   if (detail) setItineraryRoute(detail);
-                } catch {}
+                } catch (error) {
+                  setAlertMsg({
+                    type: 'error',
+                    text: `Failed to load route itinerary: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                  });
+                }
               }}
               onForceDispatch={handleForceDispatch}
               onReassignDriver={(r) => setReassignRoute(r)}

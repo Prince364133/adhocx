@@ -1,7 +1,7 @@
 process.env.UV_THREADPOOL_SIZE = process.env.UV_THREADPOOL_SIZE || '64';
 import { TenantContextInterceptor } from './common';
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe, Logger } from '@nestjs/common';
+import { ValidationPipe, Logger, RequestMethod } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
@@ -24,7 +24,12 @@ async function bootstrap() {
 
   // Global prefix (with direct exclusion for static uploads access)
   app.setGlobalPrefix(apiPrefix, {
-    exclude: ['uploads/:filename', 'uploads', 'api/v1/uploads/:filename'],
+    exclude: [
+      { path: '', method: RequestMethod.GET },
+      'uploads/:filename',
+      'uploads',
+      'api/v1/uploads/:filename',
+    ],
   });
 
   // Global validation pipe — enforces DTO validation

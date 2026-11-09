@@ -322,7 +322,7 @@ class _CorporateActiveRouteScreenState extends State<CorporateActiveRouteScreen>
           emptyTitle: 'Route completed',
           emptyDescription: 'The server confirmed the route as completed. Your earning is added to corporate earnings.',
           emptyActionText: 'View corporate earnings',
-          onEmptyAction: () => context.pushReplacement(AppRoutes.corporateEarningsScreen),
+          onEmptyAction: () => context.pushReplacement(AppRoutes.walletScreen),
         );
       }
       return CorporateStateView.empty(
@@ -330,7 +330,7 @@ class _CorporateActiveRouteScreenState extends State<CorporateActiveRouteScreen>
         emptyTitle: 'No active corporate route',
         emptyDescription: 'When you accept a corporate route offer it appears here on the day of the duty.',
         emptyActionText: 'View corporate duties',
-        onEmptyAction: () => context.pushReplacement(AppRoutes.corporateDutiesScreen),
+        onEmptyAction: () => context.pushReplacement(AppRoutes.tripsScreen),
       );
     }
 

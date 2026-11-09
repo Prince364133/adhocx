@@ -96,7 +96,7 @@ export class CorporateTripExecutionController {
   }
 
   @Post('routes/:id/stops/:stopId/verify-otp')
-  @Roles(UserRole.ADMIN, UserRole.DRIVER)
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.DRIVER)
   @CorporateResource('stop', 'stopId')
   @ApiOperation({
     summary:
@@ -123,7 +123,7 @@ export class CorporateTripExecutionController {
   }
 
   @Post('routes/:id/stops/:stopId/no-show')
-  @Roles(UserRole.ADMIN, UserRole.DRIVER)
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.DRIVER)
   @CorporateResource('stop', 'stopId')
   @ApiOperation({
     summary:
@@ -315,7 +315,7 @@ export class CorporateTripExecutionController {
   }
 
   @Get('routes/:id/waypoints')
-  @Roles(UserRole.ADMIN, UserRole.DRIVER)
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.DRIVER)
   @CorporateResource('route', 'id')
   @ApiOperation({ summary: 'Retrieve ordered waypoints and corridor polyline for driver turn-by-turn navigation' })
   public async getWaypoints(@Param('id') routeId: string) {

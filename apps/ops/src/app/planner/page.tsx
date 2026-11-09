@@ -35,9 +35,24 @@ const ROUTE_COLORS = [
   '#7C2D12', // Rust
 ];
 
+type RoutingPreference = 'TRAFFIC_UNAWARE' | 'TRAFFIC_AWARE' | 'TRAFFIC_AWARE_OPTIMAL';
+const PICKUP_DETAILS_ZOOM = 13;
+
 function tomorrowMorningIst(): string {
   const d = new Date(Date.now() + 24 * 3600_000 + 330 * 60_000);
   return `${d.toISOString().slice(0, 10)}T08:00`;
+}
+
+function getLocationShortcut(address: string, fallback: string): string {
+  const location = address
+    .split(',')
+    .map((part) => part.trim())
+    .find((part) => part && !/^(flat|plot|house|h\.?\s*no\.?|door|unit|floor|near)\b/i.test(part));
+  const words = (location || fallback).trim().split(/\s+/).filter(Boolean);
+  const shortcut = words.slice(0, 2).join(' ');
+  return shortcut.length > 10
+    ? `${words[0].slice(0, 9)}…`
+    : shortcut;
 }
 
 export default function RouteOptimizerPage() {
@@ -52,8 +67,8 @@ export default function RouteOptimizerPage() {
   const [stopDwellMinutes, setStopDwellMinutes] = useState(5);
   const [bufferMinutes, setBufferMinutes] = useState(15);
   const [cabCapacity, setCabCapacity] = useState(4);
-  const [routingPreference, setRoutingPreference] = useState<'TRAFFIC_AWARE' | 'TRAFFIC_AWARE_OPTIMAL'>('TRAFFIC_AWARE');
-  const [avoidTolls] = useState(false);
+  const [routingPreference, setRoutingPreference] = useState<RoutingPreference>('TRAFFIC_UNAWARE');
+  const [avoidTolls, setAvoidTolls] = useState(true);
   const [avoidHighways] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
@@ -67,6 +82,8 @@ export default function RouteOptimizerPage() {
 
   // Solver & UI State
   const [viewMode, setViewMode] = useState<'MAP' | 'TOPOLOGY'>('MAP');
+  const [mapLoadError, setMapLoadError] = useState(false);
+  const [downloadingTemplate, setDownloadingTemplate] = useState<'xlsx' | 'csv' | null>(null);
   const [calculating, setCalculating] = useState(false);
   const [progressPct, setProgressPct] = useState(0);
   const [progressMsg, setProgressMsg] = useState('');
@@ -81,11 +98,15 @@ export default function RouteOptimizerPage() {
 
   // Map Refs
   const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapInstanceContainerRef = useRef<HTMLDivElement | null>(null);
   const googleMapRef = useRef<any>(null);
   const polylinesRef = useRef<any[]>([]);
   const markersRef = useRef<any[]>([]);
+  const mapZoomListenerRef = useRef<any>(null);
   const officeCircleRef = useRef<any>(null);
   const officeMarkerRef = useRef<any>(null);
+  const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || '';
+  const useTopologyFallback = !googleMapsApiKey || mapLoadError;
 
   useEffect(() => {
     (async () => {
@@ -108,39 +129,87 @@ export default function RouteOptimizerPage() {
 
   // Initialize or update Google Map when planResult changes
   useEffect(() => {
-    if (!planResult || !mapContainerRef.current) return;
+    if (!mapContainerRef.current) return;
 
     if (!(window as any).google || !(window as any).google.maps) {
-      loadGoogleMapsScript(() => initMap(planResult));
+      loadGoogleMapsScript(() => initMap(planResult ?? undefined));
     } else {
-      initMap(planResult);
+      initMap(planResult ?? undefined);
     }
-  }, [planResult]);
+  }, [planResult, viewMode, useTopologyFallback]);
 
   function loadGoogleMapsScript(callback: () => void) {
-    if (document.getElementById('google-maps-script')) {
-      callback();
+    if (!googleMapsApiKey) {
+      setMapLoadError(true);
       return;
     }
-    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || '';
+
+    const existingScript = document.getElementById('google-maps-script') as HTMLScriptElement | null;
+    if (existingScript) {
+      if ((window as any).google?.maps) {
+        callback();
+      } else {
+        existingScript.addEventListener('load', callback, { once: true });
+      }
+      return;
+    }
+
     const script = document.createElement('script');
     script.id = 'google-maps-script';
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initOpsMap&loading=async&v=weekly`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(googleMapsApiKey)}&callback=initOpsMap&loading=async&v=weekly`;
     (window as any).initOpsMap = callback;
+    script.onerror = () => setMapLoadError(true);
     document.head.appendChild(script);
   }
 
-  function initMap(plan: RoutePlanningResult) {
-    if (!mapContainerRef.current || !(window as any).google) return;
+  function retryGoogleMaps() {
+    if (!googleMapsApiKey) return;
+    const maps = (window as any).google?.maps;
+    if (typeof maps?.Map !== 'function' && typeof maps?.importLibrary !== 'function') {
+      document.getElementById('google-maps-script')?.remove();
+    }
+    setMapLoadError(false);
+    setViewMode('MAP');
+  }
+
+  async function initMap(plan?: RoutePlanningResult) {
+    const container = mapContainerRef.current;
+    if (!container || !(window as any).google?.maps) return;
     const google = (window as any).google;
+    let MapConstructor = google.maps.Map;
+    try {
+      if (typeof MapConstructor !== 'function' && typeof google.maps.importLibrary === 'function') {
+        const mapsLibrary = await google.maps.importLibrary('maps');
+        MapConstructor = mapsLibrary.Map;
+      }
+    } catch (error) {
+      console.error('Failed to load Google Maps JavaScript API map library:', error);
+      setMapLoadError(true);
+      return;
+    }
+
+    if (typeof MapConstructor !== 'function') {
+      console.error('Google Maps JavaScript API loaded without the Maps library.');
+      setMapLoadError(true);
+      return;
+    }
+    if (mapContainerRef.current !== container) return;
+
+    const center = plan ? { lat: plan.office.lat, lng: plan.office.lng } : { lat: 17.4435, lng: 78.3772 };
 
     const isDark = typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'dark';
 
+    if (googleMapRef.current && mapInstanceContainerRef.current !== container) {
+      clearMapObjects();
+      google.maps.event.clearInstanceListeners(googleMapRef.current);
+      googleMapRef.current = null;
+      mapInstanceContainerRef.current = null;
+    }
+
     if (!googleMapRef.current) {
-      googleMapRef.current = new google.maps.Map(mapContainerRef.current, {
-        center: { lat: plan.office.lat, lng: plan.office.lng },
-        zoom: 12,
-        mapId: 'adhocx_ops_map',
+      googleMapRef.current = new MapConstructor(container, {
+        center,
+        zoom: plan ? 12 : 11,
         styles: isDark
           ? [
               { elementType: 'geometry', stylers: [{ color: '#171717' }] },
@@ -154,12 +223,25 @@ export default function RouteOptimizerPage() {
               { featureType: 'transit', stylers: [{ visibility: 'simplified' }] },
             ],
       });
+      mapInstanceContainerRef.current = container;
+    } else {
+      googleMapRef.current.setCenter(center);
+      if (plan) googleMapRef.current.setZoom(12);
     }
+    setMapLoadError(false);
 
-    renderMapObjects(plan);
+    if (plan) renderMapObjects(plan);
+    requestAnimationFrame(() => {
+      if (googleMapRef.current && mapInstanceContainerRef.current === mapContainerRef.current) {
+        google.maps.event.trigger(googleMapRef.current, 'resize');
+        if (plan) renderMapObjects(plan);
+      }
+    });
   }
 
   function clearMapObjects() {
+    mapZoomListenerRef.current?.remove();
+    mapZoomListenerRef.current = null;
     polylinesRef.current.forEach((p) => p.setMap(null));
     polylinesRef.current = [];
     markersRef.current.forEach((m) => m.setMap(null));
@@ -197,10 +279,10 @@ export default function RouteOptimizerPage() {
       center: { lat: plan.office.lat, lng: plan.office.lng },
       radius: plan.officeRadiusKm * 1000,
       strokeColor: '#5728B2',
-      strokeWeight: 2,
-      strokeOpacity: 0.6,
+      strokeWeight: 1,
+      strokeOpacity: 0.35,
       fillColor: '#5728B2',
-      fillOpacity: 0.04,
+      fillOpacity: 0.025,
     });
 
     // 2. Render Routes
@@ -216,8 +298,8 @@ export default function RouteOptimizerPage() {
           map: googleMapRef.current,
           path: polylineCoords,
           strokeColor: color,
-          strokeWeight: 4,
-          strokeOpacity: 0.85,
+          strokeWeight: filterCab ? 4 : 2,
+          strokeOpacity: filterCab ? 0.9 : 0.52,
           geodesic: true,
         });
         polylinesRef.current.push(polyline);
@@ -225,27 +307,30 @@ export default function RouteOptimizerPage() {
       }
 
       // Draw Pickup Stop Pins
-      route.stops.forEach((stop, idx) => {
-        const letter = String.fromCharCode(65 + idx);
+      route.stops.forEach((stop, stopIndex) => {
+        const locationShortcut = getLocationShortcut(stop.matchedAddress || stop.address, stop.name);
         const marker = new google.maps.Marker({
           map: googleMapRef.current,
           position: { lat: stop.lat, lng: stop.lng },
-          label: { text: letter, color: '#FFFFFF', fontWeight: 'bold', fontSize: '11px' },
-          title: `Route ${route.cab} - Stop ${letter}: ${stop.name} (${stop.eta})`,
+          visible: stopIndex === 0 || googleMapRef.current.getZoom() >= PICKUP_DETAILS_ZOOM,
+          title: `Route ${route.cab} - ${locationShortcut}: ${stop.name} (${stop.eta})`,
           icon: {
             path: google.maps.SymbolPath.CIRCLE,
-            scale: 9,
+            scale: filterCab ? 8 : 6,
             fillColor: stop.outOfRadius ? '#EF4444' : color,
             fillOpacity: 1,
             strokeColor: '#FFFFFF',
-            strokeWeight: 2,
+            strokeWeight: filterCab ? 2 : 1.5,
           },
         });
+        marker.isRouteStart = stopIndex === 0;
+        marker.locationShortcut = locationShortcut;
+        marker.showLocationLabel = Boolean(filterCab);
 
         const infoWindow = new google.maps.InfoWindow({
           content: `
             <div style="color: #191B1C; padding: 4px; font-family: Inter, sans-serif; font-size: 13px;">
-              <strong style="color: #5728B2; font-size: 14px;">Stop ${letter}: ${stop.name}</strong><br/>
+              <strong style="color: #5728B2; font-size: 14px;">${locationShortcut}: ${stop.name}</strong><br/>
               <span style="color: #595F61;">${stop.matchedAddress}</span><br/>
               ${stop.outOfRadius ? '<span style="color: #DC2626; font-weight: bold;">⚠️ Outside Catchment Radius</span><br/>' : ''}
               <strong>Pickup ETA:</strong> ${stop.eta} (Dwell until ${stop.dwellUntil})<br/>
@@ -263,7 +348,24 @@ export default function RouteOptimizerPage() {
       });
     });
 
+    const updatePickupVisibility = () => {
+      const showAllPickups = googleMapRef.current.getZoom() >= PICKUP_DETAILS_ZOOM;
+      markersRef.current.forEach((marker) => {
+        marker.setVisible(marker.isRouteStart || showAllPickups);
+        marker.setLabel(
+          showAllPickups && marker.showLocationLabel
+            ? { text: marker.locationShortcut, color: '#FFFFFF', fontWeight: 'bold', fontSize: '10px' }
+            : null,
+        );
+      });
+    };
+    mapZoomListenerRef.current = google.maps.event.addListener(
+      googleMapRef.current,
+      'zoom_changed',
+      updatePickupVisibility,
+    );
     googleMapRef.current.fitBounds(bounds, 40);
+    updatePickupVisibility();
   }
 
   function handleSelectCab(cabNumber: number) {
@@ -296,8 +398,8 @@ export default function RouteOptimizerPage() {
     }
 
     setCalculating(true);
-    setProgressPct(5);
-    setProgressMsg('Uploading roster and initiating streaming solver...');
+    setProgressPct(0);
+    setProgressMsg('Uploading roster...');
     setErrorMsg(null);
     setPlanResult(null);
     setCommittedSuccess(null);
@@ -419,13 +521,33 @@ export default function RouteOptimizerPage() {
     document.body.removeChild(link);
   }
 
+  async function handleDownloadSample(format: 'xlsx' | 'csv') {
+    setDownloadingTemplate(format);
+    setErrorMsg(null);
+    try {
+      const blob = await opsApi.downloadSampleTemplate(format);
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = `sample-employee-pickups.${format}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'Failed to download the sample roster.');
+    } finally {
+      setDownloadingTemplate(null);
+    }
+  }
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', minHeight: 'calc(100vh - 120px)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', minHeight: 'calc(100vh - 120px)', width: '100%', minWidth: 0 }}>
       {/* Header & Mode Switcher */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-        <div>
-          <h1 className="h1-text" style={{ color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Cpu size={24} style={{ color: 'var(--brand-blue-500, #5728B2)' }} />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', width: '100%', minWidth: 0 }}>
+        <div style={{ flex: '1 1 560px', minWidth: 0 }}>
+          <h1 className="h1-text" style={{ color: 'var(--text-primary)', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px', fontSize: 'clamp(22px, 2.4vw, 32px)' }}>
+            <Cpu size={24} style={{ color: 'var(--brand-blue-500, #5728B2)', flexShrink: 0 }} />
             CVRPTW Route Optimization Engine & Fleet Planner
           </h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '2px' }}>
@@ -434,30 +556,34 @@ export default function RouteOptimizerPage() {
         </div>
 
         {/* Action Controls */}
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <a
-            href={opsApi.getSampleTemplateUrl('xlsx')}
-            download="sample-employee-pickups.xlsx"
-            style={{ textDecoration: 'none' }}
+        <div style={{ display: 'flex', flex: '0 1 auto', gap: '10px', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap', maxWidth: '100%', minWidth: 0 }}>
+          <Button
+            type="button"
+            variant="primary"
+            size="sm"
+            leftIcon={<Download size={14} />}
+            onClick={() => handleDownloadSample('xlsx')}
+            disabled={downloadingTemplate !== null}
+            style={{ whiteSpace: 'normal', textAlign: 'left' }}
           >
-            <Button variant="ghost" size="sm" leftIcon={<Download size={14} />}>
-              Download Sample Roster (.xlsx)
-            </Button>
-          </a>
-          <a
-            href={opsApi.getSampleTemplateUrl('csv')}
-            download="sample-employee-pickups.csv"
-            style={{ textDecoration: 'none' }}
+            {downloadingTemplate === 'xlsx' ? 'Downloading roster...' : 'Download Sample Roster (.xlsx)'}
+          </Button>
+          <Button
+            type="button"
+            variant="primary"
+            size="sm"
+            leftIcon={<Download size={14} />}
+            onClick={() => handleDownloadSample('csv')}
+            disabled={downloadingTemplate !== null}
+            style={{ whiteSpace: 'normal', textAlign: 'left' }}
           >
-            <Button variant="ghost" size="sm" leftIcon={<Download size={14} />}>
-              Sample (.csv)
-            </Button>
-          </a>
+            {downloadingTemplate === 'csv' ? 'Downloading CSV...' : 'Sample (.csv)'}
+          </Button>
         </div>
       </div>
 
       {/* KPI HUD Strip (Appears when plan is calculated) */}
-      {planResult && (
+      {planResult && !useTopologyFallback && (
         <div
           style={{
             display: 'grid',
@@ -581,8 +707,9 @@ export default function RouteOptimizerPage() {
           display: 'grid',
           gridTemplateColumns: 'minmax(360px, 420px) minmax(0, 1fr)',
           gap: '16px',
-          alignItems: 'start',
+          alignItems: 'stretch',
           flex: 1,
+          minHeight: 'max(520px, calc(100vh - 240px))',
         }}
       >
         {/* LEFT PANEL */}
@@ -594,14 +721,15 @@ export default function RouteOptimizerPage() {
             boxShadow: 'var(--shadow-card)',
             display: 'flex',
             flexDirection: 'column',
-            maxHeight: 'calc(100vh - 240px)',
+            height: 'max(520px, calc(100vh - 240px))',
             overflow: 'hidden',
+            minHeight: 0,
             transition: 'background-color 0.2s, border-color 0.2s',
           }}
         >
           {!planResult ? (
             /* PARAMETER CONFIGURATION & DUAL INGEST TABS */
-            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
               {/* Segmented Mode Selector */}
               <div style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface-muted)' }}>
                 <button
@@ -654,8 +782,8 @@ export default function RouteOptimizerPage() {
 
               {activeTab === 'FILE_UPLOAD' ? (
                 /* FILE UPLOADER & HEURISTIC SOLVER */
-                <form onSubmit={handleCalculateRoutes} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
-                  <div style={{ padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px', flex: 1 }}>
+                <form onSubmit={handleCalculateRoutes} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                  <div style={{ padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px', flex: 1, minHeight: 0 }}>
                     {/* Office Destination */}
                     <div>
                       <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
@@ -790,8 +918,13 @@ export default function RouteOptimizerPage() {
                             outline: 'none',
                           }}
                         >
+                          <option value={1}>1 Pax</option>
+                          <option value={2}>2 Pax</option>
+                          <option value={3}>3 Pax</option>
                           <option value={4}>4 Pax (Sedan)</option>
+                          <option value={5}>5 Pax</option>
                           <option value={6}>6 Pax (SUV)</option>
+                          <option value={7}>7 Pax</option>
                           <option value={12}>12 Pax (Tempo)</option>
                         </select>
                       </div>
@@ -884,7 +1017,7 @@ export default function RouteOptimizerPage() {
                       </label>
                       <select
                         value={routingPreference}
-                        onChange={(e: any) => setRoutingPreference(e.target.value)}
+                        onChange={(e) => setRoutingPreference(e.target.value as RoutingPreference)}
                         style={{
                           width: '100%',
                           padding: '8px 12px',
@@ -896,10 +1029,19 @@ export default function RouteOptimizerPage() {
                           outline: 'none',
                         }}
                       >
-                        <option value="TRAFFIC_AWARE">Traffic-Aware (Waypoint order optimized)</option>
-                        <option value="TRAFFIC_AWARE_OPTIMAL">Traffic-Aware Optimal (Preserve order)</option>
+                        <option value="TRAFFIC_UNAWARE">Shortest-distance preference</option>
+                        <option value="TRAFFIC_AWARE">Traffic-aware</option>
+                        <option value="TRAFFIC_AWARE_OPTIMAL">Traffic-aware optimal</option>
                       </select>
                     </div>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-secondary)', marginTop: '10px' }}>
+                      <input
+                        type="checkbox"
+                        checked={avoidTolls}
+                        onChange={(e) => setAvoidTolls(e.target.checked)}
+                      />
+                      Avoid toll roads (Google best-effort)
+                    </label>
                   </div>
 
                   {/* Progress indicator during calculation */}
@@ -930,8 +1072,8 @@ export default function RouteOptimizerPage() {
                 </form>
               ) : (
                 /* DATABASE SHIFT AUTO-OPTIMIZER FORM */
-                <form onSubmit={handleOptimizeDbShift} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
-                  <div style={{ padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px', flex: 1 }}>
+                <form onSubmit={handleOptimizeDbShift} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                  <div style={{ padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px', flex: 1, minHeight: 0 }}>
                     {/* Tenant Selector */}
                     <div>
                       <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
@@ -1346,7 +1488,7 @@ export default function RouteOptimizerPage() {
         {/* RIGHT PANEL: DUAL-MODE VISUAL COCKPIT (GOOGLE MAPS VECTOR + SVG TOPOLOGY) */}
         <div
           style={{
-            height: 'calc(100vh - 240px)',
+            height: '100%',
             minHeight: '520px',
             backgroundColor: 'var(--bg-surface-muted)',
             borderRadius: 'var(--radius-lg, 10px)',
@@ -1376,7 +1518,10 @@ export default function RouteOptimizerPage() {
             >
               <button
                 type="button"
-                onClick={() => setViewMode('MAP')}
+                onClick={() => {
+                  setMapLoadError(false);
+                  setViewMode('MAP');
+                }}
                 style={{
                   padding: '6px 10px',
                   fontSize: '11px',
@@ -1417,8 +1562,30 @@ export default function RouteOptimizerPage() {
             </div>
           )}
 
+          {planResult && viewMode === 'MAP' && !useTopologyFallback && (
+            <div
+              style={{
+                position: 'absolute',
+                left: '14px',
+                bottom: '14px',
+                zIndex: 10,
+                padding: '7px 10px',
+                borderRadius: '7px',
+                backgroundColor: 'var(--bg-surface)',
+                border: '1px solid var(--border-subtle)',
+                boxShadow: 'var(--shadow-sm)',
+                color: 'var(--text-secondary)',
+                fontSize: '11px',
+                fontWeight: 600,
+                lineHeight: 1.5,
+              }}
+            >
+                <div>Select a cab to highlight its route and show location names</div>
+              </div>
+            )}
+
           {/* Canvas Render: Either Google Maps or SVG Topology */}
-          {planResult && viewMode === 'TOPOLOGY' ? (
+          {planResult && (viewMode === 'TOPOLOGY' || useTopologyFallback) ? (
             <SpatialTopologyCanvas
               plan={planResult}
               selectedCab={selectedCab}
@@ -1434,25 +1601,45 @@ export default function RouteOptimizerPage() {
             <div
               style={{
                 position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                textAlign: 'center',
+                top: '16px',
+                left: '16px',
+                textAlign: 'left',
                 backgroundColor: 'var(--bg-surface)',
-                padding: '28px 36px',
+                padding: '12px 16px',
                 borderRadius: '12px',
                 border: '1px solid var(--border-subtle)',
-                boxShadow: 'var(--shadow-elevated)',
-                pointerEvents: 'none',
+                boxShadow: 'var(--shadow-sm)',
+                maxWidth: '320px',
               }}
             >
-              <Compass size={36} style={{ color: 'var(--brand-blue-500, #5728B2)', margin: '0 auto 12px' }} />
-              <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                Interactive Vector Route Map & Radar Topology
+              <Compass size={18} style={{ color: 'var(--brand-blue-500, #5728B2)', marginBottom: '4px' }} />
+              <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                {mapLoadError || !googleMapsApiKey ? 'Google Maps unavailable' : 'Route map preview'}
               </div>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '6px', maxWidth: '320px', lineHeight: 1.5 }}>
-                Upload an employee roster on the left panel or auto-optimize a shift to view color-coded cab polylines, stop pins, and office catchment radius.
+              <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px', lineHeight: 1.5 }}>
+                {mapLoadError || !googleMapsApiKey
+                  ? 'Check that a valid Google Maps browser key is configured and allowed for this local origin.'
+                  : 'Upload a roster or optimize a shift to view routes, pickup pins, and the office catchment.'}
               </p>
+              {(mapLoadError || !googleMapsApiKey) && googleMapsApiKey && (
+                <button
+                  type="button"
+                  onClick={retryGoogleMaps}
+                  style={{
+                    marginTop: '8px',
+                    padding: '6px 10px',
+                    border: 'none',
+                    borderRadius: '6px',
+                    backgroundColor: 'var(--brand-blue-500, #5728B2)',
+                    color: '#FFFFFF',
+                    cursor: 'pointer',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                  }}
+                >
+                  Retry Google Maps
+                </button>
+              )}
             </div>
           )}
         </div>

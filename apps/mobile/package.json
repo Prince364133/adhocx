@@ -4,7 +4,7 @@
   "private": true,
   "description": "AdhocX Flutter Mobile Client (Driver & Vendor)",
   "scripts": {
-    "dev": "node scripts/dev.js",
+    "dev": "node scripts/dev.js --chrome",
     "emulator": "node scripts/emulator.js",
     "dev:android": "node scripts/dev.js",
     "dev:chrome": "flutter run -d chrome --web-port 7003",

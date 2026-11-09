@@ -96,7 +96,7 @@ export class CorporateDispatchController {
   }
 
   @Get('routes/:id/traffic-assessment')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateResource('route', 'id')
   @ApiOperation({ summary: 'Evaluate Dynamic Traffic Advancer (DDA) delay and advance dispatch if congested' })
   public async getTrafficAssessment(@Param('id') routeId: string) {

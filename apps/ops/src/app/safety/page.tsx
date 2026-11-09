@@ -18,6 +18,7 @@ export default function SosEmergencyCockpitPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [resolveNotes, setResolveNotes] = useState<Record<string, string>>({});
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     loadAlerts();
@@ -29,8 +30,9 @@ export default function SosEmergencyCockpitPage() {
     try {
       const data = await opsApi.getSosAlerts();
       setAlerts(data);
-    } catch {
-      // quiet
+      setLoadError('');
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : 'Failed to load SOS alerts.');
     } finally {
       setLoading(false);
     }
@@ -90,6 +92,7 @@ export default function SosEmergencyCockpitPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      {loadError && <div role="alert" style={{ color: 'var(--color-danger, #DC2626)', fontSize: 13 }}>{loadError}</div>}
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>

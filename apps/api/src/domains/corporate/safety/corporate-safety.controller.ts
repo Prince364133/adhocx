@@ -70,7 +70,7 @@ export class CorporateSafetyController {
   }
 
   @Get('alerts')
-  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
   @CorporateTenantScoped()
   @ApiOperation({ summary: 'List active and historical corporate SOS emergency alerts for Command Centre' })
   @ApiResponse({ status: 200, description: 'List of emergency alerts' })
@@ -84,7 +84,7 @@ export class CorporateSafetyController {
 
   @Post('alerts/:id/acknowledge')
   @HttpCode(HttpStatus.OK)
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateResource('sos', 'id')
   @ApiOperation({ summary: 'SOS stage 2: commander acknowledges a NEW / ACTIVE (or unacknowledged ESCALATED) alert' })
   @ApiBody({
@@ -102,7 +102,7 @@ export class CorporateSafetyController {
 
   @Post('alerts/:id/investigate')
   @HttpCode(HttpStatus.OK)
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateResource('sos', 'id')
   @ApiOperation({ summary: 'SOS stage 3: mark an acknowledged / escalated alert under active investigation' })
   @ApiBody(NOTES_BODY)
@@ -115,7 +115,7 @@ export class CorporateSafetyController {
 
   @Post('alerts/:id/escalate')
   @HttpCode(HttpStatus.OK)
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateResource('sos', 'id')
   @ApiOperation({ summary: 'SOS stage 4: escalate to police / field response (raises the escalation level)' })
   @ApiBody(NOTES_BODY)
@@ -127,7 +127,7 @@ export class CorporateSafetyController {
 
   @Post('alerts/:id/close')
   @HttpCode(HttpStatus.OK)
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateResource('sos', 'id')
   @ApiOperation({ summary: 'SOS stage 5: close an open alert as RESOLVED (default) or FALSE_ALARM with incident notes' })
   @ApiBody({
@@ -152,7 +152,7 @@ export class CorporateSafetyController {
   }
 
   @Post('alerts/:id/resolve')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateResource('sos', 'id')
   @ApiOperation({ summary: 'Alias of POST /alerts/:id/close: resolve an open alert with incident resolution notes' })
   @ApiResponse({ status: 200, description: 'Alert resolved' })
