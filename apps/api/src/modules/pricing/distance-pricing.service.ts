@@ -100,7 +100,7 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
 
   /** Scheduled plans become ACTIVE at their effective time (every instance checks; one wins). */
   async onModuleInit() {
-    if (process.env.NODE_ENV === 'test') return;
+    if (process.env.NODE_ENV === 'test' && process.env.ALLOW_TEST_OTP !== 'true') return;
     await this.seedDefaultPlansIfEmpty().catch((err) =>
       this.logger.warn(`Default pricing plan seed failed: ${err?.message ?? err}`),
     );
@@ -813,7 +813,7 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
         if (err.reason === 'NO_ROUTE' || err.reason === 'INVALID_COORDINATES') {
           throw pricingError(HttpStatus.UNPROCESSABLE_ENTITY, PricingErrorCode.ROUTE_UNAVAILABLE, err.message, { retryable: false });
         }
-        if (err.reason === 'NO_API_KEY' || process.env.ALLOW_TEST_OTP === 'true' || process.env.NODE_ENV !== 'production') {
+        if (process.env.ALLOW_TEST_OTP === 'true') {
           const directM = haversineM(pickup.latitude, pickup.longitude, drop.latitude, drop.longitude);
           const distanceMeters = Math.max(1000, Math.round(directM * 1.3));
           return {
