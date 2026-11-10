@@ -40,6 +40,59 @@ class UserService {
     String? quoteId,
   }) async {
     await _ensureSession();
+    final body = buildCreateRequirementBody(
+      vehicleType: vehicleType,
+      quantity: quantity,
+      pickupAddress: pickupAddress,
+      pickupLat: pickupLat,
+      pickupLng: pickupLng,
+      dropAddress: dropAddress,
+      dropLat: dropLat,
+      dropLng: dropLng,
+      reportingTime: reportingTime,
+      fulfillmentMode: fulfillmentMode,
+      ratePerVehicle: ratePerVehicle,
+      suggestedBudget: suggestedBudget,
+      budgetPerVehicle: budgetPerVehicle,
+      specialInstructions: specialInstructions,
+      notes: notes,
+      title: title,
+      requiredQuantity: requiredQuantity,
+      scheduledPickupTime: scheduledPickupTime,
+      isScheduled: isScheduled,
+      hasEscort: hasEscort,
+      couponCode: couponCode,
+      quoteId: quoteId,
+    );
+
+    return await _api.post('/requirements', body: body);
+  }
+
+  /// Builds the `/requirements` request payload, omitting `hasEscort` unless true so legacy API builds stay compatible.
+  static Map<String, dynamic> buildCreateRequirementBody({
+    required String vehicleType,
+    required int quantity,
+    required String pickupAddress,
+    required double pickupLat,
+    required double pickupLng,
+    required String dropAddress,
+    required double dropLat,
+    required double dropLng,
+    required DateTime reportingTime,
+    String fulfillmentMode = 'DIRECT_DISPATCH',
+    double? ratePerVehicle,
+    double? suggestedBudget,
+    double? budgetPerVehicle,
+    String? specialInstructions,
+    String? notes,
+    String? title,
+    int? requiredQuantity,
+    DateTime? scheduledPickupTime,
+    bool? isScheduled,
+    bool? hasEscort,
+    String? couponCode,
+    String? quoteId,
+  }) {
     final effectiveQuoteId = quoteId;
     final effectiveQuantity = requiredQuantity ?? quantity;
     final effectiveReportingTime = (isScheduled == false) ? DateTime.now() : (scheduledPickupTime ?? reportingTime);
@@ -52,32 +105,29 @@ class UserService {
       if (specialInstructions != null && specialInstructions.isNotEmpty) 'Special Instructions: $specialInstructions',
     ].join(' | ');
 
-    return await _api.post(
-      '/requirements',
-      body: {
-        'vehicleType': vehicleType,
-        'quantity': effectiveQuantity,
-        'pickupLocation': {
-          'latitude': pickupLat,
-          'longitude': pickupLng,
-          'address': pickupAddress,
-        },
-        'dropLocation': {
-          'latitude': dropLat,
-          'longitude': dropLng,
-          'address': dropAddress,
-        },
-        'reportingTime': effectiveReportingTime.toUtc().toIso8601String(),
-        'fulfillmentMode': fulfillmentMode,
-        'isScheduled': effectiveIsScheduled,
-        if (hasEscort != null) 'hasEscort': hasEscort,
-        if (effectiveBudget != null) 'ratePerVehicle': effectiveBudget,
-        if (suggestedBudget != null) 'suggestedBudget': suggestedBudget,
-        if (combinedNotes.isNotEmpty) 'notes': combinedNotes,
-        if (couponCode != null && couponCode.isNotEmpty) 'couponCode': couponCode,
-        if (effectiveQuoteId != null) 'quoteId': effectiveQuoteId,
+    return {
+      'vehicleType': vehicleType,
+      'quantity': effectiveQuantity,
+      'pickupLocation': {
+        'latitude': pickupLat,
+        'longitude': pickupLng,
+        'address': pickupAddress,
       },
-    );
+      'dropLocation': {
+        'latitude': dropLat,
+        'longitude': dropLng,
+        'address': dropAddress,
+      },
+      'reportingTime': effectiveReportingTime.toUtc().toIso8601String(),
+      'fulfillmentMode': fulfillmentMode,
+      'isScheduled': effectiveIsScheduled,
+      if (hasEscort == true) 'hasEscort': true,
+      if (effectiveBudget != null) 'ratePerVehicle': effectiveBudget,
+      if (suggestedBudget != null) 'suggestedBudget': suggestedBudget,
+      if (combinedNotes.isNotEmpty) 'notes': combinedNotes,
+      if (couponCode != null && couponCode.isNotEmpty) 'couponCode': couponCode,
+      if (effectiveQuoteId != null) 'quoteId': effectiveQuoteId,
+    };
   }
 
   Future<List<dynamic>> getRequirements({String? status}) async {
@@ -471,29 +521,19 @@ class UserService {
     bool hasEscort = false,
   }) async {
     await _ensureSession();
-    final pData = {
-      'latitude': pickupLat,
-      'longitude': pickupLng,
-      'address': pickupAddress,
-      if (pickupIsOffice) 'isOffice': true,
-    };
-    final dData = {
-      'latitude': dropLat,
-      'longitude': dropLng,
-      'address': dropAddress,
-      if (dropIsOffice) 'isOffice': true,
-    };
-    final res = await _api.post(
-      '/vendor/trip-quotes',
-      body: {
-        'pickup': pData,
-        'drop': dData,
-        'pickupLocation': pData,
-        'dropLocation': dData,
-        'vehicleCategory': vehicleCategory.trim().toUpperCase(),
-        'hasEscort': hasEscort,
-      },
+    final body = buildDistanceTripQuoteBody(
+      pickupLat: pickupLat,
+      pickupLng: pickupLng,
+      pickupAddress: pickupAddress,
+      dropLat: dropLat,
+      dropLng: dropLng,
+      dropAddress: dropAddress,
+      vehicleCategory: vehicleCategory,
+      pickupIsOffice: pickupIsOffice,
+      dropIsOffice: dropIsOffice,
+      hasEscort: hasEscort,
     );
+    final res = await _api.post('/vendor/trip-quotes', body: body);
     if (res is Map) {
       final map = Map<String, dynamic>.from(res);
       final dataMap = map['data'] is Map ? Map<String, dynamic>.from(map['data'] as Map) : map;
@@ -508,6 +548,41 @@ class UserService {
       };
     }
     return <String, dynamic>{};
+  }
+
+  /// Builds the `/vendor/trip-quotes` request payload, omitting `hasEscort` unless true.
+  static Map<String, dynamic> buildDistanceTripQuoteBody({
+    required double pickupLat,
+    required double pickupLng,
+    required String pickupAddress,
+    required double dropLat,
+    required double dropLng,
+    required String dropAddress,
+    required String vehicleCategory,
+    bool pickupIsOffice = false,
+    bool dropIsOffice = false,
+    bool hasEscort = false,
+  }) {
+    final pData = {
+      'latitude': pickupLat,
+      'longitude': pickupLng,
+      'address': pickupAddress,
+      if (pickupIsOffice) 'isOffice': true,
+    };
+    final dData = {
+      'latitude': dropLat,
+      'longitude': dropLng,
+      'address': dropAddress,
+      if (dropIsOffice) 'isOffice': true,
+    };
+    return {
+      'pickup': pData,
+      'drop': dData,
+      'pickupLocation': pData,
+      'dropLocation': dData,
+      'vehicleCategory': vehicleCategory.trim().toUpperCase(),
+      if (hasEscort) 'hasEscort': true,
+    };
   }
 
   /// Vehicle category catalogue (names and seating; no prices).

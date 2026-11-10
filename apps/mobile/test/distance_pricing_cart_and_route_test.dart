@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:adhocx/services/driver_service.dart';
+import 'package:adhocx/services/user_service.dart';
 import 'package:adhocx/user/requirements/models/cab_cart_item.dart';
 import 'package:adhocx/user/requirements/requirement_draft_provider.dart';
 import 'package:adhocx/user/requirements/user_create_requirement_step2_screen.dart';
@@ -305,6 +306,63 @@ void main() {
       await tester.pump();
       expect(find.text('Security Escort'), findsOneWidget);
       expect(find.text('Guard Add-on'), findsOneWidget);
+    });
+
+    test('UserService request bodies omit hasEscort when false and send true when enabled', () {
+      final quoteWithoutEscort = UserService.buildDistanceTripQuoteBody(
+        pickupLat: 17.44,
+        pickupLng: 78.38,
+        pickupAddress: '119',
+        dropLat: 17.37,
+        dropLng: 78.49,
+        dropAddress: 'Malakpet',
+        vehicleCategory: 'sedan',
+        pickupIsOffice: true,
+        hasEscort: false,
+      );
+      expect(quoteWithoutEscort.containsKey('hasEscort'), isFalse);
+      expect(quoteWithoutEscort['vehicleCategory'], 'SEDAN');
+      expect((quoteWithoutEscort['pickup'] as Map)['isOffice'], isTrue);
+
+      final quoteWithEscort = UserService.buildDistanceTripQuoteBody(
+        pickupLat: 17.44,
+        pickupLng: 78.38,
+        pickupAddress: '119',
+        dropLat: 17.37,
+        dropLng: 78.49,
+        dropAddress: 'Malakpet',
+        vehicleCategory: 'sedan',
+        hasEscort: true,
+      );
+      expect(quoteWithEscort['hasEscort'], isTrue);
+
+      final reqWithoutEscort = UserService.buildCreateRequirementBody(
+        vehicleType: 'SEDAN',
+        quantity: 1,
+        pickupAddress: '119',
+        pickupLat: 17.44,
+        pickupLng: 78.38,
+        dropAddress: 'Malakpet',
+        dropLat: 17.37,
+        dropLng: 78.49,
+        reportingTime: DateTime.utc(2026, 11, 10, 9),
+        hasEscort: false,
+      );
+      expect(reqWithoutEscort.containsKey('hasEscort'), isFalse);
+
+      final reqWithEscort = UserService.buildCreateRequirementBody(
+        vehicleType: 'SEDAN',
+        quantity: 1,
+        pickupAddress: '119',
+        pickupLat: 17.44,
+        pickupLng: 78.38,
+        dropAddress: 'Malakpet',
+        dropLat: 17.37,
+        dropLng: 78.49,
+        reportingTime: DateTime.utc(2026, 11, 10, 9),
+        hasEscort: true,
+      );
+      expect(reqWithEscort['hasEscort'], isTrue);
     });
   });
 }
