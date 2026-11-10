@@ -16,3 +16,4 @@ export * from './notification.dto';
 export * from './corporate';
 export * from './distance-pricing.dto';
 export * from './telemetry.dto';
+export * from './digio.dto';

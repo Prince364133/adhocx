@@ -170,6 +170,13 @@ jobs:
           MSG91_ENABLED=${{ secrets.MSG91_ENABLED || 'true' }}
           GOOGLE_MAPS_API_KEY=${{ secrets.GOOGLE_MAPS_API_KEY || 'AIzaSyB8uEHtGy96QPbx3eIxG0s0_WYlWpB8QVI' }}
           GOOGLE_MAPS_BROWSER_API_KEY=${{ secrets.GOOGLE_MAPS_BROWSER_API_KEY || 'AIzaSyB8uEHtGy96QPbx3eIxG0s0_WYlWpB8QVI' }}
+          DIGIO_ENV=${{ secrets.DIGIO_ENV || 'production' }}
+          DIGIO_BASE_URL=${{ secrets.DIGIO_BASE_URL || 'https://api.digio.in' }}
+          DIGIO_GATEWAY_URL=${{ secrets.DIGIO_GATEWAY_URL || 'https://app.digio.in' }}
+          DIGIO_CLIENT_ID=${{ secrets.DIGIO_CLIENT_ID }}
+          DIGIO_CLIENT_SECRET=${{ secrets.DIGIO_CLIENT_SECRET }}
+          DIGIO_WEBHOOK_SECRET=${{ secrets.DIGIO_WEBHOOK_SECRET }}
+          DIGIO_DIGILOCKER_TEMPLATE_NAME=${{ secrets.DIGIO_DIGILOCKER_TEMPLATE_NAME || 'DIGILOCKER_AADHAAR_PAN' }}
           JWT_ACCESS_EXPIRES_IN=7d
           JWT_REFRESH_EXPIRES_IN=90d
           OTP_EXPIRY_SECONDS=300

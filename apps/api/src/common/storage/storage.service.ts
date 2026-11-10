@@ -270,6 +270,104 @@ export class StorageService {
     return m ? path.basename(m[1]) : null;
   }
 
+  /**
+   * Read raw file bytes from R2 or local /uploads (or fetch HTTP/data URI fallback)
+   * so server-side verification pipelines (e.g. Digio OCR, FaceMatch, Aadhaar Masking)
+   * can process stored documents safely without relying on public URLs.
+   */
+  async getFileBuffer(
+    stored?: string | null,
+  ): Promise<{ buffer: Buffer; mimeType: string; filename: string } | null> {
+    if (!stored || typeof stored !== 'string') return null;
+    const value = stored.trim();
+    if (!value || value === 'null' || value === 'undefined') return null;
+
+    const inferMime = (name: string, contentType?: string | null): string => {
+      if (contentType && contentType !== 'application/octet-stream') return contentType;
+      const ext = path.extname(name.split('?')[0]).toLowerCase();
+      if (ext === '.png') return 'image/png';
+      if (ext === '.webp') return 'image/webp';
+      if (ext === '.pdf') return 'application/pdf';
+      return 'image/jpeg';
+    };
+
+    if (value.startsWith('data:')) {
+      const m = value.match(/^data:([^;]+);base64,(.+)$/);
+      if (!m) return null;
+      return {
+        buffer: Buffer.from(m[2], 'base64'),
+        mimeType: m[1],
+        filename: 'document',
+      };
+    }
+
+    const r2Key = this.r2KeyOf(value);
+    if (r2Key && this.s3Client) {
+      try {
+        const res = await this.s3Client.send(
+          new GetObjectCommand({ Bucket: this.bucketName, Key: r2Key }) as any,
+        );
+        const body: any = (res as any)?.Body;
+        if (body?.transformToByteArray) {
+          const arr = await body.transformToByteArray();
+          return {
+            buffer: Buffer.from(arr),
+            mimeType: inferMime(r2Key, (res as any)?.ContentType),
+            filename: path.basename(r2Key),
+          };
+        }
+        if (body && typeof body[Symbol.asyncIterator] === 'function') {
+          const chunks: Buffer[] = [];
+          for await (const chunk of body) {
+            chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+          }
+          return {
+            buffer: Buffer.concat(chunks),
+            mimeType: inferMime(r2Key, (res as any)?.ContentType),
+            filename: path.basename(r2Key),
+          };
+        }
+      } catch (err: unknown) {
+        this.logger.warn(
+          `R2 read ${r2Key} failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+
+    const localFile = this.localUploadNameOf(value);
+    if (localFile) {
+      const filePath = path.join(this.uploadDir, localFile);
+      if (fs.existsSync(filePath)) {
+        const buffer = await fs.promises.readFile(filePath);
+        return {
+          buffer,
+          mimeType: inferMime(localFile),
+          filename: localFile,
+        };
+      }
+    }
+
+    if (value.startsWith('http://') || value.startsWith('https://')) {
+      try {
+        const resp = await fetch(value);
+        if (!resp.ok) return null;
+        const arr = await resp.arrayBuffer();
+        const urlName = path.basename(value.split('?')[0]) || 'document.jpg';
+        return {
+          buffer: Buffer.from(arr),
+          mimeType: inferMime(urlName, resp.headers.get('content-type')),
+          filename: urlName,
+        };
+      } catch (err: unknown) {
+        this.logger.warn(
+          `HTTP document fetch failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+
+    return null;
+  }
+
   async deleteFile(filename: string): Promise<void> {
     const safeFilename = path.basename(filename);
 

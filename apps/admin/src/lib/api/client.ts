@@ -54,6 +54,9 @@ import {
   CreatePricingSlabInput,
   PricingAuditItem,
   DistanceSimulationResult,
+  DigioVerificationItem,
+  DigioEntityVerificationsResponse,
+  DigioAdminDriverSuiteResult,
 } from './types';
 
 export function getApiBaseUrl(): string {
@@ -957,6 +960,63 @@ export const adminApi = {
       body: { notes, outcome },
       allowForbidden: true,
     }),
+
+  // ── Digio Govt KYC, Vehicle RC, Biometric, Bank & KYB Verifications ──
+  getDriverDigioVerifications: (driverId: string) =>
+    apiClient<DigioEntityVerificationsResponse>(`/kyc/digio/admin/driver/${driverId}`),
+
+  getVendorDigioVerifications: (vendorId: string) =>
+    apiClient<DigioEntityVerificationsResponse>(`/kyc/digio/admin/vendor/${vendorId}`),
+
+  runDriverDigioSuite: (
+    driverId: string,
+    payload: {
+      includePan?: boolean;
+      includeDl?: boolean;
+      includeRc?: boolean;
+      includeFaceMatch?: boolean;
+      includeAadhaarMask?: boolean;
+      includeBank?: boolean;
+      dobOverride?: string;
+      panOverride?: string;
+      dlOverride?: string;
+      rcOverride?: string;
+    } = {},
+  ) =>
+    apiClient<DigioAdminDriverSuiteResult>(`/kyc/digio/admin/driver/${driverId}/run-suite`, {
+      method: 'POST',
+      body: payload,
+    }),
+
+  verifyPanDigio: (payload: { panNumber: string; name?: string; targetDriverId?: string; targetVendorId?: string }) =>
+    apiClient<DigioVerificationItem>('/kyc/digio/pan', { method: 'POST', body: payload }),
+
+  verifyDlDigio: (payload: { dlNumber: string; dob: string; name?: string; targetDriverId?: string }) =>
+    apiClient<DigioVerificationItem>('/kyc/digio/dl', { method: 'POST', body: payload }),
+
+  verifyRcDigio: (payload: { registrationNumber: string; vehicleId?: string; targetDriverId?: string }) =>
+    apiClient<DigioVerificationItem>('/kyc/digio/vehicle-rc', { method: 'POST', body: payload }),
+
+  faceMatchDriverDigio: (targetDriverId: string) =>
+    apiClient<DigioVerificationItem>('/kyc/digio/biometric/face-match-stored', {
+      method: 'POST',
+      body: { targetDriverId, minimumMatch: 65 },
+    }),
+
+  livenessDriverDigio: (targetDriverId: string) =>
+    apiClient<DigioVerificationItem>('/kyc/digio/biometric/liveness-stored', {
+      method: 'POST',
+      body: { targetDriverId },
+    }),
+
+  verifyGstDigio: (payload: { gstin: string; advanced?: boolean; targetVendorId?: string; saveToVendorProfile?: boolean }) =>
+    apiClient<DigioVerificationItem>('/kyc/digio/business/gst', { method: 'POST', body: payload }),
+
+  verifyCinDigio: (payload: { cin: string; targetVendorId?: string }) =>
+    apiClient<DigioVerificationItem>('/kyc/digio/business/cin', { method: 'POST', body: payload }),
+
+  verifyUdyamDigio: (payload: { udyamNumber: string; targetVendorId?: string }) =>
+    apiClient<DigioVerificationItem>('/kyc/digio/business/udyam', { method: 'POST', body: payload }),
 
   logoutAdmin: async () => {
     try {

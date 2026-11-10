@@ -763,6 +763,127 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                               return null;
                             },
                           ),
+                          const SizedBox(height: 8),
+                          ValueListenableBuilder<Map<String, dynamic>>(
+                            valueListenable: DigioService.instance.latestByTypeNotifier,
+                            builder: (context, latest, _) {
+                              final rc = latest['VEHICLE_RC'];
+                              final rcVerified = rc?['verified'] == true;
+                              final rcComplianceOk = rc?['complianceOk'] == true;
+                              final rcSummary = rc?['summary'] is Map ? rc!['summary'] as Map : null;
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: OutlinedButton.icon(
+                                      onPressed: () async {
+                                        final plate = _plateController.text.trim().toUpperCase();
+                                        if (plate.length < 6) {
+                                          AppToast.showError(
+                                            'Enter valid registration plate number first',
+                                            context: context,
+                                          );
+                                          return;
+                                        }
+                                        try {
+                                          AppToast.showInfo('Verifying RC via Parivahan (Digio)...', context: context);
+                                          final res = await DigioService.instance.verifyVehicleRc(
+                                            registrationNumber: plate,
+                                          );
+                                          final summary = res['summary'];
+                                          if (summary is Map &&
+                                              _yearController.text.trim().isEmpty &&
+                                              summary['registrationDate'] != null) {
+                                            final match = RegExp(r'(20\d{2}|19\d{2})').firstMatch(
+                                              summary['registrationDate'].toString(),
+                                            );
+                                            if (match != null) {
+                                              _yearController.text = match.group(1)!;
+                                            }
+                                          }
+                                          if (context.mounted) {
+                                            if (res['verified'] == true && res['complianceOk'] == true) {
+                                              AppToast.showSuccess(
+                                                'RC Verified (${summary?['makerModel'] ?? plate})',
+                                                context: context,
+                                              );
+                                            } else {
+                                              AppToast.showInfo(
+                                                res['complianceNotes']?.toString() ?? 'RC status checked',
+                                                context: context,
+                                              );
+                                            }
+                                          }
+                                        } catch (e) {
+                                          if (context.mounted) {
+                                            AppToast.showError(AppToast.cleanErrorMessage(e), context: context);
+                                          }
+                                        }
+                                      },
+                                      icon: Icon(
+                                        rcVerified ? Icons.verified_rounded : Icons.directions_car_filled_outlined,
+                                        size: 16,
+                                        color: rcVerified
+                                            ? (rcComplianceOk ? AppColors.accentGreenDark : AppColors.warning)
+                                            : AppColors.primary,
+                                      ),
+                                      label: Text(
+                                        rcVerified ? 'Re-verify RC (Parivahan)' : 'Verify RC with Parivahan',
+                                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                      ),
+                                    ),
+                                  ),
+                                  if (rc != null) ...[
+                                    const SizedBox(height: 6),
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: (rcVerified && rcComplianceOk
+                                                ? AppColors.accentGreenDark
+                                                : AppColors.warning)
+                                            .withValues(alpha: 0.08),
+                                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                                        border: Border.all(
+                                          color: (rcVerified && rcComplianceOk
+                                                  ? AppColors.accentGreenDark
+                                                  : AppColors.warning)
+                                              .withValues(alpha: 0.3),
+                                        ),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            '${rcSummary?['makerModel'] ?? rc['identifier'] ?? _plateController.text.trim().toUpperCase()} • ${rcSummary?['rcStatus'] ?? rc['status']}',
+                                            style: AppTypography.caption(
+                                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          if (rc['verifiedName'] != null)
+                                            Text(
+                                              'Owner: ${rc['verifiedName']} | Fitness: ${rcSummary?['fitUpto'] ?? 'N/A'} | Insurance: ${rcSummary?['insuranceUpto'] ?? 'N/A'}',
+                                              style: AppTypography.micro(
+                                                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                              ),
+                                            ),
+                                          if (rc['complianceNotes'] != null)
+                                            Text(
+                                              rc['complianceNotes'].toString(),
+                                              style: AppTypography.micro(
+                                                color: rcComplianceOk ? AppColors.accentGreenDark : AppColors.warning,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              );
+                            },
+                          ),
                           const SizedBox(height: AppSpacing.lg),
 
                           // ── Model Year & Color ─────────────────────────────

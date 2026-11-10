@@ -449,6 +449,114 @@ class _BankDetailsModalState extends State<BankDetailsModal> {
                           return null;
                         },
                       ),
+                      const SizedBox(height: 8),
+                      ValueListenableBuilder<Map<String, dynamic>>(
+                        valueListenable: DigioService.instance.latestByTypeNotifier,
+                        builder: (context, latest, _) {
+                          final bankRec = latest['BANK_ACCOUNT'];
+                          final bankVerified = bankRec?['verified'] == true;
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 6,
+                                children: [
+                                  OutlinedButton.icon(
+                                    onPressed: () async {
+                                      final ifsc = _ifscCtrl.text.trim().toUpperCase();
+                                      if (ifsc.length != 11) {
+                                        AppToast.showError('Enter 11-character IFSC code first', context: context);
+                                        return;
+                                      }
+                                      try {
+                                        final res = await DigioService.instance.verifyIfsc(ifsc);
+                                        if (res['verified'] == true && res['bank'] != null) {
+                                          setState(() {
+                                            _bankNameCtrl.text = res['bank'].toString();
+                                          });
+                                          if (context.mounted) {
+                                            AppToast.showSuccess(
+                                              'IFSC Verified: ${res['bank']}${res['branch'] != null ? ' (${res['branch']})' : ''}',
+                                              context: context,
+                                            );
+                                          }
+                                        } else if (context.mounted) {
+                                          AppToast.showError('IFSC not found', context: context);
+                                        }
+                                      } catch (e) {
+                                        if (context.mounted) {
+                                          AppToast.showError(AppToast.cleanErrorMessage(e), context: context);
+                                        }
+                                      }
+                                    },
+                                    icon: const Icon(Icons.search_rounded, size: 15),
+                                    label: const Text('Lookup IFSC', style: TextStyle(fontSize: 12)),
+                                  ),
+                                  OutlinedButton.icon(
+                                    onPressed: () async {
+                                      final acc = _accountNumberCtrl.text.trim();
+                                      final ifsc = _ifscCtrl.text.trim().toUpperCase();
+                                      if (acc.length < 8 || ifsc.length != 11) {
+                                        AppToast.showError('Enter valid Account Number and IFSC first', context: context);
+                                        return;
+                                      }
+                                      try {
+                                        AppToast.showInfo('Verifying bank account via Digio...', context: context);
+                                        final res = await DigioService.instance.verifyBankAccount(
+                                          accountNumber: acc,
+                                          ifsc: ifsc,
+                                          accountHolderName: _holderNameCtrl.text.trim(),
+                                          saveToDriverProfile: false,
+                                        );
+                                        if (res['verified'] == true && res['verifiedName'] != null) {
+                                          if (_holderNameCtrl.text.trim().isEmpty) {
+                                            setState(() {
+                                              _holderNameCtrl.text = res['verifiedName'].toString();
+                                            });
+                                          }
+                                          if (context.mounted) {
+                                            AppToast.showSuccess(
+                                              'Bank Verified: ${res['verifiedName']}${res['matchScore'] != null ? ' (${res['matchScore']}% match)' : ''}',
+                                              context: context,
+                                            );
+                                          }
+                                        } else if (context.mounted) {
+                                          AppToast.showError('Bank account verification failed', context: context);
+                                        }
+                                      } catch (e) {
+                                        if (context.mounted) {
+                                          AppToast.showError(AppToast.cleanErrorMessage(e), context: context);
+                                        }
+                                      }
+                                    },
+                                    icon: Icon(
+                                      bankVerified ? Icons.verified_rounded : Icons.verified_user_outlined,
+                                      size: 15,
+                                      color: bankVerified ? AppColors.accentGreenDark : AppColors.primary,
+                                    ),
+                                    label: Text(
+                                      bankVerified ? 'Account Verified ✓' : 'Verify Bank Account',
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (bankRec != null && bankRec['verifiedName'] != null) ...[
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Registered Name: ${bankRec['verifiedName']}${bankRec['matchScore'] != null ? ' • Name Match: ${bankRec['matchScore']}%' : ''}',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: bankVerified ? AppColors.accentGreenDark : AppColors.warning,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          );
+                        },
+                      ),
                       const SizedBox(height: 16),
 
                       // 6. Optional UPI ID
@@ -471,6 +579,41 @@ class _BankDetailsModalState extends State<BankDetailsModal> {
                           }
                           return null;
                         },
+                      ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          onPressed: () async {
+                            final vpa = _upiCtrl.text.trim().toLowerCase();
+                            if (!vpa.contains('@')) {
+                              AppToast.showError('Enter a valid UPI ID (e.g. name@upi) to verify', context: context);
+                              return;
+                            }
+                            try {
+                              final res = await DigioService.instance.verifyUpiVpa(
+                                vpa: vpa,
+                                name: _holderNameCtrl.text.trim(),
+                                saveToDriverProfile: false,
+                              );
+                              if (context.mounted) {
+                                if (res['verified'] == true) {
+                                  AppToast.showSuccess(
+                                    'UPI verified${res['verifiedName'] != null ? ': ${res['verifiedName']}' : ''}',
+                                    context: context,
+                                  );
+                                } else {
+                                  AppToast.showError('UPI handle could not be verified', context: context);
+                                }
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                AppToast.showError(AppToast.cleanErrorMessage(e), context: context);
+                              }
+                            }
+                          },
+                          icon: const Icon(Icons.qr_code_scanner_rounded, size: 15),
+                          label: const Text('Verify UPI ID', style: TextStyle(fontSize: 12)),
+                        ),
                       ),
                       const SizedBox(height: 20),
 

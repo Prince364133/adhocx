@@ -19,6 +19,7 @@ import {
 import { VerificationItem, DriverKycDocument } from '../../lib/api/types';
 import { adminApi, resolveDocumentUrl } from '../../lib/api/client';
 import { DocumentPreviewModal } from './DocumentPreviewModal';
+import { DigioVerificationPanel } from './DigioVerificationPanel';
 
 interface DetailModalProps {
   item: VerificationItem | null;
@@ -611,6 +612,9 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
                   ))}
                 </div>
               )}
+
+              {/* Digio Live Govt KYC / Biometric / KYB Verification Panel */}
+              <DigioVerificationPanel item={item} />
             </div>
           </div>
 

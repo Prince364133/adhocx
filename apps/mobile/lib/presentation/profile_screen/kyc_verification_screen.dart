@@ -766,6 +766,106 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
                                   ],
                                 ),
                               ),
+                              const SizedBox(height: AppSpacing.lg),
+
+                              // ── Digio Automated Verification Checks ───────────────
+                              FutureBuilder<Map<String, dynamic>>(
+                                future: DigioService.instance.getMyVerifications(),
+                                builder: (context, _) {
+                                  return ValueListenableBuilder<Map<String, dynamic>>(
+                                    valueListenable: DigioService.instance.latestByTypeNotifier,
+                                    builder: (context, latest, _) {
+                                      final items = <(String, String)>[
+                                        ('DIGILOCKER', 'DigiLocker'),
+                                        ('AADHAAR_MASK', 'Aadhaar Masked'),
+                                        ('PAN', 'PAN'),
+                                        ('DRIVING_LICENSE', 'Driving License'),
+                                        ('VEHICLE_RC', 'Vehicle RC'),
+                                        ('FACE_MATCH', 'Face Match'),
+                                        ('LIVENESS', 'Selfie Liveness'),
+                                        ('BANK_ACCOUNT', 'Bank Account'),
+                                      ];
+                                      return Container(
+                                        padding: const EdgeInsets.all(AppSpacing.md),
+                                        decoration: BoxDecoration(
+                                          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                                          borderRadius: BorderRadius.circular(AppRadius.lg),
+                                          border: Border.all(
+                                            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                                          ),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.verified_user_rounded,
+                                                  size: 18,
+                                                  color: isDark ? AppColors.primaryLight : AppColors.primary,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Expanded(
+                                                  child: Text(
+                                                    'Digio Govt & Biometric Checks',
+                                                    style: AppTypography.body(
+                                                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 10),
+                                            Wrap(
+                                              spacing: 6,
+                                              runSpacing: 6,
+                                              children: items.map((entry) {
+                                                final rec = latest[entry.$1];
+                                                final ok = rec?['verified'] == true;
+                                                final complianceBad = rec != null && rec['complianceOk'] == false;
+                                                final score = rec?['matchScore'];
+                                                final color = ok
+                                                    ? (complianceBad ? AppColors.warning : AppColors.accentGreenDark)
+                                                    : (isDark ? AppColors.textMutedDark : AppColors.textMutedLight);
+                                                return Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                                  decoration: BoxDecoration(
+                                                    color: color.withValues(alpha: 0.1),
+                                                    borderRadius: BorderRadius.circular(AppRadius.full),
+                                                    border: Border.all(color: color.withValues(alpha: 0.35)),
+                                                  ),
+                                                  child: Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      Icon(
+                                                        ok ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                                                        size: 13,
+                                                        color: color,
+                                                      ),
+                                                      const SizedBox(width: 4),
+                                                      Text(
+                                                        entry.$1 == 'FACE_MATCH' && ok && score != null
+                                                            ? '${entry.$2} ($score%)'
+                                                            : entry.$2,
+                                                        style: TextStyle(
+                                                          fontSize: 11,
+                                                          fontWeight: FontWeight.w600,
+                                                          color: color,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                );
+                                              }).toList(),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  );
+                                },
+                              ),
                               const SizedBox(height: AppSpacing.xl),
 
                               // ── Submitted Documents Section Header ────────────────

@@ -1,0 +1,2355 @@
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import {
+  AdminRunDriverDigioSuiteDto,
+  AnalyzeStoredIdCardDto,
+  AuthUserDto,
+  CreateDigilockerRequestDto,
+  FaceMatchStoredDto,
+  FuzzyMatchDto,
+  LivenessStoredDto,
+  ManageDigilockerApprovalDto,
+  MaskStoredAadhaarDto,
+  SearchUpiVpaDto,
+  UserRole,
+  VerifyBankAccountDto,
+  VerifyCinDto,
+  VerifyDinDto,
+  VerifyDrivingLicenseDto,
+  VerifyFssaiDto,
+  VerifyGstDto,
+  VerifyIfscDto,
+  VerifyKraPanDto,
+  VerifyPanDto,
+  VerifyPanToGstDto,
+  VerifyPassportDto,
+  VerifyUanDto,
+  VerifyUdyamDto,
+  VerifyUpiVpaDto,
+  VerifyVehicleRcDto,
+  VerifyVoterIdDto,
+} from '@adhocx/contracts';
+import { DatabaseService } from '../../database/database.service';
+import { StorageService } from '../../common/storage/storage.service';
+import { DigioClient, DigioFilePart } from './digio.client';
+
+interface TargetActorContext {
+  userId: string;
+  driverId?: string;
+  vendorId?: string;
+  tenantId?: string;
+}
+
+@Injectable()
+export class DigioService {
+  private readonly logger = new Logger(DigioService.name);
+
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly digioClient: DigioClient,
+    private readonly storageService: StorageService,
+  ) {}
+
+  // ---------------------------------------------------------------------------
+  // Sanitization, Masking & Compliance Helpers
+  // ---------------------------------------------------------------------------
+
+  private maskAadhaarInText(text: string): string {
+    return text.replace(
+      /(?<![A-Za-z0-9])(\d{4})[\s-]?(\d{4})[\s-]?(\d{4})(?![\d])/g,
+      'XXXX-XXXX-$3',
+    );
+  }
+
+  private maskAccountNumber(accountNo: string): string {
+    const clean = accountNo.trim();
+    if (clean.length <= 4) return 'XXXX';
+    return `${'X'.repeat(clean.length - 4)}${clean.slice(-4)}`;
+  }
+
+  private sanitizePayload(value: unknown, depth = 0): any {
+    if (depth > 8 || value === null || value === undefined) return value;
+    if (typeof value === 'string') {
+      // Do not truncate large base64 data into rawResponse DB JSON — replace huge image strings with indicator
+      if (value.length > 4000) {
+        return `[BASE64_OMITTED:${value.length}_chars]`;
+      }
+      return this.maskAadhaarInText(value);
+    }
+    if (Array.isArray(value)) {
+      return value.map((item) => this.sanitizePayload(item, depth + 1));
+    }
+    if (typeof value === 'object') {
+      const out: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+        const lk = k.toLowerCase();
+        if (lk === 'client_secret' || lk === 'authorization') continue;
+        if (
+          (lk.includes('account_no') || lk === 'beneficiary_account_no') &&
+          typeof v === 'string'
+        ) {
+          out[k] = this.maskAccountNumber(v);
+        } else {
+          out[k] = this.sanitizePayload(v, depth + 1);
+        }
+      }
+      return out;
+    }
+    return value;
+  }
+
+  private normalizeDob(rawDob: string): string {
+    const trimmed = rawDob.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      const [y, m, d] = trimmed.split('-');
+      return `${d}/${m}/${y}`;
+    }
+    if (/^\d{2}-\d{2}-\d{4}$/.test(trimmed)) {
+      return trimmed.replace(/-/g, '/');
+    }
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
+      return trimmed;
+    }
+    const parsed = new Date(trimmed);
+    if (!Number.isNaN(parsed.getTime())) {
+      const dd = String(parsed.getUTCDate()).padStart(2, '0');
+      const mm = String(parsed.getUTCMonth() + 1).padStart(2, '0');
+      const yyyy = parsed.getUTCFullYear();
+      return `${dd}/${mm}/${yyyy}`;
+    }
+    return trimmed;
+  }
+
+  private parseFlexibleDate(value?: string | null): Date | null {
+    if (!value || typeof value !== 'string') return null;
+    const v = value.trim();
+    if (!v || v.toUpperCase() === 'NA' || v.toUpperCase() === 'N/A') {
+      return null;
+    }
+
+    // DD/MM/YYYY or DD-MM-YYYY
+    const dmy = v.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+    if (dmy) {
+      const d = new Date(
+        Date.UTC(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]), 23, 59, 59),
+      );
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+
+    // YYYY-MM-DD
+    const ymd = v.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
+    if (ymd) {
+      const d = new Date(
+        Date.UTC(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3]), 23, 59, 59),
+      );
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+
+    // Fallback for formats like 31-Dec-2030 or ISO
+    const parsed = new Date(v);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  private isFutureOrToday(date: Date | null): boolean {
+    if (!date) return true;
+    const todayStart = new Date();
+    todayStart.setUTCHours(0, 0, 0, 0);
+    return date.getTime() >= todayStart.getTime();
+  }
+
+  private evaluateDlCompliance(res: any) {
+    const statusText = String(
+      res?.['Current Status'] || res?.status || res?.current_status || '',
+    ).trim();
+    const holderName = String(
+      res?.["Holder's Name"] || res?.name || res?.holder_name || '',
+    ).trim();
+
+    const transportRaw = res?.Transport || res?.transport_validity;
+    const nonTransportRaw = res?.['Non-Transport'] || res?.non_transport_validity;
+
+    const extractToDate = (block: any): Date | null => {
+      if (!block) return null;
+      if (typeof block === 'string') return this.parseFlexibleDate(block);
+      return this.parseFlexibleDate(block.To || block.to || block.valid_to);
+    };
+
+    const transportExpiry = extractToDate(transportRaw);
+    const nonTransportExpiry = extractToDate(nonTransportRaw);
+    const effectiveExpiry = transportExpiry || nonTransportExpiry;
+
+    const notes: string[] = [];
+    let complianceOk = true;
+
+    if (
+      statusText &&
+      !statusText.toUpperCase().includes('ACTIVE') &&
+      !statusText.toUpperCase().includes('VALID')
+    ) {
+      complianceOk = false;
+      notes.push(`DL status is "${statusText}"`);
+    }
+    if (effectiveExpiry && !this.isFutureOrToday(effectiveExpiry)) {
+      complianceOk = false;
+      notes.push(`DL expired on ${effectiveExpiry.toISOString().slice(0, 10)}`);
+    }
+    if (!transportExpiry && nonTransportExpiry) {
+      notes.push('Non-Transport (LMV) validity verified; Commercial/Transport class not listed');
+    } else if (transportExpiry) {
+      notes.push(`Commercial/Transport DL valid till ${transportExpiry.toISOString().slice(0, 10)}`);
+    }
+
+    const covDetails =
+      res?.['COV Details'] || res?.cov_details || res?.vehicle_classes || [];
+
+    return {
+      verified: Boolean(holderName || statusText || effectiveExpiry),
+      verifiedName: holderName || null,
+      complianceOk,
+      complianceNotes: notes.join('; ') || 'DL verified cleanly',
+      expiresAt: effectiveExpiry,
+      summary: {
+        dlNumber: res?.['Old / New DL No.'] || res?.dl_number || res?.id_no,
+        holderName,
+        status: statusText || 'VERIFIED',
+        issueDate: res?.['Date of Issue'] || res?.issue_date,
+        nonTransportValidTo: nonTransportExpiry?.toISOString().slice(0, 10) || null,
+        transportValidTo: transportExpiry?.toISOString().slice(0, 10) || null,
+        covDetails,
+      },
+    };
+  }
+
+  private evaluateRcCompliance(res: any) {
+    const user = res?.user_details || {};
+    const veh = res?.vehicle_details || {};
+    const fin = res?.finance_details || {};
+    const permit = res?.permit_details || {};
+
+    const ownerName = String(user?.owner_name || user?.name || '').trim();
+    const rcStatus = String(veh?.rc_status || '').trim();
+    const blacklist = String(permit?.blacklist_status || '').trim();
+
+    const fitUpto = this.parseFlexibleDate(veh?.fit_up_to);
+    const insuranceUpto = this.parseFlexibleDate(fin?.insurance_upto);
+    const taxUpto = this.parseFlexibleDate(fin?.tax_upto);
+    const permitUpto = this.parseFlexibleDate(
+      permit?.national_permit_upto || permit?.permit_valid_upto,
+    );
+    const puccUpto = this.parseFlexibleDate(permit?.pucc_upto);
+
+    const issues: string[] = [];
+    if (rcStatus && rcStatus.toUpperCase() !== 'ACTIVE') {
+      issues.push(`RC status is "${rcStatus}"`);
+    }
+    if (
+      blacklist &&
+      blacklist.toUpperCase() !== 'NA' &&
+      blacklist.toUpperCase() !== 'NO' &&
+      blacklist.toUpperCase() !== 'NONE'
+    ) {
+      issues.push(`Vehicle flagged in blacklist: ${blacklist}`);
+    }
+    if (fitUpto && !this.isFutureOrToday(fitUpto)) {
+      issues.push(`Fitness expired on ${fitUpto.toISOString().slice(0, 10)}`);
+    }
+    if (insuranceUpto && !this.isFutureOrToday(insuranceUpto)) {
+      issues.push(`Insurance expired on ${insuranceUpto.toISOString().slice(0, 10)}`);
+    }
+    if (puccUpto && !this.isFutureOrToday(puccUpto)) {
+      issues.push(`PUCC expired on ${puccUpto.toISOString().slice(0, 10)}`);
+    }
+    if (permitUpto && !this.isFutureOrToday(permitUpto)) {
+      issues.push(`Permit expired on ${permitUpto.toISOString().slice(0, 10)}`);
+    }
+
+    const dates = [fitUpto, insuranceUpto, permitUpto, puccUpto, taxUpto].filter(
+      (d): d is Date => Boolean(d),
+    );
+    const earliestExpiry = dates.length
+      ? new Date(Math.min(...dates.map((d) => d.getTime())))
+      : null;
+
+    const complianceOk = issues.length === 0;
+    const challans = Array.isArray(veh?.challan_details) ? veh.challan_details : [];
+
+    return {
+      verified: Boolean(veh?.rc_number || ownerName),
+      verifiedName: ownerName || null,
+      complianceOk,
+      complianceNotes: complianceOk
+        ? 'RC active; fitness, insurance & permit checks passed'
+        : issues.join('; '),
+      expiresAt: earliestExpiry,
+      insuranceUpto,
+      summary: {
+        rcNumber: veh?.rc_number,
+        ownerName,
+        rcStatus: rcStatus || 'ACTIVE',
+        vehicleCategory: veh?.vehicle_category,
+        makerModel: [veh?.maker_description, veh?.maker_model]
+          .filter(Boolean)
+          .join(' '),
+        fuelType: veh?.fuel_type,
+        color: veh?.color,
+        normsType: veh?.norms_type,
+        seatCapacity: veh?.seat_capacity,
+        registeredAt: veh?.registered_at,
+        registrationDate: veh?.registration_date,
+        fitUpto: veh?.fit_up_to,
+        financier: fin?.financier,
+        financed: fin?.financed,
+        insuranceCompany: fin?.insurance_company,
+        insurancePolicyNumber: fin?.insurance_policy_number,
+        insuranceUpto: fin?.insurance_upto,
+        taxUpto: fin?.tax_upto,
+        permitType: permit?.permit_type,
+        permitNumber: permit?.permit_number,
+        permitValidUpto: permit?.permit_valid_upto,
+        nationalPermitNumber: permit?.national_permit_number,
+        nationalPermitUpto: permit?.national_permit_upto,
+        puccUpto: permit?.pucc_upto,
+        blacklistStatus: blacklist || 'NONE',
+        challanCount: challans.length,
+      },
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Target Ownership & Database Persistence
+  // ---------------------------------------------------------------------------
+
+  private async resolveContext(
+    actor: AuthUserDto,
+    targetDriverId?: string,
+    targetVendorId?: string,
+    vehicleId?: string,
+  ): Promise<TargetActorContext> {
+    const ctx: TargetActorContext = {
+      userId: actor.id,
+      tenantId: (actor as any).tenantId || undefined,
+    };
+
+    if (actor.role === UserRole.ADMIN) {
+      if (targetDriverId) {
+        const drv = await this.db.driver.findUnique({
+          where: { id: targetDriverId },
+          select: { id: true, userId: true },
+        });
+        if (!drv) throw new NotFoundException('Target driver not found');
+        ctx.driverId = drv.id;
+        ctx.userId = drv.userId;
+      }
+      if (targetVendorId) {
+        const vnd = await this.db.vendor.findUnique({
+          where: { id: targetVendorId },
+          select: { id: true, userId: true },
+        });
+        if (!vnd) throw new NotFoundException('Target vendor not found');
+        ctx.vendorId = vnd.id;
+        ctx.userId = vnd.userId;
+      }
+      if (!ctx.driverId && !ctx.vendorId && vehicleId) {
+        const veh = await this.db.vehicle.findUnique({
+          where: { id: vehicleId },
+          select: { driverId: true },
+        });
+        if (veh?.driverId) {
+          ctx.driverId = veh.driverId;
+        }
+      }
+      return ctx;
+    }
+
+    if (targetDriverId || targetVendorId) {
+      const ownDriver = await this.db.driver.findUnique({
+        where: { userId: actor.id },
+        select: { id: true },
+      });
+      const ownVendor = await this.db.vendor.findUnique({
+        where: { userId: actor.id },
+        select: { id: true },
+      });
+      if (targetDriverId && ownDriver?.id !== targetDriverId) {
+        throw new ForbiddenException('Cannot verify documents for another driver');
+      }
+      if (targetVendorId && ownVendor?.id !== targetVendorId) {
+        throw new ForbiddenException('Cannot verify documents for another vendor');
+      }
+    }
+
+    const driver = await this.db.driver.findUnique({
+      where: { userId: actor.id },
+      select: { id: true },
+    });
+    if (driver) {
+      ctx.driverId = driver.id;
+    }
+
+    const vendor = await this.db.vendor.findUnique({
+      where: { userId: actor.id },
+      select: { id: true },
+    });
+    if (vendor) {
+      ctx.vendorId = vendor.id;
+    }
+
+    return ctx;
+  }
+
+  private async saveVerificationRecord(params: {
+    ctx: TargetActorContext;
+    verificationType: string;
+    category: string;
+    status: string;
+    verified: boolean;
+    identifier?: string | null;
+    uniqueRequestId: string;
+    digioRequestId?: string | null;
+    referenceId?: string | null;
+    verifiedName?: string | null;
+    matchScore?: number | null;
+    complianceOk?: boolean | null;
+    complianceNotes?: string | null;
+    errorMessage?: string | null;
+    summary?: Record<string, unknown> | null;
+    rawResponse?: unknown;
+    expiresAt?: Date | null;
+    vehicleId?: string | null;
+  }) {
+    const safeIdentifier = params.identifier
+      ? this.maskAadhaarInText(params.identifier)
+      : null;
+    const safeSummary = params.summary
+      ? (this.sanitizePayload(params.summary) as Record<string, unknown>)
+      : null;
+    const safeRaw =
+      params.rawResponse !== undefined
+        ? this.sanitizePayload(params.rawResponse)
+        : undefined;
+
+    const record = await this.db.digioVerification.create({
+      data: {
+        tenantId: params.ctx.tenantId || null,
+        userId: params.ctx.userId || null,
+        driverId: params.ctx.driverId || null,
+        vendorId: params.ctx.vendorId || null,
+        vehicleId: params.vehicleId || null,
+        verificationType: params.verificationType,
+        category: params.category,
+        status: params.status,
+        verified: params.verified,
+        identifier: safeIdentifier,
+        uniqueRequestId: params.uniqueRequestId,
+        digioRequestId: params.digioRequestId || null,
+        referenceId: params.referenceId || null,
+        verifiedName: params.verifiedName || null,
+        matchScore: params.matchScore ?? null,
+        complianceOk: params.complianceOk ?? null,
+        complianceNotes: params.complianceNotes || null,
+        errorMessage: params.errorMessage || null,
+        summary: (safeSummary as any) ?? undefined,
+        rawResponse: safeRaw ?? undefined,
+        verifiedAt: params.verified ? new Date() : null,
+        expiresAt: params.expiresAt || null,
+      },
+    });
+
+    if (params.ctx.driverId) {
+      await this.syncDriverDigioMetadata(params.ctx.driverId, params.verificationType, {
+        verificationId: record.id,
+        verified: record.verified,
+        status: record.status,
+        identifier: record.identifier,
+        verifiedName: record.verifiedName,
+        matchScore: record.matchScore,
+        complianceOk: record.complianceOk,
+        complianceNotes: record.complianceNotes,
+        summary: record.summary,
+        verifiedAt: record.verifiedAt?.toISOString() || null,
+        expiresAt: record.expiresAt?.toISOString() || null,
+      });
+    }
+
+    if (params.ctx.vendorId) {
+      await this.syncVendorDigioMetadata(params.ctx.vendorId, params.verificationType, {
+        verificationId: record.id,
+        verified: record.verified,
+        status: record.status,
+        identifier: record.identifier,
+        verifiedName: record.verifiedName,
+        complianceOk: record.complianceOk,
+        complianceNotes: record.complianceNotes,
+        summary: record.summary,
+        verifiedAt: record.verifiedAt?.toISOString() || null,
+      });
+    }
+
+    return this.formatRecord(record);
+  }
+
+  private async syncDriverDigioMetadata(
+    driverId: string,
+    key: string,
+    entry: Record<string, unknown>,
+  ) {
+    try {
+      const driver = await this.db.driver.findUnique({
+        where: { id: driverId },
+        select: { kycDocuments: true },
+      });
+      if (!driver) return;
+
+      const base: Record<string, any> =
+        driver.kycDocuments && typeof driver.kycDocuments === 'object' && !Array.isArray(driver.kycDocuments)
+          ? { ...(driver.kycDocuments as Record<string, any>) }
+          : Array.isArray(driver.kycDocuments)
+            ? { legacyDocuments: driver.kycDocuments }
+            : {};
+
+      const existingDigio =
+        base.digioVerifications && typeof base.digioVerifications === 'object'
+          ? { ...base.digioVerifications }
+          : {};
+
+      existingDigio[key] = entry;
+      base.digioVerifications = existingDigio;
+
+      await this.db.driver.update({
+        where: { id: driverId },
+        data: { kycDocuments: base },
+      });
+    } catch (err: any) {
+      this.logger.warn(`Unable to sync driver Digio metadata: ${err?.message}`);
+    }
+  }
+
+  private async syncVendorDigioMetadata(
+    vendorId: string,
+    key: string,
+    entry: Record<string, unknown>,
+  ) {
+    try {
+      const vendor = await this.db.vendor.findUnique({
+        where: { id: vendorId },
+        select: { kycDocuments: true },
+      });
+      if (!vendor) return;
+
+      const base =
+        vendor.kycDocuments && typeof vendor.kycDocuments === 'object' && !Array.isArray(vendor.kycDocuments)
+          ? { ...(vendor.kycDocuments as Record<string, any>) }
+          : {};
+
+      const existingDigio =
+        base.digioVerifications && typeof base.digioVerifications === 'object'
+          ? { ...base.digioVerifications }
+          : {};
+
+      existingDigio[key] = entry;
+      base.digioVerifications = existingDigio;
+
+      await this.db.vendor.update({
+        where: { id: vendorId },
+        data: { kycDocuments: base },
+      });
+    } catch (err: any) {
+      this.logger.warn(`Unable to sync vendor Digio metadata: ${err?.message}`);
+    }
+  }
+
+  private formatRecord(row: any) {
+    return {
+      id: row.id,
+      verificationType: row.verificationType,
+      category: row.category,
+      status: row.status,
+      verified: Boolean(row.verified),
+      identifier: row.identifier ?? null,
+      uniqueRequestId: row.uniqueRequestId,
+      digioRequestId: row.digioRequestId ?? null,
+      verifiedName: row.verifiedName ?? null,
+      matchScore: row.matchScore ?? null,
+      complianceOk: row.complianceOk ?? null,
+      complianceNotes: row.complianceNotes ?? null,
+      errorMessage: row.errorMessage ?? null,
+      summary: row.summary ?? null,
+      verifiedAt: row.verifiedAt ? row.verifiedAt.toISOString() : null,
+      expiresAt: row.expiresAt ? row.expiresAt.toISOString() : null,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Overview & History Queries
+  // ---------------------------------------------------------------------------
+
+  getCapabilities() {
+    return {
+      configured: this.digioClient.isConfigured(),
+      env: this.digioClient.env,
+      gatewayUrl: this.digioClient.gatewayUrl,
+      digilockerTemplate: this.digioClient.digilockerTemplateName,
+      capabilities: [
+        'PAN',
+        'KRA_PAN',
+        'DRIVING_LICENSE',
+        'VEHICLE_RC',
+        'PASSPORT',
+        'VOTER_ID',
+        'ID_OCR',
+        'AADHAAR_MASK',
+        'FACE_MATCH',
+        'LIVENESS',
+        'BANK_ACCOUNT_PENNY_LESS',
+        'BANK_ACCOUNT_PENNY_DROP',
+        'IFSC',
+        'UPI_VPA',
+        'GST',
+        'PAN_TO_GST',
+        'CIN',
+        'DIN',
+        'UDYAM',
+        'FSSAI',
+        'FUZZY_MATCH',
+        'UAN',
+        'DIGILOCKER',
+      ],
+    };
+  }
+
+  async getMyVerifications(actor: AuthUserDto) {
+    const ctx = await this.resolveContext(actor);
+    const orClauses: any[] = [{ userId: ctx.userId }];
+    if (ctx.driverId) orClauses.push({ driverId: ctx.driverId });
+    if (ctx.vendorId) orClauses.push({ vendorId: ctx.vendorId });
+
+    const rows = await this.db.digioVerification.findMany({
+      where: { OR: orClauses },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+
+    const latestByType: Record<string, any> = {};
+    for (const row of rows) {
+      if (!latestByType[row.verificationType]) {
+        latestByType[row.verificationType] = this.formatRecord(row);
+      }
+    }
+
+    return {
+      configured: this.digioClient.isConfigured(),
+      latestByType,
+      history: rows.map((r) => this.formatRecord(r)),
+    };
+  }
+
+  async getDriverVerificationsForAdmin(driverId: string) {
+    const driver = await this.db.driver.findUnique({
+      where: { id: driverId },
+      select: {
+        id: true,
+        userId: true,
+        fullName: true,
+        vehiclePlate: true,
+        dlFrontUrl: true,
+        aadharFrontUrl: true,
+        aadharBackUrl: true,
+        panDocUrl: true,
+        rcDocUrl: true,
+        kycDocuments: true,
+      },
+    });
+    if (!driver) throw new NotFoundException('Driver not found');
+
+    const rows = await this.db.digioVerification.findMany({
+      where: { OR: [{ driverId }, { userId: driver.userId }] },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+
+    const latestByType: Record<string, any> = {};
+    for (const row of rows) {
+      if (!latestByType[row.verificationType]) {
+        latestByType[row.verificationType] = this.formatRecord(row);
+      }
+    }
+
+    return {
+      configured: this.digioClient.isConfigured(),
+      driverId,
+      latestByType,
+      history: rows.map((r) => this.formatRecord(r)),
+    };
+  }
+
+  async getVendorVerificationsForAdmin(vendorId: string) {
+    const vendor = await this.db.vendor.findUnique({
+      where: { id: vendorId },
+      select: { id: true, userId: true, organizationName: true, gstNumber: true },
+    });
+    if (!vendor) throw new NotFoundException('Vendor not found');
+
+    const rows = await this.db.digioVerification.findMany({
+      where: { OR: [{ vendorId }, { userId: vendor.userId }] },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+
+    const latestByType: Record<string, any> = {};
+    for (const row of rows) {
+      if (!latestByType[row.verificationType]) {
+        latestByType[row.verificationType] = this.formatRecord(row);
+      }
+    }
+
+    return {
+      configured: this.digioClient.isConfigured(),
+      vendorId,
+      latestByType,
+      history: rows.map((r) => this.formatRecord(r)),
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Govt ID Verifications (PAN, DL, Vehicle RC, Passport, Voter ID, KRA)
+  // ---------------------------------------------------------------------------
+
+  async verifyPan(actor: AuthUserDto, dto: VerifyPanDto) {
+    const ctx = await this.resolveContext(actor, dto.targetDriverId, dto.targetVendorId);
+    const pan = dto.panNumber.trim().toUpperCase();
+    const reqId = this.digioClient.generateUniqueRequestId('PAN');
+
+    const res = await this.digioClient.fetchIdData('PAN', {
+      id_no: pan,
+      name: dto.name?.trim(),
+      dob: dto.dob ? this.normalizeDob(dto.dob) : undefined,
+      unique_request_id: reqId,
+    });
+
+    const status = String(res?.status || res?.pan_status || '').toUpperCase();
+    const holderName = String(
+      res?.name || res?.full_name || res?.first_name || '',
+    ).trim();
+    const verified =
+      status === 'VALID' ||
+      status === 'ACTIVE' ||
+      status === 'E' ||
+      Boolean(res?.verified) ||
+      Boolean(holderName && !res?.error);
+
+    const nameMatch = res?.name_as_per_pan_match ?? res?.name_match;
+    const aadhaarSeedingStatus =
+      res?.aadhaar_seeding_status || res?.aadhaar_linked || null;
+
+    if (ctx.driverId) {
+      const driver = await this.db.driver.findUnique({
+        where: { id: ctx.driverId },
+        select: { kycDocuments: true },
+      });
+      if (
+        driver?.kycDocuments &&
+        typeof driver.kycDocuments === 'object' &&
+        !Array.isArray(driver.kycDocuments)
+      ) {
+        await this.db.driver.update({
+          where: { id: ctx.driverId },
+          data: {
+            kycDocuments: {
+              ...(driver.kycDocuments as Record<string, unknown>),
+              panNumber: pan,
+            },
+          },
+        });
+      }
+    }
+
+    return this.saveVerificationRecord({
+      ctx,
+      verificationType: 'PAN',
+      category: 'KYC',
+      status: verified ? 'VERIFIED' : 'FAILED',
+      verified,
+      identifier: pan,
+      uniqueRequestId: reqId,
+      verifiedName: holderName || null,
+      complianceOk: verified,
+      complianceNotes: verified
+        ? `PAN ${status || 'VALID'}${aadhaarSeedingStatus ? `; Aadhaar seeding: ${aadhaarSeedingStatus}` : ''}`
+        : `PAN verification returned status: ${status || 'INVALID'}`,
+      summary: {
+        panNumber: pan,
+        status: status || (verified ? 'VALID' : 'INVALID'),
+        category: res?.category || res?.pan_type || null,
+        holderName: holderName || null,
+        nameMatch: nameMatch ?? null,
+        aadhaarSeedingStatus,
+      },
+      rawResponse: res,
+    });
+  }
+
+  async verifyKraPan(actor: AuthUserDto, dto: VerifyKraPanDto) {
+    const ctx = await this.resolveContext(actor);
+    const pan = dto.panNumber.trim().toUpperCase();
+    const reqId = this.digioClient.generateUniqueRequestId('KRA');
+
+    const res = await this.digioClient.getKraPanStatus({
+      pan_no: pan,
+      dob: dto.dob ? this.normalizeDob(dto.dob) : undefined,
+      fetch_type: dto.fetchType || 'I',
+      mobile: dto.mobile?.trim(),
+      unique_request_id: reqId,
+    });
+
+    const kraStatus = String(
+      res?.kra_status || res?.status || res?.kyc_status || '',
+    ).trim();
+    const verified = Boolean(res && !res.error && kraStatus);
+
+    return this.saveVerificationRecord({
+      ctx,
+      verificationType: 'KRA_PAN',
+      category: 'KYC',
+      status: verified ? 'VERIFIED' : 'FAILED',
+      verified,
+      identifier: pan,
+      uniqueRequestId: reqId,
+      verifiedName: res?.name || null,
+      complianceOk: verified,
+      complianceNotes: kraStatus || 'KRA status fetched',
+      summary: {
+        panNumber: pan,
+        kraStatus,
+        kraName: res?.kra_name || null,
+      },
+      rawResponse: res,
+    });
+  }
+
+  async verifyDrivingLicense(actor: AuthUserDto, dto: VerifyDrivingLicenseDto) {
+    const ctx = await this.resolveContext(actor, dto.targetDriverId);
+    const dlNo = dto.dlNumber.trim().toUpperCase().replace(/\s+/g, '');
+    const normalizedDob = this.normalizeDob(dto.dob);
+    const reqId = this.digioClient.generateUniqueRequestId('DL');
+
+    const res = await this.digioClient.fetchIdData('DRIVING_LICENSE', {
+      id_no: dlNo,
+      dob: normalizedDob,
+      name: dto.name?.trim(),
+      unique_request_id: reqId,
+    });
+
+    const evalRes = this.evaluateDlCompliance(res);
+
+    if (ctx.driverId) {
+      const driver = await this.db.driver.findUnique({
+        where: { id: ctx.driverId },
+        select: { kycDocuments: true },
+      });
+      if (
+        driver?.kycDocuments &&
+        typeof driver.kycDocuments === 'object' &&
+        !Array.isArray(driver.kycDocuments)
+      ) {
+        await this.db.driver.update({
+          where: { id: ctx.driverId },
+          data: {
+            kycDocuments: {
+              ...(driver.kycDocuments as Record<string, unknown>),
+              dlNumber: dlNo,
+              dateOfBirth: normalizedDob,
+            },
+          },
+        });
+      }
+    }
+
+    return this.saveVerificationRecord({
+      ctx,
+      verificationType: 'DRIVING_LICENSE',
+      category: 'KYC',
+      status: evalRes.verified
+        ? evalRes.complianceOk
+          ? 'VERIFIED'
+          : 'PARTIAL'
+        : 'FAILED',
+      verified: evalRes.verified,
+      identifier: dlNo,
+      uniqueRequestId: reqId,
+      verifiedName: evalRes.verifiedName,
+      complianceOk: evalRes.complianceOk,
+      complianceNotes: evalRes.complianceNotes,
+      summary: evalRes.summary,
+      rawResponse: res,
+      expiresAt: evalRes.expiresAt,
+    });
+  }
+
+  async verifyVehicleRc(actor: AuthUserDto, dto: VerifyVehicleRcDto) {
+    const ctx = await this.resolveContext(
+      actor,
+      dto.targetDriverId,
+      undefined,
+      dto.vehicleId,
+    );
+    const rcNo = dto.registrationNumber.trim().toUpperCase().replace(/[\s-]+/g, '');
+    const reqId = this.digioClient.generateUniqueRequestId('RC');
+
+    const res = await this.digioClient.verifyVehicleRc({
+      id: rcNo,
+      unique_request_id: reqId,
+    });
+
+    const evalRes = this.evaluateRcCompliance(res);
+
+    let linkedVehicleId = dto.vehicleId || null;
+    if (!linkedVehicleId && ctx.driverId) {
+      const match = await this.db.vehicle.findFirst({
+        where: {
+          driverId: ctx.driverId,
+          OR: [{ registrationNumber: rcNo }, { rcNumber: rcNo }],
+        },
+        select: { id: true },
+      });
+      linkedVehicleId = match?.id || null;
+    }
+
+    if (linkedVehicleId && evalRes.verified) {
+      await this.db.vehicle.update({
+        where: { id: linkedVehicleId },
+        data: {
+          rcNumber: rcNo,
+          ...(evalRes.insuranceUpto
+            ? { insuranceExpiry: evalRes.insuranceUpto }
+            : {}),
+          ...(evalRes.summary.makerModel
+            ? {
+                make: String(res?.vehicle_details?.maker_description || '').slice(0, 80) || undefined,
+                model: String(res?.vehicle_details?.maker_model || '').slice(0, 80) || undefined,
+              }
+            : {}),
+        },
+      });
+    } else if (ctx.driverId && evalRes.verified) {
+      const driver = await this.db.driver.findUnique({
+        where: { id: ctx.driverId },
+        select: { vehiclePlate: true },
+      });
+      if (driver && !driver.vehiclePlate) {
+        await this.db.driver.update({
+          where: { id: ctx.driverId },
+          data: { vehiclePlate: rcNo },
+        });
+      }
+    }
+
+    return this.saveVerificationRecord({
+      ctx,
+      verificationType: 'VEHICLE_RC',
+      category: 'VEHICLE',
+      status: evalRes.verified
+        ? evalRes.complianceOk
+          ? 'VERIFIED'
+          : 'PARTIAL'
+        : 'FAILED',
+      verified: evalRes.verified,
+      identifier: rcNo,
+      uniqueRequestId: reqId,
+      verifiedName: evalRes.verifiedName,
+      complianceOk: evalRes.complianceOk,
+      complianceNotes: evalRes.complianceNotes,
+      summary: evalRes.summary,
+      rawResponse: res,
+      expiresAt: evalRes.expiresAt,
+      vehicleId: linkedVehicleId,
+    });
+  }
+
+  async verifyPassport(actor: AuthUserDto, dto: VerifyPassportDto) {
+    const ctx = await this.resolveContext(actor);
+    const reqId = this.digioClient.generateUniqueRequestId('PASS');
+    const res = await this.digioClient.fetchIdData('PASSPORT', {
+      id_no: dto.fileNumber.trim().toUpperCase(),
+      file_no: dto.fileNumber.trim().toUpperCase(),
+      dob: this.normalizeDob(dto.dob),
+      name: dto.name?.trim(),
+      unique_request_id: reqId,
+    });
+    const verified = Boolean(res?.name || res?.file_number || res?.passport_number);
+    return this.saveVerificationRecord({
+      ctx,
+      verificationType: 'PASSPORT',
+      category: 'KYC',
+      status: verified ? 'VERIFIED' : 'FAILED',
+      verified,
+      identifier: dto.fileNumber.trim().toUpperCase(),
+      uniqueRequestId: reqId,
+      verifiedName: res?.name || null,
+      complianceOk: verified,
+      complianceNotes: verified ? 'Passport details verified' : 'Passport verification failed',
+      summary: {
+        fileNumber: res?.file_number || dto.fileNumber.trim().toUpperCase(),
+        name: res?.name || null,
+        status: res?.application_status || res?.status || null,
+      },
+      rawResponse: res,
+    });
+  }
+
+  async verifyVoterId(actor: AuthUserDto, dto: VerifyVoterIdDto) {
+    const ctx = await this.resolveContext(actor);
+    const epic = dto.voterId.trim().toUpperCase();
+    const reqId = this.digioClient.generateUniqueRequestId('VOTER');
+    const res = await this.digioClient.fetchIdData('VOTER_ID', {
+      id_no: epic,
+      name: dto.name?.trim(),
+      unique_request_id: reqId,
+    });
+    const verified = Boolean(res?.name || res?.epic_no || res?.rln_name);
+    return this.saveVerificationRecord({
+      ctx,
+      verificationType: 'VOTER_ID',
+      category: 'KYC',
+      status: verified ? 'VERIFIED' : 'FAILED',
+      verified,
+      identifier: epic,
+      uniqueRequestId: reqId,
+      verifiedName: res?.name || null,
+      complianceOk: verified,
+      complianceNotes: verified ? 'Voter ID verified' : 'Voter ID verification failed',
+      summary: {
+        epicNo: epic,
+        name: res?.name || null,
+        state: res?.state || null,
+        constituency: res?.ac_name || res?.assembly_constituency || null,
+      },
+      rawResponse: res,
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Document OCR, Tamper/Blur Checks & Aadhaar Masking
+  // ---------------------------------------------------------------------------
+
+  private async resolveDocumentFile(
+    storedUrl: string,
+    label: string,
+  ): Promise<DigioFilePart> {
+    const file = await this.storageService.getFileBuffer(storedUrl);
+    if (!file || !file.buffer?.length) {
+      throw new BadRequestException(
+        `Could not read ${label} document bytes from storage`,
+      );
+    }
+    return file;
+  }
+
+  async analyzeIdCardFiles(
+    actor: AuthUserDto,
+    params: {
+      front: DigioFilePart;
+      back?: DigioFilePart;
+      expectedIds?: string[];
+      features?: string[];
+      saveMaskedToDriver?: boolean;
+      aadhaarSide?: 'FRONT' | 'BACK';
+      targetDriverId?: string;
+    },
+  ) {
+    const ctx = await this.resolveContext(actor, params.targetDriverId);
+    const reqId = this.digioClient.generateUniqueRequestId('OCR');
+
+    const res = await this.digioClient.analyzeIdCard({
+      front: params.front,
+      back: params.back,
+      expectedIds: params.expectedIds,
+      features: params.features,
+      uniqueRequestId: reqId,
+    });
+
+    const detections: any[] = Array.isArray(res?.detections) ? res.detections : [];
+    const primary = detections[0] || {};
+    const attrs = primary?.id_attributes || {};
+    const idType = String(primary?.id_type || 'UNKNOWN').toUpperCase();
+    const rawIdNo = String(attrs?.id_no || '');
+    const safeIdNo = idType.includes('AADHAAR')
+      ? this.maskAadhaarInText(rawIdNo) || (rawIdNo.length >= 4 ? `XXXX-XXXX-${rawIdNo.slice(-4)}` : '')
+      : rawIdNo;
+
+    let maskedStoredUrl: string | null = null;
+    const maskedBase64 =
+      primary?.output_images?.front_part || primary?.output_images?.masked_front;
+    if (
+      params.saveMaskedToDriver &&
+      idType.includes('AADHAAR') &&
+      typeof maskedBase64 === 'string' &&
+      maskedBase64.length > 16 &&
+      ctx.driverId
+    ) {
+      maskedStoredUrl = await this.storeBase64MaskedImage(
+        maskedBase64,
+        `aadhaar-masked-${Date.now()}.jpg`,
+        ctx.driverId,
+        params.aadhaarSide || 'FRONT',
+      );
+    }
+
+    const frontChecks = primary?.front_image_checks_result || {};
+    const verified =
+      detections.length > 0 &&
+      res?.details?.status !== 'FAILED' &&
+      (primary?.verification_result?.verified !== false);
+
+    return this.saveVerificationRecord({
+      ctx,
+      verificationType: 'ID_OCR',
+      category: 'KYC',
+      status: verified ? 'VERIFIED' : 'FAILED',
+      verified,
+      identifier: safeIdNo || idType,
+      uniqueRequestId: reqId,
+      verifiedName: attrs?.name || null,
+      complianceOk:
+        verified && frontChecks?.blur !== true && frontChecks?.black_and_white !== true,
+      complianceNotes:
+        frontChecks?.blur === true
+          ? 'Image appears blurry — clearer capture recommended'
+          : `Detected ${idType}${attrs?.name ? ` (${attrs.name})` : ''}`,
+      summary: {
+        detectedType: idType,
+        detectedPart: primary?.detected_part || null,
+        idNumber: safeIdNo || null,
+        name: attrs?.name || null,
+        dob: attrs?.dob || null,
+        gender: attrs?.gender || null,
+        address: attrs?.address || null,
+        qualityChecks: frontChecks,
+        maskedStoredUrl,
+        ocrVerified: primary?.verification_result?.verified ?? null,
+      },
+      rawResponse: res,
+    });
+  }
+
+  async analyzeStoredIdCard(actor: AuthUserDto, dto: AnalyzeStoredIdCardDto) {
+    const front = await this.resolveDocumentFile(dto.frontDocUrl, 'front ID');
+    const back = dto.backDocUrl
+      ? await this.resolveDocumentFile(dto.backDocUrl, 'back ID')
+      : undefined;
+
+    return this.analyzeIdCardFiles(actor, {
+      front,
+      back,
+      expectedIds: dto.expectedIds,
+      features: dto.features,
+      saveMaskedToDriver: dto.saveMaskedToDriver,
+      aadhaarSide: dto.aadhaarSide,
+      targetDriverId: dto.targetDriverId,
+    });
+  }
+
+  private async storeBase64MaskedImage(
+    rawBase64: string,
+    filename: string,
+    driverId: string,
+    side: 'FRONT' | 'BACK',
+  ): Promise<string | null> {
+    try {
+      const cleaned = rawBase64.replace(/^data:image\/\w+;base64,/, '');
+      const buf = Buffer.from(cleaned, 'base64');
+      if (!buf.length) return null;
+
+      const stored = await this.storageService.saveFile({
+        buffer: buf,
+        originalname: filename,
+        mimetype: 'image/jpeg',
+        size: buf.length,
+      });
+
+      await this.db.driver.update({
+        where: { id: driverId },
+        data:
+          side === 'BACK'
+            ? { aadharBackUrl: stored.url }
+            : { aadharFrontUrl: stored.url },
+      });
+      return stored.url;
+    } catch (err: any) {
+      this.logger.warn(`Failed storing masked Aadhaar image: ${err?.message}`);
+      return null;
+    }
+  }
+
+  async maskAadhaarFileBuffer(
+    actor: AuthUserDto,
+    file: DigioFilePart,
+    options: { side?: 'FRONT' | 'BACK'; targetDriverId?: string; saveToDriver?: boolean } = {},
+  ) {
+    const ctx = await this.resolveContext(actor, options.targetDriverId);
+    const reqId = this.digioClient.generateUniqueRequestId('MASK');
+
+    const res = await this.digioClient.maskAadhaarFile({
+      file,
+      uniqueRequestId: reqId,
+    });
+
+    const maskedOutput = res?.masked_output;
+    let maskedStoredUrl: string | null = null;
+    if (
+      options.saveToDriver &&
+      ctx.driverId &&
+      typeof maskedOutput === 'string' &&
+      maskedOutput.length > 50
+    ) {
+      maskedStoredUrl = await this.storeBase64MaskedImage(
+        maskedOutput,
+        `aadhaar-masked-${(options.side || 'FRONT').toLowerCase()}-${Date.now()}.jpg`,
+        ctx.driverId,
+        options.side || 'FRONT',
+      );
+    }
+
+    const maskingDoneCount = res?.details?.masking_done_count ?? 0;
+    const alreadyMaskedCount = res?.details?.already_masked_count ?? 0;
+    const verified = Boolean(maskedOutput || alreadyMaskedCount > 0 || maskingDoneCount > 0);
+
+    return this.saveVerificationRecord({
+      ctx,
+      verificationType: 'AADHAAR_MASK',
+      category: 'KYC',
+      status: verified ? 'VERIFIED' : 'FAILED',
+      verified,
+      identifier: options.side || 'AADHAAR',
+      uniqueRequestId: reqId,
+      complianceOk: verified,
+      complianceNotes: `Masked ${maskingDoneCount} occurrence(s), already masked ${alreadyMaskedCount}`,
+      summary: {
+        side: options.side || 'FRONT',
+        maskingDoneCount,
+        alreadyMaskedCount,
+        maskedStoredUrl,
+      },
+      rawResponse: res,
+    });
+  }
+
+  async maskStoredAadhaar(actor: AuthUserDto, dto: MaskStoredAadhaarDto) {
+    const file = await this.resolveDocumentFile(dto.documentUrl, 'Aadhaar');
+    return this.maskAadhaarFileBuffer(actor, file, {
+      side: dto.side || 'FRONT',
+      targetDriverId: dto.targetDriverId,
+      saveToDriver: true,
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Biometrics (Face Match & Selfie Liveness)
+  // ---------------------------------------------------------------------------
+
+  async faceMatchBuffers(
+    actor: AuthUserDto,
+    params: {
+      file1: DigioFilePart;
+      file2: DigioFilePart;
+      minimumMatch?: number;
+      targetDriverId?: string;
+    },
+  ) {
+    const ctx = await this.resolveContext(actor, params.targetDriverId);
+    const reqId = this.digioClient.generateUniqueRequestId('FACE');
+    const minMatch = params.minimumMatch ?? 65;
+
+    const res = await this.digioClient.faceMatch({
+      file1: params.file1,
+      file2: params.file2,
+      minimumMatch: minMatch,
+      uniqueRequestId: reqId,
+    });
+
+    const rawScore = Number(
+      res?.confidence ?? res?.match_percentage ?? res?.score ?? 0,
+    );
+    const score = Number.isFinite(rawScore)
+      ? Math.round(rawScore * 100) / 100
+      : 0;
+    const resultStr = String(res?.result || '').toUpperCase();
+    const matched =
+      resultStr === 'MATCHED' ||
+      resultStr === 'PASS' ||
+      resultStr === 'TRUE' ||
+      score >= minMatch;
+
+    return this.saveVerificationRecord({
+      ctx,
+      verificationType: 'FACE_MATCH',
+      category: 'BIOMETRIC',
+      status: matched ? 'VERIFIED' : 'FAILED',
+      verified: matched,
+      identifier: `SCORE_${score}%`,
+      uniqueRequestId: reqId,
+      matchScore: score,
+      complianceOk: matched,
+      complianceNotes: matched
+        ? `Biometric face match passed (${score}% >= ${minMatch}%)`
+        : `Face match below threshold (${score}% < ${minMatch}%)`,
+      summary: {
+        confidence: score,
+        minimumMatch: minMatch,
+        result: res?.result || (matched ? 'MATCHED' : 'NOT_MATCHED'),
+      },
+      rawResponse: res,
+    });
+  }
+
+  async faceMatchStored(actor: AuthUserDto, dto: FaceMatchStoredDto) {
+    const ctx = await this.resolveContext(actor, dto.targetDriverId);
+
+    let url1 = dto.image1Url;
+    let url2 = dto.image2Url;
+
+    if ((!url1 || !url2) && ctx.driverId) {
+      const driver = await this.db.driver.findUnique({
+        where: { id: ctx.driverId },
+        select: {
+          dlFrontUrl: true,
+          aadharFrontUrl: true,
+          panDocUrl: true,
+          kycDocuments: true,
+        },
+      });
+      const kyc =
+        driver?.kycDocuments && typeof driver.kycDocuments === 'object' && !Array.isArray(driver.kycDocuments)
+          ? (driver.kycDocuments as Record<string, any>)
+          : {};
+      url1 = url1 || (kyc.profilePhotoUrl as string | undefined);
+      url2 = url2 || driver?.dlFrontUrl || driver?.aadharFrontUrl || driver?.panDocUrl || undefined;
+    }
+
+    if (!url1 || !url2) {
+      throw new BadRequestException(
+        'Both a selfie/profile photo and a reference ID document photo (DL/Aadhaar/PAN) are required for face match',
+      );
+    }
+
+    const [file1, file2] = await Promise.all([
+      this.resolveDocumentFile(url1, 'selfie/profile photo'),
+      this.resolveDocumentFile(url2, 'ID document photo'),
+    ]);
+
+    return this.faceMatchBuffers(actor, {
+      file1,
+      file2,
+      minimumMatch: dto.minimumMatch,
+      targetDriverId: dto.targetDriverId,
+    });
+  }
+
+  async checkLivenessBuffer(
+    actor: AuthUserDto,
+    image: DigioFilePart,
+    targetDriverId?: string,
+  ) {
+    const ctx = await this.resolveContext(actor, targetDriverId);
+    const reqId = this.digioClient.generateUniqueRequestId('LIVE');
+
+    const res = await this.digioClient.checkLiveness({
+      image,
+      uniqueRequestId: reqId,
+    });
+
+    const rawScore = Number(res?.score ?? res?.liveness_score ?? 0);
+    const score = Number.isFinite(rawScore)
+      ? Math.round(rawScore * 100) / 100
+      : 0;
+    const resultStr = String(res?.result || '').toUpperCase();
+    const live =
+      resultStr === 'PASS' ||
+      resultStr === 'LIVE' ||
+      res?.is_live === true ||
+      score >= 0.5;
+
+    return this.saveVerificationRecord({
+      ctx,
+      verificationType: 'LIVENESS',
+      category: 'BIOMETRIC',
+      status: live ? 'VERIFIED' : 'FAILED',
+      verified: live,
+      identifier: resultStr || `LIVENESS_${score}`,
+      uniqueRequestId: reqId,
+      matchScore: score,
+      complianceOk: live,
+      complianceNotes: live
+        ? `Selfie liveness check passed (${resultStr || score})`
+        : `Selfie liveness failed (${resultStr || score})`,
+      summary: {
+        result: res?.result || (live ? 'PASS' : 'FAIL'),
+        score,
+      },
+      rawResponse: res,
+    });
+  }
+
+  async checkStoredLiveness(actor: AuthUserDto, dto: LivenessStoredDto) {
+    const ctx = await this.resolveContext(actor, dto.targetDriverId);
+    let url = dto.imageUrl;
+
+    if (!url && ctx.driverId) {
+      const driver = await this.db.driver.findUnique({
+        where: { id: ctx.driverId },
+        select: { kycDocuments: true },
+      });
+      const kyc =
+        driver?.kycDocuments && typeof driver.kycDocuments === 'object' && !Array.isArray(driver.kycDocuments)
+          ? (driver.kycDocuments as Record<string, any>)
+          : {};
+      url = kyc.profilePhotoUrl;
+    }
+
+    if (!url) {
+      throw new BadRequestException(
+        'Selfie/profile photo URL is required for liveness check',
+      );
+    }
+
+    const image = await this.resolveDocumentFile(url, 'selfie');
+    return this.checkLivenessBuffer(actor, image, dto.targetDriverId);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Banking, IFSC & UPI Verification
+  // ---------------------------------------------------------------------------
+
+  async verifyIfsc(actor: AuthUserDto, dto: VerifyIfscDto) {
+    const ifsc = dto.ifsc.trim().toUpperCase();
+    const res = await this.digioClient.verifyIfsc(ifsc);
+    const verified = Boolean(res?.verified && res?.data);
+
+    // No noisy DB insert required for pure IFSC autocomplete, return structured metadata cleanly
+    return {
+      verified,
+      ifsc: res?.data?.ifsc || ifsc,
+      bank: res?.data?.bank || null,
+      branch: res?.data?.branch || null,
+      address: res?.data?.address || null,
+      city: res?.data?.city || null,
+      state: res?.data?.state || null,
+      micr: res?.data?.micr || null,
+      neft: Boolean(res?.data?.neft),
+      imps: Boolean(res?.data?.imps),
+      rtgs: Boolean(res?.data?.rtgs),
+      upi: Boolean(res?.data?.upi),
+      pennyDropBank: res?.data?.penny_drop_bank || null,
+      requestedBy: actor.id,
+    };
+  }
+
+  async verifyBankAccount(actor: AuthUserDto, dto: VerifyBankAccountDto) {
+    const ctx = await this.resolveContext(actor, dto.targetDriverId);
+    const ifsc = dto.ifsc.trim().toUpperCase();
+    const accountNo = dto.accountNumber.trim();
+    const reqId = this.digioClient.generateUniqueRequestId('BANK');
+
+    const res = await this.digioClient.verifyBankAccount({
+      beneficiary_account_no: accountNo,
+      beneficiary_ifsc: ifsc,
+      beneficiary_name: dto.accountHolderName?.trim(),
+      validation_mode: dto.validationMode || 'PENNY_LESS',
+      unique_request_id: reqId,
+    });
+
+    const verified = Boolean(res?.verified);
+    const bankHolderName = String(res?.beneficiary_name_with_bank || '').trim();
+    const fuzzyScore =
+      res?.fuzzy_match_score !== undefined ? Number(res.fuzzy_match_score) : null;
+
+    if (dto.saveToDriverProfile && ctx.driverId && verified) {
+      const driver = await this.db.driver.findUnique({
+        where: { id: ctx.driverId },
+        select: { kycDocuments: true },
+      });
+      const existingKyc: Record<string, any> =
+        driver?.kycDocuments && typeof driver.kycDocuments === 'object' && !Array.isArray(driver.kycDocuments)
+          ? { ...(driver.kycDocuments as Record<string, any>) }
+          : {};
+
+      let resolvedBankName = existingKyc.bankName;
+      try {
+        const ifscRes = await this.digioClient.verifyIfsc(ifsc);
+        if (ifscRes?.data?.bank) resolvedBankName = ifscRes.data.bank;
+      } catch (_) {}
+
+      await this.db.driver.update({
+        where: { id: ctx.driverId },
+        data: {
+          kycDocuments: {
+            ...existingKyc,
+            bankAccountName: bankHolderName || dto.accountHolderName || existingKyc.bankAccountName,
+            bankAccountNumber: accountNo,
+            bankIfsc: ifsc,
+            bankName: resolvedBankName,
+            bankVerified: true,
+          } as any,
+        },
+      });
+    }
+
+    return this.saveVerificationRecord({
+      ctx,
+      verificationType: 'BANK_ACCOUNT',
+      category: 'BANK',
+      status: verified ? 'VERIFIED' : 'FAILED',
+      verified,
+      identifier: `${this.maskAccountNumber(accountNo)}@${ifsc}`,
+      uniqueRequestId: reqId,
+      verifiedName: bankHolderName || null,
+      matchScore: fuzzyScore,
+      complianceOk: verified,
+      complianceNotes: verified
+        ? `Bank account verified (${res?.validation_mode || dto.validationMode || 'PENNY_LESS'})${bankHolderName ? ` — Holder: ${bankHolderName}` : ''}`
+        : 'Bank account could not be verified',
+      summary: {
+        maskedAccount: this.maskAccountNumber(accountNo),
+        ifsc,
+        beneficiaryNameWithBank: bankHolderName || null,
+        fuzzyMatchScore: fuzzyScore,
+        validationMode: res?.validation_mode || dto.validationMode || 'PENNY_LESS',
+        verifiedAt: res?.verified_at || null,
+      },
+      rawResponse: res,
+    });
+  }
+
+  async verifyUpiVpa(actor: AuthUserDto, dto: VerifyUpiVpaDto) {
+    const ctx = await this.resolveContext(actor);
+    const vpa = dto.vpa.trim().toLowerCase();
+    const reqId = this.digioClient.generateUniqueRequestId('UPI');
+
+    const res = await this.digioClient.checkUpiVpa({
+      virtual_address: vpa,
+      name: dto.name?.trim(),
+      reference_id: ctx.driverId || actor.id,
+      unique_request_id: reqId,
+    });
+
+    const verified = Boolean(
+      res?.status === 'AVAILABLE' ||
+        res?.status === 'VALID' ||
+        res?.verified === true ||
+        res?.customer_name,
+    );
+    const customerName = String(res?.customer_name || res?.name || '').trim();
+
+    if (dto.saveToDriverProfile && ctx.driverId && verified) {
+      const driver = await this.db.driver.findUnique({
+        where: { id: ctx.driverId },
+        select: { kycDocuments: true },
+      });
+      const existingKyc =
+        driver?.kycDocuments && typeof driver.kycDocuments === 'object' && !Array.isArray(driver.kycDocuments)
+          ? { ...(driver.kycDocuments as Record<string, unknown>) }
+          : {};
+      await this.db.driver.update({
+        where: { id: ctx.driverId },
+        data: {
+          kycDocuments: {
+            ...existingKyc,
+            upiId: vpa,
+            upiVerified: true,
+          },
+        },
+      });
+    }
+
+    return this.saveVerificationRecord({
+      ctx,
+      verificationType: 'UPI_VPA',
+      category: 'BANK',
+      status: verified ? 'VERIFIED' : 'FAILED',
+      verified,
+      identifier: vpa,
+      uniqueRequestId: reqId,
+      verifiedName: customerName || null,
+      complianceOk: verified,
+      complianceNotes: verified
+        ? `UPI handle verified${customerName ? ` (${customerName})` : ''}`
+        : 'Invalid or inactive UPI VPA',
+      summary: {
+        vpa,
+        customerName: customerName || null,
+        status: res?.status || null,
+      },
+      rawResponse: res,
+    });
+  }
+
+  async searchUpiVpa(_actor: AuthUserDto, dto: SearchUpiVpaDto) {
+    return this.digioClient.searchUpiVpa({
+      handlePrefix: dto.handlePrefix.trim(),
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Business KYB (GST, PAN-to-GST, CIN, DIN, Udyam, FSSAI)
+  // ---------------------------------------------------------------------------
+
+  async verifyGst(actor: AuthUserDto, dto: VerifyGstDto) {
+    const ctx = await this.resolveContext(actor, undefined, dto.targetVendorId);
+    const gstin = dto.gstin.trim().toUpperCase();
+    const reqId = this.digioClient.generateUniqueRequestId('GST');
+    const endpointType = dto.advanced ? 'GST_ADVANCED' : 'GST';
+
+    const res = await this.digioClient.fetchIdData(endpointType, {
+      id_no: gstin,
+      is_advanced: Boolean(dto.advanced),
+      unique_request_id: reqId,
+    });
+
+    const legalName = String(
+      res?.lgnm || res?.legal_name || res?.trade_name || res?.tradeNam || '',
+    ).trim();
+    const tradeName = String(res?.tradeNam || res?.trade_name || legalName).trim();
+    const gstStatus = String(res?.sts || res?.status || '').trim();
+    const verified = Boolean(
+      legalName ||
+        (gstStatus && gstStatus.toUpperCase() === 'ACTIVE'),
+    );
+    const complianceOk =
+      verified &&
+      (!gstStatus ||
+        gstStatus.toUpperCase() === 'ACTIVE' ||
+        gstStatus.toUpperCase() === 'VALID');
+
+    if (dto.saveToVendorProfile && ctx.vendorId && verified) {
+      await this.db.vendor.update({
+        where: { id: ctx.vendorId },
+        data: {
+          gstNumber: gstin,
+          ...(tradeName ? { organizationName: tradeName } : {}),
+        },
+      });
+    }
+
+    return this.saveVerificationRecord({
+      ctx,
+      verificationType: 'GST',
+      category: 'KYB',
+      status: verified ? (complianceOk ? 'VERIFIED' : 'PARTIAL') : 'FAILED',
+      verified,
+      identifier: gstin,
+      uniqueRequestId: reqId,
+      verifiedName: legalName || tradeName || null,
+      complianceOk,
+      complianceNotes: complianceOk
+        ? `GSTIN ${gstStatus || 'Active'} — ${tradeName || legalName}`
+        : `GSTIN status is "${gstStatus || 'UNKNOWN'}"`,
+      summary: {
+        gstin,
+        legalName: legalName || null,
+        tradeName: tradeName || null,
+        status: gstStatus || null,
+        registrationDate: res?.rgdt || res?.registration_date || null,
+        constitutionOfBusiness: res?.ctb || res?.constitution_of_business || null,
+        taxpayerType: res?.dty || res?.taxpayer_type || null,
+        address: res?.pradr?.adr || res?.principal_place_of_business || null,
+        stateJurisdiction: res?.stj || null,
+      },
+      rawResponse: res,
+    });
+  }
+
+  async verifyPanToGst(actor: AuthUserDto, dto: VerifyPanToGstDto) {
+    const ctx = await this.resolveContext(actor);
+    const pan = dto.panNumber.trim().toUpperCase();
+    const reqId = this.digioClient.generateUniqueRequestId('P2G');
+
+    const res = await this.digioClient.fetchIdData('PAN_TO_GST', {
+      id_no: pan,
+      listing_type: dto.listingType || 'BASIC',
+      unique_request_id: reqId,
+    });
+
+    const gstList = Array.isArray(res?.gstin_list)
+      ? res.gstin_list
+      : Array.isArray(res?.data)
+        ? res.data
+        : Array.isArray(res)
+          ? res
+          : [];
+    const verified = gstList.length > 0 || Boolean(res?.gstin);
+
+    return this.saveVerificationRecord({
+      ctx,
+      verificationType: 'PAN_TO_GST',
+      category: 'KYB',
+      status: verified ? 'VERIFIED' : 'FAILED',
+      verified,
+      identifier: pan,
+      uniqueRequestId: reqId,
+      complianceOk: verified,
+      complianceNotes: `Found ${gstList.length || (res?.gstin ? 1 : 0)} GST registration(s) mapped to PAN`,
+      summary: {
+        panNumber: pan,
+        gstRegistrations: gstList,
+      },
+      rawResponse: res,
+    });
+  }
+
+  async verifyCin(actor: AuthUserDto, dto: VerifyCinDto) {
+    const ctx = await this.resolveContext(actor, undefined, dto.targetVendorId);
+    const cin = dto.cin.trim().toUpperCase();
+    const reqId = this.digioClient.generateUniqueRequestId('CIN');
+
+    const res = await this.digioClient.fetchIdData('CIN', {
+      id_no: cin,
+      unique_request_id: reqId,
+    });
+
+    const companyName = String(
+      res?.company_name || res?.companyName || res?.company_master_data?.company_name || '',
+    ).trim();
+    const status = String(
+      res?.company_status || res?.company_master_data?.['company_status(for_efiling)'] || '',
+    ).trim();
+    const verified = Boolean(companyName || res?.cin);
+
+    return this.saveVerificationRecord({
+      ctx,
+      verificationType: 'CIN',
+      category: 'KYB',
+      status: verified ? 'VERIFIED' : 'FAILED',
+      verified,
+      identifier: cin,
+      uniqueRequestId: reqId,
+      verifiedName: companyName || null,
+      complianceOk: verified && (!status || status.toUpperCase().includes('ACTIVE')),
+      complianceNotes: status ? `MCA Status: ${status}` : 'MCA CIN record verified',
+      summary: {
+        cin,
+        companyName: companyName || null,
+        status: status || null,
+        rocCode: res?.roc_code || res?.company_master_data?.roc_code || null,
+        dateOfIncorporation:
+          res?.date_of_incorporation ||
+          res?.company_master_data?.date_of_incorporation ||
+          null,
+      },
+      rawResponse: res,
+    });
+  }
+
+  async verifyDin(actor: AuthUserDto, dto: VerifyDinDto) {
+    const ctx = await this.resolveContext(actor);
+    const din = dto.din.trim();
+    const reqId = this.digioClient.generateUniqueRequestId('DIN');
+
+    const res = await this.digioClient.fetchIdData('DIN', {
+      id_no: din,
+      unique_request_id: reqId,
+    });
+
+    const directorName = String(res?.director_name || res?.name || '').trim();
+    const verified = Boolean(directorName || res?.din);
+
+    return this.saveVerificationRecord({
+      ctx,
+      verificationType: 'DIN',
+      category: 'KYB',
+      status: verified ? 'VERIFIED' : 'FAILED',
+      verified,
+      identifier: din,
+      uniqueRequestId: reqId,
+      verifiedName: directorName || null,
+      complianceOk: verified,
+      complianceNotes: verified ? `Director verified: ${directorName}` : 'DIN not found',
+      summary: { din, directorName: directorName || null },
+      rawResponse: res,
+    });
+  }
+
+  async verifyUdyam(actor: AuthUserDto, dto: VerifyUdyamDto) {
+    const ctx = await this.resolveContext(actor, undefined, dto.targetVendorId);
+    const udyam = dto.udyamNumber.trim().toUpperCase();
+    const reqId = this.digioClient.generateUniqueRequestId('UDYM');
+
+    const res = await this.digioClient.fetchIdData('UDYAMAADHAAR', {
+      id_no: udyam,
+      unique_request_id: reqId,
+    });
+
+    const enterpriseName = String(
+      res?.enterprise_name || res?.name_of_enterprise || res?.main_details?.name_of_enterprise || '',
+    ).trim();
+    const verified = Boolean(enterpriseName || res?.udyam_registration_number);
+
+    return this.saveVerificationRecord({
+      ctx,
+      verificationType: 'UDYAM',
+      category: 'KYB',
+      status: verified ? 'VERIFIED' : 'FAILED',
+      verified,
+      identifier: udyam,
+      uniqueRequestId: reqId,
+      verifiedName: enterpriseName || null,
+      complianceOk: verified,
+      complianceNotes: verified ? `MSME Udyam verified: ${enterpriseName}` : 'Udyam verification failed',
+      summary: {
+        udyamNumber: udyam,
+        enterpriseName: enterpriseName || null,
+        enterpriseType: res?.enterprise_type || res?.main_details?.enterprise_type || null,
+      },
+      rawResponse: res,
+    });
+  }
+
+  async verifyFssai(actor: AuthUserDto, dto: VerifyFssaiDto) {
+    const ctx = await this.resolveContext(actor);
+    const fssai = dto.fssaiNumber.trim();
+    const reqId = this.digioClient.generateUniqueRequestId('FSSA');
+
+    const res = await this.digioClient.fetchIdData('FSSAI', {
+      id_no: fssai,
+      unique_request_id: reqId,
+    });
+
+    const company = String(res?.company_name || res?.fbo_name || '').trim();
+    const verified = Boolean(company || res?.license_no);
+
+    return this.saveVerificationRecord({
+      ctx,
+      verificationType: 'FSSAI',
+      category: 'KYB',
+      status: verified ? 'VERIFIED' : 'FAILED',
+      verified,
+      identifier: fssai,
+      uniqueRequestId: reqId,
+      verifiedName: company || null,
+      complianceOk: verified,
+      complianceNotes: verified ? `FSSAI license verified: ${company}` : 'FSSAI verification failed',
+      summary: { fssaiNumber: fssai, businessName: company || null, status: res?.status || null },
+      rawResponse: res,
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Fuzzy Match & UAN Employment Check
+  // ---------------------------------------------------------------------------
+
+  async fuzzyMatch(actor: AuthUserDto, dto: FuzzyMatchDto) {
+    const ctx = await this.resolveContext(actor);
+    const reqId = this.digioClient.generateUniqueRequestId('FUZ');
+
+    const res = await this.digioClient.fuzzyMatch({
+      source: { text: dto.sourceText },
+      target: { text: dto.targetText },
+      context: dto.context,
+      confidence: dto.minConfidence ?? 75,
+      unique_request_id: reqId,
+    });
+
+    const matched = Boolean(res?.matched);
+    const score = res?.match_score !== undefined ? Number(res.match_score) : null;
+
+    return this.saveVerificationRecord({
+      ctx,
+      verificationType: 'FUZZY_MATCH',
+      category: 'KYC',
+      status: matched ? 'VERIFIED' : 'FAILED',
+      verified: matched,
+      identifier: dto.context.toUpperCase(),
+      uniqueRequestId: reqId,
+      matchScore: score,
+      complianceOk: matched,
+      complianceNotes: `Fuzzy ${dto.context} match score: ${score ?? 0}%`,
+      summary: {
+        context: dto.context,
+        matched,
+        matchScore: score,
+      },
+      rawResponse: res,
+    });
+  }
+
+  async verifyUan(actor: AuthUserDto, dto: VerifyUanDto) {
+    const ctx = await this.resolveContext(actor);
+    const reqId = this.digioClient.generateUniqueRequestId('UAN');
+
+    const res = await this.digioClient.verifyUan({
+      type: dto.type,
+      identifier: dto.identifier.trim(),
+      uan_history: dto.includeHistory ? 'YES' : 'NO',
+      unique_request_id: reqId,
+    });
+
+    const verified = Boolean(res && !res.error && (res?.uan || res?.data || res?.employment_history));
+    return this.saveVerificationRecord({
+      ctx,
+      verificationType: 'UAN',
+      category: 'KYC',
+      status: verified ? 'VERIFIED' : 'FAILED',
+      verified,
+      identifier: dto.type === 'MOBILE' ? `***${dto.identifier.slice(-4)}` : dto.identifier.trim(),
+      uniqueRequestId: reqId,
+      complianceOk: verified,
+      complianceNotes: verified ? 'EPFO UAN verified' : 'UAN lookup returned no records',
+      summary: {
+        type: dto.type,
+        hasHistory: Boolean(res?.employment_history || res?.data?.employment_history),
+      },
+      rawResponse: res,
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // DigiLocker / Guided Gateway Session & Webhook Handling
+  // ---------------------------------------------------------------------------
+
+  async createDigilockerSession(actor: AuthUserDto, dto: CreateDigilockerRequestDto) {
+    const ctx = await this.resolveContext(actor);
+    const user = await this.db.user.findUnique({
+      where: { id: actor.id },
+      select: { phone: true, email: true, fullName: true },
+    });
+
+    const customerIdentifier = (
+      dto.customerIdentifier ||
+      user?.phone ||
+      user?.email ||
+      actor.phone ||
+      actor.email ||
+      ''
+    ).trim();
+    if (!customerIdentifier) {
+      throw new BadRequestException(
+        'A verified phone number or email is required to launch DigiLocker KYC',
+      );
+    }
+
+    const customerName =
+      dto.customerName?.trim() || user?.fullName || actor.fullName || 'AdhocX User';
+    const txnId = this.digioClient.generateUniqueRequestId('DLKR');
+    const templateName =
+      dto.templateName?.trim() || this.digioClient.digilockerTemplateName;
+
+    const res = await this.digioClient.createKycRequestWithTemplate({
+      customer_identifier: customerIdentifier,
+      customer_name: customerName,
+      template_name: templateName,
+      generate_access_token: true,
+      notify_customer: dto.notifyCustomer ?? false,
+      reference_id: ctx.driverId || ctx.vendorId || actor.id,
+      transaction_id: txnId,
+      preset_values: dto.presetValues,
+    });
+
+    const kid = String(res?.id || '');
+    const tokenId = String(res?.access_token?.id || '');
+    if (!kid || !tokenId) {
+      throw new BadRequestException('Digio did not return a valid session ID / access token');
+    }
+
+    const gatewayUrl = this.digioClient.buildGatewayUrl({
+      requestId: kid,
+      transactionId: txnId,
+      customerIdentifier,
+      tokenId,
+      redirectUrl: dto.redirectUrl,
+    });
+
+    const record = await this.saveVerificationRecord({
+      ctx,
+      verificationType: 'DIGILOCKER',
+      category: 'DIGILOCKER',
+      status: 'INITIATED',
+      verified: false,
+      identifier: customerIdentifier,
+      uniqueRequestId: txnId,
+      digioRequestId: kid,
+      referenceId: res?.reference_id || ctx.driverId || ctx.vendorId || actor.id,
+      verifiedName: customerName,
+      complianceOk: null,
+      complianceNotes: 'DigiLocker KYC session created; awaiting customer authorization',
+      summary: {
+        templateName,
+        digioRequestId: kid,
+        transactionId: txnId,
+        tokenValidTill: res?.access_token?.valid_till || null,
+        gatewayUrl,
+      },
+      rawResponse: res,
+    });
+
+    return {
+      ...record,
+      digioRequestId: kid,
+      accessToken: tokenId,
+      transactionId: txnId,
+      customerIdentifier,
+      gatewayUrl,
+      environment: this.digioClient.env,
+    };
+  }
+
+  async syncDigilockerResponse(actor: AuthUserDto | null, digioRequestId: string) {
+    const existing = await this.db.digioVerification.findUnique({
+      where: { digioRequestId },
+    });
+    if (!existing) {
+      throw new NotFoundException(`Digio KYC request ${digioRequestId} not found`);
+    }
+
+    if (
+      actor &&
+      actor.role !== UserRole.ADMIN &&
+      existing.userId !== actor.id
+    ) {
+      throw new ForbiddenException('You do not have access to this KYC session');
+    }
+
+    const res = await this.digioClient.getKycRequestResponse(digioRequestId);
+    const digioStatus = String(res?.status || '').toLowerCase();
+    const actions: any[] = Array.isArray(res?.actions) ? res.actions : [];
+
+    let extractedName: string | null = null;
+    let extractedPan: string | null = null;
+    let extractedDl: string | null = null;
+    let maskedAadhaar: string | null = null;
+
+    for (const action of actions) {
+      const details = action?.details || {};
+      const aadhaar = details?.aadhaar || details?.AADHAAR;
+      if (aadhaar) {
+        extractedName = extractedName || aadhaar.name || null;
+        if (aadhaar.id_number) {
+          maskedAadhaar = this.maskAadhaarInText(String(aadhaar.id_number));
+        }
+      }
+      const pan = details?.pan || details?.PAN;
+      if (pan) {
+        extractedPan = pan.id_number || pan.pan_no || extractedPan;
+        extractedName = extractedName || pan.name || null;
+      }
+      const dl = details?.driving_licence || details?.driving_license || details?.DRIVING_LICENSE;
+      if (dl) {
+        extractedDl = dl.id_number || dl.dl_number || extractedDl;
+        extractedName = extractedName || dl.name || null;
+      }
+    }
+
+    const verified =
+      digioStatus === 'approved' ||
+      digioStatus === 'approval_pending' ||
+      actions.some(
+        (a) =>
+          String(a?.status || '').toLowerCase() === 'approved' ||
+          String(a?.status || '').toLowerCase() === 'completed' ||
+          String(a?.status || '').toLowerCase() === 'success',
+      );
+
+    const status =
+      digioStatus === 'approved'
+        ? 'VERIFIED'
+        : digioStatus === 'rejected' || digioStatus === 'failed'
+          ? 'FAILED'
+          : digioStatus === 'expired'
+            ? 'EXPIRED'
+            : verified
+              ? 'VERIFIED'
+              : 'PENDING';
+
+    const updated = await this.db.digioVerification.update({
+      where: { id: existing.id },
+      data: {
+        status,
+        verified,
+        verifiedName: extractedName || existing.verifiedName,
+        complianceOk: verified,
+        complianceNotes: `DigiLocker status: ${digioStatus || status}`,
+        verifiedAt: verified ? existing.verifiedAt || new Date() : null,
+        summary: this.sanitizePayload({
+          ...(typeof existing.summary === 'object' && existing.summary
+            ? existing.summary
+            : {}),
+          digioStatus,
+          extractedName,
+          extractedPan,
+          extractedDl,
+          maskedAadhaar,
+          actionsCount: actions.length,
+          actionStatuses: actions.map((a) => ({
+            type: a?.type,
+            status: a?.status,
+          })),
+        }),
+        rawResponse: this.sanitizePayload(res),
+      },
+    });
+
+    if (updated.driverId) {
+      await this.syncDriverDigioMetadata(updated.driverId, 'DIGILOCKER', {
+        verificationId: updated.id,
+        digioRequestId: updated.digioRequestId,
+        verified: updated.verified,
+        status: updated.status,
+        verifiedName: updated.verifiedName,
+        summary: updated.summary,
+        verifiedAt: updated.verifiedAt?.toISOString() || null,
+      });
+
+      if (extractedPan || extractedDl) {
+        const driver = await this.db.driver.findUnique({
+          where: { id: updated.driverId },
+          select: { kycDocuments: true },
+        });
+        const kyc: Record<string, any> =
+          driver?.kycDocuments && typeof driver.kycDocuments === 'object' && !Array.isArray(driver.kycDocuments)
+            ? { ...(driver.kycDocuments as Record<string, any>) }
+            : {};
+        if (extractedPan) kyc.panNumber = extractedPan;
+        if (extractedDl) kyc.dlNumber = extractedDl;
+        await this.db.driver.update({
+          where: { id: updated.driverId },
+          data: { kycDocuments: kyc as any },
+        });
+      }
+    }
+
+    return this.formatRecord(updated);
+  }
+
+  async manageDigilockerApproval(
+    actor: AuthUserDto,
+    digioRequestId: string,
+    dto: ManageDigilockerApprovalDto,
+  ) {
+    if (actor.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Only admins can manage Digio KYC approval state');
+    }
+    await this.digioClient.manageKycApproval(
+      digioRequestId,
+      dto.status,
+      dto.reason,
+    );
+    return this.syncDigilockerResponse(actor, digioRequestId);
+  }
+
+  async reattemptDigilockerRequest(actor: AuthUserDto, digioRequestId: string) {
+    const existing = await this.db.digioVerification.findUnique({
+      where: { digioRequestId },
+    });
+    if (!existing) {
+      throw new NotFoundException('Digio KYC session not found');
+    }
+    if (actor.role !== UserRole.ADMIN && existing.userId !== actor.id) {
+      throw new ForbiddenException('Cannot reattempt another user session');
+    }
+    const res = await this.digioClient.reattemptKycRequest(digioRequestId);
+    return {
+      digioRequestId,
+      status: res?.status || 'REATTEMPTED',
+      raw: this.sanitizePayload(res),
+    };
+  }
+
+  async handleWebhook(params: {
+    rawBody?: Buffer | string;
+    checksumHeader?: string;
+    remoteIp?: string;
+    payload: any;
+  }) {
+    if (this.digioClient.hasWebhookSecret) {
+      const valid = this.digioClient.verifyWebhookChecksum(
+        params.rawBody,
+        params.checksumHeader,
+      );
+      if (!valid) {
+        this.logger.warn('Rejected Digio webhook with invalid X-Digio-Checksum');
+        throw new UnauthorizedException('Invalid X-Digio-Checksum signature');
+      }
+    } else if (params.remoteIp) {
+      const cleanIp = params.remoteIp.replace('::ffff:', '').trim();
+      const allowed = this.digioClient.allowedWebhookIps;
+      if (allowed.length && !allowed.includes(cleanIp) && cleanIp !== '127.0.0.1' && cleanIp !== '::1') {
+        this.logger.warn(`Digio webhook received from non-allowlisted IP: ${cleanIp}`);
+      }
+    }
+
+    const payload = params.payload || {};
+    const digioRequestId: string | undefined =
+      payload?.payload?.kyc_request?.id ||
+      payload?.entities?.[0] ||
+      payload?.id;
+    const eventName = String(payload?.event || 'kyc.webhook');
+
+    this.logger.log(
+      `Digio webhook received: event=${eventName}, requestId=${digioRequestId || 'unknown'}`,
+    );
+
+    if (digioRequestId) {
+      const existing = await this.db.digioVerification.findUnique({
+        where: { digioRequestId },
+        select: { id: true },
+      });
+      if (existing) {
+        try {
+          // Always pull authoritative KYC state from Digio API rather than blindly trusting webhook fields
+          const synced = await this.syncDigilockerResponse(null, digioRequestId);
+          return { acknowledged: true, event: eventName, synced };
+        } catch (err: any) {
+          this.logger.warn(
+            `Webhook sync for ${digioRequestId} failed cleanly: ${err?.message}`,
+          );
+        }
+      }
+    }
+
+    return { acknowledged: true, event: eventName };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Admin One-Click Full Verification Suite for a Driver
+  // ---------------------------------------------------------------------------
+
+  async runAdminDriverSuite(
+    adminUser: AuthUserDto,
+    driverId: string,
+    dto: AdminRunDriverDigioSuiteDto,
+  ) {
+    const driver = await this.db.driver.findUnique({
+      where: { id: driverId },
+      include: { vehicles: { take: 1, orderBy: { createdAt: 'desc' } } },
+    });
+    if (!driver) throw new NotFoundException('Driver not found');
+
+    const kyc =
+      driver.kycDocuments && typeof driver.kycDocuments === 'object' && !Array.isArray(driver.kycDocuments)
+        ? (driver.kycDocuments as Record<string, any>)
+        : {};
+
+    const results: Record<string, any> = {};
+    const errors: Record<string, string> = {};
+
+    // 1. Aadhaar Front/Back OCR + Masking
+    if (dto.includeAadhaarMask !== false && driver.aadharFrontUrl) {
+      try {
+        results.AADHAAR_OCR_AND_MASK = await this.analyzeStoredIdCard(adminUser, {
+          frontDocUrl: driver.aadharFrontUrl,
+          backDocUrl: driver.aadharBackUrl || undefined,
+          expectedIds: ['AADHAAR'],
+          features: ['MASK', 'CROP_ALIGN', 'VERIFY', 'FACE_EXTRACT'],
+          saveMaskedToDriver: true,
+          aadhaarSide: 'FRONT',
+          targetDriverId: driverId,
+        });
+      } catch (err: any) {
+        errors.AADHAAR_OCR_AND_MASK = err?.message || 'Aadhaar OCR/masking failed';
+      }
+    }
+
+    // 2. PAN Verification
+    const panNo = (dto.panOverride || kyc.panNumber || '').trim();
+    if (dto.includePan !== false && panNo) {
+      try {
+        results.PAN = await this.verifyPan(adminUser, {
+          panNumber: panNo,
+          name: driver.fullName,
+          dob: dto.dobOverride || kyc.dateOfBirth || undefined,
+          targetDriverId: driverId,
+        });
+      } catch (err: any) {
+        errors.PAN = err?.message || 'PAN check failed';
+      }
+    }
+
+    // 3. Driving License Verification
+    const dlNo = (dto.dlOverride || kyc.dlNumber || '').trim();
+    const dob = (dto.dobOverride || kyc.dateOfBirth || '').trim();
+    if (dto.includeDl !== false && dlNo && dob) {
+      try {
+        results.DRIVING_LICENSE = await this.verifyDrivingLicense(adminUser, {
+          dlNumber: dlNo,
+          dob,
+          name: driver.fullName,
+          targetDriverId: driverId,
+        });
+      } catch (err: any) {
+        errors.DRIVING_LICENSE = err?.message || 'DL check failed';
+      }
+    }
+
+    // 4. Vehicle RC Verification
+    const rcNo = (
+      dto.rcOverride ||
+      driver.vehicles?.[0]?.registrationNumber ||
+      driver.vehiclePlate ||
+      ''
+    ).trim();
+    if (dto.includeRc !== false && rcNo) {
+      try {
+        results.VEHICLE_RC = await this.verifyVehicleRc(adminUser, {
+          registrationNumber: rcNo,
+          vehicleId: driver.vehicles?.[0]?.id,
+          targetDriverId: driverId,
+        });
+      } catch (err: any) {
+        errors.VEHICLE_RC = err?.message || 'Vehicle RC check failed';
+      }
+    }
+
+    // 5. Biometric Face Match & Liveness
+    if (dto.includeFaceMatch !== false && kyc.profilePhotoUrl) {
+      try {
+        results.LIVENESS = await this.checkStoredLiveness(adminUser, {
+          imageUrl: kyc.profilePhotoUrl,
+          targetDriverId: driverId,
+        });
+      } catch (err: any) {
+        errors.LIVENESS = err?.message || 'Liveness check failed';
+      }
+
+      if (driver.dlFrontUrl || driver.aadharFrontUrl || driver.panDocUrl) {
+        try {
+          results.FACE_MATCH = await this.faceMatchStored(adminUser, {
+            image1Url: kyc.profilePhotoUrl,
+            image2Url: driver.dlFrontUrl || driver.aadharFrontUrl || driver.panDocUrl || undefined,
+            minimumMatch: 65,
+            targetDriverId: driverId,
+          });
+        } catch (err: any) {
+          errors.FACE_MATCH = err?.message || 'Face match failed';
+        }
+      }
+    }
+
+    // 6. Bank Account Penny-less Check
+    if (dto.includeBank !== false && kyc.bankAccountNumber && kyc.bankIfsc) {
+      try {
+        results.BANK_ACCOUNT = await this.verifyBankAccount(adminUser, {
+          accountNumber: kyc.bankAccountNumber,
+          ifsc: kyc.bankIfsc,
+          accountHolderName: kyc.bankAccountName || driver.fullName,
+          validationMode: 'PENNY_LESS',
+          saveToDriverProfile: false,
+          targetDriverId: driverId,
+        });
+      } catch (err: any) {
+        errors.BANK_ACCOUNT = err?.message || 'Bank verification failed';
+      }
+    }
+
+    return {
+      driverId,
+      executedChecks: Object.keys(results),
+      results,
+      errors,
+    };
+  }
+}

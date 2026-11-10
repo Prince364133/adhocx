@@ -18,6 +18,7 @@ import {
   PlatformDomainModule,
   CorporateDomainModule,
 } from './domains';
+import { DigioModule } from './modules/digio/digio.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import {
     FinanceDomainModule,
     PlatformDomainModule,
     CorporateDomainModule,
+    DigioModule,
   ],
   controllers: [AppController],
 })

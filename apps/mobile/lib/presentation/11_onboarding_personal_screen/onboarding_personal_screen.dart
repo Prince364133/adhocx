@@ -1181,6 +1181,105 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                       ),
                       const SizedBox(height: AppSpacing.md),
 
+                      // Business KYB Verification (GSTIN & Company PAN via Digio)
+                      _buildSectionHeader(
+                        context,
+                        icon: Icons.verified_user_outlined,
+                        title: 'Tax & KYB Verification (Optional)',
+                        subtitle: 'Verify GSTIN or Company PAN instantly via Digio',
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      AppTextField(
+                        controller: _gstController,
+                        label: 'GSTIN (Optional)',
+                        hintText: 'e.g. 36AABCU9603R1ZM',
+                        prefixIcon: const Icon(Icons.receipt_long_outlined, size: 20),
+                      ),
+                      const SizedBox(height: 6),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          onPressed: () async {
+                            final gstin = _gstController.text.trim().toUpperCase();
+                            if (gstin.length != 15) {
+                              AppToast.showError('Enter a valid 15-character GSTIN to verify', context: context);
+                              return;
+                            }
+                            try {
+                              AppToast.showInfo('Verifying GSTIN via Digio KYB...', context: context);
+                              final res = await DigioService.instance.verifyGst(
+                                gstin: gstin,
+                                saveToVendorProfile: false,
+                              );
+                              if (res['verified'] == true && res['verifiedName'] != null) {
+                                if (_companyNameController.text.trim().isEmpty) {
+                                  _companyNameController.text = res['verifiedName'].toString();
+                                }
+                                if (context.mounted) {
+                                  AppToast.showSuccess(
+                                    'GSTIN Verified: ${res['verifiedName']}',
+                                    context: context,
+                                  );
+                                }
+                              } else if (context.mounted) {
+                                AppToast.showError(
+                                  res['complianceNotes']?.toString() ?? 'GSTIN could not be verified',
+                                  context: context,
+                                );
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                AppToast.showError(AppToast.cleanErrorMessage(e), context: context);
+                              }
+                            }
+                          },
+                          icon: const Icon(Icons.verified_outlined, size: 16),
+                          label: const Text('Verify GSTIN', style: TextStyle(fontSize: 12)),
+                        ),
+                      ),
+                      AppTextField(
+                        controller: _panController,
+                        label: 'Company / Signatory PAN (Optional)',
+                        hintText: 'e.g. AABCU9603R',
+                        prefixIcon: const Icon(Icons.badge_outlined, size: 20),
+                      ),
+                      const SizedBox(height: 6),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          onPressed: () async {
+                            final pan = _panController.text.trim().toUpperCase();
+                            if (pan.length != 10) {
+                              AppToast.showError('Enter a valid 10-character PAN', context: context);
+                              return;
+                            }
+                            try {
+                              final res = await DigioService.instance.verifyPan(
+                                panNumber: pan,
+                                name: _companyNameController.text.trim(),
+                              );
+                              if (context.mounted) {
+                                if (res['verified'] == true) {
+                                  AppToast.showSuccess(
+                                    'PAN Verified${res['verifiedName'] != null ? ' (${res['verifiedName']})' : ''}',
+                                    context: context,
+                                  );
+                                } else {
+                                  AppToast.showError('PAN could not be verified', context: context);
+                                }
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                AppToast.showError(AppToast.cleanErrorMessage(e), context: context);
+                              }
+                            }
+                          },
+                          icon: const Icon(Icons.verified_outlined, size: 16),
+                          label: const Text('Verify PAN', style: TextStyle(fontSize: 12)),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+
                       // Business Industry / Sector Dropdown
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,

@@ -1983,3 +1983,48 @@ model CorporateRosterEntry {
 }
 
 // ===== end WS-F =====
+
+// =============================================================================
+// DIGIO KYC / KYB / VEHICLE / BANKING / DIGILOCKER VERIFICATIONS
+// =============================================================================
+
+model DigioVerification {
+  id               String   @id @default(uuid())
+  tenantId         String?  @map("tenant_id")
+  userId           String?  @map("user_id")
+  driverId         String?  @map("driver_id")
+  vendorId         String?  @map("vendor_id")
+  vehicleId        String?  @map("vehicle_id")
+
+  verificationType String   @map("verification_type")
+  category         String   @default("KYC")
+  status           String   @default("PENDING")
+  verified         Boolean  @default(false)
+
+  identifier       String?
+  uniqueRequestId  String   @unique @map("unique_request_id")
+  digioRequestId   String?  @unique @map("digio_request_id")
+  referenceId      String?  @map("reference_id")
+
+  verifiedName     String?  @map("verified_name")
+  matchScore       Float?   @map("match_score")
+  complianceOk     Boolean? @map("compliance_ok")
+  complianceNotes  String?  @map("compliance_notes")
+  errorMessage     String?  @map("error_message")
+
+  summary          Json?
+  rawResponse      Json?    @map("raw_response")
+
+  verifiedAt       DateTime? @map("verified_at")
+  expiresAt        DateTime? @map("expires_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  @@index([userId, verificationType])
+  @@index([driverId, verificationType])
+  @@index([vendorId, verificationType])
+  @@index([vehicleId, verificationType])
+  @@index([tenantId])
+  @@map("digio_verifications")
+}
+

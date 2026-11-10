@@ -904,3 +904,44 @@ export interface DistanceSimulationResult {
   grossMarginPercent: number;
 }
 
+// =============================================================================
+// DIGIO KYC / KYB VERIFICATION TYPES
+// =============================================================================
+
+export interface DigioVerificationItem {
+  id: string;
+  verificationType: string;
+  category: string;
+  status: string;
+  verified: boolean;
+  identifier?: string | null;
+  uniqueRequestId: string;
+  digioRequestId?: string | null;
+  verifiedName?: string | null;
+  matchScore?: number | null;
+  complianceOk?: boolean | null;
+  complianceNotes?: string | null;
+  errorMessage?: string | null;
+  summary?: Record<string, any> | null;
+  verifiedAt?: string | null;
+  expiresAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DigioEntityVerificationsResponse {
+  configured: boolean;
+  driverId?: string;
+  vendorId?: string;
+  latestByType: Record<string, DigioVerificationItem>;
+  history: DigioVerificationItem[];
+}
+
+export interface DigioAdminDriverSuiteResult {
+  driverId: string;
+  executedChecks: string[];
+  results: Record<string, DigioVerificationItem>;
+  errors: Record<string, string>;
+}
+
+

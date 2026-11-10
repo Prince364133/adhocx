@@ -1,6 +1,7 @@
 import 'dart:async';
 import '../core/networking/api_client.dart';
 import 'auth_service.dart';
+export 'digio_service.dart';
 
 class DriverService {
   static DriverService? _instance;
