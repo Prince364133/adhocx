@@ -33,9 +33,11 @@ import './presentation/overlay/driver_bubble_overlay.dart';
 void overlayMain() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(
-    const MaterialApp(
+    MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: DriverAssistiveBubbleOverlay(),
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      home: const DriverAssistiveBubbleOverlay(),
     ),
   );
 }

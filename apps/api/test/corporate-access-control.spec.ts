@@ -469,7 +469,8 @@ describe('Corporate access control', () => {
           const exempt =
             where === 'CorporateRosterController.downloadTemplate' ||
             where === 'CorporateTrackingController.getFleetSnapshot' ||
-            where === 'CorporateTrackingController.streamFleetTelemetry';
+            where === 'CorporateTrackingController.streamFleetTelemetry' ||
+            where === 'CorporateTrackingController.issueStreamTicket';
           if (nonPlatform && !scoped && !exempt) {
             problems.push(`${where}: non-admin roles without @CorporateResource / @CorporateTenantScoped`);
           }

@@ -240,6 +240,18 @@ class GlobalDispatchOverlayService {
       _isBubbleActive = true;
       _listenToOverlayActions();
 
+      // Proactively sync driver metadata & current theme to overlay
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final storedTheme = prefs.getString('app_theme_mode') ?? 'light';
+        final currentUser = AuthService.instance.currentUser;
+        await FlutterOverlayWindow.shareData(jsonEncode({
+          'type': 'METADATA_UPDATE',
+          'driverName': currentUser?.fullName,
+          'themeMode': storedTheme,
+        }));
+      } catch (_) {}
+
       // Proactively sync latest state to overlay
       if (_lastActiveTrip != null) {
         await syncActiveTripToBubble(_lastActiveTrip);
@@ -291,6 +303,20 @@ class GlobalDispatchOverlayService {
     } catch (_) {}
   }
 
+  /// Proactively syncs current theme mode to the Android assistive bubble overlay.
+  Future<void> syncThemeToBubble(String mode) async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+    try {
+      final isOverlayActive = await FlutterOverlayWindow.isActive();
+      if (isOverlayActive) {
+        await FlutterOverlayWindow.shareData(jsonEncode({
+          'type': 'METADATA_UPDATE',
+          'themeMode': mode,
+        }));
+      }
+    } catch (_) {}
+  }
+
   /// Syncs list of available incoming ride opportunities to the overlay bottom sheet
   Future<void> syncOffersToBubble(List<dynamic> offers) async {
     _lastOffers = offers.map((o) => Map<String, dynamic>.from(o as Map)).toList();
@@ -333,7 +359,7 @@ class GlobalDispatchOverlayService {
             final currentUser = AuthService.instance.currentUser;
             final driverName = currentUser?.fullName;
             final prefs = await SharedPreferences.getInstance();
-            final storedTheme = prefs.getString('app_theme_mode') ?? 'system';
+            final storedTheme = prefs.getString('app_theme_mode') ?? 'light';
             await FlutterOverlayWindow.shareData(jsonEncode({
               'type': 'METADATA_UPDATE',
               'driverName': driverName,

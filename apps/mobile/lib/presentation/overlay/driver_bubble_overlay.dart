@@ -7,6 +7,7 @@ import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:vibration/vibration.dart';
+import '../../shared/theme/app_theme.dart';
 
 /// Top-level Entry Point for the Floating Assistive Overlay Window.
 /// Runs in a dedicated background Flutter isolate directly on the Android WindowManager.
@@ -14,9 +15,11 @@ import 'package:vibration/vibration.dart';
 void overlayMain() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(
-    const MaterialApp(
+    MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: DriverAssistiveBubbleOverlay(),
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      home: const DriverAssistiveBubbleOverlay(),
     ),
   );
 }
@@ -75,11 +78,10 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
   bool _isLockedUp = false;
   double _dragOffsetY = 0.0;
   bool _isOfferActive = false;
-  int _selectedTab = 0; // 0 = Ongoing Ride, 1 = Coming Rides
 
-  // Dynamic Driver Metadata & Theme
+  // Dynamic Driver Metadata & Theme (defaults to clean light theme to match app)
   String _driverName = '';
-  String _appThemeMode = 'system';
+  String _appThemeMode = 'light';
 
   // State Data
   Map<String, dynamic>? _activeTripData;
@@ -155,7 +157,7 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
       }
       if (mounted) {
         setState(() {
-          if (storedTheme != null && storedTheme.isNotEmpty) _appThemeMode = storedTheme;
+          _appThemeMode = (storedTheme != null && storedTheme.isNotEmpty) ? storedTheme.toLowerCase() : 'light';
           if (parsedName != null && parsedName.isNotEmpty) _driverName = parsedName;
         });
       }
@@ -196,7 +198,7 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
         }
       }
       if (msg['themeMode'] != null) {
-        final tMode = msg['themeMode'].toString().trim();
+        final tMode = msg['themeMode'].toString().trim().toLowerCase();
         if (tMode.isNotEmpty && _appThemeMode != tMode) {
           setState(() => _appThemeMode = tMode);
         }
@@ -417,9 +419,6 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
         setState(() {
           _isBottomSheetOpen = true;
           _dragOffsetY = 0.0;
-          if (_activeTripData == null && _availableOffers.isNotEmpty) {
-            _selectedTab = 1;
-          }
         });
         await _sheetAnimController.forward(from: 0.0);
         // 4. Request sync with latest trip and available offers
@@ -529,8 +528,10 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
   bool _computeIsDark(BuildContext context) {
     if (_appThemeMode == 'dark') return true;
     if (_appThemeMode == 'light') return false;
-    final systemDark = MediaQuery.maybeOf(context)?.platformBrightness == Brightness.dark;
-    return systemDark;
+    if (_appThemeMode == 'system') {
+      return MediaQuery.maybeOf(context)?.platformBrightness == Brightness.dark;
+    }
+    return false;
   }
 
   @override
@@ -673,7 +674,6 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
   // ===========================================================================
   Widget _buildLiveBottomSheet(_OverlayColors colors) {
     final hasActiveTrip = _activeTripData != null;
-    final offerCount = _availableOffers.length;
 
     return Align(
       alignment: Alignment.bottomCenter,
@@ -836,33 +836,12 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Open App in Foreground (Arrow Icon)
+                          // Open App in Foreground
                           IconButton(
                             tooltip: 'Open AdhocX App',
                             icon: Icon(Icons.open_in_new_rounded,
                                 color: colors.textSecondary, size: 20),
                             onPressed: _bringAppToFront,
-                          ),
-                          // Expand / Lock Up Toggle
-                          IconButton(
-                            tooltip: _isLockedUp ? 'Restore Size' : 'Lock Up',
-                            icon: Icon(
-                              _isLockedUp
-                                  ? Icons.unfold_less_rounded
-                                  : Icons.unfold_more_rounded,
-                              color: colors.textSecondary,
-                              size: 20,
-                            ),
-                            onPressed: () async {
-                              HapticFeedback.selectionClick();
-                              setState(() {
-                                _isLockedUp = !_isLockedUp;
-                                _dragOffsetY = 0.0;
-                              });
-                              await FlutterOverlayWindow.resizeOverlay(
-                                  WindowSize.matchParent, _currentSheetHeight, false);
-                              await _updateOverlayPosition(0, 0);
-                            },
                           ),
                           // Minimize to Floating Ball
                           IconButton(
@@ -879,134 +858,9 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
 
                 const SizedBox(height: 6),
 
-                // Tab Selector: Ongoing Ride vs Coming Rides
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Container(
-                    padding: const EdgeInsets.all(3),
-                    decoration: BoxDecoration(
-                      color: colors.tabUnselected,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: colors.border),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () {
-                              HapticFeedback.selectionClick();
-                              setState(() => _selectedTab = 0);
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              decoration: BoxDecoration(
-                                color: _selectedTab == 0
-                                    ? colors.brandPurple // AdhocX Brand Royal Purple
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(9),
-                              ),
-                              alignment: Alignment.center,
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.directions_car_rounded,
-                                    size: 16,
-                                    color: _selectedTab == 0 ? Colors.white : colors.textSecondary,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    'Ongoing Ride',
-                                    style: TextStyle(
-                                      color: _selectedTab == 0 ? Colors.white : colors.textSecondary,
-                                      fontWeight:
-                                          _selectedTab == 0 ? FontWeight.bold : FontWeight.w600,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                  if (hasActiveTrip)
-                                    Container(
-                                      margin: const EdgeInsets.only(left: 6),
-                                      width: 6,
-                                      height: 6,
-                                      decoration: BoxDecoration(
-                                        color: colors.activeTripSky,
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () {
-                              HapticFeedback.selectionClick();
-                              setState(() => _selectedTab = 1);
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              decoration: BoxDecoration(
-                                color: _selectedTab == 1
-                                    ? colors.brandPurple // AdhocX Brand Royal Purple
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(9),
-                              ),
-                              alignment: Alignment.center,
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.bolt_rounded,
-                                    size: 16,
-                                    color: _selectedTab == 1 ? Colors.white : colors.textSecondary,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    'Coming Rides',
-                                    style: TextStyle(
-                                      color: _selectedTab == 1 ? Colors.white : colors.textSecondary,
-                                      fontWeight:
-                                          _selectedTab == 1 ? FontWeight.bold : FontWeight.w600,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                  if (offerCount > 0)
-                                    Container(
-                                      margin: const EdgeInsets.only(left: 6),
-                                      padding:
-                                          const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                                      decoration: BoxDecoration(
-                                        color: colors.warningAmber,
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        '$offerCount',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w900,
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 10),
-
-                // Tab Content (Both tabs support Pull-to-Refresh)
+                // Main Content (Ongoing Ride View / Empty State with Pull to Refresh)
                 Expanded(
-                  child: _selectedTab == 0
-                      ? _buildOngoingRideTab(colors)
-                      : _buildComingRidesTab(colors),
+                  child: _buildOngoingRideTab(colors),
                 ),
               ],
             ),
@@ -1057,23 +911,6 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
                     textAlign: TextAlign.center,
                     style: TextStyle(color: colors.textSecondary, fontSize: 12),
                   ),
-                  if (_availableOffers.isNotEmpty) ...[
-                    const SizedBox(height: 18),
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        HapticFeedback.selectionClick();
-                        setState(() => _selectedTab = 1);
-                      },
-                      icon: const Icon(Icons.bolt_rounded, size: 16),
-                      label: Text('View Coming Rides (${_availableOffers.length})'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: colors.brandPurple,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),
@@ -1366,203 +1203,6 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
           ),
           const SizedBox(height: 12),
         ],
-      ),
-    );
-  }
-
-  // ===========================================================================
-  // TAB 2: COMING RIDES (PULL DOWN TO REFRESH • NO REFRESH BUTTON • THEME AWARE)
-  // ===========================================================================
-  Widget _buildComingRidesTab(_OverlayColors colors) {
-    if (_availableOffers.isEmpty) {
-      return RefreshIndicator(
-        color: colors.brandPurple,
-        backgroundColor: colors.surfaceElevated,
-        onRefresh: _handlePullToRefresh,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
-          children: [
-            Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 58,
-                    height: 58,
-                    decoration: BoxDecoration(
-                      color: colors.surfaceElevated,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: colors.border),
-                    ),
-                    child: Icon(Icons.radar_rounded, color: colors.onlineGreen, size: 28),
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    'Searching for Rides...',
-                    style: TextStyle(
-                        color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'You are Online & available to corporate riders nearby.\nPull down to check for new dispatch offers.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: colors.textSecondary, fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      color: colors.brandPurple,
-      backgroundColor: colors.surfaceElevated,
-      onRefresh: _handlePullToRefresh,
-      child: ListView.separated(
-        physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        itemCount: _availableOffers.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 10),
-        itemBuilder: (context, index) {
-          final offer = _availableOffers[index];
-          final req = offer['requirement'] as Map<String, dynamic>?;
-          final rate = offer['offeredRate'] ?? req?['ratePerVehicle'] ?? offer['rate'] ?? '---';
-          final vehicleType =
-              (offer['vehicleType'] ?? req?['vehicleType'] ?? 'SEDAN').toString().toUpperCase();
-          final pickup =
-              (offer['pickupAddress'] ?? req?['pickupAddress'] ?? 'Pickup point').toString();
-          final drop =
-              (offer['dropAddress'] ?? req?['dropAddress'] ?? 'Drop destination').toString();
-          final distanceKm = offer['distanceKm'] ?? req?['distanceKm'] ?? '';
-          final hasEscort = offer['hasEscort'] == true || req?['hasEscort'] == true;
-
-          return Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: colors.surfaceCard,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: colors.border),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Top Rate & Vehicle Row
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: colors.onlineGreen.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            '₹$rate NET',
-                            style: TextStyle(
-                                color: colors.onlineGreen,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: colors.surfaceElevated,
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: colors.border),
-                          ),
-                          child: Text(
-                            vehicleType,
-                            style: TextStyle(
-                                color: colors.textSecondary,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (hasEscort)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: colors.warningAmber.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text('ESCORT',
-                            style: TextStyle(
-                                color: colors.warningAmber,
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold)),
-                      ),
-                    if (distanceKm.toString().isNotEmpty)
-                      Text('${distanceKm}km',
-                          style: TextStyle(color: colors.textSecondary, fontSize: 11)),
-                  ],
-                ),
-
-                const SizedBox(height: 8),
-
-                // Addresses
-                Text(
-                  'Pickup: $pickup',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      color: colors.textPrimary, fontSize: 12, fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Drop: $drop',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: colors.textSecondary, fontSize: 11),
-                ),
-
-                const SizedBox(height: 10),
-
-                // Action Buttons: Pass vs Accept
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => _declineCurrentOffer(offer),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: colors.errorRed,
-                          side: BorderSide(color: colors.errorRed, width: 1),
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        child: const Text('PASS',
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      flex: 2,
-                      child: ElevatedButton(
-                        onPressed: () => _acceptCurrentOffer(offer),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: colors.successGreen,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        child: const Text('ACCEPT RIDE',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          );
-        },
       ),
     );
   }

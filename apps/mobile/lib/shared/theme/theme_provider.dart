@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/global_dispatch_overlay_service.dart';
 
 class ThemeProvider extends ChangeNotifier {
   static const String _themeKey = 'app_theme_mode';
@@ -17,15 +18,22 @@ class ThemeProvider extends ChangeNotifier {
     final stored = prefs.getString(_themeKey);
     if (stored != null) {
       _themeMode = _fromString(stored);
-      notifyListeners();
+    } else {
+      _themeMode = ThemeMode.light;
+      await prefs.setString(_themeKey, 'light');
     }
+    notifyListeners();
   }
 
   Future<void> setThemeMode(ThemeMode mode) async {
     _themeMode = mode;
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_themeKey, _toString(mode));
+    final modeStr = _toString(mode);
+    await prefs.setString(_themeKey, modeStr);
+    try {
+      GlobalDispatchOverlayService.instance.syncThemeToBubble(modeStr);
+    } catch (_) {}
   }
 
   void toggleTheme() {

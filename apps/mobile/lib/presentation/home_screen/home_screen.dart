@@ -39,6 +39,8 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   DriverHomeState _currentState = DriverHomeState.offline;
   bool _isLoading = true;
+  bool _isTogglingOnline = false;
+  String? _togglingOnlineStep;
   String _driverName = 'Driver';
   double _todayEarnings = 0.0;
   int _todayTripsCount = 0;
@@ -302,6 +304,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _toggleOnline(bool goOnline) async {
+    if (_isTogglingOnline) return;
+
+    setState(() {
+      _isTogglingOnline = true;
+      _togglingOnlineStep = goOnline ? 'Checking permissions...' : 'Going offline...';
+    });
+
     try {
       await AuthService.instance.ensureAuthenticatedSession(role: 'DRIVER');
 
@@ -324,6 +333,12 @@ class _HomeScreenState extends State<HomeScreen> {
           return;
         }
 
+        if (mounted) {
+          setState(() {
+            _togglingOnlineStep = 'Acquiring GPS fix...';
+          });
+        }
+
         currentPos = await PermissionService.instance.getCurrentPosition();
         if (currentPos == null) {
           final gpsOn = await PermissionService.instance.isLocationServiceEnabled();
@@ -338,8 +353,14 @@ class _HomeScreenState extends State<HomeScreen> {
             return;
           }
         }
+
         // MANDATORY: Check & Enforce "Display Over Other Apps" (Overlay Permission)
         if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+          if (mounted) {
+            setState(() {
+              _togglingOnlineStep = 'Verifying floating overlay...';
+            });
+          }
           if (!mounted) return;
           final hasOverlay = await GlobalDispatchOverlayService.ensureOverlayPermissionMandatory(context);
           if (!hasOverlay) {
@@ -352,6 +373,12 @@ class _HomeScreenState extends State<HomeScreen> {
             }
             return;
           }
+        }
+
+        if (mounted) {
+          setState(() {
+            _togglingOnlineStep = 'Connecting to dispatch network...';
+          });
         }
       }
 
@@ -391,7 +418,9 @@ class _HomeScreenState extends State<HomeScreen> {
           GlobalDispatchOverlayService.instance.stopAssistiveBubble();
         }
         Fluttertoast.showToast(
-          msg: goOnline ? 'You are now ONLINE & Available for trips' : 'You are now OFFLINE',
+          msg: goOnline
+              ? 'You are now ONLINE & ready to receive live ride dispatches'
+              : 'You are now OFFLINE',
           backgroundColor: goOnline ? AppColors.accentGreenDark : AppColors.slate700,
         );
         _loadLiveDriverData(silent: true);
@@ -403,10 +432,52 @@ class _HomeScreenState extends State<HomeScreen> {
           backgroundColor: AppColors.error,
         );
       }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isTogglingOnline = false;
+          _togglingOnlineStep = null;
+        });
+      }
     }
   }
 
   Widget _buildStatusPill(bool isDark) {
+    if (_isTogglingOnline) {
+      final color = AppColors.warning;
+      final bgColor = AppColors.warning.withValues(alpha: 0.14);
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(AppRadius.full),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 8,
+              height: 8,
+              child: CircularProgressIndicator(
+                strokeWidth: 1.5,
+                color: color,
+              ),
+            ),
+            const SizedBox(width: 5),
+            Text(
+              context.tr('Connecting...'),
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     final (label, color, bgColor) = switch (_currentState) {
       DriverHomeState.offline => (
           'Offline',
@@ -660,14 +731,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   Container(
                     width: 12,
                     height: 12,
-                    decoration: const BoxDecoration(
-                      color: AppColors.slate400,
+                    decoration: BoxDecoration(
+                      color: _isTogglingOnline ? AppColors.warning : AppColors.slate400,
                       shape: BoxShape.circle,
                     ),
                   ),
                   const SizedBox(width: 10),
                   Text(
-                    context.tr('Offline'),
+                    _isTogglingOnline ? context.tr('Connecting...') : context.tr('Offline'),
                     style: AppTypography.h2(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -677,7 +748,9 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 2),
               Text(
-                context.tr('You are currently offline. Go online to receive trip offers.'),
+                _isTogglingOnline
+                    ? (_togglingOnlineStep ?? 'Connecting to dispatch network...')
+                    : context.tr('You are currently offline. Go online to receive trip offers.'),
                 style: AppTypography.caption(color: Colors.white70),
               ),
               const SizedBox(height: AppSpacing.lg),
@@ -685,9 +758,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton(
-                  onPressed: () => _toggleOnline(true),
+                  onPressed: _isTogglingOnline ? null : () => _toggleOnline(true),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
+                    backgroundColor: _isTogglingOnline ? AppColors.primary.withValues(alpha: 0.6) : AppColors.primary,
                     foregroundColor: Colors.white,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
@@ -696,14 +769,38 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   child: Center(
-                    child: Text(
-                      context.tr('GO ONLINE'),
-                      style: AppTypography.button(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        overflow: TextOverflow.visible,
-                      ).copyWith(height: 1.1),
-                    ),
+                    child: _isTogglingOnline
+                        ? Row(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.2,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                context.tr('GOING ONLINE...'),
+                                style: AppTypography.button(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  overflow: TextOverflow.visible,
+                                ).copyWith(height: 1.1),
+                              ),
+                            ],
+                          )
+                        : Text(
+                            context.tr('GO ONLINE'),
+                            style: AppTypography.button(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              overflow: TextOverflow.visible,
+                            ).copyWith(height: 1.1),
+                          ),
                   ),
                 ),
               ),
@@ -904,7 +1001,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 width: double.infinity,
                 height: 48,
                 child: OutlinedButton(
-                  onPressed: () => _toggleOnline(false),
+                  onPressed: _isTogglingOnline ? null : () => _toggleOnline(false),
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(
                       color: isDark ? AppColors.borderDark : AppColors.borderLight,
@@ -915,14 +1012,38 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   child: Center(
-                    child: Text(
-                      context.tr('GO OFFLINE'),
-                      style: AppTypography.button(
-                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                        fontWeight: FontWeight.bold,
-                        overflow: TextOverflow.visible,
-                      ).copyWith(height: 1.1),
-                    ),
+                    child: _isTogglingOnline
+                        ? Row(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.2,
+                                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                context.tr('GOING OFFLINE...'),
+                                style: AppTypography.button(
+                                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                  fontWeight: FontWeight.bold,
+                                  overflow: TextOverflow.visible,
+                                ).copyWith(height: 1.1),
+                              ),
+                            ],
+                          )
+                        : Text(
+                            context.tr('GO OFFLINE'),
+                            style: AppTypography.button(
+                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                              fontWeight: FontWeight.bold,
+                              overflow: TextOverflow.visible,
+                            ).copyWith(height: 1.1),
+                          ),
                   ),
                 ),
               ),
