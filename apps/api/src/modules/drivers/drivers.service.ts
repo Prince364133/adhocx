@@ -17,7 +17,7 @@ import {
 } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
 import { StorageService } from '../../common/storage/storage.service';
-import { assertPhoneAvailable, assertVehiclePlateAvailable, sanitizeRealName } from '../../common';
+import { assertPhoneAvailable, assertVehiclePlateAvailable, getPhoneVariants, sanitizeRealName } from '../../common';
 import { AuditService } from '../audit/audit.service';
 import { LocationsService } from '../locations/locations.service';
 
@@ -216,11 +216,19 @@ export class DriversService {
       });
     }
 
-    if (cleanPhone && cleanPhone !== driver.phone && cleanPhone !== driver.user?.phone) {
-      await assertPhoneAvailable(this.db, cleanPhone, {
-        excludeUserId: userId,
-        excludeDriverId: driver.id,
-      });
+    if (cleanPhone) {
+      const userPhoneVariants = getPhoneVariants(driver.user?.phone);
+      const driverPhoneVariants = getPhoneVariants(driver.phone);
+      const isOwnedPhone =
+        userPhoneVariants.includes(cleanPhone) ||
+        driverPhoneVariants.includes(cleanPhone);
+
+      if (!isOwnedPhone) {
+        await assertPhoneAvailable(this.db, cleanPhone, {
+          excludeUserId: userId,
+          excludeDriverId: driver.id,
+        });
+      }
     }
 
     if (rawPlate && rawPlate !== driver.vehiclePlate?.toUpperCase()) {
@@ -451,10 +459,18 @@ export class DriversService {
     const effectivePhoneToSave = cleanPhone || existingDriver?.phone || userForKyc?.phone || undefined;
 
     if (cleanPhone) {
-      await assertPhoneAvailable(this.db, cleanPhone, {
-        excludeUserId: userId,
-        excludeDriverId: existingDriver?.id,
-      });
+      const userPhoneVariants = getPhoneVariants(userForKyc?.phone);
+      const driverPhoneVariants = getPhoneVariants(existingDriver?.phone);
+      const isOwnedPhone =
+        userPhoneVariants.includes(cleanPhone) ||
+        driverPhoneVariants.includes(cleanPhone);
+
+      if (!isOwnedPhone) {
+        await assertPhoneAvailable(this.db, cleanPhone, {
+          excludeUserId: userId,
+          excludeDriverId: existingDriver?.id,
+        });
+      }
     }
 
     if (plate) {

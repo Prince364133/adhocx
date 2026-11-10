@@ -1338,12 +1338,22 @@ export class AuthService implements OnModuleInit {
       throw new NotFoundException('User profile not found');
     }
 
-    if (cleanPhone && cleanPhone !== user.phone && cleanPhone !== user.driver?.phone && cleanPhone !== user.vendor?.phone) {
-      await assertPhoneAvailable(this.db, cleanPhone, {
-        excludeUserId: userId,
-        excludeDriverId: user.driver?.id,
-        excludeVendorId: user.vendor?.id,
-      });
+    if (cleanPhone) {
+      const userPhoneVariants = getPhoneVariants(user.phone);
+      const driverPhoneVariants = getPhoneVariants(user.driver?.phone);
+      const vendorPhoneVariants = getPhoneVariants(user.vendor?.phone);
+      const isOwnedPhone =
+        userPhoneVariants.includes(cleanPhone) ||
+        driverPhoneVariants.includes(cleanPhone) ||
+        vendorPhoneVariants.includes(cleanPhone);
+
+      if (!isOwnedPhone) {
+        await assertPhoneAvailable(this.db, cleanPhone, {
+          excludeUserId: userId,
+          excludeDriverId: user.driver?.id,
+          excludeVendorId: user.vendor?.id,
+        });
+      }
     }
 
     if (cleanEmail && cleanEmail !== user.email?.toLowerCase()) {
@@ -1405,7 +1415,7 @@ export class AuthService implements OnModuleInit {
       if (tokenOrUserId.includes('.')) {
         try {
           const payload = this.jwtService.decode(tokenOrUserId) as any;
-          excludeUserId = payload?.sub;
+          excludeUserId = payload?.id || payload?.sub;
         } catch (_) {}
       } else {
         excludeUserId = tokenOrUserId;

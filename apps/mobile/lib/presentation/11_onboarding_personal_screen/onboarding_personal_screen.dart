@@ -79,6 +79,18 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
     '500+ trips / month (Enterprise Fleet)',
   ];
 
+  String clean10Digits(String val) {
+    final d = val.replaceAll(RegExp(r'\D'), '');
+    return d.length > 10 ? d.substring(d.length - 10) : d;
+  }
+
+  String formatIndiaPhone(String raw) {
+    final d = raw.replaceAll(RegExp(r'\D'), '');
+    if (d.isEmpty) return '';
+    final ten = d.length > 10 ? d.substring(d.length - 10) : d;
+    return '+91$ten';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -90,11 +102,6 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
         : (!isPlaceholderName(authUser?.fullName)
             ? authUser!.fullName!.trim()
             : '');
-
-    String clean10Digits(String val) {
-      final d = val.replaceAll(RegExp(r'\D'), '');
-      return d.length > 10 ? d.substring(d.length - 10) : d;
-    }
 
     final initialPhone = onboarding.phoneNumber.isNotEmpty
         ? onboarding.phoneNumber
@@ -262,13 +269,18 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
       final emergencyPhone = formatIndiaPhone(_emergencyPhoneController.text.trim());
       final location = _addressController.text.trim();
 
+      final authUser = AuthService.instance.currentUser;
+      final currentAuthPhone = formatIndiaPhone(authUser?.phone ?? onboarding.phoneNumber);
+      final isSameAsCurrentPhone = spocPhone.isNotEmpty &&
+          (spocPhone == currentAuthPhone || clean10Digits(spocPhone) == clean10Digits(currentAuthPhone));
+
       setState(() {
         _isSaving = true;
         _inlineErrorMessage = null;
       });
 
       try {
-        if (spocPhone.isNotEmpty) {
+        if (spocPhone.isNotEmpty && !isSameAsCurrentPhone) {
           final phoneCheck = await AuthService.instance.checkPhoneAvailability(spocPhone);
           if (phoneCheck['available'] == false) {
             final errorMsg = phoneCheck['message'] as String? ??
@@ -380,13 +392,18 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
         return;
       }
 
+      final authUser = AuthService.instance.currentUser;
+      final currentAuthPhone = formatIndiaPhone(authUser?.phone ?? onboarding.phoneNumber);
+      final isSameAsCurrentPhone = enteredPhone.isNotEmpty &&
+          (enteredPhone == currentAuthPhone || clean10Digits(enteredPhone) == clean10Digits(currentAuthPhone));
+
       setState(() {
         _isSaving = true;
         _inlineErrorMessage = null;
       });
 
       try {
-        if (enteredPhone.isNotEmpty) {
+        if (enteredPhone.isNotEmpty && !isSameAsCurrentPhone) {
           final phoneCheck = await AuthService.instance.checkPhoneAvailability(enteredPhone);
           if (phoneCheck['available'] == false) {
             final errorMsg = phoneCheck['message'] as String? ??
@@ -620,21 +637,52 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                       ),
                       const SizedBox(height: AppSpacing.lg),
 
-                      AppTextField(
-                        controller: _phoneController,
-                        label: 'Mobile Phone Number *',
-                        hintText: '98765 43210',
-                        prefixIcon: const Icon(Icons.phone_outlined, size: 20),
-                        keyboardType: TextInputType.phone,
-                        validator: (val) {
-                          if (val == null || val.trim().isEmpty) {
-                            return 'Please enter your mobile phone number';
-                          }
-                          final digits = val.replaceAll(RegExp(r'\D'), '');
-                          if (digits.length != 10) {
-                            return 'Please enter a valid 10-digit mobile number';
-                          }
-                          return null;
+                      Builder(
+                        builder: (context) {
+                          final authPhone = AuthService.instance.currentUser?.phone ?? onboarding.phoneNumber;
+                          final isVerified = _phoneController.text.trim().isNotEmpty &&
+                              clean10Digits(_phoneController.text.trim()) == clean10Digits(authPhone);
+                          return AppTextField(
+                            controller: _phoneController,
+                            label: 'Mobile Phone Number *',
+                            hintText: '98765 43210',
+                            prefixIcon: const Icon(Icons.phone_outlined, size: 20),
+                            suffixIcon: isVerified
+                                ? const Padding(
+                                    padding: EdgeInsets.symmetric(horizontal: 10),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.check_circle_rounded, color: AppColors.success, size: 16),
+                                        SizedBox(width: 4),
+                                        Text(
+                                          'Verified',
+                                          style: TextStyle(
+                                            color: AppColors.success,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                : null,
+                            helperText: isVerified
+                                ? 'Verified mobile number linked to this account'
+                                : null,
+                            keyboardType: TextInputType.phone,
+                            onChanged: (_) => setState(() {}),
+                            validator: (val) {
+                              if (val == null || val.trim().isEmpty) {
+                                return 'Please enter your mobile phone number';
+                              }
+                              final digits = val.replaceAll(RegExp(r'\D'), '');
+                              if (digits.length != 10) {
+                                return 'Please enter a valid 10-digit mobile number';
+                              }
+                              return null;
+                            },
+                          );
                         },
                       ),
                       const SizedBox(height: AppSpacing.lg),
@@ -905,19 +953,50 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                       ),
                       const SizedBox(height: AppSpacing.md),
 
-                      AppTextField(
-                        controller: _spocPhoneController,
-                        label: 'Official Mobile Number *',
-                        hintText: '98765 43210',
-                        prefixIcon: const Icon(Icons.phone_outlined, size: 20),
-                        keyboardType: TextInputType.phone,
-                        validator: (val) {
-                          final p = val?.trim() ?? '';
-                          final d = p.replaceAll(RegExp(r'\D'), '');
-                          if (d.length != 10) {
-                            return 'Enter valid 10-digit mobile number';
-                          }
-                          return null;
+                      Builder(
+                        builder: (context) {
+                          final authPhone = AuthService.instance.currentUser?.phone ?? onboarding.phoneNumber;
+                          final isVerified = _spocPhoneController.text.trim().isNotEmpty &&
+                              clean10Digits(_spocPhoneController.text.trim()) == clean10Digits(authPhone);
+                          return AppTextField(
+                            controller: _spocPhoneController,
+                            label: 'Official Mobile Number *',
+                            hintText: '98765 43210',
+                            prefixIcon: const Icon(Icons.phone_outlined, size: 20),
+                            suffixIcon: isVerified
+                                ? const Padding(
+                                    padding: EdgeInsets.symmetric(horizontal: 10),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.check_circle_rounded, color: AppColors.success, size: 16),
+                                        SizedBox(width: 4),
+                                        Text(
+                                          'Verified',
+                                          style: TextStyle(
+                                            color: AppColors.success,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                : null,
+                            helperText: isVerified
+                                ? 'Verified mobile number linked to this account'
+                                : null,
+                            keyboardType: TextInputType.phone,
+                            onChanged: (_) => setState(() {}),
+                            validator: (val) {
+                              final p = val?.trim() ?? '';
+                              final d = p.replaceAll(RegExp(r'\D'), '');
+                              if (d.length != 10) {
+                                return 'Enter valid 10-digit mobile number';
+                              }
+                              return null;
+                            },
+                          );
                         },
                       ),
                       const SizedBox(height: AppSpacing.md),

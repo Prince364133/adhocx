@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { CreateVendorProfileDto, VendorProfileDto, VerificationStatus } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
-import { assertPhoneAvailable } from '../../common';
+import { assertPhoneAvailable, getPhoneVariants } from '../../common';
 
 @Injectable()
 export class VendorsService {
@@ -31,7 +31,13 @@ export class VendorsService {
       existingVendor = await this.db.vendor.findUnique({ where: { userId } });
     } catch (_) {}
 
-    if (effectivePhone && (effectivePhone !== user?.phone || effectivePhone !== existingVendor?.phone)) {
+    const userPhoneVariants = getPhoneVariants(user?.phone);
+    const vendorPhoneVariants = getPhoneVariants(existingVendor?.phone);
+    const isOwnedPhone =
+      userPhoneVariants.includes(effectivePhone) ||
+      vendorPhoneVariants.includes(effectivePhone);
+
+    if (effectivePhone && !isOwnedPhone) {
       await assertPhoneAvailable(this.db, effectivePhone, {
         excludeUserId: userId,
         excludeVendorId: existingVendor?.id,
