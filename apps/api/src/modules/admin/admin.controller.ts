@@ -180,6 +180,69 @@ export class AdminController {
     return this.adminService.deleteVendor(id, admin.id);
   }
 
+  // --- Platform User Management Workflows ---
+
+  @Get('users')
+  @ApiOperation({ summary: 'List platform users with filtering, role, status, and search' })
+  @SwaggerResponse({ status: 200, description: 'Paginated list of platform users' })
+  async listUsers(
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+    @Query('status') status?: string,
+    @Query('role') role?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.adminService.listUsers({
+      page: page ? Number(page) : 1,
+      limit: limit ? Number(limit) : 50,
+      status,
+      role,
+      search,
+    });
+  }
+
+  @Get('users/:id')
+  @ApiOperation({ summary: 'Get full user details including orders, location, and activity history' })
+  @SwaggerResponse({ status: 200, description: 'User profile details retrieved' })
+  async getUserDetails(@Param('id') id: string) {
+    return this.adminService.getUserDetails(id);
+  }
+
+  @Patch('users/:id')
+  @ApiOperation({ summary: 'Update user profile details' })
+  @SwaggerResponse({ status: 200, description: 'User profile updated' })
+  async updateUser(
+    @Param('id') id: string,
+    @CurrentUser() admin: AuthUserDto,
+    @Body() dto: { fullName?: string; phone?: string; email?: string; status?: any; address?: string },
+  ) {
+    return this.adminService.updateUser(id, admin.id, dto);
+  }
+
+  @Post('users/:id/status')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Update user account status (ACTIVE, SUSPENDED, DEACTIVATED)' })
+  @SwaggerResponse({ status: 200, description: 'User status updated' })
+  async updateUserStatus(
+    @Param('id') id: string,
+    @CurrentUser() admin: AuthUserDto,
+    @Body() dto: { status: string; reason?: string },
+  ) {
+    return this.adminService.updateUserStatus(id, admin.id, dto.status, dto.reason);
+  }
+
+  @Post('vendors/:id/status')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Update vendor account status (ACTIVE, SUSPENDED, DEACTIVATED, VERIFIED)' })
+  @SwaggerResponse({ status: 200, description: 'Vendor status updated' })
+  async updateVendorStatus(
+    @Param('id') id: string,
+    @CurrentUser() admin: AuthUserDto,
+    @Body() dto: { status: string; reason?: string },
+  ) {
+    return this.adminService.updateVendorStatus(id, admin.id, dto.status, dto.reason);
+  }
+
   @Delete('users/:id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Permanently delete user account and cascade records' })
@@ -205,6 +268,46 @@ export class AdminController {
   @SwaggerResponse({ status: 200, description: 'Audit logs retrieved' })
   async getAuditLogs(@Query('limit') limit?: number) {
     return this.adminService.getAuditLogs(limit ? Number(limit) : 50);
+  }
+
+  // --- Platform Finance & Accounting Workflows ---
+
+  @Get('finance/dashboard')
+  @ApiOperation({ summary: 'Get aggregated financial dashboard metrics, revenue trends, and driver payouts' })
+  async getFinanceDashboard(
+    @Query('range') range?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.adminService.getFinanceDashboard(range, startDate, endDate);
+  }
+
+  @Get('finance/transactions')
+  @ApiOperation({ summary: 'Get unified financial transactions with pagination and search' })
+  async getFinanceTransactions(
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+    @Query('status') status?: string,
+    @Query('search') search?: string,
+    @Query('range') range?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.adminService.getFinanceTransactions({
+      page: page ? Number(page) : 1,
+      limit: limit ? Number(limit) : 50,
+      status,
+      search,
+      range,
+      startDate,
+      endDate,
+    });
+  }
+
+  @Get('finance/driver/:id')
+  @ApiOperation({ summary: 'Get individual driver earnings, payout history, and ledger breakdown' })
+  async getDriverFinancialHistory(@Param('id') id: string) {
+    return this.adminService.getDriverFinancialHistory(id);
   }
 
   // --- Reports & Operational SLA Telemetry ---

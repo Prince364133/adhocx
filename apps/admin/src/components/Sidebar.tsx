@@ -11,6 +11,7 @@ import {
   Users,
   CreditCard,
   Wallet,
+  WalletCards,
   Tag,
   Ticket,
   Newspaper,
@@ -69,7 +70,7 @@ const navSections: NavSection[] = [
   {
     title: 'GOVERNANCE',
     items: [
-      { href: '/reports', label: 'Reports & Analytics', icon: BarChart3 },
+      { href: '/finance', label: 'Finance', icon: WalletCards },
       { href: '/audit', label: 'Audit Logs', icon: FileText },
     ],
   },

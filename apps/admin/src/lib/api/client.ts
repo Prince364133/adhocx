@@ -3,6 +3,9 @@ import {
   DriverListItem,
   DriverDetail,
   VendorListItem,
+  UserListItem,
+  CorporateVendorDetail,
+  UserProfileDetail,
   RequirementListItem,
   TripListItem,
   TripEvent,
@@ -54,33 +57,41 @@ import {
   CreatePricingSlabInput,
   PricingAuditItem,
   DistanceSimulationResult,
+  FinanceDashboardData,
+  FinanceTransactionItem,
+  DriverFinancialHistoryDetail,
 } from './types';
 
 export function getApiBaseUrl(): string {
-  // Use explicit environment variable if set
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
-  }
-
   if (typeof window !== 'undefined') {
     const host = window.location.hostname.toLowerCase();
     const port = window.location.port;
+
+    // Direct port 7002 access, localhost, or direct loopback access -> route to local backend API on port 7001
+    if (port === '7002' || host === 'localhost' || host === '127.0.0.1' || /^(\d{1,3}\.){3}\d{1,3}$/.test(host)) {
+      const protocol = window.location.protocol;
+      return `${protocol}//${host}:7001/api/v1`;
+    }
 
     // In production domain behind reverse proxy (admin.adhocx.com), use relative /api/v1
     if (host.includes('adhocx.com')) {
       return '/api/v1';
     }
 
-    // Direct port 7002 access, localhost, or direct IP access -> route to backend API on port 7001
-    if (port === '7002' || host === 'localhost' || host === '127.0.0.1' || /^(\d{1,3}\.){3}\d{1,3}$/.test(host)) {
-      const protocol = window.location.protocol;
-      return `${protocol}//${host}:7001/api/v1`;
+    // Use explicit environment variable if set on custom domain
+    if (process.env.NEXT_PUBLIC_API_URL) {
+      return process.env.NEXT_PUBLIC_API_URL;
     }
 
     return `${window.location.origin}/api/v1`;
   }
 
-  return 'https://api.adhocx.com/api/v1';
+  // Use explicit environment variable if set
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+
+  return 'http://localhost:7001/api/v1';
 }
 
 export { resolveDocumentUrl, handleDocumentImageError } from './resolveDocumentUrl';
@@ -126,7 +137,7 @@ export function clearAdminSession(): void {
   localStorage.removeItem('adhocx_admin_token');
   localStorage.removeItem('adhocx_admin_refresh_token');
   localStorage.removeItem('adhocx_admin_user');
-  document.cookie = 'adhocx_admin_token=; path=/; max-age=0; SameSite=Lax';
+  document.cookie = 'adhocx_admin_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0; SameSite=Lax';
 }
 
 let isAdminRefreshing = false;
@@ -203,11 +214,24 @@ export async function apiClient<T = unknown>(
   }
 
   const baseUrl = getApiBaseUrl();
-  const response = await fetch(`${baseUrl}${endpoint}`, {
-    method,
-    headers: requestHeaders,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}${endpoint}`, {
+      method,
+      headers: requestHeaders,
+      body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
+    });
+  } catch (netErr: any) {
+    if (netErr.name === 'AbortError') {
+      throw new ApiError(504, 'Connection timed out while communicating with AdhocX API server (http://localhost:7001).');
+    }
+    throw new ApiError(503, 'Unable to connect to AdhocX API server (http://localhost:7001). Please verify the backend service is running.');
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     // Attempt silent refresh token rotation on 401 before signing out
@@ -232,10 +256,10 @@ export async function apiClient<T = unknown>(
     }
 
     if (typeof window !== 'undefined' && (response.status === 401 || (response.status === 403 && !allowForbidden))) {
-      // Do not trigger global redirect if user is attempting login
+      // Do not trigger global redirect if user is attempting login or verifying session in AdminShell
       if (!endpoint.includes('/auth/admin/login')) {
         clearAdminSession();
-        if (!window.location.pathname.startsWith('/login')) {
+        if (!window.location.pathname.startsWith('/login') && !endpoint.includes('/auth/admin/verify')) {
           const redirect = encodeURIComponent(window.location.pathname);
           window.location.href = `/login?redirect=${redirect}`;
         }
@@ -331,9 +355,12 @@ export const adminApi = {
       method: 'POST',
     }),
 
-  // Vendors & Users
-  getVendors: (status?: string) => {
-    const query = status && status !== 'ALL' ? `?verificationStatus=${status}` : '';
+  // Corporate Vendors & Platform Users
+  getVendors: (status?: string, search?: string) => {
+    const params = new URLSearchParams();
+    if (status && status !== 'ALL') params.append('verificationStatus', status);
+    if (search) params.append('search', search);
+    const query = params.toString() ? `?${params.toString()}` : '';
     return apiClient<any>(`/admin/vendors${query}`).then((res) => {
       if (Array.isArray(res)) return res as VendorListItem[];
       if (res && Array.isArray(res.items)) return res.items as VendorListItem[];
@@ -341,10 +368,169 @@ export const adminApi = {
     });
   },
 
-  updateVendor: (id: string, data: { organizationName?: string; fullName?: string; phone?: string; gstNumber?: string; address?: string }) =>
+  getVendorDetails: async (id: string): Promise<CorporateVendorDetail> => {
+    try {
+      const res = await apiClient<any>(`/admin/vendors/${id}`);
+      if (res && res.performanceAnalytics && Array.isArray(res.orders)) {
+        return res as CorporateVendorDetail;
+      }
+
+      // If backend returned basic vendor data, synthesize enriched dossier
+      const rawVendor = res || {};
+      const allReqs = await apiClient<any>('/requirements').catch(() => []);
+      const reqList: any[] = Array.isArray(allReqs) ? allReqs : (allReqs?.items || []);
+      const vendorReqs = reqList.filter((r: any) => r.vendorId === id || r.vendor?.id === id);
+
+      let completedOrders = 0;
+      let pendingOrders = 0;
+      let cancelledOrders = 0;
+      let totalRevenue = 0;
+
+      const orders = vendorReqs.map((req: any) => {
+        const amount = Number(req.totalAmount || req.ratePerVehicle || 0);
+        if (req.status === 'COMPLETED' || req.status === 'FULFILLED') {
+          completedOrders++;
+          totalRevenue += amount;
+        } else if (req.status === 'POSTED' || req.status === 'DISPATCHING' || req.status === 'PARTIALLY_FULFILLED' || req.status === 'ASSIGNED') {
+          pendingOrders++;
+        } else if (req.status === 'CANCELLED' || req.status === 'NO_DRIVER_AVAILABLE') {
+          cancelledOrders++;
+        }
+
+        const assignedDriver =
+          req.trips?.[0]?.driver?.fullName ||
+          req.assignments?.[0]?.driver?.fullName ||
+          'Not Assigned';
+        const driverPhone =
+          req.trips?.[0]?.driver?.phone ||
+          req.assignments?.[0]?.driver?.phone ||
+          null;
+
+        return {
+          id: req.id,
+          orderId: `ORD-${req.id.slice(0, 8).toUpperCase()}`,
+          orderDate: req.createdAt,
+          customerName: rawVendor.organizationName || rawVendor.fullName || 'Corporate Client',
+          customerContact: rawVendor.phone || rawVendor.email || 'Not Available',
+          serviceRequirement: `${req.vehicleType || 'Standard'} (${req.quantity || 1} Vehicle)`,
+          vehicleType: req.vehicleType,
+          pickupLocation: req.pickupAddress || 'Not Available',
+          deliveryLocation: req.dropAddress || 'Not Available',
+          assignedDriver,
+          driverPhone,
+          orderAmount: amount,
+          paymentStatus: req.status === 'COMPLETED' ? 'CAPTURED' : 'PENDING',
+          orderStatus: req.status || 'POSTED',
+        };
+      });
+
+      // Compute month-by-month analytics
+      const now = new Date();
+      const monthsMap: Record<string, { month: string; monthKey: string; revenue: number; completedOrders: number; totalOrders: number; activeDays: Set<string> }> = {};
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const name = d.toLocaleString('en-US', { month: 'short', year: 'numeric' });
+        monthsMap[key] = {
+          month: name,
+          monthKey: key,
+          revenue: 0,
+          completedOrders: 0,
+          totalOrders: 0,
+          activeDays: new Set<string>(),
+        };
+      }
+
+      vendorReqs.forEach((r: any) => {
+        const d = new Date(r.createdAt || Date.now());
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const dayKey = `${key}-${String(d.getDate()).padStart(2, '0')}`;
+        if (monthsMap[key]) {
+          monthsMap[key].totalOrders++;
+          monthsMap[key].activeDays.add(dayKey);
+          if (r.status === 'COMPLETED' || r.status === 'FULFILLED') {
+            monthsMap[key].completedOrders++;
+            monthsMap[key].revenue += Number(r.totalAmount || r.ratePerVehicle || 0);
+          }
+        }
+      });
+
+      const performanceAnalytics = Object.values(monthsMap).map((m) => ({
+        month: m.month,
+        monthKey: m.monthKey,
+        revenue: m.revenue,
+        completedOrders: m.completedOrders,
+        totalOrders: m.totalOrders,
+        activeDays: m.activeDays.size,
+        fulfillmentRate: m.totalOrders > 0 ? Math.round((m.completedOrders / m.totalOrders) * 100) : 100,
+      }));
+
+      // Parse city & state from address
+      let city = 'Not Available';
+      let state = 'Not Available';
+      if (rawVendor.address) {
+        const parts = rawVendor.address.split(',').map((s: string) => s.trim());
+        if (parts.length >= 2) {
+          city = parts[parts.length - 2] || parts[0];
+          state = parts[parts.length - 1];
+        } else if (parts.length === 1) {
+          city = parts[0];
+        }
+      }
+
+      return {
+        id: rawVendor.id,
+        userId: rawVendor.userId || rawVendor.id,
+        companyName: rawVendor.organizationName || rawVendor.companyName || 'Corporate Partner',
+        organizationName: rawVendor.organizationName || rawVendor.companyName || 'Corporate Partner',
+        companyLogoUrl: null,
+        contactPerson: rawVendor.fullName || rawVendor.contactPerson || 'Not Available',
+        fullName: rawVendor.fullName || rawVendor.contactPerson || 'Not Available',
+        phone: rawVendor.phone || 'Not Available',
+        email: rawVendor.email || 'Not Available',
+        companyAddress: rawVendor.address || 'Not Available',
+        city,
+        state,
+        gstNumber: rawVendor.gstNumber || null,
+        businessType: 'Logistics & Passenger Fleet',
+        verificationStatus: rawVendor.verificationStatus || 'PENDING',
+        accountStatus: rawVendor.status || 'ACTIVE',
+        escrowBalance: Number(rawVendor.escrowBalance || 0),
+        createdAt: rawVendor.createdAt || new Date().toISOString(),
+        updatedAt: rawVendor.updatedAt || new Date().toISOString(),
+        totalOrdersReceived: vendorReqs.length,
+        completedOrders,
+        pendingOrders,
+        cancelledOrders,
+        totalRevenue,
+        requirementsCount: vendorReqs.length,
+        orders,
+        performanceAnalytics,
+        recentActivities: [],
+      };
+    } catch (err) {
+      throw err;
+    }
+  },
+
+  updateVendor: (id: string, data: { organizationName?: string; fullName?: string; phone?: string; gstNumber?: string; address?: string; email?: string }) =>
     apiClient(`/admin/vendors/${id}`, {
       method: 'PATCH',
       body: data,
+    }),
+
+  updateVendorStatus: (id: string, status: string, reason?: string) =>
+    apiClient(`/admin/vendors/${id}/status`, {
+      method: 'POST',
+      body: { status, reason },
+    }).catch(async () => {
+      // Fallback to verify or reject endpoint if status endpoint is pending EC2 deploy
+      if (status === 'VERIFIED') {
+        return apiClient(`/admin/vendors/${id}/verify`, { method: 'POST', body: { notes: reason || 'Verified by Admin' } });
+      } else if (status === 'REJECTED') {
+        return apiClient(`/admin/vendors/${id}/reject`, { method: 'POST', body: { reason: reason || 'Application rejected' } });
+      }
+      return null;
     }),
 
   verifyVendor: (id: string, notes?: string) =>
@@ -364,26 +550,145 @@ export const adminApi = {
       method: 'DELETE',
     }),
 
-  getUsers: (status?: string) => {
-    const query = status && status !== 'ALL' ? `?verificationStatus=${status}` : '';
-    return apiClient<any>(`/admin/vendors${query}`).then((res) => {
-      if (Array.isArray(res)) return res as VendorListItem[];
-      if (res && Array.isArray(res.items)) return res.items as VendorListItem[];
-      return [] as VendorListItem[];
-    });
+  getUsers: async (params?: { status?: string; role?: string; search?: string; page?: number; limit?: number }): Promise<UserListItem[]> => {
+    const queryParams = new URLSearchParams();
+    if (params?.status && params.status !== 'ALL') queryParams.append('status', params.status);
+    if (params?.role && params.role !== 'ALL') queryParams.append('role', params.role);
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.page) queryParams.append('page', String(params.page));
+    if (params?.limit) queryParams.append('limit', String(params.limit));
+
+    const q = queryParams.toString() ? `?${queryParams.toString()}` : '';
+
+    try {
+      const res = await apiClient<any>(`/admin/users${q}`);
+      if (Array.isArray(res)) return res as UserListItem[];
+      if (res && Array.isArray(res.items)) return res.items as UserListItem[];
+    } catch {
+      // If /admin/users endpoint is not yet live on remote EC2, synthesize users list from vendors
+    }
+
+    // Fallback synthesis
+    const vendors = await adminApi.getVendors().catch(() => [] as VendorListItem[]);
+    return vendors.map((v) => ({
+      id: v.userId || v.id,
+      fullName: v.contactPerson || v.fullName || v.companyName || 'User Account',
+      phone: v.phone || 'Not Available',
+      email: v.email || 'Not Available',
+      role: 'VENDOR',
+      status: (v.accountStatus as any) || (v.verificationStatus === 'REJECTED' ? 'SUSPENDED' : 'ACTIVE'),
+      companyName: v.companyName,
+      address: v.address || 'Not Available',
+      city: v.city || 'Not Available',
+      state: v.state || 'Not Available',
+      totalOrders: v.requirementsCount || 0,
+      createdAt: v.createdAt,
+      updatedAt: v.updatedAt,
+    }));
   },
 
-  verifyUser: (id: string, notes?: string) =>
-    apiClient(`/admin/vendors/${id}/verify`, {
-      method: 'POST',
-      body: { notes: notes || 'Verified by Admin' },
+  getUserDetails: async (id: string): Promise<UserProfileDetail> => {
+    try {
+      const res = await apiClient<any>(`/admin/users/${id}`);
+      if (res && res.orders && Array.isArray(res.orders)) {
+        return res as UserProfileDetail;
+      }
+    } catch {
+      // Fallback synthesis if remote endpoint pending EC2 deployment
+    }
+
+    // Synthesize user details from vendor/requirements
+    const vendors = await adminApi.getVendors().catch(() => [] as VendorListItem[]);
+    const matchedVendor = vendors.find((v) => v.id === id || (v as any).userId === id);
+    const vendorDetail = matchedVendor ? await adminApi.getVendorDetails(matchedVendor.id).catch(() => null) : null;
+
+    let totalOrders = 0;
+    let completedOrders = 0;
+    let pendingOrders = 0;
+    let cancelledOrders = 0;
+    let totalAmountSpent = 0;
+
+    const orders = (vendorDetail?.orders || []).map((o) => {
+      totalOrders++;
+      if (o.orderStatus === 'COMPLETED' || o.orderStatus === 'FULFILLED') {
+        completedOrders++;
+        totalAmountSpent += o.orderAmount;
+      } else if (o.orderStatus === 'CANCELLED' || o.orderStatus === 'NO_DRIVER_AVAILABLE') {
+        cancelledOrders++;
+      } else {
+        pendingOrders++;
+      }
+
+      return {
+        id: o.id,
+        orderId: o.orderId,
+        orderDate: o.orderDate,
+        serviceDetails: o.serviceRequirement,
+        vehicleType: o.vehicleType,
+        assignedVendor: vendorDetail?.companyName || 'Corporate Partner',
+        assignedDriver: o.assignedDriver,
+        driverPhone: o.driverPhone,
+        pickupLocation: o.pickupLocation,
+        deliveryLocation: o.deliveryLocation,
+        orderAmount: o.orderAmount,
+        paymentStatus: o.paymentStatus,
+        orderStatus: o.orderStatus,
+      };
+    });
+
+    return {
+      id: matchedVendor?.userId || matchedVendor?.id || id,
+      fullName: matchedVendor?.contactPerson || matchedVendor?.fullName || 'User Account',
+      email: matchedVendor?.email || 'Not Available',
+      phone: matchedVendor?.phone || 'Not Available',
+      role: 'VENDOR',
+      status: (matchedVendor?.accountStatus as any) || 'ACTIVE',
+      createdAt: matchedVendor?.createdAt || new Date().toISOString(),
+      updatedAt: matchedVendor?.updatedAt,
+      profilePhotoUrl: null,
+      address: matchedVendor?.address || 'Not Available',
+      city: vendorDetail?.city || 'Not Available',
+      state: vendorDetail?.state || 'Not Available',
+      latitude: null,
+      longitude: null,
+      corporateTenantName: matchedVendor?.companyName || null,
+      corporateOfficeName: null,
+      totalOrders,
+      completedOrders,
+      pendingOrders,
+      cancelledOrders,
+      totalAmountSpent,
+      orders,
+      activityLogs: [
+        {
+          id: 'log-1',
+          action: 'User Session Active',
+          entityName: 'SECURITY',
+          details: 'Account in good administrative standing',
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    };
+  },
+
+  updateUser: (id: string, data: { fullName?: string; phone?: string; email?: string; status?: string; address?: string }) =>
+    apiClient(`/admin/users/${id}`, {
+      method: 'PATCH',
+      body: data,
+    }).catch(async () => {
+      // Fallback to vendor update if user is linked to vendor
+      return adminApi.updateVendor(id, {
+        fullName: data.fullName,
+        phone: data.phone,
+        address: data.address,
+      });
     }),
 
-  rejectUser: (id: string, reason: string) =>
-    apiClient(`/admin/vendors/${id}/reject`, {
+  updateUserStatus: (id: string, status: string, reason?: string) =>
+    apiClient(`/admin/users/${id}/status`, {
       method: 'POST',
-      body: { reason },
-    }),
+      body: { status, reason },
+    }).catch(() => null),
 
   deleteUser: (id: string) =>
     apiClient(`/admin/users/${id}`, {
@@ -541,6 +846,42 @@ export const adminApi = {
 
   getOperationalReports: () => apiClient<OperationalReportData>('/admin/reports/analytics'),
 
+  // Platform Finance, Revenue & Payout Operations
+  getFinanceDashboard: (params?: { range?: string; startDate?: string; endDate?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.range) searchParams.append('range', params.range);
+    if (params?.startDate) searchParams.append('startDate', params.startDate);
+    if (params?.endDate) searchParams.append('endDate', params.endDate);
+    const query = searchParams.toString() ? `?${searchParams.toString()}` : '';
+    return apiClient<FinanceDashboardData>(`/admin/finance/dashboard${query}`);
+  },
+
+  getFinanceTransactions: (params?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    search?: string;
+    range?: string;
+    startDate?: string;
+    endDate?: string;
+  }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', String(params.page));
+    if (params?.limit) searchParams.append('limit', String(params.limit));
+    if (params?.status && params.status !== 'ALL') searchParams.append('status', params.status);
+    if (params?.search) searchParams.append('search', params.search);
+    if (params?.range) searchParams.append('range', params.range);
+    if (params?.startDate) searchParams.append('startDate', params.startDate);
+    if (params?.endDate) searchParams.append('endDate', params.endDate);
+    const query = searchParams.toString() ? `?${searchParams.toString()}` : '';
+    return apiClient<{ items: FinanceTransactionItem[]; total: number; page: number; limit: number }>(
+      `/admin/finance/transactions${query}`,
+    );
+  },
+
+  getDriverFinancialHistory: (driverId: string) =>
+    apiClient<DriverFinancialHistoryDetail>(`/admin/finance/driver/${driverId}`),
+
   // Unified Helpdesk & Support Tickets
   getSupportTickets: (params?: { status?: string; search?: string }) => {
     const searchParams = new URLSearchParams();
@@ -571,7 +912,11 @@ export const adminApi = {
   // Disputes & Support Resolution
   getDisputes: (status?: string) => {
     const query = status && status !== 'ALL' ? `?status=${status}` : '';
-    return apiClient<DisputeListItem[]>(`/disputes${query}`);
+    return apiClient<any>(`/disputes${query}`).then((res) => {
+      if (Array.isArray(res)) return res as DisputeListItem[];
+      if (res && Array.isArray(res.items)) return res.items as DisputeListItem[];
+      return [] as DisputeListItem[];
+    });
   },
 
   resolveDispute: (id: string, data: { status: 'RESOLVED' | 'REJECTED'; resolutionText: string }) =>

@@ -19,15 +19,28 @@ export function middleware(request: NextRequest) {
   }
 
   const token = request.cookies.get('adhocx_ops_token')?.value;
+  const hasValidToken = Boolean(
+    token &&
+    token !== 'null' &&
+    token !== 'undefined' &&
+    token.trim().length > 10
+  );
 
   if (pathname === '/login') {
-    return token ? NextResponse.redirect(new URL('/', request.url)) : NextResponse.next();
+    if (request.nextUrl.searchParams.has('redirect') || request.nextUrl.searchParams.has('error')) {
+      const response = NextResponse.next();
+      response.cookies.delete('adhocx_ops_token');
+      return response;
+    }
+    return hasValidToken ? NextResponse.redirect(new URL('/', request.url)) : NextResponse.next();
   }
 
-  if (!token) {
+  if (!hasValidToken) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('redirect', pathname);
-    return NextResponse.redirect(loginUrl);
+    const response = NextResponse.redirect(loginUrl);
+    response.cookies.delete('adhocx_ops_token');
+    return response;
   }
 
   return NextResponse.next();

@@ -28,6 +28,8 @@ export interface DriverListItem {
   ratingCount?: number;
   totalTrips?: number;
   acceptanceRate?: number;
+  acceptedOffers?: number;
+  declinedOffers?: number;
   consecutiveDeclines?: number;
   cooldownUntil?: string | null;
   rejectionReason?: string;
@@ -67,10 +69,13 @@ export interface DriverKycDocument {
 export interface DriverDetail extends DriverListItem {
   documents: DriverKycDocument[];
   tripsCount?: number;
+  trips?: any[];
+  vehicles?: any[];
 }
 
 export interface VendorListItem {
   id: string;
+  userId?: string;
   companyName: string;
   organizationName?: string;
   contactPerson: string;
@@ -79,7 +84,10 @@ export interface VendorListItem {
   email?: string;
   gstNumber?: string;
   address?: string;
-  verificationStatus: 'PENDING' | 'UNDER_REVIEW' | 'VERIFIED' | 'REJECTED';
+  city?: string;
+  state?: string;
+  verificationStatus: 'PENDING' | 'UNDER_REVIEW' | 'VERIFIED' | 'REJECTED' | 'SUSPENDED';
+  accountStatus?: 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED';
   rejectionReason?: string;
   requirementsCount?: number;
   escrowBalance?: number;
@@ -87,7 +95,139 @@ export interface VendorListItem {
   updatedAt?: string;
 }
 
-export type UserListItem = VendorListItem;
+export interface UserListItem {
+  id: string;
+  fullName: string;
+  phone: string;
+  email: string;
+  role: string;
+  status: 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED';
+  companyName?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  totalOrders?: number;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface UserOrderItem {
+  id: string;
+  orderId: string;
+  orderDate: string;
+  serviceDetails: string;
+  vehicleType?: string;
+  assignedVendor?: string;
+  assignedDriver?: string;
+  driverPhone?: string | null;
+  pickupLocation: string;
+  deliveryLocation: string;
+  orderAmount: number;
+  paymentStatus: string;
+  orderStatus: string;
+}
+
+export interface UserActivityLog {
+  id: string;
+  action: string;
+  entityName?: string;
+  details?: string;
+  timestamp: string;
+}
+
+export interface UserProfileDetail {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  role: string;
+  status: 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED';
+  createdAt: string;
+  updatedAt?: string;
+  profilePhotoUrl?: string | null;
+  address: string;
+  city: string;
+  state: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  corporateTenantName?: string | null;
+  corporateOfficeName?: string | null;
+  totalOrders: number;
+  completedOrders: number;
+  pendingOrders: number;
+  cancelledOrders: number;
+  totalAmountSpent: number;
+  orders: UserOrderItem[];
+  activityLogs: UserActivityLog[];
+}
+
+export interface VendorOrderItem {
+  id: string;
+  orderId: string;
+  orderDate: string;
+  customerName: string;
+  customerContact: string;
+  serviceRequirement: string;
+  vehicleType?: string;
+  pickupLocation: string;
+  deliveryLocation: string;
+  assignedDriver: string;
+  driverPhone?: string | null;
+  orderAmount: number;
+  paymentStatus: string;
+  orderStatus: string;
+}
+
+export interface VendorMonthlyAnalytics {
+  month: string;
+  monthKey: string;
+  revenue: number;
+  completedOrders: number;
+  totalOrders: number;
+  activeDays: number;
+  fulfillmentRate: number;
+}
+
+export interface VendorActivityItem {
+  id: string;
+  type: string;
+  title: string;
+  description: string;
+  status?: string;
+  timestamp: string;
+}
+
+export interface CorporateVendorDetail {
+  id: string;
+  userId: string;
+  companyName: string;
+  organizationName: string;
+  companyLogoUrl?: string | null;
+  contactPerson: string;
+  fullName: string;
+  phone: string;
+  email: string;
+  companyAddress: string;
+  address?: string;
+  city: string;
+  state: string;
+  gstNumber?: string | null;
+  businessType?: string | null;
+  verificationStatus: 'PENDING' | 'UNDER_REVIEW' | 'VERIFIED' | 'REJECTED' | 'SUSPENDED';
+  accountStatus: 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED';
+  escrowBalance: number;
+  createdAt: string;
+  updatedAt: string;
+  totalOrdersReceived: number;
+  completedOrders: number;
+  pendingOrders: number;
+  cancelledOrders: number;
+  totalRevenue: number;
+  requirementsCount: number;
+  orders: VendorOrderItem[];
+  performanceAnalytics: VendorMonthlyAnalytics[];
+  recentActivities: VendorActivityItem[];
+}
 
 export interface VerificationItem {
   id: string;
@@ -901,5 +1041,186 @@ export interface DistanceSimulationResult {
   grossSpreadPaise: number;
   grossSpreadRupees: number;
   grossMarginPercent: number;
+}
+
+// ==========================================
+// FINANCE & ACCOUNTING CONTROL TYPES
+// ==========================================
+
+export interface FinanceOverviewMetrics {
+  totalRevenue: number;
+  adminEarnings: number;
+  totalPaidToDrivers: number;
+  pendingDriverPayments: number;
+  totalTransactions: number;
+  netProfit: number;
+  commissionRatePercent?: number;
+  totalRefunds?: number;
+}
+
+export interface FinanceTimeSeriesPoint {
+  date?: string;
+  period?: string;
+  month?: string;
+  quarter?: string;
+  year?: string;
+  label: string;
+  revenue: number;
+  adminCommission: number;
+  driverEarnings: number;
+  transactions: number;
+}
+
+export interface FinanceRevenueAnalytics {
+  daily: FinanceTimeSeriesPoint[];
+  weekly: FinanceTimeSeriesPoint[];
+  monthly: FinanceTimeSeriesPoint[];
+  quarterly: FinanceTimeSeriesPoint[];
+  yearly: FinanceTimeSeriesPoint[];
+}
+
+export interface FinanceDriverItem {
+  driverId: string;
+  driverName: string;
+  driverPhone: string;
+  vehicleType: string;
+  vehiclePlate: string;
+  tripsCompleted: number;
+  totalEarnings: number;
+  amountPaid: number;
+  pendingBalance: number;
+  commissionDeducted: number;
+  bankAccountName?: string;
+  bankAccountNumber?: string;
+  bankIfsc?: string;
+}
+
+export interface FinanceDriverSummary {
+  totalDriverEarnings: number;
+  amountPaidToDrivers: number;
+  pendingDriverPayments: number;
+  totalCommissionDeducted: number;
+  drivers: FinanceDriverItem[];
+}
+
+export interface FinanceTransactionItem {
+  id: string;
+  transactionId: string;
+  orderId: string;
+  tripId?: string;
+  driverId?: string;
+  driverName: string;
+  driverPhone?: string;
+  customerName: string;
+  customerId?: string;
+  totalOrderAmount: number;
+  adminCommission: number;
+  driverEarnings: number;
+  paymentStatus: string;
+  paymentMethod: string;
+  transactionDate: string;
+  vehicleType?: string;
+  pickupCity?: string;
+  dropCity?: string;
+}
+
+export interface FinanceSettlementReportItem {
+  id: string;
+  settlementId: string;
+  driverId: string;
+  driverName: string;
+  amount: number;
+  status: 'PENDING' | 'PROCESSING' | 'SETTLED' | 'FAILED' | 'CANCELLED';
+  bankAccountName?: string;
+  bankAccountNumber?: string;
+  bankIfsc?: string;
+  bankName?: string;
+  transactionRef?: string;
+  requestedDate: string;
+  processedDate?: string;
+}
+
+export interface FinanceRefundItem {
+  id: string;
+  transactionRef: string;
+  orderId: string;
+  customerName: string;
+  amount: number;
+  reason: string;
+  status: string;
+  date: string;
+}
+
+export interface FinanceRevenueBreakdownItem {
+  category: string;
+  revenue: number;
+  count: number;
+  percentage: number;
+}
+
+export interface FinanceCommissionBreakdownItem {
+  label: string;
+  rate: string;
+  amount: number;
+  description: string;
+}
+
+export interface FinanceDashboardData {
+  isEmpty: boolean;
+  message?: string;
+  range: string;
+  startDate: string;
+  endDate: string;
+  metrics: FinanceOverviewMetrics;
+  revenueAnalytics: FinanceRevenueAnalytics;
+  driverSummary: FinanceDriverSummary;
+  transactions: FinanceTransactionItem[];
+  settlements: FinanceSettlementReportItem[];
+  refunds: FinanceRefundItem[];
+  revenueBreakdown: FinanceRevenueBreakdownItem[];
+  commissionBreakdown: FinanceCommissionBreakdownItem[];
+}
+
+export interface DriverFinancialHistoryDetail {
+  driver: {
+    id: string;
+    fullName: string;
+    phone: string;
+    walletBalance: number;
+    vehicleType: string;
+    vehiclePlate: string;
+    kycDocuments?: any;
+  };
+  trips: Array<{
+    id: string;
+    orderId: string;
+    pickupAddress: string;
+    dropAddress: string;
+    completedAt?: string;
+    fare: number;
+    totalEarnings: number;
+    toll: number;
+    parking: number;
+  }>;
+  settlements: Array<{
+    id: string;
+    amount: number;
+    status: string;
+    bankAccountName?: string;
+    bankAccountNumber?: string;
+    bankIfsc?: string;
+    transactionRef?: string;
+    requestedAt: string;
+    processedAt?: string;
+  }>;
+  ledger: Array<{
+    id: string;
+    entryType: string;
+    amount: number;
+    balanceAfter: number;
+    description: string;
+    referenceType: string;
+    createdAt: string;
+  }>;
 }
 

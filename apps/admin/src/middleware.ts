@@ -19,11 +19,24 @@ export function middleware(request: NextRequest) {
   }
 
   const token = request.cookies.get('adhocx_admin_token')?.value;
+  const hasValidToken = Boolean(
+    token &&
+    token !== 'null' &&
+    token !== 'undefined' &&
+    token.trim().length > 10
+  );
 
   // If user is accessing the login page
   if (pathname === '/login') {
-    // If already authenticated with active cookie, redirect directly to dashboard
-    if (token) {
+    // If user was directed to login via redirect param or auth error, DO NOT redirect back to dashboard
+    if (request.nextUrl.searchParams.has('redirect') || request.nextUrl.searchParams.has('error')) {
+      const response = NextResponse.next();
+      response.cookies.delete('adhocx_admin_token');
+      return response;
+    }
+
+    // If authenticated with active session and no redirect query, navigate to dashboard
+    if (hasValidToken) {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
     return NextResponse.next();
@@ -31,17 +44,19 @@ export function middleware(request: NextRequest) {
 
   // For root path '/', if no token redirect to '/login', if token redirect to '/dashboard'
   if (pathname === '/') {
-    if (token) {
+    if (hasValidToken) {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
   // All other routes are protected administrative routes
-  if (!token) {
+  if (!hasValidToken) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('redirect', pathname);
-    return NextResponse.redirect(loginUrl);
+    const response = NextResponse.redirect(loginUrl);
+    response.cookies.delete('adhocx_admin_token');
+    return response;
   }
 
   return NextResponse.next();
