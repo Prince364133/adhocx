@@ -1,13 +1,13 @@
 'use client';
 
 import React from 'react';
-import { Database, FileSpreadsheet, Activity, Shield } from 'lucide-react';
+import { Database, Shield } from 'lucide-react';
 import { SubNavTabs, SubNavTab } from '../../components/layout/SubNavTabs';
 
 const SETTINGS_TABS: SubNavTab[] = [
   { href: '/settings', label: 'HRMS Integration', icon: <Database size={15} /> },
-  { href: '/settings/mapping', label: 'Import Mapping Engine', icon: <FileSpreadsheet size={15} /> },
-  { href: '/settings/health', label: 'Integration Health & Webhooks', icon: <Activity size={15} /> },
+  //{ href: '/settings/mapping', label: 'Import Mapping Engine', icon: <FileSpreadsheet size={15} /> },
+  //{ href: '/settings/health', label: 'Integration Health & Webhooks', icon: <Activity size={15} /> },
   { href: '/settings/organization', label: 'Organization Settings & Audit', icon: <Shield size={15} /> },
 ];
 

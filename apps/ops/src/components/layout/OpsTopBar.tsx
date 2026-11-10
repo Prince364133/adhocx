@@ -88,7 +88,7 @@ export const OpsTopBar: React.FC = () => {
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
         <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
           <img
-            src="/adhocx_icon.svg"
+            src="/adhocx/apps/employee_app/build/flutter_assets/assets/images/adhocx_icon.svg"
             alt="AdhocX"
             style={{
               width: '28px',

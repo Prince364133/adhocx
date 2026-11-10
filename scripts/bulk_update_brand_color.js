@@ -78,7 +78,7 @@ if (fs.existsSync(opsTopBarPath)) {
   const targetPattern = /<div style=\{\{ display: 'flex', alignItems: 'center', gap: '10px' \}\}>[\s\S]*?<span style=\{\{ fontWeight: 800, fontSize: '15px', letterSpacing: '0\.02em', color: '#F8FAFC' \}\}>[\s\S]*?ADHOCX <span style=\{\{ color: 'var\(--brand-amber-500, #EE9811\)' \}\}>OPS<\/span>[\s\S]*?<\/span>[\s\S]*?<\/div>/;
   const replacement = `<div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <img
-            src="/adhocx_icon.svg"
+            src="/adhocx/apps/employee_app/build/flutter_assets/assets/images/adhocx_icon.svg"
             alt="AdhocX"
             style={{
               width: '28px',
