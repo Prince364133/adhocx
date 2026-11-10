@@ -22,8 +22,50 @@ import {
 } from 'lucide-react';
 import { MiniLiveMap } from '../../../components/maps/MiniLiveMap';
 import { employeeApi } from '../../../lib/api/corporate';
-import type { CorporateEmployee } from '../../../lib/api/types';
+import type { CorporateEmployee, EmployeeRequest } from '../../../lib/api/types';
 import { useSession } from '../../../lib/auth/SessionContext';
+
+function isEmployeeRequest(value: unknown): value is EmployeeRequest {
+  if (!value || typeof value !== 'object') return false;
+
+  const request = value as Record<string, unknown>;
+  return (
+    typeof request.id === 'string' &&
+    typeof request.scheduledDate === 'string' &&
+    typeof request.shiftTime === 'string' &&
+    (request.direction === 'LOGIN' || request.direction === 'LOGOUT') &&
+    typeof request.status === 'string' &&
+    (request.rosterId === null || typeof request.rosterId === 'string') &&
+    (request.routeStop === null || typeof request.routeStop === 'object')
+  );
+}
+
+function hasEmployeeRequestArray(response: unknown): boolean {
+  if (Array.isArray(response)) return true;
+  if (!response || typeof response !== 'object') return false;
+
+  const payload = response as Record<string, unknown>;
+  return (
+    ['items', 'requests', 'results'].some((key) => Array.isArray(payload[key])) ||
+    hasEmployeeRequestArray(payload.data)
+  );
+}
+
+function getEmployeeRequests(response: unknown): EmployeeRequest[] {
+  if (Array.isArray(response)) return response.filter(isEmployeeRequest);
+  if (!response || typeof response !== 'object') return [];
+
+  const payload = response as Record<string, unknown>;
+  for (const key of ['items', 'requests', 'results', 'data']) {
+    const value = payload[key];
+    if (Array.isArray(value)) return value.filter(isEmployeeRequest);
+    if (key === 'data' && value && typeof value === 'object') {
+      return getEmployeeRequests(value);
+    }
+  }
+
+  return [];
+}
 
 function EmployeeProfileContent() {
   const { tenantId } = useSession();
@@ -33,7 +75,7 @@ function EmployeeProfileContent() {
   const employeeId = searchParams.get('id');
 
   const [employee, setEmployee] = useState<CorporateEmployee | null>(null);
-  const [requests, setRequests] = useState<any[]>([]);
+  const [requests, setRequests] = useState<EmployeeRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'transport' | 'history' | 'roster' | 'documents' | 'activity'>('overview');
 
@@ -52,10 +94,19 @@ function EmployeeProfileContent() {
           }
         }
         setEmployee(emp);
+        setRequests([]);
 
         if (emp?.id) {
-          const reqs = await employeeApi.requests(activeTenantId, emp.id).catch(() => []);
-          setRequests(reqs as any[]);
+          try {
+            const response = await employeeApi.requests(activeTenantId, emp.id);
+            const employeeRequests = getEmployeeRequests(response);
+            if (response != null && !hasEmployeeRequestArray(response)) {
+              console.warn('Employee requests response did not contain a request array.');
+            }
+            setRequests(employeeRequests);
+          } catch (err) {
+            console.warn('Failed to fetch employee transport requests:', err);
+          }
         }
       } catch (err) {
         console.warn('Failed to fetch employee details:', err);
@@ -389,23 +440,23 @@ function EmployeeProfileContent() {
                     </tr>
                   </thead>
                   <tbody>
-                    {requests.map((r: any) => (
-                      <tr key={r.id}>
-                        <td style={{ fontWeight: 700 }}>{r.id.slice(0, 8)}</td>
-                        <td>{r.type || 'COMMUTE'}</td>
-                        <td>{r.scheduledDate ? new Date(r.scheduledDate).toLocaleDateString() : '—'}</td>
+                    {requests.map((request) => (
+                      <tr key={request.id}>
+                        <td style={{ fontWeight: 700 }}>{request.id.slice(0, 8)}</td>
+                        <td>{request.direction}</td>
+                        <td>{new Date(request.scheduledDate).toLocaleDateString()}</td>
                         <td>
                           <span
                             style={{
                               fontSize: '11px',
                               fontWeight: 700,
-                              color: r.status === 'SERVED' ? '#16A34A' : '#D97706',
-                              backgroundColor: r.status === 'SERVED' ? '#DCFCE7' : '#FEF3C7',
+                              color: request.status === 'SERVED' ? '#16A34A' : '#D97706',
+                              backgroundColor: request.status === 'SERVED' ? '#DCFCE7' : '#FEF3C7',
                               padding: '2px 6px',
                               borderRadius: '4px',
                             }}
                           >
-                            {r.status}
+                            {request.status}
                           </span>
                         </td>
                       </tr>

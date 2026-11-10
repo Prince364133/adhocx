@@ -86,6 +86,7 @@ class EmployeeGreetingHeader extends StatelessWidget {
   final String greeting;
   final int unreadNotificationsCount;
   final VoidCallback? onNotificationTap;
+  final VoidCallback? onSosTap;
   final VoidCallback? onProfileTap;
 
   const EmployeeGreetingHeader({
@@ -94,6 +95,7 @@ class EmployeeGreetingHeader extends StatelessWidget {
     this.greeting = 'Good Morning,',
     this.unreadNotificationsCount = 1,
     this.onNotificationTap,
+    this.onSosTap,
     this.onProfileTap,
   });
 
@@ -101,64 +103,118 @@ class EmployeeGreetingHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        GestureDetector(
-          onTap: onProfileTap,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                greeting,
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
+        Expanded(
+          child: GestureDetector(
+            onTap: onProfileTap,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  greeting,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                '$name 👋',
-                style: GoogleFonts.inter(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
+                const SizedBox(height: 2),
+                Text(
+                  '$name 👋',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-        Stack(
-          clipBehavior: Clip.none,
+        const SizedBox(width: 12),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            InkWell(
-              onTap: onNotificationTap,
-              borderRadius: BorderRadius.circular(20),
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: const Icon(
-                  Icons.notifications_none_rounded,
-                  color: AppColors.textPrimary,
-                  size: 22,
-                ),
-              ),
-            ),
-            if (unreadNotificationsCount > 0)
-              Positioned(
-                right: 3,
-                top: 3,
-                child: Container(
-                  width: 9,
-                  height: 9,
-                  decoration: const BoxDecoration(
-                    color: AppColors.secondaryOrange,
-                    shape: BoxShape.circle,
+            if (onSosTap != null) ...[
+              InkWell(
+                onTap: onSosTap,
+                borderRadius: BorderRadius.circular(12),
+                child: SizedBox(
+                  width: 38,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFDC2626),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.notifications_active_rounded,
+                          color: Colors.white,
+                          size: 19,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        'SOS',
+                        style: GoogleFonts.inter(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFFDC2626),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
+              const SizedBox(width: 8),
+            ],
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                InkWell(
+                  onTap: onNotificationTap,
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: const Center(
+                      child: Icon(
+                        Icons.notifications_none_rounded,
+                        color: AppColors.textPrimary,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ),
+                if (unreadNotificationsCount > 0)
+                  Positioned(
+                    right: 3,
+                    top: 3,
+                    child: Container(
+                      width: 9,
+                      height: 9,
+                      decoration: const BoxDecoration(
+                        color: AppColors.secondaryOrange,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ],
         ),
       ],

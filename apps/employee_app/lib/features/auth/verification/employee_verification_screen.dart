@@ -102,7 +102,7 @@ class EmployeeVerificationScreen extends StatelessWidget {
               // Continue Button
               EmployeePrimaryButton(
                 label: 'Continue',
-                onPressed: () => context.push(AppRoutes.permissionLocation),
+                onPressed: () => context.go(AppRoutes.home),
               ),
 
               const SizedBox(height: 16),

@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/widgets/employee_bottom_nav_bar.dart';
 import 'package:adhocx_employee/services/mock_data_service.dart';
+import 'package:adhocx_employee/services/language_preference_service.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
 
 /// Screen 6: Profile (My Details)
@@ -16,6 +17,7 @@ class ProfileMyDetailsScreen extends StatefulWidget {
 
 class _ProfileMyDetailsScreenState extends State<ProfileMyDetailsScreen> {
   Map<String, dynamic>? _profile;
+  String _selectedLanguage = LanguagePreferenceService.defaultLanguage;
   bool _isLoading = true;
 
   @override
@@ -26,11 +28,21 @@ class _ProfileMyDetailsScreenState extends State<ProfileMyDetailsScreen> {
 
   Future<void> _loadProfile() async {
     final hp = await MockDataService.getHistoryProfileData();
+    final language = await LanguagePreferenceService.getLanguage();
     if (mounted) {
       setState(() {
         _profile = hp['profile'] as Map<String, dynamic>?;
+        _selectedLanguage = language;
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _openLanguageSelection() async {
+    await context.push(AppRoutes.selectLanguage);
+    final language = await LanguagePreferenceService.getLanguage();
+    if (mounted) {
+      setState(() => _selectedLanguage = language);
     }
   }
 
@@ -84,12 +96,7 @@ class _ProfileMyDetailsScreenState extends State<ProfileMyDetailsScreen> {
                                   color: Colors.white,
                                 ),
                               ),
-                              IconButton(
-                                icon: const Icon(Icons.settings_outlined,
-                                    color: Colors.white),
-                                onPressed: () =>
-                                    context.push(AppRoutes.settingsOverview),
-                              ),
+                              const SizedBox(width: 48),
                             ],
                           ),
                           const SizedBox(height: 12),
@@ -190,47 +197,47 @@ class _ProfileMyDetailsScreenState extends State<ProfileMyDetailsScreen> {
                           borderRadius: BorderRadius.circular(18),
                           border: Border.all(color: AppColors.border),
                         ),
-                        child: Column(
-                          children: [
-                            ListTile(
-                              leading: const Icon(Icons.edit_outlined,
-                                  color: AppColors.primaryBlue),
-                              title: Text('Edit Profile',
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Column(
+                            children: [
+                              _buildProfileActionRow(
+                                icon: Icons.edit_outlined,
+                                title: 'Edit Profile',
+                                onTap: () =>
+                                    context.push(AppRoutes.editProfile),
+                              ),
+                              const Divider(height: 1),
+                              _buildProfileActionRow(
+                                icon: Icons.language_rounded,
+                                title: 'Language',
+                                trailing: Text(
+                                  _selectedLanguage,
                                   style: GoogleFonts.inter(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600)),
-                              trailing: const Icon(Icons.chevron_right_rounded,
-                                  color: AppColors.textMuted),
-                              onTap: () => context.push(AppRoutes.editProfile),
-                            ),
-                            const Divider(height: 1),
-                            ListTile(
-                              leading: const Icon(Icons.settings_outlined,
-                                  color: AppColors.primaryBlue),
-                              title: Text('App Settings',
-                                  style: GoogleFonts.inter(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600)),
-                              trailing: const Icon(Icons.chevron_right_rounded,
-                                  color: AppColors.textMuted),
-                              onTap: () =>
-                                  context.push(AppRoutes.settingsOverview),
-                            ),
-                            const Divider(height: 1),
-                            ListTile(
-                              leading: const Icon(Icons.logout_rounded,
-                                  color: Color(0xFFDC2626)),
-                              title: Text('Sign Out',
-                                  style: GoogleFonts.inter(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: const Color(0xFFDC2626))),
-                              trailing: const Icon(Icons.chevron_right_rounded,
-                                  color: AppColors.textMuted),
-                              onTap: () =>
-                                  context.push(AppRoutes.logoutConfirm),
-                            ),
-                          ],
+                                    fontSize: 13,
+                                    color: AppColors.textMuted,
+                                  ),
+                                ),
+                                onTap: _openLanguageSelection,
+                              ),
+                              const Divider(height: 1),
+                              _buildProfileActionRow(
+                                icon: Icons.headset_mic_outlined,
+                                title: 'Support',
+                                onTap: () => context
+                                    .push(AppRoutes.safetyReportIncident),
+                              ),
+                              const Divider(height: 1),
+                              _buildProfileActionRow(
+                                icon: Icons.logout_rounded,
+                                title: 'Sign Out',
+                                iconColor: const Color(0xFFDC2626),
+                                titleColor: const Color(0xFFDC2626),
+                                onTap: () =>
+                                    context.push(AppRoutes.logoutConfirm),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -241,12 +248,11 @@ class _ProfileMyDetailsScreenState extends State<ProfileMyDetailsScreen> {
               ),
             ),
       bottomNavigationBar: EmployeeBottomNavBar(
-        currentIndex: 4, // Profile Tab Active
+        currentIndex: 4,
         onTap: (index) {
           if (index == 0) context.push(AppRoutes.homeUpcomingPickup);
           if (index == 1) context.push(AppRoutes.scheduleToday);
           if (index == 2) context.push(AppRoutes.tripHistoryOverview);
-          if (index == 3) context.push(AppRoutes.safetyCenterOverview);
         },
       ),
     );
@@ -274,6 +280,46 @@ class _ProfileMyDetailsScreenState extends State<ProfileMyDetailsScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildProfileActionRow({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    Widget? trailing,
+    Color iconColor = AppColors.primaryBlue,
+    Color titleColor = AppColors.textPrimary,
+  }) {
+    return SizedBox(
+      height: 48,
+      child: InkWell(
+        onTap: onTap,
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: iconColor),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                title,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: titleColor,
+                ),
+              ),
+            ),
+            if (trailing != null) ...[
+              trailing,
+              const SizedBox(width: 6),
+            ],
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.textMuted,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

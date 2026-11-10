@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../theme/app_colors.dart';
 
-/// Reusable 5-tab bottom navigation bar for the AdhocX Employee Mobile App.
-/// Tabs: 0: Home, 1: Schedule, 2: Trips, 3: Support, 4: Profile
+/// Reusable bottom navigation bar for the AdhocX Employee Mobile App.
+/// Support remains available from Profile and the Safety Center.
 class EmployeeBottomNavBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int>? onTap;
@@ -33,15 +33,19 @@ class EmployeeBottomNavBar extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildNavItem(0, Icons.home_rounded, 'Home'),
-              _buildNavItem(1, Icons.calendar_month_rounded, 'Schedule'),
-              _buildNavItem(2, Icons.directions_car_filled_rounded, 'Trips'),
-              _buildNavItem(3, Icons.headset_mic_rounded, 'Support'),
-              _buildNavItem(4, Icons.person_rounded, 'Profile'),
+              for (final item in const [
+                (0, Icons.home_rounded, 'Home'),
+                (1, Icons.calendar_month_rounded, 'Schedule'),
+                (2, Icons.directions_car_filled_rounded, 'Trips'),
+                // (3, Icons.headset_mic_rounded, 'Support'),
+                (4, Icons.person_rounded, 'Profile'),
+              ])
+                Expanded(
+                  child: _buildNavItem(item.$1, item.$2, item.$3),
+                ),
             ],
           ),
         ),
@@ -57,7 +61,7 @@ class EmployeeBottomNavBar extends StatelessWidget {
       onTap: () => onTap?.call(index),
       borderRadius: BorderRadius.circular(12),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -65,8 +69,10 @@ class EmployeeBottomNavBar extends StatelessWidget {
             const SizedBox(height: 3),
             Text(
               label,
+              maxLines: 1,
+              softWrap: false,
               style: GoogleFonts.inter(
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
                 color: color,
               ),
@@ -77,4 +83,3 @@ class EmployeeBottomNavBar extends StatelessWidget {
     );
   }
 }
-

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/widgets/employee_primary_button.dart';
+import 'package:adhocx_employee/services/language_preference_service.dart';
 
 /// Screen 9: Select Language
 class SelectLanguageScreen extends StatefulWidget {
@@ -12,7 +13,7 @@ class SelectLanguageScreen extends StatefulWidget {
 }
 
 class _SelectLanguageScreenState extends State<SelectLanguageScreen> {
-  String _selectedLang = 'English';
+  String _selectedLang = LanguagePreferenceService.defaultLanguage;
 
   final List<String> _languages = [
     'English',
@@ -24,6 +25,28 @@ class _SelectLanguageScreenState extends State<SelectLanguageScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _loadSelectedLanguage();
+  }
+
+  Future<void> _loadSelectedLanguage() async {
+    final language = await LanguagePreferenceService.getLanguage();
+    if (mounted && _languages.contains(language)) {
+      setState(() => _selectedLang = language);
+    }
+  }
+
+  Future<void> _saveSelectedLanguage() async {
+    await LanguagePreferenceService.setLanguage(_selectedLang);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Language set to $_selectedLang.')),
+    );
+    Navigator.of(context).pop();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -31,7 +54,8 @@ class _SelectLanguageScreenState extends State<SelectLanguageScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              size: 18, color: AppColors.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
@@ -69,8 +93,12 @@ class _SelectLanguageScreenState extends State<SelectLanguageScreen> {
                             lang,
                             style: GoogleFonts.inter(
                               fontSize: 15,
-                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                              color: isSelected ? AppColors.primaryBlue : AppColors.textPrimary,
+                              fontWeight: isSelected
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              color: isSelected
+                                  ? AppColors.primaryBlue
+                                  : AppColors.textPrimary,
                             ),
                           ),
                           trailing: Container(
@@ -78,14 +106,20 @@ class _SelectLanguageScreenState extends State<SelectLanguageScreen> {
                             height: 22,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: isSelected ? AppColors.primaryBlue : Colors.transparent,
+                              color: isSelected
+                                  ? AppColors.primaryBlue
+                                  : Colors.transparent,
                               border: Border.all(
-                                color: isSelected ? AppColors.primaryBlue : const Color(0xFFCBD5E1),
+                                color: isSelected
+                                    ? AppColors.primaryBlue
+                                    : const Color(0xFFCBD5E1),
                                 width: 2,
                               ),
                             ),
                             child: isSelected
-                                ? const Center(child: Icon(Icons.check, size: 14, color: Colors.white))
+                                ? const Center(
+                                    child: Icon(Icons.check,
+                                        size: 14, color: Colors.white))
                                 : null,
                           ),
                         ),
@@ -95,17 +129,10 @@ class _SelectLanguageScreenState extends State<SelectLanguageScreen> {
                   }),
                 ),
               ),
-
               const Spacer(),
-
               EmployeePrimaryButton(
                 label: 'Continue',
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Language set to $_selectedLang.')),
-                  );
-                  Navigator.of(context).pop();
-                },
+                onPressed: _saveSelectedLanguage,
               ),
               const SizedBox(height: 16),
             ],
@@ -115,6 +142,3 @@ class _SelectLanguageScreenState extends State<SelectLanguageScreen> {
     );
   }
 }
-
-
-
