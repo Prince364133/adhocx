@@ -20,7 +20,6 @@ class _UserCreateRequirementStep3ScreenState extends State<UserCreateRequirement
   late TextEditingController _dateController;
   late TextEditingController _timeController;
   late TextEditingController _additionalInfoController;
-  final List<String> _stops = [];
   bool _initialized = false;
 
   @override
@@ -31,8 +30,6 @@ class _UserCreateRequirementStep3ScreenState extends State<UserCreateRequirement
       _dateController = TextEditingController(text: draft.pickupDate);
       _timeController = TextEditingController(text: draft.pickupTime);
       _additionalInfoController = TextEditingController(text: draft.additionalInfo);
-      _stops.clear();
-      _stops.addAll(draft.additionalStops);
       _initialized = true;
     }
   }
@@ -76,22 +73,6 @@ class _UserCreateRequirementStep3ScreenState extends State<UserCreateRequirement
       setState(() {
         controller.text = timeStr;
       });
-    }
-  }
-
-  Future<void> _showAddStopPicker() async {
-    final result = await context.push<Map<String, dynamic>>(
-      AppRoutes.universalLocationPickerScreen,
-      extra: {
-        'title': 'Add Intermediate Stop',
-      },
-    );
-
-    if (result != null && mounted) {
-      final address = (result['fullAddress'] as String?) ?? (result['address'] as String?) ?? (result['title'] as String?) ?? '';
-      if (address.isNotEmpty) {
-        setState(() => _stops.add(address));
-      }
     }
   }
 
@@ -200,52 +181,6 @@ class _UserCreateRequirementStep3ScreenState extends State<UserCreateRequirement
 
                     const SizedBox(height: AppSpacing.lg),
 
-
-                    // Additional Stops (Optional)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Additional Stops (Optional)',
-                          style: AppTypography.h4(
-                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        TextButton.icon(
-                          onPressed: _showAddStopPicker,
-                          icon: Icon(Icons.add, size: 16, color: AppColors.primary),
-                          label: Text('+ Add Stop', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    if (_stops.isEmpty)
-                      Text(
-                        'No intermediate stops added.',
-                        style: TextStyle(fontSize: 12, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
-                      )
-                    else
-                      ListView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: _stops.length,
-                        itemBuilder: (context, index) {
-                          return ListTile(
-                            dense: true,
-                            contentPadding: EdgeInsets.zero,
-                            leading: Icon(Icons.location_on, size: 18, color: AppColors.primary),
-                            title: Text(_stops[index], style: const TextStyle(fontSize: 13)),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
-                              onPressed: () => setState(() => _stops.removeAt(index)),
-                            ),
-                          );
-                        },
-                      ),
-
-                    const SizedBox(height: AppSpacing.lg),
-
                     // Additional Information / Special Requests
                     Text(
                       'Additional Information / Special Notes (Optional)',
@@ -317,7 +252,7 @@ class _UserCreateRequirementStep3ScreenState extends State<UserCreateRequirement
                                 hasReturn: false,
                                 returnDate: null,
                                 returnTime: null,
-                                additionalStops: _stops,
+                                additionalStops: [],
                                 additionalInfo: _additionalInfoController.text.trim(),
                               );
                               context.push(AppRoutes.userReviewRequirementScreen);

@@ -28,7 +28,6 @@ class _UserCreateRequirementStep4ScreenState extends State<UserCreateRequirement
   int _passengers = 1;
   String? _selectedLuggage = 'Standard (2 Suitcases)';
   late TextEditingController _additionalInfoController;
-  final List<String> _stops = [];
   bool _initialized = false;
 
   @override
@@ -51,8 +50,6 @@ class _UserCreateRequirementStep4ScreenState extends State<UserCreateRequirement
           _selectedLuggage = _luggageOptions.first;
         }
         _additionalInfoController.text = draft.additionalInfo;
-        _stops.clear();
-        _stops.addAll(draft.additionalStops);
       } catch (_) {}
       _initialized = true;
     }
@@ -62,22 +59,6 @@ class _UserCreateRequirementStep4ScreenState extends State<UserCreateRequirement
   void dispose() {
     _additionalInfoController.dispose();
     super.dispose();
-  }
-
-  Future<void> _showAddStopPicker() async {
-    final result = await context.push<Map<String, dynamic>>(
-      AppRoutes.universalLocationPickerScreen,
-      extra: {
-        'title': 'Add Intermediate Stop',
-      },
-    );
-
-    if (result != null && mounted) {
-      final address = (result['fullAddress'] as String?) ?? (result['address'] as String?) ?? (result['title'] as String?) ?? '';
-      if (address.isNotEmpty) {
-        setState(() => _stops.add(address));
-      }
-    }
   }
 
   @override
@@ -137,60 +118,6 @@ class _UserCreateRequirementStep4ScreenState extends State<UserCreateRequirement
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Additional Stops (Optional) Header + Add Button
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Additional Stops (Optional)',
-                          style: AppTypography.h4(
-                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        TextButton.icon(
-                          onPressed: _showAddStopPicker,
-                          icon: Icon(Icons.add, size: 16, color: AppColors.primary),
-                          label: Text('+ Add Stop', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    if (_stops.isEmpty)
-                      Text(
-                        'No additional stops added',
-                        style: AppTypography.caption(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
-                      )
-                    else
-                      Column(
-                        children: _stops.asMap().entries.map((entry) {
-                          final idx = entry.key;
-                          final stop = entry.value;
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 6),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                              borderRadius: BorderRadius.circular(AppRadius.md),
-                              border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(Icons.place_outlined, size: 16, color: AppColors.primary),
-                                const SizedBox(width: 8),
-                                Expanded(child: Text('Stop ${idx + 1}: $stop', style: const TextStyle(fontSize: 13))),
-                                IconButton(
-                                  icon: const Icon(Icons.close, size: 16, color: AppColors.error),
-                                  onPressed: () => setState(() => _stops.removeAt(idx)),
-                                ),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                      ),
-
-                    const SizedBox(height: AppSpacing.lg),
-
                     // Luggage / Capacity Dropdown
                     Text(
                       'Luggage / Capacity (Optional)',
@@ -311,7 +238,7 @@ class _UserCreateRequirementStep4ScreenState extends State<UserCreateRequirement
                                 passengers: _passengers,
                                 selectedLuggage: _selectedLuggage,
                                 additionalInfo: _additionalInfoController.text.trim(),
-                                additionalStops: _stops,
+                                additionalStops: [],
                               );
                               context.push(AppRoutes.userReviewRequirementScreen);
                             },

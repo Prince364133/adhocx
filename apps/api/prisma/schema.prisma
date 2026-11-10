@@ -252,6 +252,8 @@ model Driver {
   corporatePayouts     CorporatePayout[] // wire/billing-payouts
 
   @@map("drivers")
+  /// Dispatch DB fallback: available + verified + fresh location, narrowed by a lat/lng box.
+  @@index([availabilityStatus, verificationStatus, lastLocationAt], map: "drivers_dispatch_fallback_idx")
 }
 
 model Vehicle {
@@ -273,6 +275,8 @@ model Vehicle {
   corporateRoutes CorporateRoute[]
 
   @@map("vehicles")
+  /// Foreign key lookups (dispatch loads candidates' vehicles); Postgres does not index FKs itself.
+  @@index([driverId])
 }
 
 model Requirement {
@@ -338,6 +342,8 @@ model Offer {
   @@index([requirementId, status])
   @@index([driverId, countsForAr, respondedAt])
   @@map("offers")
+  /// A driver's live offers (GET /offers: driverId + SENT + not expired).
+  @@index([driverId, status, expiresAt])
 }
 
 model Assignment {
@@ -395,6 +401,8 @@ model Trip {
 
   @@index([vendorId, status, completedAt])
   @@map("trips")
+  /// Driver app polling (GET /trips, GET /offers active-trip check): without it every poll scans all trips.
+  @@index([driverId, status])
 }
 
 model TripEvent {

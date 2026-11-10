@@ -8,11 +8,24 @@ import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common';
 import { TransformInterceptor } from './common';
 
+type NestLogLevel = 'log' | 'error' | 'warn' | 'debug' | 'verbose' | 'fatal';
+/**
+ * LOG_LEVEL = error | warn | log | debug | verbose (each includes the more severe levels).
+ * Default: `log` in production (debug/verbose lines are synchronous stdout writes on the request
+ * thread: under load they cost more CPU than the requests themselves), `debug` elsewhere.
+ */
+function resolveLogLevels(): NestLogLevel[] {
+  const order: NestLogLevel[] = ['fatal', 'error', 'warn', 'log', 'debug', 'verbose'];
+  const wanted = (process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'log' : 'debug')).toLowerCase() as NestLogLevel;
+  const idx = order.indexOf(wanted);
+  return order.slice(0, idx >= 0 ? idx + 1 : 4);
+}
+
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
 
   const app = await NestFactory.create(AppModule, {
-    logger: ['log', 'error', 'warn', 'debug', 'verbose'],
+    logger: resolveLogLevels(),
     // Keep req.rawBody so signed webhooks (corporate payout provider callback) are verified
     // over the exact bytes received. JSON parsing of req.body is unchanged.
     rawBody: true,
@@ -135,6 +148,14 @@ async function bootstrap() {
   }
 
   await app.listen(port);
+
+  // Keep idle keep-alive sockets open longer than the load balancer does (AWS ALB idle timeout: 60 s).
+  // Node's default (5 s) closes sockets the LB is about to reuse, which surfaces as sporadic
+  // connection resets / 502s under load. headersTimeout must exceed keepAliveTimeout.
+  const keepAliveMs = Number(process.env.HTTP_KEEP_ALIVE_TIMEOUT_MS) > 0 ? Number(process.env.HTTP_KEEP_ALIVE_TIMEOUT_MS) : 65_000;
+  const httpServer = app.getHttpServer();
+  httpServer.keepAliveTimeout = keepAliveMs;
+  httpServer.headersTimeout = keepAliveMs + 1_000;
   logger.log(`🚀 AdhocX API running on http://localhost:${port}/${apiPrefix}`);
 }
 

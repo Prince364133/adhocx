@@ -15,6 +15,7 @@ import { H3Service } from '../src/modules/locations/h3.service';
 import { DriverAvailability, RequirementStatus, UserStatus, VehicleType, VerificationStatus } from '@adhocx/contracts';
 import { DriversService } from '../src/modules/drivers/drivers.service';
 import { kRingForRadiusKm, waveSearchRadiusKm } from '../src/modules/dispatch/pickup-radius';
+import { rookieExplorationHit, rookieQuotaFor } from '../src/modules/dispatch/dispatch-ranking';
 
 const PICKUP = { lat: 28.6315, lng: 77.2167 };
 const LIMIT_KM = 10;
@@ -82,6 +83,9 @@ interface SimDriver {
   /** What the server has stored (may differ: stale, fake fallback, never sent). */
   stored: { lat: number; lng: number } | null;
   lastLocationAt: Date | null;
+  trust?: number;
+  rating?: number;
+  rookie?: boolean;
 }
 
 function makeWorld(drivers: SimDriver[]) {
@@ -98,9 +102,9 @@ function makeWorld(drivers: SimDriver[]) {
     currentLat: d.stored?.lat ?? null,
     currentLng: d.stored?.lng ?? null,
     lastLocationAt: d.lastLocationAt,
-    trustScore: 95,
-    averageRating: 4.8,
-    totalTrips: 100,
+    trustScore: d.trust ?? 95,
+    averageRating: d.rating ?? 4.8,
+    totalTrips: d.rookie ? 5 : 100,
     cooldownUntil: null,
   }));
   const requirement: any = {
@@ -165,7 +169,11 @@ function build(drivers: SimDriver[], redis: FakeRedis | null) {
     computeRoadRoute: jest.fn(async () => ({ distanceKm: 20, durationMinutes: 45 })),
     // Road ≈ 1.3 × straight line, as an urban detour factor.
     computeDriverEtaMatrix: jest.fn(async (origins: any[], dest: any) =>
-      origins.map((o) => ({ distanceKm: haversineKm({ lat: o.latitude, lng: o.longitude }, { lat: dest.latitude, lng: dest.longitude }) * 1.3, etaMinutes: 10, isRealRoad: true })),
+      origins.map((o) => {
+        const km = haversineKm({ lat: o.latitude, lng: o.longitude }, { lat: dest.latitude, lng: dest.longitude }) * 1.3;
+        const seconds = (km / 25) * 3600;
+        return { distanceKm: km, etaMinutes: Math.max(1, Math.round(seconds / 60)), durationSeconds: seconds, isRealRoad: true };
+      }),
     ),
   };
   const svc = new DispatchService(world.db, locations, notifications, audit, maps, undefined, undefined, undefined, undefined);
@@ -186,7 +194,6 @@ const stale = () => new Date(Date.now() - 45 * 60_000);
 describe(`Dispatch radius simulation (limit ${LIMIT_KM} km)`, () => {
   const report: Array<{ scenario: string; offered: Array<{ driverId: string; realKm: number | null }> }> = [];
   afterAll(() => {
-    // eslint-disable-next-line no-console
     console.log(
       '\nDISPATCH RADIUS SIMULATION\n' +
         report.map((r) => `- ${r.scenario}: ${r.offered.map((o) => `${o.driverId}@${o.realKm ?? '?'}km`).join(', ') || 'no offer'}`).join('\n'),
@@ -197,7 +204,12 @@ describe(`Dispatch radius simulation (limit ${LIMIT_KM} km)`, () => {
     const redis = opts.redis === false ? null : new FakeRedis();
     const { svc, world, locations } = build(drivers, redis);
     if (redis) {
-      for (const d of drivers) if (d.stored) await locations.indexDriverLocation(d.id, d.stored.lat, d.stored.lng, VehicleType.SEDAN);
+      // Only drivers that are currently reporting are in the live index; a stale driver's last
+      // heartbeat is long expired there (it exists only as an old Postgres row).
+      for (const d of drivers) {
+        const recent = d.lastLocationAt && Date.now() - d.lastLocationAt.getTime() < 5 * 60_000;
+        if (d.stored && recent) await locations.indexDriverLocation(d.id, d.stored.lat, d.stored.lng, VehicleType.SEDAN);
+      }
       if (prepare) await prepare(redis, locations);
     }
     world.requirement.dispatchWaves = opts.waves ?? 0;
@@ -259,14 +271,15 @@ describe(`Dispatch radius simulation (limit ${LIMIT_KM} km)`, () => {
     }
   });
 
-  it('S8 waves grow 2 → 4 → 6 → 8 → 10 km: a 9.5 km driver is found only by the last wave, an 10.5 km driver never', async () => {
+  it('S8 waves grow 2 → 4 → 6 → 8 → 10 km: a 9.5 km driver is reached at wave 5 (widening within the dispatch), a 10.5 km driver never', async () => {
     expect([1, 2, 3, 4, 5].map((w) => waveSearchRadiusKm(w, 5, 10))).toEqual([2, 4, 6, 8, 10]);
-    expect(kRingForRadiusKm(10)).toBe(11);
+    expect(kRingForRadiusKm(10)).toBe(15);
     const drivers = [
       { id: 'edge-9.5', real: east(9.5), stored: east(9.5), lastLocationAt: fresh() },
       { id: 'out-10.5', real: east(10.5), stored: east(10.5), lastLocationAt: fresh() },
     ];
-    expect(await run('S8 wave 4 (8 km)', drivers, undefined, { waves: 3 })).toEqual([]);
+    // Dispatching at wave 4 (8 km) finds nobody, widens to wave 5 (10 km) in the same call.
+    expect((await run('S8 from wave 4', drivers, undefined, { waves: 3 })).map((o) => o.driverId)).toEqual(['edge-9.5']);
     expect((await run('S8 wave 5 (10 km)', drivers, undefined, { waves: 4 })).map((o) => o.driverId)).toEqual(['edge-9.5']);
   });
 
@@ -323,6 +336,43 @@ describe(`Dispatch radius simulation (limit ${LIMIT_KM} km)`, () => {
     expect(gps).toEqual({ indexed: true });
     expect(row.lastLocationAt).toBeInstanceOf(Date);
     expect(JSON.parse(redis.kv.get('drivers:meta:hb-1')!).lat).toBeCloseTo(east(3).lat, 6);
+  });
+
+  it('S12 natural progression: nearest driver 6 km away is found in the SAME dispatch (empty 2/4 km waves widen, wave counter advances)', async () => {
+    const drivers = [{ id: 'at-6', real: east(6), stored: east(6), lastLocationAt: fresh() }];
+    const redis = new FakeRedis();
+    const { svc, world, locations } = build(drivers, redis);
+    await locations.indexDriverLocation('at-6', east(6).lat, east(6).lng, VehicleType.SEDAN);
+    world.requirement.dispatchWaves = 0;
+    await svc.dispatchRequirement('req-1');
+    expect(world.offers.map((o) => [o.driverId, o.waveNumber])).toEqual([['at-6', 3]]);
+    expect(world.requirement.status).not.toBe(RequirementStatus.NO_DRIVER_AVAILABLE);
+    expect(world.requirement.dispatchWaves).toBe(3);
+  });
+
+  it('S13 trust ordering is monotonic: trust 82 beats 72 at equal distance (no low-trust boost by default)', async () => {
+    const offered = await run('S13 trust 82 vs 72', [
+      { id: 'trust72', real: east(1.2), stored: east(1.2), lastLocationAt: fresh(), trust: 72 },
+      { id: 'trust82', real: east(-1.2), stored: east(-1.2), lastLocationAt: fresh(), trust: 82 },
+    ]);
+    expect(offered.map((o) => o.driverId)).toEqual(['trust82']);
+  });
+
+  it('S14 the closer of two otherwise identical drivers wins, even within the 2-minute ETA floor (0.5 km beats 0.7 km)', async () => {
+    const offered = await run('S14 0.5 vs 0.7 km', [
+      { id: 'at-0.7', real: east(0.7), stored: east(0.7), lastLocationAt: fresh() },
+      { id: 'at-0.5', real: east(-0.5), stored: east(-0.5), lastLocationAt: fresh() },
+    ]);
+    expect(offered.map((o) => o.driverId)).toEqual(['at-0.5']);
+  });
+
+  it('S15 rookie exploration honours its 15 % share: single-offer waves go to a rookie for ~15 % of bookings, not all of them', () => {
+    const hits = Array.from({ length: 10_000 }, (_, i) => rookieExplorationHit(`req-${i}`, 1, 0.15)).filter(Boolean).length;
+    expect(hits / 10_000).toBeGreaterThan(0.13);
+    expect(hits / 10_000).toBeLessThan(0.17);
+    expect(rookieQuotaFor(10, 4, 0.15, 'r', 1)).toBe(1); // floor(10 × 0.15)
+    expect(rookieQuotaFor(1, 0, 0.15, 'r', 1)).toBe(0); // no rookies, no slot
+    expect(rookieExplorationHit('same', 1, 0.15)).toBe(rookieExplorationHit('same', 1, 0.15)); // deterministic
   });
 
   it('S6 control: drivers at 2 km and 8 km with fresh GPS → only in-radius drivers are offered', async () => {

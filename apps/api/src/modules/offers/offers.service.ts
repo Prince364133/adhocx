@@ -144,7 +144,7 @@ export class OffersService {
     }
 
     const now = Date.now();
-    const maps = this.googleMapsService || new GoogleMapsService();
+    const maps = this.googleMapsService ?? GoogleMapsService.sharedInstance();
     return Promise.all(
       offers.map(async (o) => {
         const expiresAtMs = new Date(o.expiresAt).getTime();

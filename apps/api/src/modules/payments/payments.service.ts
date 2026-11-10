@@ -43,7 +43,7 @@ export class PaymentsService {
           this.topUpOrders.delete(orderId);
         }
       }
-    }, 15 * 60 * 1000);
+    }, 15 * 60 * 1000).unref(); // housekeeping must not keep the process alive at shutdown
   }
 
   /**

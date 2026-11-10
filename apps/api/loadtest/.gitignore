@@ -1,0 +1,7 @@
+.secret
+data/
+run/
+run*/
+*.csv
+*.log
+*.cpuprofile

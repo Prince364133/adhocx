@@ -1,0 +1,218 @@
+{
+  "summary": {
+    "requirements": 170,
+    "backgroundRequirements": 145,
+    "backgroundWithOffer": 30,
+    "offers": 97,
+    "requirementStatus": {
+      "NO_DRIVER_AVAILABLE": 170
+    },
+    "offerDistanceKm": {
+      "p50": "1.86",
+      "p95": "7.75",
+      "p99": "9.97",
+      "max": "9.97"
+    },
+    "violations": {
+      "radius": 0,
+      "waveRadius": 0,
+      "h3": 0,
+      "vehicle": 0,
+      "ineligible": 0,
+      "duplicate": 0,
+      "unknownDriver": 0
+    },
+    "zonesPassed": "7/20"
+  },
+  "violations": {
+    "radius": [],
+    "waveRadius": [],
+    "h3": [],
+    "vehicle": [],
+    "ineligible": [],
+    "duplicate": [],
+    "unknownDriver": []
+  },
+  "zoneResults": [
+    {
+      "zone": "A_TRUST@Delhi",
+      "booking": "main",
+      "expected": "wave 1 → trust95",
+      "actual": "w1:trust95 → w2:trust60",
+      "status": "NO_DRIVER_AVAILABLE",
+      "pass": true,
+      "note": ""
+    },
+    {
+      "zone": "A_TRUST@Lucknow",
+      "booking": "main",
+      "expected": "wave 1 → trust95",
+      "actual": "w1:trust95 → w2:trust60",
+      "status": "NO_DRIVER_AVAILABLE",
+      "pass": true,
+      "note": ""
+    },
+    {
+      "zone": "A2_TRUST_BAND@Bhopal",
+      "booking": "main",
+      "expected": "wave 1 → trust82 (higher trust)",
+      "actual": "w1:trust72 → w2:trust82",
+      "status": "NO_DRIVER_AVAILABLE",
+      "pass": false,
+      "note": "low-trust +5 boost outranked the more trusted driver"
+    },
+    {
+      "zone": "A2_TRUST_BAND@Mumbai",
+      "booking": "main",
+      "expected": "wave 1 → trust82 (higher trust)",
+      "actual": "w1:trust72 → w2:trust82",
+      "status": "NO_DRIVER_AVAILABLE",
+      "pass": false,
+      "note": "low-trust +5 boost outranked the more trusted driver"
+    },
+    {
+      "zone": "B_ROOKIE@Bengaluru",
+      "booking": "main",
+      "expected": "wave 1 → veteran98 (trust 98, 0.8 km)",
+      "actual": "w1:rookie60 → w2:veteran98",
+      "status": "NO_DRIVER_AVAILABLE",
+      "pass": false,
+      "note": "rookie quota overrode trust, rating and distance"
+    },
+    {
+      "zone": "B_ROOKIE@Nagpur",
+      "booking": "main",
+      "expected": "wave 1 → veteran98 (trust 98, 0.8 km)",
+      "actual": "w1:rookie60 → w2:veteran98",
+      "status": "NO_DRIVER_AVAILABLE",
+      "pass": false,
+      "note": "rookie quota overrode trust, rating and distance"
+    },
+    {
+      "zone": "C_VEHICLE@Hyderabad",
+      "booking": "sedan-booking",
+      "expected": "only sedan3 (never an SUV)",
+      "actual": "(none)",
+      "status": "NO_DRIVER_AVAILABLE",
+      "pass": false,
+      "note": "no offer at all (status NO_DRIVER_AVAILABLE, waves 0)"
+    },
+    {
+      "zone": "C_VEHICLE@Hyderabad",
+      "booking": "suv-booking",
+      "expected": "wave 1 → suv0.5, never sedan3",
+      "actual": "w1:suv0.7 → w2:suv0.5",
+      "status": "NO_DRIVER_AVAILABLE",
+      "pass": false,
+      "note": ""
+    },
+    {
+      "zone": "C_VEHICLE@Patna",
+      "booking": "suv-booking",
+      "expected": "wave 1 → suv0.5, never sedan3",
+      "actual": "w1:suv0.7 → w2:suv0.5",
+      "status": "NO_DRIVER_AVAILABLE",
+      "pass": false,
+      "note": ""
+    },
+    {
+      "zone": "C_VEHICLE@Patna",
+      "booking": "sedan-booking",
+      "expected": "only sedan3 (never an SUV)",
+      "actual": "(none)",
+      "status": "NO_DRIVER_AVAILABLE",
+      "pass": false,
+      "note": "no offer at all (status NO_DRIVER_AVAILABLE, waves 0)"
+    },
+    {
+      "zone": "D_RADIUS_EDGE@Bhubaneswar",
+      "booking": "main",
+      "expected": "in9.7 offered; out10.4 never",
+      "actual": "(none)",
+      "status": "NO_DRIVER_AVAILABLE",
+      "pass": false,
+      "note": "no offer at all (status NO_DRIVER_AVAILABLE, waves 0)"
+    },
+    {
+      "zone": "D_RADIUS_EDGE@Chennai",
+      "booking": "main",
+      "expected": "in9.7 offered; out10.4 never",
+      "actual": "(none)",
+      "status": "NO_DRIVER_AVAILABLE",
+      "pass": false,
+      "note": "no offer at all (status NO_DRIVER_AVAILABLE, waves 0)"
+    },
+    {
+      "zone": "E_INELIGIBLE@Chandigarh",
+      "booking": "main",
+      "expected": "only eligible1.5",
+      "actual": "w1:eligible1.5",
+      "status": "NO_DRIVER_AVAILABLE",
+      "pass": true,
+      "note": ""
+    },
+    {
+      "zone": "E_INELIGIBLE@Kolkata",
+      "booking": "main",
+      "expected": "only eligible1.5",
+      "actual": "w1:eligible1.5",
+      "status": "NO_DRIVER_AVAILABLE",
+      "pass": true,
+      "note": ""
+    },
+    {
+      "zone": "F_OUT_OF_RADIUS@Indore",
+      "booking": "main",
+      "expected": "no offers, NO_DRIVER_AVAILABLE",
+      "actual": "(none)",
+      "status": "NO_DRIVER_AVAILABLE",
+      "pass": true,
+      "note": ""
+    },
+    {
+      "zone": "F_OUT_OF_RADIUS@Pune",
+      "booking": "main",
+      "expected": "no offers, NO_DRIVER_AVAILABLE",
+      "actual": "(none)",
+      "status": "NO_DRIVER_AVAILABLE",
+      "pass": true,
+      "note": ""
+    },
+    {
+      "zone": "G_WAVES@Ahmedabad",
+      "booking": "main",
+      "expected": "w1 band1.5 → w2 band3.5 → w3 band5.5 → w4 band7.5 → w5 band9.5",
+      "actual": "w1:band1.5 → w2:band3.5 → w3:band5.5 → w4:band7.5",
+      "status": "NO_DRIVER_AVAILABLE",
+      "pass": false,
+      "note": ""
+    },
+    {
+      "zone": "G_WAVES@Kochi",
+      "booking": "main",
+      "expected": "w1 band1.5 → w2 band3.5 → w3 band5.5 → w4 band7.5 → w5 band9.5",
+      "actual": "w1:band1.5 → w2:band3.5 → w3:band5.5 → w4:band7.5 → w5:band9.5",
+      "status": "NO_DRIVER_AVAILABLE",
+      "pass": true,
+      "note": ""
+    },
+    {
+      "zone": "H_HATCHBACK@Guwahati",
+      "booking": "main",
+      "expected": "only hatch2.5 (never a sedan)",
+      "actual": "(none)",
+      "status": "NO_DRIVER_AVAILABLE",
+      "pass": false,
+      "note": "no offer at all (status NO_DRIVER_AVAILABLE, waves 0)"
+    },
+    {
+      "zone": "H_HATCHBACK@Jaipur",
+      "booking": "main",
+      "expected": "only hatch2.5 (never a sedan)",
+      "actual": "(none)",
+      "status": "NO_DRIVER_AVAILABLE",
+      "pass": false,
+      "note": "no offer at all (status NO_DRIVER_AVAILABLE, waves 0)"
+    }
+  ]
+}

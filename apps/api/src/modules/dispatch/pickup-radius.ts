@@ -65,7 +65,10 @@ export function waveSearchRadiusKm(waveNumber: number, maxWaves: number, maxRadi
  */
 export function kRingForRadiusKm(radiusKm: number, resolution = 8): number {
   const edgeKm = h3.getHexagonEdgeLengthAvg(resolution, h3.UNITS.km);
-  return Math.max(1, Math.ceil(radiusKm / (Math.sqrt(3) * edgeKm)));
+  // 30 % margin: hexagons are smaller than average at some latitudes, so an average-sized ring can
+  // stop short of the radius (load test: a 9.5 km driver in Ahmedabad fell outside k = 11). The exact
+  // distance filter still trims every hit to the radius.
+  return Math.max(1, Math.ceil((radiusKm * 1.3) / (Math.sqrt(3) * edgeKm)));
 }
 
 export type DispatchLocationVerdict =

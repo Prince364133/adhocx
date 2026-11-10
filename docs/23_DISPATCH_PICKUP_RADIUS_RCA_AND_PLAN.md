@@ -85,9 +85,15 @@ The scenarios interact. In production, RC6 makes nearby idle drivers stale. RC1 
 
 Measured while fixing: H3 resolution-8 average edge = 0.53 km; a k=5 disk reaches 4.8 km (not the "≈12 km" in the old comments); 10 km needs k = 11.
 
-**Mobile:** M-1…M-4 done (dispatch-quality fixes only, no fabricated coordinates, 30 s idle heartbeat with accuracy and source). RC8 (trip pings) in progress.
+**Mobile:** M-1…M-4 done (dispatch-quality fixes only, no fabricated coordinates, 30 s idle heartbeat with accuracy and source). RC8 fixed: trip pings now use the nested `location` body and run every 10 s / 50 m during an assigned or active trip; exactly one location loop runs at a time.
 
 | Verification | Result |
 |---|---|
 | `dispatch-radius.sim.spec.ts`: S1–S5 (root causes), S6 control, S7 road cap, S8 wave expansion, S9 DB freshness, S10 index cleanup, S11 heartbeat quality | 11/11; **no offer beyond the radius in any scenario** |
-| Mobile `dispatch_location_test.dart` | 11/11 |
+| Mobile `dispatch_location_test.dart` | 13/13 (incl. trip-ping body shape and pinger) |
+| Regression: all 19 dispatch/location suites (dispatch, locations, waterfall, scheduled trips, offers, requirements, trips, corporate dispatch/supply/ops/simulations incl. 500-commute) | all pass |
+| API `tsc --noEmit`, eslint (changed files); mobile `flutter analyze` (changed files) | clean |
+
+Test fixtures that relied on RC3 (drivers without a location treated as "at the pickup") now give each driver a fresh GPS position; the wave test asserts the new radius-derived waves.
+
+**Still open:** not yet observed against production data or on a device. After deploy, watch the offer `distanceKm` p99 (must be ≤ radius) and the `NO_DRIVER_AVAILABLE` rate. Until the new mobile build is widely installed, idle drivers on old builds age out after `DISPATCH_MAX_LOCATION_AGE_SEC`.

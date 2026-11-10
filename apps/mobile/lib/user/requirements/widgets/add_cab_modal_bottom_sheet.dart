@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import '../../../routes/app_routes.dart';
 import '../../../core/networking/api_client.dart' show ApiException;
 import '../../../services/driver_service.dart';
 import '../../../services/user_service.dart';
@@ -66,8 +64,7 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
   String _pickupTime = '';
   late DateTime _reportingDateTime;
 
-  // Stops & notes
-  final List<String> _additionalStops = [];
+  // Notes
   late TextEditingController _notesController;
 
   List<Map<String, dynamic>> _vehicleOptions = <Map<String, dynamic>>[];
@@ -112,7 +109,6 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
       _pickupTime = item.pickupTime;
       _reportingDateTime = item.reportingDateTime;
       _isScheduled = item.isScheduled;
-      _additionalStops.addAll(item.additionalStops);
       _notesController = TextEditingController(text: item.additionalInfo);
     } else {
       _vehicleType = '';
@@ -378,53 +374,6 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
     }
   }
 
-  Future<void> _addStop() async {
-    final result = await context.push<Map<String, dynamic>>(
-      AppRoutes.universalLocationSearchScreen,
-      extra: {
-        'title': 'Search Stop ${_additionalStops.length + 1} Address',
-      },
-    );
-    if (result != null && mounted) {
-      final addr = (result['fullAddress'] as String?) ??
-          (result['address'] as String?) ??
-          (result['title'] as String?) ??
-          '';
-      if (addr.trim().isNotEmpty) {
-        setState(() {
-          _additionalStops.add(addr.trim());
-        });
-      }
-    }
-  }
-
-  Future<void> _pickLocationForStop(int index) async {
-    final result = await context.push<Map<String, dynamic>>(
-      AppRoutes.universalLocationSearchScreen,
-      extra: {
-        'title': 'Search Stop ${index + 1} Address',
-        'initialAddress': _additionalStops[index],
-      },
-    );
-    if (result != null && mounted) {
-      final addr = (result['fullAddress'] as String?) ??
-          (result['address'] as String?) ??
-          (result['title'] as String?) ??
-          '';
-      if (addr.trim().isNotEmpty) {
-        setState(() {
-          _additionalStops[index] = addr.trim();
-        });
-      }
-    }
-  }
-
-  void _removeStop(int index) {
-    setState(() {
-      _additionalStops.removeAt(index);
-    });
-  }
-
   void _saveCab() {
     if (!_hasRoute || _pickupAddress.isEmpty || _dropAddress.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -448,11 +397,6 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
     final String itemId = widget.existingItem?.id ??
         'cab_${DateTime.now().millisecondsSinceEpoch}_${(1000 + (DateTime.now().microsecond % 9000))}';
 
-    final cleanStops = _additionalStops
-        .map((s) => s.trim())
-        .where((s) => s.isNotEmpty)
-        .toList();
-
     final cab = CabCartItem(
       id: itemId,
       vehicleType: _vehicleType,
@@ -475,7 +419,7 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
       pickupDate: _pickupDate,
       pickupTime: _pickupTime,
       reportingDateTime: _reportingDateTime,
-      additionalStops: cleanStops,
+      additionalStops: const [],
       additionalInfo: _notesController.text.trim(),
       distanceKm: _distanceKm,
       durationMinutes: _durationMinutes,
@@ -1241,131 +1185,7 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
 
                   const SizedBox(height: AppSpacing.lg),
 
-                  // ── 5. Additional Stops (Optional) ──────────────────────────
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Additional Stops (Optional)',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      TextButton.icon(
-                        onPressed: _addStop,
-                        icon: const Icon(Icons.add_location_alt_outlined, size: 16),
-                        label: const Text('+ Add Stop',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                      ),
-                    ],
-                  ),
-                  if (_additionalStops.isEmpty)
-                    Text(
-                      'No intermediate stops added.',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                      ),
-                    )
-                  else
-                    Column(
-                      children: List.generate(_additionalStops.length, (idx) {
-                        final stopAddress = _additionalStops[idx];
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          decoration: BoxDecoration(
-                            color: isDark ? AppColors.bgDark : AppColors.bgLight,
-                            borderRadius: BorderRadius.circular(AppRadius.md),
-                            border: Border.all(
-                              color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                            ),
-                          ),
-                          child: InkWell(
-                            onTap: () => _pickLocationForStop(idx),
-                            borderRadius: BorderRadius.circular(AppRadius.md),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(6),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.primary.withValues(alpha: 0.1),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.place_outlined,
-                                      size: 16,
-                                      color: AppColors.primary,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Stop ${idx + 1}',
-                                          style: const TextStyle(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.bold,
-                                            color: AppColors.primary,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          stopAddress.isNotEmpty
-                                              ? stopAddress
-                                              : 'Tap to search location on map...',
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: stopAddress.isNotEmpty
-                                                ? FontWeight.w600
-                                                : FontWeight.normal,
-                                            color: stopAddress.isNotEmpty
-                                                ? (isDark
-                                                    ? AppColors.textPrimaryDark
-                                                    : AppColors.textPrimaryLight)
-                                                : (isDark
-                                                    ? AppColors.textMutedDark
-                                                    : AppColors.textMutedLight),
-                                          ),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.search_rounded,
-                                        size: 18, color: AppColors.primary),
-                                    tooltip: 'Search location',
-                                    onPressed: () => _pickLocationForStop(idx),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.close,
-                                        size: 18, color: AppColors.error),
-                                    tooltip: 'Remove stop',
-                                    onPressed: () => _removeStop(idx),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      }),
-                    ),
-
-                  const SizedBox(height: AppSpacing.lg),
-
-                  // ── 6. Additional Information / Special Notes (Optional) ───
+                  // ── 5. Additional Information / Special Notes (Optional) ───
                   Text(
                     'Additional Information / Special Notes (Optional)',
                     style: TextStyle(

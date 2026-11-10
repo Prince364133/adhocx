@@ -46,6 +46,19 @@ export const DispatchConfig = {
     const raw = (process.env.AR_PENALTY_MODE || 'enforce').toLowerCase();
     return raw === 'shadow' || raw === 'off' ? raw : 'enforce';
   },
+  // ---- Ranking policy (docs/25) ----
+  /**
+   * Score bonus for drivers with trust < 75 ("recovery"). Default 0: any positive value lets a
+   * less-trusted driver outrank a more-trusted one at equal distance (+5 made trust 72 beat 82).
+   */
+  get lowTrustBoost(): number {
+    return Math.max(0, num(process.env.DISPATCH_LOW_TRUST_BOOST, 0));
+  },
+  /** Share of offers reserved for rookies (< 25 trips), honoured on average (see dispatch-ranking.ts). */
+  get rookieShare(): number {
+    return Math.min(1, Math.max(0, num(process.env.DISPATCH_ROOKIE_SHARE, 0.15)));
+  },
+
   /** Offers within this road distance count as "nearby" for penalties. */
   get nearbyKm(): number {
     return num(process.env.AR_NEARBY_KM, 3.5);

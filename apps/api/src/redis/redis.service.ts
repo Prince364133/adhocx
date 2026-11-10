@@ -1,3 +1,4 @@
+import { setBounded, sweepExpired } from '../common/utils/bounded-map';
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
@@ -13,6 +14,17 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
   // Resilient in-memory fallback store with TTL
   private readonly fallbackStore = new Map<string, { value: string; expiresAt?: number }>();
+  private fallbackWrites = 0;
+
+  /**
+   * Fallback writes are bounded: expired keys are swept every 1,000 writes and the store never
+   * exceeds 100,000 entries. Without this, rate-limit counters, locks and OTP keys written during a
+   * Redis outage stay in memory for the life of the process unless the same key is read again.
+   */
+  private fallbackSet(key: string, entry: { value: string; expiresAt?: number }): void {
+    if (++this.fallbackWrites % 1000 === 0) sweepExpired(this.fallbackStore);
+    setBounded(this.fallbackStore, key, entry, 100_000);
+  }
 
   constructor(
     private readonly configService: ConfigService,
@@ -118,7 +130,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     }
 
     const expiresAt = ttlSeconds ? Date.now() + ttlSeconds * 1000 : undefined;
-    this.fallbackStore.set(key, { value, expiresAt });
+    this.fallbackSet(key, { value, expiresAt });
   }
 
   async del(key: string): Promise<void> {
@@ -145,7 +157,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     const current = await this.get(key);
     const count = current ? parseInt(current, 10) + 1 : 1;
     const existing = this.fallbackStore.get(key);
-    this.fallbackStore.set(key, {
+    this.fallbackSet(key, {
       value: count.toString(),
       expiresAt: existing?.expiresAt,
     });
@@ -284,7 +296,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       return false; // Lock already held
     }
 
-    this.fallbackStore.set(lockKey, { value: '1', expiresAt: now + ttlSeconds * 1000 });
+    this.fallbackSet(lockKey, { value: '1', expiresAt: now + ttlSeconds * 1000 });
     return true;
   }
 
@@ -322,7 +334,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     if (item && (!item.expiresAt || item.expiresAt > now)) {
       return null;
     }
-    this.fallbackStore.set(lockKey, { value: token, expiresAt: now + ttlSeconds * 1000 });
+    this.fallbackSet(lockKey, { value: token, expiresAt: now + ttlSeconds * 1000 });
     return token;
   }
 

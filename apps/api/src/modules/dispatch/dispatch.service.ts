@@ -1,4 +1,5 @@
 import { Injectable, Logger, NotFoundException, Optional, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { rookieQuotaFor } from './dispatch-ranking';
 import { PickupRadiusConfig, evaluateDispatchLocation, kRingForRadiusKm, waveSearchRadiusKm } from './pickup-radius';
 import { ModuleRef } from '@nestjs/core';
 import {
@@ -430,37 +431,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
     const pickupLat = Number(requirement.pickupLat);
     const pickupLng = Number(requirement.pickupLng);
 
-    // Progressive waves, all inside the configured pickup radius (docs/23): wave w searches
-    // radius × w / maxWaves, and the last wave searches exactly the radius. The H3 disk is sized to
-    // cover that radius; the radial (GEO / DB) search uses the same radius. Nothing searches beyond it.
-    const currentWaveNumber = wavesSoFar + 1;
     const maxPickupRadiusKm = PickupRadiusConfig.maxPickupRadiusKm;
-    const waveRadiusKm = waveSearchRadiusKm(currentWaveNumber, DispatchConfig.maxWaves, maxPickupRadiusKm);
-    const kRing = kRingForRadiusKm(waveRadiusKm);
-
-    const nearbyCandidates = await this.locationsService.findNearbyDriversByH3(
-      pickupLat,
-      pickupLng,
-      kRing,
-      requirement.vehicleType as unknown as VehicleType,
-      waveRadiusKm,
-    );
-
-    if (nearbyCandidates.length === 0) {
-      const radialCandidates = await this.locationsService.findNearbyDrivers(
-        pickupLat,
-        pickupLng,
-        waveRadiusKm,
-        requirement.vehicleType as unknown as VehicleType,
-      );
-      const existingIds = new Set(nearbyCandidates.map((c) => c.driverId));
-      for (const rc of radialCandidates) {
-        if (!existingIds.has(rc.driverId)) {
-          nearbyCandidates.push(rc);
-          existingIds.add(rc.driverId);
-        }
-      }
-    }
 
     // Normal waves never re-approach a driver for the same requirement; retry waves may
     // re-approach drivers who previously declined or timed out.
@@ -481,31 +452,9 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
         .map((o) => o.driverId),
     );
 
-    const searchHits = new Map(nearbyCandidates.map((c) => [c.driverId, c]));
-    // No location-less fallback: a driver the spatial search did not find in radius is never offered
-    // (docs/23 RC1). An empty wave ends in markSupplyExhausted('no_supply') below.
-    const candidateIds = nearbyCandidates
-      .filter((c) => !alreadyOfferedDriverIds.has(c.driverId))
-      .map((c) => c.driverId);
-
-    const candidateDrivers = await this.db.driver.findMany({
-      where: { id: { in: candidateIds } },
-      include: {
-        user: true,
-        vehicles: true,
-        trips: {
-          where: {
-            status: {
-              in: [TripStatus.ASSIGNED, TripStatus.ARRIVED, TripStatus.IN_PROGRESS],
-            },
-          },
-        },
-      },
-    });
-
     interface ScoredCandidate {
       driverId: string;
-      driver: (typeof candidateDrivers)[0];
+      driver: any;
       hasLocation: boolean;
       driverLat: number;
       driverLng: number;
@@ -513,6 +462,8 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
       roadDistanceKm: number | null;
       etaMinutes: number;
       etaIsLive: boolean;
+      /** Unrounded live ETA (minutes) from the road matrix, for ranking only. */
+      etaExactMinutes?: number;
       trustScore: number;
       rating: number;
       compositeScore: number;
@@ -520,72 +471,132 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
     }
 
     const reqNorm = normalizeVehicle(requirement.vehicleType);
-    const eligibleCandidates: ScoredCandidate[] = [];
 
-    for (const driver of candidateDrivers) {
-      if (driver.user?.status !== UserStatus.ACTIVE) continue;
-      if (driver.verificationStatus && driver.verificationStatus !== VerificationStatus.VERIFIED) continue;
-      if (driver.availabilityStatus !== DriverAvailability.AVAILABLE) continue;
-
-      // Anti-cherry-picking cooldown (expires on its own; no job needed)
-      if (driver.cooldownUntil && new Date(driver.cooldownUntil).getTime() > nowMs) {
-        this.logger.debug(`Driver ${driver.id} in cooldown until ${driver.cooldownUntil.toISOString()}. Skipping.`);
-        continue;
-      }
-
-      // Strict vehicle capability check (e.g. never a sedan for an SUV request)
-      const dNorm = normalizeVehicle(driver.vehicleType || driver.vehicleModel || 'SEDAN');
-      const matchesVehicle =
-        !reqNorm ||
-        dNorm === reqNorm ||
-        driver.vehicles.some((v) => normalizeVehicle(v.vehicleType) === reqNorm);
-      if (!matchesVehicle) continue;
-
-      // No conflicting active trips
-      if (driver.trips && driver.trips.length > 0) continue;
-
-      // The pickup-radius invariant (docs/23): known, fresh location within the configured radius.
-      // Unknown or stale locations are never treated as "at the pickup".
-      const verdict = evaluateDispatchLocation(
-        freshestPosition(driver, searchHits.get(driver.id)),
-        { lat: pickupLat, lng: pickupLng },
-        nowMs,
-        maxPickupRadiusKm,
+    /**
+     * Eligible, scored candidates within `waveRadiusKm` (never beyond the pickup radius: docs/23).
+     * H3 cells first; the radial GEO/DB search runs whenever H3 produced no candidate that has not
+     * been offered yet (H3 hits that were all already offered must not hide drivers further out).
+     */
+    const collectEligible = async (waveRadiusKm: number): Promise<ScoredCandidate[]> => {
+      const nearbyCandidates = await this.locationsService.findNearbyDriversByH3(
+        pickupLat,
+        pickupLng,
+        kRingForRadiusKm(waveRadiusKm),
+        requirement.vehicleType as unknown as VehicleType,
+        waveRadiusKm,
       );
-      if (!verdict.eligible) {
-        this.logger.debug(
-          `Driver ${driver.id} skipped for ${requirementId}: ${verdict.reason}${verdict.distanceKm !== null ? ` (${verdict.distanceKm.toFixed(1)} km)` : ''}`,
+      if (!nearbyCandidates.some((c) => !alreadyOfferedDriverIds.has(c.driverId))) {
+        const radialCandidates = await this.locationsService.findNearbyDrivers(
+          pickupLat,
+          pickupLng,
+          waveRadiusKm,
+          requirement.vehicleType as unknown as VehicleType,
         );
-        continue;
+        const existingIds = new Set(nearbyCandidates.map((c) => c.driverId));
+        for (const rc of radialCandidates) {
+          if (!existingIds.has(rc.driverId)) {
+            nearbyCandidates.push(rc);
+            existingIds.add(rc.driverId);
+          }
+        }
       }
-      const hasLocation = true;
-      const position = freshestPosition(driver, searchHits.get(driver.id));
-      const driverLat = Number(position.currentLat);
-      const driverLng = Number(position.currentLng);
-      const distanceKm: number | null = verdict.distanceKm;
-      const { roadDistanceKm, etaMinutes } = estimateRoad(distanceKm);
 
-      const rawTrust = Number(driver.trustScore ?? 94.0);
-      const avgRating = Number(driver.averageRating ?? 4.85);
-      const isRookie = (driver.totalTrips || 0) < 25;
+      const searchHits = new Map(nearbyCandidates.map((c) => [c.driverId, c]));
+      // No location-less fallback: a driver the spatial search did not find in radius is never offered.
+      const candidateIds = nearbyCandidates.filter((c) => !alreadyOfferedDriverIds.has(c.driverId)).map((c) => c.driverId);
+      if (candidateIds.length === 0) return [];
 
-      const candidate: ScoredCandidate = {
-        driverId: driver.id,
-        driver,
-        hasLocation,
-        driverLat,
-        driverLng,
-        distanceKm,
-        roadDistanceKm,
-        etaMinutes,
-        etaIsLive: false,
-        trustScore: rawTrust,
-        rating: avgRating,
-        compositeScore: 0,
-        isRookie,
-      };
-      candidate.compositeScore = this.computeCompositeScore(candidate, nowMs);
-      eligibleCandidates.push(candidate);
+      const candidateDrivers = await this.db.driver.findMany({
+        where: { id: { in: candidateIds } },
+        include: {
+          user: true,
+          vehicles: true,
+          trips: { where: { status: { in: [TripStatus.ASSIGNED, TripStatus.ARRIVED, TripStatus.IN_PROGRESS] } } },
+        },
+      });
+
+      const eligible: ScoredCandidate[] = [];
+      for (const driver of candidateDrivers) {
+        if (driver.user?.status !== UserStatus.ACTIVE) continue;
+        if (driver.verificationStatus && driver.verificationStatus !== VerificationStatus.VERIFIED) continue;
+        if (driver.availabilityStatus !== DriverAvailability.AVAILABLE) continue;
+
+        // Anti-cherry-picking cooldown (expires on its own; no job needed)
+        if (driver.cooldownUntil && new Date(driver.cooldownUntil).getTime() > nowMs) {
+          this.logger.debug(`Driver ${driver.id} in cooldown until ${driver.cooldownUntil.toISOString()}. Skipping.`);
+          continue;
+        }
+
+        // Strict vehicle capability check (e.g. never a sedan for an SUV request)
+        const dNorm = normalizeVehicle(driver.vehicleType || driver.vehicleModel || 'SEDAN');
+        const matchesVehicle =
+          !reqNorm ||
+          dNorm === reqNorm ||
+          driver.vehicles.some((v) => normalizeVehicle(v.vehicleType) === reqNorm);
+        if (!matchesVehicle) continue;
+
+        // No conflicting active trips
+        if (driver.trips && driver.trips.length > 0) continue;
+
+        // The pickup-radius invariant (docs/23): known, fresh location within the configured radius.
+        // Unknown or stale locations are never treated as "at the pickup".
+        const verdict = evaluateDispatchLocation(
+          freshestPosition(driver, searchHits.get(driver.id)),
+          { lat: pickupLat, lng: pickupLng },
+          nowMs,
+          maxPickupRadiusKm,
+        );
+        if (!verdict.eligible) {
+          this.logger.debug(
+            `Driver ${driver.id} skipped for ${requirementId}: ${verdict.reason}${verdict.distanceKm !== null ? ` (${verdict.distanceKm.toFixed(1)} km)` : ''}`,
+          );
+          continue;
+        }
+        const hasLocation = true;
+        const position = freshestPosition(driver, searchHits.get(driver.id));
+        const driverLat = Number(position.currentLat);
+        const driverLng = Number(position.currentLng);
+        const distanceKm: number | null = verdict.distanceKm;
+        const { roadDistanceKm, etaMinutes } = estimateRoad(distanceKm);
+
+        const rawTrust = Number(driver.trustScore ?? 94.0);
+        const avgRating = Number(driver.averageRating ?? 4.85);
+        const isRookie = (driver.totalTrips || 0) < 25;
+
+        const candidate: ScoredCandidate = {
+          driverId: driver.id,
+          driver,
+          hasLocation,
+          driverLat,
+          driverLng,
+          distanceKm,
+          roadDistanceKm,
+          etaMinutes,
+          etaIsLive: false,
+          trustScore: rawTrust,
+          rating: avgRating,
+          compositeScore: 0,
+          isRookie,
+        };
+        candidate.compositeScore = this.computeCompositeScore(candidate, nowMs);
+        eligible.push(candidate);
+      }
+
+      return eligible;
+    };
+
+    // Progressive waves inside the pickup radius: wave w searches radius × w / maxWaves. An empty
+    // radius does NOT end the search: the same dispatch widens to the next radius (and the wave
+    // counter advances with it) until a candidate is found or the full radius has been searched.
+    // (Load-test finding 2026-11-10: ending at an empty 2 km first wave left 115 of 145 bookings
+    // without any offer although drivers were within 10 km.)
+    let currentWaveNumber = wavesSoFar + 1;
+    let eligibleCandidates: ScoredCandidate[] = [];
+    for (;;) {
+      const waveRadiusKm = waveSearchRadiusKm(currentWaveNumber, DispatchConfig.maxWaves, maxPickupRadiusKm);
+      eligibleCandidates = await collectEligible(waveRadiusKm);
+      if (eligibleCandidates.length > 0 || currentWaveNumber >= DispatchConfig.maxWaves) break;
+      currentWaveNumber++;
     }
 
     if (eligibleCandidates.length === 0) {
@@ -618,6 +629,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
             const eta = etas[i];
             if (!eta) return;
             c.etaMinutes = eta.etaMinutes;
+            c.etaExactMinutes = eta.durationSeconds !== undefined ? eta.durationSeconds / 60 : undefined;
             c.roadDistanceKm = eta.distanceKm;
             c.etaIsLive = eta.isRealRoad;
             c.compositeScore = this.computeCompositeScore(c, nowMs);
@@ -647,11 +659,15 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
     }
 
     // Separate rookies and veterans, sort both by compositeScore descending
-    const rookies = eligibleCandidates.filter((c) => c.isRookie).sort((a, b) => b.compositeScore - a.compositeScore);
-    const veterans = eligibleCandidates.filter((c) => !c.isRookie).sort((a, b) => b.compositeScore - a.compositeScore);
+    // Higher score first; on equal score the nearer driver wins (deterministic, no list-order luck).
+    const byRank = (a: ScoredCandidate, b: ScoredCandidate) =>
+      b.compositeScore - a.compositeScore || (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity);
+    const rookies = eligibleCandidates.filter((c) => c.isRookie).sort(byRank);
+    const veterans = eligibleCandidates.filter((c) => !c.isRookie).sort(byRank);
 
-    // Reserve ~15% exploration slots for rookie / recovering drivers
-    const rookieQuota = Math.min(rookies.length, Math.max(rookies.length > 0 ? 1 : 0, Math.floor(waveLimit * 0.15)));
+    // Rookie exploration share, honoured on average (a single-offer wave used to go to ANY rookie in
+    // range every time, overriding trust, rating and distance: docs/25).
+    const rookieQuota = rookieQuotaFor(waveLimit, rookies.length, DispatchConfig.rookieShare, requirementId, currentWaveNumber);
     const veteranQuota = waveLimit - rookieQuota;
 
     const selectedCandidates = [
@@ -667,7 +683,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
     }
 
     const selectedDriverIds = selectedCandidates.map((c) => c.driverId);
-    const waveNumber = wavesSoFar + 1;
+    const waveNumber = currentWaveNumber;
 
     const offerTtlMs = DispatchConfig.offerTtlMs;
     const expiresInSeconds = Math.round(offerTtlMs / 1000);
@@ -710,7 +726,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
     const h3PickupCell = this.locationsService.latLngToH3(pickupLat, pickupLng);
 
     // Compute real road driving distance and traffic ETA between pickup and dropoff
-    const maps = this.googleMapsService || new GoogleMapsService();
+    const maps = this.googleMapsService ?? GoogleMapsService.sharedInstance();
     const tripRoute = await maps.computeRoadRoute(
       { latitude: pickupLat, longitude: pickupLng },
       { latitude: dropLat, longitude: dropLng },
@@ -854,13 +870,30 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
    * Composite score (max ~105): road-ETA proximity 35 + trust 35 + rating 20 + rookie/recovery 10 + idle 5.
    */
   private computeCompositeScore(
-    c: { etaMinutes: number; trustScore: number; rating: number; isRookie: boolean; driver: { lastLocationAt: Date | null; updatedAt: Date } },
+    c: {
+      etaMinutes: number;
+      etaIsLive?: boolean;
+      etaExactMinutes?: number;
+      roadDistanceKm?: number | null;
+      trustScore: number;
+      rating: number;
+      isRookie: boolean;
+      driver: { lastLocationAt: Date | null; updatedAt: Date };
+    },
     nowMs: number,
   ): number {
-    const proximityScore = Math.max(0, 35 * (1 - Math.min(30, c.etaMinutes) / 30));
+    // Rank on the unrounded estimate: the displayed ETA is whole minutes with a 2-minute floor, which
+    // gave every driver within ~1.5 km the same proximity score (a 0.7 km driver beat a 0.5 km one).
+    const etaForScore =
+      c.etaIsLive && c.etaExactMinutes !== undefined
+        ? c.etaExactMinutes
+        : !c.etaIsLive && c.roadDistanceKm !== null && c.roadDistanceKm !== undefined
+          ? (c.roadDistanceKm / 25) * 60
+          : c.etaMinutes;
+    const proximityScore = Math.max(0, 35 * (1 - Math.min(30, etaForScore) / 30));
     const trustScorePart = 35 * (Math.min(100, Math.max(0, c.trustScore)) / 100);
     const ratingScorePart = 20 * Math.max(0, (c.rating - 3.0) / 2.0);
-    const rookieBoost = c.isRookie ? 10.0 : c.trustScore < 75 ? 5.0 : 0.0;
+    const rookieBoost = c.isRookie ? 10.0 : c.trustScore < 75 ? DispatchConfig.lowTrustBoost : 0.0;
     const lastActive = c.driver.lastLocationAt
       ? new Date(c.driver.lastLocationAt).getTime()
       : c.driver.updatedAt

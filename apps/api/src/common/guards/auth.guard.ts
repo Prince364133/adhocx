@@ -1,3 +1,4 @@
+import { createSecretKey, KeyObject } from 'crypto';
 import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -19,6 +20,21 @@ export function isLiveStreamRequest(request: any): boolean {
 }
 /** @deprecated name kept for callers; query credentials are tickets now. */
 export const allowsQueryToken = isLiveStreamRequest;
+
+/**
+ * jsonwebtoken turns a string secret into a key on EVERY verify, first trying createPublicKey (which
+ * throws for an HMAC secret) and then createSecretKey. Under load that exception path was a visible
+ * share of API CPU. A KeyObject is used as-is, so build it once per secret.
+ */
+const hmacKeys = new Map<string, KeyObject>();
+function hmacKey(secret: string): KeyObject {
+  let key = hmacKeys.get(secret);
+  if (!key) {
+    key = createSecretKey(Buffer.from(secret));
+    hmacKeys.set(secret, key);
+  }
+  return key;
+}
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -53,7 +69,7 @@ export class JwtAuthGuard implements CanActivate {
       }
 
       const secret = this.configService.get<string>('auth.jwtAccessSecret') || resolveJwtSecret('access');
-      const payload = await this.jwtService.verifyAsync(token, { secret });
+      const payload = await this.jwtService.verifyAsync(token, { secret: hmacKey(secret) as any });
       const userId = payload.id || payload.sub;
 
       if (this.redisService && userId) {

@@ -1,3 +1,4 @@
+import { setBounded } from '../../../common/utils/bounded-map';
 import {
   Injectable,
   Logger,
@@ -360,10 +361,10 @@ export class CorporateTripExecutionService {
     }
     const count = (await this.otpFailures(key)) + 1;
     const prev = this.localOtpFailures.get(key);
-    this.localOtpFailures.set(key, {
+    setBounded(this.localOtpFailures, key, {
       count,
       expiresAt: prev?.expiresAt ?? Date.now() + this.OTP_ATTEMPT_WINDOW_SECONDS * 1000,
-    });
+    }, 10000);
     return count;
   }
 

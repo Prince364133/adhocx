@@ -310,7 +310,7 @@ describe('Uber-Grade Sequential Waterfall Dispatch & Ring Expansion (4-Device Te
 
       // Every wave stays within the radius; the last wave searches exactly the radius.
       expect([1, 2, 3, 4, 5].map((w) => waveSearchRadiusKm(w, 5, 10))).toEqual([2, 4, 6, 8, 10]);
-      expect(kRingForRadiusKm(10)).toBe(11);
+      expect(kRingForRadiusKm(10)).toBe(15);
     });
   });
 });

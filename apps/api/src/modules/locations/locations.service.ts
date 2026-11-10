@@ -28,6 +28,18 @@ export interface NearbyDriverResult {
  * 3. PostgreSQL Spherical Haversine:
  *    - Resilient database fallback if Redis cache is unavailable
  */
+/** lat/lng box enclosing a circle (Prisma where fragment); padded 5% for spherical error. */
+function boundingBox(lat: number, lng: number, radiusKm: number) {
+  const dLat = (radiusKm * 1.05) / 111.32;
+  const dLng = (radiusKm * 1.05) / (111.32 * Math.max(0.01, Math.cos((lat * Math.PI) / 180)));
+  return {
+    AND: [
+      { currentLat: { gte: lat - dLat, lte: lat + dLat } },
+      { currentLng: { gte: lng - dLng, lte: lng + dLng } },
+    ],
+  };
+}
+
 @Injectable()
 export class LocationsService {
   private readonly logger = new Logger(LocationsService.name);
@@ -261,7 +273,7 @@ export class LocationsService {
     const diskSet = new Set(diskCells);
     const nowMs = Date.now();
 
-    this.logger.log(
+    this.logger.debug(
       `H3 search near (${latitude}, ${longitude}) in cell ${originCell}: ${diskCells.length} cells (k=${kRing}), radius ${maxRadiusKm} km`,
     );
 
@@ -326,7 +338,7 @@ export class LocationsService {
     radiusKm: number,
     vehicleType?: VehicleType,
   ): Promise<NearbyDriverResult[]> {
-    this.logger.log(`Searching drivers near (${latitude}, ${longitude}) within ${radiusKm}km (vehicleType: ${vehicleType || 'ANY'})`);
+    this.logger.debug(`Searching drivers near (${latitude}, ${longitude}) within ${radiusKm}km (vehicleType: ${vehicleType || 'ANY'})`);
 
     // 1. Hot Path: Redis GEOSEARCH (sub-5ms)
     let redisResults: NearbyDriverResult[] = [];
@@ -398,6 +410,9 @@ export class LocationsService {
       currentLng: { not: null },
       // Only drivers whose position is recent enough to trust (docs/23 RC6).
       lastLocationAt: { gte: new Date(Date.now() - PickupRadiusConfig.maxLocationAgeSec * 1000) },
+      // Bounding box around the search circle: Postgres returns only nearby rows instead of every
+      // available driver (exact distance is still checked below).
+      ...boundingBox(latitude, longitude, radiusKm),
     };
 
     if (vehicleType) {

@@ -1,3 +1,4 @@
+import { setBounded } from '../../../common/utils/bounded-map';
 import { Injectable, Logger } from '@nestjs/common';
 import * as https from 'https';
 import { RedisService } from '../../../redis/redis.service';
@@ -43,7 +44,7 @@ export class GoogleGeocodingAdapter {
       const redisCached = await this.redis.get(redisKey);
       if (redisCached) {
         const parsed: GeocodedAddressResult = JSON.parse(redisCached);
-        this.memoryCache.set(normalized, parsed);
+        setBounded(this.memoryCache, normalized, parsed, 5000);
         return parsed;
       }
     } catch {
@@ -54,7 +55,7 @@ export class GoogleGeocodingAdapter {
     if (this.apiKey) {
       try {
         const result = await this.fetchGoogleGeocode(raw);
-        this.memoryCache.set(normalized, result);
+        setBounded(this.memoryCache, normalized, result, 5000);
         try {
           await this.redis.set(redisKey, JSON.stringify(result), 86400 * 7); // 7-day TTL
         } catch {
@@ -68,7 +69,7 @@ export class GoogleGeocodingAdapter {
 
     // 4. Deterministic fallback for test / offline / missing key environments
     const fallback = this.generateFallbackCoordinates(raw);
-    this.memoryCache.set(normalized, fallback);
+    setBounded(this.memoryCache, normalized, fallback, 5000);
     return fallback;
   }
 

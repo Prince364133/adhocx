@@ -1,3 +1,4 @@
+import { setBounded } from '../../common/utils/bounded-map';
 import { Injectable, Logger } from '@nestjs/common';
 import * as https from 'https';
 
@@ -38,9 +39,14 @@ export interface RoadRouteResult {
 
 export interface DriverEtaResult {
   etaMinutes: number;
+  /** Unrounded duration (s) when Google returned one; ranking uses it (etaMinutes is for display). */
+  durationSeconds?: number;
   distanceKm: number;
   isRealRoad: boolean;
 }
+
+/** Upper bound per in-process Maps cache (entries); oldest are evicted first. */
+const MAPS_CACHE_MAX = 5000;
 
 @Injectable()
 export class GoogleMapsService {
@@ -57,10 +63,23 @@ export class GoogleMapsService {
   private matrixFailures: number[] = [];
   private circuitOpenUntil = 0;
 
+  private static warnedNoKey = false;
+  private static shared: GoogleMapsService | null = null;
+
+  /**
+   * Process-wide instance for code paths without DI. Never construct one per request: each instance
+   * has its own (empty) caches, so per-request instances repeat paid Routes API calls.
+   */
+  static sharedInstance(): GoogleMapsService {
+    if (!GoogleMapsService.shared) GoogleMapsService.shared = new GoogleMapsService();
+    return GoogleMapsService.shared;
+  }
+
   constructor() {
     // Key comes only from the environment; without it every Maps call falls back to estimates.
     this.apiKey = process.env.GOOGLE_MAPS_API_KEY ?? '';
-    if (!this.apiKey && process.env.NODE_ENV !== 'test') {
+    if (!this.apiKey && process.env.NODE_ENV !== 'test' && !GoogleMapsService.warnedNoKey) {
+      GoogleMapsService.warnedNoKey = true;
        
       console.warn('[GoogleMapsService] GOOGLE_MAPS_API_KEY is not set; using offline distance/traffic estimates');
     }
@@ -115,11 +134,12 @@ export class GoogleMapsService {
           if (!Number.isFinite(seconds) || !Number.isFinite(meters)) continue;
           const result: DriverEtaResult = {
             etaMinutes: Math.max(1, Math.round(seconds / 60)),
+            durationSeconds: seconds,
             distanceKm: Number((meters / 1000).toFixed(2)),
             isRealRoad: true,
           };
           results[idx] = result;
-          this.etaCache.set(keyOf(origins[idx]), { result, expiresAt: now + this.ETA_CACHE_TTL_MS });
+          setBounded(this.etaCache, keyOf(origins[idx]), { result, expiresAt: now + this.ETA_CACHE_TTL_MS }, MAPS_CACHE_MAX);
         }
         this.matrixFailures = [];
       } catch (err: any) {
@@ -328,7 +348,7 @@ export class GoogleMapsService {
       routingPreference: 'TRAFFIC_UNAWARE',
       source: 'GOOGLE_ROUTES',
     };
-    this.verifiedRouteCache.set(cacheKey, { result, expiresAt: Date.now() + this.CACHE_TTL_MS });
+    setBounded(this.verifiedRouteCache, cacheKey, { result, expiresAt: Date.now() + this.CACHE_TTL_MS }, MAPS_CACHE_MAX);
     return result;
   }
 
@@ -391,7 +411,7 @@ export class GoogleMapsService {
           isRealRoad: true,
         };
 
-        this.routeCache.set(cacheKey, { result, expiresAt: Date.now() + this.CACHE_TTL_MS });
+        setBounded(this.routeCache, cacheKey, { result, expiresAt: Date.now() + this.CACHE_TTL_MS }, MAPS_CACHE_MAX);
         this.logger.debug(
           `[GoogleMapsService] Route computed: ${distanceKm} km, ${durationMinutes} mins (via ${topRoute.description || 'Road'})`,
         );
