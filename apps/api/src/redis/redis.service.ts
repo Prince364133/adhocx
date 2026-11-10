@@ -231,6 +231,27 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
+   * Invalidate only JWT tokens issued strictly before [minIssuedAtSec] (epoch seconds).
+   * Used on password change / reset so older tokens expire immediately while newly minted
+   * tokens work without suspending the account.
+   */
+  async invalidateTokensBefore(
+    userId: string,
+    minIssuedAtSec: number = Math.floor(Date.now() / 1000),
+  ): Promise<void> {
+    await this.set(`user_min_iat:${userId}`, String(minIssuedAtSec), 86400 * 7);
+    await this.del(`user_session:${userId}`);
+    this.announceRevocation({ userId });
+  }
+
+  async getMinTokenIssuedAt(userId: string): Promise<number | null> {
+    const res = await this.get(`user_min_iat:${userId}`);
+    if (!res) return null;
+    const parsed = Number(res);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  /**
    * Distributed Lock Acquisition (Redlock style SET NX EX).
    * Safe for multi-instance API deployments with fallback support.
    */

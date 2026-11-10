@@ -114,7 +114,7 @@ export class AuthController {
     return this.authService.setPassword(user.id, dto);
   }
 
-  @Post('password/reset')
+  @Post(['password/reset', 'reset-password'])
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reset user password using verified OTP' })
   @SwaggerResponse({ status: 200, description: 'Password reset successfully' })

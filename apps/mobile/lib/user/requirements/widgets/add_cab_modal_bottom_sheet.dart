@@ -86,7 +86,7 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
       _dropAddress = item.dropAddress;
       _dropLat = item.dropLat;
       _dropLng = item.dropLng;
-      _dropIsOffice = item.dropIsOffice;
+      _dropIsOffice = item.dropIsOffice && !_pickupIsOffice;
       if (item.hasValidQuote) {
         _quote = {
           'quoteId': item.quoteId,
@@ -309,7 +309,7 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
         _dropAddress = (result['dropAddress'] as String?) ?? '';
         _dropLat = (result['dropLat'] as num?)?.toDouble() ?? 0.0;
         _dropLng = (result['dropLng'] as num?)?.toDouble() ?? 0.0;
-        _dropIsOffice = result['dropIsOffice'] == true;
+        _dropIsOffice = result['dropIsOffice'] == true && !_pickupIsOffice;
         _distanceKm = (result['distanceKm'] as num?)?.toDouble() ?? 0.0;
         _durationMinutes = (result['durationMinutes'] as num?)?.toInt() ?? 0;
         _formattedDistance = (result['formattedDistance'] as String?) ?? '';
@@ -835,7 +835,7 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
                                           ),
                                           child: Text(
                                             _pickupIsOffice
-                                                ? (_dropIsOffice ? 'Office → Office' : 'From office')
+                                                ? 'From office'
                                                 : (_dropIsOffice ? 'To office' : 'Point to point'),
                                             style: const TextStyle(
                                               fontSize: 11,

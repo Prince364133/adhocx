@@ -61,7 +61,7 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
       _dropAddress = draft.dropLocation;
       _dropLat = draft.dropLat;
       _dropLng = draft.dropLng;
-      _dropIsOffice = draft.dropIsOffice;
+      _dropIsOffice = draft.dropIsOffice && !_pickupIsOffice;
 
       _distanceQuote = draft.quote;
 
@@ -526,6 +526,64 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
     );
   }
 
+  void _toggleOffice({required bool isPickup}) {
+    setState(() {
+      if (isPickup) {
+        _pickupIsOffice = !_pickupIsOffice;
+        if (_pickupIsOffice) _dropIsOffice = false;
+      } else {
+        _dropIsOffice = !_dropIsOffice;
+        if (_dropIsOffice) _pickupIsOffice = false;
+      }
+    });
+    _syncToDraft();
+  }
+
+  Widget _buildOfficeChip({
+    required bool isPickup,
+    required bool isOffice,
+    required bool isDark,
+    required Color mutedText,
+  }) {
+    return InkWell(
+      onTap: () => _toggleOffice(isPickup: isPickup),
+      borderRadius: BorderRadius.circular(4),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: isOffice
+              ? AppColors.primary.withValues(alpha: 0.15)
+              : (isDark ? AppColors.slate800 : AppColors.slate200),
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(
+            color: isOffice
+                ? AppColors.primary
+                : (isDark ? AppColors.borderDark : AppColors.borderLight),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.business_rounded,
+              size: 11,
+              color: isOffice ? AppColors.primary : mutedText,
+            ),
+            const SizedBox(width: 3),
+            Text(
+              isOffice ? 'Office' : 'Mention as Office',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: isOffice ? FontWeight.bold : FontWeight.w500,
+                color: isOffice ? AppColors.primary : mutedText,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildConnectedRouteCard(bool isDark, Color primaryText, Color mutedText) {
     return Container(
       decoration: BoxDecoration(
@@ -575,45 +633,11 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
                             ),
                             const Spacer(),
                             // Optional "Mention as Office" Chip
-                            InkWell(
-                              onTap: () {
-                                setState(() => _pickupIsOffice = !_pickupIsOffice);
-                                _syncToDraft();
-                              },
-                              borderRadius: BorderRadius.circular(4),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: _pickupIsOffice
-                                      ? AppColors.primary.withValues(alpha: 0.15)
-                                      : (isDark ? AppColors.slate800 : AppColors.slate200),
-                                  borderRadius: BorderRadius.circular(4),
-                                  border: Border.all(
-                                    color: _pickupIsOffice
-                                        ? AppColors.primary
-                                        : (isDark ? AppColors.borderDark : AppColors.borderLight),
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.business_rounded,
-                                      size: 11,
-                                      color: _pickupIsOffice ? AppColors.primary : mutedText,
-                                    ),
-                                    const SizedBox(width: 3),
-                                    Text(
-                                      _pickupIsOffice ? 'Office' : 'Mention as Office',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: _pickupIsOffice ? FontWeight.bold : FontWeight.w500,
-                                        color: _pickupIsOffice ? AppColors.primary : mutedText,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
+                            _buildOfficeChip(
+                              isPickup: true,
+                              isOffice: _pickupIsOffice,
+                              isDark: isDark,
+                              mutedText: mutedText,
                             ),
                           ],
                         ),
@@ -735,45 +759,11 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
                             ),
                             const Spacer(),
                             // Optional "Mention as Office" Chip
-                            InkWell(
-                              onTap: () {
-                                setState(() => _dropIsOffice = !_dropIsOffice);
-                                _syncToDraft();
-                              },
-                              borderRadius: BorderRadius.circular(4),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: _dropIsOffice
-                                      ? AppColors.primary.withValues(alpha: 0.15)
-                                      : (isDark ? AppColors.slate800 : AppColors.slate200),
-                                  borderRadius: BorderRadius.circular(4),
-                                  border: Border.all(
-                                    color: _dropIsOffice
-                                        ? AppColors.primary
-                                        : (isDark ? AppColors.borderDark : AppColors.borderLight),
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.business_rounded,
-                                      size: 11,
-                                      color: _dropIsOffice ? AppColors.primary : mutedText,
-                                    ),
-                                    const SizedBox(width: 3),
-                                    Text(
-                                      _dropIsOffice ? 'Office' : 'Mention as Office',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: _dropIsOffice ? FontWeight.bold : FontWeight.w500,
-                                        color: _dropIsOffice ? AppColors.primary : mutedText,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
+                            _buildOfficeChip(
+                              isPickup: false,
+                              isOffice: _dropIsOffice,
+                              isDark: isDark,
+                              mutedText: mutedText,
                             ),
                           ],
                         ),

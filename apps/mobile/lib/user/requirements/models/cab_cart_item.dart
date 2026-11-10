@@ -39,12 +39,12 @@ class CabCartItem {
     required this.pickupAddress,
     required this.pickupLat,
     required this.pickupLng,
-    this.pickupIsOffice = false,
+    bool pickupIsOffice = false,
     this.pickupInstructions = '',
     required this.dropAddress,
     required this.dropLat,
     required this.dropLng,
-    this.dropIsOffice = false,
+    bool dropIsOffice = false,
     this.dropInstructions = '',
     this.tripType = 'One Way',
     this.isScheduled = false,
@@ -61,7 +61,8 @@ class CabCartItem {
     this.quoteId,
     this.quoteExpiresAt,
     this.isExpanded = false,
-  });
+  })  : pickupIsOffice = pickupIsOffice,
+        dropIsOffice = dropIsOffice && !pickupIsOffice;
 
   bool get hasLocations => pickupLat != 0.0 && pickupLng != 0.0 && dropLat != 0.0 && dropLng != 0.0;
 
@@ -147,7 +148,9 @@ class CabCartItem {
       notes != null && (notes.contains('Pickup: Office') || notes.contains('Route: Office → Home'));
 
   static bool parseDropIsOffice(String? notes) =>
-      notes != null && (notes.contains('Drop: Office') || notes.contains('Route: Home → Office'));
+      !parsePickupIsOffice(notes) &&
+      notes != null &&
+      (notes.contains('Drop: Office') || notes.contains('Route: Home → Office'));
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -190,7 +193,7 @@ class CabCartItem {
     // Templates saved by older builds stored a direction instead of office labels.
     final legacyDirection = json['direction']?.toString();
     final pickupIsOffice = json['pickupIsOffice'] == true || legacyDirection == 'OUTBOUND_FROM_OFFICE';
-    final dropIsOffice = json['dropIsOffice'] == true || legacyDirection == 'INBOUND_TO_OFFICE';
+    final dropIsOffice = (json['dropIsOffice'] == true || legacyDirection == 'INBOUND_TO_OFFICE') && !pickupIsOffice;
 
     return CabCartItem(
       id: json['id']?.toString() ?? 'cab_${DateTime.now().millisecondsSinceEpoch}',
@@ -287,6 +290,8 @@ class CabCartItem {
     bool clearQuote = false,
     bool? isExpanded,
   }) {
+    final nextPickup = pickupIsOffice ?? (dropIsOffice == true ? false : this.pickupIsOffice);
+    final nextDrop = (dropIsOffice ?? (pickupIsOffice == true ? false : this.dropIsOffice)) && !nextPickup;
     return CabCartItem(
       id: id ?? this.id,
       vehicleType: vehicleType ?? this.vehicleType,
@@ -295,12 +300,12 @@ class CabCartItem {
       pickupAddress: pickupAddress ?? this.pickupAddress,
       pickupLat: pickupLat ?? this.pickupLat,
       pickupLng: pickupLng ?? this.pickupLng,
-      pickupIsOffice: pickupIsOffice ?? this.pickupIsOffice,
+      pickupIsOffice: nextPickup,
       pickupInstructions: pickupInstructions ?? this.pickupInstructions,
       dropAddress: dropAddress ?? this.dropAddress,
       dropLat: dropLat ?? this.dropLat,
       dropLng: dropLng ?? this.dropLng,
-      dropIsOffice: dropIsOffice ?? this.dropIsOffice,
+      dropIsOffice: nextDrop,
       dropInstructions: dropInstructions ?? this.dropInstructions,
       tripType: tripType ?? this.tripType,
       isScheduled: isScheduled ?? this.isScheduled,

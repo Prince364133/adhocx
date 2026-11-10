@@ -330,6 +330,13 @@ class RequirementDraftProvider extends ChangeNotifier {
   void setOfficeLabels({bool? pickupIsOffice, bool? dropIsOffice}) {
     if (pickupIsOffice != null) _pickupIsOffice = pickupIsOffice;
     if (dropIsOffice != null) _dropIsOffice = dropIsOffice;
+    if (_pickupIsOffice && _dropIsOffice) {
+      if (dropIsOffice == true && pickupIsOffice != true) {
+        _pickupIsOffice = false;
+      } else {
+        _dropIsOffice = false;
+      }
+    }
     notifyListeners();
   }
 

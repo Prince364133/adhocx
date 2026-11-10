@@ -1,5 +1,6 @@
 import * as crypto from 'crypto';
 import { HttpStatus, UnauthorizedException } from '@nestjs/common';
+import { JwtAuthGuard } from '../src/common/guards/auth.guard';
 import { AuthService } from '../src/modules/auth/auth.service';
 
 /**
@@ -30,6 +31,20 @@ function fakeRedis() {
     }),
     blacklistToken: jest.fn(),
     isTokenBlacklisted: jest.fn(async () => false),
+    revokeUserSessions: jest.fn(async (id: string) => {
+      kv.set(`user_revoked:${id}`, '1');
+    }),
+    unrevokeUser: jest.fn(async (id: string) => {
+      kv.delete(`user_revoked:${id}`);
+    }),
+    isUserRevoked: jest.fn(async (id: string) => kv.get(`user_revoked:${id}`) === '1'),
+    invalidateTokensBefore: jest.fn(async (id: string, sec: number) => {
+      kv.set(`user_min_iat:${id}`, String(sec));
+    }),
+    getMinTokenIssuedAt: jest.fn(async (id: string) => {
+      const v = kv.get(`user_min_iat:${id}`);
+      return v ? Number(v) : null;
+    }),
   };
 }
 
@@ -176,5 +191,88 @@ describe('OTP single use', () => {
     await expect(
       svc.resetPassword({ identifier: 'a@b.com', otp: '123456', password: 'another-pass' } as any),
     ).rejects.toThrow(/Invalid or expired OTP/);
+  });
+});
+
+describe('password setup & reset session handling', () => {
+  it('initial sign-up setPassword preserves the active OTP session and returns fresh tokens with hasPassword=true', async () => {
+    const { svc, redis, db } = build();
+    db.user.findUnique.mockResolvedValue({ id: 'u-signup', passwordHash: null, status: 'ACTIVE' });
+    db.user.update.mockResolvedValue({
+      id: 'u-signup',
+      phone: '+919999999999',
+      role: 'DRIVER',
+      passwordHash: 'hashed-pw',
+      driver: { id: 'd1', verificationStatus: 'PENDING' },
+    });
+
+    const res = await svc.setPassword('u-signup', { password: 'strong-password-1' });
+    expect(res.success).toBe(true);
+    expect(res.accessToken).toBeTruthy();
+    expect(res.user.hasPassword).toBe(true);
+
+    // Crucial regression guard: must NEVER mark account suspended (`user_revoked`) or evict caller
+    expect(redis.kv.has('user_revoked:u-signup')).toBe(false);
+    expect(redis.kv.has('user_min_iat:u-signup')).toBe(false);
+    expect(redis.revokeUserSessions).not.toHaveBeenCalled();
+
+    // Existing OTP token issued 5s ago remains accepted by JwtAuthGuard for GET /auth/me
+    const guard = new JwtAuthGuard(
+      { verifyAsync: jest.fn(async () => ({ id: 'u-signup', iat: Math.floor(Date.now() / 1000) - 5 })) } as any,
+      { get: () => 'secret' } as any,
+      redis as any,
+    );
+    const req: any = { headers: { authorization: 'Bearer otp-token' } };
+    await expect(guard.canActivate({ switchToHttp: () => ({ getRequest: () => req }) } as any)).resolves.toBe(true);
+  });
+
+  it('updating an existing password invalidates only older tokens without locking out the user account', async () => {
+    const { svc, redis, db } = build();
+    db.user.findUnique.mockResolvedValue({ id: 'u-existing', passwordHash: 'old-hash', status: 'ACTIVE' });
+    db.user.update.mockResolvedValue({
+      id: 'u-existing',
+      phone: '+919999999999',
+      role: 'DRIVER',
+      passwordHash: 'new-hash',
+      driver: { id: 'd1', verificationStatus: 'VERIFIED' },
+    });
+
+    const res = await svc.setPassword('u-existing', { password: 'new-strong-password' });
+    expect(res.success).toBe(true);
+    expect(res.accessToken).toBeTruthy();
+
+    expect(redis.kv.has('user_revoked:u-existing')).toBe(false);
+    const minIat = Number(redis.kv.get('user_min_iat:u-existing'));
+    expect(minIat).toBeGreaterThan(0);
+
+    // Old token (iat < minIat) is rejected; fresh token (iat >= minIat) is accepted
+    const jwt = { verifyAsync: jest.fn() };
+    const guard = new JwtAuthGuard(jwt as any, { get: () => 'secret' } as any, redis as any);
+
+    jwt.verifyAsync.mockResolvedValueOnce({ id: 'u-existing', iat: minIat - 10 });
+    await expect(
+      guard.canActivate({ switchToHttp: () => ({ getRequest: () => ({ headers: { authorization: 'Bearer old-tok' } }) }) } as any),
+    ).rejects.toThrow(UnauthorizedException);
+
+    jwt.verifyAsync.mockResolvedValueOnce({ id: 'u-existing', iat: minIat });
+    await expect(
+      guard.canActivate({ switchToHttp: () => ({ getRequest: () => ({ headers: { authorization: 'Bearer new-tok' } }) }) } as any),
+    ).resolves.toBe(true);
+  });
+
+  it('resetPassword uses epoch invalidation instead of 24h user suspension lock', async () => {
+    const { svc, redis, db } = build();
+    redis.kv.set('otp_direct:a@b.com', '654321');
+    db.user.findFirst.mockResolvedValue({
+      id: 'u-reset',
+      email: 'a@b.com',
+      role: 'DRIVER',
+      status: 'ACTIVE',
+      driver: { verificationStatus: 'PENDING' },
+    });
+
+    await svc.resetPassword({ identifier: 'a@b.com', otp: '654321', password: 'reset-password-123' } as any);
+    expect(redis.kv.has('user_revoked:u-reset')).toBe(false);
+    expect(Number(redis.kv.get('user_min_iat:u-reset'))).toBeGreaterThan(0);
   });
 });

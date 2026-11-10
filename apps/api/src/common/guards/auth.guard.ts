@@ -61,6 +61,12 @@ export class JwtAuthGuard implements CanActivate {
         if (isRevoked) {
           throw new UnauthorizedException('User account has been suspended or session revoked');
         }
+        if (typeof this.redisService.getMinTokenIssuedAt === 'function' && payload.iat != null) {
+          const minIat = await this.redisService.getMinTokenIssuedAt(userId);
+          if (minIat != null && Number(payload.iat) < minIat) {
+            throw new UnauthorizedException('Session expired after password update. Please sign in again.');
+          }
+        }
       }
 
       request.user = {

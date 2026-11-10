@@ -609,6 +609,10 @@ class AuthService {
       '/auth/password',
       body: {'password': password},
     );
+    await _saveTokens(response);
+    if (_currentUser != null && !_currentUser!.hasPassword) {
+      await _persistCurrentUser(_currentUser!.copyWith(hasPassword: true));
+    }
     return response;
   }
 

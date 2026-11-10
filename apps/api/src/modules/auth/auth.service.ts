@@ -408,6 +408,8 @@ export class AuthService implements OnModuleInit {
       }
     }
 
+    await this.verifyAccountActiveAndClearStaleRevocation(user);
+
     this.logger.log(`✅ [LOGIN SUCCESS] User authenticated: ${user.id} (${user.fullName || user.phone}) as ${user.role}`);
     return this.generateAuthResponse(user);
   }
@@ -649,6 +651,8 @@ export class AuthService implements OnModuleInit {
       throw new BadRequestException('Failed to authenticate with database.');
     }
 
+    await this.verifyAccountActiveAndClearStaleRevocation(user);
+
     return this.generateAuthResponse(user);
   }
 
@@ -802,7 +806,26 @@ export class AuthService implements OnModuleInit {
       }
     }
 
+    await this.verifyAccountActiveAndClearStaleRevocation(user);
+
     return this.generateAuthResponse(user);
+  }
+
+  private async verifyAccountActiveAndClearStaleRevocation(user: any): Promise<void> {
+    if (!user?.id) return;
+    const isSuspended =
+      user.status === 'SUSPENDED' ||
+      user.driver?.verificationStatus === 'SUSPENDED' ||
+      user.vendor?.verificationStatus === 'SUSPENDED';
+    if (isSuspended) {
+      throw new ForbiddenException('Your account has been suspended. Please contact AdhocX support.');
+    }
+    const isRejected =
+      user.driver?.verificationStatus === 'REJECTED' ||
+      user.vendor?.verificationStatus === 'REJECTED';
+    if (!isRejected && typeof this.redis?.unrevokeUser === 'function') {
+      await this.redis.unrevokeUser(user.id).catch(() => undefined);
+    }
   }
 
   /**
@@ -813,12 +836,22 @@ export class AuthService implements OnModuleInit {
       throw new BadRequestException('Password must be at least 6 characters long');
     }
 
+    const existingUser = await this.db.user
+      .findUnique({
+        where: { id: userId },
+        select: { id: true, passwordHash: true, status: true },
+      })
+      .catch(() => null);
+
+    const hadPasswordAlready = Boolean(existingUser?.passwordHash);
     const passwordHash = await this.hashPassword(dto.password);
 
+    let updatedUser: any;
     try {
-      await this.db.user.update({
+      updatedUser = await this.db.user.update({
         where: { id: userId },
         data: { passwordHash },
+        include: { vendor: true, driver: true },
       });
       this.logger.log(`🔒 Password set and persisted successfully for user ${userId}`);
     } catch (err: any) {
@@ -826,15 +859,28 @@ export class AuthService implements OnModuleInit {
       throw new BadRequestException('Failed to save password');
     }
 
-    try {
-      await this.redis.revokeUserSessions(userId);
-    } catch (err: any) {
-      this.logger.warn(`Failed to revoke user sessions on password change for ${userId}: ${err.message}`);
+    await this.verifyAccountActiveAndClearStaleRevocation(updatedUser).catch((err) => {
+      if (err instanceof ForbiddenException) throw err;
+    });
+
+    // Only invalidate previously minted tokens when replacing an already-existing password.
+    // On initial sign-up password creation (!hadPasswordAlready), the caller just verified OTP
+    // moments ago and must remain signed in smoothly without any 401 eviction.
+    // Never use revokeUserSessions() here — that marks the account suspended for 24h.
+    if (hadPasswordAlready && typeof this.redis?.invalidateTokensBefore === 'function') {
+      try {
+        await this.redis.invalidateTokensBefore(userId, Math.floor(Date.now() / 1000));
+      } catch (err: any) {
+        this.logger.warn(`Failed to invalidate prior tokens on password change for ${userId}: ${err.message}`);
+      }
     }
+
+    const authResponse = await this.generateAuthResponse(updatedUser);
 
     return {
       success: true,
       message: 'Password set successfully',
+      ...authResponse,
     };
   }
 
@@ -876,10 +922,12 @@ export class AuthService implements OnModuleInit {
       if (isEmail) {
         user = await this.db.user.findFirst({
           where: { email: { equals: value, mode: 'insensitive' } },
+          include: { vendor: true, driver: true },
         });
       } else {
         user = await this.db.user.findFirst({
           where: { phone: { in: phoneVariants || [value] } },
+          include: { vendor: true, driver: true },
         });
       }
 
@@ -893,11 +941,14 @@ export class AuthService implements OnModuleInit {
       });
 
       await this.invalidateOtps(value);
-      try {
-        await this.redis.revokeUserSessions(user.id);
-      } catch (err: any) {
-        this.logger.warn(`Failed to revoke user sessions on password reset for ${user.id}: ${err.message}`);
+      if (typeof this.redis?.invalidateTokensBefore === 'function') {
+        try {
+          await this.redis.invalidateTokensBefore(user.id, Math.floor(Date.now() / 1000));
+        } catch (err: any) {
+          this.logger.warn(`Failed to invalidate prior tokens on password reset for ${user.id}: ${err.message}`);
+        }
       }
+      await this.verifyAccountActiveAndClearStaleRevocation(user).catch(() => undefined);
       this.logger.log(`🔒 Password reset successfully for user ${user.id} (${value})`);
     } catch (err: any) {
       this.logger.error(`Reset password failed for user ${value}: ${err.message}`);
@@ -1142,8 +1193,21 @@ export class AuthService implements OnModuleInit {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
 
+    const userId = payload.id || payload.sub;
+    if (this.redis && userId) {
+      if (typeof this.redis.isUserRevoked === 'function' && (await this.redis.isUserRevoked(userId))) {
+        throw new UnauthorizedException('User account has been suspended or session revoked');
+      }
+      if (typeof this.redis.getMinTokenIssuedAt === 'function' && payload.iat != null) {
+        const minIat = await this.redis.getMinTokenIssuedAt(userId);
+        if (minIat != null && Number(payload.iat) < minIat) {
+          throw new UnauthorizedException('Session expired after password update. Please sign in again.');
+        }
+      }
+    }
+
     const user = await this.db.user.findUnique({
-      where: { id: payload.id },
+      where: { id: userId },
       include: { vendor: true, driver: true },
     });
 

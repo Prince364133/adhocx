@@ -56,19 +56,28 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
 
       // Force-refresh the cached user so hasPassword is now true
       // This prevents the router redirect guard from sending us back here
-      await authService.fetchCurrentUser(forceRefresh: true);
+      final refreshedUser = await authService.fetchCurrentUser(forceRefresh: true);
+      final activeUser = refreshedUser ?? authService.currentUser;
 
-      if (mounted) {
-        // Also refresh the AuthProvider so listeners (including router) see updated state
-        context.read<AuthProvider>().refreshProfile();
+      if (!mounted) return;
 
+      if (activeUser == null) {
         Fluttertoast.showToast(
-          msg: 'Password created successfully!',
-          backgroundColor: AppColors.accentGreenDark,
+          msg: 'Password saved! Please sign in to continue.',
+          backgroundColor: AppColors.warning,
         );
-
-        context.go(AppRoutes.onboardingPersonalScreen);
+        context.go(AppRoutes.signInScreen);
+        return;
       }
+
+      context.read<AuthProvider>().setUser(activeUser);
+
+      Fluttertoast.showToast(
+        msg: 'Password created successfully!',
+        backgroundColor: AppColors.accentGreenDark,
+      );
+
+      context.go(AppRoutes.onboardingPersonalScreen);
     } catch (e) {
       if (mounted) {
         Fluttertoast.showToast(

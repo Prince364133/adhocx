@@ -7,8 +7,8 @@ import '../../../shared/theme/app_radius.dart';
 import '../../../shared/theme/app_spacing.dart';
 import '../../../shared/theme/app_typography.dart';
 
-/// Pickup and drop selection for one cab. Any two places can be chosen; either can optionally be
-/// labelled "Office" (a display label only: the price comes from the road distance between them).
+/// Pickup and drop selection for one cab. Any two places can be chosen; at most one can
+/// optionally be labelled "Office" (a display label only: the price comes from the road distance between them).
 class SelectRouteSubBottomSheet extends StatefulWidget {
   final String initialPickupAddress;
   final double initialPickupLat;
@@ -69,7 +69,7 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
     _dropAddress = widget.initialDropAddress;
     _dropLat = widget.initialDropLat;
     _dropLng = widget.initialDropLng;
-    _dropIsOffice = widget.initialDropIsOffice;
+    _dropIsOffice = widget.initialDropIsOffice && !_pickupIsOffice;
     if (_hasPickup && _hasDrop) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _calculateRoute());
     }
@@ -138,6 +138,18 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
       }
     });
     _calculateRoute();
+  }
+
+  void _setOffice({required bool isPickup, required bool isOffice}) {
+    setState(() {
+      if (isPickup) {
+        _pickupIsOffice = isOffice;
+        if (isOffice) _dropIsOffice = false;
+      } else {
+        _dropIsOffice = isOffice;
+        if (isOffice) _pickupIsOffice = false;
+      }
+    });
   }
 
   void _swap() {
@@ -299,7 +311,7 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
                       isPickup: true,
                       address: _pickupAddress,
                       isOffice: _pickupIsOffice,
-                      onOfficeChanged: (v) => setState(() => _pickupIsOffice = v),
+                      onOfficeChanged: (v) => _setOffice(isPickup: true, isOffice: v),
                     ),
                     Center(
                       child: IconButton(
@@ -313,7 +325,7 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
                       isPickup: false,
                       address: _dropAddress,
                       isOffice: _dropIsOffice,
-                      onOfficeChanged: (v) => setState(() => _dropIsOffice = v),
+                      onOfficeChanged: (v) => _setOffice(isPickup: false, isOffice: v),
                     ),
                     const SizedBox(height: 12),
                     if (_isCalculatingRoute)
