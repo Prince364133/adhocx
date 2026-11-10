@@ -235,6 +235,9 @@ class DriverService {
     String? aadharFrontUrl,
     String? aadharBackUrl,
     String? panDocUrl,
+    String? dlNumber,
+    String? panNumber,
+    String? rcNumber,
   }) async {
     await _ensureDriverSession();
     final res = await _api.post(
@@ -265,6 +268,9 @@ class DriverService {
         if (aadharFrontUrl != null) 'aadharFrontUrl': aadharFrontUrl,
         if (aadharBackUrl != null) 'aadharBackUrl': aadharBackUrl,
         if (panDocUrl != null) 'panDocUrl': panDocUrl,
+        if (dlNumber != null && dlNumber.isNotEmpty) 'dlNumber': dlNumber,
+        if (panNumber != null && panNumber.isNotEmpty) 'panNumber': panNumber,
+        if (rcNumber != null && rcNumber.isNotEmpty) 'rcNumber': rcNumber,
       },
     );
     invalidateCache(profile: true);

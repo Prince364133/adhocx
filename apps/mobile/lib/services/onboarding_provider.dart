@@ -34,6 +34,8 @@ class OnboardingProvider extends ChangeNotifier {
   String _color = '';
   String _registrationNumber = '';
   String _modelYear = '';
+  String _dlNumber = '';
+  String _rcNumber = '';
 
   // Document Uploads (URLs from Cloudflare R2)
   String? _profilePhotoUrl;
@@ -75,6 +77,8 @@ class OnboardingProvider extends ChangeNotifier {
   String get businessType => _businessType;
   String get gstNumber => _gstNumber;
   String get panNumber => _panNumber;
+  String get dlNumber => _dlNumber;
+  String get rcNumber => _rcNumber;
   String get city => _city;
   String get stateName => _state;
   String get pincode => _pincode;
@@ -219,7 +223,27 @@ class OnboardingProvider extends ChangeNotifier {
     _carModel = carModel;
     _color = color;
     _registrationNumber = registrationNumber;
+    if (_rcNumber.isEmpty && registrationNumber.isNotEmpty) {
+      _rcNumber = registrationNumber;
+    }
     if (modelYear != null) _modelYear = modelYear;
+    notifyListeners();
+  }
+
+  void setKycIdentifiers({
+    String? dlNumber,
+    String? panNumber,
+    String? rcNumber,
+  }) {
+    if (dlNumber != null && dlNumber.trim().isNotEmpty) {
+      _dlNumber = dlNumber.trim().toUpperCase();
+    }
+    if (panNumber != null && panNumber.trim().isNotEmpty) {
+      _panNumber = panNumber.trim().toUpperCase();
+    }
+    if (rcNumber != null && rcNumber.trim().isNotEmpty) {
+      _rcNumber = rcNumber.trim().toUpperCase();
+    }
     notifyListeners();
   }
 
@@ -288,8 +312,11 @@ class OnboardingProvider extends ChangeNotifier {
     _color = '';
     _registrationNumber = '';
     _modelYear = '';
+    _dlNumber = '';
+    _rcNumber = '';
     _companyName = '';
     _gstNumber = '';
+    _panNumber = '';
     _profilePhotoUrl = null;
     _drivingLicenseUrl = null;
     _rcBookUrl = null;

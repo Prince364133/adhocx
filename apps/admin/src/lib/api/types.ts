@@ -929,11 +929,18 @@ export interface DigioVerificationItem {
   updatedAt: string;
 }
 
+export interface DigioComplianceAlert {
+  severity: 'BLOCKER' | 'WARNING';
+  code: string;
+  message: string;
+}
+
 export interface DigioEntityVerificationsResponse {
   configured: boolean;
   driverId?: string;
   vendorId?: string;
   latestByType: Record<string, DigioVerificationItem>;
+  complianceAlerts?: DigioComplianceAlert[];
   history: DigioVerificationItem[];
 }
 
@@ -942,6 +949,7 @@ export interface DigioAdminDriverSuiteResult {
   executedChecks: string[];
   results: Record<string, DigioVerificationItem>;
   errors: Record<string, string>;
+  complianceAlerts?: DigioComplianceAlert[];
 }
 
 

@@ -289,6 +289,11 @@ class DigioService {
     return map;
   }
 
+  Future<Map<String, dynamic>> syncDigilockerMedia(String requestId) async {
+    final res = await _api.post('/kyc/digio/digilocker/request/$requestId/sync-media');
+    return Map<String, dynamic>.from(res as Map);
+  }
+
   Future<bool> launchGatewayUrl(String url) async {
     final uri = Uri.tryParse(url);
     if (uri == null) return false;

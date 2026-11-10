@@ -481,6 +481,7 @@ describe('DigioClient & DigioService', () => {
     });
     jest.spyOn(digioClient, 'checkLiveness').mockResolvedValue({ score: 0.9, result: 'PASS' });
     jest.spyOn(digioClient, 'faceMatch').mockResolvedValue({ confidence: 91, result: 'MATCHED' });
+    jest.spyOn(digioClient, 'fuzzyMatch').mockResolvedValue({ matched: true, match_score: 97 });
 
     const suite = await digioService.runAdminDriverSuite(adminActor, 'drv-1', {
       includePan: false,
@@ -495,8 +496,51 @@ describe('DigioClient & DigioService', () => {
         'VEHICLE_RC',
         'LIVENESS',
         'FACE_MATCH',
+        'FUZZY_MATCH',
       ]),
     );
     expect(suite.errors).toEqual({});
+    expect(Array.isArray(suite.complianceAlerts)).toBe(true);
+  });
+
+  it('downloads DigiLocker media files and attaches URLs to driver profile', async () => {
+    dbMock.digioVerification.findUnique.mockResolvedValue({
+      id: 'dv_media_1',
+      digioRequestId: 'KID_MEDIA_1',
+      userId: driverActor.id,
+      driverId: 'drv-1',
+    });
+    jest.spyOn(digioClient, 'getKycRequestResponse').mockResolvedValue({
+      id: 'KID_MEDIA_1',
+      status: 'approved',
+      actions: [
+        {
+          type: 'digilocker',
+          status: 'approved',
+          details: {
+            aadhaar: { file_id: 'file_aadhaar_1' },
+            driving_licence: { file_id: 'file_dl_1' },
+          },
+        },
+      ],
+    });
+    jest.spyOn(digioClient, 'downloadKycMedia').mockResolvedValue({
+      contentType: 'application/pdf',
+      data: null,
+      buffer: Buffer.from('%PDF-1.4 mock document'),
+    });
+
+    const synced = await digioService.syncDigilockerMedia(driverActor, 'KID_MEDIA_1');
+    expect(synced.attachedCount).toBe(2);
+    expect(storageMock.saveFile).toHaveBeenCalledTimes(2);
+    expect(dbMock.driver.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'drv-1' },
+        data: expect.objectContaining({
+          aadharFrontUrl: '/uploads/masked-aadhaar.jpg',
+          dlFrontUrl: '/uploads/masked-aadhaar.jpg',
+        }),
+      }),
+    );
   });
 });

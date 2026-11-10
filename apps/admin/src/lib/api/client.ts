@@ -961,12 +961,9 @@ export const adminApi = {
       allowForbidden: true,
     }),
 
-  // ── Digio Govt KYC, Vehicle RC, Biometric, Bank & KYB Verifications ──
+  // ── Digio Driver Identity, DL, Vehicle RC, Biometric & Bank Verifications ──
   getDriverDigioVerifications: (driverId: string) =>
     apiClient<DigioEntityVerificationsResponse>(`/kyc/digio/admin/driver/${driverId}`),
-
-  getVendorDigioVerifications: (vendorId: string) =>
-    apiClient<DigioEntityVerificationsResponse>(`/kyc/digio/admin/vendor/${vendorId}`),
 
   runDriverDigioSuite: (
     driverId: string,
@@ -977,6 +974,7 @@ export const adminApi = {
       includeFaceMatch?: boolean;
       includeAadhaarMask?: boolean;
       includeBank?: boolean;
+      includeFuzzyMatch?: boolean;
       dobOverride?: string;
       panOverride?: string;
       dlOverride?: string;
@@ -988,7 +986,7 @@ export const adminApi = {
       body: payload,
     }),
 
-  verifyPanDigio: (payload: { panNumber: string; name?: string; targetDriverId?: string; targetVendorId?: string }) =>
+  verifyPanDigio: (payload: { panNumber: string; name?: string; targetDriverId?: string }) =>
     apiClient<DigioVerificationItem>('/kyc/digio/pan', { method: 'POST', body: payload }),
 
   verifyDlDigio: (payload: { dlNumber: string; dob: string; name?: string; targetDriverId?: string }) =>
@@ -1009,14 +1007,57 @@ export const adminApi = {
       body: { targetDriverId },
     }),
 
-  verifyGstDigio: (payload: { gstin: string; advanced?: boolean; targetVendorId?: string; saveToVendorProfile?: boolean }) =>
-    apiClient<DigioVerificationItem>('/kyc/digio/business/gst', { method: 'POST', body: payload }),
+  maskAadhaarDriverDigio: (payload: { documentUrl: string; side?: 'FRONT' | 'BACK'; targetDriverId?: string }) =>
+    apiClient<DigioVerificationItem>('/kyc/digio/aadhaar/mask-stored', {
+      method: 'POST',
+      body: payload,
+    }),
 
-  verifyCinDigio: (payload: { cin: string; targetVendorId?: string }) =>
-    apiClient<DigioVerificationItem>('/kyc/digio/business/cin', { method: 'POST', body: payload }),
+  analyzeStoredIdCardDigio: (payload: {
+    frontDocUrl: string;
+    backDocUrl?: string;
+    expectedIds?: string[];
+    saveMaskedToDriver?: boolean;
+    aadhaarSide?: 'FRONT' | 'BACK';
+    targetDriverId?: string;
+  }) =>
+    apiClient<DigioVerificationItem>('/kyc/digio/id-card/analyze-stored', {
+      method: 'POST',
+      body: payload,
+    }),
 
-  verifyUdyamDigio: (payload: { udyamNumber: string; targetVendorId?: string }) =>
-    apiClient<DigioVerificationItem>('/kyc/digio/business/udyam', { method: 'POST', body: payload }),
+  verifyBankDriverDigio: (payload: {
+    accountNumber: string;
+    ifsc: string;
+    accountHolderName?: string;
+    validationMode?: 'PENNY_LESS' | 'PENNY_DROP' | 'AUTO';
+    targetDriverId?: string;
+  }) =>
+    apiClient<DigioVerificationItem>('/kyc/digio/bank/verify', {
+      method: 'POST',
+      body: payload,
+    }),
+
+  fuzzyMatchDriverDigio: (payload: {
+    sourceText: string;
+    targetText: string;
+    context: 'name' | 'address';
+    minConfidence?: number;
+    targetDriverId?: string;
+  }) =>
+    apiClient<DigioVerificationItem>('/kyc/digio/fuzzy-match', {
+      method: 'POST',
+      body: payload,
+    }),
+
+  syncDigilockerStatusDigio: (requestId: string) =>
+    apiClient<DigioVerificationItem>(`/kyc/digio/digilocker/request/${requestId}/status`),
+
+  syncDigilockerMediaDigio: (requestId: string) =>
+    apiClient<{ digioRequestId: string; attachedCount: number; attachedFiles: Array<{ docType: string; fileId: string; url: string }> }>(
+      `/kyc/digio/digilocker/request/${requestId}/sync-media`,
+      { method: 'POST' },
+    ),
 
   logoutAdmin: async () => {
     try {

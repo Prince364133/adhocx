@@ -123,6 +123,8 @@ class _KycUploadScreenState extends State<KycUploadScreen> {
         'vehiclePlate': (_formData['vehicle_number'] as String?)?.toUpperCase(),
         'rcNumber': (_formData['rc_number'] as String?)?.toUpperCase(),
         'dlNumber': (_formData['dl_number'] as String?)?.toUpperCase(),
+        if ((_formData['pan'] as String?)?.trim().isNotEmpty == true)
+          'panNumber': (_formData['pan'] as String).trim().toUpperCase(),
         'profilePhotoUrl': selfiePath ?? _selfieUrl,
         'dlFrontUrl': dlFrontPath ?? _uploadedDocs['dl_front'],
         'dlBackUrl': dlBackPath ?? _uploadedDocs['dl_back'],
@@ -142,6 +144,19 @@ class _KycUploadScreenState extends State<KycUploadScreen> {
           bankIfsc: bankIfsc,
           bankName: bankName,
         ).catchError((_) => null);
+      }
+
+      // Trigger non-blocking Digio automated verification checks
+      final effectiveSelfie = selfiePath ?? _selfieUrl;
+      if (effectiveSelfie != null && effectiveSelfie.isNotEmpty) {
+        DigioService.instance.checkStoredLiveness(imageUrl: effectiveSelfie).catchError((_) => <String, dynamic>{});
+      }
+      if (aadhaarPath != null && aadhaarPath.isNotEmpty) {
+        DigioService.instance.maskStoredAadhaar(documentUrl: aadhaarPath, side: 'FRONT').catchError((_) => <String, dynamic>{});
+      }
+      final plate = (_formData['rc_number'] as String? ?? _formData['vehicle_number'] as String?)?.trim();
+      if (plate != null && plate.length >= 6) {
+        DigioService.instance.verifyVehicleRc(registrationNumber: plate).catchError((_) => <String, dynamic>{});
       }
 
       if (!mounted) return;

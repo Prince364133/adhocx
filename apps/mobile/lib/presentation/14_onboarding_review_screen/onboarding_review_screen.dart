@@ -96,10 +96,17 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
         panUrl,
       ];
 
+      final effectiveDlNo = onboarding.dlNumber.isNotEmpty
+          ? onboarding.dlNumber
+          : (onboarding.registrationNumber.isNotEmpty
+              ? 'DL-${onboarding.registrationNumber}'
+              : '');
+
       await driverService.submitKyc(
-        licenseNumber: onboarding.registrationNumber.isNotEmpty
-            ? 'DL-${onboarding.registrationNumber}'
-            : '',
+        licenseNumber: effectiveDlNo,
+        dlNumber: onboarding.dlNumber.isNotEmpty ? onboarding.dlNumber : null,
+        panNumber: onboarding.panNumber.isNotEmpty ? onboarding.panNumber : null,
+        rcNumber: onboarding.registrationNumber.isNotEmpty ? onboarding.registrationNumber : null,
         licenseExpiry: DateTime.now().add(const Duration(days: 365 * 5)),
         documentUrls: docList,
         phone: onboarding.phone.isNotEmpty ? onboarding.phone : null,
@@ -443,6 +450,41 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
                               _buildDocThumbnail('PAN Card', Icons.assignment_ind, onboarding.panCardUrl != null, isDark),
                             ],
                           ),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        ValueListenableBuilder<Map<String, dynamic>>(
+                          valueListenable: DigioService.instance.latestByTypeNotifier,
+                          builder: (context, latest, _) {
+                            final chips = <(String, String)>[
+                              ('LIVENESS', 'Selfie Liveness'),
+                              ('AADHAAR_MASK', 'Aadhaar Masked'),
+                              ('PAN', 'PAN'),
+                              ('DRIVING_LICENSE', 'DL'),
+                              ('VEHICLE_RC', 'Vehicle RC'),
+                              ('FACE_MATCH', 'Face Match'),
+                              ('DIGILOCKER', 'DigiLocker'),
+                            ];
+                            return Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              children: chips.map((c) {
+                                final ok = latest[c.$1]?['verified'] == true;
+                                final clr = ok ? AppColors.accentGreenDark : (isDark ? AppColors.textMutedDark : AppColors.textMutedLight);
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: clr.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(AppRadius.full),
+                                    border: Border.all(color: clr.withValues(alpha: 0.35)),
+                                  ),
+                                  child: Text(
+                                    ok ? '✓ ${c.$2}' : c.$2,
+                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: clr),
+                                  ),
+                                );
+                              }).toList(),
+                            );
+                          },
                         ),
                       ],
                     ),

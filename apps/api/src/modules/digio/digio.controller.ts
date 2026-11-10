@@ -469,6 +469,18 @@ export class DigioController {
     return this.digioService.reattemptDigilockerRequest(user, requestId);
   }
 
+  @Post('digilocker/request/:requestId/sync-media')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.DRIVER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Download DigiLocker verified documents (Aadhaar, DL, PAN, RC) & attach to Driver' })
+  syncDigilockerMedia(
+    @CurrentUser() user: AuthUserDto,
+    @Param('requestId') requestId: string,
+  ) {
+    return this.digioService.syncDigilockerMedia(user, requestId);
+  }
+
   // ---------------------------------------------------------------------------
   // Admin Queries & 1-Click Verification Suite
   // ---------------------------------------------------------------------------

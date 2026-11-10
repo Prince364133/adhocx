@@ -651,6 +651,80 @@ export class DigioService {
     };
   }
 
+  private buildDriverComplianceAlerts(
+    driver: any,
+    latestByType: Record<string, any>,
+  ): Array<{ severity: 'BLOCKER' | 'WARNING'; code: string; message: string }> {
+    const alerts: Array<{ severity: 'BLOCKER' | 'WARNING'; code: string; message: string }> = [];
+
+    const dl = latestByType['DRIVING_LICENSE'];
+    if (dl && dl.verified && dl.complianceOk === false) {
+      alerts.push({
+        severity: 'BLOCKER',
+        code: 'DL_COMPLIANCE_ISSUE',
+        message: dl.complianceNotes || 'Driving License expired or inactive',
+      });
+    } else if (!dl && driver?.dlFrontUrl) {
+      alerts.push({
+        severity: 'WARNING',
+        code: 'DL_NOT_VERIFIED',
+        message: 'Driving License uploaded but not yet verified via Digio',
+      });
+    }
+
+    const rc = latestByType['VEHICLE_RC'];
+    if (rc && rc.verified && rc.complianceOk === false) {
+      alerts.push({
+        severity: 'BLOCKER',
+        code: 'RC_COMPLIANCE_ISSUE',
+        message: rc.complianceNotes || 'Vehicle RC fitness, insurance, permit, or blacklist check failed',
+      });
+    } else if (!rc && (driver?.rcDocUrl || driver?.vehiclePlate)) {
+      alerts.push({
+        severity: 'WARNING',
+        code: 'RC_NOT_VERIFIED',
+        message: 'Vehicle RC has not been verified against Parivahan yet',
+      });
+    }
+
+    const face = latestByType['FACE_MATCH'];
+    if (face && !face.verified) {
+      alerts.push({
+        severity: 'BLOCKER',
+        code: 'FACE_MATCH_FAILED',
+        message: face.complianceNotes || 'Driver selfie did not match ID portrait',
+      });
+    }
+
+    const live = latestByType['LIVENESS'];
+    if (live && !live.verified) {
+      alerts.push({
+        severity: 'WARNING',
+        code: 'LIVENESS_WARNING',
+        message: live.complianceNotes || 'Selfie liveness check did not pass',
+      });
+    }
+
+    const fuzzy = latestByType['FUZZY_MATCH'];
+    if (fuzzy && !fuzzy.verified) {
+      alerts.push({
+        severity: 'WARNING',
+        code: 'NAME_MISMATCH',
+        message: fuzzy.complianceNotes || 'Registered name differs from Govt ID name',
+      });
+    }
+
+    if (driver?.aadharFrontUrl && !latestByType['AADHAAR_MASK']?.verified) {
+      alerts.push({
+        severity: 'WARNING',
+        code: 'AADHAAR_UNMASKED',
+        message: 'Aadhaar masking has not been confirmed for UIDAI compliance',
+      });
+    }
+
+    return alerts;
+  }
+
   async getDriverVerificationsForAdmin(driverId: string) {
     const driver = await this.db.driver.findUnique({
       where: { id: driverId },
@@ -686,6 +760,7 @@ export class DigioService {
       configured: this.digioClient.isConfigured(),
       driverId,
       latestByType,
+      complianceAlerts: this.buildDriverComplianceAlerts(driver, latestByType),
       history: rows.map((r) => this.formatRecord(r)),
     };
   }
@@ -1108,7 +1183,58 @@ export class DigioService {
       res?.details?.status !== 'FAILED' &&
       (primary?.verification_result?.verified !== false);
 
-    return this.saveVerificationRecord({
+    // Determine specific OCR sub-key so scanning PAN/DL/RC does not overwrite Aadhaar OCR status
+    const subKey = idType.includes('AADHAAR')
+      ? 'ID_OCR_AADHAAR'
+      : idType.includes('PAN')
+        ? 'ID_OCR_PAN'
+        : idType.includes('DRIVING')
+          ? 'ID_OCR_DL'
+          : idType === 'RC' || idType.includes('VEHICLE')
+            ? 'ID_OCR_RC'
+            : 'ID_OCR';
+
+    if (ctx.driverId && verified) {
+      const drv = await this.db.driver.findUnique({
+        where: { id: ctx.driverId },
+        select: { kycDocuments: true },
+      });
+      const existingKyc: Record<string, any> =
+        drv?.kycDocuments && typeof drv.kycDocuments === 'object' && !Array.isArray(drv.kycDocuments)
+          ? { ...(drv.kycDocuments as Record<string, any>) }
+          : {};
+      if (idType.includes('PAN') && safeIdNo && !existingKyc.panNumber) {
+        existingKyc.panNumber = safeIdNo.trim().toUpperCase();
+      }
+      if (idType.includes('DRIVING') && safeIdNo && !existingKyc.dlNumber) {
+        existingKyc.dlNumber = safeIdNo.trim().toUpperCase().replace(/\s+/g, '');
+      }
+      if ((idType === 'RC' || idType.includes('VEHICLE')) && safeIdNo && !existingKyc.rcNumber) {
+        existingKyc.rcNumber = safeIdNo.trim().toUpperCase().replace(/[\s-]+/g, '');
+      }
+      if (attrs?.dob && !existingKyc.dateOfBirth) {
+        existingKyc.dateOfBirth = String(attrs.dob).trim();
+      }
+      await this.db.driver.update({
+        where: { id: ctx.driverId },
+        data: { kycDocuments: existingKyc as any },
+      });
+    }
+
+    const summaryPayload = {
+      detectedType: idType,
+      detectedPart: primary?.detected_part || null,
+      idNumber: safeIdNo || null,
+      name: attrs?.name || null,
+      dob: attrs?.dob || null,
+      gender: attrs?.gender || null,
+      address: attrs?.address || null,
+      qualityChecks: frontChecks,
+      maskedStoredUrl,
+      ocrVerified: primary?.verification_result?.verified ?? null,
+    };
+
+    const ocrRecord = await this.saveVerificationRecord({
       ctx,
       verificationType: 'ID_OCR',
       category: 'KYC',
@@ -1123,20 +1249,45 @@ export class DigioService {
         frontChecks?.blur === true
           ? 'Image appears blurry — clearer capture recommended'
           : `Detected ${idType}${attrs?.name ? ` (${attrs.name})` : ''}`,
-      summary: {
-        detectedType: idType,
-        detectedPart: primary?.detected_part || null,
-        idNumber: safeIdNo || null,
-        name: attrs?.name || null,
-        dob: attrs?.dob || null,
-        gender: attrs?.gender || null,
-        address: attrs?.address || null,
-        qualityChecks: frontChecks,
-        maskedStoredUrl,
-        ocrVerified: primary?.verification_result?.verified ?? null,
-      },
+      summary: summaryPayload,
       rawResponse: res,
     });
+
+    if (ctx.driverId && subKey !== 'ID_OCR') {
+      await this.syncDriverDigioMetadata(ctx.driverId, subKey, {
+        verificationId: ocrRecord.id,
+        verified: ocrRecord.verified,
+        status: ocrRecord.status,
+        identifier: ocrRecord.identifier,
+        verifiedName: ocrRecord.verifiedName,
+        complianceOk: ocrRecord.complianceOk,
+        complianceNotes: ocrRecord.complianceNotes,
+        summary: ocrRecord.summary,
+        verifiedAt: ocrRecord.verifiedAt || null,
+      });
+    }
+
+    if (idType.includes('AADHAAR') && maskedStoredUrl && ctx.driverId) {
+      await this.saveVerificationRecord({
+        ctx,
+        verificationType: 'AADHAAR_MASK',
+        category: 'KYC',
+        status: 'VERIFIED',
+        verified: true,
+        identifier: params.aadhaarSide || 'FRONT',
+        uniqueRequestId: `${reqId}_MASK`,
+        verifiedName: attrs?.name || null,
+        complianceOk: true,
+        complianceNotes: 'Aadhaar digits masked automatically during OCR',
+        summary: {
+          side: params.aadhaarSide || 'FRONT',
+          maskedStoredUrl,
+          source: 'ID_OCR',
+        },
+      });
+    }
+
+    return ocrRecord;
   }
 
   async analyzeStoredIdCard(actor: AuthUserDto, dto: AnalyzeStoredIdCardDto) {
@@ -1844,7 +1995,7 @@ export class DigioService {
   // ---------------------------------------------------------------------------
 
   async fuzzyMatch(actor: AuthUserDto, dto: FuzzyMatchDto) {
-    const ctx = await this.resolveContext(actor);
+    const ctx = await this.resolveContext(actor, dto.targetDriverId);
     const reqId = this.digioClient.generateUniqueRequestId('FUZ');
 
     const res = await this.digioClient.fuzzyMatch({
@@ -2159,6 +2310,105 @@ export class DigioService {
     };
   }
 
+  /**
+   * Pull verified DigiLocker documents (Aadhaar, PAN, Driving License, Vehicle RC)
+   * using Digio /client/kyc/v2/media/:fileId, sanitize & store into R2/local storage,
+   * and attach URLs to the Driver profile automatically.
+   */
+  async syncDigilockerMedia(actor: AuthUserDto, digioRequestId: string) {
+    const existing = await this.db.digioVerification.findUnique({
+      where: { digioRequestId },
+    });
+    if (!existing) {
+      throw new NotFoundException(`Digio KYC request ${digioRequestId} not found`);
+    }
+    if (actor.role !== UserRole.ADMIN && existing.userId !== actor.id) {
+      throw new ForbiddenException('You do not have access to this KYC session');
+    }
+
+    const res = await this.digioClient.getKycRequestResponse(digioRequestId);
+    const actions: any[] = Array.isArray(res?.actions) ? res.actions : [];
+    const attachedFiles: Array<{ docType: string; fileId: string; url: string }> = [];
+    const driverPatch: Record<string, string> = {};
+
+    const candidates: Array<{ docType: string; fileId: string }> = [];
+    for (const action of actions) {
+      const details = action?.details || {};
+      const tryPush = (docType: string, fId?: unknown) => {
+        if (typeof fId === 'string' && fId.trim()) {
+          candidates.push({ docType, fileId: fId.trim() });
+        }
+      };
+      tryPush('AADHAAR', details?.aadhaar?.file_id || details?.AADHAAR?.file_id);
+      tryPush('PAN', details?.pan?.file_id || details?.PAN?.file_id);
+      tryPush(
+        'DRIVING_LICENSE',
+        details?.driving_licence?.file_id ||
+          details?.driving_license?.file_id ||
+          details?.DRIVING_LICENSE?.file_id,
+      );
+      tryPush(
+        'VEHICLE_RC',
+        details?.vehicle_rc?.file_id || details?.VEHICLE_RC?.file_id,
+      );
+      if (action?.file_id) {
+        tryPush(String(action?.doc_type || action?.type || 'DOCUMENT').toUpperCase(), action.file_id);
+      }
+    }
+
+    for (const item of candidates) {
+      try {
+        const media = await this.digioClient.downloadKycMedia(item.fileId, item.docType);
+        const buf =
+          media?.buffer ||
+          (media?.data?.base64 ? Buffer.from(String(media.data.base64), 'base64') : null);
+        if (!buf || !buf.length) continue;
+
+        const ext = media.contentType?.includes('pdf')
+          ? 'pdf'
+          : media.contentType?.includes('png')
+            ? 'png'
+            : 'jpg';
+        const saved = await this.storageService.saveFile({
+          buffer: buf,
+          originalname: `digilocker-${item.docType.toLowerCase()}-${Date.now()}.${ext}`,
+          mimetype: media.contentType || 'image/jpeg',
+          size: buf.length,
+        });
+
+        attachedFiles.push({ docType: item.docType, fileId: item.fileId, url: saved.url });
+        if (existing.driverId) {
+          if (item.docType.includes('AADHAAR') && !driverPatch.aadharFrontUrl) {
+            driverPatch.aadharFrontUrl = saved.url;
+          } else if (item.docType.includes('DRIVING') && !driverPatch.dlFrontUrl) {
+            driverPatch.dlFrontUrl = saved.url;
+          } else if (item.docType.includes('PAN') && !driverPatch.panDocUrl) {
+            driverPatch.panDocUrl = saved.url;
+          } else if (item.docType.includes('RC') && !driverPatch.rcDocUrl) {
+            driverPatch.rcDocUrl = saved.url;
+          }
+        }
+      } catch (err: any) {
+        this.logger.warn(
+          `Failed syncing DigiLocker media ${item.docType} (${item.fileId}): ${err?.message}`,
+        );
+      }
+    }
+
+    if (existing.driverId && Object.keys(driverPatch).length) {
+      await this.db.driver.update({
+        where: { id: existing.driverId },
+        data: driverPatch,
+      });
+    }
+
+    return {
+      digioRequestId,
+      attachedCount: attachedFiles.length,
+      attachedFiles,
+    };
+  }
+
   async handleWebhook(params: {
     rawBody?: Buffer | string;
     checksumHeader?: string;
@@ -2345,11 +2595,34 @@ export class DigioService {
       }
     }
 
+    // 7. Identity Name Cross-Check via Digio Fuzzy Match
+    const referenceName =
+      results.DRIVING_LICENSE?.verifiedName ||
+      results.PAN?.verifiedName ||
+      results.BANK_ACCOUNT?.verifiedName ||
+      results.AADHAAR_OCR_AND_MASK?.verifiedName;
+    if (dto.includeFuzzyMatch !== false && driver.fullName && referenceName) {
+      try {
+        results.FUZZY_MATCH = await this.fuzzyMatch(adminUser, {
+          sourceText: driver.fullName,
+          targetText: String(referenceName),
+          context: 'name',
+          minConfidence: 75,
+          targetDriverId: driverId,
+        });
+      } catch (err: any) {
+        errors.FUZZY_MATCH = err?.message || 'Name fuzzy match failed';
+      }
+    }
+
+    const latestState = await this.getDriverVerificationsForAdmin(driverId);
+
     return {
       driverId,
       executedChecks: Object.keys(results),
       results,
       errors,
+      complianceAlerts: latestState.complianceAlerts,
     };
   }
 }

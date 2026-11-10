@@ -293,7 +293,29 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
               expectedIds: const ['PAN'],
               saveMaskedToDriver: false,
             )
-            .catchError((_) => <String, dynamic>{});
+            .then((res) {
+          final summary = res['summary'];
+          if (summary is Map && summary['idNumber'] != null) {
+            onboarding.setKycIdentifiers(
+              panNumber: summary['idNumber'].toString(),
+            );
+          }
+        }).catchError((_) {});
+      } else if (docType == 'DRIVING_LICENSE') {
+        DigioService.instance
+            .analyzeStoredIdCard(
+              frontDocUrl: uploadedUrl.toString(),
+              expectedIds: const ['DRIVING_LICENCE'],
+              saveMaskedToDriver: false,
+            )
+            .then((res) {
+          final summary = res['summary'];
+          if (summary is Map && summary['idNumber'] != null) {
+            onboarding.setKycIdentifiers(
+              dlNumber: summary['idNumber'].toString(),
+            );
+          }
+        }).catchError((_) {});
       }
 
       if (mounted) {
@@ -334,7 +356,7 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
   }
 
   Future<void> _showPanVerifyDialog(BuildContext context, OnboardingProvider onboarding) async {
-    final panCtrl = TextEditingController();
+    final panCtrl = TextEditingController(text: onboarding.panNumber);
     bool busy = false;
     String? err;
     await showDialog<void>(
@@ -383,6 +405,9 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
                           panNumber: pan,
                           name: onboarding.fullName.isNotEmpty ? onboarding.fullName : null,
                         );
+                        if (res['verified'] == true) {
+                          onboarding.setKycIdentifiers(panNumber: pan);
+                        }
                         if (ctx.mounted) Navigator.pop(ctx);
                         if (context.mounted) {
                           if (res['verified'] == true) {
@@ -413,7 +438,7 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
   }
 
   Future<void> _showDlVerifyDialog(BuildContext context, OnboardingProvider onboarding) async {
-    final dlCtrl = TextEditingController();
+    final dlCtrl = TextEditingController(text: onboarding.dlNumber);
     final defaultDob = onboarding.dateOfBirth != null
         ? '${onboarding.dateOfBirth!.day.toString().padLeft(2, '0')}/${onboarding.dateOfBirth!.month.toString().padLeft(2, '0')}/${onboarding.dateOfBirth!.year}'
         : '';
@@ -468,11 +493,15 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
                         err = null;
                       });
                       try {
+                        final cleanDl = dlCtrl.text.trim().toUpperCase().replaceAll(RegExp(r'\s+'), '');
                         final res = await DigioService.instance.verifyDrivingLicense(
-                          dlNumber: dlCtrl.text.trim(),
+                          dlNumber: cleanDl,
                           dob: dobCtrl.text.trim(),
                           name: onboarding.fullName.isNotEmpty ? onboarding.fullName : null,
                         );
+                        if (res['verified'] == true) {
+                          onboarding.setKycIdentifiers(dlNumber: cleanDl);
+                        }
                         if (ctx.mounted) Navigator.pop(ctx);
                         if (context.mounted) {
                           if (res['verified'] == true && res['complianceOk'] == true) {
@@ -576,6 +605,36 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
                           onPressed: () async {
                             try {
                               final res = await DigioService.instance.syncDigilockerStatus(activeKid);
+                              if (res['verified'] == true) {
+                                final summary = res['summary'];
+                                if (summary is Map) {
+                                  onboarding.setKycIdentifiers(
+                                    panNumber: summary['extractedPan']?.toString(),
+                                    dlNumber: summary['extractedDl']?.toString(),
+                                  );
+                                }
+                                try {
+                                  final mediaRes = await DigioService.instance.syncDigilockerMedia(activeKid);
+                                  final files = mediaRes['attachedFiles'];
+                                  if (files is List) {
+                                    for (final f in files) {
+                                      if (f is Map) {
+                                        final dt = f['docType']?.toString() ?? '';
+                                        final u = f['url']?.toString();
+                                        if (u != null && u.isNotEmpty) {
+                                          if (dt.contains('AADHAAR') && onboarding.aadharFrontUrl == null) {
+                                            onboarding.setDocumentUrl('AADHAR_FRONT', u);
+                                          } else if (dt.contains('DRIVING') && onboarding.drivingLicenseUrl == null) {
+                                            onboarding.setDocumentUrl('DRIVING_LICENSE', u);
+                                          } else if (dt.contains('PAN') && onboarding.panCardUrl == null) {
+                                            onboarding.setDocumentUrl('PAN_CARD', u);
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                } catch (_) {}
+                              }
                               if (context.mounted) {
                                 AppToast.showInfo(
                                   res['verified'] == true

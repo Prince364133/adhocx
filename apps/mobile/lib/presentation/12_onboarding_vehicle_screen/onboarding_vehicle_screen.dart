@@ -353,6 +353,38 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
 
       onboarding.setDocumentUrl(docType, uploadedUrl);
 
+      // Background Digio OCR & quality check for Vehicle RC upload
+      if (docType == 'RC_FRONT') {
+        DigioService.instance
+            .analyzeStoredIdCard(
+              frontDocUrl: uploadedUrl.toString(),
+              expectedIds: const ['RC'],
+              saveMaskedToDriver: false,
+            )
+            .then((res) {
+          final summary = res['summary'];
+          if (summary is Map && summary['idNumber'] != null) {
+            final extractedRc = summary['idNumber']
+                .toString()
+                .trim()
+                .toUpperCase()
+                .replaceAll(RegExp(r'[\s-]+'), '');
+            if (extractedRc.length >= 6) {
+              onboarding.setKycIdentifiers(rcNumber: extractedRc);
+              if (_plateController.text.trim().isEmpty && mounted) {
+                _plateController.text = extractedRc;
+              }
+            }
+          }
+          if (mounted && res['complianceOk'] == false) {
+            AppToast.showInfo(
+              res['complianceNotes']?.toString() ?? 'RC photo uploaded; clearer image recommended.',
+              context: context,
+            );
+          }
+        }).catchError((_) {});
+      }
+
       if (mounted) {
         AppToast.showSuccess('$docTitle uploaded successfully', context: context);
       }
@@ -432,9 +464,16 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
         if (onboarding.insuranceUrl != null) onboarding.insuranceUrl!,
       ];
 
+      final effectiveDlNo = onboarding.dlNumber.isNotEmpty
+          ? onboarding.dlNumber
+          : (plate.isNotEmpty ? 'DL-$plate' : 'DL-PENDING');
+
       // 1. Submit complete KYC & Vehicle details to Backend API
       await driverService.submitKyc(
-        licenseNumber: plate.isNotEmpty ? 'DL-$plate' : 'DL-PENDING',
+        licenseNumber: effectiveDlNo,
+        dlNumber: onboarding.dlNumber.isNotEmpty ? onboarding.dlNumber : null,
+        panNumber: onboarding.panNumber.isNotEmpty ? onboarding.panNumber : null,
+        rcNumber: plate.isNotEmpty ? plate : null,
         licenseExpiry: DateTime.now().add(const Duration(days: 365 * 5)),
         documentUrls: docList,
         fullName: !isPlaceholderName(onboarding.fullName) ? onboarding.fullName.trim() : null,

@@ -613,8 +613,8 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
                 </div>
               )}
 
-              {/* Digio Live Govt KYC / Biometric / KYB Verification Panel */}
-              <DigioVerificationPanel item={item} />
+              {/* Digio Driver Identity, DL & Vehicle RC Verification Panel */}
+              {item.entityType === 'DRIVER' && <DigioVerificationPanel item={item} />}
             </div>
           </div>
 

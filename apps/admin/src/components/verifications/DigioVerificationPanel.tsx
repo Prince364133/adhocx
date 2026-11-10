@@ -12,9 +12,13 @@ import {
   ScanFace,
   Car,
   CreditCard,
-  Building2,
+  ShieldAlert,
+  UserCheck,
+  DownloadCloud,
+  Landmark,
 } from 'lucide-react';
 import {
+  DigioComplianceAlert,
   DigioEntityVerificationsResponse,
   DigioVerificationItem,
   VerificationItem,
@@ -34,17 +38,9 @@ const DRIVER_CHECK_LABELS: Array<{ key: string; label: string }> = [
   { key: 'VEHICLE_RC', label: 'Vehicle RC (Vahan)' },
   { key: 'FACE_MATCH', label: 'Face Match' },
   { key: 'LIVENESS', label: 'Selfie Liveness' },
+  { key: 'FUZZY_MATCH', label: 'Name Cross-Match' },
   { key: 'BANK_ACCOUNT', label: 'Bank Account' },
   { key: 'UPI_VPA', label: 'UPI VPA' },
-];
-
-const VENDOR_CHECK_LABELS: Array<{ key: string; label: string }> = [
-  { key: 'GST', label: 'GSTIN Registry' },
-  { key: 'PAN', label: 'Company / Signatory PAN' },
-  { key: 'CIN', label: 'MCA CIN' },
-  { key: 'UDYAM', label: 'MSME Udyam' },
-  { key: 'PAN_TO_GST', label: 'PAN → GSTIN Discovery' },
-  { key: 'DIGILOCKER', label: 'DigiLocker' },
 ];
 
 export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ item }) => {
@@ -54,35 +50,36 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [statusBanner, setStatusBanner] = useState<string | null>(null);
 
-  // Quick manual inputs for missing/override IDs
+  // Manual override inputs when driver skipped pre-verification on onboarding
   const [panInput, setPanInput] = useState('');
   const [dlInput, setDlInput] = useState('');
   const [dobInput, setDobInput] = useState('');
   const [rcInput, setRcInput] = useState(item.vehiclePlate || '');
-  const [gstInput, setGstInput] = useState(item.gstNumber || '');
-  const [cinInput, setCinInput] = useState('');
+
+  const isDriver = item.entityType === 'DRIVER';
 
   const loadVerifications = useCallback(async () => {
+    if (!isDriver) return;
     setLoading(true);
     setErrorMsg(null);
     try {
-      const res =
-        item.entityType === 'DRIVER'
-          ? await adminApi.getDriverDigioVerifications(item.id)
-          : await adminApi.getVendorDigioVerifications(item.id);
+      const res = await adminApi.getDriverDigioVerifications(item.id);
       setData(res);
     } catch (err: any) {
       setErrorMsg(err?.message || 'Unable to load Digio verification telemetry');
     } finally {
       setLoading(false);
     }
-  }, [item.id, item.entityType]);
+  }, [item.id, isDriver]);
 
   useEffect(() => {
     setRcInput(item.vehiclePlate || '');
-    setGstInput(item.gstNumber || '');
     loadVerifications();
-  }, [loadVerifications, item.vehiclePlate, item.gstNumber]);
+  }, [loadVerifications, item.vehiclePlate]);
+
+  if (!isDriver) {
+    return null;
+  }
 
   const handleRunDriverSuite = async () => {
     setRunning(true);
@@ -90,6 +87,7 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
     setStatusBanner(null);
     try {
       const res = await adminApi.runDriverDigioSuite(item.id, {
+        includeFuzzyMatch: true,
         ...(panInput.trim() ? { panOverride: panInput.trim().toUpperCase() } : {}),
         ...(dlInput.trim() ? { dlOverride: dlInput.trim().toUpperCase() } : {}),
         ...(dobInput.trim() ? { dobOverride: dobInput.trim() } : {}),
@@ -98,7 +96,11 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
       const errCount = Object.keys(res.errors || {}).length;
       setStatusBanner(
         `Executed ${res.executedChecks.length} check(s)${
-          errCount ? ` (${errCount} skipped/error: ${Object.entries(res.errors).map(([k, v]) => `${k}: ${v}`).join('; ')})` : ' successfully'
+          errCount
+            ? ` (${errCount} skipped/error: ${Object.entries(res.errors)
+                .map(([k, v]) => `${k}: ${v}`)
+                .join('; ')})`
+            : ' cleanly'
         }`,
       );
       await loadVerifications();
@@ -181,8 +183,17 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
     );
   };
 
-  const checkDefs = item.entityType === 'DRIVER' ? DRIVER_CHECK_LABELS : VENDOR_CHECK_LABELS;
   const latest = data?.latestByType || {};
+  const alerts: DigioComplianceAlert[] = data?.complianceAlerts || [];
+  const aadharFrontDoc = item.documents?.find((d) =>
+    String(d.documentType || '').toUpperCase().includes('AADHAR'),
+  );
+  const digilockerReqId = latest['DIGILOCKER']?.digioRequestId;
+  const rcRec = latest['VEHICLE_RC'];
+  const dlRec = latest['DRIVING_LICENSE'];
+  const bankRec = latest['BANK_ACCOUNT'];
+  const referenceName =
+    dlRec?.verifiedName || latest['PAN']?.verifiedName || bankRec?.verifiedName;
 
   return (
     <div
@@ -208,15 +219,15 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
           <ShieldCheck size={20} color="#6366f1" />
           <div>
             <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              Digio Govt, Biometric & KYB Verification Engine
+              Digio Driver Identity, DL & Vehicle RC Engine
             </h3>
             <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              Real-time Parivahan RC, DL, PAN, Aadhaar Masking, Face Match & Bank Account checks
+              Parivahan RC, Commercial DL, PAN, Aadhaar Masking, Liveness, Face Match & Payout checks
             </p>
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button
             type="button"
             onClick={loadVerifications}
@@ -238,31 +249,60 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
             <RefreshCw size={13} /> Refresh
           </button>
 
-          {item.entityType === 'DRIVER' && (
-            <button
-              type="button"
-              onClick={handleRunDriverSuite}
-              disabled={running}
-              style={{
-                padding: '0.45rem 0.9rem',
-                borderRadius: '8px',
-                background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
-                border: 'none',
-                color: '#ffffff',
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                cursor: running ? 'wait' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-              }}
-            >
-              {running ? <Loader2 size={13} className="animate-spin" /> : <Play size={13} />}
-              Run Full Digio Suite
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={handleRunDriverSuite}
+            disabled={running}
+            style={{
+              padding: '0.45rem 0.9rem',
+              borderRadius: '8px',
+              background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+              border: 'none',
+              color: '#ffffff',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              cursor: running ? 'wait' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+            }}
+          >
+            {running ? <Loader2 size={13} className="animate-spin" /> : <Play size={13} />}
+            Run Full Digio Suite
+          </button>
         </div>
       </div>
+
+      {/* Compliance Blockers & Warnings */}
+      {alerts.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '0.85rem' }}>
+          {alerts.map((al, i) => {
+            const isBlocker = al.severity === 'BLOCKER';
+            return (
+              <div
+                key={`${al.code}-${i}`}
+                style={{
+                  padding: '0.55rem 0.85rem',
+                  borderRadius: '8px',
+                  background: isBlocker ? 'rgba(244, 63, 94, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+                  border: `1px solid ${isBlocker ? 'rgba(244, 63, 94, 0.35)' : 'rgba(245, 158, 11, 0.35)'}`,
+                  color: isBlocker ? '#f43f5e' : '#d97706',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                }}
+              >
+                <ShieldAlert size={14} />
+                <span>
+                  <strong>[{al.severity}]</strong> {al.message}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {statusBanner && (
         <div
@@ -312,7 +352,7 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
             marginBottom: '1rem',
           }}
         >
-          {checkDefs.map((def) => {
+          {DRIVER_CHECK_LABELS.map((def) => {
             const rec = latest[def.key];
             return (
               <div
@@ -351,281 +391,354 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
         </div>
       )}
 
-      {/* Targeted Quick Actions */}
-      {item.entityType === 'DRIVER' ? (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            gap: '0.75rem',
-            paddingTop: '0.75rem',
-            borderTop: '1px solid var(--border)',
-          }}
-        >
-          <div style={{ display: 'flex', gap: '0.4rem' }}>
-            <input
-              placeholder="PAN Override (ABCDE1234F)"
-              value={panInput}
-              onChange={(e) => setPanInput(e.target.value.toUpperCase())}
-              style={{
-                flex: 1,
-                padding: '0.4rem 0.6rem',
-                borderRadius: '6px',
-                border: '1px solid var(--border)',
-                background: 'var(--bg-surface)',
-                color: 'var(--text-primary)',
-                fontSize: '0.75rem',
-              }}
-            />
-            <button
-              type="button"
-              disabled={running || panInput.trim().length !== 10}
-              onClick={() =>
-                runSingleAction('PAN Check', () =>
-                  adminApi.verifyPanDigio({
-                    panNumber: panInput.trim(),
-                    name: item.name,
-                    targetDriverId: item.id,
-                  }),
-                )
-              }
-              style={{
-                padding: '0.4rem 0.65rem',
-                borderRadius: '6px',
-                border: '1px solid var(--border)',
-                background: 'var(--bg-surface-elevated)',
-                color: 'var(--text-primary)',
-                fontSize: '0.72rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              <CreditCard size={12} /> PAN
-            </button>
-          </div>
-
-          <div style={{ display: 'flex', gap: '0.4rem' }}>
-            <input
-              placeholder="DL No."
-              value={dlInput}
-              onChange={(e) => setDlInput(e.target.value.toUpperCase())}
-              style={{
-                width: '48%',
-                padding: '0.4rem 0.6rem',
-                borderRadius: '6px',
-                border: '1px solid var(--border)',
-                background: 'var(--bg-surface)',
-                color: 'var(--text-primary)',
-                fontSize: '0.75rem',
-              }}
-            />
-            <input
-              placeholder="DOB (DD/MM/YYYY)"
-              value={dobInput}
-              onChange={(e) => setDobInput(e.target.value)}
-              style={{
-                width: '36%',
-                padding: '0.4rem 0.5rem',
-                borderRadius: '6px',
-                border: '1px solid var(--border)',
-                background: 'var(--bg-surface)',
-                color: 'var(--text-primary)',
-                fontSize: '0.75rem',
-              }}
-            />
-            <button
-              type="button"
-              disabled={running || dlInput.trim().length < 6 || dobInput.trim().length < 8}
-              onClick={() =>
-                runSingleAction('DL Check', () =>
-                  adminApi.verifyDlDigio({
-                    dlNumber: dlInput.trim(),
-                    dob: dobInput.trim(),
-                    name: item.name,
-                    targetDriverId: item.id,
-                  }),
-                )
-              }
-              style={{
-                padding: '0.4rem 0.6rem',
-                borderRadius: '6px',
-                border: '1px solid var(--border)',
-                background: 'var(--bg-surface-elevated)',
-                color: 'var(--text-primary)',
-                fontSize: '0.72rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              DL
-            </button>
-          </div>
-
-          <div style={{ display: 'flex', gap: '0.4rem' }}>
-            <input
-              placeholder="Vehicle Plate (RC)"
-              value={rcInput}
-              onChange={(e) => setRcInput(e.target.value.toUpperCase())}
-              style={{
-                flex: 1,
-                padding: '0.4rem 0.6rem',
-                borderRadius: '6px',
-                border: '1px solid var(--border)',
-                background: 'var(--bg-surface)',
-                color: 'var(--text-primary)',
-                fontSize: '0.75rem',
-              }}
-            />
-            <button
-              type="button"
-              disabled={running || rcInput.trim().length < 6}
-              onClick={() =>
-                runSingleAction('Vehicle RC Check', () =>
-                  adminApi.verifyRcDigio({
-                    registrationNumber: rcInput.trim(),
-                    targetDriverId: item.id,
-                  }),
-                )
-              }
-              style={{
-                padding: '0.4rem 0.65rem',
-                borderRadius: '6px',
-                border: '1px solid var(--border)',
-                background: 'var(--bg-surface-elevated)',
-                color: 'var(--text-primary)',
-                fontSize: '0.72rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.25rem',
-              }}
-            >
-              <Car size={12} /> RC
-            </button>
-            <button
-              type="button"
-              disabled={running}
-              onClick={() =>
-                runSingleAction('Face Match', () => adminApi.faceMatchDriverDigio(item.id))
-              }
-              style={{
-                padding: '0.4rem 0.65rem',
-                borderRadius: '6px',
-                border: '1px solid var(--border)',
-                background: 'var(--bg-surface-elevated)',
-                color: 'var(--text-primary)',
-                fontSize: '0.72rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.25rem',
-              }}
-            >
-              <ScanFace size={12} /> Face
-            </button>
-          </div>
-        </div>
-      ) : (
+      {/* Verified Vahan RC / Commercial DL Compliance Breakdown */}
+      {(rcRec?.summary || dlRec?.summary) && (
         <div
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
             gap: '0.75rem',
-            paddingTop: '0.75rem',
-            borderTop: '1px solid var(--border)',
+            marginBottom: '1rem',
           }}
         >
-          <div style={{ display: 'flex', gap: '0.4rem' }}>
-            <input
-              placeholder="GSTIN (15-char)"
-              value={gstInput}
-              onChange={(e) => setGstInput(e.target.value.toUpperCase())}
+          {rcRec?.summary && (
+            <div
               style={{
-                flex: 1,
-                padding: '0.4rem 0.6rem',
-                borderRadius: '6px',
-                border: '1px solid var(--border)',
+                padding: '0.75rem 0.9rem',
+                borderRadius: '8px',
                 background: 'var(--bg-surface)',
-                color: 'var(--text-primary)',
-                fontSize: '0.75rem',
-              }}
-            />
-            <button
-              type="button"
-              disabled={running || gstInput.trim().length !== 15}
-              onClick={() =>
-                runSingleAction('GSTIN Check', () =>
-                  adminApi.verifyGstDigio({
-                    gstin: gstInput.trim(),
-                    advanced: true,
-                    targetVendorId: item.id,
-                    saveToVendorProfile: true,
-                  }),
-                )
-              }
-              style={{
-                padding: '0.4rem 0.7rem',
-                borderRadius: '6px',
                 border: '1px solid var(--border)',
-                background: 'var(--bg-surface-elevated)',
-                color: 'var(--text-primary)',
-                fontSize: '0.72rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.25rem',
+                fontSize: '0.73rem',
+                color: 'var(--text-secondary)',
               }}
             >
-              <Building2 size={12} /> Verify GSTIN
-            </button>
-          </div>
+              <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.35rem' }}>
+                Vahan RC Breakdown ({rcRec.summary.rcNumber || rcRec.identifier})
+              </div>
+              <div>Model: {rcRec.summary.makerModel || '—'} ({rcRec.summary.fuelType || '—'})</div>
+              <div>Status: {rcRec.summary.rcStatus || '—'} • Blacklist: {rcRec.summary.blacklistStatus || 'NONE'}</div>
+              <div>Fitness Upto: {rcRec.summary.fitUpto || '—'} • PUCC Upto: {rcRec.summary.puccUpto || '—'}</div>
+              <div>
+                Insurance: {rcRec.summary.insuranceCompany || '—'} (Till {rcRec.summary.insuranceUpto || '—'})
+              </div>
+              <div>
+                Permit: {rcRec.summary.permitType || '—'} (Till {rcRec.summary.nationalPermitUpto || rcRec.summary.permitValidUpto || '—'})
+              </div>
+              <div>Challans Recorded: {rcRec.summary.challanCount ?? 0}</div>
+            </div>
+          )}
 
-          <div style={{ display: 'flex', gap: '0.4rem' }}>
-            <input
-              placeholder="MCA CIN (21-char)"
-              value={cinInput}
-              onChange={(e) => setCinInput(e.target.value.toUpperCase())}
+          {dlRec?.summary && (
+            <div
               style={{
-                flex: 1,
-                padding: '0.4rem 0.6rem',
-                borderRadius: '6px',
-                border: '1px solid var(--border)',
+                padding: '0.75rem 0.9rem',
+                borderRadius: '8px',
                 background: 'var(--bg-surface)',
-                color: 'var(--text-primary)',
-                fontSize: '0.75rem',
-              }}
-            />
-            <button
-              type="button"
-              disabled={running || cinInput.trim().length < 15}
-              onClick={() =>
-                runSingleAction('MCA CIN Check', () =>
-                  adminApi.verifyCinDigio({
-                    cin: cinInput.trim(),
-                    targetVendorId: item.id,
-                  }),
-                )
-              }
-              style={{
-                padding: '0.4rem 0.7rem',
-                borderRadius: '6px',
                 border: '1px solid var(--border)',
-                background: 'var(--bg-surface-elevated)',
-                color: 'var(--text-primary)',
-                fontSize: '0.72rem',
-                fontWeight: 600,
-                cursor: 'pointer',
+                fontSize: '0.73rem',
+                color: 'var(--text-secondary)',
               }}
             >
-              Verify CIN
-            </button>
-          </div>
+              <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.35rem' }}>
+                Driving License Details ({dlRec.summary.dlNumber || dlRec.identifier})
+              </div>
+              <div>Holder: {dlRec.summary.holderName || dlRec.verifiedName || '—'}</div>
+              <div>Status: {dlRec.summary.status || '—'} • Issue Date: {dlRec.summary.issueDate || '—'}</div>
+              <div>Non-Transport Valid To: {dlRec.summary.nonTransportValidTo || '—'}</div>
+              <div>Transport (Commercial) Valid To: {dlRec.summary.transportValidTo || '—'}</div>
+            </div>
+          )}
         </div>
       )}
+
+      {/* Quick Manual Triggers & Biometric/Aadhaar/DigiLocker Actions */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          gap: '0.75rem',
+          paddingTop: '0.75rem',
+          borderTop: '1px solid var(--border)',
+        }}
+      >
+        <div style={{ display: 'flex', gap: '0.4rem' }}>
+          <input
+            placeholder="PAN Override (ABCDE1234F)"
+            value={panInput}
+            onChange={(e) => setPanInput(e.target.value.toUpperCase())}
+            style={{
+              flex: 1,
+              padding: '0.4rem 0.6rem',
+              borderRadius: '6px',
+              border: '1px solid var(--border)',
+              background: 'var(--bg-surface)',
+              color: 'var(--text-primary)',
+              fontSize: '0.75rem',
+            }}
+          />
+          <button
+            type="button"
+            disabled={running || panInput.trim().length !== 10}
+            onClick={() =>
+              runSingleAction('PAN Check', () =>
+                adminApi.verifyPanDigio({
+                  panNumber: panInput.trim(),
+                  name: item.name,
+                  targetDriverId: item.id,
+                }),
+              )
+            }
+            style={{
+              padding: '0.4rem 0.65rem',
+              borderRadius: '6px',
+              border: '1px solid var(--border)',
+              background: 'var(--bg-surface-elevated)',
+              color: 'var(--text-primary)',
+              fontSize: '0.72rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            <CreditCard size={12} /> PAN
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', gap: '0.4rem' }}>
+          <input
+            placeholder="DL No."
+            value={dlInput}
+            onChange={(e) => setDlInput(e.target.value.toUpperCase())}
+            style={{
+              width: '48%',
+              padding: '0.4rem 0.6rem',
+              borderRadius: '6px',
+              border: '1px solid var(--border)',
+              background: 'var(--bg-surface)',
+              color: 'var(--text-primary)',
+              fontSize: '0.75rem',
+            }}
+          />
+          <input
+            placeholder="DOB (DD/MM/YYYY)"
+            value={dobInput}
+            onChange={(e) => setDobInput(e.target.value)}
+            style={{
+              width: '36%',
+              padding: '0.4rem 0.5rem',
+              borderRadius: '6px',
+              border: '1px solid var(--border)',
+              background: 'var(--bg-surface)',
+              color: 'var(--text-primary)',
+              fontSize: '0.75rem',
+            }}
+          />
+          <button
+            type="button"
+            disabled={running || dlInput.trim().length < 6 || dobInput.trim().length < 8}
+            onClick={() =>
+              runSingleAction('DL Check', () =>
+                adminApi.verifyDlDigio({
+                  dlNumber: dlInput.trim(),
+                  dob: dobInput.trim(),
+                  name: item.name,
+                  targetDriverId: item.id,
+                }),
+              )
+            }
+            style={{
+              padding: '0.4rem 0.6rem',
+              borderRadius: '6px',
+              border: '1px solid var(--border)',
+              background: 'var(--bg-surface-elevated)',
+              color: 'var(--text-primary)',
+              fontSize: '0.72rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            DL
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+          <input
+            placeholder="Vehicle Plate (RC)"
+            value={rcInput}
+            onChange={(e) => setRcInput(e.target.value.toUpperCase())}
+            style={{
+              flex: 1,
+              minWidth: '120px',
+              padding: '0.4rem 0.6rem',
+              borderRadius: '6px',
+              border: '1px solid var(--border)',
+              background: 'var(--bg-surface)',
+              color: 'var(--text-primary)',
+              fontSize: '0.75rem',
+            }}
+          />
+          <button
+            type="button"
+            disabled={running || rcInput.trim().length < 6}
+            onClick={() =>
+              runSingleAction('Vehicle RC Check', () =>
+                adminApi.verifyRcDigio({
+                  registrationNumber: rcInput.trim(),
+                  targetDriverId: item.id,
+                }),
+              )
+            }
+            style={{
+              padding: '0.4rem 0.65rem',
+              borderRadius: '6px',
+              border: '1px solid var(--border)',
+              background: 'var(--bg-surface-elevated)',
+              color: 'var(--text-primary)',
+              fontSize: '0.72rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.25rem',
+            }}
+          >
+            <Car size={12} /> RC
+          </button>
+        </div>
+      </div>
+
+      {/* Biometric, Aadhaar Masking, Name Match & DigiLocker Secondary Row */}
+      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.7rem' }}>
+        <button
+          type="button"
+          disabled={running}
+          onClick={() => runSingleAction('Face Match', () => adminApi.faceMatchDriverDigio(item.id))}
+          style={{
+            padding: '0.4rem 0.65rem',
+            borderRadius: '6px',
+            border: '1px solid var(--border)',
+            background: 'var(--bg-surface-elevated)',
+            color: 'var(--text-primary)',
+            fontSize: '0.72rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.25rem',
+          }}
+        >
+          <ScanFace size={12} /> Face Match
+        </button>
+
+        <button
+          type="button"
+          disabled={running}
+          onClick={() => runSingleAction('Selfie Liveness', () => adminApi.livenessDriverDigio(item.id))}
+          style={{
+            padding: '0.4rem 0.65rem',
+            borderRadius: '6px',
+            border: '1px solid var(--border)',
+            background: 'var(--bg-surface-elevated)',
+            color: 'var(--text-primary)',
+            fontSize: '0.72rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.25rem',
+          }}
+        >
+          <UserCheck size={12} /> Selfie Liveness
+        </button>
+
+        {aadharFrontDoc?.fileUrl && (
+          <button
+            type="button"
+            disabled={running}
+            onClick={() =>
+              runSingleAction('Aadhaar Mask', () =>
+                adminApi.maskAadhaarDriverDigio({
+                  documentUrl: aadharFrontDoc.fileUrl,
+                  side: 'FRONT',
+                  targetDriverId: item.id,
+                }),
+              )
+            }
+            style={{
+              padding: '0.4rem 0.65rem',
+              borderRadius: '6px',
+              border: '1px solid var(--border)',
+              background: 'var(--bg-surface-elevated)',
+              color: 'var(--text-primary)',
+              fontSize: '0.72rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.25rem',
+            }}
+          >
+            <Landmark size={12} /> Mask Aadhaar
+          </button>
+        )}
+
+        {referenceName && (
+          <button
+            type="button"
+            disabled={running}
+            onClick={() =>
+              runSingleAction('Fuzzy Name Match', () =>
+                adminApi.fuzzyMatchDriverDigio({
+                  sourceText: item.name,
+                  targetText: String(referenceName),
+                  context: 'name',
+                  minConfidence: 75,
+                  targetDriverId: item.id,
+                }),
+              )
+            }
+            style={{
+              padding: '0.4rem 0.65rem',
+              borderRadius: '6px',
+              border: '1px solid var(--border)',
+              background: 'var(--bg-surface-elevated)',
+              color: 'var(--text-primary)',
+              fontSize: '0.72rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            Cross-Check Name
+          </button>
+        )}
+
+        {digilockerReqId && (
+          <button
+            type="button"
+            disabled={running}
+            onClick={() =>
+              runSingleAction('Sync DigiLocker Media', async () => {
+                await adminApi.syncDigilockerStatusDigio(digilockerReqId);
+                return adminApi.syncDigilockerMediaDigio(digilockerReqId);
+              })
+            }
+            style={{
+              padding: '0.4rem 0.65rem',
+              borderRadius: '6px',
+              border: '1px solid var(--border)',
+              background: 'var(--bg-surface-elevated)',
+              color: 'var(--text-primary)',
+              fontSize: '0.72rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.25rem',
+            }}
+          >
+            <DownloadCloud size={12} /> Sync DigiLocker Docs
+          </button>
+        )}
+      </div>
     </div>
   );
 };
-

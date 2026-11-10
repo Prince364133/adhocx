@@ -211,13 +211,53 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
           fileName: filename,
           mimeType: mimeType,
         );
+        DigioService.instance
+            .checkUploadedLiveness(fileBytes: bytes, fileName: filename)
+            .catchError((_) => <String, dynamic>{});
       } else {
-        await DriverService.instance.uploadKycDocument(
+        final uploadRes = await DriverService.instance.uploadKycDocument(
           documentType: docType,
           fileBytes: bytes,
           filename: filename,
           mimeType: mimeType,
         );
+        final uploadedUrl = uploadRes is Map ? uploadRes['url']?.toString() : null;
+        if (uploadedUrl != null && uploadedUrl.isNotEmpty) {
+          if (docType == 'AADHAR_FRONT' || docType == 'AADHAR_BACK') {
+            DigioService.instance
+                .analyzeStoredIdCard(
+                  frontDocUrl: uploadedUrl,
+                  expectedIds: const ['AADHAAR'],
+                  saveMaskedToDriver: true,
+                  aadhaarSide: docType == 'AADHAR_BACK' ? 'BACK' : 'FRONT',
+                )
+                .catchError((_) => <String, dynamic>{});
+          } else if (docType == 'PAN_CARD') {
+            DigioService.instance
+                .analyzeStoredIdCard(
+                  frontDocUrl: uploadedUrl,
+                  expectedIds: const ['PAN'],
+                  saveMaskedToDriver: false,
+                )
+                .catchError((_) => <String, dynamic>{});
+          } else if (docType == 'DRIVING_LICENSE') {
+            DigioService.instance
+                .analyzeStoredIdCard(
+                  frontDocUrl: uploadedUrl,
+                  expectedIds: const ['DRIVING_LICENCE'],
+                  saveMaskedToDriver: false,
+                )
+                .catchError((_) => <String, dynamic>{});
+          } else if (docType == 'RC_FRONT') {
+            DigioService.instance
+                .analyzeStoredIdCard(
+                  frontDocUrl: uploadedUrl,
+                  expectedIds: const ['RC'],
+                  saveMaskedToDriver: false,
+                )
+                .catchError((_) => <String, dynamic>{});
+          }
+        }
       }
 
       if (mounted) {
@@ -858,6 +898,97 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
                                                   ),
                                                 );
                                               }).toList(),
+                                            ),
+                                            const SizedBox(height: 10),
+                                            ValueListenableBuilder<String?>(
+                                              valueListenable: DigioService.instance.activeDigilockerRequestId,
+                                              builder: (context, activeKid, _) {
+                                                return Wrap(
+                                                  spacing: 8,
+                                                  runSpacing: 6,
+                                                  children: [
+                                                    ActionChip(
+                                                      avatar: const Icon(Icons.account_balance_wallet_outlined, size: 15),
+                                                      label: const Text('Connect DigiLocker', style: TextStyle(fontSize: 11)),
+                                                      onPressed: () async {
+                                                        try {
+                                                          final s = await DigioService.instance.createDigilockerSession(
+                                                            customerIdentifier: _profile['phone']?.toString(),
+                                                            customerName: _profile['fullName']?.toString(),
+                                                          );
+                                                          final url = s['gatewayUrl']?.toString();
+                                                          if (url != null && url.isNotEmpty) {
+                                                            await DigioService.instance.launchGatewayUrl(url);
+                                                          }
+                                                          if (context.mounted) {
+                                                            AppToast.showInfo('Complete DigiLocker authorization then tap Sync.', context: context);
+                                                          }
+                                                        } catch (e) {
+                                                          if (context.mounted) AppToast.showError(AppToast.cleanErrorMessage(e), context: context);
+                                                        }
+                                                      },
+                                                    ),
+                                                    if (activeKid != null)
+                                                      ActionChip(
+                                                        avatar: const Icon(Icons.sync_rounded, size: 15),
+                                                        label: const Text('Sync DigiLocker', style: TextStyle(fontSize: 11)),
+                                                        onPressed: () async {
+                                                          try {
+                                                            final r = await DigioService.instance.syncDigilockerStatus(activeKid);
+                                                            if (r['verified'] == true) {
+                                                              await DigioService.instance.syncDigilockerMedia(activeKid).catchError((_) => <String, dynamic>{});
+                                                              await _fetchProfile();
+                                                            }
+                                                            if (context.mounted) {
+                                                              AppToast.showInfo('DigiLocker status: ${r['status']}', context: context);
+                                                            }
+                                                          } catch (e) {
+                                                            if (context.mounted) AppToast.showError(AppToast.cleanErrorMessage(e), context: context);
+                                                          }
+                                                        },
+                                                      ),
+                                                    ActionChip(
+                                                      avatar: const Icon(Icons.face_retouching_natural, size: 15),
+                                                      label: const Text('Run Face Match', style: TextStyle(fontSize: 11)),
+                                                      onPressed: () async {
+                                                        try {
+                                                          final r = await DigioService.instance.faceMatchStored();
+                                                          if (context.mounted) {
+                                                            AppToast.showInfo(
+                                                              r['verified'] == true
+                                                                  ? 'Face Match passed (${r['matchScore']}%)'
+                                                                  : (r['complianceNotes']?.toString() ?? 'Face match failed'),
+                                                              context: context,
+                                                            );
+                                                          }
+                                                        } catch (e) {
+                                                          if (context.mounted) AppToast.showError(AppToast.cleanErrorMessage(e), context: context);
+                                                        }
+                                                      },
+                                                    ),
+                                                    if (_profile['vehiclePlate'] != null && _profile['vehiclePlate'].toString().trim().isNotEmpty)
+                                                      ActionChip(
+                                                        avatar: const Icon(Icons.directions_car_filled_outlined, size: 15),
+                                                        label: const Text('Verify RC', style: TextStyle(fontSize: 11)),
+                                                        onPressed: () async {
+                                                          try {
+                                                            final r = await DigioService.instance.verifyVehicleRc(
+                                                              registrationNumber: _profile['vehiclePlate'].toString(),
+                                                            );
+                                                            if (context.mounted) {
+                                                              AppToast.showInfo(
+                                                                r['complianceNotes']?.toString() ?? 'RC verified',
+                                                                context: context,
+                                                              );
+                                                            }
+                                                          } catch (e) {
+                                                            if (context.mounted) AppToast.showError(AppToast.cleanErrorMessage(e), context: context);
+                                                          }
+                                                        },
+                                                      ),
+                                                  ],
+                                                );
+                                              },
                                             ),
                                           ],
                                         ),

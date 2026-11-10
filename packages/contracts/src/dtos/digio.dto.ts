@@ -254,6 +254,10 @@ export class FuzzyMatchDto {
   @Min(0)
   @Max(100)
   minConfidence?: number;
+
+  @IsOptional()
+  @IsString()
+  targetDriverId?: string;
 }
 
 export class VerifyUanDto {
@@ -407,6 +411,10 @@ export class AdminRunDriverDigioSuiteDto {
   @IsOptional()
   @IsBoolean()
   includeBank?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  includeFuzzyMatch?: boolean;
 
   @IsOptional()
   @IsString()

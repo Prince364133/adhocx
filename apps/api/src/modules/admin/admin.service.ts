@@ -232,6 +232,29 @@ export class AdminService {
       },
     });
 
+    let digioChecksSummary: Record<string, any> | undefined;
+    try {
+      if ((this.db as any).digioVerification?.findMany) {
+        const digioRows = await (this.db as any).digioVerification.findMany({
+          where: { OR: [{ driverId: id }, { userId: driver.userId }] },
+          orderBy: { createdAt: 'desc' },
+          take: 25,
+        });
+        const map: Record<string, any> = {};
+        for (const row of digioRows) {
+          if (!map[row.verificationType]) {
+            map[row.verificationType] = {
+              verified: row.verified,
+              complianceOk: row.complianceOk,
+              status: row.status,
+              matchScore: row.matchScore,
+            };
+          }
+        }
+        digioChecksSummary = map;
+      }
+    } catch (_) {}
+
     await this.audit.log({
       userId: adminId,
       action: 'ADMIN_DRIVER_VERIFIED',
@@ -241,6 +264,7 @@ export class AdminService {
         previousStatus: driver.verificationStatus,
         nextStatus: VerificationStatus.VERIFIED,
         notes: dto.notes,
+        ...(digioChecksSummary ? { digioChecksSummary } : {}),
       },
     });
 

@@ -443,6 +443,16 @@ export class DriversService {
     ];
 
     const plate = (dto.rcNumber || dto.vehicle?.registrationNumber || dto.vehiclePlate)?.trim().toUpperCase() || undefined;
+    const rawLicense = dto.licenseNumber?.trim().toUpperCase();
+    const isSyntheticLicense =
+      !rawLicense ||
+      rawLicense === 'DL-PENDING' ||
+      (plate && rawLicense === `DL-${plate}`);
+    const cleanDlNumber =
+      dto.dlNumber?.trim().toUpperCase() ||
+      (!isSyntheticLicense ? rawLicense : undefined);
+    const cleanPanNumber = dto.panNumber?.trim().toUpperCase() || undefined;
+    const cleanRcNumber = dto.rcNumber?.trim().toUpperCase() || plate;
     const vehicleType = (dto.vehicle?.type || dto.vehicleType || VehicleType.SEDAN) as VehicleType;
     const vehicleModel = dto.vehicle?.model || dto.vehicleModel || 'Commercial Fleet';
 
@@ -525,6 +535,9 @@ export class DriversService {
         ...(cleanAddress ? { address: cleanAddress } : {}),
         ...(cleanEmergencyName ? { emergencyContactName: cleanEmergencyName } : {}),
         ...(cleanEmergencyPhone ? { emergencyContactPhone: cleanEmergencyPhone } : {}),
+        ...(cleanDlNumber ? { dlNumber: cleanDlNumber } : {}),
+        ...(cleanPanNumber ? { panNumber: cleanPanNumber } : {}),
+        ...(cleanRcNumber ? { rcNumber: cleanRcNumber } : {}),
         documents: docsList.length > 0 ? docsList : (((existingDriver.kycDocuments as any)?.documents) || []),
       };
 
@@ -610,6 +623,9 @@ export class DriversService {
         ...(cleanAddress ? { address: cleanAddress } : {}),
         ...(cleanEmergencyName ? { emergencyContactName: cleanEmergencyName } : {}),
         ...(cleanEmergencyPhone ? { emergencyContactPhone: cleanEmergencyPhone } : {}),
+        ...(cleanDlNumber ? { dlNumber: cleanDlNumber } : {}),
+        ...(cleanPanNumber ? { panNumber: cleanPanNumber } : {}),
+        ...(cleanRcNumber ? { rcNumber: cleanRcNumber } : {}),
         documents: docsList,
       };
 
