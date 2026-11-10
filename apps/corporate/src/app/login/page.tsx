@@ -16,11 +16,13 @@ import {
 } from 'lucide-react';
 import { setSession } from '../../lib/auth/session';
 import { authApi } from '../../lib/api/corporate';
+import { useSession } from '../../lib/auth/SessionContext';
 import { ThemeToggle } from '../../components/common/ThemeToggle';
 
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { acceptSession } = useSession();
   const redirectUrl = searchParams.get('redirect') || '/dashboard';
 
   const [phone, setPhone] = useState('');
@@ -67,6 +69,7 @@ function LoginContent() {
     refreshToken?: string,
   ) => {
     setSession(token, refreshToken, user);
+    acceptSession(token, user);
     router.replace(redirectUrl);
   };
 

@@ -19,6 +19,7 @@ export interface PortalSession {
   tenantError: unknown;
   can: (permission: CorporatePermission) => boolean;
   logout: () => Promise<void>;
+  acceptSession: (token: string, user: SessionUser) => void;
   reloadTenant: () => Promise<void>;
   switchOffice?: (officeId: string | null) => void;
 }
@@ -54,6 +55,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const portalRole = claims?.role ? isPortalRole(claims.role) : false;
   const corporateRole = effectiveCorporateRole(claims?.role, claims?.corporateRole);
   const officeScope = selectedOfficeScope || (claims?.corporateOfficeIds && claims.corporateOfficeIds.length > 0 ? claims.corporateOfficeIds : null);
+
+  const acceptSession = useCallback((accessToken: string, sessionUser: SessionUser) => {
+    setToken(accessToken);
+    setUser(sessionUser);
+  }, []);
 
   const reloadTenant = useCallback(async () => {
     if (!token || !claims?.corporateTenantId) {
@@ -110,6 +116,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     tenantError,
     can: (p) => roleHas(corporateRole, p),
     logout,
+    acceptSession,
     reloadTenant,
     switchOffice,
   };

@@ -51,6 +51,14 @@ export interface AnalyticsParams {
   shiftTime?: string;
 }
 
+export interface TripsAnalyticsReport {
+  truncated: boolean;
+  rows: Array<{
+    shiftDate: string;
+    status: string;
+  }>;
+}
+
 export type ReportType = 'trips' | 'no-shows' | 'attendance';
 
 export const authApi = {
@@ -90,6 +98,8 @@ export const tenantApi = {
 
 export const analyticsApi = {
   dashboard: (p: AnalyticsParams) => apiRequest<Dashboard>(`/corporate/analytics/dashboard${qs({ ...p })}`),
+  tripsReport: (p: AnalyticsParams) =>
+    apiRequest<TripsAnalyticsReport>(`/corporate/analytics/reports/trips${qs({ ...p, format: 'json' })}`),
   exceptions: (p: { tenantId?: string; officeId?: string; from?: string; to?: string }) =>
     apiRequest<ExceptionsResponse>(`/corporate/analytics/exceptions${qs(p)}`),
   attendance: (p: Omit<AnalyticsParams, 'direction' | 'shiftTime'> & { page?: number; pageSize?: number }) =>
