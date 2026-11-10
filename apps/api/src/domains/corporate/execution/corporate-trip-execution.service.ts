@@ -128,6 +128,7 @@ export class CorporateTripExecutionService {
     if (count === 0) {
       throw new ConflictException(`Route ${routeId} was already started`);
     }
+    await this.invalidateRoutePlan(routeId);
 
     const startedAt = new Date();
     const origin =
@@ -248,6 +249,7 @@ export class CorporateTripExecutionService {
         ...(stop.stopType === 'DROPOFF' && !stop.employeeId ? { actualDepartureTime: arrivalTime } : {}),
       },
     });
+    await this.invalidateRoutePlan(routeId);
 
     // If route was in ASSIGNED/PLANNED, mark IN_TRANSIT
     if (route.status !== 'IN_TRANSIT') {
@@ -442,6 +444,7 @@ export class CorporateTripExecutionService {
         actualDepartureTime: departureTime,
       },
     });
+    await this.invalidateRoutePlan(routeId);
 
     // Update associated transport request to COMPLETED/BOARDED
     if (stop.transportRequestId) {
@@ -548,6 +551,7 @@ export class CorporateTripExecutionService {
         noShowReason: reasonText,
       },
     });
+    await this.invalidateRoutePlan(routeId);
 
     // Mark transport request as UNSERVED
     if (stop.transportRequestId) {
@@ -654,6 +658,7 @@ export class CorporateTripExecutionService {
       where: { id: routeId },
       data: { status: 'COMPLETED' },
     });
+    await this.invalidateRoutePlan(routeId);
 
     const completedAt = new Date();
     await this.tripEvents?.record({ tenantId: route.tenantId, routeId, type: 'ROUTE_COMPLETED', actorId: route.driverId, actorRole: 'DRIVER', payload: { onBoard: route.stops.filter((s) => s.status === 'BOARDED').length }, at: completedAt });
@@ -907,6 +912,61 @@ export class CorporateTripExecutionService {
   }
 
   /**
+   * Fast Redis cache for route plan + stops on the GPS telemetry hot path.
+   * Eliminates Postgres read on every ping (60s TTL + invalidated on stop transitions).
+   */
+  private async getCachedRoutePlan(routeId: string): Promise<any | null> {
+    const key = `corporate:route:plan:${routeId}`;
+    try {
+      if (typeof (this.redis as any)?.get === 'function') {
+        const val = await (this.redis as any).get(key);
+        return val ? JSON.parse(val) : null;
+      }
+      const client = this.redis?.getClient?.();
+      if (client?.get) {
+        const val = await client.get(key);
+        return val ? JSON.parse(val) : null;
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  }
+
+  private async setCachedRoutePlan(routeId: string, route: any, ttlSeconds = 60): Promise<void> {
+    const key = `corporate:route:plan:${routeId}`;
+    try {
+      const serialized = JSON.stringify(route);
+      if (typeof (this.redis as any)?.set === 'function') {
+        await (this.redis as any).set(key, serialized, ttlSeconds);
+        return;
+      }
+      const client = this.redis?.getClient?.();
+      if (client?.set) {
+        await client.set(key, serialized, 'EX', ttlSeconds);
+      }
+    } catch {
+      // ignore cache write failures
+    }
+  }
+
+  public async invalidateRoutePlan(routeId: string): Promise<void> {
+    const key = `corporate:route:plan:${routeId}`;
+    try {
+      if (typeof (this.redis as any)?.del === 'function') {
+        await (this.redis as any).del(key);
+        return;
+      }
+      const client = this.redis?.getClient?.();
+      if (client?.del) {
+        await client.del(key);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  /**
    * Ingests real-time GPS telemetry from driver mobile app during route transit.
    * Caches live position, dynamically updates ETA to upcoming stops, and broadcasts to Corporate Live Map.
    */
@@ -922,16 +982,20 @@ export class CorporateTripExecutionService {
     etaMinutes?: number;
     recordedAt: Date;
   }> {
-    const route = await this.db.corporateRoute.findUnique({
-      where: { id: routeId },
-      include: {
-        stops: { orderBy: { stopSequence: 'asc' } },
-        office: true,
-      },
-    });
-
+    let route = await this.getCachedRoutePlan(routeId);
     if (!route) {
-      throw new NotFoundException(`Corporate route ${routeId} not found`);
+      route = await this.db.corporateRoute.findUnique({
+        where: { id: routeId },
+        include: {
+          stops: { orderBy: { stopSequence: 'asc' } },
+          office: true,
+        },
+      });
+
+      if (!route) {
+        throw new NotFoundException(`Corporate route ${routeId} not found`);
+      }
+      await this.setCachedRoutePlan(routeId, route, 60);
     }
 
     // WS-B: latest-position cache (never moved backwards by out-of-order fixes) + Redis Stream
@@ -940,7 +1004,7 @@ export class CorporateTripExecutionService {
     const recordedAt = fix.recordedAt;
 
     // Find next upcoming stop
-    const nextStop = route.stops.find((s) => s.status === 'PENDING' || s.status === 'ARRIVED');
+    const nextStop = route.stops?.find((s: any) => s.status === 'PENDING' || s.status === 'ARRIVED');
 
     let distToNextStopMeters: number | undefined;
     let etaMinutes: number | undefined;

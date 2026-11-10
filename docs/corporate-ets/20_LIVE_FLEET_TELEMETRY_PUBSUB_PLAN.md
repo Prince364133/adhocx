@@ -178,23 +178,23 @@ The earlier "≤185 ms" budget ignored the flush window and cellular p95. The op
 | Ops stream lifecycle | connection-generation guard: overlapping connects (dev double-mount, reconnect racing Resync) no longer leave an orphaned EventSource; `REVOKED` reconnects with backoff | headless Chrome against a contract-faithful fake API: 1 ticket → 1 stream; `reauth` → new ticket → new stream |
 | Ops list | stable order (GPS state, then driver name) so rows no longer jump every second | headless Chrome |
 
-Found and **not** fixed (outside this scope):
-* `RedisService.revokeUserSessions()` has **no callers** in `src`. Suspending a user never revokes their sessions; the guard's `isUserRevoked` check and stream revocation only take effect once the admin suspend flow calls it.
-* The corporate GPS endpoint (`corporate-trip-execution.service.ts` `ingestTelemetry`) reads the route **with all stops from Postgres on every fix** to compute next-stop ETA. That is a database read on the hot path; cache the route plan in Redis per route.
+Found and fixed in follow-up pass:
+* `RedisService.revokeUserSessions()` is now wired into admin suspension (`suspendDriver`, `rejectDriver`, `rejectVendor`, `deleteUser`, `deleteVendor`), reinstatement (`reactivateDriver` -> `unrevokeUser`), and auth flows (`setPassword`, `resetPassword`, `deleteAccount`). Active streams and authenticated sessions are revoked cluster-wide upon suspension or credential change.
+* The corporate GPS endpoint (`corporate-trip-execution.service.ts` `ingestRouteTelemetry`) now caches the route plan + stops in Redis (`corporate:route:plan:{routeId}`, 60s TTL) and invalidates on stop transitions (`startRoute`, `markArrival`, `verifyBoardingOtp`, `markNoShow`, `completeRoute`), removing the hot-path Postgres query per ping.
 
 ---
 
 ## 6. Phase 1: Hardening (remaining)
 
-Done in pass 2: stream tickets, revocation during the stream, Redis TLS verification (see §5).
+Done in pass 2 & follow-up: stream tickets, revocation during the stream, Redis TLS verification (see §5), wiring suspension & credential updates to `revokeUserSessions()`, and Redis route plan caching on GPS ingest.
 
-1. **Wire suspension to `revokeUserSessions()`** (admin suspend, password change). Without it, revocation never fires for suspensions.
+1. ~~**Wire suspension to `revokeUserSessions()`** (admin suspend, password change).~~ **Done**
 2. **Shorten the access-token TTL** from `7d` to `15m` with refresh-token rotation (the ops client already refreshes on 401).
 3. **Ingest rate limiting.** Per-driver token bucket (Lua, 2 fixes/s burst 5). Reject with 429 + `Retry-After`.
 4. **Payload validation at the edge.** `class-validator` on the location DTOs: lat/lng range, speed 0–70 m/s, heading 0–360, accuracy 0–5,000 m, battery 0–100. Drop impossible jumps (> 250 km/h implied) from the live channel; keep them in history flagged `suspect`.
 5. **Trip channel authorization** before exposing `telemetry:trip:{id}` to riders or vendors (ownership-guarded SSE).
 6. **Device timestamp for on-demand pings:** add optional `recordedAt` to `TripLocationUpdateDto`; trips currently use server time.
-7. **Cache the route plan** for the corporate GPS endpoint (see §5, not fixed).
+7. ~~**Cache the route plan** for the corporate GPS endpoint.~~ **Done**
 
 ## 7. Phase 2 — Scale to 10k vehicles (~1–2 sprints)
 

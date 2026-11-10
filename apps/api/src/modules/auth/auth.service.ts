@@ -826,6 +826,12 @@ export class AuthService implements OnModuleInit {
       throw new BadRequestException('Failed to save password');
     }
 
+    try {
+      await this.redis.revokeUserSessions(userId);
+    } catch (err: any) {
+      this.logger.warn(`Failed to revoke user sessions on password change for ${userId}: ${err.message}`);
+    }
+
     return {
       success: true,
       message: 'Password set successfully',
@@ -887,6 +893,11 @@ export class AuthService implements OnModuleInit {
       });
 
       await this.invalidateOtps(value);
+      try {
+        await this.redis.revokeUserSessions(user.id);
+      } catch (err: any) {
+        this.logger.warn(`Failed to revoke user sessions on password reset for ${user.id}: ${err.message}`);
+      }
       this.logger.log(`🔒 Password reset successfully for user ${user.id} (${value})`);
     } catch (err: any) {
       this.logger.error(`Reset password failed for user ${value}: ${err.message}`);
@@ -1065,8 +1076,9 @@ export class AuthService implements OnModuleInit {
       } catch (_) {}
     }
 
-    // 2. Clear Redis cache for this user
+    // 2. Clear Redis cache and revoke user sessions
     try {
+      await this.redis.revokeUserSessions(userId);
       if (user.phone) {
         await this.redis.del(`otp:sms:${user.phone}`);
         await this.redis.del(`auth:session:${user.phone}`);

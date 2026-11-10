@@ -16,6 +16,7 @@ import { DatabaseService } from '../../database/database.service';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { assertPhoneAvailable, assertVehiclePlateAvailable, sanitizeRealName } from '../../common';
+import { RedisService } from '../../redis/redis.service';
 
 @Injectable()
 export class AdminService {
@@ -26,6 +27,7 @@ export class AdminService {
     private readonly audit: AuditService,
     @Optional() private readonly notifications?: NotificationsService,
     @Optional() private readonly storage?: StorageService,
+    @Optional() private readonly redis?: RedisService,
   ) {}
 
   /** Identity documents go out as short-lived signed links (see StorageService.getDocumentAccessUrl). */
@@ -304,6 +306,12 @@ export class AdminService {
         .catch((err) => this.logger.warn(`Driver KYC rejection notification notice: ${err.message}`));
     }
 
+    if (driver.userId && this.redis) {
+      await this.redis.revokeUserSessions(driver.userId).catch((err) =>
+        this.logger.warn(`Failed to revoke sessions for rejected driver ${id}: ${err.message}`),
+      );
+    }
+
     this.logger.log(`Driver ${id} rejected by admin ${adminId}: ${dto.reason}`);
     return updated;
   }
@@ -329,6 +337,12 @@ export class AdminService {
         verificationStatus: VerificationStatus.SUSPENDED,
       },
     });
+
+    if (driver.userId && this.redis) {
+      await this.redis.revokeUserSessions(driver.userId).catch((err) =>
+        this.logger.warn(`Failed to revoke sessions for suspended driver ${id}: ${err.message}`),
+      );
+    }
 
     await this.audit.log({
       userId: adminId,
@@ -367,6 +381,12 @@ export class AdminService {
         verificationStatus: VerificationStatus.VERIFIED,
       },
     });
+
+    if (driver.userId && this.redis) {
+      await this.redis.unrevokeUser(driver.userId).catch((err) =>
+        this.logger.warn(`Failed to unrevoke sessions for reactivated driver ${id}: ${err.message}`),
+      );
+    }
 
     await this.audit.log({
       userId: adminId,
@@ -745,6 +765,12 @@ export class AdminService {
           reason: dto.reason,
         })
         .catch((err) => this.logger.warn(`Vendor KYC rejection notification notice: ${err.message}`));
+    }
+
+    if (vendor.userId && this.redis) {
+      await this.redis.revokeUserSessions(vendor.userId).catch((err) =>
+        this.logger.warn(`Failed to revoke sessions for rejected vendor ${id}: ${err.message}`),
+      );
     }
 
     this.logger.log(`Vendor ${id} rejected by admin ${adminId}: ${dto.reason}`);
@@ -1272,6 +1298,12 @@ export class AdminService {
       metadata: { organizationName, userId },
     });
 
+    if (userId && this.redis) {
+      await this.redis.revokeUserSessions(userId).catch((err) =>
+        this.logger.warn(`Failed to revoke sessions for deleted vendor user ${userId}: ${err.message}`),
+      );
+    }
+
     this.logger.log(`Vendor ${id} (${organizationName}) permanently deleted by admin ${adminId}`);
     return { success: true, message: `Account "${organizationName}" permanently deleted.` };
   }
@@ -1307,6 +1339,12 @@ export class AdminService {
       entityId: id,
       metadata: { phone, fullName, role: user.role },
     });
+
+    if (this.redis) {
+      await this.redis.revokeUserSessions(id).catch((err) =>
+        this.logger.warn(`Failed to revoke sessions for deleted user ${id}: ${err.message}`),
+      );
+    }
 
     this.logger.log(`User ${id} (${fullName}, ${phone}) permanently deleted by admin ${adminId}`);
     return { success: true, message: `User "${fullName}" permanently deleted.` };

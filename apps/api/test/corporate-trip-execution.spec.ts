@@ -403,6 +403,34 @@ describe('Corporate Trip Execution, 5-Min Timer, OTP Boarding & 9h Reschedule', 
           nextStopSequence: 2,
         }),
       );
+      expect(mockRedisClient.set).toHaveBeenCalledWith(
+        'corporate:route:plan:route-telem-1',
+        expect.any(String),
+        'EX',
+        60,
+      );
+    });
+
+    it('should use cached route plan on subsequent telemetry fixes to eliminate DB read', async () => {
+      const cachedPlan = {
+        id: 'route-telem-cached',
+        tenantId: 'tenant-1',
+        stops: [
+          { id: 'stop-1', stopSequence: 1, status: 'BOARDED', latitude: 17.45, longitude: 78.38 },
+          { id: 'stop-2', stopSequence: 2, status: 'PENDING', latitude: 17.46, longitude: 78.39 },
+        ],
+      };
+      mockRedisClient.get.mockResolvedValueOnce(JSON.stringify(cachedPlan));
+
+      const result = await executionService.ingestRouteTelemetry('route-telem-cached', {
+        latitude: 17.455,
+        longitude: 78.385,
+        speedMps: 10,
+        headingDeg: 45,
+      });
+
+      expect(result.nextStopSequence).toBe(2);
+      expect(mockDb.corporateRoute.findUnique).not.toHaveBeenCalled();
     });
 
     it('should retrieve ordered waypoints for driver GPS navigation', async () => {

@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AdminService } from '../src/modules/admin/admin.service';
 import { DatabaseService } from '../src/database/database.service';
 import { AuditService } from '../src/modules/audit/audit.service';
+import { RedisService } from '../src/redis/redis.service';
 import {
   VerificationStatus,
   InvalidStateTransitionError,
@@ -11,8 +12,14 @@ describe('AdminService Unit Tests', () => {
   let service: AdminService;
   let db: any;
   let audit: any;
+  let redis: any;
 
   beforeEach(async () => {
+    redis = {
+      revokeUserSessions: jest.fn().mockResolvedValue(undefined),
+      unrevokeUser: jest.fn().mockResolvedValue(undefined),
+    };
+
     db = {
       driver: {
         findUnique: jest.fn(),
@@ -28,6 +35,8 @@ describe('AdminService Unit Tests', () => {
       },
       user: {
         count: jest.fn().mockResolvedValue(20),
+        findUnique: jest.fn(),
+        delete: jest.fn(),
       },
       requirement: {
         count: jest.fn().mockResolvedValue(3),
@@ -52,6 +61,7 @@ describe('AdminService Unit Tests', () => {
         AdminService,
         { provide: DatabaseService, useValue: db },
         { provide: AuditService, useValue: audit },
+        { provide: RedisService, useValue: redis },
       ],
     }).compile();
 
@@ -113,9 +123,10 @@ describe('AdminService Unit Tests', () => {
     ).rejects.toThrow(InvalidStateTransitionError);
   });
 
-  it('should suspend verified driver', async () => {
+  it('should suspend verified driver and revoke user sessions', async () => {
     db.driver.findUnique.mockResolvedValue({
       id: 'drv-1',
+      userId: 'user-drv-1',
       verificationStatus: VerificationStatus.VERIFIED,
     });
     db.driver.update.mockResolvedValue({
@@ -133,11 +144,13 @@ describe('AdminService Unit Tests', () => {
         action: 'ADMIN_DRIVER_SUSPENDED',
       }),
     );
+    expect(redis.revokeUserSessions).toHaveBeenCalledWith('user-drv-1');
   });
 
-  it('should reactivate suspended driver', async () => {
+  it('should reactivate suspended driver and unrevoke user', async () => {
     db.driver.findUnique.mockResolvedValue({
       id: 'drv-1',
+      userId: 'user-drv-1',
       verificationStatus: VerificationStatus.SUSPENDED,
     });
     db.driver.update.mockResolvedValue({
@@ -155,6 +168,22 @@ describe('AdminService Unit Tests', () => {
         action: 'ADMIN_DRIVER_REACTIVATED',
       }),
     );
+    expect(redis.unrevokeUser).toHaveBeenCalledWith('user-drv-1');
+  });
+
+  it('should revoke user sessions when permanently deleting a user account', async () => {
+    db.user.findUnique.mockResolvedValue({
+      id: 'u-del-1',
+      role: 'DRIVER',
+      phone: '+919999999999',
+      fullName: 'Departing Driver',
+    });
+    db.user.delete.mockResolvedValue({});
+
+    await service.deleteUser('u-del-1', 'admin-1');
+
+    expect(db.user.delete).toHaveBeenCalledWith({ where: { id: 'u-del-1' } });
+    expect(redis.revokeUserSessions).toHaveBeenCalledWith('u-del-1');
   });
 
   it('should aggregate platform operational metrics', async () => {
