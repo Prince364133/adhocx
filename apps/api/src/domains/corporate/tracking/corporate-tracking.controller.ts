@@ -1,4 +1,19 @@
-import { Controller, ForbiddenException, Get, MessageEvent, Optional, Param, Query, Req, Sse, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  ForbiddenException,
+  Get,
+  HttpCode,
+  MessageEvent,
+  Optional,
+  Param,
+  Post,
+  Query,
+  Req,
+  ServiceUnavailableException,
+  Sse,
+  UnauthorizedException,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Observable } from 'rxjs';
 import { UserRole } from '@adhocx/contracts';
@@ -11,6 +26,7 @@ import { CorporateTrackingService, TrackingScope } from './corporate-tracking.se
 import { RedisPubSubService } from '../../../redis/redis-pubsub.service';
 import { TelemetryChannels } from './tracking.types';
 import { TelemetryStreamContext, TelemetryStreamHub } from './telemetry-stream-hub';
+import { StreamTicketService } from '../../../redis/stream-ticket.service';
 
 const TENANT_BOUND_ROLES = new Set<string>([UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER, UserRole.EMPLOYEE]);
 
@@ -29,6 +45,7 @@ export class CorporateTrackingController {
     private readonly tracking: CorporateTrackingService,
     pubsub: RedisPubSubService,
     @Optional() hub?: TelemetryStreamHub,
+    @Optional() private readonly tickets?: StreamTicketService,
   ) {
     this.hub = hub ?? new TelemetryStreamHub(pubsub);
   }
@@ -80,6 +97,20 @@ export class CorporateTrackingController {
     return this.tracking.getFleetSnapshot(trackingScopeOf(req));
   }
 
+  @Post('live-stream-tickets')
+  @HttpCode(201)
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER, UserRole.DRIVER, UserRole.EMPLOYEE)
+  @ApiOperation({
+    summary:
+      'Single-use ticket (valid 30 s) for opening a live-stream EventSource: GET .../live-stream?ticket=… . Keeps the access token out of URLs and logs',
+  })
+  async issueStreamTicket(@Req() req: any): Promise<{ ticket: string; expiresAt: string }> {
+    if (!this.tickets) throw new ServiceUnavailableException('Live stream tickets are unavailable');
+    // Tickets are bought with a real access token (Authorization header), never with another ticket.
+    if (!req?.accessToken) throw new UnauthorizedException('A bearer access token is required');
+    return this.tickets.issue(req.user ?? {}, req.accessToken);
+  }
+
   @Sse('routes/fleet/live-stream')
   @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
   @ApiOperation({
@@ -99,10 +130,17 @@ export class CorporateTrackingController {
   @CorporateResource('route', 'id')
   @ApiOperation({ summary: 'Live stream (SSE) of fixes for one route: one `message` event per fix; `heartbeat`; `reauth` then close on token expiry' })
   streamRouteTelemetry(@Req() req: any, @Param('id') routeId: string): Observable<MessageEvent> {
-    return this.hub.openRouteStream(TelemetryChannels.route(routeId), streamContext(req));
+    // The guard has already checked access to this route; the tenant picks the (batched) channel.
+    const channel = this.tracking.getRouteTenantId(routeId, trackingScopeOf(req)).then((t) => TelemetryChannels.tenantFleet(t));
+    return this.hub.openRouteStream(channel, streamContext(req), routeId);
   }
 }
 
 function streamContext(req: any): TelemetryStreamContext {
-  return { userId: req?.user?.id ?? req?.user?.sub ?? null, tokenExpSec: req?.user?.exp ?? null, res: req?.res };
+  return {
+    userId: req?.user?.id ?? req?.user?.sub ?? null,
+    tokenExpSec: req?.user?.exp ?? null,
+    res: req?.res,
+    tokenHash: req?.streamTokenHash ?? null,
+  };
 }

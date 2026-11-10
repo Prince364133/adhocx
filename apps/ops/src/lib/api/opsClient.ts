@@ -203,6 +203,9 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
 export const opsApi = {
   /** Latest known position of every active cab in scope (only cabs that have reported GPS). */
   getFleetSnapshot: () => request<LiveVehicleTelemetryPayload[]>('/corporate/trips/routes/fleet/live'),
+  /** Single-use 30 s ticket for opening a live-stream EventSource (the access token never goes in a URL). */
+  createStreamTicket: () =>
+    request<{ ticket: string; expiresAt: string }>('/corporate/trips/live-stream-tickets', { method: 'POST', body: '{}' }),
 
   // ── Authentication ──
   login: async (identifier: string, password: string): Promise<any> => {

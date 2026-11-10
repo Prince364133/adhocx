@@ -34,6 +34,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
   // Driver & General fields
   late final TextEditingController _nameController;
   late final TextEditingController _phoneController;
+  late final TextEditingController _emailController;
   final _addressController = TextEditingController();
   final _emergencyNameController = TextEditingController();
   final _emergencyPhoneController = TextEditingController();
@@ -113,6 +114,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
 
     _nameController = TextEditingController(text: initialName);
     _phoneController = TextEditingController(text: clean10Digits(initialPhone));
+    _emailController = TextEditingController(text: initialEmail);
     _addressController.text = onboarding.address;
     _emergencyNameController.text = onboarding.emergencyContactName;
     _emergencyPhoneController.text = clean10Digits(onboarding.emergencyContactPhone);
@@ -169,6 +171,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
+    _emailController.dispose();
     _addressController.dispose();
     _emergencyNameController.dispose();
     _emergencyPhoneController.dispose();
@@ -381,9 +384,17 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
 
       final enteredName = _nameController.text.trim();
       final enteredPhone = formatIndiaPhone(_phoneController.text.trim());
+      final enteredEmail = _emailController.text.trim().toLowerCase();
       final enteredAddress = _addressController.text.trim();
       final enteredEmergencyName = _emergencyNameController.text.trim();
       final enteredEmergencyPhone = formatIndiaPhone(_emergencyPhoneController.text.trim());
+
+      if (enteredEmail.isNotEmpty && (!enteredEmail.contains('@') || !enteredEmail.contains('.'))) {
+        const msg = 'Please enter a valid email address';
+        setState(() => _inlineErrorMessage = msg);
+        AppToast.showError(msg, context: context);
+        return;
+      }
 
       if (enteredAddress.isEmpty) {
         const msg = 'Please enter or select your residential address/location.';
@@ -419,6 +430,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
         onboarding.setPersonalDetails(
           fullName: enteredName,
           phone: enteredPhone,
+          email: enteredEmail,
           address: enteredAddress,
           emergencyContactName: enteredEmergencyName,
           emergencyContactPhone: enteredEmergencyPhone,
@@ -430,11 +442,13 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
         await AuthService.instance.updateUserProfile(
           fullName: enteredName,
           phone: enteredPhone.isNotEmpty ? enteredPhone : null,
+          email: enteredEmail.isNotEmpty ? enteredEmail : null,
         );
 
         await DriverService.instance.updateProfile({
           if (enteredName.isNotEmpty) 'fullName': enteredName,
           if (enteredPhone.isNotEmpty) 'phone': enteredPhone,
+          if (enteredEmail.isNotEmpty) 'email': enteredEmail,
           if (enteredAddress.isNotEmpty) 'address': enteredAddress,
           if (enteredEmergencyName.isNotEmpty)
             'emergencyContactName': enteredEmergencyName,
@@ -683,6 +697,23 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                               return null;
                             },
                           );
+                        },
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+
+                      // Email Address (Optional for Driver)
+                      AppTextField(
+                        controller: _emailController,
+                        label: 'Email Address (Optional)',
+                        hintText: 'e.g. yourname@example.com',
+                        prefixIcon: const Icon(Icons.email_outlined, size: 20),
+                        keyboardType: TextInputType.emailAddress,
+                        validator: (val) {
+                          final e = val?.trim().toLowerCase() ?? '';
+                          if (e.isNotEmpty && (!e.contains('@') || !e.contains('.'))) {
+                            return 'Please enter a valid email address';
+                          }
+                          return null;
                         },
                       ),
                       const SizedBox(height: AppSpacing.lg),

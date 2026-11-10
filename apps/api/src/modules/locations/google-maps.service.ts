@@ -12,7 +12,7 @@ export interface VerifiedRoadDistance {
   routeDescription?: string;
   /** Recorded on quotes for audit (PRD 6): traffic-unaware standard driving route. */
   routingPreference: 'TRAFFIC_UNAWARE';
-  source: 'GOOGLE_ROUTES';
+  source: 'GOOGLE_ROUTES' | 'GOOGLE_ROUTES_FALLBACK';
 }
 
 /** Thrown when a trustworthy road distance cannot be obtained; never price on a guess. */

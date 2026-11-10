@@ -468,30 +468,39 @@ class UserService {
     bool dropIsOffice = false,
   }) async {
     await _ensureSession();
+    final pData = {
+      'latitude': pickupLat,
+      'longitude': pickupLng,
+      'address': pickupAddress,
+      if (pickupIsOffice) 'isOffice': true,
+    };
+    final dData = {
+      'latitude': dropLat,
+      'longitude': dropLng,
+      'address': dropAddress,
+      if (dropIsOffice) 'isOffice': true,
+    };
     final res = await _api.post(
       '/vendor/trip-quotes',
       body: {
-        'pickupLocation': {
-          'latitude': pickupLat,
-          'longitude': pickupLng,
-          'address': pickupAddress,
-          if (pickupIsOffice) 'isOffice': true,
-        },
-        'dropLocation': {
-          'latitude': dropLat,
-          'longitude': dropLng,
-          'address': dropAddress,
-          if (dropIsOffice) 'isOffice': true,
-        },
+        'pickup': pData,
+        'drop': dData,
+        'pickupLocation': pData,
+        'dropLocation': dData,
         'vehicleCategory': vehicleCategory.trim().toUpperCase(),
       },
     );
-    if (res is Map<String, dynamic>) {
-      final vendorRupees = (res['vendorPriceRupees'] as num?)?.toDouble() ??
-          ((res['vendorPricePaise'] as num?) != null ? (res['vendorPricePaise'] as num) / 100.0 : null);
+    if (res is Map) {
+      final map = Map<String, dynamic>.from(res);
+      final dataMap = map['data'] is Map ? Map<String, dynamic>.from(map['data'] as Map) : map;
+      final vendorRupees = (dataMap['vendorPriceRupees'] as num?)?.toDouble() ??
+          ((dataMap['vendorPricePaise'] as num?) != null
+              ? (dataMap['vendorPricePaise'] as num) / 100.0
+              : (dataMap['totalAmount'] as num?)?.toDouble());
       return {
-        ...res,
+        ...dataMap,
         if (vendorRupees != null) 'totalAmount': vendorRupees,
+        if (vendorRupees != null && dataMap['vendorPriceRupees'] == null) 'vendorPriceRupees': vendorRupees,
       };
     }
     return <String, dynamic>{};

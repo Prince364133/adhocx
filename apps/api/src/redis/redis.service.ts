@@ -1,6 +1,9 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
+import { redisTlsOptions } from './redis-tls';
+import { RedisPubSubService } from './redis-pubsub.service';
+import { AUTH_REVOCATIONS_CHANNEL, AuthRevocationEvent, hashToken } from './auth-revocation';
 
 @Injectable()
 export class RedisService implements OnModuleInit, OnModuleDestroy {
@@ -11,7 +14,15 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   // Resilient in-memory fallback store with TTL
   private readonly fallbackStore = new Map<string, { value: string; expiresAt?: number }>();
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    @Optional() private readonly pubsub?: RedisPubSubService,
+  ) {}
+
+  /** Tells every pod to close live streams of a revoked session (best effort; never throws). */
+  private announceRevocation(event: AuthRevocationEvent): void {
+    this.pubsub?.publish(AUTH_REVOCATIONS_CHANNEL, event).catch(() => undefined);
+  }
 
   async onModuleInit(): Promise<void> {
     const redisUrl = this.configService.get<string>('redis.url') || process.env.REDIS_URL;
@@ -28,7 +39,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
           maxRetriesPerRequest: 2,
           connectTimeout: 5000,
           lazyConnect: true,
-          tls: isTls ? { rejectUnauthorized: false } : undefined,
+          tls: redisTlsOptions(isTls, process.env, (m) => this.logger.warn(m)),
           retryStrategy: (times) => (times > 3 ? null : Math.min(times * 200, 1000)),
         });
       } else {
@@ -37,7 +48,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
           port,
           username: username || undefined,
           password: password || undefined,
-          tls: useTls ? { rejectUnauthorized: false } : undefined,
+          tls: redisTlsOptions(useTls, process.env, (m) => this.logger.warn(m)),
           maxRetriesPerRequest: 2,
           connectTimeout: 5000,
           lazyConnect: true,
@@ -187,6 +198,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
    */
   async blacklistToken(token: string, ttlSeconds: number): Promise<void> {
     await this.set(`blacklist:${token}`, '1', ttlSeconds);
+    this.announceRevocation({ tokenHash: hashToken(token) });
   }
 
   /**
@@ -203,6 +215,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   async revokeUserSessions(userId: string): Promise<void> {
     await this.set(`user_revoked:${userId}`, '1', 86400);
     await this.del(`user_session:${userId}`);
+    this.announceRevocation({ userId });
   }
 
   /**

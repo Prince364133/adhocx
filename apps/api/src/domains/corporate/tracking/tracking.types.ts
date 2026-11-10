@@ -254,6 +254,7 @@ export function toLiveTelemetry(
 export const TelemetryChannels = {
   opsFleet: 'telemetry:ops:fleet',
   tenantFleet: (tenantId: string) => `telemetry:tenant:${tenantId}:fleet`,
+  /** @deprecated no longer published: route streams filter the tenant channel. */
   route: (routeId: string) => `telemetry:route:${routeId}`,
   trip: (tripId: string) => `telemetry:trip:${tripId}`,
 };

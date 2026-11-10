@@ -159,13 +159,25 @@ export class PricingAuditDto {
 }
 
 export class VendorTripQuoteRequestDto {
+  @IsOptional()
   @ValidateNested()
   @Type(() => GeoPointDto)
-  pickup!: GeoPointDto;
+  pickup?: GeoPointDto;
 
+  @IsOptional()
   @ValidateNested()
   @Type(() => GeoPointDto)
-  drop!: GeoPointDto;
+  drop?: GeoPointDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => GeoPointDto)
+  pickupLocation?: GeoPointDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => GeoPointDto)
+  dropLocation?: GeoPointDto;
 
   @IsOptional()
   @IsString()

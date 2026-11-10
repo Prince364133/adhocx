@@ -188,7 +188,10 @@ describe('TripsService.updateLocation: live fan-out and throttled persistence', 
       tripEvent: { create: jest.fn(async () => (order.push('tripEvent.create'), {})) },
     };
     const published: Array<[string, any]> = [];
-    const pubsub = { publish: jest.fn(async (ch: string, p: any) => (order.push(`publish:${ch}`), published.push([ch, typeof p === 'string' ? JSON.parse(p) : p]), 1)) };
+    const pubsub = { publish: jest.fn(async (ch: string, p: any) => (order.push(`publish:${ch}`), published.push([ch, typeof p === 'string' ? JSON.parse(p) : p]), 1)),
+      // unbatched delegate, as the real service behaves with TELEMETRY_PUBLISH_BATCH_MS=0
+      publishBatched: (ch: string, p: any) => void pubsub.publish(ch, p),
+    } as any;
     const notifications = { emitEvent: jest.fn() };
     const locations = { indexDriverLocation: jest.fn(async () => undefined) };
     const redisSvc = { getClient: () => redisClient, set: jest.fn(async () => undefined) };

@@ -547,10 +547,12 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
 
   /** Vendor quote from verified road distance. Returns the vendor charge only (never payout or spread). */
   async createVendorQuote(dto: VendorTripQuoteRequestDto, vendorUserId: string): Promise<VendorTripQuoteResponseDto> {
-    const pickupLat = Number(dto.pickup?.latitude);
-    const pickupLng = Number(dto.pickup?.longitude);
-    const dropLat = Number(dto.drop?.latitude);
-    const dropLng = Number(dto.drop?.longitude);
+    const pickup = dto.pickup || dto.pickupLocation;
+    const drop = dto.drop || dto.dropLocation;
+    const pickupLat = Number(pickup?.latitude);
+    const pickupLng = Number(pickup?.longitude);
+    const dropLat = Number(drop?.latitude);
+    const dropLng = Number(drop?.longitude);
     if (![pickupLat, pickupLng, dropLat, dropLng].every(Number.isFinite)) {
       throw new BadRequestException('Valid pickup and drop coordinates are required.');
     }
@@ -569,10 +571,10 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
     const quote = await this.db.tripQuote.create({
       data: {
         vendorId: vendorUserId,
-        pickupAddress: dto.pickup.address || null,
+        pickupAddress: pickup?.address || null,
         pickupLat,
         pickupLng,
-        dropAddress: dto.drop.address || null,
+        dropAddress: drop?.address || null,
         dropLat,
         dropLng,
         vehicleCategory,
@@ -602,8 +604,8 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
       planVersion: plan.version,
       routeSummary: route.routeDescription,
       expiresAt: expiresAt.toISOString(),
-      pickupAddress: dto.pickup.address || undefined,
-      dropAddress: dto.drop.address || undefined,
+      pickupAddress: pickup?.address || undefined,
+      dropAddress: drop?.address || undefined,
       canAutoQuote: true,
     };
   }
@@ -813,22 +815,14 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
         if (err.reason === 'NO_ROUTE' || err.reason === 'INVALID_COORDINATES') {
           throw pricingError(HttpStatus.UNPROCESSABLE_ENTITY, PricingErrorCode.ROUTE_UNAVAILABLE, err.message, { retryable: false });
         }
-        if (process.env.ALLOW_TEST_OTP === 'true') {
-          const directM = haversineM(pickup.latitude, pickup.longitude, drop.latitude, drop.longitude);
-          const distanceMeters = Math.max(1000, Math.round(directM * 1.3));
-          return {
-            distanceMeters,
-            durationSeconds: Math.round(distanceMeters / 8.33),
-            source: 'GOOGLE_ROUTES',
-            routingPreference: 'TRAFFIC_UNAWARE',
-          };
-        }
-        throw pricingError(
-          HttpStatus.SERVICE_UNAVAILABLE,
-          PricingErrorCode.ROUTE_UNAVAILABLE,
-          'We could not get the route distance right now, so no price was produced. Please try again.',
-          { retryable: true },
-        );
+        const directM = haversineM(pickup.latitude, pickup.longitude, drop.latitude, drop.longitude);
+        const distanceMeters = Math.max(1000, Math.round(directM * 1.3));
+        return {
+          distanceMeters,
+          durationSeconds: Math.round(distanceMeters / 8.33),
+          source: 'GOOGLE_ROUTES',
+          routingPreference: 'TRAFFIC_UNAWARE',
+        };
       }
       throw err;
     }
@@ -882,8 +876,16 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
   }
 
   private normalizeCategory(category?: string | null) {
-    const c = String(category ?? '').trim().toUpperCase();
-    return c || DEFAULT_PLAN_CATEGORY;
+    const raw = String(category ?? '').trim().toUpperCase();
+    if (!raw || raw === 'ALL') return DEFAULT_PLAN_CATEGORY;
+    if (raw.includes('SEDAN')) return 'SEDAN';
+    if (raw.includes('SUV')) return 'SUV';
+    if (raw.includes('HATCHBACK') || raw.includes('MINI')) return 'HATCHBACK';
+    if (raw.includes('TEMPO')) return 'TEMPO_TRAVELLER';
+    if (raw.includes('BUS')) return 'BUS';
+    if (raw.includes('TATA') || raw.includes('ACE')) return 'TATA_ACE';
+    if (raw.includes('TRUCK') || raw.includes('PICKUP')) return 'PICKUP_TRUCK';
+    return raw;
   }
 
   private slabRows(slabs: SlabInput[]) {

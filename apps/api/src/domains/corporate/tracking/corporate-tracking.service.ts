@@ -66,6 +66,11 @@ export class CorporateTrackingService {
     private readonly gpsIngest: CorporateGpsIngestService,
   ) {}
 
+  /** Tenant of a route in scope (404 otherwise); picks the live channel for a route stream. */
+  async getRouteTenantId(routeId: string, scope: TrackingScope = {}): Promise<string> {
+    return (await this.loadRoute(routeId, scope)).tenantId;
+  }
+
   private async loadRoute(routeId: string, scope: TrackingScope) {
     const route: any = await this.db.corporateRoute.findUnique({
       where: { id: routeId },

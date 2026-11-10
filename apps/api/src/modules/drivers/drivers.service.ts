@@ -447,6 +447,7 @@ export class DriversService {
     const vehicleModel = dto.vehicle?.model || dto.vehicleModel || 'Commercial Fleet';
 
     const cleanPhone = dto.phone ? dto.phone.trim().replace(/\s+/g, '') : undefined;
+    const cleanEmail = dto.email ? dto.email.trim().toLowerCase() : undefined;
     const existingDriver = await this.db.driver.findUnique({ where: { userId } });
     const userForKyc = await this.db.user.findUnique({ where: { id: userId } });
     const cleanName = sanitizeRealName(dto.fullName) || sanitizeRealName(existingDriver?.fullName) || sanitizeRealName(userForKyc?.fullName);
@@ -457,6 +458,15 @@ export class DriversService {
     const cleanEmergencyPhone = dto.emergencyContactPhone?.trim().replace(/\s+/g, '') || undefined;
 
     const effectivePhoneToSave = cleanPhone || existingDriver?.phone || userForKyc?.phone || undefined;
+
+    if (cleanEmail && cleanEmail !== userForKyc?.email?.toLowerCase()) {
+      const existing = await this.db.user.findUnique({
+        where: { email: cleanEmail },
+      });
+      if (existing && existing.id !== userId) {
+        throw new ConflictException('This email address is already in use by another account');
+      }
+    }
 
     if (cleanPhone) {
       const userPhoneVariants = getPhoneVariants(userForKyc?.phone);
@@ -480,20 +490,24 @@ export class DriversService {
       });
     }
 
-    if (cleanPhone || cleanName) {
+    if (cleanPhone || cleanName || cleanEmail) {
       try {
         await this.db.user.update({
           where: { id: userId },
           data: {
             ...(cleanName ? { fullName: cleanName } : {}),
             ...(cleanPhone ? { phone: cleanPhone } : {}),
+            ...(cleanEmail ? { email: cleanEmail } : {}),
           },
         });
       } catch {
-        if (cleanName) {
+        if (cleanName || cleanEmail) {
           await this.db.user.update({
             where: { id: userId },
-            data: { fullName: cleanName },
+            data: {
+              ...(cleanName ? { fullName: cleanName } : {}),
+              ...(cleanEmail ? { email: cleanEmail } : {}),
+            },
           }).catch(() => null);
         }
       }

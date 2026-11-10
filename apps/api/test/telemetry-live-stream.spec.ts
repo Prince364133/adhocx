@@ -11,6 +11,7 @@ import { FakeClock, FakeStreamRedis } from './helpers/fake-gps-stream';
 import { of } from 'rxjs';
 import { TransformInterceptor } from '../src/common/interceptors/transform.interceptor';
 import { TelemetryStreamHub } from '../src/domains/corporate/tracking/telemetry-stream-hub';
+import { AUTH_REVOCATIONS_CHANNEL } from '../src/redis/auth-revocation';
 
 const TENANT_A = '11111111-1111-4111-8111-111111111111';
 const TENANT_B = '22222222-2222-4222-8222-222222222222';
@@ -52,7 +53,7 @@ describe('live telemetry: payloads', () => {
 });
 
 describe('live telemetry: ingest fan-out', () => {
-  it('publishes each accepted fix to the ops, tenant and route channels; out-of-order fixes are not published', async () => {
+  it('publishes each accepted fix to the ops and tenant channels only; out-of-order fixes are not published', async () => {
     const clock = new FakeClock();
     const redis = new FakeStreamRedis(clock);
     const pubsub = await bus();
@@ -69,7 +70,7 @@ describe('live telemetry: ingest fan-out', () => {
 
     expect(ops).toHaveLength(1);
     expect(tenantA).toHaveLength(1);
-    expect(route).toHaveLength(1);
+    expect(route).toHaveLength(0); // no per-route channel: route streams filter the tenant channel
     expect(tenantB).toHaveLength(0);
     expect(ops[0]).toMatchObject({ routeId: ROUTE_A, lat: 17.44, speedKph: 18, gpsState: 'LIVE', status: 'IN_TRANSIT', driverId: 'drv-1' });
     await pubsub.onModuleDestroy();
@@ -102,7 +103,7 @@ describe('live telemetry: fleet snapshot', () => {
 
 describe('live telemetry: SSE endpoints', () => {
   function controller(pubsub: RedisPubSubService, hub?: TelemetryStreamHub) {
-    return new CorporateTrackingController({} as any, pubsub, hub);
+    return new CorporateTrackingController({ getRouteTenantId: async () => TENANT_A } as any, pubsub, hub);
   }
   let nextUser = 0;
   const req = (role: string, corporateTenantId?: string | null, extra: any = {}) => ({
@@ -176,7 +177,8 @@ describe('live telemetry: SSE endpoints', () => {
     const c = controller(pubsub, hub);
     const subs = [1, 2, 3, 4].map(() => c.streamFleetTelemetry(req(UserRole.OPS)).subscribe());
     await Promise.resolve();
-    expect(subscribe).toHaveBeenCalledTimes(1);
+    // one telemetry subscription + the hub's single revocation listener
+    expect(subscribe.mock.calls.map((c) => c[0]).sort()).toEqual([AUTH_REVOCATIONS_CHANNEL, TelemetryChannels.opsFleet].sort());
     expect(hub.stats()).toMatchObject({ channels: 1, sinks: 4, streamsByUser: 4 });
 
     const parse = jest.spyOn(JSON, 'parse');
@@ -191,6 +193,7 @@ describe('live telemetry: SSE endpoints', () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(unsubscribe).toHaveBeenCalledTimes(1);
+    expect(unsubscribe.mock.calls[0][0]).toBe(TelemetryChannels.opsFleet);
     expect(hub.stats()).toEqual({ channels: 0, sinks: 0, streamsByUser: 0 });
     await pubsub.onModuleDestroy();
   });
@@ -288,8 +291,9 @@ describe('live telemetry: SSE endpoints', () => {
     const sub = controller(pubsub)
       .streamRouteTelemetry(req(UserRole.OPS), ROUTE_A)
       .subscribe((e) => events.push(e));
-    await Promise.resolve();
-    await pubsub.publish(TelemetryChannels.route(ROUTE_A), { routeId: ROUTE_A, recordedAt: 1 });
+    for (let i = 0; i < 5; i++) await Promise.resolve(); // tenant lookup
+    await pubsub.publish(TelemetryChannels.tenantFleet(TENANT_A), { routeId: ROUTE_B, recordedAt: 2 }); // other route: filtered
+    await pubsub.publish(TelemetryChannels.tenantFleet(TENANT_A), { routeId: ROUTE_A, recordedAt: 1 });
     jest.advanceTimersByTime(25_000);
     expect(events).toEqual([{ data: { routeId: ROUTE_A, recordedAt: 1 } }, { type: 'heartbeat', data: '{}' }]);
 
@@ -297,33 +301,35 @@ describe('live telemetry: SSE endpoints', () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(jest.getTimerCount()).toBe(0);
-    await pubsub.publish(TelemetryChannels.route(ROUTE_A), { routeId: ROUTE_A });
+    await pubsub.publish(TelemetryChannels.tenantFleet(TENANT_A), { routeId: ROUTE_A });
     jest.advanceTimersByTime(60_000);
     expect(events).toHaveLength(2);
-    expect((pubsub as any).channelHandlers.size).toBe(0);
+    // only the hub's process-wide revocation listener remains
+    expect([...(pubsub as any).channelHandlers.keys()]).toEqual([AUTH_REVOCATIONS_CHANNEL]);
     await pubsub.onModuleDestroy();
   });
 });
 
-describe('live telemetry: token in URL only for live streams', () => {
-  it('accepts ?access_token only on GET .../live-stream', () => {
+describe('live telemetry: credentials in URL only as stream tickets', () => {
+  it('treats only GET .../live-stream as a stream request', () => {
     expect(allowsQueryToken({ method: 'GET', path: '/api/v1/corporate/trips/routes/fleet/live-stream' })).toBe(true);
     expect(allowsQueryToken({ method: 'GET', path: '/api/v1/corporate/trips/routes/abc/live-stream' })).toBe(true);
     expect(allowsQueryToken({ method: 'GET', path: '/api/v1/admin/users' })).toBe(false);
     expect(allowsQueryToken({ method: 'POST', path: '/api/v1/corporate/trips/routes/fleet/live-stream' })).toBe(false);
   });
 
-  it('the guard rejects a query token on ordinary endpoints and accepts it on a stream', async () => {
+  it('never accepts a raw access token in the query string, even on a stream', async () => {
     const jwt = { verifyAsync: jest.fn(async () => ({ sub: 'u1', role: 'OPS' })) };
     const guard = new JwtAuthGuard(jwt as any, { get: () => 'secret' } as any);
     const ctx = (request: any) => ({ switchToHttp: () => ({ getRequest: () => request }) }) as any;
-
+    const stream = '/api/v1/corporate/trips/routes/fleet/live-stream';
     await expect(guard.canActivate(ctx({ method: 'GET', path: '/api/v1/admin/users', headers: {}, query: { token: 't' } }))).rejects.toThrow(
       UnauthorizedException,
     );
-    const ok = { method: 'GET', path: '/api/v1/corporate/trips/routes/fleet/live-stream', headers: {}, query: { access_token: 't' } } as any;
-    await expect(guard.canActivate(ctx(ok))).resolves.toBe(true);
-    expect(ok.user.id).toBe('u1');
+    await expect(guard.canActivate(ctx({ method: 'GET', path: stream, headers: {}, query: { access_token: 't' } }))).rejects.toThrow(
+      UnauthorizedException,
+    );
+    expect(jwt.verifyAsync).not.toHaveBeenCalled();
   });
 });
 

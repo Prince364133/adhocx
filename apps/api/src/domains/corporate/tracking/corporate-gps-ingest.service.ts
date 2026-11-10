@@ -211,9 +211,11 @@ export class CorporateGpsIngestService {
   /** Live map fan-out (fire and forget; never blocks or fails ingest). */
   private publishLive(route: GpsIngestRoute, latest: LatestGpsFix, receivedAt: Date): void {
     if (!this.pubsub) return;
-    const payload = toLiveTelemetry(route, latest, receivedAt);
-    for (const channel of [TelemetryChannels.opsFleet, TelemetryChannels.tenantFleet(route.tenantId), TelemetryChannels.route(route.id)]) {
-      this.pubsub.publish(channel, payload).catch(() => undefined);
+    // Serialized once, buffered per channel and published as one array per ~100 ms window.
+    const payload = JSON.stringify(toLiveTelemetry(route, latest, receivedAt));
+    // Two batched channels; route streams filter the tenant channel (see TelemetryStreamHub).
+    for (const channel of [TelemetryChannels.opsFleet, TelemetryChannels.tenantFleet(route.tenantId)]) {
+      this.pubsub.publishBatched(channel, payload);
     }
   }
 

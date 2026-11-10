@@ -103,6 +103,7 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
         licenseExpiry: DateTime.now().add(const Duration(days: 365 * 5)),
         documentUrls: docList,
         phone: onboarding.phone.isNotEmpty ? onboarding.phone : null,
+        email: onboarding.email.isNotEmpty ? onboarding.email.trim() : null,
         fullName: !isPlaceholderName(onboarding.fullName) ? onboarding.fullName.trim() : null,
         profilePhotoUrl: profileUrl,
         dateOfBirth: onboarding.dateOfBirth != null
@@ -138,6 +139,7 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
         await driverService.updateProfile({
           if (!isPlaceholderName(onboarding.fullName)) 'fullName': onboarding.fullName.trim(),
           if (onboarding.phone.isNotEmpty) 'phone': onboarding.phone,
+          if (onboarding.email.isNotEmpty) 'email': onboarding.email.trim(),
           if (onboarding.address.isNotEmpty) 'address': onboarding.address,
           if (onboarding.emergencyContactName.isNotEmpty)
             'emergencyContactName': onboarding.emergencyContactName,
@@ -340,6 +342,15 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
                             color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                           ),
                         ),
+                        if (onboarding.email.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            onboarding.email,
+                            style: AppTypography.caption(
+                              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),

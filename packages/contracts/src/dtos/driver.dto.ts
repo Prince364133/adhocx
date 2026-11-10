@@ -117,6 +117,10 @@ export class KycSubmissionDto {
 
   @IsOptional()
   @IsString()
+  email?: string;
+
+  @IsOptional()
+  @IsString()
   fullName?: string;
 
   @IsOptional()

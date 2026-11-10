@@ -171,7 +171,13 @@ export function countByState(items: VehicleListItem[]): Record<GpsState, number>
 
 const STATE_ORDER: Record<GpsState, number> = { LIVE: 0, STALE: 1, OFFLINE: 2 };
 
-/** Filters by GPS state / kind / free text (driver, route id, label, vehicle number), freshest first. */
+const byName = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+
+/**
+ * Filters by GPS state / kind / free text (driver, route id, label, vehicle number). Grouped by GPS
+ * state, then by driver name: a STABLE order, so rows do not jump under the cursor every second as
+ * fixes arrive (freshness is shown per row instead).
+ */
 export function filterVehicles(
   items: VehicleListItem[],
   opts: { gps: GpsFilter; kind: KindFilter; query: string },
@@ -184,6 +190,11 @@ export function filterVehicles(
     if (!q) return true;
     return [i.driverName, i.routeId, i.label, i.vehicleNumber].some((v) => v && v.toLowerCase().includes(q));
   });
-  matched.sort((a, b) => STATE_ORDER[a.gpsState] - STATE_ORDER[b.gpsState] || b.recordedAt - a.recordedAt);
+  matched.sort(
+    (a, b) =>
+      STATE_ORDER[a.gpsState] - STATE_ORDER[b.gpsState] ||
+      byName.compare(a.driverName || a.label, b.driverName || b.label) ||
+      a.routeId.localeCompare(b.routeId),
+  );
   return { rows: matched.slice(0, limit), total: matched.length };
 }

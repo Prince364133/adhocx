@@ -2,6 +2,7 @@ import { HttpException, HttpStatus, Injectable, Logger, MessageEvent, OnModuleDe
 import { Observable } from 'rxjs';
 import type { LiveVehicleTelemetryPayload } from '@adhocx/contracts';
 import { MessageHandler, RedisPubSubService } from '../../../redis/redis-pubsub.service';
+import { AUTH_REVOCATIONS_CHANNEL, AuthRevocationEvent } from '../../../redis/auth-revocation';
 
 /** Sinks receive the shared parsed payload: they must treat it as read-only. */
 export type TelemetrySink = (fix: LiveVehicleTelemetryPayload) => void;
@@ -13,6 +14,16 @@ export interface TelemetryStreamContext {
   tokenExpSec?: number | null;
   /** HTTP response (or anything with `writableLength` / `socket`), for backpressure. */
   res?: any;
+  /** sha256 of the access token behind this stream, so a logout closes it. */
+  tokenHash?: string | null;
+}
+
+export type ReauthReason = 'TOKEN_EXPIRED' | 'MAX_LIFETIME' | 'REVOKED';
+
+interface OpenStream {
+  userId: string | null;
+  tokenHash: string | null;
+  close: (reason: ReauthReason) => void;
 }
 
 export const SSE_HEARTBEAT_MS = 25_000;
@@ -47,6 +58,8 @@ export class TelemetryStreamHub implements OnModuleDestroy {
   private readonly logger = new Logger(TelemetryStreamHub.name);
   private readonly channels = new Map<string, ChannelEntry>();
   private readonly userStreams = new Map<string, number>();
+  private readonly openStreams = new Set<OpenStream>();
+  private revocationListener: MessageHandler | null = null;
 
   constructor(private readonly pubsub: RedisPubSubService) {}
 
@@ -66,20 +79,24 @@ export class TelemetryStreamHub implements OnModuleDestroy {
     if (!entry) {
       const sinks = new Set<TelemetrySink>();
       const handler: MessageHandler = (_ch, raw) => {
-        let fix: LiveVehicleTelemetryPayload;
+        let parsed: unknown;
         try {
-          fix = JSON.parse(raw);
+          parsed = JSON.parse(raw);
         } catch {
           return; // malformed frame
         }
-        if (!fix || typeof fix !== 'object') return;
-        sinks.forEach((s) => {
-          try {
-            s(fix);
-          } catch (err: any) {
-            this.logger.error(`Telemetry sink error on ${channel}: ${err?.message}`);
-          }
-        });
+        // Publishers batch (one array per window); a single object when batching is off.
+        const fixes = (Array.isArray(parsed) ? parsed : [parsed]) as LiveVehicleTelemetryPayload[];
+        for (const fix of fixes) {
+          if (!fix || typeof fix !== 'object') continue;
+          sinks.forEach((s) => {
+            try {
+              s(fix);
+            } catch (err: any) {
+              this.logger.error(`Telemetry sink error on ${channel}: ${err?.message}`);
+            }
+          });
+        }
       };
       const ready = this.pubsub.subscribe(channel, handler).catch((err) => {
         this.logger.warn(`Telemetry subscribe ${channel} failed: ${err?.message}`);
@@ -152,35 +169,93 @@ export class TelemetryStreamHub implements OnModuleDestroy {
     });
   }
 
-  /** Per-route stream: one `message` event per fix (unchanged wire format). */
-  openRouteStream(channel: string, ctx: TelemetryStreamContext = {}): Observable<MessageEvent> {
+  /**
+   * Per-route stream: one `message` event per fix (unchanged wire format).
+   *
+   * Routes have no channel of their own (one PUBLISH per fix per route cannot be batched and
+   * doubled Redis load): the stream attaches to the route's tenant channel, which is batched,
+   * and keeps only `routeId`'s fixes. `channel` may be a promise (the tenant is looked up); the
+   * stream slot is reserved synchronously so the 429 still happens before any SSE headers.
+   */
+  openRouteStream(channel: string | Promise<string>, ctx: TelemetryStreamContext = {}, routeId?: string): Observable<MessageEvent> {
     const release = this.acquireSlot(ctx.userId);
     return new Observable<MessageEvent>((subscriber) => {
-      const detach = this.attach(channel, (fix) => subscriber.next({ data: fix } as MessageEvent));
+      let detach: (() => void) | null = null;
+      let done = false;
+      const sink: TelemetrySink = (fix) => {
+        if (!routeId || fix.routeId === routeId) subscriber.next({ data: fix } as MessageEvent);
+      };
+      Promise.resolve(channel).then(
+        (ch) => {
+          if (!done) detach = this.attach(ch, sink);
+        },
+        (err) => {
+          if (!done) subscriber.error(err);
+        },
+      );
       const teardown = this.lifecycle(subscriber, ctx);
       return () => {
+        done = true;
         teardown();
-        detach();
+        detach?.();
         release();
       };
     });
   }
 
-  /** Heartbeat + token-expiry / max-lifetime close. Returns its teardown. */
+  /** Heartbeat, token-expiry / max-lifetime close, and close on revocation. Returns its teardown. */
   private lifecycle(subscriber: { next: (e: MessageEvent) => void; complete: () => void }, ctx: TelemetryStreamContext, beforeClose?: () => void) {
-    const heartbeat = setInterval(() => subscriber.next({ type: 'heartbeat', data: '{}' } as MessageEvent), SSE_HEARTBEAT_MS);
-    const expMs = Number(ctx.tokenExpSec) > 0 ? Number(ctx.tokenExpSec) * 1000 - Date.now() : Infinity;
-    const reason = expMs <= this.maxLifetimeMs ? 'TOKEN_EXPIRED' : 'MAX_LIFETIME';
-    const closeIn = Math.max(0, Math.min(expMs, this.maxLifetimeMs, MAX_TIMER_MS));
-    const closer = setTimeout(() => {
-      beforeClose?.();
+    let closed = false;
+    const close = (reason: ReauthReason) => {
+      if (closed) return;
+      closed = true;
+      if (reason !== 'REVOKED') beforeClose?.(); // never hand a revoked session one more batch
       subscriber.next({ type: 'reauth', data: { reason } } as MessageEvent);
       subscriber.complete();
-    }, closeIn);
+    };
+    const heartbeat = setInterval(() => subscriber.next({ type: 'heartbeat', data: '{}' } as MessageEvent), SSE_HEARTBEAT_MS);
+    const expMs = Number(ctx.tokenExpSec) > 0 ? Number(ctx.tokenExpSec) * 1000 - Date.now() : Infinity;
+    const reason: ReauthReason = expMs <= this.maxLifetimeMs ? 'TOKEN_EXPIRED' : 'MAX_LIFETIME';
+    const closeIn = Math.max(0, Math.min(expMs, this.maxLifetimeMs, MAX_TIMER_MS));
+    const closer = setTimeout(() => close(reason), closeIn);
+
+    const entry: OpenStream = { userId: ctx.userId ? String(ctx.userId) : null, tokenHash: ctx.tokenHash ?? null, close };
+    this.openStreams.add(entry);
+    this.ensureRevocationListener();
     return () => {
+      closed = true;
       clearInterval(heartbeat);
       clearTimeout(closer);
+      this.openStreams.delete(entry);
     };
+  }
+
+  /** One subscription per process to session revocations (logout, suspension). */
+  private ensureRevocationListener(): void {
+    if (this.revocationListener) return;
+    this.revocationListener = (_ch, raw) => {
+      let event: AuthRevocationEvent;
+      try {
+        event = JSON.parse(raw);
+      } catch {
+        return;
+      }
+      this.revoke(event);
+    };
+    this.pubsub.subscribe(AUTH_REVOCATIONS_CHANNEL, this.revocationListener).catch((err) => {
+      this.logger.warn(`Subscribe ${AUTH_REVOCATIONS_CHANNEL} failed: ${err?.message}`);
+    });
+  }
+
+  /** Closes every open stream of the revoked user or token on this process. Returns how many. */
+  revoke(event: AuthRevocationEvent): number {
+    if (!event || (!event.userId && !event.tokenHash)) return 0;
+    const hits = [...this.openStreams].filter(
+      (s) => (event.userId && s.userId === String(event.userId)) || (event.tokenHash && s.tokenHash === event.tokenHash),
+    );
+    hits.forEach((s) => s.close('REVOKED'));
+    if (hits.length) this.logger.log(`Closed ${hits.length} live stream(s) after session revocation`);
+    return hits.length;
   }
 
   /** For health/metrics. */
@@ -194,6 +269,9 @@ export class TelemetryStreamHub implements OnModuleDestroy {
 
   onModuleDestroy(): void {
     this.channels.forEach((e, ch) => void this.pubsub.unsubscribe(ch, e.handler).catch(() => undefined));
+    if (this.revocationListener) void this.pubsub.unsubscribe(AUTH_REVOCATIONS_CHANNEL, this.revocationListener).catch(() => undefined);
+    this.revocationListener = null;
+    this.openStreams.clear();
     this.channels.clear();
     this.userStreams.clear();
   }

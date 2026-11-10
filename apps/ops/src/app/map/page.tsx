@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { opsApi, getApiBaseUrl, getStoredOpsToken } from '../../lib/api/opsClient';
+import { opsApi, getApiBaseUrl } from '../../lib/api/opsClient';
 import { CorporateRouteItem } from '../../lib/api/opsTypes';
 import { Button } from '../../components/common/Button';
 import { VehicleListPanel } from '../../components/map/VehicleListPanel';
 import { VehicleDetailPanel } from '../../components/map/VehicleDetailPanel';
+import { CanvasVehicle, FleetCanvasOverlay, createFleetCanvasOverlay } from '../../components/map/fleetCanvasOverlay';
 import {
   ACTIVE_ROUTE_STATUSES,
   FleetFix,
@@ -22,13 +23,11 @@ import {
   kindOf,
   lerp,
   mergeFix,
-  needsRotationUpdate,
   parseFixFrame,
   segmentDurationMs,
   segmentProgress,
   stepHeading,
   toListItem,
-  vehicleLabel,
 } from '../../lib/fleet-telemetry';
 import { Car, Radio, RefreshCw } from 'lucide-react';
 
@@ -39,8 +38,6 @@ function todayIst(): string {
 const DEFAULT_CENTER = { lat: 17.4435, lng: 78.3772 };
 const UI_TICK_MS = 1000;
 const FRESHNESS_SWEEP_MS = 5000;
-/** Navigation-arrow path for on-demand trips (corporate routes use the closed forward arrow). */
-const TRIP_MARKER_PATH = 'M 0,-3 L 2.2,2.4 L 0,1.2 L -2.2,2.4 Z';
 
 const DARK_STYLES = [
   { elementType: 'geometry', stylers: [{ color: '#171717' }] },
@@ -60,7 +57,7 @@ function isDarkTheme(): boolean {
 }
 
 interface VehicleState {
-  // Animation segment: the marker moves from `from` to `to` over `durationMs`, starting at `startMs`.
+  // Animation segment: the cab moves from `from` to `to` over `durationMs`, starting at `startMs`.
   fromLat: number;
   fromLng: number;
   toLat: number;
@@ -71,11 +68,7 @@ interface VehicleState {
   currentLng: number;
   currentHeading: number;
   targetHeading: number;
-  /** What the marker icon currently shows; setIcon is only called when these change enough. */
-  drawnRotation: number;
-  drawnColor: string;
   kind: VehicleKind;
-  marker: any;
   telemetry: FleetFix;
 }
 
@@ -86,24 +79,18 @@ interface UiSnapshot {
   lastFixAt: number | null;
 }
 
-function makeIcon(g: any, kind: VehicleKind, color: string, rotation: number) {
-  return {
-    path: kind === 'TRIP' ? TRIP_MARKER_PATH : g.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-    scale: kind === 'TRIP' ? 4 : 5,
-    fillColor: color,
-    fillOpacity: 1,
-    strokeWeight: 2,
-    strokeColor: KIND_STROKE[kind],
-    rotation,
-  };
-}
-
-function redrawIcon(veh: VehicleState, color: string, rotation: number) {
-  const g = (window as any).google;
-  if (!g) return;
-  veh.drawnColor = color;
-  veh.drawnRotation = rotation;
-  veh.marker.setIcon(makeIcon(g, veh.kind, color, rotation));
+function* canvasVehicles(states: Map<string, VehicleState>): Generator<CanvasVehicle> {
+  for (const [id, v] of states) {
+    yield {
+      id,
+      lat: v.currentLat,
+      lng: v.currentLng,
+      heading: v.currentHeading,
+      fill: GPS_COLORS[v.telemetry.gpsState as GpsState] ?? GPS_COLORS.OFFLINE,
+      stroke: KIND_STROKE[v.kind],
+      shape: v.kind === 'TRIP' ? 'NAV' : 'ARROW',
+    };
+  }
 }
 
 export default function FleetLiveMapPage() {
@@ -118,6 +105,7 @@ export default function FleetLiveMapPage() {
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const googleMapRef = useRef<any>(null);
+  const overlayRef = useRef<FleetCanvasOverlay | null>(null);
   const boundsRef = useRef<LatLngBoundsLiteral | null>(null);
   const vehicleStatesRef = useRef<Map<string, VehicleState>>(new Map());
   const routesMapRef = useRef<Map<string, CorporateRouteItem>>(new Map());
@@ -156,7 +144,7 @@ export default function FleetLiveMapPage() {
 
   // ─── 2. Initialize Google Map ───────────────────────────────────────────────
   // No mapId: with a mapId, Google ignores `styles` (cloud styling), which broke the dark theme.
-  // Legacy Marker + styles work together without one.
+  // Cabs are drawn on one canvas overlay (fleetCanvasOverlay.ts), which needs no mapId either.
   const initMap = useCallback(() => {
     if (!mapContainerRef.current || !(window as any).google || googleMapRef.current) return;
     const google = (window as any).google;
@@ -172,6 +160,29 @@ export default function FleetLiveMapPage() {
     map.addListener('idle', () => {
       const b = map.getBounds?.();
       boundsRef.current = b ? (b.toJSON() as LatLngBoundsLiteral) : null;
+    });
+    const overlay = createFleetCanvasOverlay(google, map);
+    overlayRef.current = overlay;
+    // Cabs are pixels on a canvas, so clicks and hover are hit-tested against the last frame.
+    const pixelOf = (e: any): [number, number] | null => {
+      const ev = e?.domEvent as MouseEvent | undefined;
+      if (!ev || !mapContainerRef.current) return null;
+      const r = mapContainerRef.current.getBoundingClientRect();
+      return [ev.clientX - r.left, ev.clientY - r.top];
+    };
+    map.addListener('click', (e: any) => {
+      const px = pixelOf(e);
+      const hit = px ? overlay.hitTest(px[0], px[1]) : null;
+      if (hit) setSelectedId(hit);
+    });
+    let pointer = false;
+    map.addListener('mousemove', (e: any) => {
+      const px = pixelOf(e);
+      const over = !!(px && overlay.hitTest(px[0], px[1]));
+      if (over !== pointer) {
+        pointer = over;
+        map.setOptions({ draggableCursor: over ? 'pointer' : null });
+      }
     });
     googleMapRef.current = map;
   }, []);
@@ -202,7 +213,7 @@ export default function FleetLiveMapPage() {
       if (incoming.recordedAt < existing.telemetry.recordedAt) return; // older than what we show
       const merged = mergeFix(existing.telemetry, incoming);
       const state = gpsStateOf(merged.recordedAt);
-      // Animate from where the marker is now to the new fix over the gap between fixes,
+      // Animate from where the cab is drawn now to the new fix over the gap between fixes,
       // so the cab keeps moving until the next fix instead of jumping and stopping.
       existing.fromLat = existing.currentLat;
       existing.fromLng = existing.currentLng;
@@ -212,27 +223,13 @@ export default function FleetLiveMapPage() {
       existing.durationMs = segmentDurationMs(existing.telemetry.recordedAt, merged.recordedAt);
       existing.targetHeading = Number.isFinite(merged.heading) ? merged.heading : existing.targetHeading;
       existing.telemetry = { ...merged, gpsState: state };
-      const kind = kindOf(merged);
-      if (kind !== existing.kind) {
-        existing.kind = kind;
-        redrawIcon(existing, GPS_COLORS[state], existing.drawnRotation);
-      } else if (existing.drawnColor !== GPS_COLORS[state]) {
-        redrawIcon(existing, GPS_COLORS[state], existing.drawnRotation);
-      }
+      existing.kind = kindOf(merged);
       return;
     }
 
     const state = gpsStateOf(incoming.recordedAt);
     const kind = kindOf(incoming);
     const heading = Number.isFinite(incoming.heading) ? incoming.heading : 0;
-    const marker = new g.maps.Marker({
-      position: { lat: incoming.lat, lng: incoming.lng },
-      map: googleMapRef.current,
-      title: `${incoming.driverName || 'Cab'} (${vehicleLabel(incoming)})`,
-      icon: makeIcon(g, kind, GPS_COLORS[state], heading),
-      zIndex: kind === 'TRIP' ? 2 : 1,
-    });
-    marker.addListener('click', () => setSelectedId(incoming.routeId));
     vehicleStatesRef.current.set(incoming.routeId, {
       fromLat: incoming.lat,
       fromLng: incoming.lng,
@@ -244,10 +241,7 @@ export default function FleetLiveMapPage() {
       currentLng: incoming.lng,
       currentHeading: heading,
       targetHeading: heading,
-      drawnRotation: heading,
-      drawnColor: GPS_COLORS[state],
       kind,
-      marker,
       telemetry: { ...incoming, gpsState: state },
     });
   }, []);
@@ -259,7 +253,6 @@ export default function FleetLiveMapPage() {
   const removeVehicle = useCallback((routeId: string) => {
     const v = vehicleStatesRef.current.get(routeId);
     if (!v) return;
-    v.marker.setMap(null);
     vehicleStatesRef.current.delete(routeId);
   }, []);
 
@@ -277,20 +270,37 @@ export default function FleetLiveMapPage() {
   const reconnectAttemptRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const unmountedRef = useRef(false);
+  // Every connect attempt (and unmount) bumps this; an attempt that resumes after an await with a
+  // stale generation gives up, so two overlapping attempts can never leave an orphaned EventSource.
+  const connectGenRef = useRef(0);
 
   const connectStream = useCallback(async () => {
     if (unmountedRef.current) return;
+    const gen = ++connectGenRef.current;
+    const stale = () => unmountedRef.current || gen !== connectGenRef.current;
     if (reconnectTimerRef.current) {
       clearTimeout(reconnectTimerRef.current);
       reconnectTimerRef.current = null;
     }
     eventSourceRef.current?.close();
     eventSourceRef.current = null;
-    // Loading the snapshot first also refreshes an expired access token before it goes in the URL.
+    // Snapshot first (it also refreshes an expired access token), then a single-use ticket for the
+    // stream URL: the access token itself never goes in a URL.
     await loadSnapshot();
-    if (unmountedRef.current) return;
-    const token = getStoredOpsToken();
-    const url = `${getApiBaseUrl()}/corporate/trips/routes/fleet/live-stream${token ? `?access_token=${encodeURIComponent(token)}` : ''}`;
+    if (stale()) return;
+    let ticket: string;
+    try {
+      ticket = (await opsApi.createStreamTicket()).ticket;
+    } catch {
+      // Treat like a dropped stream: back off and try again (auth failures redirect to login).
+      if (stale()) return;
+      setConnectionStatus('RECONNECTING');
+      const attempt = reconnectAttemptRef.current++;
+      reconnectTimerRef.current = setTimeout(() => void connectStream(), Math.min(1000 * 2 ** attempt, 30_000));
+      return;
+    }
+    if (stale()) return;
+    const url = `${getApiBaseUrl()}/corporate/trips/routes/fleet/live-stream?ticket=${encodeURIComponent(ticket)}`;
     const es = new EventSource(url);
     eventSourceRef.current = es;
     es.onopen = () => {
@@ -303,10 +313,24 @@ export default function FleetLiveMapPage() {
     // `heartbeat` events need no handler: named events never reach onmessage.
     // The server is about to close because the token expires: reconnect now with a fresh token,
     // without counting it as a failure.
-    es.addEventListener('reauth', () => {
+    es.addEventListener('reauth', (event) => {
       es.onerror = null;
       es.close();
       if (eventSourceRef.current === es) eventSourceRef.current = null;
+      let reason = '';
+      try {
+        reason = JSON.parse((event as MessageEvent).data)?.reason ?? '';
+      } catch {
+        // no reason: treat as expiry
+      }
+      if (reason === 'REVOKED') {
+        // Session was revoked: the ticket request will fail and send the user to login; back off
+        // so a revoked session never spins.
+        setConnectionStatus('RECONNECTING');
+        const attempt = reconnectAttemptRef.current++;
+        reconnectTimerRef.current = setTimeout(() => void connectStream(), Math.min(1000 * 2 ** attempt, 30_000));
+        return;
+      }
       reconnectAttemptRef.current = 0;
       void connectStream();
     });
@@ -343,15 +367,11 @@ export default function FleetLiveMapPage() {
           lng = veh.toLng;
           veh.currentHeading = veh.targetHeading;
         }
-        if (lat !== veh.currentLat || lng !== veh.currentLng) {
-          veh.currentLat = lat;
-          veh.currentLng = lng;
-          veh.marker.setPosition({ lat, lng });
-        }
-        if (needsRotationUpdate(veh.drawnRotation, veh.currentHeading)) {
-          redrawIcon(veh, veh.drawnColor, Math.round(veh.currentHeading));
-        }
+        veh.currentLat = lat;
+        veh.currentLng = lng;
       });
+      // One canvas pass for every on-screen cab (STALE/OFFLINE colours come from gpsState).
+      overlayRef.current?.render(canvasVehicles(vehicleStatesRef.current), selectedIdRef.current);
       // Every 5 s: re-derive GPS freshness (a cab that stops reporting turns STALE, then OFFLINE)
       // and drop cabs that have been silent for a long time.
       if (now - lastSweep > FRESHNESS_SWEEP_MS) {
@@ -363,10 +383,7 @@ export default function FleetLiveMapPage() {
             return;
           }
           const state: GpsState = gpsStateOf(veh.telemetry.recordedAt, nowMs);
-          if (state !== veh.telemetry.gpsState) {
-            veh.telemetry = { ...veh.telemetry, gpsState: state };
-            if (veh.drawnColor !== GPS_COLORS[state]) redrawIcon(veh, GPS_COLORS[state], veh.drawnRotation);
-          }
+          if (state !== veh.telemetry.gpsState) veh.telemetry = { ...veh.telemetry, gpsState: state };
         });
       }
       animationFrameRef.current = requestAnimationFrame(loop);
@@ -391,7 +408,7 @@ export default function FleetLiveMapPage() {
     return () => clearInterval(id);
   }, []);
 
-  // ─── 8. Route list for the selected date (no markers are invented here) ────
+  // ─── 8. Route list for the selected date (no cabs are invented here) ────
   const loadMapData = useCallback(async () => {
     try {
       const board = await opsApi.getOpsBoard({ date: selectedDate });
@@ -417,11 +434,14 @@ export default function FleetLiveMapPage() {
     });
     return () => {
       unmountedRef.current = true;
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- a generation counter (invalidates in-flight connects), not a DOM ref
+      connectGenRef.current++;
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       eventSourceRef.current?.close();
       eventSourceRef.current = null;
-      vehicles.forEach((v) => v.marker.setMap(null));
       vehicles.clear();
+      overlayRef.current?.destroy();
+      overlayRef.current = null;
     };
     // connectStream / initMap / loadGoogleMapsScript are stable (no changing deps)
   }, [loadGoogleMapsScript, initMap, connectStream]);

@@ -673,8 +673,8 @@ export class TripsService {
       this.redis.set(TripTelemetryKeys.latest(id), raw, TRIP_LATEST_TTL_SEC).catch(() => undefined);
     }
     if (this.pubsub) {
-      this.pubsub.publish(TelemetryChannels.opsFleet, raw).catch(() => undefined);
-      this.pubsub.publish(TelemetryChannels.trip(id), raw).catch(() => undefined);
+      this.pubsub.publishBatched(TelemetryChannels.opsFleet, raw);
+      this.pubsub.publishBatched(TelemetryChannels.trip(id), raw);
     }
 
     // 2. Keep the dispatch spatial index fresh (dispatch re-checks availability in the DB).
