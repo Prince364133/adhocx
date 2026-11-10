@@ -95,9 +95,25 @@ export function createFleetCanvasOverlay(g: any, map: any): FleetCanvasOverlay {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, w, h);
       ctx.lineJoin = 'round';
+      ctx.lineWidth = 2;
+      // Cheap lat/lng cull before projecting (bounds padded ~10%; skipped across the antimeridian).
+      const b = map.getBounds?.();
+      const ne = b?.getNorthEast();
+      const sw = b?.getSouthWest();
+      const padLat = ne && sw ? (ne.lat() - sw.lat()) * 0.1 : 0;
+      const padLng = ne && sw ? (ne.lng() - sw.lng()) * 0.1 : 0;
+      const cull = ne && sw && sw.lng() <= ne.lng();
+      // One path per (fill, stroke, shape) group: a frame costs a handful of fill/stroke calls.
+      const groups = new Map<string, { fill: string; stroke: string; path: Path2D }>();
       const next: Array<{ id: string; x: number; y: number }> = [];
       let selected: { x: number; y: number } | null = null;
       for (const v of vehicles) {
+        if (
+          cull &&
+          (v.lat > ne.lat() + padLat || v.lat < sw.lat() - padLat || v.lng > ne.lng() + padLng || v.lng < sw.lng() - padLng)
+        ) {
+          continue;
+        }
         const p = proj.fromLatLngToContainerPixel(new g.maps.LatLng(v.lat, v.lng));
         if (!p) continue;
         const x = p.x;
@@ -106,24 +122,33 @@ export function createFleetCanvasOverlay(g: any, map: any): FleetCanvasOverlay {
         if (x < -20 || y < -20 || x > w + 20 || y > h + 20) continue; // off-screen
         next.push({ id: v.id, x, y });
         if (v.id === selectedId) selected = { x, y };
+        const key = `${v.fill}|${v.stroke}|${v.shape}`;
+        let grp = groups.get(key);
+        if (!grp) {
+          grp = { fill: v.fill, stroke: v.stroke, path: new Path2D() };
+          groups.set(key, grp);
+        }
         const pts = v.shape === 'NAV' ? NAV : ARROW;
         const rad = (v.heading * Math.PI) / 180;
         const c = Math.cos(rad);
         const s = Math.sin(rad);
-        ctx.beginPath();
         pts.forEach(([px, py], i) => {
           const rx = x + px * c - py * s;
           const ry = y + px * s + py * c;
-          if (i === 0) ctx.moveTo(rx, ry);
-          else ctx.lineTo(rx, ry);
+          if (i === 0) grp!.path.moveTo(rx, ry);
+          else grp!.path.lineTo(rx, ry);
         });
-        ctx.closePath();
-        ctx.fillStyle = v.fill;
-        ctx.fill();
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = v.stroke;
-        ctx.stroke();
+        grp.path.closePath();
       }
+      // Corporate first, on-demand trips on top.
+      [...groups.values()]
+        .sort((a, b) => Number(a.stroke !== '#FFFFFF') - Number(b.stroke !== '#FFFFFF'))
+        .forEach((grp) => {
+          ctx.fillStyle = grp.fill;
+          ctx.fill(grp.path);
+          ctx.strokeStyle = grp.stroke;
+          ctx.stroke(grp.path);
+        });
       if (selected) {
         ctx.beginPath();
         ctx.arc(selected.x, selected.y, 17, 0, Math.PI * 2);
