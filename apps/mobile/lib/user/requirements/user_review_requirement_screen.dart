@@ -561,6 +561,9 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
     if (draft.passengers > 0) {
       notesParts.add('Passengers per vehicle: ${draft.passengers}');
     }
+    if (draft.hasEscort) {
+      notesParts.add('Security Escort: Required');
+    }
 
     final combinedNotes = notesParts.join(' | ');
     final couponCode = _appliedCoupon?['code'] as String?;
@@ -593,6 +596,7 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
         dropLat: draft.dropLat,
         dropLng: draft.dropLng,
         reportingTime: draft.reportingDateTime,
+        hasEscort: draft.hasEscort,
         ratePerVehicle: ratePerVehicle,
         suggestedBudget: null,
         notes: combinedNotes.isNotEmpty ? combinedNotes : 'Standard Booking Requirement',
@@ -790,18 +794,37 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                                 isDark,
                               ),
                               const Divider(),
-                              if (draft.quote != null) ...[
+                                if (draft.quote != null) ...[
+                                  _buildReviewRow(
+                                    context,
+                                    Icons.verified_rounded,
+                                    'Pricing',
+                                    'Distance rate${draft.quote!['displayedKm'] is num ? ' · ${(draft.quote!['displayedKm'] as num).toStringAsFixed(1)} km' : ''}${draft.quote!['planVersion'] != null ? ' · plan ${draft.quote!['planVersion']}' : ''}',
+                                    isDark,
+                                    valueColor: AppColors.primary,
+                                  ),
+                                  const Divider(),
+                                ],
                                 _buildReviewRow(
                                   context,
-                                  Icons.verified_rounded,
-                                  'Pricing',
-                                  'Distance rate${draft.quote!['displayedKm'] is num ? ' · ${(draft.quote!['displayedKm'] as num).toStringAsFixed(1)} km' : ''}${draft.quote!['planVersion'] != null ? ' · plan ${draft.quote!['planVersion']}' : ''}',
+                                  Icons.security_rounded,
+                                  'Security Escort',
+                                  draft.hasEscort
+                                      ? (draft.escortFeeRupees > 0
+                                          ? 'Included (+ ₹${draft.escortFeeRupees.toStringAsFixed(0)})'
+                                          : 'Included')
+                                      : 'Not Selected',
                                   isDark,
-                                  valueColor: AppColors.primary,
+                                  valueColor: draft.hasEscort ? AppColors.accentPurple : null,
                                 ),
                                 const Divider(),
-                              ],
-                              _buildReviewRow(context, Icons.currency_rupee, 'Rate per Vehicle', '₹${_getRatePerVehicle(draft).toStringAsFixed(0)}', isDark),
+                                if (draft.hasEscort && draft.escortFeeRupees > 0) ...[
+                                  _buildReviewRow(context, Icons.receipt_long_outlined, 'Base Fare', '₹${draft.baseQuotedAmount.toStringAsFixed(0)}', isDark),
+                                  const Divider(),
+                                  _buildReviewRow(context, Icons.shield_outlined, 'Security Escort Fee', '+ ₹${draft.escortFeeRupees.toStringAsFixed(0)}', isDark, valueColor: AppColors.accentPurple),
+                                  const Divider(),
+                                ],
+                                _buildReviewRow(context, Icons.currency_rupee, 'Rate per Vehicle', '₹${_getRatePerVehicle(draft).toStringAsFixed(0)}', isDark),
                               const Divider(),
                               _buildReviewRow(context, Icons.payments_outlined, 'Est. Total Cost', '₹${(draft.quantity * _getRatePerVehicle(draft)).toStringAsFixed(0)}', isDark, valueColor: _appliedCoupon != null ? AppColors.textMutedLight : AppColors.success),
                               const Divider(),

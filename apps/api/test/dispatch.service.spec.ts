@@ -269,4 +269,43 @@ describe('DispatchService Unit Tests', () => {
       }),
     );
   });
+
+  it('forwards hasEscort=true from pricingSnapshot onto OFFER_RECEIVED payload', async () => {
+    const now = new Date();
+    db.requirement.findUnique.mockResolvedValue({
+      id: 'req-escort',
+      vendorId: 'vnd-1',
+      vehicleType: VehicleType.SEDAN,
+      quantity: 1,
+      assignedQuantity: 0,
+      pickupLat: 28.6139,
+      pickupLng: 77.209,
+      pickupAddress: 'CP',
+      dropAddress: 'Noida',
+      reportingTime: now,
+      ratePerVehicle: 1800,
+      pricingSnapshot: { vendorPricePaise: 180000, driverPayoutPaise: 120000, grossSpreadPaise: 30000, hasEscort: true, escortFarePaise: 30000 },
+      status: RequirementStatus.POSTED,
+      offers: [],
+      vendor: { userId: 'usr-vnd-1' },
+    });
+    locationsService.findNearbyDriversByH3.mockResolvedValue([{ driverId: 'drv-1', distanceKm: 2.0 }]);
+    db.driver.findMany.mockResolvedValue([
+      {
+        id: 'drv-1',
+        verificationStatus: VerificationStatus.VERIFIED,
+        availabilityStatus: DriverAvailability.AVAILABLE,
+        user: { status: UserStatus.ACTIVE },
+        trips: [],
+      },
+    ]);
+
+    const result = await service.dispatchRequirement('req-escort');
+    expect(result.offersCreated).toBe(1);
+    expect(notifications.emitEvent).toHaveBeenCalledWith(
+      'driver:drv-1',
+      'OFFER_RECEIVED',
+      expect.objectContaining({ hasEscort: true, escortRequired: true }),
+    );
+  });
 });

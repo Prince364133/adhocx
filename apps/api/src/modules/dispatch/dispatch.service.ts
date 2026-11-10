@@ -784,7 +784,11 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
       { latitude: pickupLat, longitude: pickupLng },
       { latitude: dropLat, longitude: dropLng },
     );
-    const hasEscort = false;
+    const hasEscort = Boolean(
+      pricingSnapshot?.hasEscort ||
+      (requirement as any)?.zonalQuote?.hasEscort ||
+      (typeof requirement.notes === 'string' && requirement.notes.includes('Security Escort: Required')),
+    );
 
     const createdOffers = await Promise.all(
       selectedCandidates.map(async (candidate) => {

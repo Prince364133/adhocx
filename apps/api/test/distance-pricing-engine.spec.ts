@@ -370,4 +370,43 @@ describe('quotes and booking', () => {
     await publishPlan(svc, 'ALL');
     await expect(svc.createVendorQuote({ pickup: PICKUP, drop: DROP } as any, 'v')).rejects.toMatchObject({ status: HttpStatus.TOO_MANY_REQUESTS });
   });
+
+  it('adds platform policy escortFee on top of slab price when hasEscort is true without changing driver payout or spread', async () => {
+    const { svc, db } = build({ distanceM: 22400 });
+    (db as any).systemPolicyConfig = {
+      findUnique: jest.fn(async () => ({ key: 'GLOBAL_POLICY', escortFee: 450 })),
+    };
+    await publishPlan(svc, 'ALL');
+
+    const baseQuote = await svc.createVendorQuote({ pickup: PICKUP, drop: DROP, vehicleCategory: 'SEDAN', hasEscort: false } as any, 'vendor-1');
+    expect(baseQuote.vendorPricePaise).toBe(95000);
+    expect(baseQuote.hasEscort).toBe(false);
+    expect(baseQuote.escortFarePaise).toBe(0);
+
+    const escortQuote = await svc.createVendorQuote({ pickup: PICKUP, drop: DROP, vehicleCategory: 'SEDAN', hasEscort: true } as any, 'vendor-1');
+    expect(escortQuote.baseVendorPricePaise).toBe(95000);
+    expect(escortQuote.escortFarePaise).toBe(45000);
+    expect(escortQuote.escortFareRupees).toBe(450);
+    expect(escortQuote.vendorPricePaise).toBe(140000);
+    expect(escortQuote.vendorPriceRupees).toBe(1400);
+    expect(escortQuote.hasEscort).toBe(true);
+
+    // Mismatched escort flag on booking is refused
+    await expect(
+      svc.lockPricingSnapshotForBooking(escortQuote.quoteId, 'vendor-1', { pickup: PICKUP, drop: DROP, vehicleCategory: 'SEDAN', hasEscort: false }),
+    ).rejects.toMatchObject({ status: HttpStatus.CONFLICT });
+
+    // Locking snapshot preserves driver payout (78,000) and slab spread (95,000 - 78,000 = 17,000)
+    const snap = await svc.lockPricingSnapshotForBooking(escortQuote.quoteId, 'vendor-1', {
+      pickup: PICKUP,
+      drop: DROP,
+      vehicleCategory: 'SEDAN',
+      hasEscort: true,
+    });
+    expect(snap.vendorPricePaise).toBe(140000);
+    expect(snap.driverPayoutPaise).toBe(78000);
+    expect(snap.escortFarePaise).toBe(45000);
+    expect(snap.grossSpreadPaise).toBe(17000);
+    expect(snap.hasEscort).toBe(true);
+  });
 });

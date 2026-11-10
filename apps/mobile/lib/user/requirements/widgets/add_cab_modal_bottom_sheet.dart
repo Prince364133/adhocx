@@ -9,6 +9,7 @@ import '../../../shared/theme/app_radius.dart';
 import '../../../shared/theme/app_spacing.dart';
 import '../../../shared/theme/app_typography.dart';
 import '../models/cab_cart_item.dart';
+import 'security_escort_toggle_card.dart';
 import 'select_route_sub_bottom_sheet.dart';
 import 'select_date_time_sub_bottom_sheet.dart';
 
@@ -47,6 +48,8 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
 
   // Trip options
   static const String _tripType = 'One Way';
+  bool _hasEscort = false;
+  double? _policyEscortFee;
   String _pickupInstructions = '';
   String _dropInstructions = '';
 
@@ -74,6 +77,7 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
   void initState() {
     super.initState();
     _loadLivePricingTiers();
+    _loadEscortFeePolicy();
     final item = widget.existingItem;
     if (item != null) {
       _vehicleType = item.vehicleType;
@@ -87,11 +91,15 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
       _dropLat = item.dropLat;
       _dropLng = item.dropLng;
       _dropIsOffice = item.dropIsOffice && !_pickupIsOffice;
+      _hasEscort = item.hasEscort;
       if (item.hasValidQuote) {
         _quote = {
           'quoteId': item.quoteId,
           'expiresAt': item.quoteExpiresAt?.toIso8601String(),
           'totalAmount': item.estimatedFare,
+          if (item.hasEscort && item.escortFee > 0) 'escortFareRupees': item.escortFee,
+          if (item.hasEscort && item.escortFee > 0)
+            'baseVendorPriceRupees': (item.estimatedFare - item.escortFee).clamp(0.0, double.infinity),
         };
       }
       _distanceKm = item.distanceKm;
@@ -122,6 +130,13 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_hasRoute && _quote == null) _refreshLiveFare();
     });
+  }
+
+  Future<void> _loadEscortFeePolicy() async {
+    final fee = await UserService.instance.getEscortFee();
+    if (fee != null && mounted) {
+      setState(() => _policyEscortFee = fee);
+    }
   }
 
   Future<void> _loadLivePricingTiers() async {
@@ -255,6 +270,7 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
         vehicleCategory: _vehicleType,
         pickupIsOffice: _pickupIsOffice,
         dropIsOffice: _dropIsOffice,
+        hasEscort: _hasEscort,
       );
       if (!mounted || seq != _quoteRequestSeq) return;
       setState(() {
@@ -453,6 +469,8 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
       dropIsOffice: _dropIsOffice,
       dropInstructions: _dropInstructions,
       tripType: _tripType,
+      hasEscort: _hasEscort,
+      escortFee: _hasEscort ? ((_quote?['escortFareRupees'] as num?)?.toDouble() ?? _policyEscortFee ?? 0.0) : 0.0,
       isScheduled: _isScheduled,
       pickupDate: _pickupDate,
       pickupTime: _pickupTime,
@@ -935,6 +953,23 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
                               ],
                             ),
                     ),
+                  ),
+
+                  const SizedBox(height: AppSpacing.lg),
+
+                  // ── 3. Security Escort ─────────────────────────────────────
+                  SecurityEscortToggleCard(
+                    hasEscort: _hasEscort,
+                    escortFeeRupees: _hasEscort
+                        ? ((_quote?['escortFareRupees'] as num?)?.toDouble() ?? _policyEscortFee)
+                        : _policyEscortFee,
+                    onChanged: (val) {
+                      setState(() {
+                        _hasEscort = val;
+                        _quote = null;
+                      });
+                      _refreshLiveFare();
+                    },
                   ),
 
                   const SizedBox(height: AppSpacing.lg),
@@ -1463,6 +1498,10 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
                                       Text(
                                         [
                                           if (_quote?['displayedKm'] is num) '${(_quote!['displayedKm'] as num).toStringAsFixed(1)} km',
+                                          if (_hasEscort && ((_quote?['escortFareRupees'] as num?)?.toDouble() ?? 0) > 0)
+                                            'Base ₹${(((_quote?['baseVendorPriceRupees'] as num?)?.toDouble()) ?? (estimatedFare - (_quote!['escortFareRupees'] as num).toDouble())).toStringAsFixed(0)} + ₹${(_quote!['escortFareRupees'] as num).toStringAsFixed(0)} Escort'
+                                          else if (_hasEscort)
+                                            'Security Escort',
                                           if (_quote?['planVersion'] != null) 'plan ${_quote!['planVersion']}',
                                           'Fixed distance rate',
                                         ].join(' • '),

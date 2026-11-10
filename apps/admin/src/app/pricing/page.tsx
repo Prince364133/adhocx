@@ -125,6 +125,7 @@ export default function PricingPage() {
         driverMonthlyFee: Number(policyConfig.driverMonthlyFee ?? 0),
         driverTrialDays: Number(policyConfig.driverTrialDays ?? 0),
         minWithdrawalAmount: Number(policyConfig.minWithdrawalAmount),
+        escortFee: Number(policyConfig.escortFee ?? 0),
         convenienceFeePercent: Number(policyConfig.convenienceFeePercent ?? 0),
         gstPercent: Number(policyConfig.gstPercent ?? 0),
       });
@@ -369,6 +370,20 @@ export default function PricingPage() {
                     onChange={(e) => setPolicyConfig({ ...policyConfig, gstPercent: Number(e.target.value) })}
                     style={inputStyle}
                   />
+                </div>
+                <div>
+                  <label style={labelStyle}>Security escort fee (₹)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={policyConfig.escortFee ?? 300}
+                    onChange={(e) => setPolicyConfig({ ...policyConfig, escortFee: Number(e.target.value) })}
+                    style={inputStyle}
+                  />
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                    Added to vendor quote when Security Escort is toggled; settled via ESCORT_PAYABLE.
+                  </div>
                 </div>
                 <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.75rem', borderTop: '1px solid var(--border)' }}>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>

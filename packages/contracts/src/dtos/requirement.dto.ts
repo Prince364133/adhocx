@@ -73,6 +73,11 @@ export class CreateRequirementDto {
   @IsBoolean()
   isScheduled?: boolean;
 
+  /** True if a security guard escort was requested for this requirement. */
+  @IsOptional()
+  @IsBoolean()
+  hasEscort?: boolean;
+
   /** Optional explicit ISO trigger timestamp for when driver dispatch should begin. */
   @IsOptional()
   @IsDateString({}, { message: 'scheduledTriggerTime must be a valid ISO date string' })
@@ -96,6 +101,8 @@ export class RequirementResponseDto {
   notes?: string;
   isScheduled?: boolean;
   scheduledTriggerTime?: string;
+  hasEscort?: boolean;
+  escortFareRupees?: number;
   /** Locked distance-pricing snapshot. Present only in admin responses (vendors never receive payout or spread). */
   pricing?: {
     planVersion: string;
@@ -103,6 +110,8 @@ export class RequirementResponseDto {
     vendorPricePaise: number;
     driverPayoutPaise: number;
     grossSpreadPaise: number;
+    hasEscort?: boolean;
+    escortFarePaise?: number;
     quotedAt: string;
   };
   createdAt!: string;

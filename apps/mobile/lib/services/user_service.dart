@@ -35,6 +35,7 @@ class UserService {
     int? requiredQuantity,
     DateTime? scheduledPickupTime,
     bool? isScheduled,
+    bool? hasEscort,
     String? couponCode,
     String? quoteId,
   }) async {
@@ -69,6 +70,7 @@ class UserService {
         'reportingTime': effectiveReportingTime.toUtc().toIso8601String(),
         'fulfillmentMode': fulfillmentMode,
         'isScheduled': effectiveIsScheduled,
+        if (hasEscort != null) 'hasEscort': hasEscort,
         if (effectiveBudget != null) 'ratePerVehicle': effectiveBudget,
         if (suggestedBudget != null) 'suggestedBudget': suggestedBudget,
         if (combinedNotes.isNotEmpty) 'notes': combinedNotes,
@@ -466,6 +468,7 @@ class UserService {
     required String vehicleCategory,
     bool pickupIsOffice = false,
     bool dropIsOffice = false,
+    bool hasEscort = false,
   }) async {
     await _ensureSession();
     final pData = {
@@ -488,6 +491,7 @@ class UserService {
         'pickupLocation': pData,
         'dropLocation': dData,
         'vehicleCategory': vehicleCategory.trim().toUpperCase(),
+        'hasEscort': hasEscort,
       },
     );
     if (res is Map) {
@@ -526,6 +530,20 @@ class UserService {
     } catch (_) {
       return [];
     }
+  }
+
+  /// Fetches the platform policy escort fee (returns null when unreachable).
+  Future<double?> getEscortFee() async {
+    try {
+      final dynamic res = await _api.get('/pricing/policy-config');
+      if (res is Map) {
+        final data = res['data'] is Map ? res['data'] as Map : res;
+        final raw = data['escortFee'];
+        if (raw is num) return raw.toDouble();
+        if (raw != null) return double.tryParse(raw.toString());
+      }
+    } catch (_) {}
+    return null;
   }
 
   // ── Dedicated Corporate ETS Employee Operations (PRD 01 & 08) ─────────────

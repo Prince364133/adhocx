@@ -68,6 +68,7 @@ const envInt = (name: string, fallback: number) => {
 
 /** Default plan for categories that have no plan of their own (must be created explicitly). */
 export const DEFAULT_PLAN_CATEGORY = 'ALL';
+const DEFAULT_ESCORT_FEE_PAISE = 30000;
 
 type SlabInput = {
   minDistanceMExclusive: number;
@@ -566,6 +567,10 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
     const vehicleCategory = this.normalizeCategory(dto.vehicleCategory);
     const plan = await this.resolveActivePlan(vehicleCategory);
     const slab = this.resolveSlab(plan, route.distanceMeters);
+    const hasEscort = Boolean(dto.hasEscort);
+    const escortFarePaise = hasEscort ? await this.resolveEscortFeePaise() : 0;
+    const baseVendorPricePaise = slab.vendorPricePaise;
+    const vendorPricePaise = baseVendorPricePaise + escortFarePaise;
     const expiresAt = new Date(Date.now() + this.quoteTtlMinutes * 60_000);
 
     const quote = await this.db.tripQuote.create({
@@ -582,8 +587,10 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
         planId: plan.id,
         planVersion: plan.version,
         slabId: slab.id,
-        vendorPricePaise: slab.vendorPricePaise,
+        vendorPricePaise,
         driverPayoutPaise: slab.driverPayoutPaise,
+        hasEscort,
+        escortFarePaise,
         expiresAt,
         status: 'ACTIVE',
         routeSummary: route.routeDescription || null,
@@ -592,15 +599,20 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
       },
     });
     this.logger.log(
-      `[pricing] metric=quote_created quote=${quote.id} category=${vehicleCategory} plan=${plan.vehicleCategory}/v${plan.version} distance_m=${route.distanceMeters} latency_ms=${Date.now() - started}`,
+      `[pricing] metric=quote_created quote=${quote.id} category=${vehicleCategory} plan=${plan.vehicleCategory}/v${plan.version} distance_m=${route.distanceMeters} has_escort=${hasEscort} escort_paise=${escortFarePaise} latency_ms=${Date.now() - started}`,
     );
 
     return {
       quoteId: quote.id,
       routeDistanceM: route.distanceMeters,
       displayedKm: Number((route.distanceMeters / 1000).toFixed(1)),
-      vendorPricePaise: slab.vendorPricePaise,
-      vendorPriceRupees: slab.vendorPricePaise / 100,
+      vendorPricePaise,
+      vendorPriceRupees: vendorPricePaise / 100,
+      baseVendorPricePaise,
+      baseVendorPriceRupees: baseVendorPricePaise / 100,
+      hasEscort,
+      escortFarePaise,
+      escortFareRupees: escortFarePaise / 100,
       planVersion: plan.version,
       routeSummary: route.routeDescription,
       expiresAt: expiresAt.toISOString(),
@@ -618,7 +630,12 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
   async lockPricingSnapshotForBooking(
     quoteId: string,
     vendorUserId: string,
-    booking?: { pickup?: { latitude: number; longitude: number }; drop?: { latitude: number; longitude: number }; vehicleCategory?: string },
+    booking?: {
+      pickup?: { latitude: number; longitude: number };
+      drop?: { latitude: number; longitude: number };
+      vehicleCategory?: string;
+      hasEscort?: boolean;
+    },
   ) {
     const quote = await this.db.tripQuote.findUnique({ where: { id: quoteId }, include: { plan: true } });
     if (!quote || quote.vendorId !== vendorUserId) {
@@ -636,6 +653,8 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
     }
     if (booking) this.assertBookingMatchesQuote(quote, booking);
 
+    const hasEscort = Boolean(quote.hasEscort);
+    const escortFarePaise = Number(quote.escortFarePaise ?? 0);
     return {
       quote,
       planVersion: quote.planVersion || quote.plan?.version || 'unknown',
@@ -643,7 +662,9 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
       slabId: quote.slabId,
       vendorPricePaise: quote.vendorPricePaise,
       driverPayoutPaise: quote.driverPayoutPaise,
-      grossSpreadPaise: quote.vendorPricePaise - quote.driverPayoutPaise,
+      hasEscort,
+      escortFarePaise,
+      grossSpreadPaise: quote.vendorPricePaise - escortFarePaise - quote.driverPayoutPaise,
     };
   }
 
@@ -782,12 +803,15 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
   /** Vendor rate card: charges only. */
   async getActiveVendorRateCard(vehicleCategory = DEFAULT_PLAN_CATEGORY) {
     const plan = await this.resolveActivePlan(vehicleCategory);
+    const escortFeePaise = await this.resolveEscortFeePaise();
     return {
       planId: plan.id,
       planName: plan.name,
       version: plan.version,
       vehicleCategory: plan.vehicleCategory,
       effectiveFrom: plan.effectiveFrom.toISOString(),
+      escortFeePaise,
+      escortFeeRupees: escortFeePaise / 100,
       slabs: plan.slabs.map((s: any) => ({
         id: s.id,
         range: this.rangeLabel(s),
@@ -802,6 +826,21 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
   // ===========================================================================
   // Helpers
   // ===========================================================================
+
+  private async resolveEscortFeePaise(): Promise<number> {
+    try {
+      const policy = await this.db.systemPolicyConfig?.findUnique?.({ where: { key: 'GLOBAL_POLICY' } });
+      if (policy && (policy as any).escortFee !== undefined && (policy as any).escortFee !== null) {
+        const fee = Number((policy as any).escortFee);
+        if (Number.isFinite(fee) && fee >= 0) {
+          return Math.round(fee * 100);
+        }
+      }
+    } catch (err: any) {
+      this.logger.warn(`Could not read escortFee policy; using default: ${err?.message ?? err}`);
+    }
+    return DEFAULT_ESCORT_FEE_PAISE;
+  }
 
   private async verifiedDistance(
     pickup: { latitude: number; longitude: number },
@@ -842,17 +881,24 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
 
   private assertBookingMatchesQuote(
     quote: any,
-    booking: { pickup?: { latitude: number; longitude: number }; drop?: { latitude: number; longitude: number }; vehicleCategory?: string },
+    booking: {
+      pickup?: { latitude: number; longitude: number };
+      drop?: { latitude: number; longitude: number };
+      vehicleCategory?: string;
+      hasEscort?: boolean;
+    },
   ) {
     const far = (a: { latitude: number; longitude: number } | undefined, lat: any, lng: any) =>
       a && Number.isFinite(Number(a.latitude)) && haversineM(Number(a.latitude), Number(a.longitude), Number(lat), Number(lng)) > this.quoteMatchToleranceM;
     const categoryChanged =
       booking.vehicleCategory && this.normalizeCategory(booking.vehicleCategory) !== quote.vehicleCategory && quote.vehicleCategory !== DEFAULT_PLAN_CATEGORY;
-    if (far(booking.pickup, quote.pickupLat, quote.pickupLng) || far(booking.drop, quote.dropLat, quote.dropLng) || categoryChanged) {
+    const escortChanged =
+      booking.hasEscort !== undefined && Boolean(booking.hasEscort) !== Boolean(quote.hasEscort);
+    if (far(booking.pickup, quote.pickupLat, quote.pickupLng) || far(booking.drop, quote.dropLat, quote.dropLng) || categoryChanged || escortChanged) {
       throw pricingError(
         HttpStatus.CONFLICT,
         PricingErrorCode.QUOTE_MISMATCH,
-        'Pickup, drop or vehicle type changed since this quote was made. Please get a fresh quote.',
+        'Pickup, drop, escort option or vehicle type changed since this quote was made. Please get a fresh quote.',
       );
     }
   }

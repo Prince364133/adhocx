@@ -18,6 +18,7 @@ class _VendorRateCardModalState extends State<VendorRateCardModal> {
   String? _error;
   String? _planVersion;
   String? _planCategory;
+  double? _escortFeeRupees;
   List<Map<String, dynamic>> _slabs = [];
 
   @override
@@ -39,6 +40,7 @@ class _VendorRateCardModalState extends State<VendorRateCardModal> {
         _slabs = slabs;
         _planVersion = card['version']?.toString();
         _planCategory = card['vehicleCategory']?.toString();
+        _escortFeeRupees = (card['escortFeeRupees'] as num?)?.toDouble();
         _isLoading = false;
       });
     } on ApiException catch (e) {
@@ -173,6 +175,13 @@ class _VendorRateCardModalState extends State<VendorRateCardModal> {
                         ),
                       ),
           ),
+          if (_escortFeeRupees != null && _escortFeeRupees! > 0) ...[
+            const SizedBox(height: 10),
+            Text(
+              'Optional Security Escort add-on: +₹${_escortFeeRupees!.toStringAsFixed(0)} per trip (set by platform policy).',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.accentPurple),
+            ),
+          ],
           const SizedBox(height: 12),
           Text(
             'The price shown when you book is locked for that booking. Longer routes than the last band need an operations quote.',

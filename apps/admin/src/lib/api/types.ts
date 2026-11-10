@@ -414,6 +414,7 @@ export interface SystemPolicyConfig {
   driverMonthlyFee?: number;
   driverTrialDays?: number;
   minWithdrawalAmount: number;
+  escortFee?: number;
   convenienceFeePercent?: number;
   gstPercent?: number;
   updatedAt?: string;

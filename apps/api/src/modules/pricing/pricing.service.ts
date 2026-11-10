@@ -41,6 +41,7 @@ export interface PlatformPolicyConfigDto {
   driverMonthlyFee: number;
   driverTrialDays: number;
   minWithdrawalAmount: number;
+  escortFee: number;
   updatedAt: string;
 }
 
@@ -53,7 +54,7 @@ const DEFAULT_CATEGORIES: Array<Pick<VehicleCategoryDto, 'vehicleType' | 'catego
   { vehicleType: VehicleType.BUS, categoryLabel: 'Coach Bus', seatingCapacity: '24 - 40 Passengers', description: '24-40 seater coaches', iconKey: 'bus' },
 ];
 
-const DEFAULT_POLICY = { commissionPercent: 10, driverMonthlyFee: 499, driverTrialDays: 15, minWithdrawalAmount: 1000 };
+const DEFAULT_POLICY = { commissionPercent: 10, driverMonthlyFee: 499, driverTrialDays: 15, minWithdrawalAmount: 1000, escortFee: 300 };
 
 @Injectable()
 export class PricingService implements OnModuleInit {
@@ -181,6 +182,7 @@ export class PricingService implements OnModuleInit {
             driverMonthlyFee: Number(policy.driverMonthlyFee),
             driverTrialDays: policy.driverTrialDays,
             minWithdrawalAmount: Number(policy.minWithdrawalAmount),
+            escortFee: Number((policy as any).escortFee ?? DEFAULT_POLICY.escortFee),
             updatedAt: policy.updatedAt.toISOString(),
           };
           return this.policyCache;
@@ -197,6 +199,7 @@ export class PricingService implements OnModuleInit {
     driverMonthlyFee?: number;
     driverTrialDays?: number;
     minWithdrawalAmount?: number;
+    escortFee?: number;
   }): Promise<PlatformPolicyConfigDto> {
     if (!this.db) throw new BadRequestException('Database unavailable');
     const data: any = {};
@@ -204,6 +207,13 @@ export class PricingService implements OnModuleInit {
     if (dto.driverMonthlyFee !== undefined) data.driverMonthlyFee = Number(dto.driverMonthlyFee);
     if (dto.driverTrialDays !== undefined) data.driverTrialDays = Number(dto.driverTrialDays);
     if (dto.minWithdrawalAmount !== undefined) data.minWithdrawalAmount = Number(dto.minWithdrawalAmount);
+    if (dto.escortFee !== undefined) {
+      const fee = Number(dto.escortFee);
+      if (!Number.isFinite(fee) || fee < 0) {
+        throw new BadRequestException('escortFee must be a non-negative number');
+      }
+      data.escortFee = fee;
+    }
     const res = await this.db.systemPolicyConfig.upsert({
       where: { key: 'GLOBAL_POLICY' },
       create: { key: 'GLOBAL_POLICY', ...DEFAULT_POLICY, ...data },
@@ -214,6 +224,7 @@ export class PricingService implements OnModuleInit {
       driverMonthlyFee: Number(res.driverMonthlyFee),
       driverTrialDays: res.driverTrialDays,
       minWithdrawalAmount: Number(res.minWithdrawalAmount),
+      escortFee: Number((res as any).escortFee ?? DEFAULT_POLICY.escortFee),
       updatedAt: res.updatedAt.toISOString(),
     };
     return this.policyCache;

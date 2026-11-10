@@ -45,6 +45,7 @@ class RequirementDraftProvider extends ChangeNotifier {
   // Optional "office" labels on the pickup / drop (display only; pricing is by route distance).
   bool _pickupIsOffice = false;
   bool _dropIsOffice = false;
+  bool _hasEscort = false;
 
 
   RequirementDraftProvider() {
@@ -114,6 +115,11 @@ class RequirementDraftProvider extends ChangeNotifier {
   }
   bool get pickupIsOffice => _pickupIsOffice;
   bool get dropIsOffice => _dropIsOffice;
+  bool get hasEscort => _hasEscort;
+  double get escortFeeRupees => (_quote?['escortFareRupees'] as num?)?.toDouble() ?? 0.0;
+  double get baseQuotedAmount =>
+      (_quote?['baseVendorPriceRupees'] as num?)?.toDouble() ??
+      ((quotedAmount ?? 0.0) - escortFeeRupees).clamp(0.0, double.infinity);
 
 
   // Setters / Updates
@@ -316,6 +322,7 @@ class RequirementDraftProvider extends ChangeNotifier {
     _quote = null;
     _pickupIsOffice = false;
     _dropIsOffice = false;
+    _hasEscort = false;
     _cabs.clear();
     _initDefaultDateTime();
     notifyListeners();
@@ -337,6 +344,13 @@ class RequirementDraftProvider extends ChangeNotifier {
         _dropIsOffice = false;
       }
     }
+    notifyListeners();
+  }
+
+  void setHasEscort(bool value) {
+    if (_hasEscort == value) return;
+    _hasEscort = value;
+    _quote = null;
     notifyListeners();
   }
 

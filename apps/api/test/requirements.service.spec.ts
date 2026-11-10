@@ -452,5 +452,35 @@ describe('RequirementsService Unit Tests', () => {
       db.requirement.findUnique.mockResolvedValue({ id: '99999999-9999-9999-9999-999999999999', vendorId: 'vnd-other', offers: [], assignments: [] });
       await expect(service.getRequirementDetails('99999999-9999-9999-9999-999999999999', 'usr-new', 'VENDOR')).rejects.toThrow(/Not authorized/);
     });
+
+    it('persists hasEscort and escortFarePaise on the locked TripPricingSnapshot', async () => {
+      distancePricing.lockPricingSnapshotForBooking.mockResolvedValueOnce({
+        quote: { id: 'q-esc', planId: 'plan-1', createdAt: quotedAt },
+        planVersion: '1',
+        distanceM: 22400,
+        slabId: 'slab-4',
+        vendorPricePaise: 180000,
+        driverPayoutPaise: 120000,
+        grossSpreadPaise: 30000,
+        hasEscort: true,
+        escortFarePaise: 30000,
+      });
+
+      const created = await service.createRequirement('usr-vnd-1', { ...dto, quoteId: 'q-esc', hasEscort: true });
+
+      expect(db.tripPricingSnapshot.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            hasEscort: true,
+            escortFarePaise: 30000,
+            vendorPricePaise: 180000,
+            driverPayoutPaise: 120000,
+            grossSpreadPaise: 30000,
+          }),
+        }),
+      );
+      expect(created.hasEscort).toBe(true);
+      expect(created.escortFareRupees).toBe(300);
+    });
   });
 });

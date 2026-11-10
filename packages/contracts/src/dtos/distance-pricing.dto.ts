@@ -182,6 +182,10 @@ export class VendorTripQuoteRequestDto {
   @IsOptional()
   @IsString()
   vehicleCategory?: string = 'ALL';
+
+  @IsOptional()
+  @IsBoolean()
+  hasEscort?: boolean;
 }
 
 export class VendorTripQuoteResponseDto {
@@ -190,6 +194,11 @@ export class VendorTripQuoteResponseDto {
   displayedKm!: number;
   vendorPricePaise!: number;
   vendorPriceRupees!: number;
+  baseVendorPricePaise?: number;
+  baseVendorPriceRupees?: number;
+  hasEscort?: boolean;
+  escortFarePaise?: number;
+  escortFareRupees?: number;
   planVersion!: string;
   routeSummary?: string;
   expiresAt!: string;

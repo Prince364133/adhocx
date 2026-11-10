@@ -12,6 +12,7 @@ import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/app_primary_button.dart';
 import 'requirement_draft_provider.dart';
+import 'widgets/security_escort_toggle_card.dart';
 
 class UserCreateRequirementStep2Screen extends StatefulWidget {
   const UserCreateRequirementStep2Screen({super.key});
@@ -33,6 +34,8 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
   double _dropLat = 0.0;
   double _dropLng = 0.0;
   bool _dropIsOffice = false;
+  bool _hasEscort = false;
+  double? _policyEscortFee;
   late TextEditingController _dropInstructions;
 
   bool _initialized = false;
@@ -62,12 +65,14 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
       _dropLat = draft.dropLat;
       _dropLng = draft.dropLng;
       _dropIsOffice = draft.dropIsOffice && !_pickupIsOffice;
+      _hasEscort = draft.hasEscort;
 
       _distanceQuote = draft.quote;
 
       _initialized = true;
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        _loadEscortFeePolicy();
         _syncToDraft();
         if (_hasValidCoordinates) {
           _calculateAndFetchQuote();
@@ -82,6 +87,13 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
     _dropInstructions.dispose();
     _quoteExpiryTimer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _loadEscortFeePolicy() async {
+    final fee = await UserService.instance.getEscortFee();
+    if (fee != null && mounted) {
+      setState(() => _policyEscortFee = fee);
+    }
   }
 
   bool get _hasValidCoordinates =>
@@ -169,6 +181,7 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
         vehicleCategory: vehicleCategory,
         pickupIsOffice: _pickupIsOffice,
         dropIsOffice: _dropIsOffice,
+        hasEscort: _hasEscort,
       );
 
       if (mounted) {
@@ -235,6 +248,7 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
 
   void _syncToDraft() {
     final draft = context.read<RequirementDraftProvider>();
+    draft.setHasEscort(_hasEscort);
     draft.setQuote(_distanceQuote);
     draft.setOfficeLabels(pickupIsOffice: _pickupIsOffice, dropIsOffice: _dropIsOffice);
     draft.updateStep2(
@@ -424,6 +438,26 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
 
                     // 1. UNIFIED CONNECTED ROUTE CARD
                     _buildConnectedRouteCard(isDark, primaryText, mutedText),
+
+                    const SizedBox(height: 12),
+
+                    // 2. SECURITY ESCORT TOGGLE
+                    SecurityEscortToggleCard(
+                      hasEscort: _hasEscort,
+                      escortFeeRupees: _hasEscort
+                          ? ((_distanceQuote?['escortFareRupees'] as num?)?.toDouble() ?? _policyEscortFee)
+                          : _policyEscortFee,
+                      onChanged: (val) {
+                        setState(() {
+                          _hasEscort = val;
+                          _distanceQuote = null;
+                        });
+                        _syncToDraft();
+                        if (_hasValidCoordinates) {
+                          _calculateAndFetchQuote();
+                        }
+                      },
+                    ),
 
                     const SizedBox(height: 12),
 
@@ -866,7 +900,9 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Google Maps route: $displayKm • Fixed rate band • Zero surge',
+                      (_hasEscort && ((q['escortFareRupees'] as num?)?.toDouble() ?? 0) > 0)
+                          ? 'Base ₹${(((q['baseVendorPriceRupees'] as num?)?.toDouble()) ?? (totalFare - (q['escortFareRupees'] as num).toDouble())).toStringAsFixed(0)} + ₹${(q['escortFareRupees'] as num).toStringAsFixed(0)} Escort • $displayKm'
+                          : 'Google Maps route: $displayKm • Fixed rate band • Zero surge',
                       style: TextStyle(fontSize: 11, color: muted),
                     ),
                   ],

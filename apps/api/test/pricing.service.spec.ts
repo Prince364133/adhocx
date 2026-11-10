@@ -23,7 +23,24 @@ describe('PricingService (vehicle catalogue, no prices)', () => {
           return row;
         }),
       },
-      systemPolicyConfig: { findUnique: jest.fn(async () => ({ id: 'p' })), create: jest.fn() },
+      systemPolicyConfig: {
+        findUnique: jest.fn(async () => ({
+          id: 'p',
+          commissionPercent: 10,
+          driverMonthlyFee: 499,
+          driverTrialDays: 15,
+          minWithdrawalAmount: 1000,
+          escortFee: 300,
+          updatedAt: new Date(),
+        })),
+        create: jest.fn(),
+        upsert: jest.fn(async ({ create, update }: any) => ({
+          id: 'p',
+          ...create,
+          ...update,
+          updatedAt: new Date(),
+        })),
+      },
       trip: { count: jest.fn(async () => 0) },
     };
     return { svc: new PricingService(db), db };
@@ -69,5 +86,16 @@ describe('PricingService (vehicle catalogue, no prices)', () => {
     expect(db.vehiclePricingTier.update).not.toHaveBeenCalled();
     await svc.updatePricingTier('SUV', { categoryLabel: 'Large SUV' });
     expect(db.trip.count).toHaveBeenCalledTimes(1);
+  });
+
+  it('reads and updates platform escortFee policy and rejects negative values', async () => {
+    const { svc } = build();
+    const initial = await svc.getPolicyConfig();
+    expect(initial.escortFee).toBe(300);
+
+    const updated = await svc.updatePolicyConfig({ escortFee: 450 });
+    expect(updated.escortFee).toBe(450);
+
+    await expect(svc.updatePolicyConfig({ escortFee: -10 })).rejects.toThrow(/non-negative/);
   });
 });

@@ -111,7 +111,7 @@ export class OffersService {
         where,
         include: {
           requirement: {
-            include: { vendor: true },
+            include: { vendor: true, pricingSnapshot: true },
           },
         },
         orderBy: { createdAt: 'desc' },
@@ -157,7 +157,10 @@ export class OffersService {
           { latitude: pLat, longitude: pLng },
           { latitude: dLat, longitude: dLng },
         );
-        const hasEscort = false;
+        const hasEscort = Boolean(
+          (o.requirement as any)?.pricingSnapshot?.hasEscort ||
+          (typeof o.requirement?.notes === 'string' && o.requirement.notes.includes('Security Escort: Required')),
+        );
 
         return {
           id: o.id,

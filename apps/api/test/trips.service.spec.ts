@@ -533,5 +533,58 @@ describe('TripsService Unit Tests', () => {
       expect(result.status).toBe(TripStatus.COMPLETED);
       expect(db.$transaction).not.toHaveBeenCalled();
     });
+
+    it('distance pricing trip with escort credits driver slab payout, platform spread, and ESCORT_PAYABLE separately', async () => {
+      const distanceTrip = {
+        id: 'trip-d1',
+        requirementId: 'req-d1',
+        assignmentId: 'asg-d1',
+        vendorId: 'vnd-1',
+        driverId: 'drv-1',
+        vehicleType: VehicleType.SEDAN,
+        pickupAddress: 'HITEC City',
+        dropAddress: 'Charminar',
+        reportingTime: now,
+        startedAt: now,
+        status: TripStatus.IN_PROGRESS,
+        driverRate: 1200,
+        createdAt: now,
+        updatedAt: now,
+        pricingSnapshot: {
+          distanceM: 22400,
+          planVersion: '1',
+          vendorPricePaise: 180000,
+          driverPayoutPaise: 120000,
+          grossSpreadPaise: 30000,
+          hasEscort: true,
+          escortFarePaise: 30000,
+        },
+        requirement: {
+          id: 'req-d1',
+          vendorId: 'vnd-1',
+          ratePerVehicle: 1800,
+          pricingSnapshot: null,
+          zonalQuote: null,
+          vendor: { userId: 'usr-vnd-1', organizationName: 'Acme Corp' },
+        },
+        driver: { id: 'drv-1', userId: 'usr-drv-1', fullName: 'Ram', user: { fullName: 'Ram' } },
+      };
+      db.trip.findUnique.mockResolvedValue(distanceTrip);
+      tx.trip.findUnique.mockResolvedValue({ ...distanceTrip, status: TripStatus.COMPLETED, completedAt: now, totalDriverEarnings: 1200 });
+
+      await service.completeTrip('trip-d1', 'usr-drv-1', {} as any);
+
+      expect(tx.driver.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ walletBalance: { increment: 1200 } }) }),
+      );
+      const entries = tx.ledgerEntry.create.mock.calls.map((c: any) => c[0].data);
+      expect(entries).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ accountType: 'DRIVER', amount: 1200 }),
+          expect.objectContaining({ accountType: 'PLATFORM', referenceType: 'DISTANCE_PLATFORM_SPREAD', amount: 300 }),
+          expect.objectContaining({ accountType: 'ESCORT_PAYABLE', referenceType: 'DISTANCE_ESCORT_PAYABLE', amount: 300 }),
+        ]),
+      );
+    });
   });
 });

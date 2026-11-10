@@ -278,6 +278,8 @@ class _UserRequirementsListScreenState extends State<UserRequirementsListScreen>
             dropIsOffice: CabCartItem.parseDropIsOffice(notes),
             dropInstructions: dropInstructions,
             tripType: 'One Way',
+            hasEscort: it['hasEscort'] == true || CabCartItem.parseHasEscort(notes),
+            escortFee: (it['escortFareRupees'] as num?)?.toDouble() ?? 0.0,
             pickupDate: '${reporting.year}-${reporting.month.toString().padLeft(2, '0')}-${reporting.day.toString().padLeft(2, '0')}',
             pickupTime: '${reporting.hour > 12 ? reporting.hour - 12 : (reporting.hour == 0 ? 12 : reporting.hour)}:${reporting.minute.toString().padLeft(2, '0')} ${reporting.hour >= 12 ? 'PM' : 'AM'}',
             reportingDateTime: reporting,

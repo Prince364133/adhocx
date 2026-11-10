@@ -724,6 +724,7 @@ model SystemPolicyConfig {
   driverMonthlyFee    Decimal  @default(499.00) @map("driver_monthly_fee") @db.Decimal(10, 2)
   driverTrialDays     Int      @default(15) @map("driver_trial_days")
   minWithdrawalAmount Decimal  @default(1000.00) @map("min_withdrawal_amount") @db.Decimal(10, 2)
+  escortFee           Decimal  @default(300.00) @map("escort_fee") @db.Decimal(10, 2)
   updatedAt           DateTime @updatedAt @map("updated_at")
 
   @@map("system_policy_configs")
@@ -952,6 +953,8 @@ model TripQuote {
   slabId            String?      @map("slab_id") @db.Uuid
   vendorPricePaise  Int          @map("vendor_price_paise")
   driverPayoutPaise Int          @map("driver_payout_paise")
+  hasEscort         Boolean      @default(false) @map("has_escort")
+  escortFarePaise   Int          @default(0) @map("escort_fare_paise")
   expiresAt         DateTime     @map("expires_at")
   status            String       @default("ACTIVE") // ACTIVE, CONFIRMED, EXPIRED
   routeSummary      String?      @map("route_summary")
@@ -982,6 +985,8 @@ model TripPricingSnapshot {
   vendorPricePaise  Int          @map("vendor_price_paise")
   driverPayoutPaise Int          @map("driver_payout_paise")
   grossSpreadPaise  Int          @map("gross_spread_paise")
+  hasEscort         Boolean      @default(false) @map("has_escort")
+  escortFarePaise   Int          @default(0) @map("escort_fare_paise")
   quotedAt          DateTime     @default(now()) @map("quoted_at")
   overrideReason    String?      @map("override_reason")
   createdAt         DateTime     @default(now()) @map("created_at")

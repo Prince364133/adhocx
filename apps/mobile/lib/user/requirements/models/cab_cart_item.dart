@@ -14,6 +14,8 @@ class CabCartItem {
   bool dropIsOffice; // optional display label
   String dropInstructions;
   String tripType; // 'One Way'
+  bool hasEscort;
+  double escortFee;
   bool isScheduled;
   String pickupDate; // YYYY-MM-DD
   String pickupTime; // e.g. 07:14 PM
@@ -47,6 +49,8 @@ class CabCartItem {
     bool dropIsOffice = false,
     this.dropInstructions = '',
     this.tripType = 'One Way',
+    this.hasEscort = false,
+    this.escortFee = 0.0,
     this.isScheduled = false,
     required this.pickupDate,
     required this.pickupTime,
@@ -99,6 +103,7 @@ class CabCartItem {
     }
     if (pickupIsOffice) notes.add('Pickup: Office');
     if (dropIsOffice) notes.add('Drop: Office');
+    if (hasEscort) notes.add('Security Escort: Required');
     if (passengers > 0) {
       notes.add('Passengers: $passengers');
     }
@@ -152,6 +157,9 @@ class CabCartItem {
       notes != null &&
       (notes.contains('Drop: Office') || notes.contains('Route: Home → Office'));
 
+  static bool parseHasEscort(String? notes) =>
+      notes != null && notes.contains('Security Escort: Required');
+
   Map<String, dynamic> toJson() => {
     'id': id,
     'vehicleType': vehicleType,
@@ -168,6 +176,8 @@ class CabCartItem {
     'dropIsOffice': dropIsOffice,
     'dropInstructions': dropInstructions,
     'tripType': tripType,
+    'hasEscort': hasEscort,
+    'escortFee': escortFee,
     'isScheduled': isScheduled,
     'pickupDate': pickupDate,
     'pickupTime': pickupTime,
@@ -211,6 +221,8 @@ class CabCartItem {
       dropIsOffice: dropIsOffice,
       dropInstructions: json['dropInstructions']?.toString() ?? '',
       tripType: json['tripType']?.toString() ?? 'One Way',
+      hasEscort: json['hasEscort'] == true,
+      escortFee: (json['escortFee'] as num?)?.toDouble() ?? 0.0,
       isScheduled: json['isScheduled'] == true,
       pickupDate: json['pickupDate']?.toString() ?? '',
       pickupTime: json['pickupTime']?.toString() ?? '',
@@ -274,6 +286,8 @@ class CabCartItem {
     bool? dropIsOffice,
     String? dropInstructions,
     String? tripType,
+    bool? hasEscort,
+    double? escortFee,
     bool? isScheduled,
     String? pickupDate,
     String? pickupTime,
@@ -308,6 +322,8 @@ class CabCartItem {
       dropIsOffice: nextDrop,
       dropInstructions: dropInstructions ?? this.dropInstructions,
       tripType: tripType ?? this.tripType,
+      hasEscort: hasEscort ?? this.hasEscort,
+      escortFee: escortFee ?? this.escortFee,
       isScheduled: isScheduled ?? this.isScheduled,
       pickupDate: pickupDate ?? this.pickupDate,
       pickupTime: pickupTime ?? this.pickupTime,

@@ -370,6 +370,7 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
           vehicleCategory: cab.vehicleType,
           pickupIsOffice: cab.pickupIsOffice,
           dropIsOffice: cab.dropIsOffice,
+          hasEscort: cab.hasEscort,
         );
         final amount = (q['totalAmount'] as num?)?.toDouble();
         final quoteId = q['quoteId']?.toString();
@@ -382,6 +383,7 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
           i,
           cab.copyWith(
             estimatedFare: amount,
+            escortFee: cab.hasEscort ? ((q['escortFareRupees'] as num?)?.toDouble() ?? cab.escortFee) : 0.0,
             quoteId: quoteId,
             quoteExpiresAt: DateTime.tryParse(q['expiresAt']?.toString() ?? ''),
           ),
@@ -620,6 +622,7 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
               dropLng: cab.dropLng,
               reportingTime: cab.reportingDateTime,
               isScheduled: cab.isScheduled,
+              hasEscort: cab.hasEscort,
               ratePerVehicle: cab.estimatedFare,
               notes: cab.buildFormattedNotes(
                 batchId: batchId,
@@ -982,6 +985,15 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                                                     '${cab.passengers} pax',
                                                     isDark,
                                                   ),
+                                                  if (cab.hasEscort)
+                                                    _buildMiniChip(
+                                                      Icons.shield_outlined,
+                                                      cab.escortFee > 0
+                                                          ? 'Escort (+₹${cab.escortFee.toStringAsFixed(0)})'
+                                                          : 'Security Escort',
+                                                      isDark,
+                                                      chipColor: AppColors.accentPurple,
+                                                    ),
                                                 ],
                                               ),
                                             ],

@@ -96,10 +96,16 @@ export class RequirementsService {
           pickup: dto.pickupLocation,
           drop: dto.dropLocation,
           vehicleCategory: dto.vehicleType,
+          ...(dto.hasEscort !== undefined ? { hasEscort: dto.hasEscort } : {}),
         });
       } else {
         const autoQuote = await this.distancePricing.createVendorQuote(
-          { pickup: dto.pickupLocation, drop: dto.dropLocation, vehicleCategory: dto.vehicleType },
+          {
+            pickup: dto.pickupLocation,
+            drop: dto.dropLocation,
+            vehicleCategory: dto.vehicleType,
+            ...(dto.hasEscort !== undefined ? { hasEscort: dto.hasEscort } : {}),
+          },
           vendorUserId,
         );
         pricingSnapshotData = await this.distancePricing.lockPricingSnapshotForBooking(autoQuote.quoteId, vendorUserId);
@@ -258,6 +264,8 @@ export class RequirementsService {
             vendorPricePaise: pricingSnapshotData.vendorPricePaise,
             driverPayoutPaise: pricingSnapshotData.driverPayoutPaise,
             grossSpreadPaise: pricingSnapshotData.grossSpreadPaise,
+            hasEscort: Boolean(pricingSnapshotData.hasEscort),
+            escortFarePaise: Number(pricingSnapshotData.escortFarePaise ?? 0),
             quotedAt: pricingSnapshotData.quote.createdAt,
           },
         });
@@ -358,7 +366,10 @@ export class RequirementsService {
       }
     }
 
-    return this.mapToDto(requirement);
+    return this.mapToDto({
+      ...requirement,
+      pricingSnapshot: pricingSnapshotData.isMockFallback ? null : pricingSnapshotData,
+    });
   }
 
   /**
@@ -391,6 +402,7 @@ export class RequirementsService {
         skip,
         take: limit,
         include: {
+          pricingSnapshot: true,
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -853,6 +865,12 @@ export class RequirementsService {
 
   private mapToDto(r: any, viewer: 'VENDOR' | 'ADMIN' = 'VENDOR'): RequirementResponseDto {
     const snap = r.pricingSnapshot;
+    const hasEscort = Boolean(
+      snap?.hasEscort ||
+      r.zonalQuote?.hasEscort ||
+      (typeof r.notes === 'string' && r.notes.includes('Security Escort: Required')),
+    );
+    const escortFarePaise = Number(snap?.escortFarePaise ?? r.zonalQuote?.escortFarePaise ?? 0);
     const reportingTimeMs = new Date(r.reportingTime).getTime();
     const isScheduled = r.status === RequirementStatus.POSTED && (reportingTimeMs - Date.now() > 5 * 60 * 1000);
     return {
@@ -879,6 +897,8 @@ export class RequirementsService {
       status: r.status as RequirementStatus,
       notes: r.notes || undefined,
       isScheduled,
+      hasEscort,
+      ...(escortFarePaise > 0 ? { escortFareRupees: escortFarePaise / 100 } : {}),
       ...(viewer === 'ADMIN' && snap
         ? {
             pricing: {
@@ -887,7 +907,9 @@ export class RequirementsService {
               vendorPricePaise: snap.vendorPricePaise,
               driverPayoutPaise: snap.driverPayoutPaise,
               grossSpreadPaise: snap.grossSpreadPaise,
-              quotedAt: new Date(snap.quotedAt).toISOString(),
+              hasEscort: Boolean(snap.hasEscort),
+              escortFarePaise: Number(snap.escortFarePaise ?? 0),
+              quotedAt: new Date(snap.quotedAt ?? Date.now()).toISOString(),
             },
           }
         : {}),

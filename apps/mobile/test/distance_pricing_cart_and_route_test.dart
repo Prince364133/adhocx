@@ -5,6 +5,8 @@ import 'package:adhocx/services/driver_service.dart';
 import 'package:adhocx/user/requirements/models/cab_cart_item.dart';
 import 'package:adhocx/user/requirements/requirement_draft_provider.dart';
 import 'package:adhocx/user/requirements/user_create_requirement_step2_screen.dart';
+import 'package:adhocx/user/requirements/widgets/add_cab_modal_bottom_sheet.dart';
+import 'package:adhocx/user/requirements/widgets/security_escort_toggle_card.dart';
 import 'package:adhocx/user/requirements/widgets/select_route_sub_bottom_sheet.dart';
 
 CabCartItem _cab({String? quoteId, DateTime? expires, bool pickupOffice = false, bool dropOffice = false}) => CabCartItem(
@@ -247,6 +249,62 @@ void main() {
       expect(draft.pickupIsOffice, isFalse);
       expect(draft.dropIsOffice, isTrue);
       expect(find.text('Office'), findsOneWidget);
+
+      await tester.tap(find.text('Security Escort'));
+      await tester.pump();
+      expect(draft.hasEscort, isTrue);
+    });
+  });
+
+  group('Security Escort option', () {
+    test('CabCartItem serializes and parses Security Escort flag and fee', () {
+      final cab = _cab().copyWith(hasEscort: true, escortFee: 350);
+      final notes = cab.buildFormattedNotes();
+      expect(notes, contains('Security Escort: Required'));
+      expect(CabCartItem.parseHasEscort(notes), isTrue);
+      expect(CabCartItem.parseHasEscort('Passengers: 4'), isFalse);
+
+      final roundTrip = CabCartItem.fromJson(cab.toJson());
+      expect(roundTrip.hasEscort, isTrue);
+      expect(roundTrip.escortFee, 350);
+    });
+
+    testWidgets('SecurityEscortToggleCard displays server fee and toggles', (tester) async {
+      bool value = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: StatefulBuilder(
+              builder: (context, setState) => SecurityEscortToggleCard(
+                hasEscort: value,
+                escortFeeRupees: 400,
+                onChanged: (v) => setState(() => value = v),
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(find.text('Security Escort'), findsOneWidget);
+      expect(find.text('+₹400'), findsOneWidget);
+      await tester.tap(find.byType(Switch));
+      await tester.pump();
+      expect(value, isTrue);
+    });
+
+    testWidgets('AddCabModalBottomSheet shows Security Escort option', (tester) async {
+      tester.view.physicalSize = const Size(390 * 3.0, 844 * 3.0);
+      tester.view.devicePixelRatio = 3.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(body: AddCabModalBottomSheet(cabNumber: 1)),
+        ),
+      );
+      await tester.pump();
+      expect(find.text('Security Escort'), findsOneWidget);
+      expect(find.text('Guard Add-on'), findsOneWidget);
     });
   });
 }

@@ -853,7 +853,7 @@ export class TripsService {
       }
 
 
-      // 7. Distance engine platform spread
+      // 7. Distance engine platform spread and escort payable
       if (pricingSnapshot && pricingSnapshot.grossSpreadPaise > 0) {
         await tx.ledgerEntry.create({
           data: {
@@ -865,6 +865,20 @@ export class TripsService {
             referenceType: 'DISTANCE_PLATFORM_SPREAD',
             referenceId: trip.id,
             description: `Distance spread for trip ${trip.id.slice(-6)} (${(pricingSnapshot.distanceM / 1000).toFixed(1)} km, plan ${pricingSnapshot.planVersion})`,
+          },
+        });
+      }
+      if (pricingSnapshot && pricingSnapshot.hasEscort && pricingSnapshot.escortFarePaise > 0) {
+        await tx.ledgerEntry.create({
+          data: {
+            accountType: 'ESCORT_PAYABLE',
+            accountId: trip.vendorId,
+            entryType: 'CREDIT',
+            amount: pricingSnapshot.escortFarePaise / 100,
+            balanceAfter: pricingSnapshot.escortFarePaise / 100,
+            referenceType: 'DISTANCE_ESCORT_PAYABLE',
+            referenceId: trip.id,
+            description: `Escort service payable for trip ${trip.id.slice(-6)} (payee settled by operations)`,
           },
         });
       }
