@@ -1,0 +1,17 @@
+{
+  "source": "https://documentation.digio.in/swagger/post_fetchIdCards.json",
+  "fetched": "2026-11-10",
+  "examples": {
+    "400 Bad Request": {
+      "method": "POST",
+      "path": "/v3/client/kyc/fetch_id_data/{idCardType}",
+      "status": 400,
+      "body": {
+        "error": {
+          "error_message": "unable to fetch details",
+          "status": "BAD_REQUEST"
+        }
+      }
+    }
+  }
+}

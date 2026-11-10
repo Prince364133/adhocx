@@ -211,9 +211,27 @@ class DriverService {
   }
 
   // KYC Profile Submission
+  /// Licence fields for the KYC submission. Only a real (entered, OCR'd or Digio-verified) licence
+  /// number is ever sent; nothing is fabricated from the vehicle plate. Expiry is sent only when
+  /// it is actually known.
+  static Map<String, dynamic> licenseFieldsFor({String? licenseNumber, String? dlNumber, DateTime? licenseExpiry}) {
+    String? clean(String? v) {
+      final t = v?.trim().toUpperCase() ?? '';
+      if (t.isEmpty || t == 'DL-PENDING') return null;
+      return t;
+    }
+
+    final dl = clean(dlNumber) ?? clean(licenseNumber);
+    return {
+      if (dl != null) 'licenseNumber': dl,
+      if (dl != null) 'dlNumber': dl,
+      if (licenseExpiry != null) 'licenseExpiry': licenseExpiry.toIso8601String(),
+    };
+  }
+
   Future<dynamic> submitKyc({
-    required String licenseNumber,
-    required DateTime licenseExpiry,
+    String? licenseNumber,
+    DateTime? licenseExpiry,
     required List<String> documentUrls,
     required Map<String, dynamic> vehicleDetails,
     String? phone,
@@ -243,8 +261,7 @@ class DriverService {
     final res = await _api.post(
       '/drivers/kyc',
       body: {
-        'licenseNumber': licenseNumber,
-        'licenseExpiry': licenseExpiry.toIso8601String(),
+        ...licenseFieldsFor(licenseNumber: licenseNumber, dlNumber: dlNumber, licenseExpiry: licenseExpiry),
         'documentUrls': documentUrls,
         'vehicle': vehicleDetails,
         if (phone != null && phone.isNotEmpty) 'phone': phone,
@@ -268,7 +285,6 @@ class DriverService {
         if (aadharFrontUrl != null) 'aadharFrontUrl': aadharFrontUrl,
         if (aadharBackUrl != null) 'aadharBackUrl': aadharBackUrl,
         if (panDocUrl != null) 'panDocUrl': panDocUrl,
-        if (dlNumber != null && dlNumber.isNotEmpty) 'dlNumber': dlNumber,
         if (panNumber != null && panNumber.isNotEmpty) 'panNumber': panNumber,
         if (rcNumber != null && rcNumber.isNotEmpty) 'rcNumber': rcNumber,
       },

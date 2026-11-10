@@ -14,6 +14,7 @@ import './widgets/kyc_driving_section_widget.dart';
 import './widgets/kyc_identity_section_widget.dart';
 import './widgets/kyc_selfie_widget.dart';
 import './widgets/kyc_vehicle_section_widget.dart';
+import '../../widgets/aadhaar_consent_sheet.dart';
 
 class KycUploadScreen extends StatefulWidget {
   const KycUploadScreen({super.key});
@@ -86,6 +87,25 @@ class _KycUploadScreenState extends State<KycUploadScreen> {
   Future<void> _submitKyc() async {
     if (!_formKey.currentState!.validate()) return;
     _formKey.currentState!.save();
+
+    // The Aadhaar image may only be uploaded and processed after the driver's consent is recorded.
+    final hasAadhaar = _uploadedDocs['aadhaar_doc'] != null || _docBytes['aadhaar_doc'] != null;
+    if (hasAadhaar) {
+      bool? consented;
+      try {
+        consented = await withAadhaarConsent<bool>(context, () async => true);
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => _submitError = DigioService.friendlyErrorMessage(e) ?? e.toString());
+        return;
+      }
+      if (consented != true) {
+        if (!mounted) return;
+        setState(() => _submitError = 'Aadhaar consent is required to submit your Aadhaar. Remove the Aadhaar image or accept the consent.');
+        return;
+      }
+      if (!mounted) return;
+    }
 
     setState(() {
       _isSubmitting = true;

@@ -1,0 +1,43 @@
+{
+  "source": "https://documentation.digio.in/swagger/post_matchFaces.json",
+  "fetched": "2026-11-10",
+  "examples": {
+    "200 Not Matched": {
+      "method": "POST",
+      "path": "/v3/client/kyc/facematch",
+      "status": 200,
+      "body": {
+        "confidence": 40,
+        "result": "not_matched"
+      }
+    },
+    "200 Matched": {
+      "method": "POST",
+      "path": "/v3/client/kyc/facematch",
+      "status": 200,
+      "body": {
+        "confidence": 90,
+        "match_result": "matched"
+      }
+    },
+    "200 Failed": {
+      "method": "POST",
+      "path": "/v3/client/kyc/facematch",
+      "status": 200,
+      "body": {
+        "confidence": 0,
+        "result": "failed"
+      }
+    },
+    "400 Bad Request": {
+      "method": "POST",
+      "path": "/v3/client/kyc/facematch",
+      "status": 400,
+      "body": {
+        "details": "EX23297402937402",
+        "code": "REQUEST_VALIDATION_FAILED",
+        "message": "Request Validation Failed"
+      }
+    }
+  }
+}

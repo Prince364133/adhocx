@@ -464,17 +464,12 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
         if (onboarding.insuranceUrl != null) onboarding.insuranceUrl!,
       ];
 
-      final effectiveDlNo = onboarding.dlNumber.isNotEmpty
-          ? onboarding.dlNumber
-          : (plate.isNotEmpty ? 'DL-$plate' : 'DL-PENDING');
-
       // 1. Submit complete KYC & Vehicle details to Backend API
       await driverService.submitKyc(
-        licenseNumber: effectiveDlNo,
+        // Only a real DL number (entered/OCR'd/verified) is sent; never derived from the plate.
         dlNumber: onboarding.dlNumber.isNotEmpty ? onboarding.dlNumber : null,
         panNumber: onboarding.panNumber.isNotEmpty ? onboarding.panNumber : null,
         rcNumber: plate.isNotEmpty ? plate : null,
-        licenseExpiry: DateTime.now().add(const Duration(days: 365 * 5)),
         documentUrls: docList,
         fullName: !isPlaceholderName(onboarding.fullName) ? onboarding.fullName.trim() : null,
         phone: onboarding.phone.isNotEmpty ? onboarding.phone : null,

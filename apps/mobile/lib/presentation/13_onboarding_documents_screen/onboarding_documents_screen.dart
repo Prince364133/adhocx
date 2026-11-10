@@ -13,6 +13,7 @@ import '../../theme/app_typography.dart';
 import '../../widgets/common/app_document_upload_tile.dart';
 import '../../widgets/common/app_primary_button.dart';
 import '../../widgets/common/app_stepper_header.dart';
+import '../../widgets/aadhaar_consent_sheet.dart';
 
 /// Screen 13: Step 2 of 3: Verify Driver Identity (Profile Photo, Aadhaar Front & Back, PAN Card).
 class OnboardingDocumentsScreen extends StatefulWidget {
@@ -117,6 +118,17 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
   }
 
   Future<void> _showImageSourcePicker(String docType, String docTitle) async {
+    // Aadhaar images may only be collected after the driver's consent is recorded.
+    if (docType == 'AADHAR_FRONT' || docType == 'AADHAR_BACK') {
+      try {
+        final ok = await withAadhaarConsent<bool>(context, () async => true);
+        if (ok != true) return;
+      } catch (e) {
+        if (mounted) AppToast.showError(AppToast.cleanErrorMessage(e), context: context);
+        return;
+      }
+      if (!mounted) return;
+    }
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     showModalBottomSheet(
@@ -334,10 +346,14 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
 
   Future<void> _launchDigilockerFlow(BuildContext context, OnboardingProvider onboarding) async {
     try {
-      final session = await DigioService.instance.createDigilockerSession(
-        customerIdentifier: onboarding.phone.isNotEmpty ? onboarding.phone : null,
-        customerName: onboarding.fullName.isNotEmpty ? onboarding.fullName : null,
+      final session = await withAadhaarConsent(
+        context,
+        () => DigioService.instance.createDigilockerSession(
+          customerIdentifier: onboarding.phone.isNotEmpty ? onboarding.phone : null,
+          customerName: onboarding.fullName.isNotEmpty ? onboarding.fullName : null,
+        ),
       );
+      if (session == null) return; // consent declined
       final gatewayUrl = session['gatewayUrl']?.toString();
       if (gatewayUrl != null && gatewayUrl.isNotEmpty) {
         await DigioService.instance.launchGatewayUrl(gatewayUrl);

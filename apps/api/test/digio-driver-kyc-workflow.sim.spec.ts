@@ -200,6 +200,16 @@ describe('Digio Driver KYC, DL & Vehicle RC End-to-End Workflow Simulations (HTT
         }),
       },
       digioVerification: {
+        // Same filter semantics as Prisma for the fields DigioService queries (consent, reuse).
+        findFirst: jest.fn(async ({ where }: any) => {
+          const ok = (r: any, w: any): boolean =>
+            Object.entries(w || {}).every(([k, v]: [string, any]) => {
+              if (k === 'OR') return (v as any[]).some((c) => ok(r, c));
+              if (v && typeof v === 'object' && !(v instanceof Date) && 'gte' in v) return r[k] >= v.gte;
+              return r[k] === v;
+            });
+          return digioRecords.filter((r) => ok(r, where)).slice().reverse()[0] ?? null;
+        }),
         create: jest.fn(async ({ data }: any) => {
           const rec = {
             id: `dv_${digioRecords.length + 1}`,
@@ -407,6 +417,13 @@ describe('Digio Driver KYC, DL & Vehicle RC End-to-End Workflow Simulations (HTT
     jest.spyOn(digioClient, 'faceMatch').mockResolvedValue({ confidence: 92.5, result: 'MATCHED' });
     jest.spyOn(digioClient, 'fuzzyMatch').mockResolvedValue({ matched: true, match_score: 98 });
 
+    // 0. UIDAI / DPDP: Aadhaar processing is refused until the driver consents in the app.
+    await request(app.getHttpServer())
+      .post('/kyc/digio/id-card/analyze-stored')
+      .send({ frontDocUrl: '/uploads/aadhaar-front.jpg', expectedIds: ['AADHAAR'], saveMaskedToDriver: true })
+      .expect(400);
+    await request(app.getHttpServer()).post('/kyc/digio/consent').send({ accepted: true, textVersion: 'AADHAAR_CONSENT_V1' }).expect(201);
+
     // 1. Selfie Liveness
     await request(app.getHttpServer()).post('/kyc/digio/biometric/liveness-stored').send({}).expect(201);
 
@@ -501,7 +518,7 @@ describe('Digio Driver KYC, DL & Vehicle RC End-to-End Workflow Simulations (HTT
     const adminView = await request(app.getHttpServer()).get('/kyc/digio/admin/driver/drv-1').expect(200);
     const codes = adminView.body.complianceAlerts.map((a: any) => a.code);
     expect(codes).toEqual(
-      expect.arrayContaining(['DL_COMPLIANCE_ISSUE', 'RC_COMPLIANCE_ISSUE', 'FACE_MATCH_FAILED', 'LIVENESS_WARNING']),
+      expect.arrayContaining(['DL_COMPLIANCE_ISSUE', 'RC_COMPLIANCE_ISSUE', 'FACE_MATCH_FAILED', 'LIVENESS_FAILED']),
     );
   });
 
@@ -512,6 +529,7 @@ describe('Digio Driver KYC, DL & Vehicle RC End-to-End Workflow Simulations (HTT
       access_token: { id: 'GWT_SIM_1' },
     });
 
+    await request(app.getHttpServer()).post('/kyc/digio/consent').send({ accepted: true, textVersion: 'AADHAAR_CONSENT_V1' }).expect(201);
     const sessionRes = await request(app.getHttpServer())
       .post('/kyc/digio/digilocker/request')
       .send({ redirectUrl: 'https://adhocx.com/kyc' })
@@ -551,8 +569,10 @@ describe('Digio Driver KYC, DL & Vehicle RC End-to-End Workflow Simulations (HTT
     const sig = crypto.createHmac('sha256', webhookSecret).update(bodyStr).digest('hex');
     const digioSvc = app.get(DigioService);
     const wh = await digioSvc.handleWebhook({ rawBody: bodyStr, checksumHeader: sig, payload: JSON.parse(bodyStr) });
-    expect(wh.synced?.verified).toBe(true);
-    expect((wh.synced?.summary as any)?.maskedAadhaar).toBe('XXXX-XXXX-5566');
+    expect((wh as any).queued).toBe(true);
+    const synced: any = await digioSvc.reconcileWebhookRequest(String(JSON.parse(bodyStr)?.payload?.kyc_request?.id));
+    expect(synced?.verified).toBe(true);
+    expect((synced?.summary as any)?.maskedAadhaar).toBe('XXXX-XXXX-5566');
 
     const mediaRes = await request(app.getHttpServer())
       .post('/kyc/digio/digilocker/request/KID_SIM_DLKR/sync-media')
@@ -580,6 +600,36 @@ describe('Digio Driver KYC, DL & Vehicle RC End-to-End Workflow Simulations (HTT
       vehicle: { type: 'SEDAN', model: 'Maruti Dzire', color: 'White', registrationNumber: 'DL01AB1234' },
     } as any);
     expect(world.drivers.get('drv-1').verificationStatus).toBe(VerificationStatus.UNDER_REVIEW);
+
+    // The resubmitted DL/RC have not been checked with Digio yet: approval is refused with the blockers.
+    const blocked: any = await adminService.verifyDriver('drv-1', 'adm-1', { notes: 'Resubmitted' }).catch((e) => e);
+    expect(blocked.getResponse?.().error).toBe('COMPLIANCE_BLOCKERS');
+    expect(blocked.getResponse().details.issues.map((i: any) => i.code)).toEqual(
+      expect.arrayContaining(['DL_NOT_VERIFIED', 'RC_NOT_VERIFIED']),
+    );
+    expect(world.drivers.get('drv-1').verificationStatus).toBe(VerificationStatus.UNDER_REVIEW);
+
+    // Admin re-verifies the new DL and RC with Digio; both pass, so approval needs no override.
+    jest.spyOn(digioClient, 'fetchIdData').mockResolvedValue({
+      "Holder's Name": 'VIKRAM SINGH',
+      'Current Status': 'ACTIVE',
+      Transport: { From: '01/01/2021', To: '31/12/2035' },
+    } as any);
+    jest.spyOn(digioClient, 'verifyVehicleRc').mockResolvedValue({
+      user_details: { owner_name: 'VIKRAM SINGH' },
+      vehicle_details: { rc_number: 'DL01AB1234', rc_status: 'ACTIVE', fit_up_to: '2032-12-31' },
+      finance_details: { insurance_upto: '2029-10-01' },
+      permit_details: { permit_valid_upto: '2030-01-01', blacklist_status: 'NA', pucc_upto: '2028-11-01' },
+    } as any);
+    currentActor = makeActor({ id: 'adm-1', role: UserRole.ADMIN });
+    await request(app.getHttpServer())
+      .post('/kyc/digio/dl')
+      .send({ dlNumber: 'DL0120200012345', dob: '1992-05-14', targetDriverId: 'drv-1' })
+      .expect(201);
+    await request(app.getHttpServer())
+      .post('/kyc/digio/vehicle-rc')
+      .send({ registrationNumber: 'DL01AB1234', targetDriverId: 'drv-1' })
+      .expect(201);
 
     const reApproved = await adminService.verifyDriver('drv-1', 'adm-1', { notes: 'Resubmitted DL clear & verified' });
     expect(reApproved.verificationStatus).toBe(VerificationStatus.VERIFIED);

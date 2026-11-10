@@ -1,0 +1,28 @@
+{
+  "source": "https://documentation.digio.in/swagger/post_maskAadhaarFile.json",
+  "fetched": "2026-11-10",
+  "examples": {
+    "200 Success": {
+      "method": "POST",
+      "path": "/v4/client/kyc/aadhaar/file/mask",
+      "status": 200,
+      "body": {
+        "masked_output": "(Base 64 encoded string of Masked Aadhaar Image)",
+        "details": {
+          "already_masked_count": 1,
+          "masking_done_count": 1
+        }
+      }
+    },
+    "400 Bad Request": {
+      "method": "POST",
+      "path": "/v4/client/kyc/aadhaar/file/mask",
+      "status": 400,
+      "body": {
+        "details": "EX23297402937402",
+        "code": "REQUEST_VALIDATION_FAILED",
+        "message": "Request Validation Failed"
+      }
+    }
+  }
+}

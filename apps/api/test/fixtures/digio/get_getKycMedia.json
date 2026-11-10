@@ -1,0 +1,22 @@
+{
+  "source": "https://documentation.digio.in/swagger/get_getKycMedia.json",
+  "fetched": "2026-11-10",
+  "examples": {
+    "200 file": {
+      "method": "GET",
+      "path": "/client/kyc/v2/media/{id}",
+      "status": 200,
+      "body": "Media File"
+    },
+    "400 Bad Request": {
+      "method": "GET",
+      "path": "/client/kyc/v2/media/{id}",
+      "status": 400,
+      "body": {
+        "details": "EX23297402937402",
+        "code": "REQUEST_VALIDATION_FAILED",
+        "message": "Request Validation Failed"
+      }
+    }
+  }
+}

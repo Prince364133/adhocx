@@ -1,0 +1,64 @@
+{
+  "source": "https://documentation.digio.in/swagger/post_analyzeMultipleFileOcr.json",
+  "fetched": "2026-11-10",
+  "examples": {
+    "200 Success": {
+      "method": "POST",
+      "path": "/v4/client/kyc/analyze/file/idcard",
+      "status": 200,
+      "body": {
+        "details": {
+          "status": true
+        },
+        "detections": [
+          {
+            "id_type": "AADHAAR",
+            "detected_part": "BOTH",
+            "id_attributes": {
+              "name": "",
+              "id_no": "",
+              "dob": "21/08/1987",
+              "address": "",
+              "gender": "male",
+              "address_information": {
+                "address": "",
+                "locality_or_post_office": "",
+                "district_or_city": "",
+                "state": "",
+                "pincode": "560102"
+              },
+              "phone_number": ""
+            },
+            "output_images": {
+              "front_part": "{Base64 Photo}",
+              "back_part": "{Base64 Photo}",
+              "photo": "{Base64 Photo}",
+              "signature": "{Base64 Photo}"
+            },
+            "front_image_checks_result": {
+              "BLACK_AND_WHITE_IMAGE": "PASS",
+              "BLUR_IMAGE": "PASS"
+            },
+            "back_image_checks_result": {
+              "BLACK_AND_WHITE_IMAGE": "PASS",
+              "BLUR_IMAGE": "FAIL"
+            },
+            "verification_result": {
+              "verified": false
+            }
+          }
+        ]
+      }
+    },
+    "400 Bad Request": {
+      "method": "POST",
+      "path": "/v4/client/kyc/analyze/file/idcard",
+      "status": 400,
+      "body": {
+        "details": "EX23297402937402",
+        "code": "BAD_REQUEST",
+        "message": "Primary file is mandatory to perform OCR"
+      }
+    }
+  }
+}

@@ -25,6 +25,120 @@ class DigioService {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Error helpers (API error envelope: {success:false, error:{code, message, details}})
+  // ---------------------------------------------------------------------------
+
+  /// Machine-readable API error code (e.g. `AADHAAR_CONSENT_REQUIRED`, `DIGIO_RATE_LIMITED`), if any.
+  static String? errorCodeOf(Object error) {
+    if (error is! ApiException) return null;
+    final data = error.data;
+    if (data is Map && data['error'] is Map) {
+      final code = (data['error'] as Map)['code'];
+      return code?.toString();
+    }
+    return null;
+  }
+
+  /// User-facing message for Digio failures; rate limits get a "try again in N minutes" message.
+  static String? friendlyErrorMessage(Object error) {
+    if (error is! ApiException) return null;
+    if (error.statusCode == 429 || errorCodeOf(error) == 'DIGIO_RATE_LIMITED') {
+      int? retryAfterSec;
+      final data = error.data;
+      if (data is Map && data['error'] is Map) {
+        final details = (data['error'] as Map)['details'];
+        if (details is Map && details['retryAfterSec'] != null) {
+          retryAfterSec = int.tryParse(details['retryAfterSec'].toString());
+        }
+      }
+      final minutes = retryAfterSec == null ? null : (retryAfterSec / 60).ceil().clamp(1, 24 * 60);
+      return minutes == null
+          ? 'Too many verification attempts. Please try again later.'
+          : 'Too many verification attempts. Please try again in $minutes minute${minutes == 1 ? '' : 's'}.';
+    }
+    if (errorCodeOf(error) == 'AADHAAR_CONSENT_REQUIRED') {
+      return 'Please accept the Aadhaar consent to continue with verification.';
+    }
+    return null;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Aadhaar consent (UIDAI / DPDP): recorded server-side before any Aadhaar processing
+  // ---------------------------------------------------------------------------
+
+  static const String aadhaarConsentTextVersion = 'AADHAAR_CONSENT_V1';
+
+  bool? _aadhaarConsentGranted;
+
+  /// Test seams: replace the network calls behind the consent gate.
+  @visibleForTesting
+  Future<bool> Function()? debugConsentStatusLoader;
+  @visibleForTesting
+  Future<void> Function()? debugConsentGranter;
+
+  @visibleForTesting
+  void debugResetConsent() {
+    _aadhaarConsentGranted = null;
+    debugConsentStatusLoader = null;
+    debugConsentGranter = null;
+  }
+
+  Future<bool> hasAadhaarConsent({bool force = false}) async {
+    if (!force && _aadhaarConsentGranted == true) return true;
+    if (debugConsentStatusLoader != null) {
+      _aadhaarConsentGranted = await debugConsentStatusLoader!();
+      return _aadhaarConsentGranted!;
+    }
+    final res = await _api.get('/kyc/digio/consent', force: true);
+    _aadhaarConsentGranted = res is Map && res['granted'] == true;
+    return _aadhaarConsentGranted!;
+  }
+
+  Future<void> grantAadhaarConsent() async {
+    if (debugConsentGranter != null) {
+      await debugConsentGranter!();
+    } else {
+      await _api.post('/kyc/digio/consent', body: {
+        'accepted': true,
+        'textVersion': aadhaarConsentTextVersion,
+      });
+    }
+    _aadhaarConsentGranted = true;
+  }
+
+  /// Makes sure Aadhaar consent is recorded (asking the driver via [askUser] if needed) and runs
+  /// [action]. Returns null without calling [action] when the driver declines. If the server still
+  /// answers AADHAAR_CONSENT_REQUIRED (e.g. consent withdrawn), asks again and retries once.
+  Future<T?> runWithAadhaarConsent<T>({
+    required Future<bool> Function() askUser,
+    required Future<T> Function() action,
+  }) async {
+    Future<bool> ensure({bool force = false}) async {
+      bool granted = false;
+      try {
+        granted = await hasAadhaarConsent(force: force);
+      } catch (_) {
+        granted = false; // status unknown: ask (granting is idempotent server-side)
+      }
+      if (granted) return true;
+      final accepted = await askUser();
+      if (!accepted) return false;
+      await grantAadhaarConsent();
+      return true;
+    }
+
+    if (!await ensure()) return null;
+    try {
+      return await action();
+    } catch (e) {
+      if (errorCodeOf(e) != 'AADHAAR_CONSENT_REQUIRED') rethrow;
+      _aadhaarConsentGranted = false;
+      if (!await ensure(force: true)) return null;
+      return await action();
+    }
+  }
+
   Future<Map<String, dynamic>> getCapabilities() async {
     final res = await _api.get('/kyc/digio/capabilities');
     return Map<String, dynamic>.from(res as Map);

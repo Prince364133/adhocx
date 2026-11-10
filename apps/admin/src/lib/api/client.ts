@@ -57,6 +57,7 @@ import {
   DigioVerificationItem,
   DigioEntityVerificationsResponse,
   DigioAdminDriverSuiteResult,
+  DigioComplianceAlert,
 } from './types';
 
 export function getApiBaseUrl(): string {
@@ -269,6 +270,24 @@ export async function apiClient<T = unknown>(
   return json as T;
 }
 
+/** Minimum length of an approval override reason (must match the API). */
+export const OVERRIDE_REASON_MIN_LENGTH = 10;
+
+/** The blocking issues from a 400 COMPLIANCE_BLOCKERS approval error, or null for any other error. */
+export function complianceBlockersFromError(err: unknown): DigioComplianceAlert[] | null {
+  if (!(err instanceof ApiError) || err.status !== 400) return null;
+  const error = (err.body as any)?.error;
+  if (error?.code !== 'COMPLIANCE_BLOCKERS') return null;
+  const issues = error?.details?.issues;
+  return Array.isArray(issues)
+    ? issues.map((i: any) => ({
+        severity: i?.severity === 'WARNING' ? 'WARNING' : 'BLOCKER',
+        code: String(i?.code ?? 'UNKNOWN'),
+        message: String(i?.message ?? ''),
+      }))
+    : [];
+}
+
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -305,10 +324,17 @@ export const adminApi = {
       body: data,
     }),
 
-  verifyDriver: (id: string, notes?: string) =>
+  /**
+   * Approves a driver. When the driver has Digio compliance BLOCKERS the API answers 400
+   * COMPLIANCE_BLOCKERS unless `overrideReason` (>= 10 chars) is given; see complianceBlockersFromError.
+   */
+  verifyDriver: (id: string, notes?: string, overrideReason?: string) =>
     apiClient(`/admin/drivers/${id}/verify`, {
       method: 'POST',
-      body: { notes: notes || 'Verified by Admin' },
+      body: {
+        notes: notes || 'Verified by Admin',
+        ...(overrideReason && overrideReason.trim() ? { overrideReason: overrideReason.trim() } : {}),
+      },
     }),
 
   rejectDriver: (id: string, reason: string) =>

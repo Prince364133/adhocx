@@ -96,18 +96,11 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
         panUrl,
       ];
 
-      final effectiveDlNo = onboarding.dlNumber.isNotEmpty
-          ? onboarding.dlNumber
-          : (onboarding.registrationNumber.isNotEmpty
-              ? 'DL-${onboarding.registrationNumber}'
-              : '');
-
       await driverService.submitKyc(
-        licenseNumber: effectiveDlNo,
+        // Only a real DL number (entered/OCR'd/verified) is sent; never derived from the plate.
         dlNumber: onboarding.dlNumber.isNotEmpty ? onboarding.dlNumber : null,
         panNumber: onboarding.panNumber.isNotEmpty ? onboarding.panNumber : null,
         rcNumber: onboarding.registrationNumber.isNotEmpty ? onboarding.registrationNumber : null,
-        licenseExpiry: DateTime.now().add(const Duration(days: 365 * 5)),
         documentUrls: docList,
         phone: onboarding.phone.isNotEmpty ? onboarding.phone : null,
         email: onboarding.email.isNotEmpty ? onboarding.email.trim() : null,

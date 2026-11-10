@@ -39,6 +39,7 @@ export default function VerificationCenterPage() {
     customDeclineNotes,
     setCustomDeclineNotes,
     approveApplication,
+    approvalBlockers,
     openDeclineDialog,
     closeDeclineDialog,
     confirmDecline,
@@ -207,9 +208,12 @@ export default function VerificationCenterPage() {
       <VerificationDetailModal
         item={selectedItem}
         onClose={() => setSelectedItem(null)}
-        onApprove={(target) => approveApplication(target)}
+        onApprove={(target, overrideReason) => approveApplication(target, undefined, overrideReason)}
         onDecline={(target) => openDeclineDialog(target)}
         isProcessing={isProcessing}
+        approvalBlockers={
+          approvalBlockers && selectedItem && approvalBlockers.itemId === selectedItem.id ? approvalBlockers.issues : undefined
+        }
       />
 
       {/* 5. Decline Reason Dialog */}

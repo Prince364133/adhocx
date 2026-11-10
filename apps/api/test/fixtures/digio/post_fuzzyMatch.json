@@ -1,0 +1,34 @@
+{
+  "source": "https://documentation.digio.in/swagger/post_fuzzyMatch.json",
+  "fetched": "2026-11-10",
+  "examples": {
+    "200 Not Matched": {
+      "method": "POST",
+      "path": "/v3/client/kyc/fuzzy_match",
+      "status": 200,
+      "body": {
+        "matched": false,
+        "match_score": 0
+      }
+    },
+    "200 Matched": {
+      "method": "POST",
+      "path": "/v3/client/kyc/fuzzy_match",
+      "status": 200,
+      "body": {
+        "matched": true,
+        "match_score": 90
+      }
+    },
+    "400 Bad Request": {
+      "method": "POST",
+      "path": "/v3/client/kyc/fuzzy_match",
+      "status": 400,
+      "body": {
+        "details": "EX23297402937402",
+        "code": "REQUEST_VALIDATION_FAILED",
+        "message": "Request Validation Failed"
+      }
+    }
+  }
+}

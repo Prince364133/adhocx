@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { adminApi } from '../lib/api/client';
-import { VerificationItem } from '../lib/api/types';
+import { adminApi, complianceBlockersFromError } from '../lib/api/client';
+import { DigioComplianceAlert, VerificationItem } from '../lib/api/types';
 
 export function useVerificationActions(
   onStatusUpdated?: (id: string, status: 'VERIFIED' | 'REJECTED', reason?: string) => void,
@@ -10,6 +10,8 @@ export function useVerificationActions(
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  /** Issues the API returned with a 400 COMPLIANCE_BLOCKERS on the last approval attempt. */
+  const [approvalBlockers, setApprovalBlockers] = useState<{ itemId: string; issues: DigioComplianceAlert[] } | null>(null);
 
   // Decline dialog state
   const [isDeclineModalOpen, setIsDeclineModalOpen] = useState<boolean>(false);
@@ -25,21 +27,29 @@ export function useVerificationActions(
   }, []);
 
   const approveApplication = useCallback(
-    async (item: VerificationItem, notes?: string) => {
+    async (item: VerificationItem, notes?: string, overrideReason?: string) => {
       setIsProcessing(true);
       setActionError(null);
 
       try {
         if (item.entityType === 'DRIVER') {
-          await adminApi.verifyDriver(item.id, notes || 'Verified and approved by Super Admin');
+          await adminApi.verifyDriver(item.id, notes || 'Verified and approved by Super Admin', overrideReason);
         } else {
           await adminApi.verifyVendor(item.id, notes || 'Verified and approved by Super Admin');
         }
 
         onStatusUpdated?.(item.id, 'VERIFIED');
+        setApprovalBlockers(null);
         showToast(`Successfully approved ${item.name} (${item.entityType})`);
         return true;
       } catch (err: any) {
+        const blockers = complianceBlockersFromError(err);
+        if (blockers) {
+          setApprovalBlockers({ itemId: item.id, issues: blockers });
+          setActionError(err.message || 'Compliance blockers must be resolved or overridden with a reason');
+          showToast(`${item.name} has compliance blockers: open the application and add an override reason to approve.`);
+          return false;
+        }
         setActionError(err.message || 'Verification update failed');
         showToast(`Failed to approve ${item.name}: ${err.message || 'Server error'}`);
         return false;
@@ -106,6 +116,7 @@ export function useVerificationActions(
     customDeclineNotes,
     setCustomDeclineNotes,
     approveApplication,
+    approvalBlockers,
     openDeclineDialog,
     closeDeclineDialog,
     confirmDecline,

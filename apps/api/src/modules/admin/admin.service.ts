@@ -17,6 +17,7 @@ import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { assertPhoneAvailable, assertVehiclePlateAvailable, sanitizeRealName } from '../../common';
 import { RedisService } from '../../redis/redis.service';
+import { DigioService } from '../digio/digio.service';
 
 @Injectable()
 export class AdminService {
@@ -28,6 +29,7 @@ export class AdminService {
     @Optional() private readonly notifications?: NotificationsService,
     @Optional() private readonly storage?: StorageService,
     @Optional() private readonly redis?: RedisService,
+    @Optional() private readonly digio?: DigioService,
   ) {}
 
   /** Identity documents go out as short-lived signed links (see StorageService.getDocumentAccessUrl). */
@@ -224,6 +226,20 @@ export class AdminService {
       VerificationStatus.VERIFIED,
     );
 
+    // Digio compliance gate: a driver with blockers (invalid/expired DL, bad RC, failed face match or
+    // liveness) can only be approved with a written override, audited together with the blockers.
+    const blockers = this.digio
+      ? (await this.digio.getDriverComplianceAlerts(id)).filter((a) => a.severity === 'BLOCKER')
+      : [];
+    const overrideReason = dto.overrideReason?.trim() || '';
+    if (blockers.length && overrideReason.length < 10) {
+      throw new BadRequestException({
+        message: `Driver has ${blockers.length} compliance blocker(s). Resolve them or approve with an override reason (at least 10 characters).`,
+        error: 'COMPLIANCE_BLOCKERS',
+        details: { issues: blockers },
+      });
+    }
+
     const updated = await this.db.driver.update({
       where: { id },
       data: {
@@ -265,6 +281,7 @@ export class AdminService {
         nextStatus: VerificationStatus.VERIFIED,
         notes: dto.notes,
         ...(digioChecksSummary ? { digioChecksSummary } : {}),
+        ...(blockers.length ? { complianceOverride: { reason: overrideReason, blockers } } : {}),
       },
     });
 

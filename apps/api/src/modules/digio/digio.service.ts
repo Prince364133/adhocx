@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Optional,
   ForbiddenException,
   Injectable,
   Logger,
@@ -38,12 +39,26 @@ import {
 import { DatabaseService } from '../../database/database.service';
 import { StorageService } from '../../common/storage/storage.service';
 import { DigioClient, DigioFilePart } from './digio.client';
+import { RedisService } from '../../redis/redis.service';
 
 interface TargetActorContext {
   userId: string;
   driverId?: string;
   vendorId?: string;
   tenantId?: string;
+}
+
+/** Liveness score (0-100) treated as live when Digio returns no explicit verdict. */
+export const LIVENESS_PASS_SCORE = 50;
+export const AADHAAR_CONSENT_TYPE = 'AADHAAR_CONSENT';
+export const AADHAAR_CONSENT_REQUIRED = 'AADHAAR_CONSENT_REQUIRED';
+/** Consent is re-confirmed yearly. */
+export const AADHAAR_CONSENT_VALID_DAYS = 365;
+
+/** True when an ID OCR request may contain Aadhaar (no explicit list means Digio's default, which includes it). */
+export function mayInvolveAadhaar(expectedIds?: string[] | null): boolean {
+  if (!expectedIds || expectedIds.length === 0) return true;
+  return expectedIds.some((t) => /AADHAAR/i.test(String(t)));
 }
 
 @Injectable()
@@ -54,6 +69,7 @@ export class DigioService {
     private readonly db: DatabaseService,
     private readonly digioClient: DigioClient,
     private readonly storageService: StorageService,
+    @Optional() private readonly redis?: RedisService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -564,6 +580,126 @@ export class DigioService {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Aadhaar consent (UIDAI / DPDP): recorded once per driver, required before any Aadhaar processing
+  // ---------------------------------------------------------------------------
+
+  /** Records the driver's explicit consent to Aadhaar processing (who, when, which text, from where). */
+  async recordAadhaarConsent(
+    actor: AuthUserDto,
+    dto: { accepted: boolean; textVersion: string },
+    meta: { ip?: string | null; userAgent?: string | null } = {},
+  ) {
+    if (dto?.accepted !== true) {
+      throw new BadRequestException('Consent must be explicitly accepted');
+    }
+    const textVersion = String(dto.textVersion || '').trim();
+    if (!/^[A-Z0-9_.-]{3,64}$/i.test(textVersion)) {
+      throw new BadRequestException('textVersion identifies the consent text shown to the driver');
+    }
+    const ctx = await this.resolveContext(actor);
+    const grantedAt = new Date();
+    return this.saveVerificationRecord({
+      ctx,
+      verificationType: AADHAAR_CONSENT_TYPE,
+      category: 'CONSENT',
+      status: 'GRANTED',
+      verified: true,
+      uniqueRequestId: this.digioClient.generateUniqueRequestId('CONSENT'),
+      complianceOk: true,
+      complianceNotes: `Aadhaar processing consent ${textVersion}`,
+      summary: {
+        textVersion,
+        grantedAt: grantedAt.toISOString(),
+        ip: meta.ip || null,
+        userAgent: meta.userAgent ? String(meta.userAgent).slice(0, 256) : null,
+      },
+      expiresAt: new Date(grantedAt.getTime() + AADHAAR_CONSENT_VALID_DAYS * 86_400_000),
+    });
+  }
+
+  async getAadhaarConsent(actor: AuthUserDto) {
+    const ctx = await this.resolveContext(actor);
+    const row = await this.findAadhaarConsent(ctx);
+    const summary = (row?.summary as Record<string, any>) || {};
+    return {
+      granted: Boolean(row),
+      grantedAt: row ? (summary.grantedAt ?? row.createdAt.toISOString()) : null,
+      textVersion: row ? (summary.textVersion ?? null) : null,
+    };
+  }
+
+  private async findAadhaarConsent(ctx: TargetActorContext) {
+    const owners = [
+      ...(ctx.driverId ? [{ driverId: ctx.driverId }] : []),
+      ...(ctx.userId ? [{ userId: ctx.userId }] : []),
+    ];
+    if (!owners.length) return null;
+    return this.db.digioVerification.findFirst({
+      where: {
+        verificationType: AADHAAR_CONSENT_TYPE,
+        verified: true,
+        OR: owners,
+        createdAt: { gte: new Date(Date.now() - AADHAAR_CONSENT_VALID_DAYS * 86_400_000) },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
+   * Aadhaar may only be sent to Digio with the driver's recorded consent. Applies to admin-initiated
+   * actions too: an admin cannot consent on the driver's behalf.
+   */
+  private async assertAadhaarConsent(ctx: TargetActorContext): Promise<void> {
+    if (await this.findAadhaarConsent(ctx)) return;
+    throw new BadRequestException({
+      message: 'The driver has not consented to Aadhaar verification yet. Ask them to accept the consent in the app.',
+      error: AADHAAR_CONSENT_REQUIRED,
+      details: { consentEndpoint: 'POST /kyc/digio/consent' },
+    });
+  }
+
+  /**
+   * Billing control: a driver re-running an identifier check (same type + identifier, same owner)
+   * gets the earlier VERIFIED result instead of a new billed Digio call, while that result is
+   * younger than DIGIO_REUSE_DAYS (default 30) and not past its own expiry. Admin re-runs always
+   * call Digio (an admin re-verifying wants fresh data).
+   */
+  private async findReusableResult(
+    actor: AuthUserDto,
+    ctx: TargetActorContext,
+    verificationType: string,
+    identifier: string,
+    matches?: (summary: Record<string, any>) => boolean,
+  ) {
+    if (actor.role === UserRole.ADMIN || !identifier) return null;
+    const owners = [
+      ...(ctx.driverId ? [{ driverId: ctx.driverId }] : []),
+      ...(ctx.vendorId ? [{ vendorId: ctx.vendorId }] : []),
+      ...(!ctx.driverId && !ctx.vendorId && ctx.userId ? [{ userId: ctx.userId }] : []),
+    ];
+    if (!owners.length) return null;
+    const days = Number(process.env.DIGIO_REUSE_DAYS);
+    const reuseDays = Number.isFinite(days) && days >= 0 ? days : 30;
+    if (reuseDays === 0) return null;
+    const now = new Date();
+    const row: any = await this.db.digioVerification.findFirst({
+      where: {
+        verificationType,
+        identifier,
+        status: 'VERIFIED',
+        verified: true,
+        OR: owners,
+        createdAt: { gte: new Date(now.getTime() - reuseDays * 86_400_000) },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!row) return null;
+    if (row.expiresAt && row.expiresAt.getTime() <= now.getTime()) return null;
+    if (matches && !matches((row.summary as Record<string, any>) || {})) return null;
+    return { ...this.formatRecord(row), reused: true };
+  }
+
   private formatRecord(row: any) {
     return {
       id: row.id,
@@ -651,39 +787,61 @@ export class DigioService {
     };
   }
 
+  /**
+   * Driver compliance alerts from the latest Digio record per check. BLOCKERs stop admin approval
+   * unless an override reason is given (AdminService.verifyDriver); WARNINGs are informational.
+   * When Digio is not configured, "not verified" findings are warnings (manual review only).
+   */
   private buildDriverComplianceAlerts(
     driver: any,
     latestByType: Record<string, any>,
   ): Array<{ severity: 'BLOCKER' | 'WARNING'; code: string; message: string }> {
     const alerts: Array<{ severity: 'BLOCKER' | 'WARNING'; code: string; message: string }> = [];
+    const missing: 'BLOCKER' | 'WARNING' = this.digioClient.isConfigured() ? 'BLOCKER' : 'WARNING';
 
     const dl = latestByType['DRIVING_LICENSE'];
-    if (dl && dl.verified && dl.complianceOk === false) {
+    if (!dl) {
+      alerts.push({
+        severity: missing,
+        code: 'DL_NOT_VERIFIED',
+        message: driver?.dlFrontUrl
+          ? 'Driving License uploaded but not yet verified via Digio'
+          : 'Driving License has not been verified',
+      });
+    } else if (!dl.verified) {
+      alerts.push({
+        severity: 'BLOCKER',
+        code: 'DL_INVALID',
+        message: dl.complianceNotes || dl.errorMessage || 'Driving License could not be verified with the issuing authority',
+      });
+    } else if (dl.complianceOk === false) {
       alerts.push({
         severity: 'BLOCKER',
         code: 'DL_COMPLIANCE_ISSUE',
-        message: dl.complianceNotes || 'Driving License expired or inactive',
-      });
-    } else if (!dl && driver?.dlFrontUrl) {
-      alerts.push({
-        severity: 'WARNING',
-        code: 'DL_NOT_VERIFIED',
-        message: 'Driving License uploaded but not yet verified via Digio',
+        message: dl.complianceNotes || 'Driving License expired, inactive or without a transport class',
       });
     }
 
     const rc = latestByType['VEHICLE_RC'];
-    if (rc && rc.verified && rc.complianceOk === false) {
+    if (!rc) {
+      if (driver?.rcDocUrl || driver?.vehiclePlate) {
+        alerts.push({
+          severity: missing,
+          code: 'RC_NOT_VERIFIED',
+          message: 'Vehicle RC has not been verified against Parivahan (Vahan) yet',
+        });
+      }
+    } else if (!rc.verified) {
+      alerts.push({
+        severity: 'BLOCKER',
+        code: 'RC_INVALID',
+        message: rc.complianceNotes || rc.errorMessage || 'Vehicle RC could not be verified on Vahan',
+      });
+    } else if (rc.complianceOk === false) {
       alerts.push({
         severity: 'BLOCKER',
         code: 'RC_COMPLIANCE_ISSUE',
-        message: rc.complianceNotes || 'Vehicle RC fitness, insurance, permit, or blacklist check failed',
-      });
-    } else if (!rc && (driver?.rcDocUrl || driver?.vehiclePlate)) {
-      alerts.push({
-        severity: 'WARNING',
-        code: 'RC_NOT_VERIFIED',
-        message: 'Vehicle RC has not been verified against Parivahan yet',
+        message: rc.complianceNotes || 'Vehicle RC fitness, insurance, permit, PUCC or blacklist check failed',
       });
     }
 
@@ -692,16 +850,16 @@ export class DigioService {
       alerts.push({
         severity: 'BLOCKER',
         code: 'FACE_MATCH_FAILED',
-        message: face.complianceNotes || 'Driver selfie did not match ID portrait',
+        message: face.complianceNotes || 'Driver selfie did not match the ID portrait',
       });
     }
 
     const live = latestByType['LIVENESS'];
     if (live && !live.verified) {
       alerts.push({
-        severity: 'WARNING',
-        code: 'LIVENESS_WARNING',
-        message: live.complianceNotes || 'Selfie liveness check did not pass',
+        severity: 'BLOCKER',
+        code: 'LIVENESS_FAILED',
+        message: live.complianceNotes || 'Selfie liveness check failed (possible spoof)',
       });
     }
 
@@ -723,6 +881,11 @@ export class DigioService {
     }
 
     return alerts;
+  }
+
+  /** Compliance alerts for one driver (used by the admin approval guard). */
+  async getDriverComplianceAlerts(driverId: string) {
+    return (await this.getDriverVerificationsForAdmin(driverId)).complianceAlerts;
   }
 
   async getDriverVerificationsForAdmin(driverId: string) {
@@ -800,6 +963,8 @@ export class DigioService {
   async verifyPan(actor: AuthUserDto, dto: VerifyPanDto) {
     const ctx = await this.resolveContext(actor, dto.targetDriverId, dto.targetVendorId);
     const pan = dto.panNumber.trim().toUpperCase();
+    const reusedPan = await this.findReusableResult(actor, ctx, 'PAN', pan);
+    if (reusedPan) return reusedPan;
     const reqId = this.digioClient.generateUniqueRequestId('PAN');
 
     const res = await this.digioClient.fetchIdData('PAN', {
@@ -813,12 +978,11 @@ export class DigioService {
     const holderName = String(
       res?.name || res?.full_name || res?.first_name || '',
     ).trim();
-    const verified =
-      status === 'VALID' ||
-      status === 'ACTIVE' ||
-      status === 'E' ||
-      Boolean(res?.verified) ||
-      Boolean(holderName && !res?.error);
+    // A returned name is not proof of validity: an explicit non-valid status always fails.
+    const VALID_PAN = new Set(['VALID', 'ACTIVE', 'E', 'EXISTING AND VALID']);
+    const verified = status
+      ? VALID_PAN.has(status)
+      : Boolean(res?.verified) || Boolean(holderName && !res?.error);
 
     const nameMatch = res?.name_as_per_pan_match ?? res?.name_match;
     const aadhaarSeedingStatus =
@@ -913,6 +1077,8 @@ export class DigioService {
     const ctx = await this.resolveContext(actor, dto.targetDriverId);
     const dlNo = dto.dlNumber.trim().toUpperCase().replace(/\s+/g, '');
     const normalizedDob = this.normalizeDob(dto.dob);
+    const reusedDl = await this.findReusableResult(actor, ctx, 'DRIVING_LICENSE', dlNo, (sm) => sm.requestedDob === normalizedDob);
+    if (reusedDl) return reusedDl;
     const reqId = this.digioClient.generateUniqueRequestId('DL');
 
     const res = await this.digioClient.fetchIdData('DRIVING_LICENSE', {
@@ -962,7 +1128,7 @@ export class DigioService {
       verifiedName: evalRes.verifiedName,
       complianceOk: evalRes.complianceOk,
       complianceNotes: evalRes.complianceNotes,
-      summary: evalRes.summary,
+      summary: { ...(evalRes.summary as Record<string, unknown>), requestedDob: normalizedDob },
       rawResponse: res,
       expiresAt: evalRes.expiresAt,
     });
@@ -976,6 +1142,8 @@ export class DigioService {
       dto.vehicleId,
     );
     const rcNo = dto.registrationNumber.trim().toUpperCase().replace(/[\s-]+/g, '');
+    const reusedRc = await this.findReusableResult(actor, ctx, 'VEHICLE_RC', rcNo);
+    if (reusedRc) return reusedRc;
     const reqId = this.digioClient.generateUniqueRequestId('RC');
 
     const res = await this.digioClient.verifyVehicleRc({
@@ -1140,6 +1308,9 @@ export class DigioService {
     },
   ) {
     const ctx = await this.resolveContext(actor, params.targetDriverId);
+    if (mayInvolveAadhaar(params.expectedIds) || params.saveMaskedToDriver || params.aadhaarSide) {
+      await this.assertAadhaarConsent(ctx);
+    }
     const reqId = this.digioClient.generateUniqueRequestId('OCR');
 
     const res = await this.digioClient.analyzeIdCard({
@@ -1345,6 +1516,7 @@ export class DigioService {
     options: { side?: 'FRONT' | 'BACK'; targetDriverId?: string; saveToDriver?: boolean } = {},
   ) {
     const ctx = await this.resolveContext(actor, options.targetDriverId);
+    await this.assertAadhaarConsent(ctx);
     const reqId = this.digioClient.generateUniqueRequestId('MASK');
 
     const res = await this.digioClient.maskAadhaarFile({
@@ -1431,12 +1603,12 @@ export class DigioService {
     const score = Number.isFinite(rawScore)
       ? Math.round(rawScore * 100) / 100
       : 0;
-    const resultStr = String(res?.result || '').toUpperCase();
-    const matched =
-      resultStr === 'MATCHED' ||
-      resultStr === 'PASS' ||
-      resultStr === 'TRUE' ||
-      score >= minMatch;
+    // Digio's verdict wins: matched → `match_result: "matched"`, otherwise `result: "not_matched" | "failed"`
+    // (see /swagger/post_matchFaces.json). The score only decides when no verdict is present.
+    const resultStr = String(res?.match_result ?? res?.result ?? '').trim().toUpperCase();
+    const matched = resultStr
+      ? resultStr === 'MATCHED' || resultStr === 'MATCH' || resultStr === 'PASS' || resultStr === 'TRUE'
+      : score >= minMatch;
 
     return this.saveVerificationRecord({
       ctx,
@@ -1454,7 +1626,7 @@ export class DigioService {
       summary: {
         confidence: score,
         minimumMatch: minMatch,
-        result: res?.result || (matched ? 'MATCHED' : 'NOT_MATCHED'),
+        result: res?.match_result || res?.result || (matched ? 'MATCHED' : 'NOT_MATCHED'),
       },
       rawResponse: res,
     });
@@ -1520,12 +1692,14 @@ export class DigioService {
     const score = Number.isFinite(rawScore)
       ? Math.round(rawScore * 100) / 100
       : 0;
-    const resultStr = String(res?.result || '').toUpperCase();
-    const live =
-      resultStr === 'PASS' ||
-      resultStr === 'LIVE' ||
-      res?.is_live === true ||
-      score >= 0.5;
+    // Digio returns `{score: 0-100, result: "PASS" | "FAIL"}` (/swagger/post_livenessCheck.json); the
+    // documented spoof example is `{score: 12, result: "FAIL"}`. The verdict wins; the score (0-100,
+    // or 0-1 from older responses) only decides when no verdict is present.
+    const resultStr = String(res?.result || '').trim().toUpperCase();
+    const scorePct = score > 0 && score <= 1 ? score * 100 : score;
+    const live = resultStr
+      ? resultStr === 'PASS' || resultStr === 'LIVE'
+      : res?.is_live === true || scorePct >= LIVENESS_PASS_SCORE;
 
     return this.saveVerificationRecord({
       ctx,
@@ -1681,6 +1855,8 @@ export class DigioService {
   async verifyUpiVpa(actor: AuthUserDto, dto: VerifyUpiVpaDto) {
     const ctx = await this.resolveContext(actor);
     const vpa = dto.vpa.trim().toLowerCase();
+    const reusedVpa = await this.findReusableResult(actor, ctx, 'UPI_VPA', vpa);
+    if (reusedVpa) return reusedVpa;
     const reqId = this.digioClient.generateUniqueRequestId('UPI');
 
     const res = await this.digioClient.checkUpiVpa({
@@ -2065,6 +2241,7 @@ export class DigioService {
 
   async createDigilockerSession(actor: AuthUserDto, dto: CreateDigilockerRequestDto) {
     const ctx = await this.resolveContext(actor);
+    await this.assertAadhaarConsent(ctx);
     const user = await this.db.user.findUnique({
       where: { id: actor.id },
       select: { phone: true, email: true, fullName: true },
@@ -2409,21 +2586,36 @@ export class DigioService {
     };
   }
 
+  /**
+   * Digio webhook receiver. Digio's contract: answer 200 within 10 s, do no business logic inline,
+   * and expect at-least-once delivery. After 24 h of failures Digio disables webhooks for the WHOLE
+   * account. So this method only authenticates, de-duplicates and acknowledges; the authoritative
+   * state is then pulled from Digio's API in the background (webhook fields are never trusted).
+   *
+   * Without DIGIO_WEBHOOK_SECRET in production the webhook is acknowledged and ignored (no outbound
+   * calls), so an unauthenticated caller cannot drive traffic to Digio. Polling/explicit sync still
+   * work. Outside production the IP allow-list is advisory.
+   */
   async handleWebhook(params: {
     rawBody?: Buffer | string;
     checksumHeader?: string;
     remoteIp?: string;
     payload: any;
   }) {
+    const payload = params.payload || {};
+    const eventName = String(payload?.event || 'kyc.webhook');
+
     if (this.digioClient.hasWebhookSecret) {
-      const valid = this.digioClient.verifyWebhookChecksum(
-        params.rawBody,
-        params.checksumHeader,
-      );
+      const valid = this.digioClient.verifyWebhookChecksum(params.rawBody, params.checksumHeader);
       if (!valid) {
         this.logger.warn('Rejected Digio webhook with invalid X-Digio-Checksum');
         throw new UnauthorizedException('Invalid X-Digio-Checksum signature');
       }
+    } else if (process.env.NODE_ENV === 'production') {
+      this.logger.error(
+        'Digio webhook ignored: DIGIO_WEBHOOK_SECRET is not configured. Set it (same value as the Digio dashboard) to enable webhooks.',
+      );
+      return { acknowledged: true, event: eventName, processed: false, reason: 'WEBHOOK_SECRET_NOT_CONFIGURED' };
     } else if (params.remoteIp) {
       const cleanIp = params.remoteIp.replace('::ffff:', '').trim();
       const allowed = this.digioClient.allowedWebhookIps;
@@ -2432,36 +2624,47 @@ export class DigioService {
       }
     }
 
-    const payload = params.payload || {};
-    const digioRequestId: string | undefined =
-      payload?.payload?.kyc_request?.id ||
-      payload?.entities?.[0] ||
-      payload?.id;
-    const eventName = String(payload?.event || 'kyc.webhook');
-
-    this.logger.log(
-      `Digio webhook received: event=${eventName}, requestId=${digioRequestId || 'unknown'}`,
-    );
-
-    if (digioRequestId) {
-      const existing = await this.db.digioVerification.findUnique({
-        where: { digioRequestId },
-        select: { id: true },
-      });
-      if (existing) {
-        try {
-          // Always pull authoritative KYC state from Digio API rather than blindly trusting webhook fields
-          const synced = await this.syncDigilockerResponse(null, digioRequestId);
-          return { acknowledged: true, event: eventName, synced };
-        } catch (err: any) {
-          this.logger.warn(
-            `Webhook sync for ${digioRequestId} failed cleanly: ${err?.message}`,
-          );
-        }
-      }
+    // At-least-once delivery: the same notification id is processed once.
+    const webhookId = typeof payload?.id === 'string' ? payload.id : null;
+    if (webhookId && !(await this.claimWebhook(webhookId))) {
+      return { acknowledged: true, event: eventName, duplicate: true };
     }
 
-    return { acknowledged: true, event: eventName };
+    const digioRequestId: string | undefined =
+      payload?.payload?.kyc_request?.id || payload?.entities?.[0] || undefined;
+    this.logger.log(`Digio webhook received: event=${eventName}, requestId=${digioRequestId || 'unknown'}`);
+
+    if (digioRequestId) {
+      // Respond now; reconcile with Digio's API off the request path.
+      setImmediate(() => {
+        void this.reconcileWebhookRequest(digioRequestId).catch((err: any) =>
+          this.logger.warn(`Webhook sync for ${digioRequestId} failed: ${err?.message}`),
+        );
+      });
+    }
+    return { acknowledged: true, event: eventName, queued: Boolean(digioRequestId) };
+  }
+
+  /** SET NX on the webhook id (24 h). Without Redis every delivery is processed (sync is idempotent). */
+  private async claimWebhook(webhookId: string): Promise<boolean> {
+    const client: any = this.redis?.getClient?.();
+    if (!client) return true;
+    try {
+      const res = await client.set(`digio:webhook:${webhookId}`, '1', 'EX', 86_400, 'NX');
+      return res !== null;
+    } catch {
+      return true;
+    }
+  }
+
+  /** Pulls the authoritative state for a request we know about. Exposed for tests. */
+  async reconcileWebhookRequest(digioRequestId: string) {
+    const existing = await this.db.digioVerification.findUnique({
+      where: { digioRequestId },
+      select: { id: true },
+    });
+    if (!existing) return null;
+    return this.syncDigilockerResponse(null, digioRequestId);
   }
 
   // ---------------------------------------------------------------------------

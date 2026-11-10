@@ -19,6 +19,7 @@ import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import {
+  RecordAadhaarConsentDto,
   AdminRunDriverDigioSuiteDto,
   AnalyzeStoredIdCardDto,
   AuthUserDto,
@@ -49,9 +50,11 @@ import {
 } from '@adhocx/contracts';
 import { CurrentUser, JwtAuthGuard, Roles, RolesGuard } from '../../common';
 import { DigioService } from './digio.service';
+import { DigioRateLimitInterceptor } from './digio-rate-limit.interceptor';
 
 @ApiTags('Digio KYC / KYB')
 @Controller('kyc/digio')
+@UseInterceptors(DigioRateLimitInterceptor)
 export class DigioController {
   constructor(private readonly digioService: DigioService) {}
 
@@ -73,6 +76,29 @@ export class DigioController {
   @ApiOperation({ summary: 'Get Digio KYC/KYB verification history for current user' })
   getMyVerifications(@CurrentUser() user: AuthUserDto) {
     return this.digioService.getMyVerifications(user);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Aadhaar consent (required before any Aadhaar processing)
+  // ---------------------------------------------------------------------------
+
+  @Get('consent')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Whether the caller has a valid Aadhaar processing consent on record' })
+  getAadhaarConsent(@CurrentUser() user: AuthUserDto) {
+    return this.digioService.getAadhaarConsent(user);
+  }
+
+  @Post('consent')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.DRIVER, UserRole.VENDOR)
+  @ApiOperation({ summary: "Record the driver's explicit consent to Aadhaar processing (who, when, text version, IP)" })
+  recordAadhaarConsent(@CurrentUser() user: AuthUserDto, @Body() dto: RecordAadhaarConsentDto, @Req() req: Request) {
+    const fwd = req.headers['x-forwarded-for'];
+    const ip = (Array.isArray(fwd) ? fwd[0] : typeof fwd === 'string' ? fwd.split(',')[0] : req.ip) || null;
+    return this.digioService.recordAadhaarConsent(user, dto, { ip: ip?.trim() || null, userAgent: req.headers['user-agent'] || null });
   }
 
   // ---------------------------------------------------------------------------

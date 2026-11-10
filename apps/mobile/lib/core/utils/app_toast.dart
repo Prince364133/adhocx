@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import '../../theme/app_colors.dart';
 import '../networking/api_client.dart';
+import '../../services/digio_service.dart';
 
 /// Centralized notification & alert manager for both Mobile and Web platforms.
 /// Solves Fluttertoast Web styling issues (default green gradients) by explicitly configuring `webBgColor`.
@@ -17,6 +18,9 @@ class AppToast {
     String raw;
     int? statusCode;
     if (error is ApiException) {
+      // Digio rate limits / consent: specific, actionable wording.
+      final digioMessage = DigioService.friendlyErrorMessage(error);
+      if (digioMessage != null) return digioMessage;
       statusCode = error.statusCode;
       raw = error.message.trim();
     } else {

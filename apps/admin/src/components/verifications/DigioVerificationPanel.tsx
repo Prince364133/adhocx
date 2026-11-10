@@ -27,6 +27,8 @@ import { adminApi } from '../../lib/api/client';
 
 interface DigioVerificationPanelProps {
   item: VerificationItem;
+  /** Called whenever the driver's compliance alerts are (re)loaded. */
+  onAlertsChange?: (alerts: DigioComplianceAlert[]) => void;
 }
 
 const DRIVER_CHECK_LABELS: Array<{ key: string; label: string }> = [
@@ -43,7 +45,7 @@ const DRIVER_CHECK_LABELS: Array<{ key: string; label: string }> = [
   { key: 'UPI_VPA', label: 'UPI VPA' },
 ];
 
-export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ item }) => {
+export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ item, onAlertsChange }) => {
   const [data, setData] = useState<DigioEntityVerificationsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
@@ -76,6 +78,10 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
     setRcInput(item.vehiclePlate || '');
     loadVerifications();
   }, [loadVerifications, item.vehiclePlate]);
+
+  useEffect(() => {
+    if (data) onAlertsChange?.(data.complianceAlerts || []);
+  }, [data, onAlertsChange]);
 
   if (!isDriver) {
     return null;

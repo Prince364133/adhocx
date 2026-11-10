@@ -1,0 +1,91 @@
+{
+  "source": "https://documentation.digio.in/swagger/post_getRCDetails.json",
+  "fetched": "2026-11-10",
+  "examples": {
+    "200 Success": {
+      "method": "POST",
+      "path": "/client/v4/apis/verify/vehicle_rc",
+      "status": 200,
+      "body": {
+        "user_details": {
+          "owner_name": "MAHENDARA SINGH RAJPUT",
+          "father_name": "RAJENDAR SINGH RAJPUT",
+          "mobile_number": "",
+          "owner_number": "1",
+          "present_address": "A-403 RAMNAGARIYA, JAGATPURA, , Jaipur, Rajasthan, 302017",
+          "permanent_address": "A-403 RAMNAGARIYA, JAGATPURA, , Jaipur, Rajasthan, 302017"
+        },
+        "vehicle_details": {
+          "rc_number": "RJ14XJ4145",
+          "registration_date": "2020-10-08",
+          "vehicle_category": "2WN",
+          "vehicle_chassis_number": "ME3U3K5F1LK739486",
+          "vehicle_engine_number": "U3K5F1LK381974",
+          "maker_description": "ROYAL-ENFIELD (UNIT OF EICHER LTD)",
+          "maker_model": "BULLET 350 EFI",
+          "body_type": "MOTORCYCLE",
+          "fuel_type": "PETROL",
+          "color": "BLACK",
+          "norms_type": "BHARAT STAGE VI",
+          "fit_up_to": "2035-10-07",
+          "vehicle_gross_weight": "350",
+          "number_of_cylinders": "1",
+          "seat_capacity": "2",
+          "sleeper_capacity": "0",
+          "standing_capacity": "0",
+          "wheelbase": "1395",
+          "unladen_weight": "186",
+          "vehicle_category_description": "M-Cycle/Scooter",
+          "rc_status": "RcStatus3748aeba-473b-43da-bf51-3d3cf0f95b77",
+          "masked_name": false,
+          "challan_details": "ChallanDetails3c6cd164-0fd1-44a9-aa3d-57af9a3b5da0",
+          "variant": "Variant832ea0c1-a78a-4ba2-8401-cda80f5e88f2",
+          "registered_at": "JAIPUR (FIRST) RTO",
+          "cubic_capacity": "346",
+          "rto_code": ""
+        },
+        "finance_details": {
+          "financier": "AXIS BANK LTD",
+          "financed": true,
+          "insurance_company": "NA",
+          "insurance_policy_number": "3410/00060140/000/00",
+          "insurance_upto": "2025-10-07",
+          "manufacturing_date": "9/2020",
+          "manufacturing_date_formatted": "2020-09",
+          "latest_by": "2024-09-02",
+          "less_info": true,
+          "tax_upto": "2035-10-07",
+          "tax_paid_upto": "2035-10-07"
+        },
+        "permit_details": {
+          "permit_number": "",
+          "permit_issue_date": "PermitIssueDate709c7a3f-65f4-48c9-88d0-bb1894488c4e",
+          "permit_valid_from": "PermitValidFromdffe9c1f-92b0-4755-a72d-e14a3ff64854",
+          "permit_valid_upto": "PermitValidUpto0676726f-46e4-4f6b-aa15-45f9be50f4b8",
+          "permit_type": "",
+          "national_permit_number": "NationalPermitNumber2be674a3-dae4-4d0a-a095-8c01155325fb",
+          "national_permit_upto": "NationalPermitUpto421d2dd2-0102-47c8-83c7-1c18f74d293d",
+          "national_permit_issued_by": "NationalPermitIssuedBy9b4a8a32-4e76-445c-baed-fdf047f8b18a",
+          "non_use_status": "NonUseStatusf4532358-8243-4889-ab41-03d460502a86",
+          "non_use_from": "NonUseFrom9dd445c8-19b4-46d9-ac57-3a3d1e1b5ef7",
+          "non_use_to": "NonUseTo72df5766-d73f-478c-b912-a4ca5ea40b61",
+          "blacklist_status": "BlacklistStatus608b525d-672b-4869-9ad5-e49eac6d3812",
+          "noc_details": "NocDetailsf98c5e7a-0abe-41b6-90f7-443567eaa275",
+          "pucc_number": "",
+          "pucc_upto": "PuccUpto3c5e275a-08df-41f6-81b1-c0fb27b3f463"
+        }
+      }
+    },
+    "400 Bad Request": {
+      "method": "POST",
+      "path": "/client/v4/apis/verify/vehicle_rc",
+      "status": 400,
+      "body": {
+        "error": {
+          "error_message": "verification failed",
+          "status": "BAD_REQUEST"
+        }
+      }
+    }
+  }
+}

@@ -48,6 +48,13 @@ describe('DigioClient & DigioService', () => {
         })),
         findUnique: jest.fn(),
         findMany: jest.fn(async () => []),
+        // Unit scope: the driver has a recorded Aadhaar consent; no earlier result to reuse.
+        // (Consent enforcement and reuse are covered by digio-contract.spec.ts.)
+        findFirst: jest.fn(async ({ where }: any) =>
+          where?.verificationType === 'AADHAAR_CONSENT'
+            ? { id: 'consent-1', verificationType: 'AADHAAR_CONSENT', verified: true, summary: { textVersion: 'AADHAAR_CONSENT_V1' }, createdAt: new Date() }
+            : null,
+        ),
         update: jest.fn(async ({ where, data }: any) => ({
           id: where.id || 'dv_updated',
           verificationType: 'DIGILOCKER',
@@ -448,8 +455,11 @@ describe('DigioClient & DigioService', () => {
       payload: JSON.parse(rawBody),
     });
     expect(whRes.acknowledged).toBe(true);
-    expect(whRes.synced?.verified).toBe(true);
-    expect((whRes.synced?.summary as any)?.maskedAadhaar).toBe('XXXX-XXXX-5566');
+    expect((whRes as any).queued).toBe(true);
+    // The webhook only acknowledges; the authoritative state is pulled from Digio in the background.
+    const synced: any = await digioService.reconcileWebhookRequest('KID_TEST_1');
+    expect(synced?.verified).toBe(true);
+    expect((synced?.summary as any)?.maskedAadhaar).toBe('XXXX-XXXX-5566');
   });
 
   it('prevents non-admin from targeting another driverId', async () => {

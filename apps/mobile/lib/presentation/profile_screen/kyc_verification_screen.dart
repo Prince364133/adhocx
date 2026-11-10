@@ -11,6 +11,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
+import '../../widgets/aadhaar_consent_sheet.dart';
 
 /// Screen 3: KYC & Verification screen — dynamic, live API integrated with in-page document preview and upload.
 class KycVerificationScreen extends StatefulWidget {
@@ -186,6 +187,17 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
     String docTitle,
     ImageSource source,
   ) async {
+    // Aadhaar images may only be collected after the driver's consent is recorded.
+    if (docType == 'AADHAR_FRONT' || docType == 'AADHAR_BACK') {
+      try {
+        final ok = await withAadhaarConsent<bool>(context, () async => true);
+        if (ok != true) return;
+      } catch (e) {
+        if (mounted) AppToast.showError(AppToast.cleanErrorMessage(e), context: context);
+        return;
+      }
+      if (!mounted) return;
+    }
     try {
       final XFile? pickedFile = await _picker.pickImage(
         source: source,
@@ -912,10 +924,14 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
                                                       label: const Text('Connect DigiLocker', style: TextStyle(fontSize: 11)),
                                                       onPressed: () async {
                                                         try {
-                                                          final s = await DigioService.instance.createDigilockerSession(
-                                                            customerIdentifier: _profile['phone']?.toString(),
-                                                            customerName: _profile['fullName']?.toString(),
+                                                          final s = await withAadhaarConsent(
+                                                            context,
+                                                            () => DigioService.instance.createDigilockerSession(
+                                                              customerIdentifier: _profile['phone']?.toString(),
+                                                              customerName: _profile['fullName']?.toString(),
+                                                            ),
                                                           );
+                                                          if (s == null) return; // consent declined
                                                           final url = s['gatewayUrl']?.toString();
                                                           if (url != null && url.isNotEmpty) {
                                                             await DigioService.instance.launchGatewayUrl(url);

@@ -1,0 +1,39 @@
+{
+  "source": "https://documentation.digio.in/swagger/post_verifyBeneficiary_1.json",
+  "fetched": "2026-11-10",
+  "examples": {
+    "200 Success": {
+      "method": "POST",
+      "path": "/v4/client/verify/bank_account",
+      "status": 200,
+      "body": {
+        "id": "FTI1901091725336218AA5CB1LMWHM1E",
+        "verified": true,
+        "verified_at": "2019-01-09 17:25:39",
+        "beneficiary_name_with_bank": "CUSTOMER NAME",
+        "fuzzy_match_score": 49,
+        "validation_mode": "PENNY_DROP"
+      }
+    },
+    "200 Failure": {
+      "method": "POST",
+      "path": "/v4/client/verify/bank_account",
+      "status": 200,
+      "body": {
+        "id": "FTI1809111232556634TGAOUXJM5LLUY",
+        "error_msg": "Invalid beneficiary account details",
+        "verified": false
+      }
+    },
+    "400 Bad Request": {
+      "method": "POST",
+      "path": "/v4/client/verify/bank_account",
+      "status": 400,
+      "body": {
+        "details": "EX23297402937402",
+        "code": "REQUEST_VALIDATION_FAILED",
+        "message": "Request Validation Failed"
+      }
+    }
+  }
+}

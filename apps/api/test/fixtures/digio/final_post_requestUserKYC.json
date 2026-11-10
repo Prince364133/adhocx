@@ -1,0 +1,46 @@
+{
+  "source": "https://documentation.digio.in/swagger/final_post_requestUserKYC.json",
+  "fetched": "2026-11-10",
+  "examples": {
+    "200 Success": {
+      "method": "POST",
+      "path": "/client/kyc/v2/request/with_template",
+      "status": 200,
+      "body": {
+        "id": "KID231003085119325EOAUTHCSREY35D",
+        "created_at": "2023-10-03 08:51:19",
+        "status": "requested",
+        "customer_identifier": "ramanand@digio.in",
+        "reference_id": "CRN5420234234",
+        "request_details": {},
+        "transaction_id": "CRN23428354029384",
+        "customer_name": "Ramanand",
+        "expire_in_days": 10,
+        "reminder_registered": false,
+        "access_token": {
+          "created_at": "2023-10-03 08:51:19",
+          "id": "GWT2310030851193905WX924LJ7VOI88",
+          "entity_id": "KID231003085119325EOAUTHCSREY35D",
+          "valid_till": "2023-10-04 08:51:19"
+        },
+        "upi_deeplink_info": {
+          "deep_intent_url": "ABC1234",
+          "deep_qr_url": "ABC123"
+        },
+        "workflow_name": "Digio KYC",
+        "auto_approved": false,
+        "template_id": "KTP230927162946170FIDN86GIX4KF7Z"
+      }
+    },
+    "400 Bad Request": {
+      "method": "POST",
+      "path": "/client/kyc/v2/request/with_template",
+      "status": 400,
+      "body": {
+        "details": "EX23297402937402",
+        "code": "REQUEST_VALIDATION_FAILED",
+        "message": "Request Validation Failed"
+      }
+    }
+  }
+}

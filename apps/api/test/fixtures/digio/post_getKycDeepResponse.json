@@ -1,0 +1,33 @@
+{
+  "source": "https://documentation.digio.in/swagger/post_getKycDeepResponse.json",
+  "fetched": "2026-11-10",
+  "examples": {
+    "200 Success": {
+      "method": "POST",
+      "path": "/client/kyc/v2/{id}/response",
+      "status": 200,
+      "body": {
+        "request_details": {
+          "id": "KID231003085119325EOAUTHCSREY35D",
+          "reference_id": "CRN5420234234",
+          "transaction_id": "CRN23428354029384",
+          "updated_at": "2023-10-03 08:51:19",
+          "created_at": "2023-10-03 08:51:19",
+          "status": "requested",
+          "customer_name": "Ramanand Sirvinull",
+          "customer_identifier": "ramanand@digio.in"
+        }
+      }
+    },
+    "400 Bad Request": {
+      "method": "POST",
+      "path": "/client/kyc/v2/{id}/response",
+      "status": 400,
+      "body": {
+        "details": "EX23297402937402",
+        "code": "REQUEST_VALIDATION_FAILED",
+        "message": "Request Validation Failed"
+      }
+    }
+  }
+}

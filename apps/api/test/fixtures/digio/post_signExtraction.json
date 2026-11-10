@@ -1,0 +1,34 @@
+{
+  "source": "https://documentation.digio.in/swagger/post_signExtraction.json",
+  "fetched": "2026-11-10",
+  "examples": {
+    "200 Success": {
+      "method": "POST",
+      "path": "/client/v4/apis/kyc/extract_signature",
+      "status": 200,
+      "body": {
+        "sign_count": 1,
+        "signatures": [
+          [
+            {
+              "color": "black",
+              "encoded_image": "base64 image"
+            }
+          ]
+        ],
+        "only_signature_present": false
+      }
+    },
+    "400 Bad Request": {
+      "method": "POST",
+      "path": "/client/v4/apis/kyc/extract_signature",
+      "status": 400,
+      "body": {
+        "error": {
+          "error_message": "Error in signExtraction",
+          "status": "BAD_REQUEST"
+        }
+      }
+    }
+  }
+}

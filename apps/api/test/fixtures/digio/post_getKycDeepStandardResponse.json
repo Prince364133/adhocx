@@ -1,0 +1,16 @@
+{
+  "source": "https://documentation.digio.in/swagger/post_getKycDeepStandardResponse.json",
+  "fetched": "2026-11-10",
+  "examples": {
+    "400 Bad Request": {
+      "method": "POST",
+      "path": "/client/kyc/v3/{id}/kyc_report",
+      "status": 400,
+      "body": {
+        "details": "EX23297402937402",
+        "code": "REQUEST_VALIDATION_FAILED",
+        "message": "Request Validation Failed"
+      }
+    }
+  }
+}

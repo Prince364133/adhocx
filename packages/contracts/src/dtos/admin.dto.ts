@@ -1,4 +1,4 @@
-import { IsEnum, IsNotEmpty, IsOptional, IsString, IsNumber } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString, IsNumber, MaxLength } from 'class-validator';
 import { VerificationStatus, DriverAvailability, VehicleType } from '../enums';
 import { PaginationQueryDto } from './common.dto';
 
@@ -30,6 +30,15 @@ export class VerifyDriverKycDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  /**
+   * Required (>= 10 chars) when the driver has Digio compliance BLOCKERS (invalid/expired DL, RC
+   * blacklisted or expired, failed face match or liveness). Audited with the blocker list.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  overrideReason?: string;
 }
 
 export class RejectDriverKycDto {

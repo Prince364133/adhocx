@@ -1,0 +1,38 @@
+{
+  "source": "https://documentation.digio.in/swagger/post_checkVpa.json",
+  "fetched": "2026-11-10",
+  "examples": {
+    "200 Success": {
+      "method": "POST",
+      "path": "/v3/client/public/upi/check_vpa",
+      "status": 200,
+      "body": {
+        "virtual_address": "abc@ybl",
+        "customer_name": "Dummy Customer Name",
+        "status": "available",
+        "status_description": "Virtual Address exist for Transaction"
+      }
+    },
+    "200 Failure": {
+      "method": "POST",
+      "path": "/v3/client/public/upi/check_vpa",
+      "status": 200,
+      "body": {
+        "virtual_address": "abcd@ybl",
+        "customer_name": "NA",
+        "status": "not_available",
+        "status_description": "Virtual Address not exist for Transaction"
+      }
+    },
+    "400 Bad Request": {
+      "method": "POST",
+      "path": "/v3/client/public/upi/check_vpa",
+      "status": 400,
+      "body": {
+        "details": "EX23297402937402",
+        "code": "REQUEST_VALIDATION_FAILED",
+        "message": "Request Validation Failed"
+      }
+    }
+  }
+}

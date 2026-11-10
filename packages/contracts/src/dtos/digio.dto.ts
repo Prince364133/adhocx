@@ -1,4 +1,5 @@
 import {
+  Equals,
   IsArray,
   IsBoolean,
   IsIn,
@@ -454,3 +455,14 @@ export interface DigioVerificationRecordDto {
   updatedAt: string;
 }
 
+/** Driver's explicit consent to Aadhaar processing (UIDAI / DPDP). Required before any Aadhaar call. */
+export class RecordAadhaarConsentDto {
+  @IsBoolean()
+  @Equals(true, { message: 'Consent must be explicitly accepted' })
+  accepted!: boolean;
+
+  /** Version id of the consent text shown to the driver, e.g. AADHAAR_CONSENT_V1. */
+  @IsNotEmpty()
+  @IsString()
+  textVersion!: string;
+}

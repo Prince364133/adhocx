@@ -1,0 +1,27 @@
+{
+  "source": "https://documentation.digio.in/swagger/post_generateGatewayToken.json",
+  "fetched": "2026-11-10",
+  "examples": {
+    "200 Success": {
+      "method": "POST",
+      "path": "/user/auth/generate_token",
+      "status": 200,
+      "body": {
+        "id": "GWT200526102029243SP8D8SUEK59XZL",
+        "created_at": "2020-05-26 10:20:29",
+        "entity_id": "KID200526102029240GLYLZIMYROGYC1",
+        "valid_till": "2020-05-26 10:30:29"
+      }
+    },
+    "400 Bad Request": {
+      "method": "POST",
+      "path": "/user/auth/generate_token",
+      "status": 400,
+      "body": {
+        "details": "EX23297402937402",
+        "code": "REQUEST_VALIDATION_FAILED",
+        "message": "Request Validation Failed"
+      }
+    }
+  }
+}

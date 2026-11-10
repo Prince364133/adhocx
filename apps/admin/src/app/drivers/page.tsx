@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { Star, X, Mail } from 'lucide-react';
-import { adminApi, resolveDocumentUrl } from '../../lib/api/client';
+import { adminApi, resolveDocumentUrl, complianceBlockersFromError, OVERRIDE_REASON_MIN_LENGTH } from '../../lib/api/client';
 import { DriverListItem, DriverDetail } from '../../lib/api/types';
 import {
   PageHeader,
@@ -144,7 +144,13 @@ export default function DriversPage() {
     setActionLoading(true);
     try {
       if (actionType === 'VERIFY') {
-        await adminApi.verifyDriver(selectedDriver.id, reason);
+        // The typed reason doubles as the override justification when Digio compliance blockers exist.
+        const trimmed = reason.trim();
+        await adminApi.verifyDriver(
+          selectedDriver.id,
+          trimmed || undefined,
+          trimmed.length >= OVERRIDE_REASON_MIN_LENGTH ? trimmed : undefined,
+        );
       } else if (actionType === 'REJECT') {
         await adminApi.rejectDriver(selectedDriver.id, reason);
       } else if (actionType === 'SUSPEND') {
@@ -160,9 +166,15 @@ export default function DriversPage() {
       setSelectedDriver(null);
       loadDrivers(activeTab);
     } catch (err: unknown) {
+      const blockers = complianceBlockersFromError(err);
       setAlert({
         type: 'error',
-        message: err instanceof Error ? err.message : 'Action execution failed.',
+        message: blockers
+          ? `Cannot approve: ${blockers.map((b) => `${b.code.replace(/_/g, ' ')}${b.message ? ` (${b.message})` : ''}`).join('; ')}. ` +
+            `Enter an override reason of at least ${OVERRIDE_REASON_MIN_LENGTH} characters to approve anyway.`
+          : err instanceof Error
+            ? err.message
+            : 'Action execution failed.',
       });
     } finally {
       setActionLoading(false);
