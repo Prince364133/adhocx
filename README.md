@@ -18,18 +18,18 @@
 
 ---
 
-## 📌 Overview
+##  Overview
 
 **AdhocX** is India's leading automated B2B cab sourcing, dispatch, and corporate transport desk marketplace. It replaces unorganized WhatsApp groups, manual phone calls, and fragmented vendors with an algorithmic dispatch engine that guarantees:
 
-* **⚡ Sub-90-Second Programmatic Allocation**: Real-time vehicle telemetry and wave dispatch matching verified drivers instantly.
-* **🚕 100% Commercial Yellow-Plate Compliance**: Exclusively verified 4-seater sedans (*Dzire, Etios, Aura*) and 6/7-seater MUVs (*Ertiga, XL6, Innova Crysta*) with RTA fitness and chauffeur background checks.
-* **💳 1-Hour Bank Refund SLA**: Unfulfilled or canceled bookings receive guaranteed direct bank refunds within 60 minutes.
-* **📑 Single Unified GST Billing**: Itemized trip audit trails and consolidated monthly tax invoices with 100% input credit compliance for enterprise travel desks.
+* ** Sub-90-Second Programmatic Allocation**: Real-time vehicle telemetry and wave dispatch matching verified drivers instantly.
+* ** 100% Commercial Yellow-Plate Compliance**: Exclusively verified 4-seater sedans (*Dzire, Etios, Aura*) and 6/7-seater MUVs (*Ertiga, XL6, Innova Crysta*) with RTA fitness and chauffeur background checks.
+* ** 1-Hour Bank Refund SLA**: Unfulfilled or canceled bookings receive guaranteed direct bank refunds within 60 minutes.
+* ** Single Unified GST Billing**: Itemized trip audit trails and consolidated monthly tax invoices with 100% input credit compliance for enterprise travel desks.
 
 ---
 
-## 🏗️ Monorepo Architecture
+##  Monorepo Architecture
 
 The repository is managed as an integrated **Turborepo** workspace powered by `pnpm`:
 
@@ -51,28 +51,28 @@ adhocx/
 
 ---
 
-## 🚀 Latest Updates & Changelog
+##  Latest Updates & Changelog
 
-### 🌐 Marketing Portal & B2B Lead Conversion (`apps/marketing`)
+###  Marketing Portal & B2B Lead Conversion (`apps/marketing`)
 * **Streamlined Enterprise Demo Form**: Refactored the corporate demo request flow down to a high-converting, 3-input format (`Company Name`, `Official Work Email`, `Mobile / WhatsApp Number`) with regional hub selection.
 * **Refreshed Brand Identity & Favicons**: Designed and deployed multi-format vector brand emblems (`favicon.svg`, `favicon.png`, `favicon.ico`, `apple-touch-icon.png`) with white & amber typography on deep sapphire squircle across all portals and static root.
 * **Light-Themed Driver Call-to-Action**: Modernized the Driver Portal CTA section with a clean light gradient (`linear-gradient(180deg, var(--color-primary-50) 0%, #FFFFFF 100%)`) and high-contrast typography.
 * **Streamlined About Us Layout**: Removed temporary hiring cards and centered the core company mission on digitizing B2B ground transport.
 * **Root Static Export Sync**: Automated static HTML generation (`index.html`, `vendors.html`, `drivers.html`, etc.) for direct zero-latency Vercel and CDN deployment.
 
-### 📱 Driver Partner Mobile App (`apps/mobile`)
+###  Driver Partner Mobile App (`apps/mobile`)
 * **Milestone Incentive Engine**: Integrated the ₹2,000 Century Milestone Joining Bonus (for 100 completed trips).
 * **Automated Mobile Release Pipelines**: GitHub Actions workflows generating signed release Android APKs, Google Play App Bundles (AAB), and iOS Xcode builds.
 * **Driver Safety & Telemetry**: Driver Trust Scoring (100-point scale), live OSM GPS location tracking, and real-time SOS alerting.
 
-### ⚙️ Core API & Cloud Infrastructure (`apps/api`)
+###  Core API & Cloud Infrastructure (`apps/api`)
 * **AWS EC2 Production Deployment**: Containerized multi-stage Docker builds with Nginx reverse proxy and SSL automation.
 * **Redis Wave Dispatching**: High-concurrency queueing for instant driver matching in high-density corridors (Bengaluru Outer Ring Road, Electronic City, Whitefield, Manyata, and Hyderabad HITEC City).
 * **Render Redis & PostgreSQL Integration**: Persistent database layer backed by Prisma ORM with automated migration hooks.
 
 ---
 
-## 🛠️ Tech Stack by Application
+##  Tech Stack by Application
 
 | Component | Framework / Technology | Key Features |
 |---|---|---|
@@ -84,7 +84,7 @@ adhocx/
 
 ---
 
-## 💻 Getting Started & Local Development
+##  Getting Started & Local Development
 
 ### Prerequisites
 * **Node.js**: `>= 20.x`
@@ -134,7 +134,7 @@ Flutter apps require the Flutter SDK. The API requires a local database and Redi
 
 ---
 
-## 🧪 Testing & Verification
+##  Testing & Verification
 
 Run the full automated test suite across the monorepo:
 
@@ -155,7 +155,7 @@ pnpm format
 
 ---
 
-## 📦 Production Builds & Deployment
+##  Production Builds & Deployment
 
 ```bash
 # Build all workspaces with Turborepo caching
@@ -169,7 +169,7 @@ pnpm --filter @adhocx/api build
 
 ---
 
-## 🔒 Security, Compliance & Commercial SLA Commitments
+##  Security, Compliance & Commercial SLA Commitments
 
 * **Commercial Plate Exclusivity**: 100% yellow-plate verified commercial vehicles. Private white-plate vehicles are strictly forbidden.
 * **Driver Onboarding Rigor**: Mandatory RTA commercial badge verification, police background check, vehicle fitness documentation, and valid commercial permit.
@@ -178,7 +178,7 @@ pnpm --filter @adhocx/api build
 
 ---
 
-## 📄 License & Proprietary Notice
+##  License & Proprietary Notice
 
 © 2026 **AdhocX Technologies Private Limited**. All rights reserved.  
 Confidential and proprietary software. Unauthorized reproduction, distribution, or reverse engineering is strictly prohibited.
