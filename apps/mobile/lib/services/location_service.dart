@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -458,11 +459,12 @@ class LocationService {
     return results;
   }
 
-  /// Live Reverse Geocoding via Google Geocoding API
+  /// Live Reverse Geocoding via Google Geocoding API with Web CORS support and OSM fallback
   Future<LocationModel> reverseGeocode(double lat, double lng) async {
     try {
       final uri = Uri.parse('$_geocodeBase?latlng=$lat,$lng&key=$googleMapsApiKey');
-      final response = await http.get(uri, headers: _googleAndroidHeaders).timeout(const Duration(milliseconds: 3500));
+      final headers = kIsWeb ? <String, String>{} : _googleAndroidHeaders;
+      final response = await http.get(uri, headers: headers).timeout(const Duration(milliseconds: 3500));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -506,9 +508,37 @@ class LocationService {
       debugPrint('Google Geocode error: $e');
     }
 
+    // Fallback: OpenStreetMap Nominatim for Web or network failure
+    try {
+      final osmUri = Uri.parse('https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lng&zoom=18&addressdetails=1');
+      final osmRes = await http.get(osmUri, headers: {'User-Agent': 'AdhocX-App/1.0'}).timeout(const Duration(seconds: 3));
+      if (osmRes.statusCode == 200) {
+        final osmData = jsonDecode(osmRes.body) as Map<String, dynamic>;
+        final displayName = osmData['display_name'] as String? ?? 'Current Location';
+        final addr = osmData['address'] as Map<String, dynamic>? ?? {};
+        final road = addr['road'] ?? addr['suburb'] ?? addr['neighbourhood'] ?? addr['subdivision'] ?? '';
+        final city = addr['city'] ?? addr['town'] ?? addr['village'] ?? addr['county'] ?? 'Hyderabad';
+        final state = addr['state'] ?? 'Telangana';
+        final postcode = addr['postcode'] ?? '';
+        final title = road.toString().isNotEmpty ? road.toString() : displayName.split(',').first.trim();
+
+        return LocationModel(
+          title: title,
+          fullAddress: displayName,
+          latitude: lat,
+          longitude: lng,
+          city: city.toString(),
+          state: state.toString(),
+          postcode: postcode.toString(),
+          category: 'PINNED',
+          icon: Icons.my_location_rounded,
+        );
+      }
+    } catch (_) {}
+
     return LocationModel(
       title: 'Pinned Location (${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)})',
-      fullAddress: 'Lat: ${lat.toStringAsFixed(5)}, Lng: ${lng.toStringAsFixed(5)} (Google Maps)',
+      fullAddress: 'Lat: ${lat.toStringAsFixed(5)}, Lng: ${lng.toStringAsFixed(5)}',
       latitude: lat,
       longitude: lng,
       category: 'PINNED',

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
@@ -209,21 +210,23 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
     setState(() => _isFetchingGps = true);
 
     try {
-      final serviceEnabled = await PermissionService.instance.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        setState(() => _isFetchingGps = false);
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Device location (GPS) is turned off.'),
-            action: SnackBarAction(
-              label: 'Turn On',
-              onPressed: () => PermissionService.instance.openLocationSettings(),
+      if (!kIsWeb) {
+        final serviceEnabled = await PermissionService.instance.isLocationServiceEnabled();
+        if (!serviceEnabled) {
+          setState(() => _isFetchingGps = false);
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Device location (GPS) is turned off.'),
+              action: SnackBarAction(
+                label: 'Turn On',
+                onPressed: () => PermissionService.instance.openLocationSettings(),
+              ),
+              duration: const Duration(seconds: 4),
             ),
-            duration: const Duration(seconds: 4),
-          ),
-        );
-        return;
+          );
+          return;
+        }
       }
 
       final pos = await PermissionService.instance.getCurrentPosition(requestIfDenied: true);
