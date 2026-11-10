@@ -112,7 +112,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     offices,
     officeScope,
     corporateRole: corporateRole || null,
-    isCorporateAdmin: corporateRole === 'CORP_SUPER_ADMIN' || corporateRole === 'CORP_ADMIN',
+    isCorporateAdmin: corporateRole === 'CORP_SUPER_ADMIN',
     tenantError,
     can: (p) => roleHas(corporateRole, p),
     logout,

@@ -52,10 +52,12 @@ export interface AnalyticsParams {
 }
 
 export interface TripsAnalyticsReport {
+  rowCount: number;
   truncated: boolean;
   rows: Array<{
     shiftDate: string;
     status: string;
+    vehicleNumber: string | null;
   }>;
 }
 

@@ -1,554 +1,422 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { AlertOctagon, Calendar, Car, CheckCircle2, ChevronDown, RefreshCw, Users } from 'lucide-react';
+import React, { FormEvent, useEffect, useState } from 'react';
+import { AlertCircle, CalendarDays, Car, CheckCircle2, Map as MapIcon, Users, XCircle } from 'lucide-react';
 import { MetricCard } from '../../components/common/MetricCard';
-import { DonutChart } from '../../components/charts/DonutChart';
-import { AreaTrendChart } from '../../components/charts/AreaTrendChart';
-import { analyticsApi, employeeApi } from '../../lib/api/corporate';
-import type { Dashboard, Office } from '../../lib/api/types';
+import { analyticsApi, tenantApi } from '../../lib/api/corporate';
+import type { Dashboard } from '../../lib/api/types';
 import { useSession } from '../../lib/auth/SessionContext';
+
+const MAX_RANGE_DAYS = 93;
+const ACTIVE_ROUTE_STATUSES = new Set(['PLANNED', 'DISPATCHING', 'ASSIGNED', 'IN_TRANSIT']);
 
 interface DateRange {
   from: string;
   to: string;
 }
 
-interface TrendPoint {
-  day: string;
+interface DailyTripCount {
+  date: string;
+  label: string;
   trips: number;
 }
 
-const DATE_FORMATTER = new Intl.DateTimeFormat('en', {
-  month: 'short',
-  day: 'numeric',
-  timeZone: 'UTC',
-});
+interface DashboardData {
+  dashboard: Dashboard;
+  totalEmployees: number;
+  dailyTrips: DailyTripCount[];
+  activeRoutes: number;
+  inactiveRoutes: number;
+  assignedCabs: number;
+}
 
-function getIstDate(date: Date): string {
-  const parts = new Intl.DateTimeFormat('en-CA', {
+function getTodayInIndia(): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: 'Asia/Kolkata',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-  }).formatToParts(date);
-  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
-  return `${values.year}-${values.month}-${values.day}`;
+  }).formatToParts(new Date());
+  const value = (type: string) => parts.find((part) => part.type === type)?.value;
+  return `${value('year')}-${value('month')}-${value('day')}`;
 }
 
-function addDays(date: string, days: number): string {
-  const value = new Date(`${date}T00:00:00.000Z`);
-  value.setUTCDate(value.getUTCDate() + days);
-  return value.toISOString().slice(0, 10);
+function createInitialRange(): DateRange {
+  const today = getTodayInIndia();
+  const end = new Date(`${today}T00:00:00.000Z`);
+  end.setUTCDate(end.getUTCDate() - 6);
+  return { from: end.toISOString().slice(0, 10), to: today };
 }
 
-function dateRangeLength(from: string, to: string): number {
-  return Math.round((Date.parse(`${to}T00:00:00.000Z`) - Date.parse(`${from}T00:00:00.000Z`)) / 86400000) + 1;
-}
-
-function formatDateRangeLabel({ from, to }: DateRange): string {
-  const today = getIstDate(new Date());
-  if (to === today && dateRangeLength(from, to) === 7) return 'Last 7 Days';
-  return `${DATE_FORMATTER.format(new Date(`${from}T00:00:00.000Z`))} - ${DATE_FORMATTER.format(new Date(`${to}T00:00:00.000Z`))}`;
-}
-
-function formatDateLabel(date: string): string {
-  return DATE_FORMATTER.format(new Date(`${date}T00:00:00.000Z`));
-}
-
-function buildTripsTrend(rows: Array<{ shiftDate: string }>, { from, to }: DateRange): TrendPoint[] {
-  const counts = new Map<string, number>();
-  for (const row of rows) {
-    counts.set(row.shiftDate, (counts.get(row.shiftDate) ?? 0) + 1);
+function getDateRangeLength({ from, to }: DateRange): number | null {
+  const start = new Date(`${from}T00:00:00.000Z`);
+  const end = new Date(`${to}T00:00:00.000Z`);
+  if (
+    !from ||
+    !to ||
+    Number.isNaN(start.getTime()) ||
+    Number.isNaN(end.getTime()) ||
+    start.toISOString().slice(0, 10) !== from ||
+    end.toISOString().slice(0, 10) !== to
+  ) {
+    return null;
   }
-
-  const trend: TrendPoint[] = [];
-  for (let date = from; date <= to; date = addDays(date, 1)) {
-    trend.push({ day: formatDateLabel(date), trips: counts.get(date) ?? 0 });
-  }
-  return trend;
+  return Math.floor((end.getTime() - start.getTime()) / 86_400_000) + 1;
 }
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'An unexpected error occurred.';
+function formatDay(date: string): string {
+  return new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'UTC',
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  }).format(new Date(`${date}T12:00:00.000Z`));
 }
 
-interface OverviewFiltersProps {
-  offices: Office[];
-  selectedOfficeId: string;
-  onOfficeChange: (officeId: string) => void;
-  dateRange: DateRange;
-  onDateRangeChange: (range: DateRange) => void;
-  onRefresh: () => void;
-  loading: boolean;
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'The dashboard data could not be loaded.';
 }
 
-function OverviewFilters({
-  offices,
-  selectedOfficeId,
-  onOfficeChange,
-  dateRange,
-  onDateRangeChange,
-  onRefresh,
-  loading,
-}: OverviewFiltersProps) {
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
-  const [draftFrom, setDraftFrom] = useState(dateRange.from);
-  const [draftTo, setDraftTo] = useState(dateRange.to);
-  const [dateError, setDateError] = useState<string | null>(null);
-
-  const selectStyle: React.CSSProperties = {
-    appearance: 'none',
-    backgroundColor: 'var(--bg-surface, #FFFFFF)',
-    border: '1px solid var(--border-subtle, #E2E8F0)',
-    borderRadius: 'var(--radius-md, 6px)',
-    padding: '7px 32px 7px 12px',
-    fontSize: '12px',
-    fontWeight: 600,
-    color: 'var(--text-secondary, #475569)',
-    cursor: 'pointer',
-    boxShadow: 'var(--shadow-xs)',
-    outline: 'none',
-  };
-
-  const handleDateOpen = () => {
-    setDraftFrom(dateRange.from);
-    setDraftTo(dateRange.to);
-    setDateError(null);
-    setDatePickerOpen((open) => !open);
-  };
-
-  const handleDateApply = () => {
-    if (!draftFrom || !draftTo || draftFrom > draftTo) {
-      setDateError('Choose a valid start and end date.');
-      return;
-    }
-    if (dateRangeLength(draftFrom, draftTo) > 93) {
-      setDateError('Date ranges cannot exceed 93 days.');
-      return;
-    }
-    onDateRangeChange({ from: draftFrom, to: draftTo });
-    setDatePickerOpen(false);
-  };
+function DailyTripsChart({ data }: { data: DailyTripCount[] }) {
+  const chartHeight = 250;
+  const paddingLeft = 48;
+  const paddingRight = 20;
+  const paddingTop = 24;
+  const paddingBottom = 54;
+  const slotWidth = 76;
+  const chartWidth = Math.max(640, paddingLeft + paddingRight + data.length * slotWidth);
+  const plotHeight = chartHeight - paddingTop - paddingBottom;
+  const plotWidth = chartWidth - paddingLeft - paddingRight;
+  const maxTrips = Math.max(1, ...data.map((point) => point.trips));
+  const chartMax = Math.ceil(maxTrips * 1.15);
+  const baseline = paddingTop + plotHeight;
+  const ticks = Array.from({ length: 5 }, (_, index) => Math.round((chartMax * index) / 4));
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
-      <div style={{ position: 'relative' }}>
-        <select
-          aria-label="Office"
-          value={selectedOfficeId}
-          onChange={(event) => onOfficeChange(event.target.value)}
-          style={selectStyle}
-        >
-          <option value="">All Offices</option>
-          {offices.map((office) => (
-            <option key={office.id} value={office.id}>
-              {office.name}
-            </option>
-          ))}
-        </select>
-        <ChevronDown
-          size={14}
-          color="var(--text-muted, #64748B)"
-          style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
-        />
-      </div>
-
-      <div style={{ position: 'relative' }}>
-        <button
-          type="button"
-          aria-label="Choose date range"
-          aria-expanded={datePickerOpen}
-          onClick={handleDateOpen}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            backgroundColor: 'var(--bg-surface, #FFFFFF)',
-            border: '1px solid var(--border-subtle, #E2E8F0)',
-            borderRadius: 'var(--radius-md, 6px)',
-            padding: '7px 12px',
-            fontSize: '12px',
-            fontWeight: 600,
-            color: 'var(--text-secondary, #475569)',
-            cursor: 'pointer',
-            boxShadow: 'var(--shadow-xs)',
-          }}
-        >
-          <Calendar size={13} color="var(--text-muted, #64748B)" />
-          <span>{formatDateRangeLabel(dateRange)}</span>
-          <ChevronDown size={14} color="var(--text-muted, #64748B)" />
-        </button>
-        {datePickerOpen && (
-          <div
-            style={{
-              position: 'absolute',
-              zIndex: 10,
-              top: 'calc(100% + 8px)',
-              right: 0,
-              width: 260,
-              padding: 14,
-              display: 'grid',
-              gap: 10,
-              backgroundColor: 'var(--bg-surface, #FFFFFF)',
-              border: '1px solid var(--border-subtle, #E2E8F0)',
-              borderRadius: 'var(--radius-md, 6px)',
-              boxShadow: 'var(--shadow-card)',
-            }}
-          >
-            <label style={{ display: 'grid', gap: 4, fontSize: 12, color: 'var(--text-secondary)' }}>
-              From
-              <input
-                type="date"
-                value={draftFrom}
-                max={draftTo}
-                onChange={(event) => setDraftFrom(event.target.value)}
-                style={selectStyle}
-              />
-            </label>
-            <label style={{ display: 'grid', gap: 4, fontSize: 12, color: 'var(--text-secondary)' }}>
-              To
-              <input
-                type="date"
-                value={draftTo}
-                min={draftFrom}
-                onChange={(event) => setDraftTo(event.target.value)}
-                style={selectStyle}
-              />
-            </label>
-            {dateError && (
-              <div role="alert" style={{ fontSize: 12, color: 'var(--color-danger, #DC2626)' }}>
-                {dateError}
-              </div>
-            )}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <button
-                type="button"
-                onClick={() => setDatePickerOpen(false)}
-                style={{ ...selectStyle, padding: '7px 10px' }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleDateApply}
-                style={{
-                  ...selectStyle,
-                  padding: '7px 10px',
-                  color: '#FFFFFF',
-                  backgroundColor: 'var(--brand-primary, #5728B2)',
-                  borderColor: 'var(--brand-primary, #5728B2)',
-                }}
-              >
-                Apply
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <button
-        type="button"
-        onClick={onRefresh}
-        disabled={loading}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          backgroundColor: 'var(--brand-primary, #5728B2)',
-          color: '#FFFFFF',
-          border: 'none',
-          borderRadius: 'var(--radius-md, 6px)',
-          padding: '7px 14px',
-          fontSize: '12px',
-          fontWeight: 600,
-          cursor: loading ? 'wait' : 'pointer',
-          boxShadow: '0 1px 2px rgba(87, 40, 178,0.2)',
-          opacity: loading ? 0.8 : 1,
-        }}
+    <div style={{ overflowX: 'auto', width: '100%' }}>
+      <svg
+        role="img"
+        aria-label="Daily trip counts for the selected date range"
+        viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+        style={{ display: 'block', width: '100%', minWidth: `${chartWidth}px`, height: 'auto' }}
       >
-        <RefreshCw size={12} className={loading ? 'spin' : ''} />
-        <span>Refresh</span>
-      </button>
+        {ticks.map((tick, index) => {
+          const y = baseline - (tick / chartMax) * plotHeight;
+          return (
+            <g key={`${tick}-${index}`}>
+              <line
+                x1={paddingLeft}
+                y1={y}
+                x2={chartWidth - paddingRight}
+                y2={y}
+                stroke="var(--border-subtle, #E2E8F0)"
+                strokeDasharray="3 3"
+              />
+              <text
+                x={paddingLeft - 10}
+                y={y + 4}
+                textAnchor="end"
+                fontSize="11"
+                fill="var(--text-muted, #94A3B8)"
+              >
+                {tick}
+              </text>
+            </g>
+          );
+        })}
+        {data.map((point, index) => {
+          const slot = plotWidth / data.length;
+          const barWidth = Math.min(34, slot * 0.58);
+          const x = paddingLeft + index * slot + (slot - barWidth) / 2;
+          const barHeight = (point.trips / chartMax) * plotHeight;
+          const y = baseline - barHeight;
+          return (
+            <g key={point.date}>
+              <rect
+                x={x}
+                y={y}
+                width={barWidth}
+                height={Math.max(barHeight, 1)}
+                rx="4"
+                fill="#6366F1"
+              >
+                <title>{`${point.label}: ${point.trips} trips`}</title>
+              </rect>
+              <text
+                x={x + barWidth / 2}
+                y={Math.max(paddingTop + 12, y - 7)}
+                textAnchor="middle"
+                fontSize="11"
+                fontWeight="600"
+                fill="var(--text-primary, #0F172A)"
+              >
+                {point.trips}
+              </text>
+              <text
+                x={x + barWidth / 2}
+                y={baseline + 18}
+                textAnchor="middle"
+                fontSize="10"
+                fill="var(--text-muted, #64748B)"
+              >
+                {point.label}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
     </div>
   );
 }
 
 export default function CompanyOverviewPage() {
-  const { tenantId, offices, status: sessionStatus } = useSession();
-  const [dateRange, setDateRange] = useState<DateRange>(() => {
-    const to = getIstDate(new Date());
-    return { from: addDays(to, -6), to };
-  });
-  const [selectedOfficeId, setSelectedOfficeId] = useState('');
-  const activeOfficeId = offices.some((office) => office.id === selectedOfficeId) ? selectedOfficeId : '';
-  const [dashboard, setDashboard] = useState<Dashboard | null>(null);
-  const [totalEmployees, setTotalEmployees] = useState<number | null>(null);
-  const [tripsTrend, setTripsTrend] = useState<TrendPoint[] | null>(null);
-  const [dashboardError, setDashboardError] = useState<string | null>(null);
-  const [employeesError, setEmployeesError] = useState<string | null>(null);
-  const [trendError, setTrendError] = useState<string | null>(null);
+  const { tenantId, status } = useSession();
+  const [dateRange, setDateRange] = useState<DateRange>(createInitialRange);
+  const [appliedRange, setAppliedRange] = useState<DateRange>(dateRange);
+  const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
-  const requestId = useRef(0);
-
-  const loadData = useCallback(async () => {
-    if (!tenantId) return;
-
-    const currentRequestId = ++requestId.current;
-    setLoading(true);
-    setDashboard(null);
-    setTotalEmployees(null);
-    setTripsTrend(null);
-    setDashboardError(null);
-    setEmployeesError(null);
-    setTrendError(null);
-
-    const params = {
-      tenantId,
-      officeId: activeOfficeId || undefined,
-      from: dateRange.from,
-      to: dateRange.to,
-    };
-
-    const [dashboardResult, employeesResult, reportResult] = await Promise.allSettled([
-      analyticsApi.dashboard(params),
-      employeeApi.list(tenantId, {
-        officeId: activeOfficeId || undefined,
-        page: 1,
-        limit: 1,
-      }),
-      analyticsApi.tripsReport(params),
-    ]);
-
-    if (requestId.current !== currentRequestId) return;
-
-    if (dashboardResult.status === 'fulfilled') {
-      setDashboard(dashboardResult.value);
-    } else {
-      setDashboardError(errorMessage(dashboardResult.reason));
-    }
-
-    if (employeesResult.status === 'fulfilled') {
-      setTotalEmployees(employeesResult.value.pagination.total);
-    } else {
-      setEmployeesError(errorMessage(employeesResult.reason));
-    }
-
-    if (reportResult.status === 'fulfilled') {
-      if (reportResult.value.truncated) {
-        setTrendError('The trips report is too large to display completely. Choose a shorter date range.');
-      } else {
-        setTripsTrend(buildTripsTrend(reportResult.value.rows, dateRange));
-      }
-    } else {
-      setTrendError(errorMessage(reportResult.reason));
-    }
-
-    setLoading(false);
-  }, [activeOfficeId, dateRange, tenantId]);
+  const [error, setError] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    if (sessionStatus === 'loading') return;
+    if (status === 'loading') return;
     if (!tenantId) {
       setLoading(false);
-      setDashboardError('A corporate tenant could not be determined for this account.');
-      setEmployeesError('A corporate tenant could not be determined for this account.');
-      setTrendError('A corporate tenant could not be determined for this account.');
+      setError('A corporate tenant could not be identified. Sign in with your corporate account and try again.');
       return;
     }
 
-    void loadData();
+    let active = true;
+    setLoading(true);
+    setError(null);
+    setData(null);
+
+    Promise.all([
+      analyticsApi.dashboard({ tenantId, ...appliedRange }),
+      analyticsApi.tripsReport({ tenantId, ...appliedRange }),
+      tenantApi.get(tenantId),
+    ])
+      .then(([dashboard, report, tenant]) => {
+        if (report.truncated) {
+          throw new Error('The trips report exceeded its 50,000-row limit, so route and cab statistics cannot be shown accurately for this date range.');
+        }
+        if (report.rows.length !== dashboard.trips.total) {
+          throw new Error('The trips report did not match the dashboard total. Refresh the dashboard before relying on these statistics.');
+        }
+        if (typeof tenant._count?.employees !== 'number') {
+          throw new Error('The tenant API response did not include the employee count.');
+        }
+
+        const tripCountByDate = new Map<string, number>();
+        const start = new Date(`${appliedRange.from}T00:00:00.000Z`);
+        const end = new Date(`${appliedRange.to}T00:00:00.000Z`);
+        for (const route of report.rows) {
+          tripCountByDate.set(route.shiftDate, (tripCountByDate.get(route.shiftDate) ?? 0) + 1);
+        }
+
+        const dailyTrips: DailyTripCount[] = [];
+        for (const day = new Date(start); day <= end; day.setUTCDate(day.getUTCDate() + 1)) {
+          const date = day.toISOString().slice(0, 10);
+          dailyTrips.push({ date, label: formatDay(date), trips: tripCountByDate.get(date) ?? 0 });
+        }
+
+        const activeRoutes = report.rows.filter((route) => ACTIVE_ROUTE_STATUSES.has(route.status)).length;
+        const assignedCabs = new Set(
+          report.rows
+            .map((route) => route.vehicleNumber?.trim().toUpperCase())
+            .filter((vehicleNumber): vehicleNumber is string => Boolean(vehicleNumber)),
+        ).size;
+
+        if (active) {
+          setData({
+            dashboard,
+            totalEmployees: tenant._count.employees,
+            dailyTrips,
+            activeRoutes,
+            inactiveRoutes: dashboard.trips.total - activeRoutes,
+            assignedCabs,
+          });
+        }
+      })
+      .catch((requestError: unknown) => {
+        if (active) setError(getErrorMessage(requestError));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
     return () => {
-      requestId.current += 1;
+      active = false;
     };
-  }, [loadData, sessionStatus, tenantId]);
+  }, [tenantId, status, appliedRange, refreshKey]);
 
-  const statusCounts = dashboard?.trips.byStatus ?? {};
-  const completedCount = statusCounts.COMPLETED ?? 0;
-  const activeCount = (statusCounts.DISPATCHING ?? 0) + (statusCounts.ASSIGNED ?? 0) + (statusCounts.IN_TRANSIT ?? 0);
-  const scheduledTripsCount = dashboard?.trips.total ?? 0;
-  const unservedTripsCount = dashboard?.requests.unserved ?? 0;
-  const cancelledCount = statusCounts.CANCELLED ?? 0;
-  const plannedCount = statusCounts.PLANNED ?? 0;
+  function applyDateRange(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const length = getDateRangeLength(dateRange);
+    if (length === null || length < 1) {
+      setValidationError('Enter a valid start and end date.');
+      return;
+    }
+    if (length > MAX_RANGE_DAYS) {
+      setValidationError(`Choose a date range of ${MAX_RANGE_DAYS} days or fewer.`);
+      return;
+    }
+    setValidationError(null);
+    setAppliedRange({ ...dateRange });
+  }
 
-  const tripStatusBreakdown = [
-    { label: 'Completed', count: completedCount, color: '#16A34A' },
-    { label: 'In Progress', count: activeCount, color: '#5728B2' },
-    { label: 'Planned', count: plannedCount, color: '#8B5CF6' },
-    { label: 'Cancelled', count: cancelledCount, color: '#94A3B8' },
-  ].map((segment) => ({
-    ...segment,
-    pct: scheduledTripsCount > 0 ? Math.round((segment.count / scheduledTripsCount) * 100) : 0,
-  }));
-
-  const metricValue = (value: number | null, error: string | null) => {
-    if (value !== null) return value.toLocaleString();
-    if (loading) return 'Loading...';
-    return error ? 'Unavailable' : '—';
-  };
-
-  const chartMessageStyle: React.CSSProperties = {
-    minHeight: 200,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    textAlign: 'center',
-    fontSize: 13,
-    color: 'var(--text-secondary)',
-  };
+  const counts = data?.dashboard.trips.byStatus;
+  const totalRoutes = data?.dashboard.trips.total;
+  const metrics = [
+    { label: 'Total Employees', value: data?.totalEmployees, icon: <Users size={18} />, color: '#5728B2' },
+    { label: 'Total Routes', value: totalRoutes, icon: <MapIcon size={18} />, color: '#8B5CF6' },
+    { label: 'Active Trips', value: counts?.IN_TRANSIT, icon: <Car size={18} />, color: '#16A34A' },
+    { label: 'Completed Trips', value: counts?.COMPLETED, icon: <CheckCircle2 size={18} />, color: '#059669' },
+    { label: 'Cancelled Trips', value: counts?.CANCELLED, icon: <XCircle size={18} />, color: '#DC2626' },
+  ];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      {/* Page Title & Filter Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-            Company Overview
+            Corporate Dashboard
           </h1>
           <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-            Real-time view of your employee transportation operations
+            Employee and transportation statistics for the selected date range
           </p>
         </div>
 
-        <OverviewFilters
-          offices={offices}
-          selectedOfficeId={activeOfficeId}
-          onOfficeChange={setSelectedOfficeId}
-          dateRange={dateRange}
-          onDateRangeChange={setDateRange}
-          onRefresh={() => void loadData()}
-          loading={loading}
-        />
+        <form onSubmit={applyDateRange} style={{ display: 'flex', alignItems: 'flex-end', flexWrap: 'wrap', gap: '10px' }}>
+          <label style={{ display: 'grid', gap: '5px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+            From
+            <input
+              aria-label="Start date"
+              type="date"
+              required
+              value={dateRange.from}
+              onChange={(event) => {
+                setDateRange((current) => ({ ...current, from: event.target.value }));
+                setValidationError(null);
+              }}
+              style={{ border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '9px 10px', color: 'var(--text-primary)', background: 'var(--bg-surface, #fff)' }}
+            />
+          </label>
+          <label style={{ display: 'grid', gap: '5px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+            To
+            <input
+              aria-label="End date"
+              type="date"
+              required
+              value={dateRange.to}
+              onChange={(event) => {
+                setDateRange((current) => ({ ...current, to: event.target.value }));
+                setValidationError(null);
+              }}
+              style={{ border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '9px 10px', color: 'var(--text-primary)', background: 'var(--bg-surface, #fff)' }}
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={loading}
+            style={{ border: 0, borderRadius: '8px', padding: '10px 14px', background: '#5728B2', color: '#fff', fontWeight: 700, cursor: loading ? 'wait' : 'pointer', opacity: loading ? 0.7 : 1 }}
+          >
+            <CalendarDays size={14} style={{ verticalAlign: 'middle', marginRight: '6px' }} />
+            Apply
+          </button>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => setRefreshKey((key) => key + 1)}
+            style={{ border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '9px 12px', background: 'var(--bg-surface, #fff)', color: 'var(--text-primary)', fontWeight: 600, cursor: loading ? 'wait' : 'pointer' }}
+          >
+            Refresh
+          </button>
+        </form>
       </div>
 
-      {(dashboardError || employeesError) && (
-        <div
-          role="alert"
-          style={{
-            padding: '10px 14px',
-            borderRadius: 'var(--radius-md)',
-            backgroundColor: 'var(--color-danger-bg, #FEF2F2)',
-            color: 'var(--color-danger, #DC2626)',
-            fontSize: 13,
-          }}
-        >
-          {dashboardError && <div>Dashboard data could not be loaded: {dashboardError}</div>}
-          {employeesError && <div>Employee count could not be loaded: {employeesError}</div>}
+      {validationError && (
+        <p role="alert" style={{ margin: 0, color: '#B91C1C', fontSize: '13px' }}>{validationError}</p>
+      )}
+
+      {error && (
+        <div role="alert" className="surface-card" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 18px', color: '#B91C1C', borderColor: '#FECACA' }}>
+          <AlertCircle size={18} />
+          <span>{error}</span>
+          <button
+            type="button"
+            onClick={() => setRefreshKey((key) => key + 1)}
+            style={{ marginLeft: 'auto', border: '1px solid #FECACA', borderRadius: '6px', padding: '6px 10px', background: '#fff', color: '#B91C1C', fontWeight: 600, cursor: 'pointer' }}
+          >
+            Retry
+          </button>
         </div>
       )}
 
-      {/* 5 KPI Summary Cards */}
+      {loading && (
+        <p role="status" style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)' }}>Loading dashboard statistics…</p>
+      )}
+
       <div className="metric-grid">
-        <MetricCard
-          label="Total Employees"
-          value={metricValue(totalEmployees, employeesError)}
-          icon={<Users size={18} />}
-          highlightColor="#5728B2"
-        />
-        <MetricCard
-          label="Scheduled Trips"
-          value={metricValue(dashboard ? scheduledTripsCount : null, dashboardError)}
-          icon={<Calendar size={18} />}
-          highlightColor="#8B5CF6"
-        />
-        <MetricCard
-          label="Active Trips"
-          value={metricValue(dashboard ? activeCount : null, dashboardError)}
-          icon={<Car size={18} />}
-          highlightColor="#16A34A"
-        />
-        <MetricCard
-          label="Completed Trips"
-          value={metricValue(dashboard ? completedCount : null, dashboardError)}
-          icon={<CheckCircle2 size={18} />}
-          highlightColor="#059669"
-        />
-        <MetricCard
-          label="Unserved Trips"
-          value={metricValue(dashboard ? unservedTripsCount : null, dashboardError)}
-          icon={<AlertOctagon size={18} />}
-          highlightColor="#DC2626"
-        />
+        {metrics.map((metric) => (
+          <MetricCard
+            key={metric.label}
+            label={metric.label}
+            value={loading ? '—' : metric.value?.toLocaleString() ?? '—'}
+            icon={metric.icon}
+            highlightColor={metric.color}
+          />
+        ))}
       </div>
 
-      {/* Middle Grid: Trip Status Donut + Trips Trend Area Chart */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '20px' }}>
-        {/* Left: Trip Status */}
-        <div className="surface-card" style={{ padding: '20px 24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-            <div>
-              <h2 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                Trip Status
-              </h2>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                Route breakdown across completed, in-progress, planned and cancelled trips
-              </p>
-            </div>
-          </div>
-
-          {dashboard ? (
-            scheduledTripsCount > 0 ? (
-              <DonutChart
-                totalLabel="Total Trips"
-                totalValue={scheduledTripsCount.toLocaleString()}
-                segments={tripStatusBreakdown}
-                size={180}
-                thickness={22}
-              />
-            ) : (
-              <div style={chartMessageStyle}>No trip data for the selected filters.</div>
-            )
-          ) : (
-            <div role={dashboardError ? 'alert' : 'status'} style={chartMessageStyle}>
-              {dashboardError ? 'Trip status could not be loaded.' : 'Loading trip status...'}
-            </div>
-          )}
+      <section className="surface-card" style={{ padding: '20px 24px' }}>
+        <div style={{ marginBottom: '18px' }}>
+          <h2 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
+            {getDateRangeLength(appliedRange) === 7 ? 'Last 7 Days Trip Frequency' : 'Trip Frequency'}
+          </h2>
+          <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
+            Daily trip counts for {appliedRange.from} to {appliedRange.to}
+          </p>
         </div>
+        {loading ? (
+          <p role="status" style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '13px' }}>Loading daily trip counts…</p>
+        ) : data?.dailyTrips.some((day) => day.trips > 0) ? (
+          <DailyTripsChart data={data.dailyTrips} />
+        ) : !error ? (
+          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '13px' }}>No trips were recorded for the selected date range.</p>
+        ) : null}
+      </section>
 
-        {/* Right: Trips Trend */}
-        <div className="surface-card" style={{ padding: '20px 24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <div>
-              <h2 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                Trips Trend
-              </h2>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                Daily trip volume for the selected date range
-              </p>
-            </div>
-            <span
-              style={{
-                fontSize: '11px',
-                fontWeight: 700,
-                color: '#5728B2',
-                backgroundColor: '#EFF6FF',
-                padding: '4px 10px',
-                borderRadius: 'var(--radius-pill)',
-                border: '1px solid #BFDBFE',
-              }}
-            >
-              Trips ▾
-            </span>
-          </div>
-
-          {trendError ? (
-            <div role="alert" style={chartMessageStyle}>Trips trend could not be loaded: {trendError}</div>
-          ) : tripsTrend === null ? (
-            <div role="status" style={chartMessageStyle}>Loading trips trend...</div>
-          ) : tripsTrend.every((point) => point.trips === 0) ? (
-            <div style={chartMessageStyle}>No trip data for the selected filters.</div>
-          ) : tripsTrend.length < 2 ? (
-            <div style={chartMessageStyle}>Select a range of at least two days to view the trend.</div>
-          ) : (
-            <AreaTrendChart
-              data={tripsTrend}
-              height={200}
-              lineColor="#6366F1"
-              metricLabel="Trips"
-            />
-          )}
+      <section className="surface-card" style={{ padding: '20px 24px' }}>
+        <div style={{ marginBottom: '16px' }}>
+          <h2 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>Route and Cab Statistics</h2>
+          <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
+            Route statuses and distinct assigned cabs for the selected date range
+          </p>
         </div>
-      </div>
+        {loading ? (
+          <p role="status" style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '13px' }}>Loading route and cab statistics…</p>
+        ) : data ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px' }}>
+            {[
+              ['Total Routes', totalRoutes],
+              ['Active Routes', data.activeRoutes],
+              ['Inactive Routes', data.inactiveRoutes],
+              ['Cabs Assigned to Routes', data.assignedCabs],
+            ].map(([label, value]) => (
+              <div key={label} style={{ padding: '14px 16px', border: '1px solid var(--border-subtle)', borderRadius: '10px', background: 'var(--bg-surface, #fff)' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{label}</div>
+                <div style={{ marginTop: '6px', fontSize: '22px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                  {typeof value === 'number' ? value.toLocaleString() : '—'}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : !error ? (
+          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '13px' }}>No route or cab data is available for the selected date range.</p>
+        ) : null}
+      </section>
     </div>
   );
 }
