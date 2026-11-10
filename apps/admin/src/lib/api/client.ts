@@ -27,6 +27,8 @@ import {
   SystemPolicyConfig,
   CorridorAnalytics,
   OperationalReportData,
+  TripFrequencyReport,
+  DailyFinancialReport,
   SupportTicketItem,
   NotificationCampaignItem,
   NotificationMetrics,
@@ -543,6 +545,23 @@ export const adminApi = {
   getCorridorAnalytics: () => apiClient<CorridorAnalytics[]>('/admin/reports/corridors'),
 
   getOperationalReports: () => apiClient<OperationalReportData>('/admin/reports/analytics'),
+
+  getTripFrequencyReport: (year: number, month: number, day?: number) => {
+    const searchParams = new URLSearchParams({ year: String(year), month: String(month) });
+    if (day !== undefined) searchParams.set('day', String(day));
+    return apiClient<TripFrequencyReport>(`/admin/reports/trips?${searchParams.toString()}`);
+  },
+
+  getWeeklyTripFrequencyReport: (weekStart: string, day?: string) => {
+    const searchParams = new URLSearchParams({ weekStart });
+    if (day !== undefined) searchParams.set('day', day);
+    return apiClient<TripFrequencyReport>(`/admin/reports/trips/weekly?${searchParams.toString()}`);
+  },
+
+  getDailyFinancialReport: (date: string) => {
+    const searchParams = new URLSearchParams({ date });
+    return apiClient<DailyFinancialReport>(`/admin/reports/financial-daily?${searchParams.toString()}`);
+  },
 
   // Unified Helpdesk & Support Tickets
   getSupportTickets: (params?: { status?: string; search?: string }) => {
@@ -1066,4 +1085,3 @@ export const adminApi = {
     clearAdminSession();
   },
 };
-

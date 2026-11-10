@@ -9,29 +9,36 @@ import {
   Users,
   Building2,
   ArrowRight,
-  Radio,
-  Activity,
   DollarSign,
   MapPin,
-  RefreshCw,
 } from 'lucide-react';
 import { adminApi } from '../../lib/api/client';
 import {
   AdminMetrics,
-  AdminPaymentMetrics,
   AuditLogItem,
   CorridorAnalytics,
+  DailyFinancialReport,
   OperationalReportData,
   RequirementListItem,
-  TripListItem,
 } from '../../lib/api/types';
 import {
   RevenueIncomeChart,
   EcosystemGrowthChart,
   FleetCategoryDistributionChart,
   CorridorMatrixChart,
-  KpiSparkline,
 } from '../../components/dashboard/ExecutiveCharts';
+import TripFrequencyCharts from '../../components/dashboard/TripFrequencyCharts';
+
+function getIndiaDateInputValue() {
+  const dateParts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const parts = Object.fromEntries(dateParts.map(({ type, value }) => [type, value]));
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
 
 export default function DashboardPage() {
   const opsBaseUrl = process.env.NEXT_PUBLIC_OPS_URL?.replace(/\/+$/, '');
@@ -48,55 +55,36 @@ export default function DashboardPage() {
     pendingSettlements: 0,
   });
 
-  const [paymentMetrics, setPaymentMetrics] = useState<AdminPaymentMetrics>({
-    totalEscrowVolume: 0,
-    activeEscrowHolds: 0,
-    settledVolume: 0,
-    pendingTransactions: 0,
-  });
-
+  const [selectedFinancialDate, setSelectedFinancialDate] = useState(getIndiaDateInputValue);
+  const [dailyFinancialReport, setDailyFinancialReport] = useState<DailyFinancialReport | null>(null);
+  const [financialReportLoading, setFinancialReportLoading] = useState(true);
+  const [financialReportError, setFinancialReportError] = useState<string | null>(null);
   const [operationalReport, setOperationalReport] = useState<OperationalReportData | null>(null);
   const [corridors, setCorridors] = useState<CorridorAnalytics[]>([]);
   const [recentLogs, setRecentLogs] = useState<AuditLogItem[]>([]);
   const [recentRequirements, setRecentRequirements] = useState<RequirementListItem[]>([]);
-  const [, setActiveTripsList] = useState<TripListItem[]>([]);
   const [activeChartTab, setActiveChartTab] = useState<'REVENUE' | 'ECOSYSTEM' | 'FLEET' | 'CORRIDORS'>('REVENUE');
 
   const [, setLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
 
   async function loadDashboardData() {
     try {
       const [
         metricsRes,
-        paymentsRes,
         reportsRes,
         corridorsRes,
         logsRes,
         requirementsRes,
-        tripsRes,
       ] = await Promise.allSettled([
         adminApi.getMetrics(),
-        adminApi.getAdminPaymentMetrics(),
         adminApi.getOperationalReports(),
         adminApi.getCorridorAnalytics(),
         adminApi.getAuditLogs(8),
         adminApi.getRequirements('ALL'),
-        adminApi.getTrips('ALL'),
       ]);
 
       if (metricsRes.status === 'fulfilled' && metricsRes.value) {
         setMetrics((prev) => ({ ...prev, ...metricsRes.value }));
-      }
-      if (paymentsRes.status === 'fulfilled' && paymentsRes.value) {
-        const val = paymentsRes.value as any;
-        setPaymentMetrics({
-          totalEscrowVolume: Number(val.totalEscrowVolume ?? val.totalVolume ?? 0),
-          activeEscrowHolds: Number(val.activeEscrowHolds ?? val.escrow ?? 0),
-          settledVolume: Number(val.settledVolume ?? val.captured ?? 0),
-          pendingTransactions: Number(val.pendingTransactions ?? 0),
-        });
       }
       if (reportsRes.status === 'fulfilled') setOperationalReport(reportsRes.value);
       if (corridorsRes.status === 'fulfilled') setCorridors(Array.isArray(corridorsRes.value) ? corridorsRes.value : []);
@@ -105,14 +93,8 @@ export default function DashboardPage() {
         const reqs = Array.isArray(requirementsRes.value) ? requirementsRes.value : [];
         setRecentRequirements(reqs.slice(0, 6));
       }
-      if (tripsRes.status === 'fulfilled') {
-        const trips = Array.isArray(tripsRes.value) ? tripsRes.value : [];
-        setActiveTripsList(trips.slice(0, 5));
-      }
-      setLastSyncTime(new Date());
     } finally {
       setLoading(false);
-      setIsRefreshing(false);
     }
   }
 
@@ -122,166 +104,81 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, []);
 
-  const handleManualRefresh = () => {
-    setIsRefreshing(true);
-    loadDashboardData();
-  };
+  useEffect(() => {
+    let active = true;
+    setFinancialReportLoading(true);
+    setFinancialReportError(null);
+    setDailyFinancialReport(null);
 
-  // Real financial figures directly from database payment and trip telemetry
-  const effectiveGmv = Number(paymentMetrics.totalEscrowVolume || 0);
-  const effectiveNetRevenue = effectiveGmv > 0 ? Math.round(effectiveGmv * 0.15) : 0;
-  const effectiveEscrow = Number(paymentMetrics.activeEscrowHolds || 0);
-  const effectiveDisbursed = Number(paymentMetrics.settledVolume || 0);
+    adminApi
+      .getDailyFinancialReport(selectedFinancialDate)
+      .then((report) => {
+        if (active) setDailyFinancialReport(report);
+      })
+      .catch(() => {
+        if (active) setFinancialReportError('Could not load financial metrics for this date. Please try again.');
+      })
+      .finally(() => {
+        if (active) setFinancialReportLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [selectedFinancialDate]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem', paddingBottom: '3rem' }}>
       {/* ─────────────────────────────────────────────────────────────
-       * 1. Mission Control Header Bar & Telemetry Status
+       * 1. Production-Grade Executive KPI Band (Financial & Velocity)
        * ───────────────────────────────────────────────────────────── */}
       <div
         style={{
           display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
           justifyContent: 'space-between',
-          gap: '1rem',
-          padding: '1.25rem 1.5rem',
-          background: 'var(--bg-surface)',
-          borderRadius: 'var(--radius-xl)',
-          border: '1px solid var(--border)',
-          boxShadow: 'var(--shadow-card)',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '0.75rem',
         }}
       >
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.35rem' }}>
-            <h1
-              style={{
-                fontSize: '1.5rem',
-                fontWeight: 900,
-                color: 'var(--text-primary)',
-                letterSpacing: '-0.03em',
-                margin: 0,
-              }}
-            >
-              Executive Mission Control
-            </h1>
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-                padding: '0.2rem 0.65rem',
-                borderRadius: 'var(--radius-pill)',
-                background: 'var(--color-success-bg)',
-                border: '1px solid var(--color-success-border)',
-                color: 'var(--color-success)',
-                fontSize: '0.75rem',
-                fontWeight: 700,
-              }}
-            >
-              <span
-                style={{
-                  width: '6px',
-                  height: '6px',
-                  borderRadius: '50%',
-                  background: 'var(--color-success)',
-                  display: 'inline-block',
-                }}
-              />
-              Live Telemetry Active
-            </span>
-          </div>
-          <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0 }}>
-            Unified transport operations, automated double-entry escrow clearing, and fleet dispatch intelligence
+          <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+            Financial Metrics
+          </h2>
+          <p style={{ margin: '0.25rem 0 0', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+            Selected India business date · INR
           </p>
         </div>
-
-        {/* Action Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-          {/* Telemetry pill */}
-          <div
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.55rem',
+            color: 'var(--text-secondary)',
+            fontSize: '0.8rem',
+            fontWeight: 700,
+          }}
+        >
+          <span>Select date</span>
+          <input
+            aria-label="Financial metrics date"
+            type="date"
+            value={selectedFinancialDate}
+            max={getIndiaDateInputValue()}
+            onChange={(event) => {
+              if (event.target.value) setSelectedFinancialDate(event.target.value);
+            }}
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.45rem 0.85rem',
+              padding: '0.5rem 0.65rem',
+              border: '1px solid var(--border)',
               borderRadius: 'var(--radius-md)',
               background: 'var(--bg-canvas)',
-              border: '1px solid var(--border)',
-              fontSize: '0.75rem',
-              color: 'var(--text-muted)',
-              fontWeight: 600,
-            }}
-          >
-            <Activity size={14} color="var(--color-success)" />
-            <span>Synced: {lastSyncTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
-          </div>
-
-          <button
-            type="button"
-            id="refresh-dashboard-btn"
-            onClick={handleManualRefresh}
-            disabled={isRefreshing}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.45rem',
-              padding: '0.55rem 1rem',
-              borderRadius: 'var(--radius-lg)',
-              background: 'var(--bg-surface-elevated)',
-              border: '1px solid var(--border)',
               color: 'var(--text-primary)',
               fontSize: '0.8125rem',
-              fontWeight: 700,
-              cursor: isRefreshing ? 'not-allowed' : 'pointer',
-              transition: 'all 0.15s ease',
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = 'var(--brand-primary)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'var(--border)';
-            }}
-          >
-            <RefreshCw size={14} className={isRefreshing ? 'spin-animation' : ''} />
-            <span>{isRefreshing ? 'Syncing...' : 'Sync Telemetry'}</span>
-          </button>
-
-          <Link
-            href={`${opsBaseUrl}/requirements`}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.45rem',
-              padding: '0.55rem 1.15rem',
-              borderRadius: 'var(--radius-lg)',
-              background: 'var(--brand-primary-gradient)',
-              color: '#ffffff',
-              fontSize: '0.8125rem',
-              fontWeight: 700,
-              textDecoration: 'none',
-              boxShadow: '0 3px 12px rgba(91, 66, 243, 0.35)',
-              transition: 'transform 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-1px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-          >
-            <Radio size={14} />
-            <span>Dispatch Center</span>
-            <ArrowRight size={14} />
-          </Link>
-        </div>
+          />
+        </label>
       </div>
-
-      {/* ─────────────────────────────────────────────────────────────
-       * 2. Production-Grade Executive KPI Band (Financial & Velocity)
-       * ───────────────────────────────────────────────────────────── */}
       <div
         style={{
           display: 'grid',
@@ -303,39 +200,24 @@ export default function DashboardPage() {
             gap: '1rem',
             position: 'relative',
             overflow: 'hidden',
+            order: 1,
           }}
         >
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+            <div style={{ marginBottom: '0.5rem' }}>
               <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 Gross Merchandise Value
               </span>
-              <span
-                style={{
-                  fontSize: '0.72rem',
-                  fontWeight: 800,
-                  color: effectiveGmv > 0 ? 'var(--color-success)' : 'var(--text-muted)',
-                  background: effectiveGmv > 0 ? 'var(--color-success-bg)' : 'var(--bg-canvas)',
-                  padding: '0.15rem 0.5rem',
-                  borderRadius: 'var(--radius-pill)',
-                  border: '1px solid ' + (effectiveGmv > 0 ? 'var(--color-success-border)' : 'var(--border)'),
-                }}
-              >
-                {effectiveGmv > 0 ? '+18.4% YoY' : 'Live Ledger'}
-              </span>
             </div>
             <div style={{ fontSize: '1.85rem', fontWeight: 900, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
-              ₹ {effectiveGmv.toLocaleString('en-IN')}
+              {financialReportLoading ? '…' : dailyFinancialReport ? `₹ ${dailyFinancialReport.grossBookingValue.toLocaleString('en-IN')}` : '—'}
             </div>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
-              Total transacted booking volume
+              Captured payment value on the selected date
             </div>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: '0.5rem', borderTop: '1px solid var(--border-subtle)' }}>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-              Completed Trips: <strong>{metrics.completedTrips} Trips</strong>
-            </span>
-            <KpiSparkline data={effectiveGmv > 0 ? [effectiveGmv * 0.7, effectiveGmv * 0.8, effectiveGmv * 0.9, effectiveGmv] : [0, 0, 0, 0]} color="#5B42F3" />
+          <div style={{ paddingTop: '0.5rem', borderTop: '1px solid var(--border-subtle)', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+            {dailyFinancialReport ? `${dailyFinancialReport.capturedPaymentCount} captured payments` : 'Recorded payment data'}
           </div>
         </div>
 
@@ -353,39 +235,26 @@ export default function DashboardPage() {
             gap: '1rem',
             position: 'relative',
             overflow: 'hidden',
+            order: 3,
           }}
         >
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+            <div style={{ marginBottom: '0.5rem' }}>
               <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                Platform Take-Rate (Net)
-              </span>
-              <span
-                style={{
-                  fontSize: '0.72rem',
-                  fontWeight: 800,
-                  color: 'var(--brand-secondary)',
-                  background: 'var(--brand-orange-subtle)',
-                  padding: '0.15rem 0.5rem',
-                  borderRadius: 'var(--radius-pill)',
-                  border: '1px solid rgba(255, 98, 0, 0.25)',
-                }}
-              >
-                15.0% Margin
+                Platform Revenue (Recorded)
               </span>
             </div>
             <div style={{ fontSize: '1.85rem', fontWeight: 900, color: 'var(--brand-secondary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
-              ₹ {effectiveNetRevenue.toLocaleString('en-IN')}
+              {financialReportLoading ? '…' : dailyFinancialReport ? `₹ ${dailyFinancialReport.revenue.toLocaleString('en-IN')}` : '—'}
             </div>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
-              AdhocX net revenue retained to date
+              Recorded platform commission and pricing-spread credits
             </div>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: '0.5rem', borderTop: '1px solid var(--border-subtle)' }}>
             <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-              Commission SLA: <strong>Fixed Zero-Deduction</strong>
+              {dailyFinancialReport ? `${dailyFinancialReport.platformRevenueEntryCount} platform ledger credits` : 'Recorded platform ledger data'}
             </span>
-            <KpiSparkline data={effectiveNetRevenue > 0 ? [effectiveNetRevenue * 0.7, effectiveNetRevenue * 0.8, effectiveNetRevenue * 0.9, effectiveNetRevenue] : [0, 0, 0, 0]} color="#FF6200" />
           </div>
         </div>
 
@@ -403,39 +272,26 @@ export default function DashboardPage() {
             gap: '1rem',
             position: 'relative',
             overflow: 'hidden',
+            order: 4,
           }}
         >
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+            <div style={{ marginBottom: '0.5rem' }}>
               <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 Active Escrow Locked
               </span>
-              <span
-                style={{
-                  fontSize: '0.72rem',
-                  fontWeight: 800,
-                  color: effectiveEscrow > 0 ? 'var(--color-info)' : 'var(--text-muted)',
-                  background: effectiveEscrow > 0 ? 'var(--color-info-bg)' : 'var(--bg-canvas)',
-                  padding: '0.15rem 0.5rem',
-                  borderRadius: 'var(--radius-pill)',
-                  border: '1px solid ' + (effectiveEscrow > 0 ? 'var(--color-info-border)' : 'var(--border)'),
-                }}
-              >
-                {effectiveEscrow > 0 ? '100% Backed' : '0 Holds Active'}
-              </span>
             </div>
             <div style={{ fontSize: '1.85rem', fontWeight: 900, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
-              ₹ {effectiveEscrow.toLocaleString('en-IN')}
+              {financialReportLoading ? '…' : dailyFinancialReport ? `₹ ${dailyFinancialReport.activeEscrowHoldValue.toLocaleString('en-IN')}` : '—'}
             </div>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
-              Corporate client funds locked in transit
+              Active pending/authorized holds opened on this date
             </div>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: '0.5rem', borderTop: '1px solid var(--border-subtle)' }}>
             <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-              Pending Auth: <strong>{paymentMetrics.pendingTransactions} Txns</strong>
+              Active holds: <strong>{dailyFinancialReport?.activeEscrowHoldCount ?? '—'} Txns</strong>
             </span>
-            <KpiSparkline data={effectiveEscrow > 0 ? [effectiveEscrow, effectiveEscrow] : [0, 0, 0, 0]} color="#0284C7" />
           </div>
         </div>
 
@@ -453,42 +309,32 @@ export default function DashboardPage() {
             gap: '1rem',
             position: 'relative',
             overflow: 'hidden',
+            order: 2,
           }}
         >
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+            <div style={{ marginBottom: '0.5rem' }}>
               <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 Driver Settlements Disbursed
               </span>
-              <span
-                style={{
-                  fontSize: '0.72rem',
-                  fontWeight: 800,
-                  color: effectiveDisbursed > 0 ? 'var(--color-success)' : 'var(--text-muted)',
-                  background: effectiveDisbursed > 0 ? 'var(--color-success-bg)' : 'var(--bg-canvas)',
-                  padding: '0.15rem 0.5rem',
-                  borderRadius: 'var(--radius-pill)',
-                  border: '1px solid ' + (effectiveDisbursed > 0 ? 'var(--color-success-border)' : 'var(--border)'),
-                }}
-              >
-                {effectiveDisbursed > 0 ? 'Auto-Cleared' : '0 Settled'}
-              </span>
             </div>
             <div style={{ fontSize: '1.85rem', fontWeight: 900, color: 'var(--color-success)', letterSpacing: '-0.02em', lineHeight: 1 }}>
-              ₹ {effectiveDisbursed.toLocaleString('en-IN')}
+              {financialReportLoading ? '…' : dailyFinancialReport ? `₹ ${dailyFinancialReport.expenditure.toLocaleString('en-IN')}` : '—'}
             </div>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
-              Bank transfers via automated banking UTR
+              Settled payout value on the selected date
             </div>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: '0.5rem', borderTop: '1px solid var(--border-subtle)' }}>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-              Pending Queue: <strong>{metrics.pendingSettlements} Payouts</strong>
-            </span>
-            <KpiSparkline data={effectiveDisbursed > 0 ? [effectiveDisbursed * 0.8, effectiveDisbursed] : [0, 0, 0, 0]} color="#16A34A" />
+          <div style={{ paddingTop: '0.5rem', borderTop: '1px solid var(--border-subtle)', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+            {dailyFinancialReport ? `${dailyFinancialReport.settledPayoutCount} settled payouts` : 'Recorded settlement data'}
           </div>
         </div>
       </div>
+      {financialReportError && (
+        <p role="alert" style={{ margin: '-1rem 0 0', color: 'var(--color-error)', fontSize: '0.8rem' }}>
+          {financialReportError}
+        </p>
+      )}
 
       {/* ─────────────────────────────────────────────────────────────
        * 3. Operational Pulse Metrics (Fleet, Drivers, Vendors, SLA)
@@ -658,6 +504,8 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      <TripFrequencyCharts />
+
       {/* ─────────────────────────────────────────────────────────────
        * 4. Multi-Graph Command Center (Production Grade Charts)
        * ───────────────────────────────────────────────────────────── */}
@@ -771,7 +619,7 @@ export default function DashboardPage() {
 
         {/* Dynamic Chart Display based on active tab */}
         {activeChartTab === 'REVENUE' && (
-          <RevenueIncomeChart currentGmv={effectiveGmv} currentRevenue={effectiveNetRevenue} />
+          <RevenueIncomeChart />
         )}
         {activeChartTab === 'ECOSYSTEM' && (
           <EcosystemGrowthChart

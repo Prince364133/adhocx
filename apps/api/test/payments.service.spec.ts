@@ -40,6 +40,12 @@ describe('PaymentsService Unit Tests', () => {
         create: jest.fn(),
         update: jest.fn(),
       },
+      settlement: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      ledgerEntry: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
     };
 
     notifications = {
@@ -94,6 +100,37 @@ describe('PaymentsService Unit Tests', () => {
     expect(audit.log).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'PAYMENT_INITIATED' }),
     );
+  });
+
+  it('should report settled payouts and platform ledger revenue from their recorded amounts', async () => {
+    db.payment.findMany.mockResolvedValue([
+      { amount: 1000, status: PaymentStatus.CAPTURED },
+      { amount: 250, status: PaymentStatus.AUTHORIZED },
+    ]);
+    db.settlement.findMany.mockResolvedValue([{ amount: 800 }, { amount: 125 }]);
+    db.ledgerEntry.findMany.mockResolvedValue([{ amount: 150 }, { amount: 35 }]);
+
+    await expect(service.getAdminPaymentMetrics()).resolves.toMatchObject({
+      totalEscrowVolume: 1250,
+      activeEscrowHolds: 250,
+      settledVolume: 925,
+      platformRevenue: 185,
+      pendingTransactions: 1,
+    });
+    expect(db.settlement.findMany).toHaveBeenCalledWith({
+      where: { status: 'SETTLED' },
+      select: { amount: true },
+    });
+    expect(db.ledgerEntry.findMany).toHaveBeenCalledWith({
+      where: {
+        accountType: 'PLATFORM',
+        entryType: 'CREDIT',
+        referenceType: {
+          in: ['PLATFORM_COMMISSION', 'DISTANCE_PLATFORM_SPREAD', 'ZONAL_PLATFORM_SPREAD'],
+        },
+      },
+      select: { amount: true },
+    });
   });
 
   it('should reject payment initiation if requirement does not belong to vendor', async () => {
@@ -274,4 +311,3 @@ describe('PaymentsService Unit Tests', () => {
     expect(txs[0].amount).toBe(5000);
   });
 });
-

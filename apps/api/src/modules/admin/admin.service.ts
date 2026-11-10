@@ -950,12 +950,31 @@ export class AdminService {
    * Get operational SLA telemetry and platform performance report.
    */
   async getOperationalReports() {
-    const [totalRequirements, fulfilledRequirements, totalTrips, completedTrips] = await Promise.all([
+    const tripFrequencyStart = new Date();
+    tripFrequencyStart.setUTCDate(tripFrequencyStart.getUTCDate() - 29);
+    tripFrequencyStart.setUTCHours(0, 0, 0, 0);
+
+    const [totalRequirements, fulfilledRequirements, totalTrips, completedTrips, recentTripDates] = await Promise.all([
       this.db.requirement.count(),
       this.db.requirement.count({ where: { status: { in: ['FULFILLED', 'IN_PROGRESS', 'COMPLETED'] } } }),
       this.db.trip.count(),
       this.db.trip.count({ where: { status: 'COMPLETED' } }),
+      this.db.trip.findMany({
+        where: { createdAt: { gte: tripFrequencyStart } },
+        select: { createdAt: true },
+      }),
     ]);
+    const tripFrequencyByDate = new Map<string, number>();
+    for (const trip of recentTripDates) {
+      const date = trip.createdAt.toISOString().slice(0, 10);
+      tripFrequencyByDate.set(date, (tripFrequencyByDate.get(date) ?? 0) + 1);
+    }
+    const tripFrequency = Array.from({ length: 30 }, (_, index) => {
+      const date = new Date(tripFrequencyStart);
+      date.setUTCDate(date.getUTCDate() + index);
+      const dateKey = date.toISOString().slice(0, 10);
+      return { date: dateKey, count: tripFrequencyByDate.get(dateKey) ?? 0 };
+    });
 
     const fulfillmentRate =
       totalRequirements > 0
@@ -1064,6 +1083,7 @@ export class AdminService {
     return {
       fulfillmentRate,
       avgDriverResponse,
+      tripFrequency,
       platformGmv: gmv > 0 ? `₹ ${gmv.toLocaleString('en-IN')}` : '₹ 0',
       tripCancellationRate,
       categoryBreakdown,
@@ -1098,6 +1118,288 @@ export class AdminService {
         },
       ],
       corridors: await this.getCorridorAnalytics(),
+    };
+  }
+
+  async getTripFrequencyReport(yearInput?: string, monthInput?: string, dayInput?: string) {
+    const now = new Date();
+    const year = yearInput === undefined ? now.getUTCFullYear() : Number(yearInput);
+    const month = monthInput === undefined ? now.getUTCMonth() + 1 : Number(monthInput);
+
+    if (
+      (yearInput !== undefined && !/^\d{1,4}$/.test(yearInput)) ||
+      !Number.isInteger(year) ||
+      year < 1 ||
+      year > 9999 ||
+      (monthInput !== undefined && !/^\d{1,2}$/.test(monthInput)) ||
+      !Number.isInteger(month) ||
+      month < 1 ||
+      month > 12
+    ) {
+      throw new BadRequestException('A valid year and month are required.');
+    }
+
+    const monthStart = new Date(0);
+    monthStart.setUTCFullYear(year, month - 1, 1);
+    monthStart.setUTCHours(0, 0, 0, 0);
+    const monthEnd = new Date(monthStart);
+    monthEnd.setUTCMonth(monthEnd.getUTCMonth() + 1);
+    const monthWhere = { createdAt: { gte: monthStart, lt: monthEnd } };
+
+    let selectedDay: string | null = null;
+    let selectedDayWhere: { createdAt: { gte: Date; lt: Date } } | undefined;
+    if (dayInput !== undefined) {
+      const day = Number(dayInput);
+      const daysInMonth = new Date(monthEnd.getTime() - 24 * 60 * 60 * 1000).getUTCDate();
+      if (!/^\d{1,2}$/.test(dayInput) || !Number.isInteger(day) || day < 1 || day > daysInMonth) {
+        throw new BadRequestException('The selected day is not valid for this month.');
+      }
+      const dayStart = new Date(monthStart);
+      dayStart.setUTCDate(day);
+      const dayEnd = new Date(dayStart);
+      dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
+      selectedDay = `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day
+        .toString()
+        .padStart(2, '0')}`;
+      selectedDayWhere = { createdAt: { gte: dayStart, lt: dayEnd } };
+    }
+
+    const [tripsInMonth, statuses, selectedDayTotal, selectedDayTrips] = await Promise.all([
+      this.db.trip.findMany({
+        where: monthWhere,
+        select: { createdAt: true },
+      }),
+      this.db.trip.groupBy({
+        by: ['status'],
+        where: monthWhere,
+        _count: { _all: true },
+      }),
+      selectedDayWhere ? this.db.trip.count({ where: selectedDayWhere }) : Promise.resolve(null),
+      selectedDayWhere
+        ? this.db.trip.findMany({
+            where: selectedDayWhere,
+            select: {
+              id: true,
+              status: true,
+              createdAt: true,
+              vehicleType: true,
+              pickupAddress: true,
+              dropAddress: true,
+              driver: { select: { fullName: true } },
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 100,
+          })
+        : Promise.resolve(null),
+    ]);
+
+    const countsByDate = new Map<string, number>();
+    for (const trip of tripsInMonth) {
+      const date = trip.createdAt.toISOString().slice(0, 10);
+      countsByDate.set(date, (countsByDate.get(date) ?? 0) + 1);
+    }
+
+    const daysInMonth = new Date(monthEnd.getTime() - 24 * 60 * 60 * 1000).getUTCDate();
+    const dailyTrips = Array.from({ length: daysInMonth }, (_, index) => {
+      const date = new Date(monthStart);
+      date.setUTCDate(index + 1);
+      const dateKey = date.toISOString().slice(0, 10);
+      return { date: dateKey, count: countsByDate.get(dateKey) ?? 0 };
+    });
+
+    return {
+      year,
+      month,
+      totalTrips: tripsInMonth.length,
+      dailyTrips,
+      statusBreakdown: statuses.map((item) => ({ status: item.status, count: item._count._all })),
+      selectedDay,
+      selectedDayTotal,
+      selectedDayTrips:
+        selectedDayTrips?.map((trip) => ({
+          ...trip,
+          createdAt: trip.createdAt.toISOString(),
+        })) ?? null,
+    };
+  }
+
+  async getWeeklyTripFrequencyReport(weekStartInput: string, dayInput?: string) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(weekStartInput)) {
+      throw new BadRequestException('A valid Monday week-start date is required.');
+    }
+
+    const [year, month, day] = weekStartInput.split('-').map(Number);
+    const weekStart = new Date(0);
+    weekStart.setUTCFullYear(year, month - 1, day);
+    weekStart.setUTCHours(0, 0, 0, 0);
+    if (
+      weekStart.getUTCFullYear() !== year ||
+      weekStart.getUTCMonth() !== month - 1 ||
+      weekStart.getUTCDate() !== day ||
+      weekStart.getUTCDay() !== 1
+    ) {
+      throw new BadRequestException('The week-start date must be a valid Monday.');
+    }
+    const weekEnd = new Date(weekStart);
+    weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
+    const weekWhere = { createdAt: { gte: weekStart, lt: weekEnd } };
+
+    let selectedDay: string | null = null;
+    let selectedDayWhere: { createdAt: { gte: Date; lt: Date } } | undefined;
+    if (dayInput !== undefined) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dayInput)) {
+        throw new BadRequestException('The selected date must be a valid date in the selected week.');
+      }
+      const [dayYear, dayMonth, dayOfMonth] = dayInput.split('-').map(Number);
+      const dayStart = new Date(0);
+      dayStart.setUTCFullYear(dayYear, dayMonth - 1, dayOfMonth);
+      dayStart.setUTCHours(0, 0, 0, 0);
+      if (
+        dayStart.getUTCFullYear() !== dayYear ||
+        dayStart.getUTCMonth() !== dayMonth - 1 ||
+        dayStart.getUTCDate() !== dayOfMonth ||
+        dayStart < weekStart ||
+        dayStart >= weekEnd
+      ) {
+        throw new BadRequestException('The selected date must be a valid date in the selected week.');
+      }
+      const dayEnd = new Date(dayStart);
+      dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
+      selectedDay = dayInput;
+      selectedDayWhere = { createdAt: { gte: dayStart, lt: dayEnd } };
+    }
+
+    const [tripsInWeek, statuses, selectedDayTotal, selectedDayTrips] = await Promise.all([
+      this.db.trip.findMany({
+        where: weekWhere,
+        select: { createdAt: true },
+      }),
+      this.db.trip.groupBy({
+        by: ['status'],
+        where: weekWhere,
+        _count: { _all: true },
+      }),
+      selectedDayWhere ? this.db.trip.count({ where: selectedDayWhere }) : Promise.resolve(null),
+      selectedDayWhere
+        ? this.db.trip.findMany({
+            where: selectedDayWhere,
+            select: {
+              id: true,
+              status: true,
+              createdAt: true,
+              vehicleType: true,
+              pickupAddress: true,
+              dropAddress: true,
+              driver: { select: { fullName: true } },
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 100,
+          })
+        : Promise.resolve(null),
+    ]);
+
+    const countsByDate = new Map<string, number>();
+    for (const trip of tripsInWeek) {
+      const date = trip.createdAt.toISOString().slice(0, 10);
+      countsByDate.set(date, (countsByDate.get(date) ?? 0) + 1);
+    }
+    const dailyTrips = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(weekStart);
+      date.setUTCDate(date.getUTCDate() + index);
+      const dateKey = date.toISOString().slice(0, 10);
+      return { date: dateKey, count: countsByDate.get(dateKey) ?? 0 };
+    });
+
+    return {
+      year,
+      month,
+      weekStart: weekStart.toISOString().slice(0, 10),
+      weekEnd: new Date(weekEnd.getTime() - 1).toISOString().slice(0, 10),
+      totalTrips: tripsInWeek.length,
+      dailyTrips,
+      statusBreakdown: statuses.map((item) => ({ status: item.status, count: item._count._all })),
+      selectedDay,
+      selectedDayTotal,
+      selectedDayTrips:
+        selectedDayTrips?.map((trip) => ({
+          ...trip,
+          createdAt: trip.createdAt.toISOString(),
+        })) ?? null,
+    };
+  }
+
+  async getDailyFinancialReport(dateInput: string) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
+      throw new BadRequestException('A valid report date is required.');
+    }
+
+    const [year, month, day] = dateInput.split('-').map(Number);
+    const utcDate = new Date(0);
+    utcDate.setUTCFullYear(year, month - 1, day);
+    utcDate.setUTCHours(0, 0, 0, 0);
+    if (
+      year < 1 ||
+      utcDate.getUTCFullYear() !== year ||
+      utcDate.getUTCMonth() !== month - 1 ||
+      utcDate.getUTCDate() !== day
+    ) {
+      throw new BadRequestException('A valid report date is required.');
+    }
+
+    const indiaOffsetMinutes = 5 * 60 + 30;
+    const dayStart = new Date(utcDate.getTime() - indiaOffsetMinutes * 60 * 1000);
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+    const [capturedPayments, platformRevenueEntries, settledPayouts, activeEscrowHolds] = await Promise.all([
+      this.db.payment.findMany({
+        where: { status: 'CAPTURED', updatedAt: { gte: dayStart, lt: dayEnd } },
+        select: { amount: true },
+      }),
+      this.db.ledgerEntry.findMany({
+        where: {
+          accountType: 'PLATFORM',
+          entryType: 'CREDIT',
+          referenceType: { in: ['PLATFORM_COMMISSION', 'DISTANCE_PLATFORM_SPREAD', 'ZONAL_PLATFORM_SPREAD'] },
+          createdAt: { gte: dayStart, lt: dayEnd },
+        },
+        select: { amount: true },
+      }),
+      this.db.settlement.findMany({
+        where: { status: 'SETTLED', processedAt: { gte: dayStart, lt: dayEnd } },
+        select: { amount: true },
+      }),
+      this.db.payment.findMany({
+        where: {
+          status: { in: ['AUTHORIZED', 'PENDING'] },
+          createdAt: { gte: dayStart, lt: dayEnd },
+        },
+        select: { amount: true },
+      }),
+    ]);
+
+    const grossBookingValue = Math.round(
+      capturedPayments.reduce((total, payment) => total + Number(payment.amount), 0) * 100,
+    ) / 100;
+    const revenue = Math.round(
+      platformRevenueEntries.reduce((total, entry) => total + Number(entry.amount), 0) * 100,
+    ) / 100;
+    const expenditure = Math.round(
+      settledPayouts.reduce((total, payout) => total + Number(payout.amount), 0) * 100,
+    ) / 100;
+
+    return {
+      date: dateInput,
+      currency: 'INR',
+      grossBookingValue,
+      revenue,
+      expenditure,
+      activeEscrowHoldValue: Math.round(
+        activeEscrowHolds.reduce((total, payment) => total + Number(payment.amount), 0) * 100,
+      ) / 100,
+      grossProfit: Math.round((revenue - expenditure) * 100) / 100,
+      capturedPaymentCount: capturedPayments.length,
+      platformRevenueEntryCount: platformRevenueEntries.length,
+      settledPayoutCount: settledPayouts.length,
+      activeEscrowHoldCount: activeEscrowHolds.length,
     };
   }
 

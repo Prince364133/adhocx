@@ -7,6 +7,7 @@ import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/widgets/employee_app_bar.dart';
 import 'package:adhocx_employee/widgets/employee_primary_button.dart';
 import 'package:adhocx_employee/state/employee_auth_provider.dart';
+import 'package:adhocx_employee/models/auth_state.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
 
 /// Screen: Enter Indian Mobile Number (+91) for Corporate Commuter Authentication.
@@ -290,8 +291,7 @@ class _MobileNumberScreenState extends State<MobileNumberScreen> {
                               InkWell(
                                 onTap: () {
                                   setState(() {
-                                    _phoneNumber = '8888888888';
-                                    _phoneController.text = _phoneNumber;
+                                    _inputController.text = '8888888888';
                                   });
                                 },
                                 child: Container(
@@ -315,8 +315,7 @@ class _MobileNumberScreenState extends State<MobileNumberScreen> {
                               InkWell(
                                 onTap: () {
                                   setState(() {
-                                    _phoneNumber = '9876543203';
-                                    _phoneController.text = _phoneNumber;
+                                    _inputController.text = '9876543203';
                                   });
                                 },
                                 child: Container(
