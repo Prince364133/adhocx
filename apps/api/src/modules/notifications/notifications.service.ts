@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleInit, NotFoundException, BadRequestException, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Subject, Observable, filter, map } from 'rxjs';
+import { Subject, Observable, filter, map, interval, merge } from 'rxjs';
 import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 import { getApps, initializeApp, cert, App, ServiceAccount } from 'firebase-admin/app';
@@ -1669,9 +1669,22 @@ export class NotificationsService implements OnModuleInit {
    * Returns an Observable that emits only the events matching the given channel.
    */
   getEventStream(channel: string): Observable<{ data: RealtimeEvent }> {
-    return this.eventBus.asObservable().pipe(
+    const events$ = this.eventBus.asObservable().pipe(
       filter((evt) => evt.channel === channel || evt.channel === 'broadcast:all'),
       map((evt) => ({ data: evt })),
     );
+
+    const heartbeat$ = interval(15000).pipe(
+      map(() => ({
+        data: {
+          channel,
+          event: 'heartbeat',
+          payload: { timestamp: new Date().toISOString() },
+          timestamp: new Date().toISOString(),
+        } as RealtimeEvent,
+      })),
+    );
+
+    return merge(events$, heartbeat$);
   }
 }

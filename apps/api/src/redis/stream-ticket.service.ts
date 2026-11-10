@@ -36,7 +36,7 @@ export class StreamTicketService {
   async consume(ticket: string): Promise<StreamTicketClaims | null> {
     if (!ticket || ticket.length > 128) return null;
     const key = this.key(ticket);
-    let raw: string | null = null;
+    let raw: string | null;
     const client: any = this.redis.getClient();
     if (client && typeof client.getdel === 'function') {
       raw = await client.getdel(key);
