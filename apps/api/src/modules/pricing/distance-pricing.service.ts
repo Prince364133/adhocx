@@ -854,14 +854,22 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
         if (err.reason === 'NO_ROUTE' || err.reason === 'INVALID_COORDINATES') {
           throw pricingError(HttpStatus.UNPROCESSABLE_ENTITY, PricingErrorCode.ROUTE_UNAVAILABLE, err.message, { retryable: false });
         }
-        const directM = haversineM(pickup.latitude, pickup.longitude, drop.latitude, drop.longitude);
-        const distanceMeters = Math.max(1000, Math.round(directM * 1.3));
-        return {
-          distanceMeters,
-          durationSeconds: Math.round(distanceMeters / 8.33),
-          source: 'GOOGLE_ROUTES',
-          routingPreference: 'TRAFFIC_UNAWARE',
-        };
+        if (process.env.ALLOW_TEST_OTP === 'true') {
+          const directM = haversineM(pickup.latitude, pickup.longitude, drop.latitude, drop.longitude);
+          const distanceMeters = Math.max(1000, Math.round(directM * 1.3));
+          return {
+            distanceMeters,
+            durationSeconds: Math.round(distanceMeters / 8.33),
+            source: 'GOOGLE_ROUTES_FALLBACK',
+            routingPreference: 'TRAFFIC_UNAWARE',
+          };
+        }
+        throw pricingError(
+          HttpStatus.SERVICE_UNAVAILABLE,
+          PricingErrorCode.ROUTE_UNAVAILABLE,
+          'We could not get the route distance right now, so no price was produced. Please try again.',
+          { retryable: true },
+        );
       }
       throw err;
     }

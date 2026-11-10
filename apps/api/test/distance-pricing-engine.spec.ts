@@ -211,18 +211,30 @@ describe('PRD 11: acceptance criteria', () => {
   });
 
   it('a Google Maps failure or a missing slab produces no quote (no invented amount)', async () => {
-    const down = build({ mapsError: new RouteUnavailableError('MAPS_ERROR', 'timeout') });
-    await publishPlan(down.svc, 'ALL');
-    await expect(down.svc.createVendorQuote({ pickup: PICKUP, drop: DROP } as any, 'v')).rejects.toMatchObject({
-      status: HttpStatus.SERVICE_UNAVAILABLE,
-    });
-    expect(down.db.quotes.size).toBe(0);
+    const prevAllowTestOtp = process.env.ALLOW_TEST_OTP;
+    delete process.env.ALLOW_TEST_OTP;
+    try {
+      const down = build({ mapsError: new RouteUnavailableError('MAPS_ERROR', 'timeout') });
+      await publishPlan(down.svc, 'ALL');
+      await expect(down.svc.createVendorQuote({ pickup: PICKUP, drop: DROP } as any, 'v')).rejects.toMatchObject({
+        status: HttpStatus.SERVICE_UNAVAILABLE,
+      });
+      expect(down.db.quotes.size).toBe(0);
 
-    const noKey = build({ mapsError: new RouteUnavailableError('NO_API_KEY', 'no key') });
-    await publishPlan(noKey.svc, 'ALL');
-    await expect(noKey.svc.createVendorQuote({ pickup: PICKUP, drop: DROP } as any, 'v')).rejects.toMatchObject({
-      status: HttpStatus.SERVICE_UNAVAILABLE,
-    });
+      const noKey = build({ mapsError: new RouteUnavailableError('NO_API_KEY', 'no key') });
+      await publishPlan(noKey.svc, 'ALL');
+      await expect(noKey.svc.createVendorQuote({ pickup: PICKUP, drop: DROP } as any, 'v')).rejects.toMatchObject({
+        status: HttpStatus.SERVICE_UNAVAILABLE,
+      });
+
+      process.env.ALLOW_TEST_OTP = 'true';
+      const e2eFallback = await noKey.svc.createVendorQuote({ pickup: PICKUP, drop: DROP } as any, 'v');
+      expect(e2eFallback.canAutoQuote).toBe(true);
+      expect(noKey.db.quotes.get(e2eFallback.quoteId)?.routeSource).toBe('GOOGLE_ROUTES_FALLBACK');
+    } finally {
+      if (prevAllowTestOtp === undefined) delete process.env.ALLOW_TEST_OTP;
+      else process.env.ALLOW_TEST_OTP = prevAllowTestOtp;
+    }
 
     const noRoute = build({ mapsError: new RouteUnavailableError('NO_ROUTE', 'no road') });
     await publishPlan(noRoute.svc, 'ALL');
