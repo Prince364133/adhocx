@@ -1,7 +1,32 @@
 import 'dart:async';
 import '../core/networking/api_client.dart';
 import 'auth_service.dart';
+import 'dispatch_location.dart';
+import 'permission_service.dart';
 export 'digio_service.dart';
+
+/// No trustworthy GPS fix is available for an action that must report the driver's position.
+class LocationUnavailableException implements Exception {
+  const LocationUnavailableException([this.message = 'Location not available — move to an open area and try again']);
+  final String message;
+  @override
+  String toString() => message;
+}
+
+/// Body for `PATCH /trips/:id/location`. Must match the API's TripLocationUpdateDto: `location` is
+/// nested, and unknown top-level fields are rejected (ValidationPipe forbidNonWhitelisted).
+/// Speed is metres per second; negative speed/heading mean "unavailable" on Android and are omitted.
+Map<String, dynamic> tripLocationPingBody({
+  required double lat,
+  required double lng,
+  double? speed,
+  double? heading,
+}) =>
+    {
+      'location': {'latitude': lat, 'longitude': lng},
+      if (speed != null && speed >= 0) 'speed': speed,
+      if (heading != null && heading >= 0) 'heading': heading,
+    };
 
 class DriverService {
   static DriverService? _instance;
@@ -173,18 +198,22 @@ class DriverService {
     return response;
   }
 
-  Future<dynamic> updateAvailability(String availabilityStatus, {double? lat, double? lng}) async {
-    await _ensureDriverSession();
-    final result = await _api.patch(
-      '/drivers/availability',
-      body: {
+  /// Body for `PATCH /drivers/availability`. Coordinates are included only when a real fix exists:
+  /// no fix means no location (the server keeps the driver out of dispatch until one arrives).
+  static Map<String, dynamic> availabilityPayload(String availabilityStatus, {double? lat, double? lng}) => {
         'status': availabilityStatus.toUpperCase(),
         if (lat != null && lng != null)
           'currentLocation': {
             'latitude': lat,
             'longitude': lng,
           },
-      },
+      };
+
+  Future<dynamic> updateAvailability(String availabilityStatus, {double? lat, double? lng}) async {
+    await _ensureDriverSession();
+    final result = await _api.patch(
+      '/drivers/availability',
+      body: availabilityPayload(availabilityStatus, lat: lat, lng: lng),
     );
     invalidateCache(profile: true, offers: true);
     return result;
@@ -381,18 +410,43 @@ class DriverService {
     double? lng,
   }) async {
     await _ensureDriverSession();
+    final loc = await _requireTripLocation(lat, lng);
     final res = await _api.post(
       '/trips/$tripId/start',
       body: {
         'otp': otp,
         'currentLocation': {
-          'latitude': lat ?? 17.4435,
-          'longitude': lng ?? 78.3772,
+          'latitude': loc.$1,
+          'longitude': loc.$2,
         },
       },
     );
     notifyTripChanged(tripId: tripId, status: 'IN_PROGRESS');
     return res;
+  }
+
+  /// Resolves the location a trip start/complete must carry: the caller's coordinates, else a
+  /// dispatch-quality fix. Never a hardcoded city (that put drivers tens of km from where they are).
+  Future<(double, double)> _requireTripLocation(double? lat, double? lng) async {
+    if (lat != null && lng != null) return (lat, lng);
+    final fix = await PermissionService.instance.getDispatchPosition();
+    if (fix == null) throw const LocationUnavailableException();
+    return (fix.latitude, fix.longitude);
+  }
+
+  /// Body for `POST /drivers/location`.
+  static Map<String, dynamic> heartbeatPayload(DispatchFix fix) => {
+        'latitude': fix.position.latitude,
+        'longitude': fix.position.longitude,
+        'accuracyM': fix.position.accuracy,
+        'source': fix.source.wire,
+        'recordedAt': fix.position.timestamp.toUtc().toIso8601String(),
+      };
+
+  /// Idle-driver location heartbeat (AVAILABLE, not on a trip). See [DriverLocationHeartbeat].
+  Future<dynamic> sendLocationHeartbeat(DispatchFix fix) async {
+    await _ensureDriverSession();
+    return _api.post('/drivers/location', body: heartbeatPayload(fix));
   }
 
   Future<dynamic> sendLocationPing(
@@ -405,12 +459,7 @@ class DriverService {
     await _ensureDriverSession();
     return await _api.patch(
       '/trips/$tripId/location',
-      body: {
-        'latitude': lat,
-        'longitude': lng,
-        if (speed != null) 'speed': speed,
-        if (heading != null) 'heading': heading,
-      },
+      body: tripLocationPingBody(lat: lat, lng: lng, speed: speed, heading: heading),
     );
   }
 
@@ -422,14 +471,15 @@ class DriverService {
     double? lng,
   }) async {
     await _ensureDriverSession();
+    final loc = await _requireTripLocation(lat, lng);
     final res = await _api.post(
       '/trips/$tripId/complete',
       body: {
         'tollCharges': tollCharges ?? 0,
         'parkingCharges': parkingCharges ?? 0,
         'currentLocation': {
-          'latitude': lat ?? 28.5355,
-          'longitude': lng ?? 77.3910,
+          'latitude': loc.$1,
+          'longitude': loc.$2,
         },
       },
     );

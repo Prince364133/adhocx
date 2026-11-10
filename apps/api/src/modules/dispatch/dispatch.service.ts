@@ -32,7 +32,6 @@ export interface DispatchResult {
 /** Grace after expiresAt before the wave job fires, so an accept at T-0.1s commits first. */
 const WAVE_FIRE_GRACE_MS = 250;
 /** ETA assumed for drivers with no GPS fix: dispatchable, but last on proximity. */
-const UNKNOWN_LOCATION_ETA_MINUTES = 60;
 
 const normalizeVehicle = (v?: string | null): string => {
   if (!v) return '';
@@ -48,6 +47,21 @@ const estimateRoad = (aerialKm: number) => {
   const roadDistanceKm = Number((aerialKm * 1.25).toFixed(2));
   return { roadDistanceKm, etaMinutes: Math.max(2, Math.round((roadDistanceKm / 25) * 60)) };
 };
+
+/**
+ * The newest known position of a driver: the live index position (search hit) when it is newer than
+ * the Postgres row, else the row. Postgres location writes are throttled, so the index can be ahead.
+ */
+function freshestPosition(
+  driver: { currentLat: unknown; currentLng: unknown; lastLocationAt?: Date | string | null },
+  hit?: { lat?: number; lng?: number; locationAtMs?: number },
+): { currentLat: unknown; currentLng: unknown; lastLocationAt?: Date | string | null } {
+  const rowMs = driver.lastLocationAt ? new Date(driver.lastLocationAt).getTime() : NaN;
+  if (hit?.locationAtMs && hit.lat !== undefined && hit.lng !== undefined && (!Number.isFinite(rowMs) || hit.locationAtMs > rowMs)) {
+    return { currentLat: hit.lat, currentLng: hit.lng, lastLocationAt: new Date(hit.locationAtMs) };
+  }
+  return driver;
+}
 
 @Injectable()
 export class DispatchService implements OnModuleInit, OnModuleDestroy {
@@ -467,6 +481,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
         .map((o) => o.driverId),
     );
 
+    const searchHits = new Map(nearbyCandidates.map((c) => [c.driverId, c]));
     // No location-less fallback: a driver the spatial search did not find in radius is never offered
     // (docs/23 RC1). An empty wave ends in markSupplyExhausted('no_supply') below.
     const candidateIds = nearbyCandidates
@@ -531,7 +546,12 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
 
       // The pickup-radius invariant (docs/23): known, fresh location within the configured radius.
       // Unknown or stale locations are never treated as "at the pickup".
-      const verdict = evaluateDispatchLocation(driver, { lat: pickupLat, lng: pickupLng }, nowMs, maxPickupRadiusKm);
+      const verdict = evaluateDispatchLocation(
+        freshestPosition(driver, searchHits.get(driver.id)),
+        { lat: pickupLat, lng: pickupLng },
+        nowMs,
+        maxPickupRadiusKm,
+      );
       if (!verdict.eligible) {
         this.logger.debug(
           `Driver ${driver.id} skipped for ${requirementId}: ${verdict.reason}${verdict.distanceKm !== null ? ` (${verdict.distanceKm.toFixed(1)} km)` : ''}`,
@@ -539,8 +559,9 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
         continue;
       }
       const hasLocation = true;
-      const driverLat = Number(driver.currentLat);
-      const driverLng = Number(driver.currentLng);
+      const position = freshestPosition(driver, searchHits.get(driver.id));
+      const driverLat = Number(position.currentLat);
+      const driverLng = Number(position.currentLng);
       const distanceKm: number | null = verdict.distanceKm;
       const { roadDistanceKm, etaMinutes } = estimateRoad(distanceKm);
 
@@ -576,7 +597,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
       return this.markSupplyExhausted(requirement, remaining, 'no_supply');
     }
 
-    const waveLimit = Math.min(eligibleCandidates.length, offerBudget);
+    let waveLimit = Math.min(eligibleCandidates.length, offerBudget);
 
     // Phase B: re-rank the best aerial candidates with live traffic road ETA (single batched call)
     if (DispatchConfig.roadEtaEnabled && this.googleMapsService) {
@@ -605,6 +626,24 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
           this.logger.warn(`Road ETA re-rank skipped for ${requirementId}: ${err.message}`);
         }
       }
+    }
+
+    // Optional ROAD-distance cap (DISPATCH_MAX_PICKUP_ROAD_KM), enforced once Google returned a live
+    // road distance; the straight-line radius has already been enforced for every candidate.
+    const maxPickupRoadKm = PickupRadiusConfig.maxPickupRoadKm;
+    if (maxPickupRoadKm !== null) {
+      for (let i = eligibleCandidates.length - 1; i >= 0; i--) {
+        const c = eligibleCandidates[i];
+        if (c.etaIsLive && c.roadDistanceKm !== null && c.roadDistanceKm > maxPickupRoadKm) {
+          this.logger.debug(`Driver ${c.driverId} skipped for ${requirementId}: road ${c.roadDistanceKm.toFixed(1)} km > ${maxPickupRoadKm} km`);
+          eligibleCandidates.splice(i, 1);
+        }
+      }
+      if (eligibleCandidates.length === 0) {
+        if (liveOffers > 0) return noop(requirement.status as RequirementStatus);
+        return this.markSupplyExhausted(requirement, remaining, 'no_supply');
+      }
+      waveLimit = Math.min(eligibleCandidates.length, offerBudget);
     }
 
     // Separate rookies and veterans, sort both by compositeScore descending

@@ -12,6 +12,17 @@ import {
   VehicleType,
 } from '@adhocx/contracts';
 
+/**
+ * A fresh GPS position `km` east of the pickup used throughout this file (28.6139, 77.209).
+ * Dispatch only offers drivers with a known, fresh location inside the pickup radius (docs/23);
+ * these fixtures used to omit the location, which the old engine treated as "at the pickup".
+ */
+const nearby = (km = 1) => ({
+  currentLat: 28.6139,
+  currentLng: 77.209 + km / (111.32 * Math.cos((28.6139 * Math.PI) / 180)),
+  lastLocationAt: new Date(),
+});
+
 describe('DispatchService Unit Tests', () => {
   let service: DispatchService;
   let db: any;
@@ -75,7 +86,7 @@ describe('DispatchService Unit Tests', () => {
     });
     locationsService.findNearbyDrivers.mockResolvedValue([{ driverId: 'drv-1', distanceKm: 3.2 }]);
     db.driver.findMany.mockResolvedValue([
-      { id: 'drv-1', verificationStatus: VerificationStatus.VERIFIED, availabilityStatus: DriverAvailability.AVAILABLE, user: { status: UserStatus.ACTIVE }, trips: [] },
+      { id: 'drv-1', ...nearby(), verificationStatus: VerificationStatus.VERIFIED, availabilityStatus: DriverAvailability.AVAILABLE, user: { status: UserStatus.ACTIVE }, trips: [] },
     ]);
     // Pricing engine present but the route cannot be priced (e.g. Maps down).
     jest.spyOn(service as any, 'distancePricing').mockReturnValue({
@@ -99,7 +110,7 @@ describe('DispatchService Unit Tests', () => {
     });
     locationsService.findNearbyDrivers.mockResolvedValue([{ driverId: 'drv-1', distanceKm: 3.2 }]);
     db.driver.findMany.mockResolvedValue([
-      { id: 'drv-1', verificationStatus: VerificationStatus.VERIFIED, availabilityStatus: DriverAvailability.AVAILABLE, user: { status: UserStatus.ACTIVE }, trips: [] },
+      { id: 'drv-1', ...nearby(), verificationStatus: VerificationStatus.VERIFIED, availabilityStatus: DriverAvailability.AVAILABLE, user: { status: UserStatus.ACTIVE }, trips: [] },
     ]);
     jest.spyOn(service as any, 'distancePricing').mockReturnValue({
       driverPayoutForRoute: jest.fn().mockResolvedValue({ driverPayoutPaise: 52000, distanceMeters: 12000, planVersion: '1', slabId: 's2' }),
@@ -139,6 +150,7 @@ describe('DispatchService Unit Tests', () => {
     db.driver.findMany.mockResolvedValue([
       {
         id: 'drv-1',
+        ...nearby(),
         verificationStatus: VerificationStatus.VERIFIED,
         availabilityStatus: DriverAvailability.AVAILABLE,
         user: { status: UserStatus.ACTIVE },
@@ -146,6 +158,7 @@ describe('DispatchService Unit Tests', () => {
       },
       {
         id: 'drv-2',
+        ...nearby(),
         verificationStatus: VerificationStatus.VERIFIED,
         availabilityStatus: DriverAvailability.AVAILABLE,
         user: { status: UserStatus.ACTIVE },
@@ -209,6 +222,7 @@ describe('DispatchService Unit Tests', () => {
       // Driver 1 has an active trip
       {
         id: 'drv-busy',
+        ...nearby(),
         verificationStatus: VerificationStatus.VERIFIED,
         availabilityStatus: DriverAvailability.AVAILABLE,
         user: { status: UserStatus.ACTIVE },
@@ -217,6 +231,7 @@ describe('DispatchService Unit Tests', () => {
       // Driver 2 is under review / unverified
       {
         id: 'drv-unverified',
+        ...nearby(),
         verificationStatus: VerificationStatus.UNDER_REVIEW,
         availabilityStatus: DriverAvailability.AVAILABLE,
         user: { status: UserStatus.ACTIVE },
@@ -225,6 +240,7 @@ describe('DispatchService Unit Tests', () => {
       // Driver 3 is verified, available, no active trips
       {
         id: 'drv-eligible',
+        ...nearby(),
         verificationStatus: VerificationStatus.VERIFIED,
         availabilityStatus: DriverAvailability.AVAILABLE,
         user: { status: UserStatus.ACTIVE },
@@ -293,6 +309,7 @@ describe('DispatchService Unit Tests', () => {
     db.driver.findMany.mockResolvedValue([
       {
         id: 'drv-1',
+        ...nearby(),
         verificationStatus: VerificationStatus.VERIFIED,
         availabilityStatus: DriverAvailability.AVAILABLE,
         user: { status: UserStatus.ACTIVE },

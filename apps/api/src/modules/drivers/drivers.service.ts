@@ -1,4 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, ConflictException, Logger, Optional } from '@nestjs/common';
+import { PickupRadiusConfig } from '../dispatch/pickup-radius';
+import { RedisService } from '../../redis/redis.service';
 import {
   DriverProfileDto,
   DriverTrustScoreBreakdownDto,
@@ -14,6 +16,7 @@ import {
   VehicleType,
   OfferStatus,
   validateAvailabilityTransition,
+  DriverLocationPingDto,
 } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
 import { StorageService } from '../../common/storage/storage.service';
@@ -30,6 +33,7 @@ export class DriversService {
     private readonly storage: StorageService,
     private readonly audit: AuditService,
     @Optional() private readonly locations?: LocationsService,
+    @Optional() private readonly redis?: RedisService,
   ) {}
 
   private async syncSpatialIndex(driver: {
@@ -53,6 +57,56 @@ export class DriversService {
       }
     } catch (err: any) {
       this.logger.warn(`Spatial index sync failed for driver ${driver.id}: ${err.message}`);
+    }
+  }
+
+  /**
+   * Idle-driver location heartbeat (docs/23 RC6/RC7). A dispatch-quality fix (GPS or recent
+   * last-known, accuracy within DISPATCH_MAX_LOCATION_ACCURACY_M, not older than the location age
+   * limit) refreshes the dispatch index and, at most every 60 s, the driver row. Anything else
+   * (network/IP fixes, poor accuracy, old fixes) removes the driver from the dispatch index and
+   * never refreshes lastLocationAt, so a guess can never look like a fresh GPS position.
+   */
+  async reportLocation(userId: string, dto: DriverLocationPingDto): Promise<{ indexed: boolean; reason?: string }> {
+    const driver = await this.db.driver.findUnique({
+      where: { userId },
+      select: { id: true, availabilityStatus: true, vehicleType: true },
+    });
+    if (!driver) throw new NotFoundException('Driver profile not found');
+
+    const nowMs = Date.now();
+    const recordedMs = dto.recordedAt ? Date.parse(dto.recordedAt) : nowMs;
+    const at = new Date(Number.isFinite(recordedMs) ? Math.min(recordedMs, nowMs) : nowMs);
+    const source = dto.source ?? 'GPS';
+    let reason: string | undefined;
+    if (source !== 'GPS' && source !== 'LAST_KNOWN') reason = 'LOW_QUALITY_SOURCE';
+    else if (dto.accuracyM !== undefined && dto.accuracyM > PickupRadiusConfig.maxLocationAccuracyM) reason = 'LOW_ACCURACY';
+    else if (nowMs - at.getTime() > PickupRadiusConfig.maxLocationAgeSec * 1000) reason = 'STALE_FIX';
+    else if (driver.availabilityStatus !== DriverAvailability.AVAILABLE) reason = 'NOT_AVAILABLE';
+
+    if (reason) {
+      if (reason !== 'NOT_AVAILABLE') await this.locations?.removeDriverFromAvailable(driver.id).catch(() => undefined);
+      return { indexed: false, reason };
+    }
+
+    await this.locations?.indexDriverLocation(driver.id, dto.latitude, dto.longitude, driver.vehicleType ?? undefined);
+    if (await this.shouldPersistLocation(driver.id)) {
+      await this.db.driver.update({
+        where: { id: driver.id },
+        data: { currentLat: dto.latitude, currentLng: dto.longitude, lastLocationAt: at },
+      });
+    }
+    return { indexed: true };
+  }
+
+  /** At most one Postgres location write per driver per 60 s (Redis gate; without Redis, always). */
+  private async shouldPersistLocation(driverId: string): Promise<boolean> {
+    const client: any = this.redis?.getClient?.();
+    if (!client) return true;
+    try {
+      return (await client.set(`driver:location:persist:${driverId}`, '1', 'EX', 60, 'NX')) !== null;
+    } catch {
+      return true;
     }
   }
 

@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { kRingForRadiusKm, waveSearchRadiusKm } from '../src/modules/dispatch/pickup-radius';
 import { DispatchService } from '../src/modules/dispatch/dispatch.service';
 import { DatabaseService } from '../src/database/database.service';
 import { LocationsService } from '../src/modules/locations/locations.service';
@@ -297,27 +298,19 @@ describe('Uber-Grade Sequential Waterfall Dispatch & Ring Expansion (4-Device Te
   });
 
   describe('Concentric Progressive H3 Spatial Ring Expansion', () => {
-    it('should expand k-ring progressively per wave (k=1 -> k=2 -> k=3) without 100km jumps', async () => {
+    it('expands the search per wave inside the configured pickup radius (2 → 10 km by default), never beyond it', async () => {
       locationsService.findNearbyDriversByH3.mockResolvedValue([]);
       locationsService.findNearbyDrivers.mockResolvedValue([]);
       db.driver.findMany.mockResolvedValue([]);
 
-      // Wave 1: wavesSoFar = 0 -> kRing = 1
+      // Wave 1 (defaults: 5 waves, 10 km radius): radius 10 × 1/5 = 2 km; H3 disk k = 3 covers it.
       await service.dispatchRequirement('req-suv-1');
-      expect(locationsService.findNearbyDriversByH3).toHaveBeenCalledWith(
-        17.4435,
-        78.3772,
-        1, // kRing = 1 (~1.2 km)
-        VehicleType.SUV,
-      );
+      expect(locationsService.findNearbyDriversByH3).toHaveBeenCalledWith(17.4435, 78.3772, 3, VehicleType.SUV, 2);
+      expect(locationsService.findNearbyDrivers).toHaveBeenCalledWith(17.4435, 78.3772, 2, VehicleType.SUV);
 
-      // Verify that radial fallback used urban radius (5.5 km), NEVER 100 km!
-      expect(locationsService.findNearbyDrivers).toHaveBeenCalledWith(
-        17.4435,
-        78.3772,
-        5.5, // 3 + 1 * 2.5 = 5.5 km, NOT 100 km!
-        VehicleType.SUV,
-      );
+      // Every wave stays within the radius; the last wave searches exactly the radius.
+      expect([1, 2, 3, 4, 5].map((w) => waveSearchRadiusKm(w, 5, 10))).toEqual([2, 4, 6, 8, 10]);
+      expect(kRingForRadiusKm(10)).toBe(11);
     });
   });
 });

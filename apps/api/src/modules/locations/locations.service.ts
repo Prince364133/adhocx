@@ -1,4 +1,5 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
+import { PickupRadiusConfig } from '../dispatch/pickup-radius';
 import { VehicleType, VerificationStatus, DriverAvailability } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
 import { RedisService } from '../../redis/redis.service';
@@ -8,6 +9,10 @@ export interface NearbyDriverResult {
   driverId: string;
   distanceKm: number;
   h3Cell?: string;
+  /** Position the distance was computed from, and when it was reported (epoch ms). */
+  lat?: number;
+  lng?: number;
+  locationAtMs?: number;
 }
 
 /**
@@ -207,96 +212,108 @@ export class LocationsService {
   }
 
   /**
-   * Uber H3 Hexagonal Wave Search.
+   * Live index metadata for a driver, or null when it expired (driver silent longer than the meta
+   * TTL) or is older than the dispatch location age limit. Such drivers are not dispatchable.
+   */
+  private parseLiveMeta(
+    raw: unknown,
+    nowMs: number,
+  ): { lat: number; lng: number; h3Cell?: string; vehicleType?: string; updatedAt?: number } | null {
+    if (typeof raw !== 'string') return null;
+    try {
+      const meta = JSON.parse(raw);
+      if (!Number.isFinite(Number(meta?.lat)) || !Number.isFinite(Number(meta?.lng))) return null;
+      const updatedAt = Number(meta.updatedAt);
+      if (Number.isFinite(updatedAt) && nowMs - updatedAt > PickupRadiusConfig.maxLocationAgeSec * 1000) return null;
+      return {
+        lat: Number(meta.lat),
+        lng: Number(meta.lng),
+        h3Cell: meta.h3Cell,
+        vehicleType: meta.vehicleType,
+        updatedAt: Number.isFinite(updatedAt) ? updatedAt : undefined,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private vehicleMatches(metaVehicle: string | undefined, wanted?: VehicleType): boolean {
+    return !wanted || !metaVehicle || metaVehicle === 'DEFAULT' || metaVehicle === wanted;
+  }
+
+  /**
+   * H3 cell search (resolution 8) over the k-disk around the pickup.
    *
-   * Dispatches across concentric hexagonal rings centered on (latitude, longitude):
-   * - kRing=0: 1 hexagon (~460m radius)
-   * - kRing=1: 7 hexagons (~1.2 km radius)
-   * - kRing=2: 19 hexagons (~2.4 km radius)
-   * - kRing=3: 37 hexagons (~3.6 km radius)
-   *
-   * Gathers drivers from Redis cellular sets and calculates precise distance.
-   * If cellular search yields candidates, returns them sorted by proximity.
-   * If no candidates in immediate H3 cells, falls back automatically to Redis GEOSEARCH.
+   * Cell-set membership is only a hint: a member counts when its live metadata exists, is fresh,
+   * places it in a cell of this disk and within `maxRadiusKm`. Members whose metadata expired or who
+   * moved to another cell are stale (their old cell set was never cleaned) and are removed lazily
+   * (docs/23 RC4). With no cell hits it falls back to a GEO/DB search with the SAME radius.
    */
   async findNearbyDriversByH3(
     latitude: number,
     longitude: number,
     kRing: number = 2,
     vehicleType?: VehicleType,
+    maxRadiusKm: number = PickupRadiusConfig.maxPickupRadiusKm,
   ): Promise<NearbyDriverResult[]> {
     const originCell = this.h3.latLngToCell(latitude, longitude, H3Service.DEFAULT_RESOLUTION);
     const diskCells = this.h3.gridDisk(originCell, kRing);
+    const diskSet = new Set(diskCells);
+    const nowMs = Date.now();
 
     this.logger.log(
-      `H3 Wave Search near (${latitude}, ${longitude}) in cell ${originCell} across ${diskCells.length} cells (kRing=${kRing})`,
+      `H3 search near (${latitude}, ${longitude}) in cell ${originCell}: ${diskCells.length} cells (k=${kRing}), radius ${maxRadiusKm} km`,
     );
 
     const client = this.redis?.getClient();
     if (client) {
       try {
-        // Pipeline SMEMBERS for all disk cells
         const pipeline = client.pipeline();
-        for (const cell of diskCells) {
-          pipeline.smembers(`${this.H3_CELL_PREFIX}${cell}`);
-        }
+        for (const cell of diskCells) pipeline.smembers(`${this.H3_CELL_PREFIX}${cell}`);
         const cellMembersResults = await pipeline.exec();
 
-        const candidateDriverIds = new Set<string>();
-        if (cellMembersResults) {
-          for (const [err, members] of cellMembersResults) {
-            if (!err && Array.isArray(members)) {
-              for (const id of members) {
-                if (typeof id === 'string') {
-                  candidateDriverIds.add(id);
-                }
-              }
-            }
-          }
-        }
+        const foundIn = new Map<string, string>(); // driverId -> cell set it was found in
+        cellMembersResults?.forEach(([err, members], i) => {
+          if (err || !Array.isArray(members)) return;
+          for (const id of members) if (typeof id === 'string' && !foundIn.has(id)) foundIn.set(id, diskCells[i]);
+        });
 
-        if (candidateDriverIds.size > 0) {
-          // Batch fetch metadata for discovered drivers
+        if (foundIn.size > 0) {
+          const driverIdList = [...foundIn.keys()];
           const metaPipeline = client.pipeline();
-          const driverIdList = Array.from(candidateDriverIds);
-          for (const dId of driverIdList) {
-            metaPipeline.get(`${this.DRIVER_META_KEY}${dId}`);
-          }
+          for (const dId of driverIdList) metaPipeline.get(`${this.DRIVER_META_KEY}${dId}`);
           const metaResults = await metaPipeline.exec();
 
           const results: NearbyDriverResult[] = [];
-          if (metaResults) {
-            for (let i = 0; i < driverIdList.length; i++) {
-              const [mErr, mData] = metaResults[i];
-              if (!mErr && typeof mData === 'string') {
-                try {
-                  const meta = JSON.parse(mData);
-                  if (vehicleType && meta.vehicleType && meta.vehicleType !== 'DEFAULT' && meta.vehicleType !== vehicleType) {
-                    continue; // Skip mismatched vehicle types
-                  }
-                  const dist = this.calculateDistanceKm(latitude, longitude, meta.lat, meta.lng);
-                  results.push({
-                    driverId: driverIdList[i],
-                    distanceKm: dist,
-                    h3Cell: meta.h3Cell,
-                  });
-                } catch (_) {}
-              }
+          const cleanup = client.pipeline();
+          let stale = 0;
+          driverIdList.forEach((driverId, i) => {
+            const [mErr, mData] = metaResults?.[i] ?? [null, null];
+            const meta = mErr ? null : this.parseLiveMeta(mData, nowMs);
+            const cellOfMember = foundIn.get(driverId)!;
+            if (!meta || (meta.h3Cell && meta.h3Cell !== cellOfMember)) {
+              cleanup.srem(`${this.H3_CELL_PREFIX}${cellOfMember}`, driverId);
+              stale++;
+              if (!meta) return;
             }
+            if (meta.h3Cell && !diskSet.has(meta.h3Cell)) return;
+            if (!this.vehicleMatches(meta.vehicleType, vehicleType)) return;
+            const dist = this.calculateDistanceKm(latitude, longitude, meta.lat, meta.lng);
+            if (dist > maxRadiusKm) return;
+            results.push({ driverId, distanceKm: dist, h3Cell: meta.h3Cell ?? cellOfMember, lat: meta.lat, lng: meta.lng, locationAtMs: meta.updatedAt });
+          });
+          if (stale > 0) {
+            await cleanup.exec().catch(() => undefined);
+            this.logger.debug(`Removed ${stale} stale H3 cell membership(s) near ${originCell}`);
           }
-
-          if (results.length > 0) {
-            return results.sort((a, b) => a.distanceKm - b.distanceKm);
-          }
+          if (results.length > 0) return results.sort((a, b) => a.distanceKm - b.distanceKm);
         }
       } catch (err: any) {
-        this.logger.warn(`H3 cellular driver lookup failed (${err.message}). Falling back to radial GEOSEARCH.`);
+        this.logger.warn(`H3 cellular driver lookup failed (${err.message}). Falling back to radial search.`);
       }
     }
 
-    // Fallback: Use standard Redis GEOSEARCH with estimated radius based on kRing
-    const estimatedRadiusKm = Math.max(5, (kRing + 1) * 1.5);
-    return this.findNearbyDrivers(latitude, longitude, estimatedRadiusKm, vehicleType);
+    return this.findNearbyDrivers(latitude, longitude, maxRadiusKm, vehicleType);
   }
 
   /**
@@ -331,41 +348,40 @@ export class LocationsService {
         )) as any;
 
         if (rawResults && rawResults.length > 0) {
-          // If vehicleType is specified, filter candidate drivers using their metadata in Redis
-          let filteredCandidateDriverIds: string[] = rawResults.map(([driverId]) => driverId);
-          if (vehicleType) {
-            const metaPipeline = client.pipeline();
-            for (const dId of filteredCandidateDriverIds) {
-              metaPipeline.get(`${this.DRIVER_META_KEY}${dId}`);
-            }
-            const metaResults = await metaPipeline.exec();
-            if (metaResults) {
-              filteredCandidateDriverIds = filteredCandidateDriverIds.filter((_, i) => {
-                const [mErr, mData] = metaResults[i];
-                if (!mErr && typeof mData === 'string') {
-                  try {
-                    const meta = JSON.parse(mData);
-                    if (meta.vehicleType && meta.vehicleType !== 'DEFAULT' && meta.vehicleType !== vehicleType) {
-                      return false; // Skip mismatched vehicle types
-                    }
-                  } catch (_) {}
-                }
-                return true;
-              });
-            }
-          }
-
-          const matchedIds = new Set(filteredCandidateDriverIds);
+          // GEO members never expire: a hit counts only with live, fresh metadata (the driver is still
+          // reporting). Members without it are stale and are removed lazily (docs/23 RC4).
+          const nowMs = Date.now();
+          const metaPipeline = client.pipeline();
+          for (const [dId] of rawResults) metaPipeline.get(`${this.DRIVER_META_KEY}${dId}`);
+          const metaResults = await metaPipeline.exec();
           const results: NearbyDriverResult[] = [];
-          for (const [driverId, distStr] of rawResults) {
-            if (!matchedIds.has(driverId)) continue;
+          const staleIds: string[] = [];
+          rawResults.forEach(([driverId], i) => {
+            const [mErr, mData] = metaResults?.[i] ?? [null, null];
+            const meta = mErr ? null : this.parseLiveMeta(mData, nowMs);
+            if (!meta) {
+              staleIds.push(driverId);
+              return;
+            }
+            if (!this.vehicleMatches(meta.vehicleType, vehicleType)) return;
+            const dist = this.calculateDistanceKm(latitude, longitude, meta.lat, meta.lng);
+            if (dist > radiusKm) return;
             results.push({
               driverId,
-              distanceKm: parseFloat(distStr),
-              h3Cell: this.h3.latLngToCell(latitude, longitude, H3Service.DEFAULT_RESOLUTION),
+              distanceKm: dist,
+              h3Cell: meta.h3Cell ?? this.h3.latLngToCell(meta.lat, meta.lng, H3Service.DEFAULT_RESOLUTION),
+              lat: meta.lat,
+              lng: meta.lng,
+              locationAtMs: meta.updatedAt,
             });
+          });
+          if (staleIds.length) {
+            const cleanup = client.pipeline();
+            for (const id of staleIds) cleanup.zrem(this.GEO_KEY, id);
+            await cleanup.exec().catch(() => undefined);
           }
-          // Enough live supply matching vehicle type indexed in Redis: skip the DB scan.
+          results.sort((a, b) => a.distanceKm - b.distanceKm);
+          // Enough live supply indexed in Redis: skip the DB scan.
           if (results.length >= this.MIN_REDIS_CANDIDATES) return results;
           redisResults = results;
         }
@@ -380,6 +396,8 @@ export class LocationsService {
       verificationStatus: VerificationStatus.VERIFIED,
       currentLat: { not: null },
       currentLng: { not: null },
+      // Only drivers whose position is recent enough to trust (docs/23 RC6).
+      lastLocationAt: { gte: new Date(Date.now() - PickupRadiusConfig.maxLocationAgeSec * 1000) },
     };
 
     if (vehicleType) {
@@ -392,22 +410,47 @@ export class LocationsService {
 
     const drivers = await this.db.driver.findMany({ where });
 
+    // The DB row can lag the Redis index (Postgres writes are throttled): use whichever position is
+    // newer, so a driver who has since moved away is measured where they are now (docs/23 RC4).
+    const liveMeta = new Map<string, { lat: number; lng: number; updatedAt?: number }>();
+    if (client && drivers.length) {
+      try {
+        const metaPipeline = client.pipeline();
+        for (const d of drivers) metaPipeline.get(`${this.DRIVER_META_KEY}${d.id}`);
+        const metaResults = await metaPipeline.exec();
+        const nowMs = Date.now();
+        drivers.forEach((d, i) => {
+          const [mErr, mData] = metaResults?.[i] ?? [null, null];
+          const meta = mErr ? null : this.parseLiveMeta(mData, nowMs);
+          if (meta) liveMeta.set(d.id, meta);
+        });
+      } catch {
+        // DB positions only
+      }
+    }
+
     const results: NearbyDriverResult[] = [];
     for (const d of drivers) {
-      if (d.currentLat && d.currentLng) {
-        const dist = this.calculateDistanceKm(
-          latitude,
-          longitude,
-          Number(d.currentLat),
-          Number(d.currentLng),
-        );
-        if (dist <= radiusKm) {
-          results.push({
-            driverId: d.id,
-            distanceKm: dist,
-            h3Cell: this.h3.latLngToCell(Number(d.currentLat), Number(d.currentLng), H3Service.DEFAULT_RESOLUTION),
-          });
-        }
+      if (d.currentLat === null || d.currentLng === null) continue;
+      let lat = Number(d.currentLat);
+      let lng = Number(d.currentLng);
+      let locationAtMs = d.lastLocationAt ? new Date(d.lastLocationAt).getTime() : undefined;
+      const meta = liveMeta.get(d.id);
+      if (meta?.updatedAt && (!locationAtMs || meta.updatedAt > locationAtMs)) {
+        lat = meta.lat;
+        lng = meta.lng;
+        locationAtMs = meta.updatedAt;
+      }
+      const dist = this.calculateDistanceKm(latitude, longitude, lat, lng);
+      if (dist <= radiusKm) {
+        results.push({
+          driverId: d.id,
+          distanceKm: dist,
+          h3Cell: this.h3.latLngToCell(lat, lng, H3Service.DEFAULT_RESOLUTION),
+          lat,
+          lng,
+          locationAtMs,
+        });
       }
     }
 

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
+import 'dispatch_location.dart';
 
 /// Centralized Permission Service for AdhocX Driver App.
 /// Requests and monitors device-level permissions following industry best practices:
@@ -144,11 +145,49 @@ class PermissionService {
     }
   }
 
-  /// Get current device GPS position.
+  /// A position the dispatch engine may trust, or null.
+  ///
+  /// Only a fresh GPS fix, or the last known fix when it is at most 2 minutes old and within
+  /// 500 m accuracy (see [DispatchLocationPolicy]). Never IP geolocation, never a default city:
+  /// a wrong position makes the server offer trips far from the driver. Does not prompt for
+  /// permission (callers run the prominent-disclosure flow first).
+  Future<DispatchFix?> getDispatchFix({Duration timeout = const Duration(seconds: 8)}) async {
+    try {
+      final permission = await Geolocator.checkPermission();
+      if (permission != LocationPermission.whileInUse && permission != LocationPermission.always) {
+        return null;
+      }
+      Position? lastKnown;
+      if (!kIsWeb) {
+        try {
+          lastKnown = await Geolocator.getLastKnownPosition();
+        } catch (_) {}
+      }
+      Position? fresh;
+      try {
+        fresh = await Geolocator.getCurrentPosition(
+          locationSettings: LocationSettings(accuracy: LocationAccuracy.high, timeLimit: timeout),
+        );
+      } catch (e) {
+        debugPrint('📍 [PermissionService] dispatch GPS fix unavailable: $e');
+      }
+      return DispatchLocationPolicy.select(fresh: fresh, lastKnown: lastKnown);
+    } catch (e) {
+      debugPrint('📍 [PermissionService] getDispatchFix error: $e');
+      return null;
+    }
+  }
+
+  /// [getDispatchFix] as a plain position.
+  Future<Position?> getDispatchPosition() async => (await getDispatchFix())?.position;
+
+  /// Get current device GPS position — FOR MAP CENTERING / ADDRESS PICKING ONLY.
+  ///
+  /// DO NOT use this for anything sent to dispatch (availability, heartbeat, trip start/complete):
+  /// it falls back to a stale last-known fix, IP geolocation and finally a default city, any of
+  /// which can be tens of km from the driver. Use [getDispatchFix] / [getDispatchPosition].
+  ///
   /// If [requestIfDenied] is true, prompts OS / browser permission dialog if not yet granted.
-  /// Uses [Geolocator.getLastKnownPosition] on mobile and high/medium accuracy GPS.
-  /// If hardware GPS is unavailable or denied (e.g. desktop web browser without GPS antenna),
-  /// falls back smoothly to IP-based Geolocation so "Use Current Location" never fails.
   Future<Position?> getCurrentPosition({bool requestIfDenied = true}) async {
     try {
       if (!kIsWeb) {

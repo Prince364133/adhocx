@@ -30,6 +30,8 @@ Simulation: pickup at Connaught Place, New Delhi; the limit is 10 km. "Offered" 
 | **RC6** | **The server's idea of an idle driver's position is wrong.** The driver app sends a location only when availability is toggled; there is **no heartbeat while AVAILABLE**. After 30 min every idle driver is "stale", which pushes dispatch into RC1's fallbacks, and their stored position is wherever they went online | mobile `home_screen.dart` | S2: driver who went online 3 km away (now **25 km**) offered |
 | **RC7** | **Fabricated locations.** Going online without a GPS fix reports **HITEC City (17.4435, 78.3772)**. `PermissionService.getCurrentPosition` falls back to the last known position with **no age check**, then **IP geolocation** (city-level, often tens of km off, plain HTTP to a third party), then HITEC City. Accuracy and source are never sent, so the server treats a guess as a GPS fix | mobile `home_screen.dart:386`, `permission_service.dart`, `driver_service.dart:389` | (by inspection) |
 
+| **RC8** | **On-demand trips never report location.** `DriverService.sendLocationPing` has **no callers**, and its payload (top-level `latitude`/`longitude`) does not match `TripLocationUpdateDto` (`location: {…}`), which the global `ValidationPipe` (`forbidNonWhitelisted`) would reject. During and after trips the server's position for the driver is the trip's start/end point, and on-demand trips never appear on the live ops map | mobile `driver_service.dart` | (by inspection) |
+
 The scenarios interact. In production, RC6 makes nearby idle drivers stale. RC1 then offers the ride to whoever is available anywhere. RC3, RC4 and RC7 also put wrong positions into the index, and RC2 means nothing catches any of it.
 
 ## 3. Design principles for the fix
@@ -74,3 +76,18 @@ The scenarios interact. In production, RC6 makes nearby idle drivers stale. RC1 
 1. Ship the API first. It is safe on its own: far offers stop immediately, and some requests in thin-supply areas will become `NO_DRIVER_AVAILABLE` instead.
 2. Ship the mobile heartbeat (M-1) promptly. Until it is live, idle drivers drop out of dispatch after `DISPATCH_MAX_LOCATION_AGE_SEC` (10 min). If that's too aggressive during the rollout window, temporarily raise it (e.g. 1800). The radius invariant holds regardless.
 3. Watch: count of `NO_DRIVER_AVAILABLE`, offers' `distanceKm` distribution (p99 must be ≤ radius), and the share of AVAILABLE drivers with a fresh location.
+
+---
+
+## 6. Execution log (2026-11-10)
+
+**Server:** done. `pickup-radius.ts` (config + invariant + wave/k-ring math). In `dispatch.service.ts`: both location-less fallbacks deleted, the final gate evaluates the **freshest** position (live index vs Postgres row), waves are derived from the radius, and the optional road cap is enforced. In `locations.service.ts`: H3 and GEO hits require live, fresh metadata; stale members are removed lazily; the H3 fallback uses the same radius; the DB fallback requires a fresh `lastLocationAt` and overlays newer index positions. `POST /drivers/location` heartbeat added. Corporate radii are derived from the config.
+
+Measured while fixing: H3 resolution-8 average edge = 0.53 km; a k=5 disk reaches 4.8 km (not the "≈12 km" in the old comments); 10 km needs k = 11.
+
+**Mobile:** M-1…M-4 done (dispatch-quality fixes only, no fabricated coordinates, 30 s idle heartbeat with accuracy and source). RC8 (trip pings) in progress.
+
+| Verification | Result |
+|---|---|
+| `dispatch-radius.sim.spec.ts`: S1–S5 (root causes), S6 control, S7 road cap, S8 wave expansion, S9 DB freshness, S10 index cleanup, S11 heartbeat quality | 11/11; **no offer beyond the radius in any scenario** |
+| Mobile `dispatch_location_test.dart` | 11/11 |

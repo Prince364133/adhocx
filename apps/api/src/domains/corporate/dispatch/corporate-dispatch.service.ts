@@ -1,3 +1,4 @@
+import { PickupRadiusConfig } from '../../../modules/dispatch/pickup-radius';
 import {
   Inject,
   Injectable,
@@ -125,8 +126,14 @@ export class CorporateDispatchService {
   // Constants per PRD specification
   private readonly STANDARD_DISPATCH_LEAD_MINUTES = 60; // 1 hour before pickup 1
   private readonly LOGOUT_STAGING_LEAD_MINUTES = 15; // Cab at office 15m prior to logout
-  private readonly PRIMARY_SEARCH_RADIUS_KM = 5; // 5 km primary radius
-  private readonly EXPANDED_SEARCH_RADIUS_KM = 10; // 10 km expanded radius
+  /** Primary search: 5 km, never beyond the configured pickup radius (docs/23). */
+  private get PRIMARY_SEARCH_RADIUS_KM(): number {
+    return Math.min(5, PickupRadiusConfig.maxPickupRadiusKm);
+  }
+  /** Expanded search = the configured pickup radius (DISPATCH_MAX_PICKUP_RADIUS_KM, default 10 km). */
+  private get EXPANDED_SEARCH_RADIUS_KM(): number {
+    return PickupRadiusConfig.maxPickupRadiusKm;
+  }
   private readonly OFFER_TTL_SECONDS = 60; // 60 seconds atomic offer countdown
   /** How long an accept waits for the route lock before answering 409 "retry". */
   private readonly ACCEPT_LOCK_WAIT_MS = 3000;

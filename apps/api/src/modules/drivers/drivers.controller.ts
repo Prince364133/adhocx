@@ -19,6 +19,7 @@ import {
   UploadDocumentResponseDto,
   AuthUserDto,
   UserRole,
+  DriverLocationPingDto,
 } from '@adhocx/contracts';
 import { JwtAuthGuard, RolesGuard, Roles, CurrentUser } from '../../common';
 import { DriversService } from './drivers.service';
@@ -72,6 +73,16 @@ export class DriversController {
     @Body() dto: UpdateAvailabilityDto,
   ) {
     return this.driversService.updateAvailability(user.id, dto);
+  }
+
+  @Post('location')
+  @Roles(UserRole.DRIVER)
+  @ApiOperation({
+    summary:
+      'Idle location heartbeat while AVAILABLE (every ~30 s). Only GPS-quality fixes make the driver dispatchable; returns { indexed, reason? }',
+  })
+  async reportLocation(@CurrentUser() user: AuthUserDto, @Body() dto: DriverLocationPingDto) {
+    return this.driversService.reportLocation(user.id, dto);
   }
 
   @Post('kyc')

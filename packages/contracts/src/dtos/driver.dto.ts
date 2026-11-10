@@ -1,4 +1,4 @@
-import { IsEnum, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { IsDateString, IsEnum, IsIn, IsLatitude, IsLongitude, IsNumber, IsOptional, IsString, Max, Min, ValidateNested } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { DriverAvailability, VerificationStatus, VehicleType } from '../enums';
 import { GeoLocationDto } from './common.dto';
@@ -19,6 +19,34 @@ export class UpdateAvailabilityDto {
   @ValidateNested()
   @Type(() => GeoLocationDto)
   currentLocation?: GeoLocationDto;
+}
+
+/**
+ * Idle-driver location heartbeat (POST /drivers/location). Only GPS-quality fixes are used for
+ * dispatch (docs/23): source GPS / LAST_KNOWN with accuracy within DISPATCH_MAX_LOCATION_ACCURACY_M.
+ */
+export class DriverLocationPingDto {
+  @IsLatitude()
+  latitude!: number;
+
+  @IsLongitude()
+  longitude!: number;
+
+  /** Reported horizontal accuracy (metres). */
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100000)
+  accuracyM?: number;
+
+  @IsOptional()
+  @IsIn(['GPS', 'LAST_KNOWN', 'NETWORK', 'IP'])
+  source?: 'GPS' | 'LAST_KNOWN' | 'NETWORK' | 'IP';
+
+  /** Device time of the fix (ISO-8601). Server time when absent. */
+  @IsOptional()
+  @IsDateString()
+  recordedAt?: string;
 }
 
 export class KycSubmissionDto {

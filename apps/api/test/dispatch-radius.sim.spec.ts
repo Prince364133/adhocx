@@ -13,6 +13,8 @@ import { DispatchService } from '../src/modules/dispatch/dispatch.service';
 import { LocationsService } from '../src/modules/locations/locations.service';
 import { H3Service } from '../src/modules/locations/h3.service';
 import { DriverAvailability, RequirementStatus, UserStatus, VehicleType, VerificationStatus } from '@adhocx/contracts';
+import { DriversService } from '../src/modules/drivers/drivers.service';
+import { kRingForRadiusKm, waveSearchRadiusKm } from '../src/modules/dispatch/pickup-radius';
 
 const PICKUP = { lat: 28.6315, lng: 77.2167 };
 const LIMIT_KM = 10;
@@ -205,7 +207,7 @@ describe(`Dispatch radius simulation (limit ${LIMIT_KM} km)`, () => {
     return offered;
   }
 
-  it('S1 nobody within the search area → the "any available driver" fallback offers drivers 35 km and 60 km away', async () => {
+  it('S1 nobody within the radius (drivers 35 km and 60 km away) → no offer (was: location-less fallback offered them)', async () => {
     const offered = await run('S1 no nearby supply', [
       { id: 'far-35', real: east(35), stored: east(35), lastLocationAt: fresh() },
       { id: 'far-60', real: east(60), stored: east(60), lastLocationAt: fresh() },
@@ -213,7 +215,7 @@ describe(`Dispatch radius simulation (limit ${LIMIT_KM} km)`, () => {
     expect(offered.every((o) => (o.realKm ?? Infinity) <= LIMIT_KM)).toBe(true);
   });
 
-  it('S2 the nearby driver went online 45 min ago (no idle GPS heartbeat) → filtered as stale → citywide fallback offers a far driver', async () => {
+  it('S2 idle driver whose position is 45 min old (now 25 km away) → not dispatchable (was: citywide fallback offered them)', async () => {
     const offered = await run('S2 idle driver marked stale', [
       // Went online 3 km away 45 min ago and has driven 25 km since: the app sends no idle heartbeat.
       { id: 'idle-moved', real: east(25), stored: east(3), lastLocationAt: stale() },
@@ -222,14 +224,14 @@ describe(`Dispatch radius simulation (limit ${LIMIT_KM} km)`, () => {
     expect(offered.every((o) => (o.realKm ?? Infinity) <= LIMIT_KM)).toBe(true);
   });
 
-  it('S3 a driver who never sent a location is treated as standing at the pickup', async () => {
+  it('S3 driver who never sent a location (really 50 km away) → not dispatchable (was: treated as standing at the pickup)', async () => {
     const offered = await run('S3 driver without any location', [
       { id: 'no-gps', real: east(50), stored: null, lastLocationAt: null },
     ]);
     expect(offered.every((o) => (o.realKm ?? Infinity) <= LIMIT_KM)).toBe(true);
   });
 
-  it('S4 stale H3 cell membership: driver indexed at the pickup, metadata expired, now 30 km away → found via the old hexagon', async () => {
+  it('S4 stale H3 membership + lagging DB row: driver now 30 km away → measured at the newest position, no offer', async () => {
     const offered = await run(
       'S4 stale H3 membership',
       [{ id: 'moved-30', real: east(30), stored: east(0.3), lastLocationAt: fresh() }],
@@ -241,9 +243,86 @@ describe(`Dispatch radius simulation (limit ${LIMIT_KM} km)`, () => {
     expect(offered.every((o) => (o.realKm ?? Infinity) <= LIMIT_KM)).toBe(true);
   });
 
-  it('S5 radial fallback grows to 13 km in wave 4 (3 + 4 × 2.5): a 12 km driver is offered despite a 10 km limit', async () => {
+  it('S5 a 12 km driver in a late wave → no offer (was: radial fallback grew to 13–15 km)', async () => {
     const offered = await run('S5 wave-4 radius 13 km', [{ id: 'at-12', real: east(12), stored: east(12), lastLocationAt: fresh() }], undefined, { waves: 3 });
     expect(offered.every((o) => (o.realKm ?? Infinity) <= LIMIT_KM)).toBe(true);
+  });
+
+  it('S7 road cap: 8 km straight line but 10.4 km by road → offered without a road cap, not with DISPATCH_MAX_PICKUP_ROAD_KM=10', async () => {
+    const drivers = [{ id: 'road-8', real: east(8), stored: east(8), lastLocationAt: fresh() }];
+    expect((await run('S7a no road cap', drivers, undefined, { waves: 4 })).map((o) => o.driverId)).toEqual(['road-8']);
+    process.env.DISPATCH_MAX_PICKUP_ROAD_KM = '10';
+    try {
+      expect(await run('S7b road cap 10 km', drivers, undefined, { waves: 4 })).toEqual([]);
+    } finally {
+      delete process.env.DISPATCH_MAX_PICKUP_ROAD_KM;
+    }
+  });
+
+  it('S8 waves grow 2 → 4 → 6 → 8 → 10 km: a 9.5 km driver is found only by the last wave, an 10.5 km driver never', async () => {
+    expect([1, 2, 3, 4, 5].map((w) => waveSearchRadiusKm(w, 5, 10))).toEqual([2, 4, 6, 8, 10]);
+    expect(kRingForRadiusKm(10)).toBe(11);
+    const drivers = [
+      { id: 'edge-9.5', real: east(9.5), stored: east(9.5), lastLocationAt: fresh() },
+      { id: 'out-10.5', real: east(10.5), stored: east(10.5), lastLocationAt: fresh() },
+    ];
+    expect(await run('S8 wave 4 (8 km)', drivers, undefined, { waves: 3 })).toEqual([]);
+    expect((await run('S8 wave 5 (10 km)', drivers, undefined, { waves: 4 })).map((o) => o.driverId)).toEqual(['edge-9.5']);
+  });
+
+  it('S9 Postgres-only lookup (Redis down): a stale row (45 min) is not dispatchable, a fresh one is', async () => {
+    const offered = await run(
+      'S9 DB fallback freshness',
+      [
+        { id: 'db-stale-2', real: east(2), stored: east(2), lastLocationAt: stale() },
+        { id: 'db-fresh-6', real: east(6), stored: east(6), lastLocationAt: fresh() },
+      ],
+      undefined,
+      { redis: false, waves: 4 },
+    );
+    expect(offered.map((o) => o.driverId)).toEqual(['db-fresh-6']);
+  });
+
+  it('S10 stale index entries are removed: old H3 membership (SREM) and GEO members without live metadata (ZREM)', async () => {
+    const redis = new FakeRedis();
+    const { locations } = build([], redis);
+    await locations.indexDriverLocation('mover', east(0.3).lat, east(0.3).lng, VehicleType.SEDAN);
+    const oldCell = JSON.parse((await redis.get('drivers:meta:mover'))!).h3Cell;
+    redis.expireMeta('mover');
+    await locations.indexDriverLocation('mover', east(30).lat, east(30).lng, VehicleType.SEDAN);
+    await locations.indexDriverLocation('ghost', east(1).lat, east(1).lng, VehicleType.SEDAN);
+    redis.expireMeta('ghost'); // app killed: no more pings
+    expect((await redis.smembers(`drivers:h3:res8:${oldCell}`)).includes('mover')).toBe(true);
+
+    const hits = await locations.findNearbyDriversByH3(PICKUP.lat, PICKUP.lng, kRingForRadiusKm(10), VehicleType.SEDAN, 10);
+    expect(hits.map((h) => h.driverId)).toEqual([]);
+    expect((await redis.smembers(`drivers:h3:res8:${oldCell}`)).includes('mover')).toBe(false);
+    expect(redis.geo.get('drivers:geo:available')?.has('ghost')).toBe(false);
+  });
+
+  it('S11 heartbeat: only GPS-quality fixes are indexed or refresh lastLocationAt; an IP/network guess removes the driver from dispatch', async () => {
+    const redis = new FakeRedis();
+    const row: any = { id: 'hb-1', userId: 'u-hb', availabilityStatus: DriverAvailability.AVAILABLE, vehicleType: VehicleType.SEDAN, lastLocationAt: null };
+    const db: any = {
+      driver: {
+        findUnique: jest.fn(async () => row),
+        update: jest.fn(async ({ data }: any) => Object.assign(row, data)),
+      },
+    };
+    const locations = new LocationsService(db, new H3Service(), { getClient: () => redis } as any);
+    const drivers = new DriversService(db, {} as any, {} as any, locations, undefined);
+
+    const ip = await drivers.reportLocation('u-hb', { latitude: PICKUP.lat, longitude: PICKUP.lng, source: 'IP', accuracyM: 5000 });
+    expect(ip).toEqual({ indexed: false, reason: 'LOW_QUALITY_SOURCE' });
+    const coarse = await drivers.reportLocation('u-hb', { latitude: PICKUP.lat, longitude: PICKUP.lng, source: 'GPS', accuracyM: 1200 });
+    expect(coarse).toEqual({ indexed: false, reason: 'LOW_ACCURACY' });
+    expect(row.lastLocationAt).toBeNull();
+    expect(redis.kv.has('drivers:meta:hb-1')).toBe(false);
+
+    const gps = await drivers.reportLocation('u-hb', { latitude: east(3).lat, longitude: east(3).lng, source: 'GPS', accuracyM: 12 });
+    expect(gps).toEqual({ indexed: true });
+    expect(row.lastLocationAt).toBeInstanceOf(Date);
+    expect(JSON.parse(redis.kv.get('drivers:meta:hb-1')!).lat).toBeCloseTo(east(3).lat, 6);
   });
 
   it('S6 control: drivers at 2 km and 8 km with fresh GPS → only in-radius drivers are offered', async () => {

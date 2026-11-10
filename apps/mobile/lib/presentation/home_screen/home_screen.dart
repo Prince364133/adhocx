@@ -21,6 +21,7 @@ import 'package:geolocator/geolocator.dart';
 import '../../services/edge_case_manager.dart';
 import '../../services/permission_service.dart';
 import '../../services/location_monitor_service.dart';
+import '../../services/driver_location_heartbeat_service.dart';
 import '../../utils/vehicle_utils.dart';
 import '../../services/language_service.dart';
 import '../common/app_update_banner.dart';
@@ -98,6 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _otpController.dispose();
     GlobalDispatchOverlayService.instance.stopRealtimeListener();
     LocationMonitorService.instance.stopMonitoring();
+    stopDriverLocationLoops();
     super.dispose();
   }
 
@@ -111,6 +113,7 @@ class _HomeScreenState extends State<HomeScreen> {
         final isOnTrip = _currentState == DriverHomeState.assignedTrip || _currentState == DriverHomeState.activeTrip;
         _loadLiveDriverData(silent: true, force: isOnTrip);
       }
+      _syncLocationHeartbeat();
     });
   }
 
@@ -285,7 +288,20 @@ class _HomeScreenState extends State<HomeScreen> {
     } finally {
       _isSyncing = false;
       if (!silent && mounted) setState(() => _isLoading = false);
+      _syncLocationHeartbeat();
     }
+  }
+
+  /// One location loop at a time: trip pings during an assigned/active trip, the idle heartbeat
+  /// while AVAILABLE, nothing while offline (docs/23 RC6/RC8).
+  void _syncLocationHeartbeat() {
+    if (!mounted) {
+      stopDriverLocationLoops();
+      return;
+    }
+    final onTrip = _currentState == DriverHomeState.assignedTrip || _currentState == DriverHomeState.activeTrip;
+    final String? tripId = onTrip ? (_liveTrip?['id'])?.toString() : null;
+    syncDriverLocationLoops(available: _currentState == DriverHomeState.available, activeTripId: tripId);
   }
 
   Future<void> _ensureRealtimeConnected() async {
@@ -339,7 +355,9 @@ class _HomeScreenState extends State<HomeScreen> {
           });
         }
 
-        currentPos = await PermissionService.instance.getCurrentPosition();
+        // Dispatch-quality fix only: a guessed position (IP / default city) makes the server offer
+        // trips far from the driver. No fix → go online without a location (see below).
+        currentPos = await PermissionService.instance.getDispatchPosition();
         if (currentPos == null) {
           final gpsOn = await PermissionService.instance.isLocationServiceEnabled();
           if (!gpsOn) {
@@ -383,15 +401,25 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       final newStatus = goOnline ? 'AVAILABLE' : 'OFFLINE';
-      final lat = currentPos?.latitude ?? 17.4435;
-      final lng = currentPos?.longitude ?? 78.3772;
+      // Only a real fix is ever sent. Without one the driver is online but not dispatchable until
+      // the location heartbeat reports a GPS fix.
+      final lat = goOnline ? currentPos?.latitude : null;
+      final lng = goOnline ? currentPos?.longitude : null;
 
       await DriverService.instance.updateAvailability(newStatus, lat: lat, lng: lng);
+      if (goOnline && currentPos == null && mounted) {
+        Fluttertoast.showToast(
+          msg: "Waiting for GPS — you'll start receiving trips once your location is found.",
+          backgroundColor: AppColors.warning,
+          toastLength: Toast.LENGTH_LONG,
+        );
+      }
 
       if (mounted) {
         setState(() {
           _currentState = goOnline ? DriverHomeState.available : DriverHomeState.offline;
         });
+        _syncLocationHeartbeat();
         if (goOnline) {
           _ensureRealtimeConnected();
           GlobalDispatchOverlayService.instance.startAssistiveBubble();
@@ -403,6 +431,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 setState(() {
                   _currentState = DriverHomeState.offline;
                 });
+                _syncLocationHeartbeat();
                 GlobalDispatchOverlayService.instance.stopAssistiveBubble();
                 Fluttertoast.showToast(
                   msg: 'GPS was turned off. You have been automatically switched to OFFLINE.',
