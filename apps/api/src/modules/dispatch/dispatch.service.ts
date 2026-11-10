@@ -409,7 +409,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
     ).length;
 
     // Wave budget: automatic waves are capped; a manual retry starts a fresh budget.
-    const wavesSoFar = isRetry ? 0 : requirement.dispatchWaves;
+    const wavesSoFar = isRetry ? 0 : Math.max(0, Math.floor(Number(requirement.dispatchWaves) || 0));
     if (wavesSoFar >= DispatchConfig.maxWaves) {
       if (liveOffers > 0) return noop(requirement.status as RequirementStatus);
       return this.markSupplyExhausted(requirement, remaining, 'wave_limit');
@@ -478,13 +478,16 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
      * been offered yet (H3 hits that were all already offered must not hide drivers further out).
      */
     const collectEligible = async (waveRadiusKm: number): Promise<ScoredCandidate[]> => {
-      const nearbyCandidates = await this.locationsService.findNearbyDriversByH3(
-        pickupLat,
-        pickupLng,
-        kRingForRadiusKm(waveRadiusKm),
-        requirement.vehicleType as unknown as VehicleType,
-        waveRadiusKm,
-      );
+      // Own copies: the merge below appends to this list, and must never iterate an array it grows.
+      const nearbyCandidates = [
+        ...(await this.locationsService.findNearbyDriversByH3(
+          pickupLat,
+          pickupLng,
+          kRingForRadiusKm(waveRadiusKm),
+          requirement.vehicleType as unknown as VehicleType,
+          waveRadiusKm,
+        )),
+      ];
       if (!nearbyCandidates.some((c) => !alreadyOfferedDriverIds.has(c.driverId))) {
         const radialCandidates = await this.locationsService.findNearbyDrivers(
           pickupLat,
@@ -493,7 +496,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
           requirement.vehicleType as unknown as VehicleType,
         );
         const existingIds = new Set(nearbyCandidates.map((c) => c.driverId));
-        for (const rc of radialCandidates) {
+        for (const rc of [...radialCandidates]) {
           if (!existingIds.has(rc.driverId)) {
             nearbyCandidates.push(rc);
             existingIds.add(rc.driverId);
@@ -590,12 +593,14 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
     // counter advances with it) until a candidate is found or the full radius has been searched.
     // (Load-test finding 2026-11-10: ending at an empty 2 km first wave left 115 of 145 bookings
     // without any offer although drivers were within 10 km.)
-    let currentWaveNumber = wavesSoFar + 1;
+    const maxWaves = DispatchConfig.maxWaves;
+    let currentWaveNumber = Math.min(wavesSoFar + 1, maxWaves);
     let eligibleCandidates: ScoredCandidate[] = [];
-    for (;;) {
-      const waveRadiusKm = waveSearchRadiusKm(currentWaveNumber, DispatchConfig.maxWaves, maxPickupRadiusKm);
+    // Bounded: at most maxWaves searches per dispatch.
+    for (let attempt = 0; attempt < maxWaves; attempt++) {
+      const waveRadiusKm = waveSearchRadiusKm(currentWaveNumber, maxWaves, maxPickupRadiusKm);
       eligibleCandidates = await collectEligible(waveRadiusKm);
-      if (eligibleCandidates.length > 0 || currentWaveNumber >= DispatchConfig.maxWaves) break;
+      if (eligibleCandidates.length > 0 || currentWaveNumber >= maxWaves) break;
       currentWaveNumber++;
     }
 
