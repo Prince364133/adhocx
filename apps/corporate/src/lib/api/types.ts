@@ -444,16 +444,26 @@ export interface SupportTicket {
   id: string;
   ticketNumber: string;
   employeeId: string;
+  tenantId: string;
   routeId: string | null;
   category: string;
   priority: string;
   status: string;
   subject: string;
   description: string;
+  assignedTeam?: string | null;
+  assignedToUserId?: string | null;
+  raisedByUserId?: string | null;
+  employee?: { id: string; fullName: string; email: string } | null;
+  tenant?: { id: string; name: string } | null;
+  comments?: Array<{ id: string; message: string; userId: string; visibility: 'PUBLIC' | 'INTERNAL'; createdAt: string }>;
+  activities?: Array<{ id: string; description: string; visibility: 'PUBLIC' | 'INTERNAL'; createdAt: string }>;
+  attachments?: Array<{ id: string; fileName: string; fileType: string; fileSize: number; url: string; createdAt: string }>;
   resolutionNotes: string | null;
   slaMinutes: number;
   resolvedAt: string | null;
   createdAt: string;
+  updatedAt: string;
 }
 
 // ── Billing ────────────────────────────────────────────────────────────────

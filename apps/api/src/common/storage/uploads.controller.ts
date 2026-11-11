@@ -13,13 +13,39 @@ import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Response } from 'express';
 import * as path from 'path';
 import * as fs from 'fs';
-import { verifyUploadSignature } from './storage.service';
+import { StorageService, verifyPrivateUploadSignature, verifyUploadSignature } from './storage.service';
 
 @ApiTags('Uploads')
 @Controller()
 export class UploadsController {
   private readonly logger = new Logger(UploadsController.name);
   private readonly uploadDir = path.resolve(process.cwd(), 'uploads');
+
+  constructor(private readonly storage: StorageService) {}
+
+  @Get(['private-uploads/:filename', 'api/v1/private-uploads/:filename'])
+  @ApiOperation({ summary: 'Serve a private ticket attachment via a short-lived signed capability URL' })
+  async getPrivateUploadedFile(
+    @Param('filename') filename: string,
+    @Res() res: Response,
+    @Query('provider') provider?: string,
+    @Query('exp') exp?: string,
+    @Query('sig') sig?: string,
+  ) {
+    if (!filename || filename !== path.basename(filename) || filename.includes('\\')) {
+      throw new BadRequestException('Invalid filename provided.');
+    }
+    if (!verifyPrivateUploadSignature(filename, provider, exp, sig)) {
+      throw new ForbiddenException('This attachment link has expired or is invalid. Reopen it from the ticket.');
+    }
+    const file = await this.storage.getPrivateFileBuffer(filename, provider!);
+    if (!file) throw new NotFoundException('Support attachment not found.');
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Type', file.mimeType);
+    res.setHeader('Content-Disposition', `inline; filename="${path.basename(file.filename)}"`);
+    return res.send(file.buffer);
+  }
 
   @Get(['uploads/:filename', 'api/v1/uploads/:filename'])
   @ApiOperation({ summary: 'Serve locally stored uploaded documents and images' })

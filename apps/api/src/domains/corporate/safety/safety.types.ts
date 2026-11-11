@@ -55,18 +55,21 @@ export interface SosEscalationTickResult {
 // Support tickets
 // ---------------------------------------------------------------------------
 
-/** OPEN -> IN_PROGRESS -> RESOLVED -> CLOSED. Each status may only move to the next one. */
-export const TICKET_NEXT_STATUS: Readonly<Record<CorporateTicketStatus, CorporateTicketStatus | null>> = {
-  [CorporateTicketStatus.OPEN]: CorporateTicketStatus.IN_PROGRESS,
-  [CorporateTicketStatus.IN_PROGRESS]: CorporateTicketStatus.RESOLVED,
-  [CorporateTicketStatus.RESOLVED]: CorporateTicketStatus.CLOSED,
-  [CorporateTicketStatus.CLOSED]: null,
+/** Legal transitions for the shared support workflow. */
+export const TICKET_ALLOWED_TRANSITIONS: Readonly<Record<CorporateTicketStatus, readonly CorporateTicketStatus[]>> = {
+  [CorporateTicketStatus.OPEN]: [CorporateTicketStatus.ASSIGNED, CorporateTicketStatus.IN_PROGRESS],
+  [CorporateTicketStatus.ASSIGNED]: [CorporateTicketStatus.IN_PROGRESS, CorporateTicketStatus.OPEN],
+  [CorporateTicketStatus.IN_PROGRESS]: [CorporateTicketStatus.WAITING_FOR_CORPORATE, CorporateTicketStatus.RESOLVED],
+  [CorporateTicketStatus.WAITING_FOR_CORPORATE]: [CorporateTicketStatus.IN_PROGRESS, CorporateTicketStatus.RESOLVED],
+  [CorporateTicketStatus.RESOLVED]: [CorporateTicketStatus.REOPENED, CorporateTicketStatus.CLOSED],
+  [CorporateTicketStatus.REOPENED]: [CorporateTicketStatus.IN_PROGRESS],
+  [CorporateTicketStatus.CLOSED]: [],
 };
 
 /** Body of POST /corporate/support/tickets (corporate portal, on behalf of an employee). */
 export interface CreateCorporateSupportTicketDto {
   /** Employee the ticket is raised for; must belong to the caller's tenant. */
-  employeeId: string;
+  employeeId?: string;
   /** Forced to the caller's tenant by CorporateAccessGuard for corporate roles. */
   tenantId?: string;
   category: CorporateTicketCategory;
@@ -88,6 +91,23 @@ export interface SupportTicketListQuery {
   employeeId?: string;
   status?: CorporateTicketStatus;
   priority?: CorporateTicketPriority;
+  category?: CorporateTicketCategory;
+  search?: string;
+  from?: Date;
+  to?: Date;
   limit?: number;
   offset?: number;
+}
+
+export interface TicketAttachmentInput {
+  fileName: string;
+  fileType: string;
+  fileSize: number;
+  storageReference: string;
+  uploadedBy: string;
+}
+
+export interface UpdateTicketAssignmentDto {
+  team?: string | null;
+  userId?: string | null;
 }

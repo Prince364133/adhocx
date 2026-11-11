@@ -16,6 +16,7 @@ import {
   Radio,
   CalendarClock,
   Ticket,
+  LifeBuoy,
 } from 'lucide-react';
 
 interface NavItem {
@@ -84,6 +85,11 @@ const OPERATIONS_ITEMS: NavItem[] = [
     label: 'Safety & Incidents',
     icon: <ShieldAlert size={18} />,
     badgeColor: '#DC2626',
+  },
+  {
+    href: '/support',
+    label: 'Support Tickets',
+    icon: <LifeBuoy size={18} />,
   },
   {
     href: '/requirements',

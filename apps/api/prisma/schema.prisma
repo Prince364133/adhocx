@@ -1446,6 +1446,13 @@ model CorporateSosAlert {
 // ===== WS-C: Rider Self-Service & Support Tickets =====
 
 enum CorporateTicketCategory {
+  TECHNICAL_ISSUE
+  EMPLOYEE_MANAGEMENT
+  ROUTE_MANAGEMENT
+  TRANSPORT_OPERATIONS
+  BILLING_PAYMENTS
+  ACCOUNT_ACCESS
+  GENERAL_SUPPORT
   CAB_DELAY
   DRIVER_BEHAVIOR
   ROUTE_ISSUE
@@ -1465,9 +1472,17 @@ enum CorporateTicketPriority {
 
 enum CorporateTicketStatus {
   OPEN
+  ASSIGNED
   IN_PROGRESS
+  WAITING_FOR_CORPORATE
   RESOLVED
   CLOSED
+  REOPENED
+}
+
+enum CorporateTicketCommentVisibility {
+  PUBLIC
+  INTERNAL
 }
 
 model CorporateSupportTicket {
@@ -1488,16 +1503,67 @@ model CorporateSupportTicket {
   slaMinutes       Int                     @default(240) @map("sla_minutes")
   resolvedAt       DateTime?               @map("resolved_at")
   resolvedByUserId String?                 @map("resolved_by_user_id") @db.Uuid
+  raisedByUserId   String?                 @map("raised_by_user_id") @db.Uuid
+  assignedTeam     String?                 @map("assigned_team") @db.VarChar(64)
+  idempotencyKey   String?                 @unique @map("idempotency_key") @db.VarChar(64)
   createdAt        DateTime                @default(now()) @map("created_at")
   updatedAt        DateTime                @default(now()) @updatedAt @map("updated_at")
 
-  tenant   CorporateTenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  employee CorporateEmployee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  tenant      CorporateTenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employee    CorporateEmployee                  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  attachments CorporateSupportTicketAttachment[]
+  comments    CorporateSupportTicketComment[]
+  activities  CorporateSupportTicketActivity[]
 
   @@index([tenantId, status])
   @@index([employeeId])
   @@index([status, priority])
+  @@index([assignedTeam, status])
   @@map("corporate_support_tickets")
+}
+
+model CorporateSupportTicketAttachment {
+  id               String                 @id @default(uuid()) @db.Uuid
+  ticketId         String                 @map("ticket_id") @db.Uuid
+  fileName         String                 @map("file_name") @db.VarChar(255)
+  fileType         String                 @map("file_type") @db.VarChar(100)
+  fileSize         Int                    @map("file_size")
+  storageReference String                 @map("storage_reference") @db.Text
+  uploadedBy       String                 @map("uploaded_by") @db.Uuid
+  createdAt        DateTime               @default(now()) @map("created_at")
+  ticket           CorporateSupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
+  @@map("corporate_support_ticket_attachments")
+}
+
+model CorporateSupportTicketComment {
+  id         String                           @id @default(uuid()) @db.Uuid
+  ticketId   String                           @map("ticket_id") @db.Uuid
+  userId     String                           @map("user_id") @db.Uuid
+  message    String                           @db.VarChar(1000)
+  visibility CorporateTicketCommentVisibility @default(PUBLIC)
+  createdAt  DateTime                         @default(now()) @map("created_at")
+  ticket     CorporateSupportTicket           @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
+  @@map("corporate_support_ticket_comments")
+}
+
+model CorporateSupportTicketActivity {
+  id            String                           @id @default(uuid()) @db.Uuid
+  ticketId      String                           @map("ticket_id") @db.Uuid
+  performedBy   String                           @map("performed_by") @db.Uuid
+  action        String                           @db.VarChar(64)
+  previousValue String?                          @map("previous_value") @db.VarChar(255)
+  newValue      String?                          @map("new_value") @db.VarChar(255)
+  description   String                           @db.VarChar(1000)
+  visibility    CorporateTicketCommentVisibility @default(PUBLIC)
+  createdAt     DateTime                         @default(now()) @map("created_at")
+  ticket        CorporateSupportTicket           @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
+  @@map("corporate_support_ticket_activities")
 }
 
 model CorporateTripFeedback {
@@ -1747,7 +1813,6 @@ model CorporateCreditNote {
   @@index([invoiceId])
   @@map("corporate_credit_notes")
 }
-
 // ===== end wire/billing-payouts =====
 
 // ===== WS-B: tracking & events =====
@@ -1813,6 +1878,7 @@ model CorporateRouteAssignmentEvent {
   @@index([tenantId, at])
   @@map("corporate_route_assignment_events")
 }
+
 // ===== end WS-B =====
 
 // ===== WS-A: Supply eligibility, persisted offers & escalation (docs/corporate-ets/19 §1 WS-A) =====
@@ -1969,6 +2035,7 @@ model CorporateRosterEntry {
   rosterId        String                      @map("roster_id") @db.Uuid
   tenantId        String                      @map("tenant_id") @db.Uuid
   employeeId      String                      @map("employee_id") @db.Uuid
+
   officeId        String                      @map("office_id") @db.Uuid
   scheduledDate   DateTime                    @map("scheduled_date") @db.Date
   shiftTime       String                      @map("shift_time") @db.VarChar(8)
@@ -2035,4 +2102,3 @@ model DigioVerification {
   @@index([tenantId])
   @@map("digio_verifications")
 }
-

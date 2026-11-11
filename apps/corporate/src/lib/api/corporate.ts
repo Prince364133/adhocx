@@ -296,21 +296,44 @@ export const safetyApi = {
 
 export const supportApi = {
   list: (
-    tenantId: string = '9d66820f-280c-400c-98dc-e021d0045b58',
-    p: { status?: string; priority?: string; limit?: number; offset?: number } = {},
+    tenantId?: string,
+    p: { status?: string; priority?: string; category?: string; search?: string; from?: string; to?: string; limit?: number; offset?: number } = {},
   ) =>
-    apiRequest<SupportTicket[]>(`/corporate/support/tickets${qs({ tenantId, ...p })}`),
+    apiRequest<SupportTicket[]>(`/corporate/support/tickets${qs({ ...p })}`),
+  get: (ticketId: string) => apiRequest<SupportTicket>(`/corporate/support/tickets/${ticketId}`),
+  summary: () => apiRequest<{ total: number; open: number; inProgress: number; resolved: number; closed: number }>('/corporate/support/tickets/summary'),
   create: (
     tenantId: string,
     body: {
-      employeeId: string;
+      employeeId?: string;
       category: string;
       priority?: string;
       subject: string;
       description: string;
       routeId?: string;
     },
-  ) => apiRequest<SupportTicket>('/corporate/support/tickets', { method: 'POST', body: { ...body, tenantId } }),
+    attachments: File[] = [],
+    idempotencyKey = crypto.randomUUID(),
+  ) => {
+    const formData = new FormData();
+    Object.entries({ ...body, tenantId }).forEach(([key, value]) => {
+      if (value !== undefined) formData.append(key, value);
+    });
+    attachments.forEach((file) => formData.append('attachments', file));
+    return apiRequest<SupportTicket>('/corporate/support/tickets', {
+      method: 'POST',
+      formData,
+      headers: { 'Idempotency-Key': idempotencyKey },
+    });
+  },
+  reply: (ticketId: string, message: string, attachments: File[] = []) => {
+    const formData = new FormData();
+    formData.append('message', message);
+    attachments.forEach((file) => formData.append('attachments', file));
+    return apiRequest<SupportTicket>(`/corporate/support/tickets/${ticketId}/replies`, { method: 'POST', formData });
+  },
+  reopen: (ticketId: string) =>
+    apiRequest<SupportTicket>(`/corporate/support/tickets/${ticketId}/reopen`, { method: 'POST', body: {} }),
 };
 
 export const billingApi = {

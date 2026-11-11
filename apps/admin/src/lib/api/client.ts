@@ -1287,6 +1287,8 @@ export const adminApi = {
       tenantId?: string;
       status?: CorporateTicketStatus;
       priority?: CorporateTicketPriority;
+      category?: string;
+      search?: string;
       limit?: number;
       offset?: number;
     } = {},
@@ -1295,16 +1297,54 @@ export const adminApi = {
     if (params.tenantId) q.set('tenantId', params.tenantId);
     if (params.status) q.set('status', params.status);
     if (params.priority) q.set('priority', params.priority);
+    if (params.category) q.set('category', params.category);
+    if (params.search) q.set('search', params.search);
     q.set('limit', String(params.limit ?? 100));
     if (params.offset) q.set('offset', String(params.offset));
     return apiClient<CorporateSupportTicket[]>(`/corporate/support/tickets?${q.toString()}`, { allowForbidden: true });
   },
 
-  /** Only the next status is legal (OPEN -> IN_PROGRESS -> RESOLVED -> CLOSED); anything else is 409. */
   updateCorporateSupportTicketStatus: (id: string, status: CorporateTicketStatus, notes?: string) =>
     apiClient<CorporateSupportTicket>(`/corporate/support/tickets/${id}/status`, {
       method: 'PATCH',
       body: notes ? { status, notes } : { status },
+      allowForbidden: true,
+    }),
+
+  getCorporateSupportTicket: (id: string) =>
+    apiClient<CorporateSupportTicket>(`/corporate/support/tickets/${id}`, { allowForbidden: true }),
+
+  getCorporateSupportTicketSummary: () =>
+    apiClient<{ total: number; open: number; unassigned: number; inProgress: number; waitingForCorporate: number; resolved: number; closed: number }>(
+      '/corporate/support/tickets/summary',
+      { allowForbidden: true },
+    ),
+
+  assignCorporateSupportTicket: (id: string, assignment: { team: string | null; userId: string | null }) =>
+    apiClient<CorporateSupportTicket>(`/corporate/support/tickets/${id}/assignment`, {
+      method: 'PATCH',
+      body: assignment,
+      allowForbidden: true,
+    }),
+
+  updateCorporateSupportTicketPriority: (id: string, priority: CorporateTicketPriority) =>
+    apiClient<CorporateSupportTicket>(`/corporate/support/tickets/${id}/priority`, {
+      method: 'PATCH',
+      body: { priority },
+      allowForbidden: true,
+    }),
+
+  addCorporateSupportComment: (id: string, message: string) =>
+    apiClient<CorporateSupportTicket>(`/corporate/support/tickets/${id}/comments`, {
+      method: 'POST',
+      body: { message },
+      allowForbidden: true,
+    }),
+
+  addCorporateSupportInternalNote: (id: string, message: string) =>
+    apiClient<CorporateSupportTicket>(`/corporate/support/tickets/${id}/notes`, {
+      method: 'POST',
+      body: { message },
       allowForbidden: true,
     }),
 

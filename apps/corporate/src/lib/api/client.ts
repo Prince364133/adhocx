@@ -62,6 +62,7 @@ export function isUnauthorized(err: unknown): boolean {
 type RequestOptions = {
   method?: string;
   body?: unknown;
+  headers?: Record<string, string>;
   /** multipart upload; sent as-is without a JSON content type */
   formData?: FormData;
   /** Skip the 401 redirect (login calls). */
@@ -127,7 +128,7 @@ async function refreshAccessToken(): Promise<string | null> {
 }
 
 async function rawFetch(endpoint: string, options: RequestOptions, accept?: string): Promise<Response> {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = { ...options.headers };
   if (!options.formData) headers['Content-Type'] = 'application/json';
   if (accept) headers['Accept'] = accept;
   const token = sessionAdapter ? sessionAdapter.getToken() : getStoredToken();

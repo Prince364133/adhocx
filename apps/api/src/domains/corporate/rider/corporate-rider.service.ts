@@ -689,7 +689,7 @@ export class CorporateRiderService {
    */
   async createSupportTicket(userId: string, dto: CreateSupportTicketDto): Promise<SupportTicketResponse> {
     const emp = await this.resolveEmployee(userId);
-    return this.tickets.createTicket(emp, dto);
+    return this.tickets.createTicket(emp, dto, { userId, role: 'EMPLOYEE' });
   }
 
   /**
