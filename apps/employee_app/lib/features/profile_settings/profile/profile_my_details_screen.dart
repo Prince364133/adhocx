@@ -5,6 +5,7 @@ import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/widgets/employee_bottom_nav_bar.dart';
 import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
+import 'package:adhocx_employee/shared/components/feedback/employee_entrance.dart';
 
 /// Screen 6: Profile (My Details)
 class ProfileMyDetailsScreen extends StatefulWidget {
@@ -53,184 +54,178 @@ class _ProfileMyDetailsScreenState extends State<ProfileMyDetailsScreen> {
                 child: Column(
                   children: [
                     // Top Blue Header Banner
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.only(top: 50, bottom: 30),
-                      decoration: const BoxDecoration(
-                        gradient: AppColors.primaryGradient,
-                        borderRadius: BorderRadius.only(
-                          bottomLeft: Radius.circular(30),
-                          bottomRight: Radius.circular(30),
+                    EmployeeEntrance(
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.only(top: 50, bottom: 30),
+                        decoration: const BoxDecoration(
+                          gradient: AppColors.primaryGradient,
+                          borderRadius: BorderRadius.only(
+                            bottomLeft: Radius.circular(30),
+                            bottomRight: Radius.circular(30),
+                          ),
                         ),
-                      ),
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              IconButton(
-                                icon: const Icon(
-                                    Icons.arrow_back_ios_new_rounded,
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(
+                                      Icons.arrow_back_ios_new_rounded,
+                                      color: Colors.white,
+                                      size: 18),
+                                  onPressed: () =>
+                                      context.go(AppRoutes.homeUpcomingPickup),
+                                ),
+                                Text(
+                                  'Profile',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
                                     color: Colors.white,
-                                    size: 18),
-                                onPressed: () =>
-                                    context.go(AppRoutes.homeUpcomingPickup),
+                                  ),
+                                ),
+                                const SizedBox(width: 48),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Avatar with edit button
+                            GestureDetector(
+                              onTap: () => context.push(AppRoutes.editProfile),
+                              child: Stack(
+                                alignment: Alignment.bottomRight,
+                                children: [
+                                  CircleAvatar(
+                                    radius: 46,
+                                    backgroundColor:
+                                        Colors.white.withValues(alpha: 0.2),
+                                    child: const Icon(Icons.person,
+                                        size: 56, color: Colors.white),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: const BoxDecoration(
+                                      color: AppColors.secondaryOrange,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(Icons.edit_rounded,
+                                        size: 14, color: Colors.white),
+                                  ),
+                                ],
                               ),
-                              Text(
-                                'Profile',
+                            ),
+                            const SizedBox(height: 14),
+
+                            Text(
+                              name,
+                              style: GoogleFonts.inter(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Text(
+                                empId,
                                 style: GoogleFonts.inter(
-                                  fontSize: 18,
+                                  fontSize: 12,
                                   fontWeight: FontWeight.w700,
                                   color: Colors.white,
                                 ),
                               ),
-                              IconButton(
-                                icon: const Icon(Icons.settings_outlined,
-                                    color: Colors.white),
-                                onPressed: () =>
-                                    context.push(AppRoutes.settingsOverview),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-
-                          // Avatar with edit button
-                          GestureDetector(
-                            onTap: () => context.push(AppRoutes.editProfile),
-                            child: Stack(
-                              alignment: Alignment.bottomRight,
-                              children: [
-                                CircleAvatar(
-                                  radius: 46,
-                                  backgroundColor:
-                                      Colors.white.withValues(alpha: 0.2),
-                                  child: const Icon(Icons.person,
-                                      size: 56, color: Colors.white),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: const BoxDecoration(
-                                    color: AppColors.secondaryOrange,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(Icons.edit_rounded,
-                                      size: 14, color: Colors.white),
-                                ),
-                              ],
                             ),
-                          ),
-                          const SizedBox(height: 14),
-
-                          Text(
-                            name,
-                            style: GoogleFonts.inter(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Text(
-                              empId,
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
 
                     const SizedBox(height: 24),
 
                     // Details Card
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: AppColors.border),
-                        ),
-                        child: Column(
-                          children: [
-                            _buildInfoRow(
-                                Icons.apartment_rounded, 'Organization', org),
-                            const Divider(height: 24),
-                            _buildInfoRow(Icons.email_outlined, 'Email', email),
-                            const Divider(height: 24),
-                            _buildInfoRow(
-                                Icons.phone_outlined, 'Phone Number', phone),
-                            const Divider(height: 24),
-                            _buildInfoRow(
-                                Icons.location_on_outlined, 'Address', address),
-                          ],
+                    EmployeeEntrance(
+                      delay: const Duration(milliseconds: 100),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: Column(
+                            children: [
+                              _buildInfoRow(
+                                  Icons.apartment_rounded, 'Organization', org),
+                              const Divider(height: 24),
+                              _buildInfoRow(
+                                  Icons.email_outlined, 'Email', email),
+                              const Divider(height: 24),
+                              _buildInfoRow(
+                                  Icons.phone_outlined, 'Phone Number', phone),
+                              const Divider(height: 24),
+                              _buildInfoRow(Icons.location_on_outlined,
+                                  'Address', address),
+                            ],
+                          ),
                         ),
                       ),
                     ),
 
                     const SizedBox(height: 20),
 
-                    // Quick Settings Menu
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: AppColors.border),
-                        ),
-                        child: Column(
-                          children: [
-                            ListTile(
-                              leading: const Icon(Icons.edit_outlined,
-                                  color: AppColors.primaryBlue),
-                              title: Text('Edit Profile',
-                                  style: GoogleFonts.inter(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600)),
-                              trailing: const Icon(Icons.chevron_right_rounded,
-                                  color: AppColors.textMuted),
-                              onTap: () => context.push(AppRoutes.editProfile),
-                            ),
-                            const Divider(height: 1),
-                            ListTile(
-                              leading: const Icon(Icons.settings_outlined,
-                                  color: AppColors.primaryBlue),
-                              title: Text('App Settings',
-                                  style: GoogleFonts.inter(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600)),
-                              trailing: const Icon(Icons.chevron_right_rounded,
-                                  color: AppColors.textMuted),
-                              onTap: () =>
-                                  context.push(AppRoutes.settingsOverview),
-                            ),
-                            const Divider(height: 1),
-                            ListTile(
-                              leading: const Icon(Icons.logout_rounded,
-                                  color: Color(0xFFDC2626)),
-                              title: Text('Sign Out',
-                                  style: GoogleFonts.inter(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: const Color(0xFFDC2626))),
-                              trailing: const Icon(Icons.chevron_right_rounded,
-                                  color: AppColors.textMuted),
-                              onTap: () =>
-                                  context.push(AppRoutes.logoutConfirm),
-                            ),
-                          ],
+                    EmployeeEntrance(
+                      delay: const Duration(milliseconds: 180),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: Column(
+                            children: [
+                              _buildProfileAction(
+                                icon: Icons.edit_outlined,
+                                title: 'Edit Profile',
+                                onTap: () =>
+                                    context.push(AppRoutes.editProfile),
+                              ),
+                              const Divider(height: 1),
+                              _buildProfileAction(
+                                icon: Icons.language_rounded,
+                                title: 'Language',
+                                onTap: () =>
+                                    context.push(AppRoutes.settingsLanguage),
+                              ),
+                              const Divider(height: 1),
+                              _buildProfileAction(
+                                icon: Icons.headset_mic_outlined,
+                                title: 'Support',
+                                onTap: () => context
+                                    .push(AppRoutes.safetyReportIncident),
+                              ),
+                              const Divider(height: 1),
+                              _buildProfileAction(
+                                icon: Icons.logout_rounded,
+                                title: 'Sign Out',
+                                iconColor: AppColors.error,
+                                titleColor: AppColors.error,
+                                onTap: () =>
+                                    context.push(AppRoutes.logoutConfirm),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -241,14 +236,36 @@ class _ProfileMyDetailsScreenState extends State<ProfileMyDetailsScreen> {
               ),
             ),
       bottomNavigationBar: EmployeeBottomNavBar(
-        currentIndex: 4, // Profile Tab Active
+        currentIndex: 3, // Profile Tab Active
         onTap: (index) {
           if (index == 0) context.push(AppRoutes.homeUpcomingPickup);
           if (index == 1) context.push(AppRoutes.scheduleToday);
           if (index == 2) context.push(AppRoutes.tripHistoryOverview);
-          if (index == 3) context.push(AppRoutes.safetyCenterOverview);
         },
       ),
+    );
+  }
+
+  Widget _buildProfileAction({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    Color iconColor = AppColors.primaryBlue,
+    Color titleColor = AppColors.textPrimary,
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: iconColor),
+      title: Text(
+        title,
+        style: GoogleFonts.inter(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: titleColor,
+        ),
+      ),
+      trailing:
+          const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+      onTap: onTap,
     );
   }
 

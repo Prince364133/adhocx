@@ -5,15 +5,19 @@ import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/widgets/employee_app_bar.dart';
 import 'package:adhocx_employee/widgets/employee_primary_button.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
+import 'package:adhocx_employee/shared/components/feedback/employee_entrance.dart';
+import 'package:adhocx_employee/shared/components/feedback/employee_press_scale.dart';
 
 class RequestChangeOptionsScreen extends StatefulWidget {
   const RequestChangeOptionsScreen({super.key});
 
   @override
-  State<RequestChangeOptionsScreen> createState() => _RequestChangeOptionsScreenState();
+  State<RequestChangeOptionsScreen> createState() =>
+      _RequestChangeOptionsScreenState();
 }
 
-class _RequestChangeOptionsScreenState extends State<RequestChangeOptionsScreen> {
+class _RequestChangeOptionsScreenState
+    extends State<RequestChangeOptionsScreen> {
   int _selectedOption = 0;
 
   final List<String> _options = [
@@ -63,32 +67,73 @@ class _RequestChangeOptionsScreenState extends State<RequestChangeOptionsScreen>
                 final isSelected = _selectedOption == index;
                 final text = _options[index];
 
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: isSelected ? const Color(0xFFEFF6FF) : Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: isSelected ? AppColors.primaryBlue : AppColors.border,
-                      width: isSelected ? 2.0 : 1.2,
-                    ),
-                  ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-                    leading: Icon(
-                      isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
-                      color: isSelected ? AppColors.primaryBlue : AppColors.textMuted,
-                      size: 22,
-                    ),
-                    title: Text(
-                      text,
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                        color: isSelected ? AppColors.primaryBlueDark : AppColors.textPrimary,
+                return EmployeeEntrance(
+                  delay: Duration(milliseconds: 60 * index),
+                  child: EmployeePressScale(
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeOutCubic,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color:
+                            isSelected ? const Color(0xFFEFF6FF) : Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isSelected
+                              ? AppColors.primaryBlue
+                              : AppColors.border,
+                          width: isSelected ? 2.0 : 1.2,
+                        ),
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color: AppColors.primaryBlue
+                                      .withValues(alpha: 0.08),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 2),
+                        leading: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 180),
+                          transitionBuilder: (child, animation) =>
+                              ScaleTransition(
+                            scale: animation,
+                            child: FadeTransition(
+                              opacity: animation,
+                              child: child,
+                            ),
+                          ),
+                          child: Icon(
+                            isSelected
+                                ? Icons.radio_button_checked
+                                : Icons.radio_button_off,
+                            key: ValueKey(isSelected),
+                            color: isSelected
+                                ? AppColors.primaryBlue
+                                : AppColors.textMuted,
+                            size: 22,
+                          ),
+                        ),
+                        title: AnimatedDefaultTextStyle(
+                          duration: const Duration(milliseconds: 180),
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight:
+                                isSelected ? FontWeight.w700 : FontWeight.w500,
+                            color: isSelected
+                                ? AppColors.primaryBlueDark
+                                : AppColors.textPrimary,
+                          ),
+                          child: Text(text),
+                        ),
+                        onTap: () => setState(() => _selectedOption = index),
                       ),
                     ),
-                    onTap: () => setState(() => _selectedOption = index),
                   ),
                 );
               }),
@@ -109,6 +154,3 @@ class _RequestChangeOptionsScreenState extends State<RequestChangeOptionsScreen>
     );
   }
 }
-
-
-

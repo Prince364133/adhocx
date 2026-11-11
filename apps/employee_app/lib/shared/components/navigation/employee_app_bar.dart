@@ -86,6 +86,7 @@ class EmployeeGreetingHeader extends StatelessWidget {
   final String greeting;
   final int unreadNotificationsCount;
   final VoidCallback? onNotificationTap;
+  final VoidCallback? onSosTap;
   final VoidCallback? onProfileTap;
 
   const EmployeeGreetingHeader({
@@ -94,6 +95,7 @@ class EmployeeGreetingHeader extends StatelessWidget {
     this.greeting = 'Good Morning,',
     this.unreadNotificationsCount = 1,
     this.onNotificationTap,
+    this.onSosTap,
     this.onProfileTap,
   });
 
@@ -126,39 +128,84 @@ class EmployeeGreetingHeader extends StatelessWidget {
             ],
           ),
         ),
-        Stack(
-          clipBehavior: Clip.none,
+        Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            InkWell(
-              onTap: onNotificationTap,
-              borderRadius: BorderRadius.circular(20),
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: const Icon(
-                  Icons.notifications_none_rounded,
-                  color: AppColors.textPrimary,
-                  size: 22,
-                ),
-              ),
-            ),
-            if (unreadNotificationsCount > 0)
-              Positioned(
-                right: 3,
-                top: 3,
-                child: Container(
-                  width: 9,
-                  height: 9,
-                  decoration: const BoxDecoration(
-                    color: AppColors.secondaryOrange,
-                    shape: BoxShape.circle,
+            if (onSosTap != null) ...[
+              Semantics(
+                button: true,
+                label: 'SOS emergency',
+                child: InkWell(
+                  onTap: onSosTap,
+                  borderRadius: BorderRadius.circular(18),
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: AppColors.error,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.sos_rounded,
+                              color: Colors.white, size: 20),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'SOS',
+                          style: GoogleFonts.inter(
+                            color: AppColors.error,
+                            fontSize: 9,
+                            height: 1,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
+              const SizedBox(width: 8),
+            ],
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                InkWell(
+                  onTap: onNotificationTap,
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: const Icon(
+                      Icons.notifications_none_rounded,
+                      color: AppColors.textPrimary,
+                      size: 22,
+                    ),
+                  ),
+                ),
+                if (unreadNotificationsCount > 0)
+                  Positioned(
+                    right: 3,
+                    top: 3,
+                    child: Container(
+                      width: 9,
+                      height: 9,
+                      decoration: const BoxDecoration(
+                        color: AppColors.error,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ],
         ),
       ],

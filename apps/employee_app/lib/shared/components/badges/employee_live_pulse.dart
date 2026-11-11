@@ -36,6 +36,17 @@ class _EmployeeLivePulseState extends State<EmployeeLivePulse>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _controller.stop();
+      _controller.value = 1;
+    } else if (!_controller.isAnimating) {
+      _controller.repeat(reverse: true);
+    }
+  }
+
+  @override
   void dispose() {
     _controller.dispose();
     super.dispose();
@@ -64,7 +75,8 @@ class _EmployeeLivePulseState extends State<EmployeeLivePulse>
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: widget.color.withValues(alpha: _animation.value * 0.5),
+                      color: widget.color
+                          .withValues(alpha: _animation.value * 0.5),
                       blurRadius: 4,
                       spreadRadius: 1,
                     ),
@@ -140,4 +152,3 @@ class EmployeeOtpBadge extends StatelessWidget {
     );
   }
 }
-

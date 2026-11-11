@@ -37,25 +37,6 @@ class HybridEmployeeAuthRepository implements EmployeeAuthRepository {
     required String mobileNumber,
     required String otp,
   }) async {
-    // If standard demo OTP codes are provided, use mock directly for zero-latency verification
-    final cleanOtp = otp.trim();
-    if (cleanOtp == '528471' || cleanOtp == '123456') {
-      try {
-        final liveUser = await _httpRepo
-            .verifyOtp(
-              mobileNumber: mobileNumber,
-              otp: cleanOtp,
-            )
-            .timeout(const Duration(seconds: 4));
-        return liveUser;
-      } catch (e) {
-        debugPrint(
-            '[HybridEmployeeAuthRepository] Live OTP verify failed or unavailable: $e. Using local persona.');
-        return await _mockRepo.verifyOtp(
-            mobileNumber: mobileNumber, otp: cleanOtp);
-      }
-    }
-
     try {
       return await _httpRepo
           .verifyOtp(

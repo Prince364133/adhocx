@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:adhocx_employee/services/language_preference_service.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/widgets/employee_primary_button.dart';
 
@@ -24,6 +25,28 @@ class _SelectLanguageScreenState extends State<SelectLanguageScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _loadSelectedLanguage();
+  }
+
+  Future<void> _loadSelectedLanguage() async {
+    final language = await LanguagePreferenceService.getSelectedLanguage();
+    if (mounted && _languages.contains(language)) {
+      setState(() => _selectedLang = language);
+    }
+  }
+
+  Future<void> _saveSelectedLanguage() async {
+    await LanguagePreferenceService.setSelectedLanguage(_selectedLang);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Language set to $_selectedLang.')),
+    );
+    Navigator.of(context).pop();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -31,7 +54,8 @@ class _SelectLanguageScreenState extends State<SelectLanguageScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              size: 18, color: AppColors.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
@@ -65,28 +89,57 @@ class _SelectLanguageScreenState extends State<SelectLanguageScreen> {
                       children: [
                         ListTile(
                           onTap: () => setState(() => _selectedLang = lang),
-                          title: Text(
-                            lang,
+                          title: AnimatedDefaultTextStyle(
+                            duration: const Duration(milliseconds: 180),
+                            curve: Curves.easeOutCubic,
                             style: GoogleFonts.inter(
                               fontSize: 15,
-                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                              color: isSelected ? AppColors.primaryBlue : AppColors.textPrimary,
+                              fontWeight: isSelected
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              color: isSelected
+                                  ? AppColors.primaryBlue
+                                  : AppColors.textPrimary,
                             ),
+                            child: Text(lang),
                           ),
-                          trailing: Container(
+                          trailing: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            curve: Curves.easeOutCubic,
                             width: 22,
                             height: 22,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: isSelected ? AppColors.primaryBlue : Colors.transparent,
+                              color: isSelected
+                                  ? AppColors.primaryBlue
+                                  : Colors.transparent,
                               border: Border.all(
-                                color: isSelected ? AppColors.primaryBlue : const Color(0xFFCBD5E1),
+                                color: isSelected
+                                    ? AppColors.primaryBlue
+                                    : const Color(0xFFCBD5E1),
                                 width: 2,
                               ),
                             ),
-                            child: isSelected
-                                ? const Center(child: Icon(Icons.check, size: 14, color: Colors.white))
-                                : null,
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 160),
+                              transitionBuilder: (child, animation) =>
+                                  ScaleTransition(
+                                scale: animation,
+                                child: FadeTransition(
+                                  opacity: animation,
+                                  child: child,
+                                ),
+                              ),
+                              child: isSelected
+                                  ? const Center(
+                                      key: ValueKey('selected-language'),
+                                      child: Icon(Icons.check,
+                                          size: 14, color: Colors.white),
+                                    )
+                                  : const SizedBox.shrink(
+                                      key: ValueKey('unselected-language'),
+                                    ),
+                            ),
                           ),
                         ),
                         if (!isLast) const Divider(height: 1),
@@ -95,17 +148,10 @@ class _SelectLanguageScreenState extends State<SelectLanguageScreen> {
                   }),
                 ),
               ),
-
               const Spacer(),
-
               EmployeePrimaryButton(
                 label: 'Continue',
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Language set to $_selectedLang.')),
-                  );
-                  Navigator.of(context).pop();
-                },
+                onPressed: _saveSelectedLanguage,
               ),
               const SizedBox(height: 16),
             ],
@@ -115,6 +161,3 @@ class _SelectLanguageScreenState extends State<SelectLanguageScreen> {
     );
   }
 }
-
-
-

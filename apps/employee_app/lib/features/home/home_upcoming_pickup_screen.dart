@@ -12,7 +12,8 @@ class HomeUpcomingPickupScreen extends StatefulWidget {
   const HomeUpcomingPickupScreen({super.key});
 
   @override
-  State<HomeUpcomingPickupScreen> createState() => _HomeUpcomingPickupScreenState();
+  State<HomeUpcomingPickupScreen> createState() =>
+      _HomeUpcomingPickupScreenState();
 }
 
 class _HomeUpcomingPickupScreenState extends State<HomeUpcomingPickupScreen> {
@@ -42,7 +43,8 @@ class _HomeUpcomingPickupScreenState extends State<HomeUpcomingPickupScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: AppColors.primaryBlue)),
+        body: Center(
+            child: CircularProgressIndicator(color: AppColors.primaryBlue)),
       );
     }
 
@@ -67,7 +69,9 @@ class _HomeUpcomingPickupScreenState extends State<HomeUpcomingPickupScreen> {
               EmployeeGreetingHeader(
                 name: name,
                 unreadNotificationsCount: 1,
-                onNotificationTap: () => context.push(AppRoutes.notificationsCenter),
+                onNotificationTap: () =>
+                    context.push(AppRoutes.notificationsCenter),
+                onSosTap: () => context.push(AppRoutes.safetySos),
                 onProfileTap: () => context.push(AppRoutes.profileDetails),
               ),
 
@@ -105,35 +109,41 @@ class _HomeUpcomingPickupScreenState extends State<HomeUpcomingPickupScreen> {
               const SizedBox(height: 20),
 
               // Primary Action: Track Trip
-              EmployeePrimaryButton(
-                label: 'Track Trip',
-                icon: Icons.navigation_rounded,
-                onPressed: () => context.push(AppRoutes.tripAssigned),
+              EmployeeEntrance(
+                delay: const Duration(milliseconds: 170),
+                child: EmployeePrimaryButton(
+                  label: 'Track Trip',
+                  icon: Icons.navigation_rounded,
+                  onPressed: () => context.push(AppRoutes.tripAssigned),
+                ),
               ),
 
               const SizedBox(height: 14),
 
               // Action buttons: Request Change & Cancel Trip
-              Row(
-                children: [
-                  Expanded(
-                    child: EmployeeSecondaryButton(
-                      label: 'Request Change',
-                      icon: Icons.edit_calendar_rounded,
-                      onPressed: () => context.push(AppRoutes.tripPlanning),
+              EmployeeEntrance(
+                delay: const Duration(milliseconds: 230),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: EmployeeSecondaryButton(
+                        label: 'Request Change',
+                        icon: Icons.edit_calendar_rounded,
+                        onPressed: () => context.push(AppRoutes.tripPlanning),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: EmployeeSecondaryButton(
-                      label: 'Cancel Trip',
-                      icon: Icons.cancel_outlined,
-                      textColor: AppColors.error,
-                      borderColor: AppColors.errorBorder,
-                      onPressed: () => context.push(AppRoutes.tripCancelled),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: EmployeeSecondaryButton(
+                        label: 'Cancel Trip',
+                        icon: Icons.cancel_outlined,
+                        textColor: AppColors.error,
+                        borderColor: AppColors.errorBorder,
+                        onPressed: () => context.push(AppRoutes.tripCancelled),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
 
               const SizedBox(height: 24),
@@ -146,11 +156,9 @@ class _HomeUpcomingPickupScreenState extends State<HomeUpcomingPickupScreen> {
         onTap: (index) {
           if (index == 1) context.go(AppRoutes.scheduleToday);
           if (index == 2) context.go(AppRoutes.historyOverview);
-          if (index == 3) context.go(AppRoutes.safetyOverview);
-          if (index == 4) context.go(AppRoutes.profileDetails);
+          if (index == 3) context.go(AppRoutes.profileDetails);
         },
       ),
     );
   }
 }
-

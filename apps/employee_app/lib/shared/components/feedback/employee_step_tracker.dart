@@ -29,6 +29,7 @@ class EmployeeStepTracker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
     int activeIndex;
     if (currentStep is TripStep) {
       activeIndex = _steps.indexOf(currentStep as TripStep);
@@ -51,9 +52,35 @@ class EmployeeStepTracker extends StatelessWidget {
             final prevStepIndex = index ~/ 2;
             final isCompleted = prevStepIndex < activeIndex;
             return Expanded(
-              child: Container(
-                height: 2.5,
-                color: isCompleted ? AppColors.primaryBlue : AppColors.border,
+              child: LayoutBuilder(
+                builder: (context, constraints) => SizedBox(
+                  height: 18,
+                  child: Stack(
+                    alignment: Alignment.centerLeft,
+                    children: [
+                      Container(
+                        width: constraints.maxWidth,
+                        height: 2.5,
+                        color: AppColors.border,
+                      ),
+                      TweenAnimationBuilder<double>(
+                        tween: Tween<double>(
+                          begin: 0,
+                          end: isCompleted ? 1 : 0,
+                        ),
+                        duration: reduceMotion
+                            ? Duration.zero
+                            : const Duration(milliseconds: 360),
+                        curve: Curves.easeOutCubic,
+                        builder: (context, value, child) => Container(
+                          width: constraints.maxWidth * value,
+                          height: 2.5,
+                          color: AppColors.primaryBlue,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             );
           }
@@ -89,25 +116,68 @@ class EmployeeStepTracker extends StatelessWidget {
           return Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 18,
-                height: 18,
-                decoration: BoxDecoration(
-                  color: dotColor,
-                  shape: BoxShape.circle,
+              AnimatedScale(
+                scale: isCurrent ? 1.08 : 1,
+                duration: reduceMotion
+                    ? Duration.zero
+                    : const Duration(milliseconds: 220),
+                curve: Curves.easeOutBack,
+                child: AnimatedContainer(
+                  duration: reduceMotion
+                      ? Duration.zero
+                      : const Duration(milliseconds: 260),
+                  width: 18,
+                  height: 18,
+                  decoration: BoxDecoration(
+                    color: dotColor,
+                    shape: BoxShape.circle,
+                    boxShadow: isCurrent && !reduceMotion
+                        ? [
+                            BoxShadow(
+                              color: dotColor.withValues(alpha: 0.24),
+                              blurRadius: 6,
+                              spreadRadius: 1,
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Center(
+                    child: AnimatedSwitcher(
+                      duration: reduceMotion
+                          ? Duration.zero
+                          : const Duration(milliseconds: 180),
+                      transitionBuilder: (child, animation) => ScaleTransition(
+                        scale: animation,
+                        child: FadeTransition(opacity: animation, child: child),
+                      ),
+                      child: KeyedSubtree(
+                        key: ValueKey(stepIndex < activeIndex
+                            ? 'completed'
+                            : isCurrent
+                                ? 'current'
+                                : 'future'),
+                        child: dotChild,
+                      ),
+                    ),
+                  ),
                 ),
-                child: Center(child: dotChild),
               ),
               const SizedBox(height: 5),
-              Text(
-                _labels[step]!,
+              AnimatedDefaultTextStyle(
+                duration: reduceMotion
+                    ? Duration.zero
+                    : const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
                 style: GoogleFonts.inter(
                   fontSize: 9,
                   fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w500,
                   color: isCurrent
                       ? AppColors.textPrimary
-                      : (isCompleted ? AppColors.primaryBlueDark : AppColors.textMuted),
+                      : (isCompleted
+                          ? AppColors.primaryBlueDark
+                          : AppColors.textMuted),
                 ),
+                child: Text(_labels[step]!),
               ),
             ],
           );
@@ -116,4 +186,3 @@ class EmployeeStepTracker extends StatelessWidget {
     );
   }
 }
-

@@ -12,10 +12,12 @@ class SafetyCenterOverviewScreen extends StatefulWidget {
   const SafetyCenterOverviewScreen({super.key});
 
   @override
-  State<SafetyCenterOverviewScreen> createState() => _SafetyCenterOverviewScreenState();
+  State<SafetyCenterOverviewScreen> createState() =>
+      _SafetyCenterOverviewScreenState();
 }
 
-class _SafetyCenterOverviewScreenState extends State<SafetyCenterOverviewScreen> {
+class _SafetyCenterOverviewScreenState
+    extends State<SafetyCenterOverviewScreen> {
   Map<String, dynamic>? _centerData;
   bool _isLoading = true;
 
@@ -39,7 +41,8 @@ class _SafetyCenterOverviewScreenState extends State<SafetyCenterOverviewScreen>
   Widget build(BuildContext context) {
     final title = _centerData?['title'] ?? 'Safety Center';
     final subtitle = _centerData?['subtitle'] ?? 'Your safety is our priority';
-    final desc = _centerData?['description'] ?? 'Quick access to emergency, support and safety tools.';
+    final desc = _centerData?['description'] ??
+        'Quick access to emergency, support and safety tools.';
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -47,7 +50,8 @@ class _SafetyCenterOverviewScreenState extends State<SafetyCenterOverviewScreen>
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              size: 18, color: AppColors.textPrimary),
           onPressed: () => context.go(AppRoutes.homeUpcomingPickup),
         ),
         title: Text(
@@ -64,7 +68,8 @@ class _SafetyCenterOverviewScreenState extends State<SafetyCenterOverviewScreen>
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 child: Column(
                   children: [
                     const SizedBox(height: 8),
@@ -98,7 +103,8 @@ class _SafetyCenterOverviewScreenState extends State<SafetyCenterOverviewScreen>
                         decoration: BoxDecoration(
                           color: const Color(0xFFFEF2F2),
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFFFCA5A5), width: 1.5),
+                          border: Border.all(
+                              color: const Color(0xFFFCA5A5), width: 1.5),
                         ),
                         child: Row(
                           children: [
@@ -108,7 +114,10 @@ class _SafetyCenterOverviewScreenState extends State<SafetyCenterOverviewScreen>
                                 color: Color(0xFFDC2626),
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(Icons.notifications_active_rounded, color: Colors.white, size: 20),
+                              child: const Icon(
+                                  Icons.notifications_active_rounded,
+                                  color: Colors.white,
+                                  size: 20),
                             ),
                             const SizedBox(width: 14),
                             Expanded(
@@ -133,7 +142,8 @@ class _SafetyCenterOverviewScreenState extends State<SafetyCenterOverviewScreen>
                                 ],
                               ),
                             ),
-                            const Icon(Icons.chevron_right_rounded, color: Color(0xFFDC2626)),
+                            const Icon(Icons.chevron_right_rounded,
+                                color: Color(0xFFDC2626)),
                           ],
                         ),
                       ),
@@ -189,12 +199,12 @@ class _SafetyCenterOverviewScreenState extends State<SafetyCenterOverviewScreen>
               ),
             ),
       bottomNavigationBar: EmployeeBottomNavBar(
-        currentIndex: 3, // Support Tab Active
+        currentIndex: -1,
         onTap: (index) {
           if (index == 0) context.push(AppRoutes.homeUpcomingPickup);
           if (index == 1) context.push(AppRoutes.scheduleToday);
           if (index == 2) context.push(AppRoutes.tripHistoryOverview);
-          if (index == 4) context.push(AppRoutes.profileDetails);
+          if (index == 3) context.push(AppRoutes.profileDetails);
         },
       ),
     );
@@ -238,11 +248,9 @@ class _SafetyCenterOverviewScreenState extends State<SafetyCenterOverviewScreen>
             color: AppColors.textSecondary,
           ),
         ),
-        trailing: const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.textMuted),
+        trailing: const Icon(Icons.chevron_right_rounded,
+            size: 18, color: AppColors.textMuted),
       ),
     );
   }
 }
-
-
-

@@ -7,6 +7,7 @@ import 'package:adhocx_employee/widgets/employee_app_bar.dart';
 import 'package:adhocx_employee/widgets/employee_secondary_button.dart';
 import 'package:adhocx_employee/widgets/batch_03_illustrations.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
+import 'package:adhocx_employee/shared/components/feedback/employee_entrance.dart';
 
 class ChangeRequestSubmittedScreen extends StatefulWidget {
   const ChangeRequestSubmittedScreen({super.key});
@@ -64,7 +65,9 @@ class _ChangeRequestSubmittedScreenState
               const Spacer(),
 
               // Paper Plane Graphic
-              const PaperPlaneSubmittedBadge(),
+              const EmployeeEntrance(
+                child: PaperPlaneSubmittedBadge(),
+              ),
 
               const SizedBox(height: 32),
 
@@ -98,90 +101,96 @@ class _ChangeRequestSubmittedScreenState
               const SizedBox(height: 32),
 
               // Summary Card
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.border),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.location_on_outlined,
-                            color: AppColors.primaryBlue, size: 20),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'New Pickup Location',
-                                style: GoogleFonts.inter(
-                                    fontSize: 11, color: AppColors.textMuted),
-                              ),
-                              Text(
-                                newLocation,
-                                style: GoogleFonts.inter(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary,
+              EmployeeEntrance(
+                delay: const Duration(milliseconds: 100),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.border),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.location_on_outlined,
+                              color: AppColors.primaryBlue, size: 20),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'New Pickup Location',
+                                  style: GoogleFonts.inter(
+                                      fontSize: 11, color: AppColors.textMuted),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Divider(color: AppColors.border, height: 24),
-                    Row(
-                      children: [
-                        const Icon(Icons.calendar_month_outlined,
-                            color: AppColors.primaryBlue, size: 20),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'For',
-                                style: GoogleFonts.inter(
-                                    fontSize: 11, color: AppColors.textMuted),
-                              ),
-                              Text(
-                                tripDate,
-                                style: GoogleFonts.inter(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary,
+                                Text(
+                                  newLocation,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                      const Divider(color: AppColors.border, height: 24),
+                      Row(
+                        children: [
+                          const Icon(Icons.calendar_month_outlined,
+                              color: AppColors.primaryBlue, size: 20),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'For',
+                                  style: GoogleFonts.inter(
+                                      fontSize: 11, color: AppColors.textMuted),
+                                ),
+                                Text(
+                                  tripDate,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
               const Spacer(),
 
               // "View Request Status" Button
-              EmployeeSecondaryButton(
-                label: 'View Request Status',
-                textColor: AppColors.primaryBlue,
-                borderColor: AppColors.primaryBlue,
-                onPressed: () => context.push(AppRoutes.requestPending),
+              EmployeeEntrance(
+                delay: const Duration(milliseconds: 180),
+                child: EmployeeSecondaryButton(
+                  label: 'View Request Status',
+                  textColor: AppColors.primaryBlue,
+                  borderColor: AppColors.primaryBlue,
+                  onPressed: () => context.push(AppRoutes.requestPending),
+                ),
               ),
 
               const SizedBox(height: 24),

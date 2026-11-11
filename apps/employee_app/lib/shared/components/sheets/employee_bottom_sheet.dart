@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../theme/app_colors.dart';
+import '../feedback/employee_entrance.dart';
 
 /// Standard modal bottom sheet launcher for AdhocX.
 Future<T?> showEmployeeBottomSheet<T>({
@@ -10,12 +11,20 @@ Future<T?> showEmployeeBottomSheet<T>({
   bool isDismissible = true,
   bool enableDrag = true,
 }) {
+  final reduceMotion = MediaQuery.disableAnimationsOf(context);
+
   return showModalBottomSheet<T>(
     context: context,
     isScrollControlled: true,
     isDismissible: isDismissible,
     enableDrag: enableDrag,
     backgroundColor: Colors.transparent,
+    sheetAnimationStyle: AnimationStyle(
+      duration:
+          reduceMotion ? Duration.zero : const Duration(milliseconds: 320),
+      reverseDuration:
+          reduceMotion ? Duration.zero : const Duration(milliseconds: 240),
+    ),
     builder: (ctx) => EmployeeBottomSheetContainer(
       title: title,
       child: child,
@@ -38,74 +47,79 @@ class EmployeeBottomSheetContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(24),
-          topRight: Radius.circular(24),
-        ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
+    return EmployeeEntrance(
+      beginOffset: const Offset(0, 0.05),
+      duration: const Duration(milliseconds: 320),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(24),
+            topRight: Radius.circular(24),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Drag Handle
-              const SizedBox(height: 12),
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.border,
-                    borderRadius: BorderRadius.circular(2),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Drag Handle
+                const SizedBox(height: 12),
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.border,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 12),
+                const SizedBox(height: 12),
 
-              // Title Header with close button
-              if (title != null) ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        title!,
-                        style: GoogleFonts.inter(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
+                // Title Header with close button
+                if (title != null) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          title!,
+                          style: GoogleFonts.inter(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
                         ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close_rounded, color: AppColors.textPrimary),
-                        onPressed: () => Navigator.of(context).pop(),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                      ),
-                    ],
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded,
+                              color: AppColors.textPrimary),
+                          onPressed: () => Navigator.of(context).pop(),
+                          padding: EdgeInsets.zero,
+                          constraints:
+                              const BoxConstraints(minWidth: 32, minHeight: 32),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const Divider(height: 16, color: AppColors.borderSubtle),
-              ],
+                  const Divider(height: 16, color: AppColors.borderSubtle),
+                ],
 
-              // Content Body
-              Padding(
-                padding: padding,
-                child: child,
-              ),
-            ],
+                // Content Body
+                Padding(
+                  padding: padding,
+                  child: child,
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 }
-

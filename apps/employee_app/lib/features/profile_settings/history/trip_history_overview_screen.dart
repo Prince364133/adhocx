@@ -12,7 +12,8 @@ class TripHistoryOverviewScreen extends StatefulWidget {
   const TripHistoryOverviewScreen({super.key});
 
   @override
-  State<TripHistoryOverviewScreen> createState() => _TripHistoryOverviewScreenState();
+  State<TripHistoryOverviewScreen> createState() =>
+      _TripHistoryOverviewScreenState();
 }
 
 class _TripHistoryOverviewScreenState extends State<TripHistoryOverviewScreen> {
@@ -40,19 +41,25 @@ class _TripHistoryOverviewScreenState extends State<TripHistoryOverviewScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final thisMonth = (_historyData?['this_month'] as List<dynamic>? ?? []).where((item) {
+    final thisMonth =
+        (_historyData?['this_month'] as List<dynamic>? ?? []).where((item) {
       if (_selectedTab == 0) return true;
       final type = (item['type'] ?? '').toString().toLowerCase();
-      if (_selectedTab == 1) return type.contains('pickup') || type.contains('login');
-      if (_selectedTab == 2) return type.contains('drop') || type.contains('logout');
+      if (_selectedTab == 1)
+        return type.contains('pickup') || type.contains('login');
+      if (_selectedTab == 2)
+        return type.contains('drop') || type.contains('logout');
       return true;
     }).toList();
 
-    final lastMonth = (_historyData?['last_month'] as List<dynamic>? ?? []).where((item) {
+    final lastMonth =
+        (_historyData?['last_month'] as List<dynamic>? ?? []).where((item) {
       if (_selectedTab == 0) return true;
       final type = (item['type'] ?? '').toString().toLowerCase();
-      if (_selectedTab == 1) return type.contains('pickup') || type.contains('login');
-      if (_selectedTab == 2) return type.contains('drop') || type.contains('logout');
+      if (_selectedTab == 1)
+        return type.contains('pickup') || type.contains('login');
+      if (_selectedTab == 2)
+        return type.contains('drop') || type.contains('logout');
       return true;
     }).toList();
 
@@ -64,13 +71,15 @@ class _TripHistoryOverviewScreenState extends State<TripHistoryOverviewScreen> {
         onBack: () => context.go(AppRoutes.homeUpcomingPickup),
         actions: [
           IconButton(
-            icon: const Icon(Icons.bar_chart_rounded, color: AppColors.primaryBlue),
+            icon: const Icon(Icons.bar_chart_rounded,
+                color: AppColors.primaryBlue),
             onPressed: () => context.push(AppRoutes.tripSummaryAnalytics),
           ),
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primaryBlue))
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primaryBlue))
           : SafeArea(
               child: Column(
                 children: [
@@ -84,7 +93,8 @@ class _TripHistoryOverviewScreenState extends State<TripHistoryOverviewScreen> {
                   // Trip History List
                   Expanded(
                     child: ListView(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 16),
                       children: [
                         if (thisMonth.isNotEmpty) ...[
                           Text(
@@ -115,7 +125,8 @@ class _TripHistoryOverviewScreenState extends State<TripHistoryOverviewScreen> {
                           const EmployeeEmptyState(
                             icon: Icons.history_rounded,
                             title: 'No Trip History',
-                            description: 'No completed commute trips recorded in this period.',
+                            description:
+                                'No completed commute trips recorded in this period.',
                           ),
                       ],
                     ),
@@ -128,8 +139,7 @@ class _TripHistoryOverviewScreenState extends State<TripHistoryOverviewScreen> {
         onTap: (index) {
           if (index == 0) context.go(AppRoutes.homeUpcomingPickup);
           if (index == 1) context.go(AppRoutes.scheduleToday);
-          if (index == 3) context.go(AppRoutes.safetyOverview);
-          if (index == 4) context.go(AppRoutes.profileDetails);
+          if (index == 3) context.go(AppRoutes.profileDetails);
         },
       ),
     );
@@ -151,4 +161,3 @@ class _TripHistoryOverviewScreenState extends State<TripHistoryOverviewScreen> {
     );
   }
 }
-

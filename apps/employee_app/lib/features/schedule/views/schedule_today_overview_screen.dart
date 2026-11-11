@@ -10,10 +10,12 @@ class ScheduleTodayOverviewScreen extends StatefulWidget {
   const ScheduleTodayOverviewScreen({super.key});
 
   @override
-  State<ScheduleTodayOverviewScreen> createState() => _ScheduleTodayOverviewScreenState();
+  State<ScheduleTodayOverviewScreen> createState() =>
+      _ScheduleTodayOverviewScreenState();
 }
 
-class _ScheduleTodayOverviewScreenState extends State<ScheduleTodayOverviewScreen> {
+class _ScheduleTodayOverviewScreenState
+    extends State<ScheduleTodayOverviewScreen> {
   Map<String, dynamic>? _profile;
   Map<String, dynamic>? _todaySchedule;
   bool _isLoading = true;
@@ -40,7 +42,8 @@ class _ScheduleTodayOverviewScreenState extends State<ScheduleTodayOverviewScree
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: AppColors.primaryBlue)),
+        body: Center(
+            child: CircularProgressIndicator(color: AppColors.primaryBlue)),
       );
     }
 
@@ -66,7 +69,8 @@ class _ScheduleTodayOverviewScreenState extends State<ScheduleTodayOverviewScree
               EmployeeGreetingHeader(
                 name: name,
                 unreadNotificationsCount: 1,
-                onNotificationTap: () => context.push(AppRoutes.notificationsCenter),
+                onNotificationTap: () =>
+                    context.push(AppRoutes.notificationsCenter),
                 onProfileTap: () => context.push(AppRoutes.profileDetails),
               ),
 
@@ -98,7 +102,8 @@ class _ScheduleTodayOverviewScreenState extends State<ScheduleTodayOverviewScree
                     onTap: () => context.push(AppRoutes.scheduleWeekly),
                     borderRadius: BorderRadius.circular(12),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
@@ -149,7 +154,8 @@ class _ScheduleTodayOverviewScreenState extends State<ScheduleTodayOverviewScree
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
                             color: Colors.white.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(12),
@@ -194,7 +200,8 @@ class _ScheduleTodayOverviewScreenState extends State<ScheduleTodayOverviewScree
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
                                       'Login (Pickup)',
@@ -258,7 +265,8 @@ class _ScheduleTodayOverviewScreenState extends State<ScheduleTodayOverviewScree
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
                                       'Logout (Drop)',
@@ -332,11 +340,9 @@ class _ScheduleTodayOverviewScreenState extends State<ScheduleTodayOverviewScree
         onTap: (index) {
           if (index == 0) context.go(AppRoutes.homeUpcomingPickup);
           if (index == 2) context.go(AppRoutes.historyOverview);
-          if (index == 3) context.go(AppRoutes.safetyOverview);
-          if (index == 4) context.go(AppRoutes.profileDetails);
+          if (index == 3) context.go(AppRoutes.profileDetails);
         },
       ),
     );
   }
 }
-
