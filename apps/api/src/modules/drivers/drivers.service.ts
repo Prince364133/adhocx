@@ -502,6 +502,21 @@ export class DriversService {
     const cleanRcNumber = dto.rcNumber?.trim().toUpperCase() || plate;
     const vehicleType = (dto.vehicle?.type || dto.vehicleType || VehicleType.SEDAN) as VehicleType;
     const vehicleModel = dto.vehicle?.model || dto.vehicleModel || 'Commercial Fleet';
+    const cleanVehicleColor =
+      (dto.vehicleColor || dto.color || dto.vehicle?.color || '').trim() || undefined;
+    const cleanModelYear =
+      (dto.modelYear || dto.vehicleYear || dto.vehicle?.modelYear || dto.vehicle?.year || '').trim() || undefined;
+    const cleanInsurancePolicy =
+      (dto.insurancePolicyNumber || dto.vehicle?.insurancePolicyNumber || '').trim().toUpperCase() || undefined;
+    const cleanInsuranceCompany =
+      (dto.insuranceCompany || dto.vehicle?.insuranceCompany || '').trim() || undefined;
+    const cleanInsuranceExpiry =
+      (dto.insuranceExpiry || dto.vehicle?.insuranceExpiry || '').trim() || undefined;
+    const parsedInsuranceExpiry = cleanInsuranceExpiry ? new Date(cleanInsuranceExpiry) : null;
+    const validInsuranceExpiry =
+      parsedInsuranceExpiry && !Number.isNaN(parsedInsuranceExpiry.getTime())
+        ? parsedInsuranceExpiry
+        : undefined;
 
     const cleanPhone = dto.phone ? dto.phone.trim().replace(/\s+/g, '') : undefined;
     const cleanEmail = dto.email ? dto.email.trim().toLowerCase() : undefined;
@@ -585,6 +600,11 @@ export class DriversService {
         ...(cleanDlNumber ? { dlNumber: cleanDlNumber } : {}),
         ...(cleanPanNumber ? { panNumber: cleanPanNumber } : {}),
         ...(cleanRcNumber ? { rcNumber: cleanRcNumber } : {}),
+        ...(cleanVehicleColor ? { vehicleColor: cleanVehicleColor } : {}),
+        ...(cleanModelYear ? { modelYear: cleanModelYear } : {}),
+        ...(cleanInsurancePolicy ? { insurancePolicyNumber: cleanInsurancePolicy } : {}),
+        ...(cleanInsuranceCompany ? { insuranceCompany: cleanInsuranceCompany } : {}),
+        ...(cleanInsuranceExpiry ? { insuranceExpiry: cleanInsuranceExpiry } : {}),
         documents: docsList.length > 0 ? docsList : (((existingDriver.kycDocuments as any)?.documents) || []),
       };
 
@@ -627,6 +647,7 @@ export class DriversService {
               registrationNumber: plate,
               vehicleType,
               model: vehicleModel,
+              ...(validInsuranceExpiry ? { insuranceExpiry: validInsuranceExpiry } : {}),
               verificationStatus: VerificationStatus.UNDER_REVIEW,
             },
           });
@@ -637,6 +658,7 @@ export class DriversService {
               vehicleType,
               model: vehicleModel,
               registrationNumber: plate,
+              ...(validInsuranceExpiry ? { insuranceExpiry: validInsuranceExpiry } : {}),
               verificationStatus: VerificationStatus.UNDER_REVIEW,
             },
           });
@@ -673,6 +695,11 @@ export class DriversService {
         ...(cleanDlNumber ? { dlNumber: cleanDlNumber } : {}),
         ...(cleanPanNumber ? { panNumber: cleanPanNumber } : {}),
         ...(cleanRcNumber ? { rcNumber: cleanRcNumber } : {}),
+        ...(cleanVehicleColor ? { vehicleColor: cleanVehicleColor } : {}),
+        ...(cleanModelYear ? { modelYear: cleanModelYear } : {}),
+        ...(cleanInsurancePolicy ? { insurancePolicyNumber: cleanInsurancePolicy } : {}),
+        ...(cleanInsuranceCompany ? { insuranceCompany: cleanInsuranceCompany } : {}),
+        ...(cleanInsuranceExpiry ? { insuranceExpiry: cleanInsuranceExpiry } : {}),
         documents: docsList,
       };
 
@@ -711,6 +738,7 @@ export class DriversService {
             vehicleType,
             model: vehicleModel,
             registrationNumber: plate,
+            ...(validInsuranceExpiry ? { insuranceExpiry: validInsuranceExpiry } : {}),
             verificationStatus: VerificationStatus.UNDER_REVIEW,
           },
         });

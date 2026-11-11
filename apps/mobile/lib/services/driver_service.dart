@@ -285,6 +285,11 @@ class DriverService {
     String? dlNumber,
     String? panNumber,
     String? rcNumber,
+    String? color,
+    String? modelYear,
+    String? insurancePolicyNumber,
+    String? insuranceCompany,
+    String? insuranceExpiry,
   }) async {
     await _ensureDriverSession();
     final res = await _api.post(
@@ -316,6 +321,14 @@ class DriverService {
         if (panDocUrl != null) 'panDocUrl': panDocUrl,
         if (panNumber != null && panNumber.isNotEmpty) 'panNumber': panNumber,
         if (rcNumber != null && rcNumber.isNotEmpty) 'rcNumber': rcNumber,
+        if (color != null && color.isNotEmpty) 'vehicleColor': color,
+        if (modelYear != null && modelYear.isNotEmpty) 'modelYear': modelYear,
+        if (insurancePolicyNumber != null && insurancePolicyNumber.isNotEmpty)
+          'insurancePolicyNumber': insurancePolicyNumber,
+        if (insuranceCompany != null && insuranceCompany.isNotEmpty)
+          'insuranceCompany': insuranceCompany,
+        if (insuranceExpiry != null && insuranceExpiry.isNotEmpty)
+          'insuranceExpiry': insuranceExpiry,
       },
     );
     invalidateCache(profile: true);

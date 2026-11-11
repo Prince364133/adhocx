@@ -57,7 +57,9 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
     if (!onboarding.isRcBackSatisfied && vDocs['rc'] != true) {
       missingDocs.add('RC Back');
     }
-    if (onboarding.insuranceUrl == null) missingDocs.add('Insurance');
+    if (!onboarding.isInsuranceSatisfied && vDocs['insurance'] != true) {
+      missingDocs.add('Insurance');
+    }
     if (!onboarding.isAadhaarFrontSatisfied && vDocs['aadhaar'] != true) {
       missingDocs.add('Aadhaar Front');
     }
@@ -93,7 +95,7 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
       final dlUrl = onboarding.drivingLicenseUrl;
       final rcFUrl = onboarding.rcFrontUrl ?? onboarding.rcBookUrl;
       final rcBUrl = onboarding.rcBackUrl;
-      final insUrl = onboarding.insuranceUrl!;
+      final insUrl = onboarding.insuranceUrl;
       final vehUrl = onboarding.vehiclePhotoUrl;
       final aadharFUrl = onboarding.aadharFrontUrl;
       final aadharBUrl = onboarding.aadharBackUrl;
@@ -104,7 +106,7 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
         if (dlUrl != null) dlUrl,
         if (rcFUrl != null) rcFUrl,
         if (rcBUrl != null) rcBUrl,
-        insUrl,
+        if (insUrl != null) insUrl,
         if (vehUrl != null) vehUrl,
         if (aadharFUrl != null) aadharFUrl,
         if (aadharBUrl != null) aadharBUrl,
@@ -116,6 +118,17 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
         dlNumber: onboarding.dlNumber.isNotEmpty ? onboarding.dlNumber : null,
         panNumber: onboarding.panNumber.isNotEmpty ? onboarding.panNumber : null,
         rcNumber: onboarding.registrationNumber.isNotEmpty ? onboarding.registrationNumber : null,
+        color: onboarding.color.isNotEmpty ? onboarding.color : null,
+        modelYear: onboarding.modelYear.isNotEmpty ? onboarding.modelYear : null,
+        insurancePolicyNumber: onboarding.insurancePolicyNumber.isNotEmpty
+            ? onboarding.insurancePolicyNumber
+            : null,
+        insuranceCompany: onboarding.insuranceCompany.isNotEmpty
+            ? onboarding.insuranceCompany
+            : null,
+        insuranceExpiry: onboarding.insuranceExpiry.isNotEmpty
+            ? onboarding.insuranceExpiry
+            : null,
         documentUrls: docList,
         phone: onboarding.phone.isNotEmpty ? onboarding.phone : null,
         email: onboarding.email.isNotEmpty ? onboarding.email.trim() : null,
@@ -421,7 +434,7 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
                         final bool hasDl = onboarding.isDlSatisfied || vDocs['dl'] == true;
                         final bool hasRcF = onboarding.isRcFrontSatisfied || vDocs['rc'] == true;
                         final bool hasRcB = onboarding.isRcBackSatisfied || vDocs['rc'] == true;
-                        final bool hasIns = onboarding.insuranceUrl != null;
+                        final bool hasIns = onboarding.isInsuranceSatisfied || vDocs['insurance'] == true;
                         final bool hasVeh = onboarding.vehiclePhotoUrl != null;
                         final bool hasAadF = onboarding.isAadhaarFrontSatisfied || vDocs['aadhaar'] == true;
                         final bool hasAadB = onboarding.isAadhaarBackSatisfied || vDocs['aadhaar'] == true;
@@ -441,6 +454,7 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
                           ('PAN', 'PAN', latest['PAN']?['verified'] == true || vDocs['pan'] == true),
                           ('DRIVING_LICENSE', 'DL', latest['DRIVING_LICENSE']?['verified'] == true || vDocs['dl'] == true),
                           ('VEHICLE_RC', 'Vehicle RC', latest['VEHICLE_RC']?['verified'] == true || vDocs['rc'] == true),
+                          ('VEHICLE_INSURANCE', 'Insurance', latest['VEHICLE_INSURANCE']?['verified'] == true || vDocs['insurance'] == true),
                           ('FACE_MATCH', 'Face Match', latest['FACE_MATCH']?['verified'] == true),
                           ('DIGILOCKER', 'DigiLocker', vDocs['digilocker'] == true),
                         ];

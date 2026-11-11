@@ -541,7 +541,6 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen>
         final panOk = vDocs['pan'] == true || onboarding.isPanVerifiedDigitally;
         final dlOk = vDocs['dl'] == true || onboarding.isDlVerifiedDigitally;
         final dlkrOk = vDocs['digilocker'] == true;
-        final faceOk = latest['FACE_MATCH']?['verified'] == true;
         final livenessOk = latest['LIVENESS']?['verified'] == true;
         final ocrOk = latest['ID_OCR']?['verified'] == true;
 
@@ -572,91 +571,120 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen>
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
-              Text(
-                'Connect DigiLocker or verify Govt IDs below — verified documents auto-mark green with no duplicate upload. Admin reviews all KYC before activation.',
-                style: AppTypography.caption(
-                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                ),
-              ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               ValueListenableBuilder<String?>(
                 valueListenable: DigioService.instance.activeDigilockerRequestId,
                 builder: (context, activeKid, _) {
-                  return Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
+                  final greenColor = isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark;
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      ActionChip(
-                        avatar: Icon(
-                          dlkrOk ? Icons.check_circle : Icons.account_balance_wallet_outlined,
-                          size: 16,
-                          color: dlkrOk ? AppColors.accentGreenDark : AppColors.primary,
-                        ),
-                        label: Text(dlkrOk ? 'DigiLocker Verified' : 'Connect DigiLocker'),
-                        onPressed: dlkrOk ? null : () => _launchDigilockerFlow(context, onboarding),
-                      ),
-                      if (activeKid != null)
-                        ActionChip(
-                          avatar: const Icon(Icons.sync_rounded, size: 16),
-                          label: const Text('Sync DigiLocker'),
-                          onPressed: () => _syncDigilocker(activeKid),
-                        ),
-                      ActionChip(
-                        avatar: Icon(
-                          panOk ? Icons.check_circle : Icons.badge_outlined,
-                          size: 16,
-                          color: panOk ? AppColors.accentGreenDark : null,
-                        ),
-                        label: Text(panOk ? 'PAN Verified' : 'Verify PAN'),
-                        onPressed: panOk ? null : () => _showPanVerifySheet(context, onboarding),
-                      ),
-                      ActionChip(
-                        avatar: Icon(
-                          dlOk ? Icons.check_circle : Icons.credit_card_outlined,
-                          size: 16,
-                          color: dlOk ? AppColors.accentGreenDark : null,
-                        ),
-                        label: Text(dlOk ? 'DL Verified' : 'Verify DL'),
-                        onPressed: dlOk ? null : () => _showDlVerifySheet(context, onboarding),
-                      ),
-                      if (onboarding.profilePhotoUrl != null &&
-                          (onboarding.drivingLicenseUrl != null || onboarding.aadharFrontUrl != null))
-                        ActionChip(
-                          avatar: Icon(
-                            faceOk ? Icons.face_retouching_natural : Icons.face_outlined,
-                            size: 16,
-                            color: faceOk ? AppColors.accentGreenDark : null,
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: dlkrOk ? greenColor : AppColors.primary,
+                            disabledBackgroundColor: greenColor.withValues(alpha: 0.16),
+                            disabledForegroundColor: greenColor,
+                            foregroundColor: Colors.white,
+                            elevation: dlkrOk ? 0 : 1,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(AppRadius.md),
+                              side: dlkrOk
+                                  ? BorderSide(color: greenColor.withValues(alpha: 0.45))
+                                  : BorderSide.none,
+                            ),
+                          ),
+                          icon: Icon(
+                            dlkrOk ? Icons.check_circle_rounded : Icons.verified_user_outlined,
+                            size: 20,
                           ),
                           label: Text(
-                            faceOk && latest['FACE_MATCH']?['matchScore'] != null
-                                ? 'Face ${latest['FACE_MATCH']['matchScore']}%'
-                                : 'Run Face Match',
+                            dlkrOk ? 'DigiLocker Verified' : 'Verify with DigiLocker',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                            ),
                           ),
-                          onPressed: () async {
-                            try {
-                              final res = await DigioService.instance.faceMatchStored(
-                                image1Url: onboarding.profilePhotoUrl,
-                                image2Url: onboarding.drivingLicenseUrl ?? onboarding.aadharFrontUrl,
-                              );
-                              if (context.mounted) {
-                                if (res['verified'] == true) {
-                                  AppToast.showSuccess(
-                                    'Face Match passed (${res['matchScore']}%)',
-                                    context: context,
-                                  );
-                                } else {
-                                  AppToast.showError(
-                                    res['complianceNotes']?.toString() ?? 'Face match failed',
-                                    context: context,
-                                  );
-                                }
-                              }
-                            } catch (e) {
-                              if (context.mounted) AppToast.showError(AppToast.cleanErrorMessage(e), context: context);
-                            }
-                          },
+                          onPressed: dlkrOk ? null : () => _launchDigilockerFlow(context, onboarding),
                         ),
+                      ),
+                      if (activeKid != null) ...[
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.sync_rounded, size: 16),
+                            label: const Text('Sync DigiLocker'),
+                            onPressed: () => _syncDigilocker(activeKid),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 8),
+                                foregroundColor: panOk
+                                    ? greenColor
+                                    : (isDark ? AppColors.textPrimaryDark : AppColors.primary),
+                                backgroundColor: panOk ? greenColor.withValues(alpha: 0.10) : null,
+                                side: BorderSide(
+                                  color: panOk
+                                      ? greenColor.withValues(alpha: 0.45)
+                                      : (isDark ? AppColors.borderDark : AppColors.primary.withValues(alpha: 0.35)),
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(AppRadius.md),
+                                ),
+                              ),
+                              icon: Icon(
+                                panOk ? Icons.check_circle : Icons.badge_outlined,
+                                size: 16,
+                                color: panOk ? greenColor : null,
+                              ),
+                              label: Text(
+                                panOk ? 'PAN Verified' : 'Verify PAN',
+                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                              ),
+                              onPressed: panOk ? null : () => _showPanVerifySheet(context, onboarding),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 8),
+                                foregroundColor: dlOk
+                                    ? greenColor
+                                    : (isDark ? AppColors.textPrimaryDark : AppColors.primary),
+                                backgroundColor: dlOk ? greenColor.withValues(alpha: 0.10) : null,
+                                side: BorderSide(
+                                  color: dlOk
+                                      ? greenColor.withValues(alpha: 0.45)
+                                      : (isDark ? AppColors.borderDark : AppColors.primary.withValues(alpha: 0.35)),
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(AppRadius.md),
+                                ),
+                              ),
+                              icon: Icon(
+                                dlOk ? Icons.check_circle : Icons.credit_card_outlined,
+                                size: 16,
+                                color: dlOk ? greenColor : null,
+                              ),
+                              label: Text(
+                                dlOk ? 'DL Verified' : 'Verify DL',
+                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                              ),
+                              onPressed: dlOk ? null : () => _showDlVerifySheet(context, onboarding),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   );
                 },
@@ -692,16 +720,6 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen>
       DigioService.instance.latestByTypeNotifier.value,
     );
 
-    if (onboarding.profilePhotoUrl == null ||
-        onboarding.profilePhotoUrl!.trim().isEmpty ||
-        onboarding.profilePhotoUrl == 'null' ||
-        onboarding.profilePhotoUrl == 'undefined') {
-      const msg = 'Please upload your Driver Profile Photo before proceeding';
-      setState(() => _inlineErrorMessage = msg);
-      AppToast.showError(msg, context: context);
-      return;
-    }
-
     final dlOk = onboarding.isDlSatisfied || vDocs['dl'] == true;
     if (!dlOk) {
       const msg = 'Please upload or verify your Driving License before proceeding';
@@ -735,19 +753,14 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen>
     }
 
     setState(() => _inlineErrorMessage = null);
-    // Step 3 of 3: Vehicle Verification (Add Vehicle)
-    context.push(AppRoutes.onboardingVehicleScreen);
+    // In-app Face Verification captures live selfie before Vehicle Details
+    context.push(AppRoutes.onboardingFaceVerificationScreen);
   }
 
   @override
   Widget build(BuildContext context) {
     final onboarding = context.watch<OnboardingProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    final bool hasProfilePhoto = onboarding.profilePhotoUrl != null &&
-        onboarding.profilePhotoUrl!.trim().isNotEmpty &&
-        onboarding.profilePhotoUrl != 'null' &&
-        onboarding.profilePhotoUrl != 'undefined';
 
     return ValueListenableBuilder<Map<String, dynamic>>(
       valueListenable: DigioService.instance.latestByTypeNotifier,
@@ -772,7 +785,7 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen>
         final bool panDigitallyVerified =
             vDocs['pan'] == true || onboarding.isPanVerifiedDigitally;
 
-        final int uploadedCount = (hasProfilePhoto ? 1 : 0) +
+        final int uploadedCount =
             ((onboarding.drivingLicenseUrl != null || dlDigitallyVerified) ? 1 : 0) +
             ((onboarding.aadharFrontUrl != null || aadhaarDigitallyVerified) ? 1 : 0) +
             ((onboarding.aadharBackUrl != null || aadhaarDigitallyVerified) ? 1 : 0) +
@@ -819,14 +832,14 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen>
                         ),
                         const SizedBox(height: AppSpacing.xs),
                         Text(
-                          'Step 2 of 3: Upload your photo and mandatory government documents ($uploadedCount/5 uploaded)',
+                          'Step 2 of 3: Verify or upload your government documents ($uploadedCount/4 ready)',
                           style: AppTypography.body(
                             color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                           ),
                         ),
                         const SizedBox(height: AppSpacing.lg),
 
-                        // ── Digio Express KYC & Govt Verification ────────────
+                        // ── Instant KYC & DigiLocker ─────────────────────────
                         _buildDigioAssistantBanner(context, onboarding, isDark),
                         const SizedBox(height: AppSpacing.md),
 
@@ -860,19 +873,7 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen>
                           const SizedBox(height: AppSpacing.md),
                         ],
 
-                        // ── Document 1: Profile Photo ────────────────────────
-                        AppDocumentUploadTile(
-                          title: 'Driver Profile Photo *',
-                          subtitle: 'Clear front-facing selfie or portrait',
-                          icon: Icons.account_circle_outlined,
-                          isUploaded: hasProfilePhoto,
-                          isUploading: _uploadingState['PROFILE_PHOTO'] ?? false,
-                          onUploadTap: () =>
-                              _showImageSourcePicker('PROFILE_PHOTO', 'Driver Profile Photo'),
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-
-                        // ── Document 2: Driving License ──────────────────────
+                        // ── Document 1: Driving License ──────────────────────
                         AppDocumentUploadTile(
                           title: 'Driving License *',
                           subtitle: 'Front side of commercial / transport driving license',
@@ -949,7 +950,7 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen>
                     vertical: AppSpacing.md,
                   ),
                   child: AppPrimaryButton(
-                    text: 'CONTINUE TO VEHICLE DETAILS',
+                    text: 'CONTINUE TO FACE VERIFICATION',
                     onPressed: _handleContinue,
                   ),
                 ),

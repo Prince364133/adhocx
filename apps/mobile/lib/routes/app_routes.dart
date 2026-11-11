@@ -14,6 +14,7 @@ import '../presentation/10_choose_role_screen/choose_role_screen.dart';
 import '../presentation/11_onboarding_personal_screen/onboarding_personal_screen.dart';
 import '../presentation/12_onboarding_vehicle_screen/onboarding_vehicle_screen.dart';
 import '../presentation/13_onboarding_documents_screen/onboarding_documents_screen.dart';
+import '../presentation/15_onboarding_face_verification_screen/onboarding_face_verification_screen.dart';
 import '../presentation/14_onboarding_review_screen/onboarding_review_screen.dart';
 import '../presentation/15_welcome_success_screen/welcome_success_screen.dart';
 import '../presentation/edge_cases/global_state_gallery_screen.dart';
@@ -117,6 +118,7 @@ class AppRoutes {
   static const String onboardingPersonalScreen = '/onboarding-personal';
   static const String onboardingVehicleScreen = '/onboarding-vehicle';
   static const String onboardingDocumentsScreen = '/onboarding-documents';
+  static const String onboardingFaceVerificationScreen = '/onboarding-face-verification';
   static const String onboardingReviewScreen = '/onboarding-review';
   static const String welcomeSuccessScreen = '/welcome-success';
 
@@ -553,6 +555,7 @@ final GoRouter appRouter = GoRouter(
         AppRoutes.onboardingPersonalScreen,
         AppRoutes.onboardingVehicleScreen,
         AppRoutes.onboardingDocumentsScreen,
+        AppRoutes.onboardingFaceVerificationScreen,
         AppRoutes.onboardingReviewScreen,
         AppRoutes.welcomeSuccessScreen,
         AppRoutes.setPasswordScreen,
@@ -577,6 +580,7 @@ final GoRouter appRouter = GoRouter(
         if (currentPath == AppRoutes.onboardingPersonalScreen ||
             currentPath == AppRoutes.onboardingVehicleScreen ||
             currentPath == AppRoutes.onboardingDocumentsScreen ||
+            currentPath == AppRoutes.onboardingFaceVerificationScreen ||
             currentPath == AppRoutes.onboardingReviewScreen ||
             currentPath == AppRoutes.chooseRoleScreen) {
           return AppRoutes.waitlistGateScreen;
@@ -589,6 +593,7 @@ final GoRouter appRouter = GoRouter(
         AppRoutes.chooseRoleScreen,
         AppRoutes.onboardingPersonalScreen,
         AppRoutes.onboardingDocumentsScreen,
+        AppRoutes.onboardingFaceVerificationScreen,
         AppRoutes.onboardingVehicleScreen,
         AppRoutes.onboardingReviewScreen,
         AppRoutes.kycUploadScreen,
@@ -626,6 +631,7 @@ final GoRouter appRouter = GoRouter(
       AppRoutes.onboardingPersonalScreen,
       AppRoutes.onboardingVehicleScreen,
       AppRoutes.onboardingDocumentsScreen,
+      AppRoutes.onboardingFaceVerificationScreen,
       AppRoutes.onboardingReviewScreen,
       AppRoutes.waitlistGateScreen,
     };
@@ -734,6 +740,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: AppRoutes.onboardingDocumentsScreen,
       builder: (context, state) => const OnboardingDocumentsScreen(),
+    ),
+    GoRoute(
+      path: AppRoutes.onboardingFaceVerificationScreen,
+      builder: (context, state) => const OnboardingFaceVerificationScreen(),
     ),
     GoRoute(
       path: AppRoutes.onboardingReviewScreen,

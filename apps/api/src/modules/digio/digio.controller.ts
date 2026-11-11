@@ -45,6 +45,7 @@ import {
   VerifyUanDto,
   VerifyUdyamDto,
   VerifyUpiVpaDto,
+  VerifyVehicleInsuranceDto,
   VerifyVehicleRcDto,
   VerifyVoterIdDto,
 } from '@adhocx/contracts';
@@ -145,6 +146,18 @@ export class DigioController {
     @Body() dto: VerifyVehicleRcDto,
   ) {
     return this.digioService.verifyVehicleRc(user, dto);
+  }
+
+  @Post('vehicle-insurance')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.DRIVER, UserRole.VENDOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Verify Commercial Insurance policy number against Parivahan RC record' })
+  verifyVehicleInsurance(
+    @CurrentUser() user: AuthUserDto,
+    @Body() dto: VerifyVehicleInsuranceDto,
+  ) {
+    return this.digioService.verifyVehicleInsurance(user, dto);
   }
 
   @Post('passport')

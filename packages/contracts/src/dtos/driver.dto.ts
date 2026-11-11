@@ -141,6 +141,34 @@ export class KycSubmissionDto {
 
   @IsOptional()
   @IsString()
+  vehicleColor?: string;
+
+  @IsOptional()
+  @IsString()
+  color?: string;
+
+  @IsOptional()
+  @IsString()
+  modelYear?: string;
+
+  @IsOptional()
+  @IsString()
+  vehicleYear?: string;
+
+  @IsOptional()
+  @IsString()
+  insurancePolicyNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  insuranceCompany?: string;
+
+  @IsOptional()
+  @IsString()
+  insuranceExpiry?: string;
+
+  @IsOptional()
+  @IsString()
   phone?: string;
 
   @IsOptional()
@@ -274,6 +302,34 @@ export class UpdateDriverProfileDto {
   @IsOptional()
   @IsString()
   vehicleModel?: string;
+
+  @IsOptional()
+  @IsString()
+  vehicleColor?: string;
+
+  @IsOptional()
+  @IsString()
+  color?: string;
+
+  @IsOptional()
+  @IsString()
+  modelYear?: string;
+
+  @IsOptional()
+  @IsString()
+  vehicleYear?: string;
+
+  @IsOptional()
+  @IsString()
+  insurancePolicyNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  insuranceCompany?: string;
+
+  @IsOptional()
+  @IsString()
+  insuranceExpiry?: string;
 
   @IsOptional()
   @IsString()

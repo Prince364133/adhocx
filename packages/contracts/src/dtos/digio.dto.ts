@@ -466,3 +466,29 @@ export class RecordAadhaarConsentDto {
   @IsString()
   textVersion!: string;
 }
+
+export class VerifyVehicleInsuranceDto {
+  @IsNotEmpty({ message: 'Insurance policy / certificate number is required' })
+  @IsString()
+  policyNumber!: string;
+
+  @IsOptional()
+  @IsString()
+  registrationNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  insurerName?: string;
+
+  @IsOptional()
+  @IsString()
+  expiryDate?: string;
+
+  @IsOptional()
+  @IsString()
+  vehicleId?: string;
+
+  @IsOptional()
+  @IsString()
+  targetDriverId?: string;
+}

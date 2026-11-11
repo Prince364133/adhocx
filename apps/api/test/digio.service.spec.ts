@@ -553,4 +553,83 @@ describe('DigioClient & DigioService', () => {
       }),
     );
   });
+
+  it('extracts modelYear, make, model, color, and insuranceActive in Parivahan RC lookup', async () => {
+    jest.spyOn(digioClient, 'verifyVehicleRc').mockResolvedValue({
+      user_details: { owner_name: 'RAMESH KUMAR' },
+      vehicle_details: {
+        rc_number: 'TS07FX4667',
+        rc_status: 'ACTIVE',
+        vehicle_category: 'LMV',
+        maker_description: 'HYUNDAI MOTOR INDIA LTD',
+        maker_model: 'I20 SPORTZ',
+        manufacturing_date_formatted: '2023-04',
+        color: 'TITAN GREY',
+        fit_up_to: '2038-05-01',
+      },
+      finance_details: {
+        insurance_company: 'ICICI LOMBARD',
+        insurance_policy_number: 'POL-HY-998877',
+        insurance_upto: '2029-12-31',
+      },
+      permit_details: { blacklist_status: 'NA' },
+    });
+
+    const res = await digioService.verifyVehicleRc(driverActor, {
+      registrationNumber: 'TS07FX4667',
+    });
+
+    expect(res.verified).toBe(true);
+    expect(res.summary?.modelYear).toBe('2023');
+    expect(res.summary?.make).toBe('HYUNDAI MOTOR INDIA LTD');
+    expect(res.summary?.model).toBe('I20 SPORTZ');
+    expect(res.summary?.color).toBe('TITAN GREY');
+    expect(res.summary?.insurancePolicyNumber).toBe('POL-HY-998877');
+    expect(res.summary?.insuranceActive).toBe(true);
+  });
+
+  it('maps upstream Parivahan RC failure to PARIVAHAN_LOOKUP_UNAVAILABLE instead of opaque 500 text', async () => {
+    jest.spyOn(digioClient, 'verifyVehicleRc').mockRejectedValue(
+      new Error('Internal failure'),
+    );
+
+    await expect(
+      digioService.verifyVehicleRc(driverActor, { registrationNumber: 'TG07FX4667' }),
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({
+        code: 'PARIVAHAN_LOOKUP_UNAVAILABLE',
+      }),
+    });
+  });
+
+  it('verifies commercial insurance policy number against Parivahan RC records and falls back gracefully on mismatch', async () => {
+    jest.spyOn(digioClient, 'verifyVehicleRc').mockResolvedValue({
+      user_details: { owner_name: 'RAMESH KUMAR' },
+      vehicle_details: {
+        rc_number: 'TS07FX4667',
+        rc_status: 'ACTIVE',
+      },
+      finance_details: {
+        insurance_company: 'HDFC ERGO',
+        insurance_policy_number: 'POL-12345-ABC',
+        insurance_upto: '2029-05-01',
+      },
+      permit_details: { blacklist_status: 'NA' },
+    });
+
+    const ok = await digioService.verifyVehicleInsurance(driverActor, {
+      registrationNumber: 'TS07FX4667',
+      policyNumber: 'pol 12345 abc',
+    });
+    expect(ok.verified).toBe(true);
+    expect(ok.complianceOk).toBe(true);
+    expect(ok.verificationType).toBe('VEHICLE_INSURANCE');
+
+    const mismatch = await digioService.verifyVehicleInsurance(driverActor, {
+      registrationNumber: 'TS07FX4667',
+      policyNumber: 'OTHER-99999',
+    });
+    expect(mismatch.verified).toBe(false);
+    expect(mismatch.complianceOk).toBe(false);
+  });
 });

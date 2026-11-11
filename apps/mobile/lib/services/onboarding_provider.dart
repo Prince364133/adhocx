@@ -37,6 +37,9 @@ class OnboardingProvider extends ChangeNotifier {
   String _modelYear = '';
   String _dlNumber = '';
   String _rcNumber = '';
+  String _insurancePolicyNumber = '';
+  String _insuranceCompany = '';
+  String _insuranceExpiry = '';
 
   // Document Uploads (URLs from Cloudflare R2)
   String? _profilePhotoUrl;
@@ -54,6 +57,7 @@ class OnboardingProvider extends ChangeNotifier {
   bool _panVerifiedDigitally = false;
   bool _dlVerifiedDigitally = false;
   bool _rcVerifiedDigitally = false;
+  bool _insuranceVerifiedDigitally = false;
 
   // Getters
   String get role => _role;
@@ -104,10 +108,15 @@ class OnboardingProvider extends ChangeNotifier {
   String? get panCardUrl => _panCardUrl;
   String? get selfieUrl => _selfieUrl ?? _profilePhotoUrl;
 
+  String get insurancePolicyNumber => _insurancePolicyNumber;
+  String get insuranceCompany => _insuranceCompany;
+  String get insuranceExpiry => _insuranceExpiry;
+
   bool get isAadhaarVerifiedDigitally => _aadhaarVerifiedDigitally;
   bool get isPanVerifiedDigitally => _panVerifiedDigitally;
   bool get isDlVerifiedDigitally => _dlVerifiedDigitally;
   bool get isRcVerifiedDigitally => _rcVerifiedDigitally;
+  bool get isInsuranceVerifiedDigitally => _insuranceVerifiedDigitally;
 
   bool get isAadhaarFrontSatisfied =>
       _aadharFrontUrl != null || _aadhaarVerifiedDigitally;
@@ -118,13 +127,15 @@ class OnboardingProvider extends ChangeNotifier {
   bool get isRcFrontSatisfied =>
       _rcFrontUrl != null || _rcBookUrl != null || _rcVerifiedDigitally;
   bool get isRcBackSatisfied => _rcBackUrl != null || _rcVerifiedDigitally;
+  bool get isInsuranceSatisfied =>
+      _insuranceUrl != null || _insuranceVerifiedDigitally;
 
   int get uploadedDocumentsCount {
     int count = 0;
     if (isDlSatisfied) count++;
     if (isRcFrontSatisfied) count++;
     if (isRcBackSatisfied) count++;
-    if (_insuranceUrl != null) count++;
+    if (isInsuranceSatisfied) count++;
     if (_vehiclePhotoUrl != null) count++;
     if (isAadhaarFrontSatisfied) count++;
     if (isAadhaarBackSatisfied) count++;
@@ -250,6 +261,19 @@ class OnboardingProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setInsuranceDetails({
+    String? policyNumber,
+    String? insurerName,
+    String? expiryDate,
+  }) {
+    if (policyNumber != null) {
+      _insurancePolicyNumber = policyNumber.trim().toUpperCase();
+    }
+    if (insurerName != null) _insuranceCompany = insurerName.trim();
+    if (expiryDate != null) _insuranceExpiry = expiryDate.trim();
+    notifyListeners();
+  }
+
   void setKycIdentifiers({
     String? dlNumber,
     String? panNumber,
@@ -342,6 +366,8 @@ class OnboardingProvider extends ChangeNotifier {
         (v) => _dlVerifiedDigitally = v);
     setFlag(_rcVerifiedDigitally, docs['rc'] == true,
         (v) => _rcVerifiedDigitally = v);
+    setFlag(_insuranceVerifiedDigitally, docs['insurance'] == true,
+        (v) => _insuranceVerifiedDigitally = v);
 
     if (ids['dlNumber'] != null && _dlNumber.isEmpty) {
       _dlNumber = ids['dlNumber']!;
@@ -357,6 +383,30 @@ class OnboardingProvider extends ChangeNotifier {
     }
     if (ids['rcNumber'] != null && _registrationNumber.isEmpty) {
       _registrationNumber = ids['rcNumber']!;
+      changed = true;
+    }
+    if (ids['vehicleModel'] != null && _carModel.isEmpty) {
+      _carModel = ids['vehicleModel']!;
+      changed = true;
+    }
+    if (ids['color'] != null && _color.isEmpty) {
+      _color = ids['color']!;
+      changed = true;
+    }
+    if (ids['modelYear'] != null && _modelYear.isEmpty) {
+      _modelYear = ids['modelYear']!;
+      changed = true;
+    }
+    if (ids['insurancePolicyNumber'] != null && _insurancePolicyNumber.isEmpty) {
+      _insurancePolicyNumber = ids['insurancePolicyNumber']!;
+      changed = true;
+    }
+    if (ids['insuranceCompany'] != null && _insuranceCompany.isEmpty) {
+      _insuranceCompany = ids['insuranceCompany']!;
+      changed = true;
+    }
+    if (ids['insuranceUpto'] != null && _insuranceExpiry.isEmpty) {
+      _insuranceExpiry = ids['insuranceUpto']!;
       changed = true;
     }
 
@@ -426,6 +476,10 @@ class OnboardingProvider extends ChangeNotifier {
     _panVerifiedDigitally = false;
     _dlVerifiedDigitally = false;
     _rcVerifiedDigitally = false;
+    _insuranceVerifiedDigitally = false;
+    _insurancePolicyNumber = '';
+    _insuranceCompany = '';
+    _insuranceExpiry = '';
     notifyListeners();
   }
 }

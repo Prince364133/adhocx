@@ -37,6 +37,26 @@ class AppDocumentUploadTile extends StatelessWidget {
     final bool isSatisfied = isUploaded || isVerifiedDigitally;
     final greenColor =
         isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark;
+    const amberColor = AppColors.warningText;
+    final Color statusBorderColor = isVerifiedDigitally
+        ? greenColor
+        : (isUploaded
+            ? AppColors.warning
+            : (isDark ? AppColors.borderDark : AppColors.borderLight));
+    final Color statusIconBgColor = isVerifiedDigitally
+        ? (isDark
+            ? AppColors.accentGreenLight.withValues(alpha: 0.15)
+            : AppColors.successContainer)
+        : (isUploaded
+            ? AppColors.warning.withValues(alpha: 0.14)
+            : (isDark
+                ? AppColors.surfaceElevatedDark
+                : AppColors.surfaceElevatedLight));
+    final Color statusIconColor = isVerifiedDigitally
+        ? greenColor
+        : (isUploaded
+            ? amberColor
+            : (isDark ? AppColors.primaryLight : AppColors.primary));
 
     return Material(
       color: Colors.transparent,
@@ -56,9 +76,7 @@ class AppDocumentUploadTile extends StatelessWidget {
                 : (isDark ? AppColors.surfaceDark : AppColors.surfaceLight),
             borderRadius: BorderRadius.circular(AppRadius.md),
             border: Border.all(
-              color: isSatisfied
-                  ? greenColor
-                  : (isDark ? AppColors.borderDark : AppColors.borderLight),
+              color: statusBorderColor,
               width: isSatisfied ? 1.5 : 1,
             ),
           ),
@@ -69,22 +87,14 @@ class AppDocumentUploadTile extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: isSatisfied
-                      ? (isDark
-                          ? AppColors.accentGreenLight.withValues(alpha: 0.15)
-                          : AppColors.successContainer)
-                      : (isDark
-                          ? AppColors.surfaceElevatedDark
-                          : AppColors.surfaceElevatedLight),
+                  color: statusIconBgColor,
                   borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
                 alignment: Alignment.center,
                 child: Icon(
                   icon,
                   size: 22,
-                  color: isSatisfied
-                      ? greenColor
-                      : (isDark ? AppColors.primaryLight : AppColors.primary),
+                  color: statusIconColor,
                 ),
               ),
               const SizedBox(width: AppSpacing.md),
@@ -109,16 +119,18 @@ class AppDocumentUploadTile extends StatelessWidget {
                           ? (verifiedSubtitle ??
                               'Verified via DigiLocker — already uploaded')
                           : isSatisfied
-                              ? (uploadedFileName ?? 'Uploaded successfully')
+                              ? (uploadedFileName ?? 'Uploaded — pending review')
                               : subtitle,
                       style: AppTypography.caption(
-                        color: isSatisfied
+                        color: isVerifiedDigitally
                             ? greenColor
-                            : (isDark
-                                ? AppColors.textSecondaryDark
-                                : AppColors.textSecondaryLight),
+                            : isSatisfied
+                                ? AppColors.warningText
+                                : (isDark
+                                    ? AppColors.textSecondaryDark
+                                    : AppColors.textSecondaryLight),
                         fontWeight:
-                            isVerifiedDigitally ? FontWeight.w600 : FontWeight.normal,
+                            isSatisfied ? FontWeight.w600 : FontWeight.normal,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -165,16 +177,28 @@ class AppDocumentUploadTile extends StatelessWidget {
                 )
               else if (isSatisfied)
                 Container(
-                  width: 24,
-                  height: 24,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 9, vertical: 5),
                   decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: greenColor,
+                    color: AppColors.warning.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                    border: Border.all(
+                        color: AppColors.warning.withValues(alpha: 0.45)),
                   ),
-                  child: const Icon(
-                    Icons.check,
-                    size: 16,
-                    color: Colors.white,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.schedule_rounded,
+                          size: 13, color: AppColors.warningText),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Pending Review',
+                        style: AppTypography.caption(
+                          color: AppColors.warningText,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
                   ),
                 )
               else

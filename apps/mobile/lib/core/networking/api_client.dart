@@ -386,7 +386,11 @@ class ApiClient {
     return _handleResponse(response);
   }
 
-  Future<dynamic> post(String endpoint, {dynamic body}) async {
+  Future<dynamic> post(
+    String endpoint, {
+    dynamic body,
+    Duration timeout = const Duration(seconds: 15),
+  }) async {
     final uri = Uri.parse('$baseUrl$endpoint');
     final headers = await _getHeaders(endpoint: endpoint);
     final sw = Stopwatch()..start();
@@ -396,7 +400,7 @@ class ApiClient {
       uri,
       headers: headers,
       body: body != null ? jsonEncode(body) : null,
-    ).timeout(const Duration(seconds: 15));
+    ).timeout(timeout);
     sw.stop();
     AppLogger.httpRes(response.statusCode, 'POST', uri.toString(), sw.elapsed, body: response.body);
 
@@ -410,7 +414,7 @@ class ApiClient {
           uri,
           headers: retryHeaders,
           body: body != null ? jsonEncode(body) : null,
-        ).timeout(const Duration(seconds: 15));
+        ).timeout(timeout);
         retrySw.stop();
         AppLogger.httpRes(retryRes.statusCode, 'POST (RETRY)', uri.toString(), retrySw.elapsed, body: retryRes.body);
         final result = _handleResponse(retryRes);

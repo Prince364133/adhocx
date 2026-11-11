@@ -1,4 +1,5 @@
 import {
+  BadGatewayException,
   BadRequestException,
   Optional,
   ForbiddenException,
@@ -6,6 +7,7 @@ import {
   Logger,
   NotFoundException,
   UnauthorizedException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import {
   AdminRunDriverDigioSuiteDto,
@@ -33,6 +35,7 @@ import {
   VerifyUanDto,
   VerifyUdyamDto,
   VerifyUpiVpaDto,
+  VerifyVehicleInsuranceDto,
   VerifyVehicleRcDto,
   VerifyVoterIdDto,
 } from '@adhocx/contracts';
@@ -242,11 +245,43 @@ export class DigioService {
     };
   }
 
+  private extractYear(
+    ...candidates: Array<string | null | undefined>
+  ): string | undefined {
+    for (const raw of candidates) {
+      const str = String(raw || '').trim();
+      if (!str) continue;
+      const match = str.match(/\b(19\d{2}|20\d{2})\b/);
+      if (match) return match[1];
+    }
+    return undefined;
+  }
+
   private evaluateRcCompliance(res: any) {
     const user = res?.user_details || {};
     const veh = res?.vehicle_details || {};
     const fin = res?.finance_details || {};
     const permit = res?.permit_details || {};
+
+    const make = String(veh?.maker_description || '').trim() || undefined;
+    const model = String(veh?.maker_model || '').trim() || undefined;
+    const variant = String(veh?.variant || '').trim() || undefined;
+    const color = String(veh?.color || '').trim() || undefined;
+    const modelYear = this.extractYear(
+      veh?.manufacturing_date_formatted,
+      veh?.manufacturing_date,
+      fin?.manufacturing_date_formatted,
+      fin?.manufacturing_date,
+      veh?.registration_date,
+    );
+    const manufacturingDate =
+      String(
+        veh?.manufacturing_date_formatted ||
+          veh?.manufacturing_date ||
+          fin?.manufacturing_date_formatted ||
+          fin?.manufacturing_date ||
+          '',
+      ).trim() || undefined;
 
     const ownerName = String(user?.owner_name || user?.name || '').trim();
     const rcStatus = String(veh?.rc_status || '').trim();
@@ -309,11 +344,14 @@ export class DigioService {
         ownerName,
         rcStatus: rcStatus || 'ACTIVE',
         vehicleCategory: veh?.vehicle_category,
-        makerModel: [veh?.maker_description, veh?.maker_model]
-          .filter(Boolean)
-          .join(' '),
+        make,
+        model,
+        variant,
+        makerModel: [make, model].filter(Boolean).join(' '),
+        modelYear,
+        manufacturingDate,
         fuelType: veh?.fuel_type,
-        color: veh?.color,
+        color,
         normsType: veh?.norms_type,
         seatCapacity: veh?.seat_capacity,
         registeredAt: veh?.registered_at,
@@ -324,6 +362,11 @@ export class DigioService {
         insuranceCompany: fin?.insurance_company,
         insurancePolicyNumber: fin?.insurance_policy_number,
         insuranceUpto: fin?.insurance_upto,
+        insuranceActive: Boolean(
+          fin?.insurance_policy_number &&
+            insuranceUpto &&
+            this.isFutureOrToday(insuranceUpto),
+        ),
         taxUpto: fin?.tax_upto,
         permitType: permit?.permit_type,
         permitNumber: permit?.permit_number,
@@ -738,6 +781,7 @@ export class DigioService {
         'KRA_PAN',
         'DRIVING_LICENSE',
         'VEHICLE_RC',
+        'VEHICLE_INSURANCE',
         'PASSPORT',
         'VOTER_ID',
         'ID_OCR',
@@ -1146,10 +1190,29 @@ export class DigioService {
     if (reusedRc) return reusedRc;
     const reqId = this.digioClient.generateUniqueRequestId('RC');
 
-    const res = await this.digioClient.verifyVehicleRc({
-      id: rcNo,
-      unique_request_id: reqId,
-    });
+    let res: any;
+    try {
+      res = await this.digioClient.verifyVehicleRc({
+        id: rcNo,
+        unique_request_id: reqId,
+      });
+    } catch (err: any) {
+      if (
+        err instanceof BadRequestException ||
+        err instanceof UnauthorizedException ||
+        err instanceof ForbiddenException
+      ) {
+        throw err;
+      }
+      this.logger.warn(
+        `Parivahan RC lookup unavailable for ${rcNo}: ${err?.message || 'upstream error'}`,
+      );
+      throw new BadGatewayException({
+        code: 'PARIVAHAN_LOOKUP_UNAVAILABLE',
+        message:
+          'Unable to fetch RC details from Parivahan for this registration number right now. Please check the registration number (e.g. TS/TG prefix) or upload RC photos manually.',
+      });
+    }
 
     const evalRes = this.evaluateRcCompliance(res);
 
@@ -1212,6 +1275,182 @@ export class DigioService {
       summary: evalRes.summary,
       rawResponse: res,
       expiresAt: evalRes.expiresAt,
+      vehicleId: linkedVehicleId,
+    });
+  }
+
+  async verifyVehicleInsurance(
+    actor: AuthUserDto,
+    dto: VerifyVehicleInsuranceDto,
+  ) {
+    const ctx = await this.resolveContext(
+      actor,
+      dto.targetDriverId,
+      undefined,
+      dto.vehicleId,
+    );
+    const cleanPolicy = dto.policyNumber.trim().toUpperCase();
+    const normInput = cleanPolicy.replace(/[^A-Z0-9]/g, '');
+    if (normInput.length < 6) {
+      throw new BadRequestException(
+        'Please enter a valid commercial insurance policy / certificate number (at least 6 characters).',
+      );
+    }
+
+    const reused = await this.findReusableResult(
+      actor,
+      ctx,
+      'VEHICLE_INSURANCE',
+      cleanPolicy,
+    );
+    if (reused) return reused;
+
+    const rcNo = dto.registrationNumber
+      ? dto.registrationNumber.trim().toUpperCase().replace(/[\s-]+/g, '')
+      : '';
+    const owners = [
+      ...(ctx.driverId ? [{ driverId: ctx.driverId }] : []),
+      ...(ctx.vendorId ? [{ vendorId: ctx.vendorId }] : []),
+      ...(!ctx.driverId && !ctx.vendorId && ctx.userId
+        ? [{ userId: ctx.userId }]
+        : []),
+    ];
+
+    let rcRecord: any = owners.length
+      ? await this.db.digioVerification.findFirst({
+          where: {
+            verificationType: 'VEHICLE_RC',
+            verified: true,
+            OR: owners,
+            ...(rcNo ? { identifier: rcNo } : {}),
+          },
+          orderBy: { createdAt: 'desc' },
+        })
+      : null;
+
+    if (!rcRecord && rcNo.length >= 6) {
+      try {
+        rcRecord = await this.verifyVehicleRc(actor, {
+          registrationNumber: rcNo,
+          vehicleId: dto.vehicleId,
+          targetDriverId: dto.targetDriverId,
+        });
+      } catch (err: any) {
+        this.logger.warn(
+          `Parivahan insurance lookup skipped for ${rcNo}: ${err?.message || 'RC unavailable'}`,
+        );
+        throw new BadGatewayException({
+          code: 'PARIVAHAN_INSURANCE_UNAVAILABLE',
+          message:
+            'Parivahan insurance verification is unavailable for this vehicle right now. Please upload your Commercial Insurance Certificate manually below.',
+        });
+      }
+    }
+
+    if (!rcRecord || !rcRecord.verified) {
+      throw new UnprocessableEntityException({
+        code: 'PARIVAHAN_INSURANCE_UNAVAILABLE',
+        message:
+          'Verify your Vehicle RC first or upload your Commercial Insurance Certificate manually below.',
+      });
+    }
+
+    const rcSummary = (rcRecord.summary as Record<string, any>) || {};
+    const parivahanPolicy = String(rcSummary.insurancePolicyNumber || '')
+      .trim()
+      .toUpperCase();
+    const normRc = parivahanPolicy.replace(/[^A-Z0-9]/g, '');
+    const insCompany =
+      String(rcSummary.insuranceCompany || dto.insurerName || '').trim() ||
+      null;
+    const insUptoRaw = String(
+      rcSummary.insuranceUpto || dto.expiryDate || '',
+    ).trim();
+    const insUptoDate = this.parseFlexibleDate(insUptoRaw);
+    const expiryOk = insUptoDate ? this.isFutureOrToday(insUptoDate) : true;
+
+    const matched = Boolean(
+      normRc &&
+        (normRc === normInput ||
+          (Math.min(normRc.length, normInput.length) >= 8 &&
+            (normRc.endsWith(normInput) || normInput.endsWith(normRc)))),
+    );
+    const complianceOk = matched && expiryOk;
+
+    let notes: string;
+    if (!normRc) {
+      notes =
+        'Parivahan RC does not list an active policy number for this vehicle; please upload your Commercial Insurance Certificate manually for admin review.';
+    } else if (!matched) {
+      notes =
+        'Entered policy number did not match Parivahan insurer record. Please check the number or upload your Commercial Insurance Certificate manually.';
+    } else if (!expiryOk) {
+      notes = `Commercial insurance policy expired on ${insUptoDate!.toISOString().slice(0, 10)}`;
+    } else {
+      notes = 'Commercial insurance policy matched Parivahan record and is active';
+    }
+
+    const linkedVehicleId = dto.vehicleId || rcRecord.vehicleId || null;
+    if (matched && ctx.driverId) {
+      if (linkedVehicleId && insUptoDate) {
+        await this.db.vehicle
+          .update({
+            where: { id: linkedVehicleId },
+            data: { insuranceExpiry: insUptoDate },
+          })
+          .catch(() => undefined);
+      }
+      const existingDriver = await this.db.driver.findUnique({
+        where: { id: ctx.driverId },
+        select: { kycDocuments: true },
+      });
+      if (existingDriver) {
+        const kyc = (existingDriver.kycDocuments as Record<string, any>) || {};
+        await this.db.driver
+          .update({
+            where: { id: ctx.driverId },
+            data: {
+              kycDocuments: {
+                ...kyc,
+                insurancePolicyNumber: cleanPolicy,
+                ...(insCompany ? { insuranceCompany: insCompany } : {}),
+                ...(insUptoRaw ? { insuranceUpto: insUptoRaw } : {}),
+              },
+            },
+          })
+          .catch(() => undefined);
+      }
+    }
+
+    const reqId = this.digioClient.generateUniqueRequestId('INS');
+    return this.saveVerificationRecord({
+      ctx,
+      verificationType: 'VEHICLE_INSURANCE',
+      category: 'VEHICLE',
+      status: matched ? (complianceOk ? 'VERIFIED' : 'PARTIAL') : 'FAILED',
+      verified: matched,
+      identifier: cleanPolicy,
+      uniqueRequestId: reqId,
+      verifiedName: rcRecord.verifiedName || null,
+      complianceOk,
+      complianceNotes: notes,
+      errorMessage: matched ? null : notes,
+      summary: {
+        registrationNumber: rcNo || rcSummary.rcNumber || null,
+        insurancePolicyNumber: cleanPolicy,
+        parivahanPolicyNumber: parivahanPolicy || null,
+        insuranceCompany: insCompany,
+        insuranceUpto: insUptoRaw || null,
+        matchedAgainstParivahan: matched,
+      },
+      rawResponse: {
+        source: 'PARIVAHAN_VEHICLE_RC',
+        rcIdentifier: rcRecord.identifier || rcNo || null,
+        insuranceCompany: insCompany,
+        insurancePolicyNumber: parivahanPolicy || null,
+        insuranceUpto: insUptoRaw || null,
+      },
+      expiresAt: insUptoDate,
       vehicleId: linkedVehicleId,
     });
   }

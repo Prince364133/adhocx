@@ -58,6 +58,9 @@ class DigioService {
     final rcOk = (latestByType['VEHICLE_RC'] is Map &&
             latestByType['VEHICLE_RC']['verified'] == true) ||
         dlkrHas('rc', 'extractedRc');
+    final insOk = (latestByType['VEHICLE_INSURANCE'] is Map &&
+            latestByType['VEHICLE_INSURANCE']['verified'] == true) ||
+        dlkrHas('insurance', 'extractedInsurance');
     final aadhaarOk = dlkrHas('aadhaar', 'maskedAadhaar');
 
     return {
@@ -66,25 +69,34 @@ class DigioService {
       'pan': panOk,
       'dl': dlOk,
       'rc': rcOk,
+      'insurance': insOk,
     };
   }
 
-  /// Extracts verified government ID numbers (`panNumber`, `dlNumber`, `rcNumber`, `verifiedName`)
-  /// from [latestByType] for prefilling onboarding state and KYC payload submission.
+  /// Extracts verified government ID numbers (`panNumber`, `dlNumber`, `rcNumber`,
+  /// vehicle attributes, and insurance metadata) from [latestByType].
   static Map<String, String> extractedIdentifiersFromMap(
       Map<String, dynamic> latestByType) {
     final out = <String, String>{};
     final pan = latestByType['PAN'];
     final dl = latestByType['DRIVING_LICENSE'];
     final rc = latestByType['VEHICLE_RC'];
+    final ins = latestByType['VEHICLE_INSURANCE'];
     final dlkr = latestByType['DIGILOCKER'];
     final dlkrSum = (dlkr is Map && dlkr['summary'] is Map)
         ? dlkr['summary'] as Map
         : const <String, dynamic>{};
+    final rcSum = (rc is Map && rc['summary'] is Map)
+        ? rc['summary'] as Map
+        : const <String, dynamic>{};
+    final insSum = (ins is Map && ins['summary'] is Map)
+        ? ins['summary'] as Map
+        : const <String, dynamic>{};
 
-    String? pick(dynamic v) {
+    String? pick(dynamic v, {bool upper = true}) {
       final s = v?.toString().trim() ?? '';
-      return s.isEmpty ? null : s.toUpperCase();
+      if (s.isEmpty) return null;
+      return upper ? s.toUpperCase() : s;
     }
 
     final panNum = pick(pan is Map ? pan['identifier'] : null) ??
@@ -97,6 +109,32 @@ class DigioService {
     if (panNum != null) out['panNumber'] = panNum;
     if (dlNum != null) out['dlNumber'] = dlNum;
     if (rcNum != null) out['rcNumber'] = rcNum;
+
+    final model = pick(rcSum['makerModel'], upper: false);
+    final color = pick(rcSum['color'], upper: false);
+    String? year = pick(rcSum['modelYear'], upper: false);
+    if (year == null) {
+      final rawDate = rcSum['manufacturingDate'] ?? rcSum['registrationDate'];
+      final match = rawDate != null
+          ? RegExp(r'\b(19\d{2}|20\d{2})\b').firstMatch(rawDate.toString())
+          : null;
+      year = match?.group(1);
+    }
+    if (model != null) out['vehicleModel'] = model;
+    if (color != null) out['color'] = color;
+    if (year != null) out['modelYear'] = year;
+
+    final insPolicy = pick(ins is Map ? ins['identifier'] : null) ??
+        pick(insSum['insurancePolicyNumber']) ??
+        pick(rcSum['insurancePolicyNumber']);
+    final insCompany = pick(insSum['insuranceCompany'], upper: false) ??
+        pick(rcSum['insuranceCompany'], upper: false);
+    final insUpto = pick(insSum['insuranceUpto'], upper: false) ??
+        pick(rcSum['insuranceUpto'], upper: false);
+
+    if (insPolicy != null) out['insurancePolicyNumber'] = insPolicy;
+    if (insCompany != null) out['insuranceCompany'] = insCompany;
+    if (insUpto != null) out['insuranceUpto'] = insUpto;
     return out;
   }
 
@@ -134,6 +172,11 @@ class DigioService {
     }
     if (errorCodeOf(error) == 'AADHAAR_CONSENT_REQUIRED') {
       return 'Please accept the Aadhaar consent to continue with verification.';
+    }
+    if (errorCodeOf(error) == 'PARIVAHAN_LOOKUP_UNAVAILABLE') {
+      return error.message.trim().isNotEmpty
+          ? error.message.trim()
+          : 'Parivahan could not verify this RC right now. Check the plate prefix (e.g. TS/TG) or upload RC photos below.';
     }
     return null;
   }
@@ -237,16 +280,22 @@ class DigioService {
     return map;
   }
 
+  static const Duration _kycTimeout = Duration(seconds: 35);
+
   Future<Map<String, dynamic>> verifyPan({
     required String panNumber,
     String? name,
     String? dob,
   }) async {
-    final res = await _api.post('/kyc/digio/pan', body: {
-      'panNumber': panNumber.trim().toUpperCase(),
-      if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
-      if (dob != null && dob.trim().isNotEmpty) 'dob': dob.trim(),
-    });
+    final res = await _api.post(
+      '/kyc/digio/pan',
+      timeout: _kycTimeout,
+      body: {
+        'panNumber': panNumber.trim().toUpperCase(),
+        if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
+        if (dob != null && dob.trim().isNotEmpty) 'dob': dob.trim(),
+      },
+    );
     final map = Map<String, dynamic>.from(res as Map);
     _updateCache(map);
     return map;
@@ -257,11 +306,15 @@ class DigioService {
     required String dob,
     String? name,
   }) async {
-    final res = await _api.post('/kyc/digio/dl', body: {
-      'dlNumber': dlNumber.trim().toUpperCase(),
-      'dob': dob.trim(),
-      if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
-    });
+    final res = await _api.post(
+      '/kyc/digio/dl',
+      timeout: _kycTimeout,
+      body: {
+        'dlNumber': dlNumber.trim().toUpperCase(),
+        'dob': dob.trim(),
+        if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
+      },
+    );
     final map = Map<String, dynamic>.from(res as Map);
     _updateCache(map);
     return map;
@@ -271,10 +324,37 @@ class DigioService {
     required String registrationNumber,
     String? vehicleId,
   }) async {
-    final res = await _api.post('/kyc/digio/vehicle-rc', body: {
-      'registrationNumber': registrationNumber.trim().toUpperCase(),
-      if (vehicleId != null && vehicleId.isNotEmpty) 'vehicleId': vehicleId,
-    });
+    final res = await _api.post(
+      '/kyc/digio/vehicle-rc',
+      timeout: _kycTimeout,
+      body: {
+        'registrationNumber': registrationNumber.trim().toUpperCase(),
+        if (vehicleId != null && vehicleId.isNotEmpty) 'vehicleId': vehicleId,
+      },
+    );
+    final map = Map<String, dynamic>.from(res as Map);
+    _updateCache(map);
+    return map;
+  }
+
+  Future<Map<String, dynamic>> verifyVehicleInsurance({
+    required String policyNumber,
+    String? registrationNumber,
+    String? insurerName,
+    String? vehicleId,
+  }) async {
+    final res = await _api.post(
+      '/kyc/digio/vehicle-insurance',
+      timeout: _kycTimeout,
+      body: {
+        'policyNumber': policyNumber.trim().toUpperCase(),
+        if (registrationNumber != null && registrationNumber.trim().isNotEmpty)
+          'registrationNumber': registrationNumber.trim().toUpperCase(),
+        if (insurerName != null && insurerName.trim().isNotEmpty)
+          'insurerName': insurerName.trim(),
+        if (vehicleId != null && vehicleId.isNotEmpty) 'vehicleId': vehicleId,
+      },
+    );
     final map = Map<String, dynamic>.from(res as Map);
     _updateCache(map);
     return map;

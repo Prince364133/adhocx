@@ -197,9 +197,14 @@ export class DigioClient {
             digioStatus: response.status,
           });
         }
+        const safeUpstreamMessage =
+          response.status === 401 || response.status === 403
+            ? 'Verification provider authentication failed. Please try again or upload documents manually.'
+            : 'Verification provider is temporarily unable to verify this request. Please check your details or upload the document manually.';
         throw new BadGatewayException({
-          message: `KYC verification error (${response.status}): ${message}`,
+          message: safeUpstreamMessage,
           digioCode,
+          upstreamStatus: response.status,
         });
       }
 

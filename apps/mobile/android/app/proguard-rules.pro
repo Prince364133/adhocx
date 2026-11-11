@@ -33,4 +33,13 @@
 
 # Flutter Plugins generic keep
 -keep class io.flutter.plugins.** { *; }
+
+# Google ML Kit Face Detection & CameraX preservation
+-keep class com.google.mlkit.** { *; }
+-dontwarn com.google.mlkit.**
+-keep class com.google.android.gms.internal.mlkit_vision_face.** { *; }
+-dontwarn com.google.android.gms.internal.mlkit_vision_face.**
+-keep class androidx.camera.** { *; }
+-dontwarn androidx.camera.**
+
 
