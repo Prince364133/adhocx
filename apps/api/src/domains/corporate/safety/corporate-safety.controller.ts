@@ -70,7 +70,7 @@ export class CorporateSafetyController {
   }
 
   @Get('alerts')
-  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateTenantScoped()
   @ApiOperation({ summary: 'List active and historical corporate SOS emergency alerts for Command Centre' })
   @ApiResponse({ status: 200, description: 'List of emergency alerts' })
@@ -242,7 +242,7 @@ export class CorporateSafetyController {
   }
 
   @Get('tracking-loss')
-  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateTenantScoped()
   @ApiOperation({ summary: 'Detect active routes in IN_TRANSIT with missing/stale telemetry (>180s)' })
   public async getTrackingLossRoutes() {

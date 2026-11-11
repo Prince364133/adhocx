@@ -53,7 +53,7 @@ export class CorporateTrackingController {
   private readonly hub: TelemetryStreamHub;
 
   @Get('routes/:id/tracking')
-  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER, UserRole.DRIVER, UserRole.EMPLOYEE)
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.DRIVER, UserRole.EMPLOYEE)
   @CorporateResource('route', 'id')
   @ApiOperation({
     summary:
@@ -64,7 +64,7 @@ export class CorporateTrackingController {
   }
 
   @Get('routes/:id/timeline')
-  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateResource('route', 'id')
   @ApiOperation({ summary: 'Ordered trip events (start, arrive, board, no-show, offers, replans) and assignment history' })
   public async getTimeline(@Param('id') routeId: string, @Req() req: any) {
@@ -72,7 +72,7 @@ export class CorporateTrackingController {
   }
 
   @Get('routes/:id/playback')
-  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateResource('route', 'id')
   @ApiOperation({ summary: 'GPS history ordered by device time; window <= 24h, paged by cursor (limit <= 5000)' })
   @ApiQuery({ name: 'from', required: false, description: 'ISO-8601 or epoch ms (default: to - 6h)' })
@@ -91,15 +91,17 @@ export class CorporateTrackingController {
   }
 
   @Get('routes/fleet/live')
-  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
+  @ApiQuery({ name: 'tenantId', required: false, description: 'Optional company scope for OPS fleet analytics' })
   @ApiOperation({ summary: 'Latest known position of every active cab in scope (hydrates the live map)' })
-  getFleetSnapshot(@Req() req: any) {
-    return this.tracking.getFleetSnapshot(trackingScopeOf(req));
+  getFleetSnapshot(@Req() req: any, @Query('tenantId') tenantId?: string) {
+    const scope = trackingScopeOf(req);
+    return this.tracking.getFleetSnapshot(scope.tenantId ? scope : tenantId ? { tenantId } : scope);
   }
 
   @Post('live-stream-tickets')
   @HttpCode(201)
-  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER, UserRole.DRIVER, UserRole.EMPLOYEE)
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.DRIVER, UserRole.EMPLOYEE)
   @ApiOperation({
     summary:
       'Single-use ticket (valid 30 s) for opening a live-stream EventSource: GET .../live-stream?ticket=… . Keeps the access token out of URLs and logs',
@@ -112,21 +114,23 @@ export class CorporateTrackingController {
   }
 
   @Sse('routes/fleet/live-stream')
-  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
+  @ApiQuery({ name: 'tenantId', required: false, description: 'Optional company scope for OPS fleet updates' })
   @ApiOperation({
     summary:
       'Live stream (SSE) of every active cab in scope: `fixes` events carry a JSON array (newest fix per route, flushed every ~500 ms); `heartbeat` every 25 s; `reauth` then close when the token expires',
   })
-  streamFleetTelemetry(@Req() req: any): Observable<MessageEvent> {
+  streamFleetTelemetry(@Req() req: any, @Query('tenantId') tenantId?: string): Observable<MessageEvent> {
     const scope = trackingScopeOf(req);
     // Tenant-bound callers only ever get their tenant's channel (none at all without a tenant).
     if ('tenantId' in scope && !scope.tenantId) throw new ForbiddenException('No corporate tenant on this account');
-    const channel = scope.tenantId ? TelemetryChannels.tenantFleet(scope.tenantId) : TelemetryChannels.opsFleet;
+    const requestedTenantId = scope.tenantId ?? tenantId;
+    const channel = requestedTenantId ? TelemetryChannels.tenantFleet(requestedTenantId) : TelemetryChannels.opsFleet;
     return this.hub.openFleetStream(channel, streamContext(req));
   }
 
   @Sse('routes/:id/live-stream')
-  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER, UserRole.DRIVER, UserRole.EMPLOYEE)
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.DRIVER, UserRole.EMPLOYEE)
   @CorporateResource('route', 'id')
   @ApiOperation({ summary: 'Live stream (SSE) of fixes for one route: one `message` event per fix; `heartbeat`; `reauth` then close on token expiry' })
   streamRouteTelemetry(@Req() req: any, @Param('id') routeId: string): Observable<MessageEvent> {

@@ -26,7 +26,15 @@ export interface PortalSession {
 
 const Ctx = createContext<PortalSession | null>(null);
 
-export function SessionProvider({ children }: { children: React.ReactNode }) {
+export function SessionProvider({
+  children,
+  opsMode = false,
+  opsSession,
+}: {
+  children: React.ReactNode;
+  opsMode?: boolean;
+  opsSession?: { token: string | null; user: SessionUser | null };
+}) {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<SessionUser | null>(null);
   const [booted, setBooted] = useState(false);
@@ -34,14 +42,31 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [offices, setOffices] = useState<Office[]>([]);
   const [tenantError, setTenantError] = useState<unknown>(null);
   const [selectedOfficeScope, setSelectedOfficeScope] = useState<string[] | null>(null);
+  const [opsTenantId, setOpsTenantId] = useState<string | null>(null);
 
   useEffect(() => {
-    const storedToken = getStoredToken();
-    const storedUser = getStoredUser();
+    const storedToken = opsMode ? opsSession?.token ?? null : getStoredToken();
+    const storedUser = opsMode ? opsSession?.user ?? null : getStoredUser();
     setToken(storedToken);
     setUser(storedUser);
     setBooted(true);
-  }, []);
+  }, [opsMode, opsSession?.token, opsSession?.user]);
+
+  useEffect(() => {
+    if (!opsMode) return;
+
+    const syncOpsTenant = () => {
+      try {
+        setOpsTenantId(localStorage.getItem('adhocx_ops_selected_tenant'));
+      } catch {
+        setOpsTenantId(null);
+      }
+    };
+
+    syncOpsTenant();
+    window.addEventListener('adhocx:ops-tenant-changed', syncOpsTenant);
+    return () => window.removeEventListener('adhocx:ops-tenant-changed', syncOpsTenant);
+  }, [opsMode]);
 
   const claims = useMemo(() => {
     if (token) {
@@ -51,9 +76,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     return null;
   }, [token]);
 
-  const tenantId = claims?.corporateTenantId ?? null;
-  const portalRole = claims?.role ? isPortalRole(claims.role) : false;
-  const corporateRole = effectiveCorporateRole(claims?.role, claims?.corporateRole);
+  const tenantId = opsMode ? opsTenantId ?? claims?.corporateTenantId ?? null : claims?.corporateTenantId ?? null;
+  const portalRole = claims?.role
+    ? isPortalRole(claims.role) || (opsMode && ['ADMIN', 'OPS'].includes(claims.role.toUpperCase()))
+    : false;
+  const corporateRole =
+    opsMode && claims?.role && ['ADMIN', 'OPS'].includes(claims.role.toUpperCase())
+      ? 'CORP_SUPER_ADMIN'
+      : effectiveCorporateRole(claims?.role, claims?.corporateRole);
   const officeScope = selectedOfficeScope || (claims?.corporateOfficeIds && claims.corporateOfficeIds.length > 0 ? claims.corporateOfficeIds : null);
 
   const acceptSession = useCallback((accessToken: string, sessionUser: SessionUser) => {
@@ -62,14 +92,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const reloadTenant = useCallback(async () => {
-    if (!token || !claims?.corporateTenantId) {
+    if (!token || !tenantId) {
       setTenant(null);
       setOffices([]);
       return;
     }
     setTenantError(null);
     try {
-      const [t, o] = await Promise.all([tenantApi.get(claims.corporateTenantId), tenantApi.offices(claims.corporateTenantId)]);
+      const [t, o] = await Promise.all([tenantApi.get(tenantId), tenantApi.offices(tenantId)]);
       setTenant(t);
       setOffices(o);
     } catch (err) {
@@ -77,13 +107,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       setTenant(null);
       setOffices([]);
     }
-  }, [claims?.corporateTenantId, token]);
+  }, [tenantId, token]);
 
   useEffect(() => {
-    if (booted && claims?.corporateTenantId) {
+    if (booted && tenantId && (claims?.corporateTenantId || opsMode)) {
       void reloadTenant();
     }
-  }, [booted, claims?.corporateTenantId, reloadTenant]);
+  }, [booted, claims?.corporateTenantId, opsMode, reloadTenant, tenantId]);
 
   const logout = useCallback(async () => {
     try {

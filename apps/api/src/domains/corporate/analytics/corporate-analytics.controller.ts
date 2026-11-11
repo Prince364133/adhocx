@@ -49,7 +49,7 @@ export class CorporateAnalyticsController {
   }
 
   @Get('exceptions')
-  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateTenantScoped()
   @ApiOperation({
     summary: 'Active operational exceptions: delayed route pickups, unassigned requests, stale GPS vehicles and safety alerts',

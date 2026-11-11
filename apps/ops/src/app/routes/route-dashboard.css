@@ -1,0 +1,435 @@
+.routeDashboard {
+  --rd-canvas: #fbfbfd;
+  --rd-surface: #fff;
+  --rd-muted: #f5f5f8;
+  --rd-border: #e7e7ed;
+  --rd-text: #24232b;
+  --rd-subtle: #696875;
+  --rd-faint: #858391;
+  --rd-accent: #534ab7;
+  --rd-purple: #7f77dd;
+  --rd-teal: #1d9e75;
+  --rd-green: #639922;
+  --rd-blue: #378add;
+  --rd-amber: #ba7517;
+  --rd-red: #e24b4a;
+  --rd-space-1: 4px;
+  --rd-space-2: 8px;
+  --rd-space-3: 12px;
+  --rd-space-4: 16px;
+  --rd-space-6: 24px;
+  --rd-radius-sm: 8px;
+  --rd-radius-md: 10px;
+  --rd-radius-lg: 12px;
+  min-width: 0;
+  color: var(--rd-text);
+  font-size: 13px;
+}
+
+[data-theme="dark"] .routeDashboard,
+html.dark .routeDashboard,
+.dark .routeDashboard {
+  --rd-canvas: #101014;
+  --rd-surface: #17171c;
+  --rd-muted: #202027;
+  --rd-border: #303039;
+  --rd-text: #eeedf3;
+  --rd-subtle: #b6b4c1;
+  --rd-faint: #92909e;
+  --rd-accent: #a59df1;
+  --rd-purple: #a39cf2;
+  --rd-teal: #56c6a0;
+  --rd-green: #9dc85e;
+  --rd-blue: #6aadeb;
+  --rd-amber: #e3aa5e;
+  --rd-red: #f07d79;
+}
+
+.routeDashboard :is(button, a, input, [tabindex]):focus-visible {
+  outline: 2px solid var(--rd-accent);
+  outline-offset: 2px;
+}
+
+.routeDashboard :is(section, article, .routeMetric) {
+  border-color: var(--rd-border) !important;
+  border-radius: var(--rd-radius-md) !important;
+  box-shadow: none !important;
+}
+
+.routeDashboard button,
+.routeDashboard a,
+.routeDashboard tr,
+.routeDashboard [data-chart-mark] {
+  transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease, opacity 180ms ease, transform 180ms ease;
+}
+
+.routeDashboard .routeMetric {
+  background: transparent !important;
+}
+
+.routeDashboard .routeKpiStrip {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid var(--rd-border);
+  border-radius: var(--rd-radius-md);
+  background: var(--rd-surface);
+}
+
+.routeDashboard .routeCompanyDashboard {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.routeDashboard .routeAnalyticsSections {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: var(--rd-space-6) !important;
+  row-gap: var(--rd-space-4) !important;
+}
+
+.routeDashboard .routeAnalyticsSections > div:first-child {
+  border: 0;
+  padding: 0;
+}
+
+.routeDashboard .routeAnalyticsSections > div:nth-child(2) {
+  border: 0 !important;
+  padding-top: 0 !important;
+}
+
+.routeDashboard header h1 {
+  font-size: 22px !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.025em;
+}
+
+.routeDashboard .routeAnalyticsSection {
+  min-width: 0;
+}
+
+.routeDashboard .routeAnalyticsSection:nth-child(n + 3) {
+  border-top: 1px solid var(--rd-border) !important;
+  padding-top: var(--rd-space-4) !important;
+}
+
+.routeDashboard .routeKpiStrip .routeMetric {
+  min-width: 0;
+  padding: var(--rd-space-3) var(--rd-space-4) !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+}
+
+.routeDashboard .routeKpiStrip .routeMetric + .routeMetric {
+  border-left: 1px solid var(--rd-border) !important;
+}
+
+.routeDashboard .routeKpiStrip .routeMetric > div:first-child {
+  flex-direction: row-reverse;
+  justify-content: flex-end !important;
+  gap: var(--rd-space-2) !important;
+}
+
+.routeDashboard .routeKpiStrip .routeMetric > div:first-child span:first-child {
+  color: var(--rd-subtle) !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+}
+
+.routeDashboard .routeKpiStrip .routeMetric > div:first-child span:last-child {
+  color: var(--rd-accent) !important;
+}
+
+.routeDashboard .routeKpiStrip .routeMetric > div:nth-child(2) {
+  margin-top: var(--rd-space-1) !important;
+  color: var(--rd-text) !important;
+  font-size: 22px !important;
+  font-weight: 500 !important;
+}
+
+.routeDashboard .routeKpiStrip .routeMetric > div:last-child {
+  margin-top: var(--rd-space-1) !important;
+  color: var(--rd-faint) !important;
+  font-size: 11px !important;
+}
+
+.routeDashboard .routeTableWrap {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+}
+
+.routeDashboard .routeTable {
+  width: 100%;
+  min-width: 0 !important;
+  border-collapse: separate !important;
+  border-spacing: 0;
+}
+
+.routeDashboard .routeTableTools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rd-space-3);
+  margin-top: var(--rd-space-3);
+}
+
+.routeDashboard .routeTableTools input {
+  width: min(230px, 100%);
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid var(--rd-border);
+  border-radius: var(--rd-radius-sm);
+  background: var(--rd-surface);
+  color: var(--rd-text);
+  font: inherit;
+}
+
+.routeDashboard .routeFilterChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rd-space-1);
+}
+
+.routeDashboard .routeFilterChips button {
+  padding: 5px 9px;
+  border: 1px solid var(--rd-border);
+  border-radius: var(--rd-radius-pill, 999px);
+  background: transparent;
+  color: var(--rd-subtle);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.routeDashboard .routeFilterChips button[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--rd-accent) 32%, var(--rd-border));
+  background: color-mix(in srgb, var(--rd-accent) 9%, var(--rd-surface));
+  color: var(--rd-accent);
+}
+
+.routeDashboard .routePeriodToggle {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--rd-space-1);
+  margin-bottom: var(--rd-space-2);
+}
+
+.routeDashboard .routePeriodToggle button {
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--rd-radius-sm);
+  background: transparent;
+  color: var(--rd-faint);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.routeDashboard .routePeriodToggle button[aria-pressed="true"] {
+  border-color: var(--rd-border);
+  background: var(--rd-muted);
+  color: var(--rd-text);
+}
+
+.routeDashboard .routeTable thead {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+}
+
+.routeDashboard .routeTable thead tr {
+  background: var(--rd-surface) !important;
+}
+
+.routeDashboard .routeTable th {
+  padding: var(--rd-space-2) var(--rd-space-2) !important;
+  color: var(--rd-faint) !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.01em;
+}
+
+.routeDashboard .routeTable td {
+  padding: 11px var(--rd-space-2) !important;
+  border-bottom: 1px solid var(--rd-border) !important;
+  color: var(--rd-subtle) !important;
+  font-size: 12px !important;
+  vertical-align: middle;
+}
+
+.routeDashboard .routeTable tbody tr:hover {
+  background: color-mix(in srgb, var(--rd-accent) 5%, var(--rd-surface));
+}
+
+.routeDashboard .routeTable tbody tr[aria-selected="true"] {
+  background: color-mix(in srgb, var(--rd-accent) 9%, var(--rd-surface));
+}
+
+.routeDashboard .routeDetailGrid {
+  grid-template-columns: minmax(0, .85fr) minmax(0, 1.4fr) !important;
+}
+
+.routeDashboard .routeStatusPill {
+  border: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+  background: color-mix(in srgb, currentColor 10%, var(--rd-surface)) !important;
+  font-weight: 500 !important;
+}
+
+.routeDashboard .routeChartGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--rd-space-4);
+}
+
+.routeDashboard .routeChartPanel {
+  min-width: 0;
+  padding: var(--rd-space-4) !important;
+  background: var(--rd-surface) !important;
+}
+
+.routeDashboard .routeChartPanel h2,
+.routeDashboard .routeChartPanel h3 {
+  font-weight: 500 !important;
+  letter-spacing: -0.01em;
+}
+
+.routeDashboard .routeChartPanel svg circle[stroke-dasharray] {
+  animation: route-donut-in 700ms cubic-bezier(.2,.7,.2,1) both;
+}
+
+.routeDashboard .routeChartPanel [aria-label*="pickup statuses recorded"] {
+  background: repeating-linear-gradient(135deg, var(--rd-muted), var(--rd-muted) 5px, var(--rd-border) 5px, var(--rd-border) 7px) !important;
+}
+
+.routeDashboard .routeTable button:hover,
+.routeDashboard a:hover {
+  color: var(--rd-accent) !important;
+}
+
+.routeDashboard .routeOptimizerLink {
+  border-radius: var(--rd-radius-sm) !important;
+  background: var(--rd-accent) !important;
+  font-weight: 500 !important;
+}
+
+@keyframes route-donut-in {
+  from { stroke-dasharray: 0 245; }
+}
+
+@media (max-width: 900px) {
+  .routeDashboard .routeKpiStrip {
+    grid-template-columns: repeat(3, minmax(150px, 1fr));
+  }
+
+  .routeDashboard .routeKpiStrip .routeMetric:nth-child(4) {
+    border-left: 0 !important;
+  }
+
+  .routeDashboard .routeKpiStrip .routeMetric:nth-child(n + 4) {
+    border-top: 1px solid var(--rd-border) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .routeDashboard .routeKpiStrip {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+  }
+
+  .routeDashboard .routeKpiStrip .routeMetric {
+    flex: 0 0 165px;
+    scroll-snap-align: start;
+  }
+
+  .routeDashboard .routeKpiStrip .routeMetric:nth-child(n + 4) {
+    border-top: 0 !important;
+  }
+
+  .routeDashboard .routeKpiStrip .routeMetric:nth-child(4) {
+    border-left: 1px solid var(--rd-border) !important;
+  }
+
+  .routeDashboard .routeChartGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .routeDashboard .routeTableTools {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .routeDashboard .routeTableTools input {
+    width: 100%;
+  }
+
+  .routeDashboard .routeAnalyticsSections {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .routeDashboard .routeDetailGrid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .routeDashboard .routeAnalyticsSection:nth-child(n + 2) {
+    border-top: 1px solid var(--rd-border) !important;
+    padding-top: var(--rd-space-4) !important;
+  }
+
+  .routeDashboard .routeAnalyticsSections > div:nth-child(2) {
+    border-top: 1px solid var(--rd-border) !important;
+    padding-top: var(--rd-space-4) !important;
+  }
+
+  .routeDashboard .routeTable,
+  .routeDashboard .routeTable tbody,
+  .routeDashboard .routeTable tr,
+  .routeDashboard .routeTable td {
+    display: block;
+    width: 100%;
+  }
+
+  .routeDashboard .routeTable thead {
+    display: none;
+  }
+
+  .routeDashboard .routeTable tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 var(--rd-space-2);
+    padding: var(--rd-space-2) 0;
+    border-bottom: 1px solid var(--rd-border);
+  }
+
+  .routeDashboard .routeTable td {
+    border: 0 !important;
+    padding: 6px var(--rd-space-2) !important;
+    white-space: normal !important;
+  }
+
+  .routeDashboard .routeTable td::before {
+    display: block;
+    margin-bottom: 2px;
+    color: var(--rd-faint);
+    font-size: 10px;
+    content: "";
+  }
+
+  .routeDashboard .routeTable td:nth-child(1)::before { content: "Route"; }
+  .routeDashboard .routeTable td:nth-child(2)::before { content: "Shift"; }
+  .routeDashboard .routeTable td:nth-child(3)::before { content: "Employees"; }
+  .routeDashboard .routeTable td:nth-child(4)::before { content: "Driver / vehicle"; }
+  .routeDashboard .routeTable td:nth-child(5)::before { content: "Status"; }
+  .routeDashboard .routeTable td:nth-child(6)::before { content: "Pickup progress"; }
+  .routeDashboard .routeTable td:nth-child(7)::before { content: "ETA"; }
+  .routeDashboard .routeTable td:nth-child(8)::before { content: "Delay"; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .routeDashboard *,
+  .routeDashboard *::before,
+  .routeDashboard *::after {
+    animation-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

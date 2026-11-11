@@ -323,7 +323,7 @@ export class CorporateTripExecutionController {
   }
 
   @Post('requests/:id/reschedule')
-  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.EMPLOYEE)
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.EMPLOYEE)
   @CorporateResource('request', 'id')
   @ApiOperation({
     summary:
@@ -402,7 +402,7 @@ export class CorporateTripExecutionController {
   }
 
   @Get('requests')
-  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateTenantScoped()
   @ApiOperation({ summary: 'List and filter corporate transport requests / booking queue across all rosters' })
   public async listRequests(
@@ -490,7 +490,7 @@ export class CorporateTripExecutionController {
   }
 
   @Post('requests/:id/review')
-  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateResource('request', 'id')
   @ApiOperation({ summary: 'Approve or reject an ad-hoc or exception transport booking request' })
   public async reviewRequest(

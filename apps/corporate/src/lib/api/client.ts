@@ -8,6 +8,19 @@
  */
 import { clearSession, getStoredToken, getStoredRefreshToken, updateTokens } from '../auth/session';
 
+export interface CorporateApiSessionAdapter {
+  getToken: () => string | null;
+  getRefreshToken: () => string | null;
+  updateTokens: (accessToken: string, refreshToken?: string) => void;
+  clearSession: () => void;
+}
+
+let sessionAdapter: CorporateApiSessionAdapter | null = null;
+
+export function configureCorporateApiSession(adapter: CorporateApiSessionAdapter | null): void {
+  sessionAdapter = adapter;
+}
+
 export function getApiBaseUrl(): string {
   if (process.env.NEXT_PUBLIC_API_URL) {
     return process.env.NEXT_PUBLIC_API_URL;
@@ -69,7 +82,8 @@ function errorMessage(status: number, body: any): string {
 
 function handleAuthFailure(status: number, anonymous?: boolean) {
   if (status !== 401 || anonymous || typeof window === 'undefined') return;
-  clearSession();
+  if (sessionAdapter) sessionAdapter.clearSession();
+  else clearSession();
   if (!window.location.pathname.startsWith('/login')) {
     window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
   }
@@ -88,7 +102,7 @@ function onRefreshed(token: string | null) {
 }
 
 async function refreshAccessToken(): Promise<string | null> {
-  const refreshToken = getStoredRefreshToken();
+  const refreshToken = sessionAdapter ? sessionAdapter.getRefreshToken() : getStoredRefreshToken();
   if (!refreshToken) return null;
 
   try {
@@ -102,7 +116,8 @@ async function refreshAccessToken(): Promise<string | null> {
     const json = await res.json();
     const data = json.data || json;
     if (data?.accessToken) {
-      updateTokens(data.accessToken, data.refreshToken || refreshToken);
+      if (sessionAdapter) sessionAdapter.updateTokens(data.accessToken, data.refreshToken || refreshToken);
+      else updateTokens(data.accessToken, data.refreshToken || refreshToken);
       return data.accessToken;
     }
     return null;
@@ -115,7 +130,7 @@ async function rawFetch(endpoint: string, options: RequestOptions, accept?: stri
   const headers: Record<string, string> = {};
   if (!options.formData) headers['Content-Type'] = 'application/json';
   if (accept) headers['Accept'] = accept;
-  const token = getStoredToken();
+  const token = sessionAdapter ? sessionAdapter.getToken() : getStoredToken();
   if (token && !options.anonymous) headers['Authorization'] = `Bearer ${token}`;
 
   let response: Response;

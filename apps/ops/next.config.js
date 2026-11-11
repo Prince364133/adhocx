@@ -8,6 +8,9 @@ const nextConfig = {
   distDir: process.env.NODE_ENV === 'development' ? '.next-dev' : '.next',
   output: 'standalone',
   transpilePackages: ['@adhocx/contracts'],
+  experimental: {
+    externalDir: true,
+  },
   reactStrictMode: true,
   poweredByHeader: false,
   env: {

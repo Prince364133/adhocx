@@ -13,6 +13,7 @@ export interface CorporateTenantOption {
     id: string;
     code: string;
     name: string;
+    addressText?: string;
     latitude: number;
     longitude: number;
   }[];
@@ -54,6 +55,8 @@ export interface CorporateRouteItem {
   assignedPassengerCount: number;
   targetPickup1Time: string;
   targetOfficeArrivalTime: string;
+  startedAt?: string;
+  completedAt?: string;
   estDistanceMeters?: number;
   estDurationSeconds?: number;
   status: 'PLANNED' | 'DISPATCHING' | 'ASSIGNED' | 'IN_TRANSIT' | 'COMPLETED' | 'CANCELLED';
@@ -73,6 +76,9 @@ export interface CorporateRouteItem {
     id: string;
     code: string;
     name: string;
+    addressText?: string;
+    latitude?: number;
+    longitude?: number;
   };
   tenant?: {
     id: string;

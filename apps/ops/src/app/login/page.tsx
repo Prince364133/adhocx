@@ -52,15 +52,21 @@ function LoginContent() {
       const res = await opsApi.login(identifier.trim(), password);
       const data = res?.data || res;
       if (data && data.accessToken) {
+        const role = String(data.user?.role || '').toUpperCase();
+        if (role !== 'OPS' && role !== 'ADMIN') {
+          throw new Error('This account does not have Ops access.');
+        }
+
+        const user = {
+          id: data.user?.id || '',
+          role,
+          fullName: data.user?.fullName || 'Operations Dispatcher',
+          email: data.user?.email || identifier.trim(),
+          phone: data.user?.phone,
+        };
         applySessionAndRedirect(
           data.accessToken,
-          {
-            id: data.user?.id || '',
-            role: data.user?.role || 'OPS',
-            fullName: data.user?.fullName || 'Operations Dispatcher',
-            email: data.user?.email || identifier.trim(),
-            phone: data.user?.phone,
-          },
+          user,
           data.refreshToken,
         );
         return;

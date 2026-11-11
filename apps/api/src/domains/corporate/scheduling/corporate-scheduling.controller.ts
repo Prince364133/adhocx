@@ -6,7 +6,6 @@ import { RolesGuard } from '../../../common/guards/roles.guard';
 import { CorporateAccessGuard } from '../../../common/guards/corporate-access.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { CorporateTenantScoped } from '../../../common/decorators/corporate-resource.decorator';
-import { CorporatePermission } from '../tenants/corporate-permissions';
 import {
   CorporateShiftTemplateService,
   CreateHolidayInput,
@@ -31,27 +30,24 @@ export class CorporateSchedulingController {
   ) {}
 
   @Get('shift-templates')
-  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateTenantScoped()
-  @CorporatePermission('shifts:read')
   @ApiOperation({ summary: 'List shift templates of a tenant (optionally one office)' })
   public async listShiftTemplates(@Query('tenantId') tenantId: string, @Query('officeId') officeId?: string, @Req() req?: any) {
     return this.shifts.listShiftTemplates(requireTenant(tenantId), officeId, scopeOf(req));
   }
 
   @Post('shift-templates')
-  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateTenantScoped()
-  @CorporatePermission('shifts:write')
   @ApiOperation({ summary: 'Create a shift template (login/logout HH:mm, ISO weekdays; overnight derived from the times)' })
   public async createShiftTemplate(@Body() body: CreateShiftTemplateInput & { tenantId: string }, @Req() req: any) {
     return this.shifts.createShiftTemplate(requireTenant(body?.tenantId), body, req.user?.id, scopeOf(req));
   }
 
   @Get('holidays')
-  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateTenantScoped()
-  @CorporatePermission('shifts:read')
   @ApiOperation({ summary: 'List holidays (tenant-wide and per office) between from / to (YYYY-MM-DD)' })
   public async listHolidays(
     @Query('tenantId') tenantId: string,
@@ -63,9 +59,8 @@ export class CorporateSchedulingController {
   }
 
   @Post('holidays')
-  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateTenantScoped()
-  @CorporatePermission('shifts:write')
   @ApiOperation({ summary: 'Create a holiday (no demand is generated on publish for that shift day)' })
   public async createHoliday(@Body() body: CreateHolidayInput & { tenantId: string }, @Req() req: any) {
     return this.shifts.createHoliday(requireTenant(body?.tenantId), body, req.user?.id, scopeOf(req));
