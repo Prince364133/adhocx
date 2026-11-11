@@ -86,14 +86,14 @@ export const RevenueIncomeChart: React.FC<{
           background: 'var(--bg-surface)',
           borderRadius: 'var(--radius-xl)',
           border: '1px solid var(--border)',
-          padding: '1.5rem',
+          padding: '1.2rem 1.2rem 1.05rem',
           boxShadow: 'var(--shadow-card)',
         }}
       >
-        <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+        <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
           Historical Financial Activity
         </h3>
-        <p style={{ margin: '0.5rem 0 0', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+        <p style={{ margin: '0.35rem 0 0', fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
           Date-bucketed financial history is unavailable. No trend is shown until actual payment, ledger, and settlement history is provided.
         </p>
       </div>
@@ -103,7 +103,7 @@ export const RevenueIncomeChart: React.FC<{
   const maxGmv = Math.max(...data.map((d) => d.gmv), 100);
 
   const width = 760;
-  const height = 260;
+  const height = 210;
   const paddingLeft = 50;
   const paddingRight = 20;
   const paddingTop = 20;
@@ -151,11 +151,11 @@ export const RevenueIncomeChart: React.FC<{
         background: 'var(--bg-surface)',
         borderRadius: 'var(--radius-xl)',
         border: '1px solid var(--border)',
-        padding: '1.5rem',
+        padding: '1.2rem 1.2rem 1.05rem',
         boxShadow: 'var(--shadow-card)',
         display: 'flex',
         flexDirection: 'column',
-        gap: '1.25rem',
+        gap: '0.95rem',
       }}
     >
       {/* Chart Top Header & Controls */}
@@ -179,16 +179,16 @@ export const RevenueIncomeChart: React.FC<{
                 display: 'inline-block',
               }}
             />
-            <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
               Platform Revenue & Income
             </h3>
             <span
               style={{
-                fontSize: '0.72rem',
+                fontSize: '0.67rem',
                 fontWeight: 700,
                 color: 'var(--color-success)',
                 background: 'var(--color-success-bg)',
-                padding: '0.15rem 0.5rem',
+                padding: '0.12rem 0.45rem',
                 borderRadius: 'var(--radius-pill)',
                 border: '1px solid var(--color-success-border)',
               }}
@@ -196,7 +196,7 @@ export const RevenueIncomeChart: React.FC<{
               Recorded period data
             </span>
           </div>
-          <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: 0 }}>
+          <p style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', margin: 0 }}>
             Gross booking value, platform ledger credits, and settled payouts
           </p>
         </div>
@@ -209,7 +209,7 @@ export const RevenueIncomeChart: React.FC<{
             background: 'var(--bg-canvas)',
             border: '1px solid var(--border)',
             borderRadius: 'var(--radius-lg)',
-            padding: '0.2rem',
+            padding: '0.16rem',
           }}
         >
           {(['7D', '30D', '90D', '1Y'] as const).map((tf) => (
@@ -221,8 +221,8 @@ export const RevenueIncomeChart: React.FC<{
                 setHoverIndex(null);
               }}
               style={{
-                padding: '0.35rem 0.85rem',
-                fontSize: '0.75rem',
+                padding: '0.26rem 0.68rem',
+                fontSize: '0.71rem',
                 fontWeight: timeframe === tf ? 800 : 600,
                 color: timeframe === tf ? '#ffffff' : 'var(--text-secondary)',
                 background: timeframe === tf ? 'var(--brand-primary)' : 'transparent',
@@ -242,43 +242,43 @@ export const RevenueIncomeChart: React.FC<{
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-          gap: '1rem',
-          padding: '1rem',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(155px, 1fr))',
+          gap: '0.75rem',
+          padding: '0.75rem 0.85rem',
           background: 'var(--bg-canvas)',
           borderRadius: 'var(--radius-lg)',
           border: '1px solid var(--border-subtle)',
         }}
       >
         <div>
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
+          <div style={{ fontSize: '0.67rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
             Period GMV
           </div>
-          <div style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--brand-primary)', marginTop: '0.2rem' }}>
+          <div style={{ fontSize: '1.08rem', fontWeight: 800, color: 'var(--brand-primary)', marginTop: '0.15rem' }}>
             ₹ {totalPeriodGmv.toLocaleString('en-IN')}
           </div>
         </div>
         <div>
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
+          <div style={{ fontSize: '0.67rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
             Platform Revenue
           </div>
-          <div style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--brand-secondary)', marginTop: '0.2rem' }}>
+          <div style={{ fontSize: '1.08rem', fontWeight: 800, color: 'var(--brand-secondary)', marginTop: '0.15rem' }}>
             ₹ {totalPeriodRev.toLocaleString('en-IN')}
           </div>
         </div>
         <div>
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
+          <div style={{ fontSize: '0.67rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
             Driver Payouts
           </div>
-          <div style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--color-success)', marginTop: '0.2rem' }}>
+          <div style={{ fontSize: '1.08rem', fontWeight: 800, color: 'var(--color-success)', marginTop: '0.15rem' }}>
             ₹ {totalPeriodPayouts.toLocaleString('en-IN')}
           </div>
         </div>
         <div>
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
+          <div style={{ fontSize: '0.67rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
             Status
           </div>
-          <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
+          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
             {data.length} recorded periods
           </div>
         </div>
@@ -490,7 +490,7 @@ export const EcosystemGrowthChart: React.FC<{
   const maxVal = Math.max(...data.map((d) => Math.max(d.drivers, d.vendors, d.users)), 5);
 
   const width = 760;
-  const height = 250;
+  const height = 205;
   const paddingLeft = 45;
   const paddingRight = 20;
   const paddingTop = 20;
@@ -529,11 +529,11 @@ export const EcosystemGrowthChart: React.FC<{
         background: 'var(--bg-surface)',
         borderRadius: 'var(--radius-xl)',
         border: '1px solid var(--border)',
-        padding: '1.5rem',
+        padding: '1.2rem 1.2rem 1.05rem',
         boxShadow: 'var(--shadow-card)',
         display: 'flex',
         flexDirection: 'column',
-        gap: '1.25rem',
+        gap: '0.95rem',
       }}
     >
       {/* Header & Series Toggles */}
@@ -543,44 +543,44 @@ export const EcosystemGrowthChart: React.FC<{
           flexWrap: 'wrap',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: '1rem',
+          gap: '0.75rem',
         }}
       >
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.2rem' }}>
             <span
               style={{
-                width: '8px',
-                height: '8px',
+                width: '7px',
+                height: '7px',
                 borderRadius: '50%',
                 background: 'var(--color-success)',
                 display: 'inline-block',
               }}
             />
-            <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
               Ecosystem Growth & Scaling Velocity
             </h3>
           </div>
-          <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: 0 }}>
+          <p style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', margin: 0 }}>
             Real-time supply and demand scaling: Verified Drivers, Corporate Vendors & Platform Accounts
           </p>
         </div>
 
         {/* Series Filter Toggles */}
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
           <button
             type="button"
             onClick={() => setActiveSeries((s) => ({ ...s, drivers: !s.drivers }))}
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '0.35rem',
-              padding: '0.35rem 0.75rem',
+              gap: '0.3rem',
+              padding: '0.26rem 0.62rem',
               borderRadius: 'var(--radius-pill)',
               border: activeSeries.drivers ? '1px solid var(--color-success)' : '1px solid var(--border)',
               background: activeSeries.drivers ? 'var(--color-success-bg)' : 'transparent',
               color: activeSeries.drivers ? 'var(--color-success)' : 'var(--text-muted)',
-              fontSize: '0.75rem',
+              fontSize: '0.71rem',
               fontWeight: 700,
               cursor: 'pointer',
             }}
@@ -593,13 +593,13 @@ export const EcosystemGrowthChart: React.FC<{
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '0.35rem',
-              padding: '0.35rem 0.75rem',
+              gap: '0.3rem',
+              padding: '0.26rem 0.62rem',
               borderRadius: 'var(--radius-pill)',
               border: activeSeries.vendors ? '1px solid var(--brand-secondary)' : '1px solid var(--border)',
               background: activeSeries.vendors ? 'var(--brand-orange-subtle)' : 'transparent',
               color: activeSeries.vendors ? 'var(--brand-secondary)' : 'var(--text-muted)',
-              fontSize: '0.75rem',
+              fontSize: '0.71rem',
               fontWeight: 700,
               cursor: 'pointer',
             }}
@@ -612,13 +612,13 @@ export const EcosystemGrowthChart: React.FC<{
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '0.35rem',
-              padding: '0.35rem 0.75rem',
+              gap: '0.3rem',
+              padding: '0.26rem 0.62rem',
               borderRadius: 'var(--radius-pill)',
               border: activeSeries.users ? '1px solid var(--brand-primary)' : '1px solid var(--border)',
               background: activeSeries.users ? 'var(--brand-primary-subtle)' : 'transparent',
               color: activeSeries.users ? 'var(--brand-primary)' : 'var(--text-muted)',
-              fontSize: '0.75rem',
+              fontSize: '0.71rem',
               fontWeight: 700,
               cursor: 'pointer',
             }}
@@ -775,35 +775,35 @@ export const EcosystemGrowthChart: React.FC<{
           borderTop: '1px solid var(--border-subtle)',
         }}
       >
-        <div style={{ padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', background: 'var(--color-success-bg)' }}>
-          <div style={{ fontSize: '0.72rem', color: 'var(--color-success)', fontWeight: 700, textTransform: 'uppercase' }}>
+        <div style={{ padding: '0.6rem 0.8rem', borderRadius: 'var(--radius-md)', background: 'var(--color-success-bg)' }}>
+          <div style={{ fontSize: '0.67rem', color: 'var(--color-success)', fontWeight: 700, textTransform: 'uppercase' }}>
             Verified Drivers
           </div>
-          <div style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--color-success)', marginTop: '0.2rem' }}>
+          <div style={{ fontSize: '1.08rem', fontWeight: 800, color: 'var(--color-success)', marginTop: '0.15rem' }}>
             {totalDrivers} Active
           </div>
         </div>
-        <div style={{ padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', background: 'var(--brand-orange-subtle)' }}>
-          <div style={{ fontSize: '0.72rem', color: 'var(--brand-secondary)', fontWeight: 700, textTransform: 'uppercase' }}>
+        <div style={{ padding: '0.6rem 0.8rem', borderRadius: 'var(--radius-md)', background: 'var(--brand-orange-subtle)' }}>
+          <div style={{ fontSize: '0.67rem', color: 'var(--brand-secondary)', fontWeight: 700, textTransform: 'uppercase' }}>
             Corporate Vendors
           </div>
-          <div style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--brand-secondary)', marginTop: '0.2rem' }}>
+          <div style={{ fontSize: '1.08rem', fontWeight: 800, color: 'var(--brand-secondary)', marginTop: '0.15rem' }}>
             {totalVendors} Registered
           </div>
         </div>
-        <div style={{ padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', background: 'var(--brand-primary-subtle)' }}>
-          <div style={{ fontSize: '0.72rem', color: 'var(--brand-primary)', fontWeight: 700, textTransform: 'uppercase' }}>
+        <div style={{ padding: '0.6rem 0.8rem', borderRadius: 'var(--radius-md)', background: 'var(--brand-primary-subtle)' }}>
+          <div style={{ fontSize: '0.67rem', color: 'var(--brand-primary)', fontWeight: 700, textTransform: 'uppercase' }}>
             Total User Accounts
           </div>
-          <div style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--brand-primary)', marginTop: '0.2rem' }}>
+          <div style={{ fontSize: '1.08rem', fontWeight: 800, color: 'var(--brand-primary)', marginTop: '0.15rem' }}>
             {totalUsers} Accounts
           </div>
         </div>
-        <div style={{ padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-canvas)' }}>
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
+        <div style={{ padding: '0.6rem 0.8rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-canvas)' }}>
+          <div style={{ fontSize: '0.67rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
             Liquidity Ratio
           </div>
-          <div style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--text-primary)', marginTop: '0.2rem' }}>
+          <div style={{ fontSize: '1.08rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.15rem' }}>
             {(totalDrivers / Math.max(1, totalVendors)).toFixed(1)}:1 Ratio
           </div>
         </div>
@@ -826,41 +826,41 @@ export const FleetCategoryDistributionChart: React.FC<{
         background: 'var(--bg-surface)',
         borderRadius: 'var(--radius-xl)',
         border: '1px solid var(--border)',
-        padding: '1.5rem',
+        padding: '1.2rem 1.2rem 1.05rem',
         boxShadow: 'var(--shadow-card)',
         display: 'flex',
         flexDirection: 'column',
-        gap: '1.25rem',
+        gap: '0.95rem',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.65rem' }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.2rem' }}>
             <span
               style={{
-                width: '8px',
-                height: '8px',
+                width: '7px',
+                height: '7px',
                 borderRadius: '50%',
                 background: 'var(--brand-secondary)',
                 display: 'inline-block',
               }}
             />
-            <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
               Fleet Category Demand & Fulfillment Health
             </h3>
           </div>
-          <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: 0 }}>
+          <p style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', margin: 0 }}>
             Live vehicle volume requirements across categories from active marketplace bookings
           </p>
         </div>
 
         <span
           style={{
-            fontSize: '0.72rem',
+            fontSize: '0.68rem',
             fontWeight: 700,
             color: hasRealData ? 'var(--color-success)' : 'var(--text-muted)',
             background: hasRealData ? 'var(--color-success-bg)' : 'var(--bg-canvas)',
-            padding: '0.2rem 0.65rem',
+            padding: '0.16rem 0.55rem',
             borderRadius: 'var(--radius-pill)',
             border: '1px solid ' + (hasRealData ? 'var(--color-success-border)' : 'var(--border)'),
           }}
@@ -899,7 +899,7 @@ export const FleetCategoryDistributionChart: React.FC<{
             <Car size={24} />
           </div>
           <div>
-            <h4 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 0.25rem 0' }}>
+            <h4 style={{ fontSize: '1.04rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.25rem 0' }}>
               No Category Demands Recorded Yet
             </h4>
             <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', maxWidth: '440px', margin: '0 auto' }}>
@@ -968,41 +968,41 @@ export const CorridorMatrixChart: React.FC<{
         background: 'var(--bg-surface)',
         borderRadius: 'var(--radius-xl)',
         border: '1px solid var(--border)',
-        padding: '1.5rem',
+        padding: '1.2rem 1.2rem 1.05rem',
         boxShadow: 'var(--shadow-card)',
         display: 'flex',
         flexDirection: 'column',
-        gap: '1.25rem',
+        gap: '0.95rem',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.65rem' }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.2rem' }}>
             <span
               style={{
-                width: '8px',
-                height: '8px',
+                width: '7px',
+                height: '7px',
                 borderRadius: '50%',
                 background: 'var(--color-info)',
                 display: 'inline-block',
               }}
             />
-            <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
               Corridor Travel Density & SLA Adherence
             </h3>
           </div>
-          <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: 0 }}>
+          <p style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', margin: 0 }}>
             Real-time travel corridor density, fulfillment velocity, and average fares across active routes
           </p>
         </div>
 
         <span
           style={{
-            fontSize: '0.72rem',
+            fontSize: '0.68rem',
             fontWeight: 700,
             color: hasRealData ? 'var(--color-success)' : 'var(--text-muted)',
             background: hasRealData ? 'var(--color-success-bg)' : 'var(--bg-canvas)',
-            padding: '0.2rem 0.65rem',
+            padding: '0.16rem 0.55rem',
             borderRadius: 'var(--radius-pill)',
             border: '1px solid ' + (hasRealData ? 'var(--color-success-border)' : 'var(--border)'),
           }}
@@ -1041,7 +1041,7 @@ export const CorridorMatrixChart: React.FC<{
             <MapPin size={24} />
           </div>
           <div>
-            <h4 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 0.25rem 0' }}>
+            <h4 style={{ fontSize: '1.04rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.25rem 0' }}>
               No Corridor Traffic Recorded Yet
             </h4>
             <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', maxWidth: '440px', margin: '0 auto' }}>

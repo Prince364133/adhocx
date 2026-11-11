@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Bell, Clock, ShieldCheck } from 'lucide-react';
-import { PageHeader } from '../../components/common';
+import { Button, FeedbackBanner, PageHeader } from '../../components/common';
 import { VerificationStatsHeader } from '../../components/verifications/VerificationStatsHeader';
 import { VerificationFilterBar } from '../../components/verifications/VerificationFilterBar';
 import { VerificationCard } from '../../components/verifications/VerificationCard';
@@ -46,36 +46,37 @@ export default function VerificationCenterPage() {
   } = useVerificationActions(updateItemStatus);
 
   return (
-    <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div className="admin-page">
       <PageHeader
         title="Verification Center"
         subtitle="Review, authenticate, and manage Driver KYC submissions and Vendor enterprise applications"
         liveStatus="KYC Pipeline Active"
       />
 
-      <div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         {/* Toast Feedback Notification */}
         {toastMessage && (
           <div
+            className="animate-toast-in"
             style={{
               position: 'fixed',
               top: '20px',
               right: '20px',
-              background: 'var(--bg-card-elevated)',
+              background: 'var(--bg-surface)',
               border: '1px solid var(--brand-primary)',
               color: 'var(--text-primary)',
-              padding: '0.875rem 1.5rem',
+              padding: '0.75rem 1.15rem',
               borderRadius: '10px',
-              boxShadow: '0 10px 25px rgba(0,0,0,0.4)',
+              boxShadow: 'var(--shadow-lg)',
               zIndex: 200,
-              fontSize: '0.875rem',
+              fontSize: '0.84rem',
               fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
-              gap: '0.75rem',
+              gap: '0.625rem',
             }}
           >
-            <Bell size={18} color="var(--brand-primary)" />
+            <Bell size={16} color="var(--brand-primary)" />
             <span>{toastMessage}</span>
           </div>
         )}
@@ -97,21 +98,7 @@ export default function VerificationCenterPage() {
         />
 
         {/* 3. Verification Card Grid */}
-        {error && (
-          <div
-            style={{
-              padding: '1rem',
-              background: 'rgba(244, 63, 94, 0.1)',
-              border: '1px solid var(--color-danger)',
-              borderRadius: '8px',
-              color: '#f43f5e',
-              marginBottom: '1.5rem',
-              fontSize: '0.875rem',
-            }}
-          >
-            {error}
-          </div>
-        )}
+        {error && <FeedbackBanner type="error" message={error} />}
 
         {isLoading ? (
           <div
@@ -120,12 +107,16 @@ export default function VerificationCenterPage() {
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              padding: '4rem',
-              gap: '1rem',
+              padding: '3.25rem 1.5rem',
+              gap: '0.75rem',
               color: 'var(--text-muted)',
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border)',
+              borderRadius: '12px',
+              fontSize: '0.84rem',
             }}
           >
-            <Clock size={32} color="var(--brand-primary)" />
+            <Clock size={26} color="var(--brand-primary)" />
             <div>Loading verification queue from secure storage...</div>
           </div>
         ) : items.length === 0 ? (
@@ -134,61 +125,54 @@ export default function VerificationCenterPage() {
               background: 'var(--bg-surface)',
               border: '1px solid var(--border)',
               borderRadius: '12px',
-              padding: '4rem 2rem',
+              padding: '3rem 1.5rem',
               textAlign: 'center',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: '1rem',
+              gap: '0.85rem',
             }}
           >
             <div
               style={{
-                width: '64px',
-                height: '64px',
+                width: '52px',
+                height: '52px',
                 borderRadius: '50%',
-                background: 'rgba(99, 102, 241, 0.1)',
+                background: 'var(--brand-primary-subtle)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: 'var(--brand-primary)',
               }}
             >
-              <ShieldCheck size={32} />
+              <ShieldCheck size={20} />
             </div>
             <div>
-              <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              <h3 style={{ fontSize: '1.06rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
                 No Applications in This Filter
               </h3>
               <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
                 All submitted driver and vendor KYC applications have been reviewed or match no search query.
               </p>
             </div>
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => {
                 setSearchQuery('');
                 setEntityFilter('ALL');
                 setStatusFilter('ALL');
               }}
-              style={{
-                padding: '0.5rem 1rem',
-                background: 'var(--bg-surface-elevated)',
-                border: '1px solid var(--border-light)',
-                borderRadius: '6px',
-                color: 'var(--text-primary)',
-                fontSize: '0.8125rem',
-                cursor: 'pointer',
-              }}
             >
               Reset Filters
-            </button>
+            </Button>
           </div>
         ) : (
           <div
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-              gap: '1.25rem',
+              gap: '1rem',
             }}
           >
             {items.map((item) => (

@@ -334,12 +334,12 @@ export function DynamicDistancePricingSection() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       {/* Alert Banner */}
       {alert && (
         <div
           style={{
-            padding: '0.875rem 1.25rem',
+            padding: '0.68rem 0.95rem',
             borderRadius: 'var(--radius-md)',
             display: 'flex',
             alignItems: 'center',
@@ -347,7 +347,7 @@ export function DynamicDistancePricingSection() {
             background: alert.type === 'success' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
             border: `1px solid ${alert.type === 'success' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
             color: alert.type === 'success' ? 'var(--color-success)' : 'var(--color-danger)',
-            fontSize: '0.875rem',
+            fontSize: '0.775rem',
             fontWeight: 500,
           }}
         >
@@ -367,30 +367,30 @@ export function DynamicDistancePricingSection() {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          gap: '1rem',
+          gap: '0.85rem',
           flexWrap: 'wrap',
           background: 'var(--bg-card)',
-          padding: '1.25rem',
+          padding: '0.95rem 1.05rem',
           borderRadius: 'var(--radius-lg)',
           border: '1px solid var(--border)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flexWrap: 'wrap' }}>
           <div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Rate Plan</div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>Rate Plan</div>
             <select
               value={selectedPlanId}
               onChange={(e) => setSelectedPlanId(e.target.value)}
               style={{
-                marginTop: '0.25rem',
-                padding: '0.5rem 1rem',
+                marginTop: '0.2rem',
+                padding: '0.38rem 0.78rem',
                 borderRadius: 'var(--radius-md)',
                 background: 'var(--bg-surface-elevated)',
                 border: '1px solid var(--border)',
                 color: 'var(--text-primary)',
                 fontWeight: 700,
-                fontSize: '0.9375rem',
-                minWidth: '240px',
+                fontSize: '0.82rem',
+                minWidth: '215px',
               }}
             >
               {plans.map((p) => (
@@ -402,12 +402,12 @@ export function DynamicDistancePricingSection() {
           </div>
 
           {activePlan && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1.25rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginTop: '1rem' }}>
               <StatusBadge status={activePlan.status} size="sm" showPulse={activePlan.status === 'ACTIVE'} />
               <span
                 style={{
-                  fontSize: '0.75rem',
-                  padding: '0.2rem 0.5rem',
+                  fontSize: '0.7rem',
+                  padding: '0.16rem 0.45rem',
                   borderRadius: 'var(--radius-xs)',
                   background: 'rgba(91, 66, 243, 0.12)',
                   color: 'var(--brand-primary)',
@@ -416,22 +416,22 @@ export function DynamicDistancePricingSection() {
               >
                 Category: {activePlan.vehicleCategory}
               </span>
-              <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                 Effective: {new Date(activePlan.effectiveFrom).toLocaleDateString()}
               </span>
             </div>
           )}
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <Button variant="secondary" size="sm" leftIcon={<History size={15} />} onClick={handleOpenAudit}>
+        <div style={{ display: 'flex', gap: '0.55rem', flexWrap: 'wrap' }}>
+          <Button variant="secondary" size="sm" leftIcon={<History size={13} />} onClick={handleOpenAudit}>
             Audit Trail
           </Button>
-          <Button variant="secondary" size="sm" leftIcon={<Plus size={15} />} onClick={() => setIsCreatePlanOpen(true)}>
+          <Button variant="secondary" size="sm" leftIcon={<Plus size={13} />} onClick={() => setIsCreatePlanOpen(true)}>
             New Draft Version
           </Button>
           {activePlan && (activePlan.status === 'ACTIVE' || activePlan.status === 'SCHEDULED') && (
-            <Button variant="secondary" size="sm" leftIcon={<AlertTriangle size={15} />} onClick={() => setIsRetireOpen(true)}>
+            <Button variant="secondary" size="sm" leftIcon={<AlertTriangle size={13} />} onClick={() => setIsRetireOpen(true)}>
               {activePlan.status === 'SCHEDULED' ? 'Cancel Schedule' : 'Deactivate'}
             </Button>
           )}
@@ -480,7 +480,7 @@ export function DynamicDistancePricingSection() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '1.5rem' }}>
         {/* Distance Slabs Table */}
         <Card>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem', gap: '1rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem', paddingTop: '0.15rem', gap: '1rem', flexWrap: 'wrap' }}>
             <div>
               <h3 style={{ fontSize: '1.125rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
                 Distance Slabs ({activePlan?.slabs.length || 0} Bands)
@@ -580,7 +580,7 @@ export function DynamicDistancePricingSection() {
 
         {/* Live Route Distance Simulator (PRD Section 5 & 11) */}
         <Card>
-          <div style={{ marginBottom: '1.25rem' }}>
+          <div style={{ marginBottom: '1.25rem', paddingTop: '0.15rem' }}>
             <h3 style={{ fontSize: '1.125rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
               Interactive Distance Engine Simulator
             </h3>

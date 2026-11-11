@@ -23,6 +23,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { AdhocxBrandLogo } from './AdhocxBrandLogo';
+import { ConfirmDialog } from './common/ConfirmDialog';
 import { adminApi, getStoredAdminUser } from '../lib/api/client';
 
 interface NavSection {
@@ -80,6 +81,7 @@ export const Sidebar: React.FC = () => {
   const router = useRouter();
   const [adminUser, setAdminUser] = React.useState<any>(null);
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = React.useState(false);
   const [isHovered, setIsHovered] = React.useState(false);
 
   React.useEffect(() => {
@@ -107,7 +109,7 @@ export const Sidebar: React.FC = () => {
         display: 'flex',
         flexDirection: 'column',
         height: '100vh',
-        width: isHovered ? '260px' : '72px',
+        width: isHovered ? '240px' : '64px',
         transition: 'width 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease',
         boxShadow: isHovered
           ? '10px 0 36px rgba(0, 0, 0, 0.16), 0 0 0 1px var(--border)'
@@ -118,22 +120,22 @@ export const Sidebar: React.FC = () => {
       {/* Brand Header */}
       <div
         style={{
-          padding: isHovered ? '1.25rem 1.5rem' : '1.25rem 0',
+          padding: isHovered ? '0.85rem 1.15rem' : '0.85rem 0',
           borderBottom: '1px solid var(--border)',
           background: 'var(--bg-surface)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: isHovered ? 'flex-start' : 'center',
-          minHeight: '64px',
+          minHeight: '50px',
           boxSizing: 'border-box',
           overflow: 'hidden',
         }}
       >
         {isHovered ? (
-          <AdhocxBrandLogo size={34} subtitle="Control Portal" />
+          <AdhocxBrandLogo size={26} subtitle="Control Portal" />
         ) : (
-          <div style={{ transform: 'scale(0.95)' }}>
-            <AdhocxBrandLogo variant="icon" size={34} />
+          <div style={{ transform: 'scale(0.92)' }}>
+            <AdhocxBrandLogo variant="icon" size={28} />
           </div>
         )}
       </div>
@@ -194,16 +196,16 @@ export const Sidebar: React.FC = () => {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: isHovered ? 'space-between' : 'center',
-                      padding: isHovered ? '0.55rem 0.75rem' : '0.6rem 0',
+                      padding: isHovered ? '0.46rem 0.68rem' : '0.48rem 0',
                       borderRadius: 'var(--radius-md)',
-                      fontSize: '0.84rem',
+                      fontSize: '0.79rem',
                       fontWeight: isActive ? 700 : 500,
                       color: isActive ? '#ffffff' : 'var(--text-secondary)',
                       backgroundColor: isActive ? 'var(--brand-primary)' : 'transparent',
                       boxShadow: isActive ? 'var(--shadow-glow-purple)' : 'none',
                       transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
                       textDecoration: 'none',
-                      width: isHovered ? '100%' : '44px',
+                      width: isHovered ? '100%' : '38px',
                       margin: isHovered ? '0' : '0 auto',
                       boxSizing: 'border-box',
                     }}
@@ -231,7 +233,7 @@ export const Sidebar: React.FC = () => {
                         minWidth: 0,
                       }}
                     >
-                      <item.icon size={18} style={{ flexShrink: 0 }} />
+                      <item.icon size={16} style={{ flexShrink: 0 }} />
                       {isHovered && (
                         <span
                           style={{
@@ -286,13 +288,13 @@ export const Sidebar: React.FC = () => {
             textDecoration: 'none',
             fontSize: '0.78rem',
             fontWeight: 700,
-            width: isHovered ? '100%' : '44px',
+            width: isHovered ? '100%' : '38px',
             margin: isHovered ? '0' : '0 auto',
             boxSizing: 'border-box',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: isHovered ? 'flex-start' : 'center', width: isHovered ? 'auto' : '100%' }}>
-            <Radio size={16} style={{ flexShrink: 0 }} />
+            <Radio size={15} style={{ flexShrink: 0 }} />
             {isHovered && <span>Fleet Ops (:7004)</span>}
           </div>
           {isHovered && <ExternalLink size={13} style={{ flexShrink: 0 }} />}
@@ -302,13 +304,13 @@ export const Sidebar: React.FC = () => {
       {/* Administrative User & Logout Footer */}
       <div
         style={{
-          padding: isHovered ? '1rem 1.1rem' : '0.85rem 0.5rem',
+          padding: isHovered ? '0.75rem 0.95rem' : '0.7rem 0.4rem',
           borderTop: '1px solid var(--border)',
           background: 'var(--bg-surface)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: isHovered ? 'stretch' : 'center',
-          gap: '0.75rem',
+          gap: '0.6rem',
           overflow: 'hidden',
         }}
       >
@@ -317,15 +319,15 @@ export const Sidebar: React.FC = () => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: isHovered ? 'flex-start' : 'center',
-            gap: isHovered ? '0.75rem' : '0',
+            gap: isHovered ? '0.6rem' : '0',
             width: '100%',
           }}
           title={!isHovered ? `${adminUser?.fullName || 'Administrator'} (${adminUser?.email || 'admin@adhocx.com'})` : undefined}
         >
           <div
             style={{
-              width: '36px',
-              height: '36px',
+              width: '32px',
+              height: '32px',
               borderRadius: '50%',
               background: 'var(--brand-primary-gradient)',
               color: '#ffffff',
@@ -333,7 +335,7 @@ export const Sidebar: React.FC = () => {
               alignItems: 'center',
               justifyContent: 'center',
               fontWeight: 800,
-              fontSize: '0.82rem',
+              fontSize: '0.75rem',
               boxShadow: '0 2px 8px rgba(91, 66, 243, 0.3)',
               flexShrink: 0,
             }}
@@ -344,7 +346,7 @@ export const Sidebar: React.FC = () => {
             <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
               <span
                 style={{
-                  fontSize: '0.82rem',
+                  fontSize: '0.775rem',
                   fontWeight: 700,
                   color: 'var(--text-primary)',
                   whiteSpace: 'nowrap',
@@ -356,7 +358,7 @@ export const Sidebar: React.FC = () => {
               </span>
               <span
                 style={{
-                  fontSize: '0.72rem',
+                  fontSize: '0.68rem',
                   color: 'var(--text-muted)',
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
@@ -372,23 +374,23 @@ export const Sidebar: React.FC = () => {
         <button
           type="button"
           id="sidebar-logout-btn"
-          onClick={handleLogout}
+          onClick={() => setShowLogoutConfirm(true)}
           disabled={isLoggingOut}
           title={!isHovered ? 'Log Out' : undefined}
           style={{
-            width: isHovered ? '100%' : '38px',
-            height: isHovered ? 'auto' : '38px',
+            width: isHovered ? '100%' : '34px',
+            height: isHovered ? 'auto' : '34px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: isHovered ? '0.5rem' : '0',
-            padding: isHovered ? '0.6rem 0.9rem' : '0',
+            gap: isHovered ? '0.45rem' : '0',
+            padding: isHovered ? '0.45rem 0.72rem' : '0',
             borderRadius: 'var(--radius-md)',
             background: 'var(--color-danger-bg)',
             border: '1px solid var(--color-danger-border)',
             color: 'var(--color-danger)',
-            fontSize: '0.82rem',
-            fontWeight: 700,
+            fontSize: '0.8rem',
+            fontWeight: 600,
             cursor: isLoggingOut ? 'not-allowed' : 'pointer',
             transition: 'all 0.15s ease',
           }}
@@ -405,6 +407,17 @@ export const Sidebar: React.FC = () => {
           {isHovered && <span>{isLoggingOut ? 'Signing Out...' : 'Log Out'}</span>}
         </button>
       </div>
+
+      <ConfirmDialog
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={handleLogout}
+        title="Sign Out of AdhocX Admin?"
+        description="You will be signed out of the current administrative session and redirected to the login screen."
+        confirmLabel="Sign Out"
+        variant="danger"
+        isLoading={isLoggingOut}
+      />
     </aside>
   );
 };

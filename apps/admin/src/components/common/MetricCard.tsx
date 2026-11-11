@@ -1,18 +1,22 @@
+'use client';
+
 import React from 'react';
+import { TrendingUp, TrendingDown } from 'lucide-react';
 
 export interface MetricCardProps {
   label: string;
   value: string | number;
   subtext?: string;
   trend?: {
-    value: string;
+    value: number;
+    label?: string;
     isPositive?: boolean;
-    positive?: boolean;
-    isNeutral?: boolean;
   };
   icon?: React.ReactNode;
   accentColor?: string;
   onClick?: () => void;
+  active?: boolean;
+  style?: React.CSSProperties;
 }
 
 export const MetricCard: React.FC<MetricCardProps> = ({
@@ -21,59 +25,59 @@ export const MetricCard: React.FC<MetricCardProps> = ({
   subtext,
   trend,
   icon,
-  accentColor,
+  accentColor = 'var(--brand-primary)',
   onClick,
+  active = false,
+  style = {},
 }) => {
-  const isPos = trend ? (trend.isPositive ?? trend.positive) : undefined;
   return (
     <div
       onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={(e) => {
+        if (onClick && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault();
+          onClick();
+        }
+      }}
       style={{
         background: 'var(--bg-card)',
-        border: '1px solid var(--border-subtle)',
+        border: active ? '1px solid var(--brand-primary)' : '1px solid var(--border)',
+        borderTop: `2px solid ${accentColor}`,
         borderRadius: 'var(--radius-lg)',
-        padding: '1.25rem 1.5rem',
+        padding: '0.72rem 0.9rem',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        boxShadow: 'var(--shadow-card)',
+        gap: '0.35rem',
+        boxShadow: active ? 'var(--shadow-glow-purple)' : 'var(--shadow-card)',
         cursor: onClick ? 'pointer' : 'default',
-        transition: 'all 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
-        position: 'relative',
-        overflow: 'hidden',
+        transition: 'transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease',
+        ...style,
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = accentColor || 'var(--brand-primary)';
-        e.currentTarget.style.transform = 'translateY(-2px)';
+        e.currentTarget.style.transform = 'translateY(-1px)';
         e.currentTarget.style.boxShadow = 'var(--shadow-elevated)';
+        if (onClick && !active) {
+          e.currentTarget.style.borderColor = 'var(--brand-primary-border)';
+        }
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = 'var(--border-subtle)';
         e.currentTarget.style.transform = 'translateY(0)';
-        e.currentTarget.style.boxShadow = 'var(--shadow-card)';
+        e.currentTarget.style.boxShadow = active ? 'var(--shadow-glow-purple)' : 'var(--shadow-card)';
+        if (!active) {
+          e.currentTarget.style.borderColor = 'var(--border)';
+        }
       }}
     >
-      {accentColor && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: '3px',
-            background: accentColor,
-          }}
-        />
-      )}
-
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
         <span
           style={{
-            fontSize: '0.75rem',
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            letterSpacing: '0.06em',
+            fontSize: '0.7rem',
+            fontWeight: 600,
             color: 'var(--text-secondary)',
+            lineHeight: 1.3,
           }}
         >
           {label}
@@ -81,15 +85,16 @@ export const MetricCard: React.FC<MetricCardProps> = ({
         {icon && (
           <span
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '32px',
-              height: '32px',
+              width: '24px',
+              height: '24px',
               borderRadius: 'var(--radius-md)',
               background: 'var(--bg-card-elevated)',
-              fontSize: '1.125rem',
-              color: 'var(--text-primary)',
+              border: '1px solid var(--border)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: accentColor,
+              flexShrink: 0,
             }}
           >
             {icon}
@@ -99,41 +104,51 @@ export const MetricCard: React.FC<MetricCardProps> = ({
 
       <div
         style={{
-          fontSize: '2rem',
-          fontWeight: 800,
-          letterSpacing: '-0.03em',
+          fontSize: '1.2rem',
+          fontWeight: 700,
           color: 'var(--text-primary)',
-          lineHeight: 1.1,
-          marginBottom: '0.5rem',
+          letterSpacing: '-0.02em',
+          lineHeight: 1.2,
+          fontVariantNumeric: 'tabular-nums',
         }}
       >
         {value}
       </div>
 
       {(subtext || trend) && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8125rem' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '0.45rem',
+            flexWrap: 'wrap',
+          }}
+        >
+          {subtext && (
+            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', lineHeight: 1.35 }}>{subtext}</span>
+          )}
           {trend && (
             <span
               style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.22rem',
+                fontSize: '0.67rem',
                 fontWeight: 600,
-                color: trend.isNeutral
-                  ? 'var(--text-secondary)'
-                  : isPos
-                  ? 'var(--color-success)'
-                  : 'var(--color-danger)',
-                backgroundColor: trend.isNeutral
-                  ? 'rgba(100, 116, 139, 0.12)'
-                  : isPos
-                  ? 'rgba(16, 185, 129, 0.12)'
-                  : 'rgba(239, 68, 68, 0.12)',
-                padding: '0.1rem 0.4rem',
-                borderRadius: 'var(--radius-xs)',
+                padding: '0.1rem 0.42rem',
+                borderRadius: 'var(--radius-pill)',
+                background: trend.isPositive !== false ? 'var(--color-success-bg)' : 'var(--color-danger-bg)',
+                color: trend.isPositive !== false ? 'var(--color-success)' : 'var(--color-danger)',
               }}
             >
-              {trend.value}
+              {trend.isPositive !== false ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+              <span>
+                {trend.value > 0 ? `+${trend.value}%` : `${trend.value}%`}
+                {trend.label ? ` ${trend.label}` : ''}
+              </span>
             </span>
           )}
-          {subtext && <span style={{ color: 'var(--text-muted)' }}>{subtext}</span>}
         </div>
       )}
     </div>

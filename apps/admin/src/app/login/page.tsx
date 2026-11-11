@@ -125,30 +125,30 @@ function AdminLoginForm() {
       />
 
       <div
+        className="animate-fade-in"
         style={{
           width: '100%',
-          maxWidth: '440px',
-          background: 'var(--bg-surface, #FFFFFF)',
-          borderRadius: 'var(--radius-2xl, 16px)',
-          border: '1px solid var(--border, #E2E8F0)',
-          boxShadow: '0 20px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(91, 66, 243, 0.05)',
-          padding: '2.5rem 2.25rem',
+          maxWidth: '420px',
+          background: 'var(--bg-surface)',
+          borderRadius: 'var(--radius-xl)',
+          border: '1px solid var(--border)',
+          boxShadow: 'var(--shadow-elevated)',
+          padding: '1.85rem 1.75rem',
           position: 'relative',
           zIndex: 10,
-          backdropFilter: 'blur(12px)',
         }}
       >
         {/* Header & Logo */}
-        <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
-          <div style={{ display: 'inline-flex', justifyContent: 'center', marginBottom: '1.25rem' }}>
-            <AdhocxBrandLogo size={42} subtitle="Control Portal" />
+        <div style={{ textAlign: 'center', marginBottom: '1.45rem' }}>
+          <div style={{ display: 'inline-flex', justifyContent: 'center', marginBottom: '1rem' }}>
+            <AdhocxBrandLogo size={40} subtitle="Control Portal" />
           </div>
           <h1
             style={{
-              fontSize: '1.45rem',
-              fontWeight: 800,
-              color: 'var(--text-primary, #0F172A)',
-              margin: '0 0 0.4rem 0',
+              fontSize: '1.32rem',
+              fontWeight: 700,
+              color: 'var(--text-primary)',
+              margin: '0 0 0.35rem 0',
               letterSpacing: '-0.02em',
             }}
           >
@@ -156,8 +156,8 @@ function AdminLoginForm() {
           </h1>
           <p
             style={{
-              fontSize: '0.85rem',
-              color: 'var(--text-secondary, #475569)',
+              fontSize: '0.8125rem',
+              color: 'var(--text-secondary)',
               margin: 0,
               lineHeight: 1.4,
             }}
@@ -346,35 +346,24 @@ function AdminLoginForm() {
             type="submit"
             id="admin-login-submit-btn"
             disabled={isLoading}
+            className="btn btn-primary"
             style={{
-              marginTop: '0.5rem',
+              marginTop: '0.35rem',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '0.5rem',
+              gap: '0.45rem',
               width: '100%',
-              padding: '0.85rem 1.25rem',
-              borderRadius: 'var(--radius-lg, 10px)',
-              backgroundColor: '#5728B2',
-              backgroundImage: 'linear-gradient(135deg, #5728B2 0%, #431E8E 100%)',
+              padding: '0.68rem 1.1rem',
+              borderRadius: 'var(--radius-md)',
+              backgroundColor: 'var(--brand-primary)',
+              borderColor: 'var(--brand-primary)',
               color: '#FFFFFF',
-              fontSize: '0.92rem',
-              fontWeight: 700,
-              border: 'none',
+              fontSize: '0.875rem',
+              fontWeight: 600,
               cursor: isLoading ? 'not-allowed' : 'pointer',
-              opacity: isLoading ? 0.75 : 1,
-              transition: 'transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease',
-              boxShadow: '0 4px 14px rgba(87, 40, 178, 0.35)',
-            }}
-            onMouseEnter={(e) => {
-              if (!isLoading) {
-                e.currentTarget.style.transform = 'translateY(-1px)';
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(87, 40, 178, 0.45)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 4px 14px rgba(87, 40, 178, 0.35)';
+              opacity: isLoading ? 0.72 : 1,
+              transition: 'background-color 0.15s ease, transform 0.1s ease, opacity 0.15s ease',
             }}
           >
             {isLoading ? (
@@ -416,7 +405,7 @@ function AdminLoginForm() {
 
 export default function AdminLoginPage() {
   return (
-    <Suspense fallback={<div style={{ minHeight: '100vh', background: '#0a0a0f' }} />}>
+    <Suspense fallback={<div style={{ minHeight: '100vh', background: 'var(--bg-base, #F8FAFC)' }} />}>
       <AdminLoginForm />
     </Suspense>
   );

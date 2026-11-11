@@ -338,10 +338,20 @@ export class AdminController {
     return this.adminService.getWeeklyTripFrequencyReport(weekStart, day);
   }
 
+  @Get('reports/financial-companies')
+  @ApiOperation({ summary: 'List all available companies (vendors and corporate tenants) sorted A-Z for financial metrics' })
+  async getFinancialCompanies() {
+    return this.adminService.getFinancialCompanies();
+  }
+
   @Get('reports/financial-daily')
   @ApiOperation({ summary: 'Get date-filtered booking volume, platform revenue, payouts, and active escrow holds' })
-  async getDailyFinancialReport(@Query('date') date: string) {
-    return this.adminService.getDailyFinancialReport(date);
+  async getDailyFinancialReport(
+    @Query('date') date: string,
+    @Query('companyId') companyId?: string,
+    @Query('companyType') companyType?: string,
+  ) {
+    return this.adminService.getDailyFinancialReport(date, companyId, companyType);
   }
 
   @Get('reports/analytics')

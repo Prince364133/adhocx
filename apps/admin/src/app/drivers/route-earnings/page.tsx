@@ -24,6 +24,7 @@ import { adminApi } from '../../../lib/api/client';
 import { DriverListItem, DriverDetail } from '../../../lib/api/types';
 import {
   Button,
+  KpiStrip,
   StatusBadge,
 } from '../../../components/common';
 
@@ -400,13 +401,13 @@ function RouteEarningsContent() {
     const x =
       mapPadding +
       ((clampedLng - CORRIDOR_BOUNDS.minLng) / (CORRIDOR_BOUNDS.maxLng - CORRIDOR_BOUNDS.minLng || 1)) *
-        (mapWidth - mapPadding * 2);
+      (mapWidth - mapPadding * 2);
 
     const y =
       mapHeight -
       mapPadding -
       ((clampedLat - CORRIDOR_BOUNDS.minLat) / (CORRIDOR_BOUNDS.maxLat - CORRIDOR_BOUNDS.minLat || 1)) *
-        (mapHeight - mapPadding * 2);
+      (mapHeight - mapPadding * 2);
 
     return { x, y };
   };
@@ -454,37 +455,28 @@ function RouteEarningsContent() {
   }, [filteredStops, selectedStopId, hoveredStopId]);
 
   return (
-    <div style={{ maxWidth: '1440px', margin: '0 auto', paddingBottom: '3rem' }}>
+    <div style={{ width: '100%', paddingBottom: '0.5rem' }}>
       {/* SECTION 1: Page Navigation Header */}
       <div
+        className="module-bar"
         style={{
-          display: 'flex',
-          alignItems: 'center',
+          marginTop: '0.15rem',
+          marginBottom: '1.15rem',
+          padding: '0.68rem 1rem',
           justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '1rem',
-          marginBottom: '1.25rem',
-          paddingBottom: '1rem',
-          borderBottom: '1px solid var(--border)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
           <Button
-            variant="secondary"
+            variant="outline"
             size="sm"
             onClick={() => router.push('/drivers')}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              fontWeight: 700,
-            }}
+            leftIcon={<ArrowLeft size={13} />}
           >
-            <ArrowLeft size={16} />
-            <span>Back to Driver Fleet</span>
+            Back to Driver Fleet
           </Button>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
             <span>Driver Fleet</span>
             <span>/</span>
             <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>Driver Route & Earnings Tracking</span>
@@ -492,21 +484,13 @@ function RouteEarningsContent() {
         </div>
 
         {/* Driver Quick Selector Dropdown */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Active Driver:</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Active Driver:</span>
           <select
+            className="form-select"
             value={selectedDriverId}
             onChange={(e) => setSelectedDriverId(e.target.value)}
-            style={{
-              padding: '0.4rem 0.75rem',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-light)',
-              background: 'var(--bg-surface)',
-              color: 'var(--text-primary)',
-              fontSize: '0.875rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-            }}
+            style={{ width: 'auto', minWidth: '200px', fontWeight: 600 }}
           >
             {drivers.map((drv) => (
               <option key={drv.id} value={drv.id}>
@@ -523,30 +507,30 @@ function RouteEarningsContent() {
           style={{
             background: 'var(--bg-surface)',
             border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-xl)',
-            padding: '1.25rem 1.5rem',
-            marginBottom: '1.5rem',
-            boxShadow: 'var(--shadow-sm)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '0.85rem 1.05rem',
+            marginBottom: '0.9rem',
+            boxShadow: 'var(--shadow-xs)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             flexWrap: 'wrap',
-            gap: '1rem',
+            gap: '0.85rem',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <div
               style={{
-                width: '52px',
-                height: '52px',
+                width: '40px',
+                height: '40px',
                 borderRadius: '50%',
                 background: 'var(--brand-primary-subtle)',
-                border: '2px solid var(--brand-primary)',
+                border: '1px solid rgba(87, 40, 178, 0.25)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '1.15rem',
-                fontWeight: 800,
+                fontSize: '0.88rem',
+                fontWeight: 700,
                 color: 'var(--brand-primary)',
                 flexShrink: 0,
               }}
@@ -555,8 +539,8 @@ function RouteEarningsContent() {
             </div>
 
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
-                <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <h2 style={{ margin: 0, fontSize: '1.12rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                   {currentDriver.fullName}
                 </h2>
                 <span
@@ -629,130 +613,48 @@ function RouteEarningsContent() {
         </div>
       )}
 
-      {/* SECTION 4: Driver Earnings Summary Cards (Matching Image 2) */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '1rem',
-          marginBottom: '1.5rem',
-        }}
-      >
-        {/* Card 1: Total Orders */}
-        <div
-          style={{
-            background: 'var(--bg-surface)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-lg)',
-            padding: '1.25rem',
-            boxShadow: 'var(--shadow-sm)',
-            position: 'relative',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
-            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Orders</span>
-            <Package size={18} color="var(--brand-primary)" />
-          </div>
-          <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-            {summaryMetrics.totalOrders}
-          </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-            Assigned corporate stops
-          </div>
-        </div>
-
-        {/* Card 2: Total Distance Travelled */}
-        <div
-          style={{
-            background: 'var(--bg-surface)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-lg)',
-            padding: '1.25rem',
-            boxShadow: 'var(--shadow-sm)',
-            position: 'relative',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
-            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Distance</span>
-            <Route size={18} color="var(--brand-primary)" />
-          </div>
-          <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-            {summaryMetrics.totalDistance} <span style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-muted)' }}>km</span>
-          </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-            Cumulative route distance
-          </div>
-        </div>
-
-        {/* Card 3: Total Active Hours */}
-        <div
-          style={{
-            background: 'var(--bg-surface)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-lg)',
-            padding: '1.25rem',
-            boxShadow: 'var(--shadow-sm)',
-            position: 'relative',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
-            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Active Hours</span>
-            <Clock size={18} color="#0284C7" />
-          </div>
-          <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-            {summaryMetrics.activeHours} <span style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-muted)' }}>hrs</span>
-          </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-            Time on active dispatch
-          </div>
-        </div>
-
-        {/* Card 4: Total Driver Earnings */}
-        <div
-          style={{
-            background: 'var(--bg-surface)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-lg)',
-            padding: '1.25rem',
-            boxShadow: 'var(--shadow-sm)',
-            position: 'relative',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
-            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Earnings</span>
-            <IndianRupee size={18} color="var(--brand-orange)" />
-          </div>
-          <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--brand-orange)' }}>
-            {formatCurrency(summaryMetrics.totalEarnings)}
-          </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-            Net route driver payout
-          </div>
-        </div>
-
-        {/* Card 5: Completed Trips */}
-        <div
-          style={{
-            background: 'var(--bg-surface)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-lg)',
-            padding: '1.25rem',
-            boxShadow: 'var(--shadow-sm)',
-            position: 'relative',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
-            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Completed Trips</span>
-            <CheckCircle2 size={18} color="var(--color-success)" />
-          </div>
-          <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--color-success)' }}>
-            {summaryMetrics.completedTrips}
-          </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-            Fulfilled commercial orders
-          </div>
-        </div>
-      </div>
+      {/* SECTION 4: Driver Earnings Summary Cards */}
+      <KpiStrip
+        columns={5}
+        style={{ marginBottom: '1.15rem' }}
+        items={[
+          {
+            label: 'Orders',
+            value: summaryMetrics.totalOrders,
+            subtext: 'Assigned corporate stops',
+            tone: 'primary',
+            icon: <Package size={15} />,
+          },
+          {
+            label: 'Distance',
+            value: `${summaryMetrics.totalDistance} km`,
+            subtext: 'Cumulative route distance',
+            tone: 'primary',
+            icon: <Route size={15} />,
+          },
+          {
+            label: 'Active Hours',
+            value: `${summaryMetrics.activeHours} hrs`,
+            subtext: 'Time on active dispatch',
+            tone: 'info',
+            icon: <Clock size={15} />,
+          },
+          {
+            label: 'Earnings',
+            value: formatCurrency(summaryMetrics.totalEarnings),
+            subtext: 'Net route driver payout',
+            tone: 'warning',
+            icon: <IndianRupee size={15} />,
+          },
+          {
+            label: 'Completed Trips',
+            value: summaryMetrics.completedTrips,
+            subtext: 'Fulfilled commercial orders',
+            tone: 'success',
+            icon: <CheckCircle2 size={15} />,
+          },
+        ]}
+      />
 
       {/* SECTION 6: Multi-Criteria Filter Bar */}
       <div
@@ -905,7 +807,7 @@ function RouteEarningsContent() {
           }}
         >
           {/* Map Header */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem', paddingTop: '0.15rem' }}>
             <div>
               <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                 Route Map
@@ -1259,6 +1161,7 @@ function RouteEarningsContent() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
+              paddingTop: '0.15rem',
               marginBottom: '1rem',
               paddingBottom: '0.75rem',
               borderBottom: '1px solid var(--border)',
@@ -1324,14 +1227,14 @@ function RouteEarningsContent() {
                               stop.orderStatus === 'COMPLETED'
                                 ? 'var(--color-success-bg)'
                                 : stop.orderStatus === 'IN_PROGRESS'
-                                ? 'rgba(87, 40, 178, 0.15)'
-                                : 'var(--bg-surface)',
+                                  ? 'rgba(87, 40, 178, 0.15)'
+                                  : 'var(--bg-surface)',
                             color:
                               stop.orderStatus === 'COMPLETED'
                                 ? 'var(--color-success)'
                                 : stop.orderStatus === 'IN_PROGRESS'
-                                ? 'var(--brand-primary)'
-                                : 'var(--text-secondary)',
+                                  ? 'var(--brand-primary)'
+                                  : 'var(--text-secondary)',
                           }}
                         >
                           {stop.orderStatus}
@@ -1413,6 +1316,7 @@ function RouteEarningsContent() {
             justifyContent: 'space-between',
             flexWrap: 'wrap',
             gap: '1rem',
+            paddingTop: '0.15rem',
             marginBottom: '1.25rem',
             paddingBottom: '0.75rem',
             borderBottom: '1px solid var(--border)',

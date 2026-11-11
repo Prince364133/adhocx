@@ -417,18 +417,7 @@ export default function FinanceDashboardPage() {
   };
 
   return (
-    <div
-      style={{
-        width: '100%',
-        maxWidth: '1600px',
-        margin: '0 auto',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '1.5rem',
-        padding: '0 0.25rem 2.5rem 0.25rem',
-        boxSizing: 'border-box',
-      }}
-    >
+    <div className="admin-page">
       {/* ─────────────────────────────────────────────────────────────
        * Page Header & Date Range Action Toolbar
        * ───────────────────────────────────────────────────────────── */}
@@ -448,12 +437,12 @@ export default function FinanceDashboardPage() {
                 value={dateRange}
                 onChange={(e) => handleRangeChange(e.target.value)}
                 style={{
-                  padding: '0.5rem 0.85rem',
+                  padding: '0.38rem 0.72rem',
                   borderRadius: 'var(--radius-md)',
                   backgroundColor: 'var(--bg-card)',
                   border: '1px solid var(--border-subtle)',
                   color: 'var(--text-primary)',
-                  fontSize: '0.8125rem',
+                  fontSize: '0.76rem',
                   fontWeight: 600,
                   cursor: 'pointer',
                   boxShadow: 'var(--shadow-sm)',
@@ -707,7 +696,7 @@ export default function FinanceDashboardPage() {
             background: 'var(--bg-card)',
             border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius-lg)',
-            padding: '1rem 0.85rem',
+            padding: '0.78rem 0.8rem',
             boxShadow: 'var(--shadow-card)',
             display: 'flex',
             flexDirection: 'column',
@@ -723,11 +712,11 @@ export default function FinanceDashboardPage() {
               <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 Total Revenue
               </span>
-              <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(37, 99, 235, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(37, 99, 235, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <TrendingUp size={15} color="#2563EB" />
               </div>
             </div>
-            <div style={{ fontSize: 'clamp(1.2rem, 1.35vw, 1.55rem)', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div style={{ fontSize: 'clamp(1.02rem, 1.15vw, 1.28rem)', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {loading ? '...' : formatINR(metrics.totalRevenue)}
             </div>
             <p style={{ fontSize: '0.68rem', color: 'var(--text-muted)', margin: '0.2rem 0 0 0', lineHeight: 1.25, height: '2.5em', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
@@ -748,7 +737,7 @@ export default function FinanceDashboardPage() {
             background: 'var(--bg-card)',
             border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius-lg)',
-            padding: '1rem 0.85rem',
+            padding: '0.78rem 0.8rem',
             boxShadow: 'var(--shadow-card)',
             display: 'flex',
             flexDirection: 'column',
@@ -764,11 +753,11 @@ export default function FinanceDashboardPage() {
               <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 Admin Earnings
               </span>
-              <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--brand-primary-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'var(--brand-primary-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <DollarSign size={15} color="var(--brand-primary)" />
               </div>
             </div>
-            <div style={{ fontSize: 'clamp(1.2rem, 1.35vw, 1.55rem)', fontWeight: 800, color: 'var(--brand-primary)', letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div style={{ fontSize: 'clamp(1.02rem, 1.15vw, 1.28rem)', fontWeight: 800, color: 'var(--brand-primary)', letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {loading ? '...' : formatINR(metrics.adminEarnings)}
             </div>
             <p style={{ fontSize: '0.68rem', color: 'var(--text-muted)', margin: '0.2rem 0 0 0', lineHeight: 1.25, height: '2.5em', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
@@ -789,7 +778,7 @@ export default function FinanceDashboardPage() {
             background: 'var(--bg-card)',
             border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius-lg)',
-            padding: '1rem 0.85rem',
+            padding: '0.78rem 0.8rem',
             boxShadow: 'var(--shadow-card)',
             display: 'flex',
             flexDirection: 'column',
@@ -805,11 +794,11 @@ export default function FinanceDashboardPage() {
               <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 Paid to Drivers
               </span>
-              <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--color-success-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'var(--color-success-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <CheckCircle2 size={15} color="var(--color-success)" />
               </div>
             </div>
-            <div style={{ fontSize: 'clamp(1.2rem, 1.35vw, 1.55rem)', fontWeight: 800, color: 'var(--color-success)', letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div style={{ fontSize: 'clamp(1.02rem, 1.15vw, 1.28rem)', fontWeight: 800, color: 'var(--color-success)', letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {loading ? '...' : formatINR(metrics.totalPaidToDrivers)}
             </div>
             <p style={{ fontSize: '0.68rem', color: 'var(--text-muted)', margin: '0.2rem 0 0 0', lineHeight: 1.25, height: '2.5em', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
@@ -830,7 +819,7 @@ export default function FinanceDashboardPage() {
             background: 'var(--bg-card)',
             border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius-lg)',
-            padding: '1rem 0.85rem',
+            padding: '0.78rem 0.8rem',
             boxShadow: 'var(--shadow-card)',
             display: 'flex',
             flexDirection: 'column',
@@ -846,11 +835,11 @@ export default function FinanceDashboardPage() {
               <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 Pending Payments
               </span>
-              <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--color-warning-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'var(--color-warning-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <Clock size={15} color="var(--color-warning)" />
               </div>
             </div>
-            <div style={{ fontSize: 'clamp(1.2rem, 1.35vw, 1.55rem)', fontWeight: 800, color: 'var(--color-warning)', letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div style={{ fontSize: 'clamp(1.02rem, 1.15vw, 1.28rem)', fontWeight: 800, color: 'var(--color-warning)', letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {loading ? '...' : formatINR(metrics.pendingDriverPayments)}
             </div>
             <p style={{ fontSize: '0.68rem', color: 'var(--text-muted)', margin: '0.2rem 0 0 0', lineHeight: 1.25, height: '2.5em', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
@@ -873,7 +862,7 @@ export default function FinanceDashboardPage() {
             background: 'var(--bg-card)',
             border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius-lg)',
-            padding: '1rem 0.85rem',
+            padding: '0.78rem 0.8rem',
             boxShadow: 'var(--shadow-card)',
             display: 'flex',
             flexDirection: 'column',
@@ -889,11 +878,11 @@ export default function FinanceDashboardPage() {
               <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 Transactions
               </span>
-              <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(139, 92, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(139, 92, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <CreditCard size={15} color="#8B5CF6" />
               </div>
             </div>
-            <div style={{ fontSize: 'clamp(1.2rem, 1.35vw, 1.55rem)', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div style={{ fontSize: 'clamp(1.02rem, 1.15vw, 1.28rem)', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {loading ? '...' : (metrics.totalTransactions || 0).toLocaleString('en-IN')}
             </div>
             <p style={{ fontSize: '0.68rem', color: 'var(--text-muted)', margin: '0.2rem 0 0 0', lineHeight: 1.25, height: '2.5em', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
@@ -916,7 +905,7 @@ export default function FinanceDashboardPage() {
             background: 'var(--bg-card)',
             border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius-lg)',
-            padding: '1rem 0.85rem',
+            padding: '0.78rem 0.8rem',
             boxShadow: 'var(--shadow-card)',
             display: 'flex',
             flexDirection: 'column',
@@ -932,11 +921,11 @@ export default function FinanceDashboardPage() {
               <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 Net Profit
               </span>
-              <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(2, 132, 199, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(2, 132, 199, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <ShieldCheck size={15} color="#0284C7" />
               </div>
             </div>
-            <div style={{ fontSize: 'clamp(1.2rem, 1.35vw, 1.55rem)', fontWeight: 800, color: '#0284C7', letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div style={{ fontSize: 'clamp(1.02rem, 1.15vw, 1.28rem)', fontWeight: 800, color: '#0284C7', letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {loading ? '...' : formatINR(metrics.netProfit)}
             </div>
             <p style={{ fontSize: '0.68rem', color: 'var(--text-muted)', margin: '0.2rem 0 0 0', lineHeight: 1.25, height: '2.5em', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
@@ -1079,9 +1068,9 @@ export default function FinanceDashboardPage() {
        * ───────────────────────────────────────────────────────────── */}
       {activeTab === 'TRANSACTIONS' && (
         <Card>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', paddingTop: '0.15rem', flexWrap: 'wrap', gap: '1rem' }}>
             <div>
-              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+              <h3 style={{ fontSize: '1.06rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
                 Unified Transactions Ledger
               </h3>
               <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
@@ -1307,9 +1296,9 @@ export default function FinanceDashboardPage() {
 
           {/* Driver Fleet Table */}
           <Card>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', paddingTop: '0.15rem', flexWrap: 'wrap', gap: '0.75rem' }}>
               <div>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                <h3 style={{ fontSize: '1.06rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
                   Driver Fleet Financial Accounts & Settlements
                 </h3>
                 <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
@@ -1474,9 +1463,9 @@ export default function FinanceDashboardPage() {
        * ───────────────────────────────────────────────────────────── */}
       {activeTab === 'SETTLEMENTS' && (
         <Card>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', paddingTop: '0.15rem', flexWrap: 'wrap', gap: '0.75rem' }}>
             <div>
-              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+              <h3 style={{ fontSize: '1.06rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
                 Driver Bank Settlements & Disbursement Reports
               </h3>
               <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
@@ -1593,8 +1582,8 @@ export default function FinanceDashboardPage() {
        * ───────────────────────────────────────────────────────────── */}
       {activeTab === 'REFUNDS' && (
         <Card>
-          <div style={{ marginBottom: '1.25rem' }}>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+          <div style={{ marginBottom: '1.25rem', paddingTop: '0.15rem' }}>
+            <h3 style={{ fontSize: '1.06rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
               Refunds, Deductions & SLA Penalties
             </h3>
             <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
@@ -1726,7 +1715,7 @@ export default function FinanceDashboardPage() {
 
             {/* Completed Trips Breakdown */}
             <div>
-              <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.65rem' }}>
+              <h4 style={{ fontSize: '1.04rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.15rem', marginBottom: '0.65rem' }}>
                 Completed Trips & Earnings ({driverDetail.trips.length})
               </h4>
               {driverDetail.trips.length === 0 ? (
@@ -1772,7 +1761,7 @@ export default function FinanceDashboardPage() {
 
             {/* Settlement Payout History */}
             <div>
-              <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.65rem' }}>
+              <h4 style={{ fontSize: '1.04rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.15rem', marginBottom: '0.65rem' }}>
                 Bank Payout History ({driverDetail.settlements.length})
               </h4>
               {driverDetail.settlements.length === 0 ? (
@@ -1854,7 +1843,7 @@ export default function FinanceDashboardPage() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.75rem' }}>
               <div>
-                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                <h3 style={{ fontSize: '1.08rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
                   Transaction Receipt Details
                 </h3>
                 <span style={{ fontSize: '0.75rem', fontFamily: 'monospace', color: 'var(--text-muted)' }}>

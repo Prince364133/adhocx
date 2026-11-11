@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Bell, CheckCheck, ExternalLink, X, Send, LogOut } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
+import { ConfirmDialog } from './common/ConfirmDialog';
 import { adminApi, getStoredAdminUser } from '../lib/api/client';
 import { InAppNotificationItem } from '../lib/api/types';
 
@@ -19,6 +20,7 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
   // Admin user & session state
   const [adminUser, setAdminUser] = useState<any>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   // Notification state
   const [notifications, setNotifications] = useState<InAppNotificationItem[]>([]);
@@ -140,18 +142,18 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
     <header className="admin-header" style={{ position: 'relative', zIndex: 50 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
         <div>
-          <h2 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+          <h2 style={{ fontSize: '1.08rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.015em' }}>
             {getSectionTitle()}
           </h2>
           {subtitle && (
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0.15rem 0 0 0' }}>
+            <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: '0.12rem 0 0 0' }}>
               {subtitle}
             </p>
           )}
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         {/* Notification Bell Dropdown */}
         <div style={{ position: 'relative' }} ref={dropdownRef}>
           <button
@@ -162,8 +164,8 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: '36px',
-              height: '36px',
+              width: '28px',
+              height: '28px',
               borderRadius: 'var(--radius-md)',
               border: '1px solid var(--border)',
               background: isOpen ? 'var(--brand-primary-subtle)' : 'var(--bg-surface-elevated)',
@@ -173,20 +175,20 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
             }}
             title="Notification Center"
           >
-            <Bell size={18} />
+            <Bell size={14} />
             {unreadCount > 0 && (
               <span
                 style={{
                   position: 'absolute',
                   top: '-4px',
                   right: '-4px',
-                  minWidth: '18px',
-                  height: '18px',
-                  padding: '0 4px',
+                  minWidth: '15px',
+                  height: '15px',
+                  padding: '0 3px',
                   borderRadius: '10px',
                   background: 'linear-gradient(135deg, #ef4444, #f43f5e)',
                   color: '#ffffff',
-                  fontSize: '0.65rem',
+                  fontSize: '0.6rem',
                   fontWeight: 800,
                   display: 'flex',
                   alignItems: 'center',
@@ -203,21 +205,22 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
           {/* Notification Popover Dropdown */}
           {isOpen && (
             <div
+              className="animate-dropdown"
               style={{
                 position: 'absolute',
                 top: 'calc(100% + 8px)',
                 right: 0,
                 width: '380px',
+                maxWidth: 'calc(100vw - 2rem)',
                 maxHeight: '480px',
                 background: 'var(--bg-surface)',
                 border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-lg)',
-                boxShadow: '0 16px 40px -8px rgba(0, 0, 0, 0.35)',
+                borderRadius: 'var(--radius-xl)',
+                boxShadow: 'var(--shadow-elevated)',
                 display: 'flex',
                 flexDirection: 'column',
                 overflow: 'hidden',
                 zIndex: 100,
-                animation: 'fadeIn 0.15s ease-out',
               }}
             >
               {/* Header */}
@@ -464,19 +467,19 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
           style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: '0.45rem',
-            padding: '0.3rem 0.7rem',
+            gap: '0.35rem',
+            padding: '0.2rem 0.55rem',
             background: 'var(--color-success-bg)',
             border: '1px solid var(--color-success-border)',
             borderRadius: 'var(--radius-pill)',
-            fontSize: '0.75rem',
-            fontWeight: 700,
+            fontSize: '0.68rem',
+            fontWeight: 600,
             color: 'var(--color-success)',
-            letterSpacing: '0.02em',
+            letterSpacing: '0.01em',
           }}
           title="All systems operational — PostgreSQL, Redis, and Firebase FCM Engine Connected"
         >
-          <span className="pulse-dot success" style={{ width: '6px', height: '6px' }} />
+          <span className="pulse-dot success" style={{ width: '5px', height: '5px' }} />
           <span>Operational</span>
         </div>
 
@@ -485,8 +488,8 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '0.65rem',
-            paddingLeft: '0.5rem',
+            gap: '0.5rem',
+            paddingLeft: '0.45rem',
             borderLeft: '1px solid var(--border)',
           }}
         >
@@ -495,14 +498,14 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'flex-end',
-              fontSize: '0.75rem',
+              fontSize: '0.71rem',
               lineHeight: 1.25,
             }}
           >
-            <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
               {adminUser?.fullName || 'Administrator'}
             </span>
-            <span style={{ fontSize: '0.68rem', color: 'var(--brand-primary)', fontWeight: 600 }}>
+            <span style={{ fontSize: '0.64rem', color: 'var(--brand-primary)', fontWeight: 600 }}>
               {adminUser?.email || 'admin@adhocx.com'}
             </span>
           </div>
@@ -510,21 +513,21 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
           <button
             type="button"
             id="admin-header-logout-btn"
-            onClick={handleLogout}
+            onClick={() => setShowLogoutConfirm(true)}
             disabled={isLoggingOut}
             title="Sign Out of Admin Control Portal"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '0.4rem',
-              padding: '0.4rem 0.75rem',
+              gap: '0.3rem',
+              padding: '0.3rem 0.62rem',
               borderRadius: 'var(--radius-md)',
               border: '1px solid var(--color-danger-border)',
               background: 'var(--color-danger-bg)',
               color: 'var(--color-danger)',
-              fontSize: '0.78rem',
-              fontWeight: 700,
+              fontSize: '0.72rem',
+              fontWeight: 600,
               cursor: isLoggingOut ? 'not-allowed' : 'pointer',
               transition: 'all 0.15s ease',
             }}
@@ -537,11 +540,22 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
               e.currentTarget.style.color = 'var(--color-danger)';
             }}
           >
-            <LogOut size={14} />
+            <LogOut size={12} />
             <span>{isLoggingOut ? 'Signing Out...' : 'Log Out'}</span>
           </button>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={handleLogout}
+        title="Sign Out of AdhocX Admin?"
+        description="You will be signed out of the current administrative session and redirected to the login screen."
+        confirmLabel="Sign Out"
+        variant="danger"
+        isLoading={isLoggingOut}
+      />
     </header>
   );
 };

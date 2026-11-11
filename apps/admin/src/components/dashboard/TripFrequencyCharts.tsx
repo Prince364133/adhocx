@@ -18,7 +18,7 @@ interface TripFrequencyPanelProps {
 }
 
 const chartWidth = 680;
-const chartHeight = 220;
+const chartHeight = 185;
 const padding = { top: 16, right: 12, bottom: 38, left: 44 };
 
 function formatDate(date: string, options: Intl.DateTimeFormatOptions) {
@@ -77,25 +77,25 @@ function TripFrequencyPanel({ title, data, showWeekday, onSelectDay, selectedDat
     <section
       style={{
         minWidth: 0,
-        padding: '1.25rem',
+        padding: '1.2rem 1.15rem 1rem',
         background: 'var(--bg-surface)',
         border: '1px solid var(--border)',
         borderRadius: 'var(--radius-xl)',
         boxShadow: 'var(--shadow-card)',
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.85rem' }}>
         <div>
-          <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>{title}</h3>
-          <p style={{ margin: '0.3rem 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+          <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>{title}</h3>
+          <p style={{ margin: '0.16rem 0 0', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
             Number of trips created per day; this is not a unique-cab count.
           </p>
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
-          <div style={{ fontSize: '1.5rem', lineHeight: 1.1, fontWeight: 900, color: 'var(--brand-primary)' }}>
+          <div style={{ fontSize: '1.15rem', lineHeight: 1.15, fontWeight: 700, color: 'var(--brand-primary)', fontVariantNumeric: 'tabular-nums' }}>
             {total.toLocaleString()}
           </div>
-          <div style={{ marginTop: '0.25rem', fontSize: '0.7rem', color: 'var(--text-muted)' }}>total trips</div>
+          <div style={{ marginTop: '0.15rem', fontSize: '0.67rem', color: 'var(--text-muted)' }}>total trips</div>
         </div>
       </div>
 
@@ -260,9 +260,9 @@ function TripDayReport({ report, loading, error }: { report: TripFrequencyReport
   if (!report?.selectedDay || !report.selectedDayTrips) return null;
 
   return (
-    <div style={{ marginTop: '1rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem' }}>
+    <div style={{ marginTop: '1.15rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '1.15rem' }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.75rem' }}>
-        <h4 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+        <h4 style={{ margin: 0, fontSize: '1.04rem', fontWeight: 700, color: 'var(--text-primary)' }}>
           Report for {formatDate(report.selectedDay, { dateStyle: 'long' })}
         </h4>
         <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
@@ -440,28 +440,29 @@ export default function TripFrequencyCharts() {
       style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))',
-        gap: '1rem',
+        gap: '1.15rem',
+        marginTop: '0.15rem',
       }}
     >
       <section
         style={{
           minWidth: 0,
-          padding: '1.25rem',
+          padding: '1.2rem 1.15rem 1rem',
           background: 'var(--bg-surface)',
           border: '1px solid var(--border)',
           borderRadius: 'var(--radius-xl)',
           boxShadow: 'var(--shadow-card)',
         }}
       >
-        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.85rem' }}>
           <div>
-            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>Weekly Cab Usage</h3>
-            <p style={{ margin: '0.3rem 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+            <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>Weekly Cab Usage</h3>
+            <p style={{ margin: '0.2rem 0 0', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
               Daily trip counts for Monday through Sunday. Select a bar for that day&apos;s trips.
             </p>
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem', alignItems: 'center' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-secondary)', fontSize: '0.72rem' }}>
               <span>Choose date</span>
               <input
                 aria-label="Choose date for weekly cab usage"
@@ -472,22 +473,22 @@ export default function TripFrequencyCharts() {
                   if (event.target.value) setWeeklyAnchorDate(event.target.value);
                 }}
                 style={{
-                  padding: '0.4rem 0.5rem',
+                  padding: '0.3rem 0.45rem',
                   border: '1px solid var(--border)',
                   borderRadius: 'var(--radius-md)',
                   background: 'var(--bg-canvas)',
                   color: 'var(--text-primary)',
-                  fontSize: '0.8rem',
+                  fontSize: '0.74rem',
                 }}
               />
             </label>
           </div>
         </div>
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginTop: '1rem' }}>
-          <div style={{ padding: '0.65rem 0.85rem', background: 'var(--bg-canvas)', borderRadius: 'var(--radius-md)' }}>
-            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Cab trips this week</div>
-            <div aria-live="polite" style={{ marginTop: '0.2rem', color: 'var(--brand-primary)', fontSize: '1.15rem', fontWeight: 900 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.85rem', marginTop: '0.75rem' }}>
+          <div style={{ padding: '0.52rem 0.72rem', background: 'var(--bg-canvas)', borderRadius: 'var(--radius-md)' }}>
+            <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Cab trips this week</div>
+            <div aria-live="polite" style={{ marginTop: '0.15rem', color: 'var(--brand-primary)', fontSize: '1.02rem', fontWeight: 800 }}>
               {weeklyLoading ? '…' : (weeklyReport?.totalTrips ?? 0).toLocaleString()}
             </div>
           </div>
@@ -518,34 +519,34 @@ export default function TripFrequencyCharts() {
       <section
         style={{
           minWidth: 0,
-          padding: '1.25rem',
+          padding: '1.2rem 1.15rem 1rem',
           background: 'var(--bg-surface)',
           border: '1px solid var(--border)',
           borderRadius: 'var(--radius-xl)',
           boxShadow: 'var(--shadow-card)',
         }}
       >
-        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.85rem' }}>
           <div>
-            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>Monthly Trip Report</h3>
-            <p style={{ margin: '0.3rem 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+            <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>Monthly Trip Report</h3>
+            <p style={{ margin: '0.2rem 0 0', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
               Select a month and year; select a bar for its trip report.
             </p>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
+          <div style={{ display: 'flex', gap: '0.45rem' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-secondary)', fontSize: '0.72rem' }}>
               <span>Month</span>
               <select
                 aria-label="Report month"
                 value={month}
                 onChange={(event) => setMonth(Number(event.target.value))}
                 style={{
-                  padding: '0.4rem 0.5rem',
+                  padding: '0.3rem 0.45rem',
                   border: '1px solid var(--border)',
                   borderRadius: 'var(--radius-md)',
                   background: 'var(--bg-canvas)',
                   color: 'var(--text-primary)',
-                  fontSize: '0.8rem',
+                  fontSize: '0.74rem',
                 }}
               >
                 {monthNames.map((name, index) => (
@@ -553,7 +554,7 @@ export default function TripFrequencyCharts() {
                 ))}
               </select>
             </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-secondary)', fontSize: '0.72rem' }}>
               <span>Year</span>
               <input
                 aria-label="Report year"
@@ -568,23 +569,23 @@ export default function TripFrequencyCharts() {
                   if (Number.isInteger(nextYear) && nextYear >= 1 && nextYear <= 9999) setYear(nextYear);
                 }}
                 style={{
-                  width: '5.5rem',
-                  padding: '0.4rem 0.5rem',
+                  width: '4.8rem',
+                  padding: '0.3rem 0.45rem',
                   border: '1px solid var(--border)',
                   borderRadius: 'var(--radius-md)',
                   background: 'var(--bg-canvas)',
                   color: 'var(--text-primary)',
-                  fontSize: '0.8rem',
+                  fontSize: '0.74rem',
                 }}
               />
             </label>
           </div>
         </div>
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginTop: '1rem' }}>
-          <div style={{ padding: '0.65rem 0.85rem', background: 'var(--bg-canvas)', borderRadius: 'var(--radius-md)' }}>
-            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Trips this month</div>
-            <div aria-live="polite" style={{ marginTop: '0.2rem', color: 'var(--brand-primary)', fontSize: '1.15rem', fontWeight: 900 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.85rem', marginTop: '0.75rem' }}>
+          <div style={{ padding: '0.52rem 0.72rem', background: 'var(--bg-canvas)', borderRadius: 'var(--radius-md)' }}>
+            <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Trips this month</div>
+            <div aria-live="polite" style={{ marginTop: '0.15rem', color: 'var(--brand-primary)', fontSize: '1.02rem', fontWeight: 800 }}>
               {loading ? '…' : (monthlyReport?.totalTrips ?? 0).toLocaleString()}
             </div>
           </div>

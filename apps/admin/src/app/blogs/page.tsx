@@ -8,20 +8,20 @@ import {
   Eye,
   RefreshCw,
   Plus,
-  X,
   ExternalLink,
   Search,
-  Check,
-  AlertTriangle,
 } from 'lucide-react';
 import { adminApi } from '@/lib/api/client';
 import { BlogPostItem, CreateBlogPostInput, BlogMetrics } from '@/lib/api/types';
 import {
   PageHeader,
-  MetricCard,
+  KpiStrip,
   FilterBar,
   DataTable,
   Button,
+  Drawer,
+  ConfirmDialog,
+  FeedbackBanner,
 } from '../../components/common';
 
 const CATEGORIES = [
@@ -54,6 +54,10 @@ export default function BlogsPage() {
   const [editingBlog, setEditingBlog] = useState<BlogPostItem | null>(null);
   const [editorTab, setEditorTab] = useState<'write' | 'preview'>('write');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Form State
@@ -126,6 +130,7 @@ export default function BlogsPage() {
     });
     setTagInput('');
     setEditorTab('write');
+    setIsDirty(false);
     setIsModalOpen(true);
   };
 
@@ -149,7 +154,24 @@ export default function BlogsPage() {
     });
     setTagInput('');
     setEditorTab('write');
+    setIsDirty(false);
     setIsModalOpen(true);
+  };
+
+  const updateFormData = (
+    updater: Partial<CreateBlogPostInput> | ((prev: CreateBlogPostInput) => CreateBlogPostInput)
+  ) => {
+    setIsDirty(true);
+    setFormData((prev) => (typeof updater === 'function' ? updater(prev) : { ...prev, ...updater }));
+  };
+
+  const handleRequestCloseModal = () => {
+    if (isSubmitting) return;
+    if (isDirty) {
+      setDiscardConfirmOpen(true);
+      return;
+    }
+    setIsModalOpen(false);
   };
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -161,7 +183,7 @@ export default function BlogsPage() {
       .replace(/[\s_-]+/g, '-')
       .replace(/^-+|-+$/g, '');
 
-    setFormData((prev) => ({
+    updateFormData((prev) => ({
       ...prev,
       title: val,
       slug: prev.slug && editingBlog ? prev.slug : generatedSlug,
@@ -172,12 +194,12 @@ export default function BlogsPage() {
   const handleAddTag = () => {
     if (!tagInput.trim()) return;
     const newTags = Array.from(new Set([...(formData.tags || []), tagInput.trim()]));
-    setFormData((prev) => ({ ...prev, tags: newTags }));
+    updateFormData((prev) => ({ ...prev, tags: newTags }));
     setTagInput('');
   };
 
   const handleRemoveTag = (t: string) => {
-    setFormData((prev) => ({
+    updateFormData((prev) => ({
       ...prev,
       tags: (prev.tags || []).filter((item) => item !== t),
     }));
@@ -192,7 +214,7 @@ export default function BlogsPage() {
     const selected = text.substring(start, end) || 'Sample Text';
     const replacement = `${prefix}${selected}${suffix}`;
     const newText = text.substring(0, start) + replacement + text.substring(end);
-    setFormData((prev) => ({ ...prev, content: newText }));
+    updateFormData((prev) => ({ ...prev, content: newText }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -219,6 +241,7 @@ export default function BlogsPage() {
         }));
         showNotification('success', `Blog "${created.title}" published successfully!`);
       }
+      setIsDirty(false);
       setIsModalOpen(false);
     } catch (err: any) {
       showNotification('error', err.message || 'Failed to save blog post.');
@@ -243,14 +266,22 @@ export default function BlogsPage() {
     }
   };
 
-  const handleDelete = async (id: string, title: string) => {
-    if (!confirm(`Are you sure you want to delete "${title}"?`)) return;
+  const handleDelete = (id: string, title: string) => {
+    setDeleteTarget({ id, title });
+  };
+
+  const handleExecuteDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
     try {
-      await adminApi.deleteBlog(id);
-      setBlogs((prev) => prev.filter((b) => b.id !== id));
-      showNotification('success', 'Article deleted successfully.');
+      await adminApi.deleteBlog(deleteTarget.id);
+      setBlogs((prev) => prev.filter((b) => b.id !== deleteTarget.id));
+      showNotification('success', `Article "${deleteTarget.title}" deleted successfully.`);
+      setDeleteTarget(null);
     } catch (err: any) {
       showNotification('error', err.message || 'Failed to delete article.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -271,34 +302,14 @@ export default function BlogsPage() {
   }, [blogs, searchQuery, statusFilter, categoryFilter]);
 
   return (
-    <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div className="admin-page">
       {/* Notification Toast */}
       {notification && (
-        <div
-          style={{
-            padding: '0.875rem 1.25rem',
-            borderRadius: 'var(--radius-md)',
-            fontSize: '0.875rem',
-            fontWeight: 500,
-            background: notification.type === 'success' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-            border: `1px solid ${notification.type === 'success' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
-            color: notification.type === 'success' ? 'var(--color-success)' : 'var(--color-danger)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            {notification.type === 'success' ? <Check size={16} /> : <AlertTriangle size={16} />}
-            <span>{notification.message}</span>
-          </div>
-          <button
-            onClick={() => setNotification(null)}
-            style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-          >
-            <X size={16} />
-          </button>
-        </div>
+        <FeedbackBanner
+          type={notification.type}
+          message={notification.message}
+          onDismiss={() => setNotification(null)}
+        />
       )}
 
       {/* Page Header */}
@@ -307,7 +318,7 @@ export default function BlogsPage() {
         subtitle="Create, manage, and optimize high-ranking articles for the AdhocX Marketing Hub & Search Engine visibility"
         liveStatus="Content Engine Active"
         actions={
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center' }}>
             <Button variant="secondary" size="md" onClick={loadData} leftIcon={<RefreshCw size={15} />}>
               Refresh
             </Button>
@@ -319,42 +330,43 @@ export default function BlogsPage() {
       />
 
       {/* KPI Metrics */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-          gap: '1.25rem',
-        }}
-      >
-        <MetricCard
-          label="Total Articles"
-          value={metrics.total}
-          subtext="Indexed editorial records"
-          icon={<FileText size={18} color="var(--brand-primary)" />}
-          accentColor="var(--brand-primary)"
-        />
-        <MetricCard
-          label="Published & Indexed"
-          value={metrics.published}
-          subtext="Live on marketing web"
-          icon={<CheckCircle2 size={18} color="var(--color-success)" />}
-          accentColor="var(--color-success)"
-        />
-        <MetricCard
-          label="Drafts & Revisions"
-          value={metrics.drafts}
-          subtext="Pending publication"
-          icon={<Clock size={18} color="var(--color-warning)" />}
-          accentColor="var(--color-warning)"
-        />
-        <MetricCard
-          label="Total Lifetime Reads"
-          value={metrics.totalViews.toLocaleString()}
-          subtext="Organic reader impressions"
-          icon={<Eye size={18} color="#0ea5e9" />}
-          accentColor="#0ea5e9"
-        />
-      </div>
+      <KpiStrip
+        columns={4}
+        items={[
+          {
+            id: 'total',
+            label: 'Total Articles',
+            value: metrics.total,
+            subtext: 'Indexed editorial records',
+            icon: <FileText size={16} color="var(--brand-primary)" />,
+            tone: 'indigo',
+          },
+          {
+            id: 'published',
+            label: 'Published & Indexed',
+            value: metrics.published,
+            subtext: 'Live on marketing web',
+            icon: <CheckCircle2 size={16} color="var(--color-success)" />,
+            tone: 'success',
+          },
+          {
+            id: 'drafts',
+            label: 'Drafts & Revisions',
+            value: metrics.drafts,
+            subtext: 'Pending publication',
+            icon: <Clock size={16} color="var(--color-warning)" />,
+            tone: 'warning',
+          },
+          {
+            id: 'views',
+            label: 'Total Lifetime Reads',
+            value: metrics.totalViews.toLocaleString(),
+            subtext: 'Organic reader impressions',
+            icon: <Eye size={16} color="var(--color-info)" />,
+            tone: 'info',
+          },
+        ]}
+      />
 
       {/* Filter and Search Bar */}
       <FilterBar
@@ -373,12 +385,12 @@ export default function BlogsPage() {
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
             style={{
-              padding: '0.4375rem 0.75rem',
+              padding: '0.35rem 0.65rem',
               borderRadius: 'var(--radius-md)',
               backgroundColor: 'var(--bg-card)',
               border: '1px solid var(--border-subtle)',
               color: 'var(--text-primary)',
-              fontSize: '0.8125rem',
+              fontSize: '0.76rem',
             }}
           >
             <option value="ALL">All Categories</option>
@@ -412,7 +424,7 @@ export default function BlogsPage() {
                   />
                 )}
                 <div>
-                  <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.875rem', lineHeight: 1.3 }}>
+                  <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.8rem', lineHeight: 1.3 }}>
                     {blog.title}
                   </div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--brand-primary)', marginTop: '0.2rem', fontFamily: 'monospace' }}>
@@ -555,581 +567,526 @@ export default function BlogsPage() {
       />
 
       {/* ============================================================ */}
-      {/* Create / Edit Article Modal / Drawer */}
+      {/* Create / Edit Article Right-Side Drawer */}
       {/* ============================================================ */}
-      {isModalOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0, 0, 0, 0.8)',
-            backdropFilter: 'blur(6px)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 9999,
-            padding: '20px',
-          }}
-        >
-          <div
-            style={{
-              background: '#0f172a',
-              border: '1px solid #334155',
-              borderRadius: '16px',
-              width: '100%',
-              maxWidth: '960px',
-              maxHeight: '90vh',
-              display: 'flex',
-              flexDirection: 'column',
-              boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
-              overflow: 'hidden',
-            }}
-          >
-            {/* Modal Header */}
-            <div
-              style={{
-                padding: '18px 24px',
-                borderBottom: '1px solid #1e293b',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                background: '#1e293b',
-              }}
-            >
-              <div>
-                <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#f8fafc', margin: 0 }}>
-                  {editingBlog ? `Edit Article: ${editingBlog.title}` : 'Create New SEO Article'}
-                </h2>
-                <p style={{ color: '#94a3b8', fontSize: '13px', margin: '2px 0 0 0' }}>
-                  Write compelling B2B mobility insights and optimize for Google search rankings.
-                </p>
-              </div>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: '#94a3b8',
-                  cursor: 'pointer',
-                  padding: '4px 8px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <X size={20} />
-              </button>
+      <Drawer
+        isOpen={isModalOpen}
+        onClose={handleRequestCloseModal}
+        width="min(96vw, 860px)"
+        icon={<FileText size={18} />}
+        title={editingBlog ? `Edit Article: ${editingBlog.title}` : 'Create New SEO Article'}
+        subtitle="Write compelling B2B mobility insights and optimize for Google search rankings."
+        closeOnBackdrop={!isSubmitting}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: '0.75rem' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              {isDirty ? 'Unsaved edits in draft buffer' : 'All changes synced'}
+            </span>
+            <div style={{ display: 'flex', gap: '0.65rem' }}>
+              <Button type="button" variant="secondary" size="md" onClick={handleRequestCloseModal} disabled={isSubmitting}>
+                Cancel
+              </Button>
+              <Button type="submit" form="blog-editor-form" variant="primary" size="md" isLoading={isSubmitting}>
+                {editingBlog ? 'Update Article' : 'Publish Article'}
+              </Button>
             </div>
+          </div>
+        }
+      >
+        <form id="blog-editor-form" onSubmit={handleSubmit}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
+            {/* Left Column: Content, Title, Excerpt */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.95rem' }}>
+              {/* Title */}
+              <div>
+                <label className="form-label" style={{ display: 'block', marginBottom: '0.35rem' }}>
+                  Article Headline / Title *
+                </label>
+                <input
+                  type="text"
+                  required
+                  className="form-input"
+                  placeholder="e.g. How Managed Direct Dispatch Solves Corporate Cab Shortages in Hyderabad"
+                  value={formData.title}
+                  onChange={handleTitleChange}
+                  style={{ fontWeight: 600 }}
+                />
+              </div>
 
-            {/* Modal Scrollable Form Body */}
-            <form onSubmit={handleSubmit} style={{ overflowY: 'auto', padding: '24px', flex: 1 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
-                {/* Left Column: Content, Title, Excerpt */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  {/* Title */}
-                  <div>
-                    <label style={{ display: 'block', color: '#e2e8f0', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>
-                      Article Headline / Title *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. How Managed Direct Dispatch Solves Corporate Cab Shortages in Hyderabad"
-                      value={formData.title}
-                      onChange={handleTitleChange}
-                      style={{
-                        width: '100%',
-                        background: '#1e293b',
-                        border: '1px solid #334155',
-                        borderRadius: '8px',
-                        padding: '10px 14px',
-                        color: '#f8fafc',
-                        fontSize: '15px',
-                        fontWeight: '600',
-                        outline: 'none',
-                      }}
-                    />
-                  </div>
-
-                  {/* Slug */}
-                  <div>
-                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '12px', fontWeight: '500', marginBottom: '4px' }}>
-                      URL Slug (Auto-generated)
-                    </label>
-                    <div style={{ display: 'flex', alignItems: 'center', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0 12px' }}>
-                      <span style={{ color: '#64748b', fontSize: '13px' }}>/blogs/</span>
-                      <input
-                        type="text"
-                        value={formData.slug}
-                        onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                        style={{
-                          width: '100%',
-                          background: 'transparent',
-                          border: 'none',
-                          padding: '10px 6px',
-                          color: '#38bdf8',
-                          fontSize: '13px',
-                          fontFamily: 'monospace',
-                          outline: 'none',
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Excerpt */}
-                  <div>
-                    <label style={{ display: 'block', color: '#e2e8f0', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>
-                      Article Summary / Excerpt * (Used in Search Results & Previews)
-                    </label>
-                    <textarea
-                      required
-                      rows={2}
-                      placeholder="A crisp 2-sentence summary outlining what the reader will learn..."
-                      value={formData.excerpt}
-                      onChange={(e) => setFormData({ ...formData, excerpt: e.target.value })}
-                      style={{
-                        width: '100%',
-                        background: '#1e293b',
-                        border: '1px solid #334155',
-                        borderRadius: '8px',
-                        padding: '10px 14px',
-                        color: '#f8fafc',
-                        fontSize: '14px',
-                        outline: 'none',
-                        resize: 'vertical',
-                      }}
-                    />
-                  </div>
-
-                  {/* Content Editor with Markdown Toolbar */}
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                      <label style={{ color: '#e2e8f0', fontSize: '13px', fontWeight: '600' }}>
-                        Article Body (Markdown Supported) *
-                      </label>
-                      <div style={{ display: 'flex', background: '#1e293b', borderRadius: '6px', padding: '2px' }}>
-                        <button
-                          type="button"
-                          onClick={() => setEditorTab('write')}
-                          style={{
-                            background: editorTab === 'write' ? '#334155' : 'transparent',
-                            color: editorTab === 'write' ? '#f8fafc' : '#94a3b8',
-                            border: 'none',
-                            padding: '4px 10px',
-                            borderRadius: '4px',
-                            fontSize: '12px',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Editor
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setEditorTab('preview')}
-                          style={{
-                            background: editorTab === 'preview' ? '#334155' : 'transparent',
-                            color: editorTab === 'preview' ? '#f8fafc' : '#94a3b8',
-                            border: 'none',
-                            padding: '4px 10px',
-                            borderRadius: '4px',
-                            fontSize: '12px',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Preview
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Formatting Quick Toolbar */}
-                    {editorTab === 'write' && (
-                      <div
-                        style={{
-                          background: '#1e293b',
-                          border: '1px solid #334155',
-                          borderBottom: 'none',
-                          borderTopLeftRadius: '8px',
-                          borderTopRightRadius: '8px',
-                          padding: '6px 10px',
-                          display: 'flex',
-                          gap: '6px',
-                          flexWrap: 'wrap',
-                        }}
-                      >
-                        {[
-                          { label: 'H2', action: () => insertMarkdownSnippet('\n## ', '\n') },
-                          { label: 'H3', action: () => insertMarkdownSnippet('\n### ', '\n') },
-                          { label: 'Bold', action: () => insertMarkdownSnippet('**', '**') },
-                          { label: 'Italic', action: () => insertMarkdownSnippet('*', '*') },
-                          { label: 'List', action: () => insertMarkdownSnippet('\n- ', '') },
-                          { label: 'Quote', action: () => insertMarkdownSnippet('\n> ', '\n') },
-                          { label: 'Code', action: () => insertMarkdownSnippet('\n```\n', '\n```\n') },
-                          { label: 'Divider', action: () => insertMarkdownSnippet('\n\n---\n\n') },
-                        ].map((btn) => (
-                          <button
-                            key={btn.label}
-                            type="button"
-                            onClick={btn.action}
-                            style={{
-                              background: '#334155',
-                              color: '#cbd5e1',
-                              border: 'none',
-                              borderRadius: '4px',
-                              padding: '4px 8px',
-                              fontSize: '11px',
-                              fontWeight: '600',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            {btn.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-
-                    {editorTab === 'write' ? (
-                      <textarea
-                        id="blog-content-area"
-                        required
-                        rows={12}
-                        value={formData.content}
-                        onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                        placeholder="Write your article in structured markdown format..."
-                        style={{
-                          width: '100%',
-                          background: '#090d16',
-                          border: '1px solid #334155',
-                          borderBottomLeftRadius: '8px',
-                          borderBottomRightRadius: '8px',
-                          padding: '14px',
-                          color: '#e2e8f0',
-                          fontSize: '14px',
-                          fontFamily: 'ui-monospace, monospace',
-                          lineHeight: '1.6',
-                          outline: 'none',
-                          resize: 'vertical',
-                        }}
-                      />
-                    ) : (
-                      <div
-                        style={{
-                          background: '#090d16',
-                          border: '1px solid #334155',
-                          borderRadius: '8px',
-                          padding: '20px',
-                          color: '#e2e8f0',
-                          minHeight: '260px',
-                          fontSize: '14px',
-                          lineHeight: '1.7',
-                          whiteSpace: 'pre-wrap',
-                        }}
-                      >
-                        {formData.content || '(No content written yet)'}
-                      </div>
-                    )}
-                  </div>
+              {/* Slug */}
+              <div>
+                <label className="form-label" style={{ display: 'block', marginBottom: '0.35rem', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                  URL Slug (Auto-generated)
+                </label>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    background: 'var(--bg-surface-elevated)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '0 0.75rem',
+                  }}
+                >
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.8125rem' }}>/blogs/</span>
+                  <input
+                    type="text"
+                    value={formData.slug}
+                    onChange={(e) => updateFormData({ slug: e.target.value })}
+                    style={{
+                      width: '100%',
+                      background: 'transparent',
+                      border: 'none',
+                      padding: '0.55rem 0.4rem',
+                      color: 'var(--brand-primary)',
+                      fontSize: '0.8125rem',
+                      fontFamily: 'monospace',
+                      outline: 'none',
+                    }}
+                  />
                 </div>
+              </div>
 
-                {/* Right Column: Taxonomy, Metadata & SERP Preview */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  {/* Category Selector */}
-                  <div>
-                    <label style={{ display: 'block', color: '#e2e8f0', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>
-                      Category *
-                    </label>
-                    <select
-                      value={formData.category}
-                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              {/* Excerpt */}
+              <div>
+                <label className="form-label" style={{ display: 'block', marginBottom: '0.35rem' }}>
+                  Article Summary / Excerpt * (Used in Search Results &amp; Previews)
+                </label>
+                <textarea
+                  required
+                  rows={2}
+                  className="form-textarea"
+                  placeholder="A crisp 2-sentence summary outlining what the reader will learn..."
+                  value={formData.excerpt}
+                  onChange={(e) => updateFormData({ excerpt: e.target.value })}
+                  style={{ resize: 'vertical' }}
+                />
+              </div>
+
+              {/* Content Editor with Markdown Toolbar */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem' }}>
+                  <label className="form-label" style={{ margin: 0 }}>
+                    Article Body (Markdown Supported) *
+                  </label>
+                  <div
+                    style={{
+                      display: 'inline-flex',
+                      background: 'var(--bg-surface-elevated)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: '2px',
+                      gap: '2px',
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setEditorTab('write')}
                       style={{
-                        width: '100%',
-                        background: '#1e293b',
-                        border: '1px solid #334155',
-                        borderRadius: '8px',
-                        padding: '10px 12px',
-                        color: '#f8fafc',
-                        fontSize: '14px',
-                        outline: 'none',
+                        background: editorTab === 'write' ? 'var(--brand-primary)' : 'transparent',
+                        color: editorTab === 'write' ? '#ffffff' : 'var(--text-secondary)',
+                        border: 'none',
+                        padding: '0.25rem 0.65rem',
+                        borderRadius: 'calc(var(--radius-md) - 2px)',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
                       }}
                     >
-                      {CATEGORIES.map((cat) => (
-                        <option key={cat} value={cat}>
-                          {cat}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Status Toggle */}
-                  <div>
-                    <label style={{ display: 'block', color: '#e2e8f0', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>
-                      Publishing Status
-                    </label>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                      <button
-                        type="button"
-                        onClick={() => setFormData({ ...formData, status: 'PUBLISHED' })}
-                        style={{
-                          background: formData.status === 'PUBLISHED' ? 'rgba(16, 185, 129, 0.2)' : '#1e293b',
-                          border: `1px solid ${formData.status === 'PUBLISHED' ? '#10b981' : '#334155'}`,
-                          color: formData.status === 'PUBLISHED' ? '#34d399' : '#94a3b8',
-                          padding: '10px',
-                          borderRadius: '8px',
-                          fontWeight: '600',
-                          fontSize: '13px',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '0.4rem',
-                        }}
-                      >
-                        <CheckCircle2 size={14} /> Published
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setFormData({ ...formData, status: 'DRAFT' })}
-                        style={{
-                          background: formData.status === 'DRAFT' ? 'rgba(245, 158, 11, 0.2)' : '#1e293b',
-                          border: `1px solid ${formData.status === 'DRAFT' ? '#f59e0b' : '#334155'}`,
-                          color: formData.status === 'DRAFT' ? '#fbbf24' : '#94a3b8',
-                          padding: '10px',
-                          borderRadius: '8px',
-                          fontWeight: '600',
-                          fontSize: '13px',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '0.4rem',
-                        }}
-                      >
-                        <Clock size={14} /> Draft Only
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Author & Read Time */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                    <div>
-                      <label style={{ display: 'block', color: '#94a3b8', fontSize: '12px', marginBottom: '4px' }}>Author Name</label>
-                      <input
-                        type="text"
-                        value={formData.authorName}
-                        onChange={(e) => setFormData({ ...formData, authorName: e.target.value })}
-                        style={{
-                          width: '100%',
-                          background: '#1e293b',
-                          border: '1px solid #334155',
-                          borderRadius: '8px',
-                          padding: '8px 10px',
-                          color: '#f8fafc',
-                          fontSize: '13px',
-                          outline: 'none',
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', color: '#94a3b8', fontSize: '12px', marginBottom: '4px' }}>Read Time</label>
-                      <input
-                        type="text"
-                        value={formData.readTime}
-                        onChange={(e) => setFormData({ ...formData, readTime: e.target.value })}
-                        placeholder="5 min read"
-                        style={{
-                          width: '100%',
-                          background: '#1e293b',
-                          border: '1px solid #334155',
-                          borderRadius: '8px',
-                          padding: '8px 10px',
-                          color: '#f8fafc',
-                          fontSize: '13px',
-                          outline: 'none',
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Cover Image & Presets */}
-                  <div>
-                    <label style={{ display: 'block', color: '#e2e8f0', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>
-                      Cover Image URL
-                    </label>
-                    <input
-                      type="url"
-                      value={formData.coverImage || ''}
-                      onChange={(e) => setFormData({ ...formData, coverImage: e.target.value })}
-                      placeholder="https://images.unsplash.com/..."
+                      Editor
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditorTab('preview')}
                       style={{
-                        width: '100%',
-                        background: '#1e293b',
-                        border: '1px solid #334155',
-                        borderRadius: '8px',
-                        padding: '8px 10px',
-                        color: '#f8fafc',
-                        fontSize: '13px',
-                        outline: 'none',
-                        marginBottom: '8px',
+                        background: editorTab === 'preview' ? 'var(--brand-primary)' : 'transparent',
+                        color: editorTab === 'preview' ? '#ffffff' : 'var(--text-secondary)',
+                        border: 'none',
+                        padding: '0.25rem 0.65rem',
+                        borderRadius: 'calc(var(--radius-md) - 2px)',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
                       }}
-                    />
-                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                      {PRESET_COVERS.map((preset) => (
-                        <button
-                          key={preset.label}
-                          type="button"
-                          onClick={() => setFormData({ ...formData, coverImage: preset.url })}
-                          style={{
-                            background: formData.coverImage === preset.url ? '#0284c7' : '#1e293b',
-                            color: formData.coverImage === preset.url ? '#fff' : '#94a3b8',
-                            border: '1px solid #334155',
-                            padding: '3px 8px',
-                            borderRadius: '4px',
-                            fontSize: '11px',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          {preset.label}
-                        </button>
-                      ))}
-                    </div>
+                    >
+                      Preview
+                    </button>
                   </div>
+                </div>
 
-                  {/* Tags */}
-                  <div>
-                    <label style={{ display: 'block', color: '#e2e8f0', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>
-                      Tags & Topics
-                    </label>
-                    <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
-                      <input
-                        type="text"
-                        placeholder="Add tag (e.g. Rate Cards)"
-                        value={tagInput}
-                        onChange={(e) => setTagInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            handleAddTag();
-                          }
-                        }}
-                        style={{
-                          flex: 1,
-                          background: '#1e293b',
-                          border: '1px solid #334155',
-                          borderRadius: '6px',
-                          padding: '6px 10px',
-                          color: '#f8fafc',
-                          fontSize: '12px',
-                          outline: 'none',
-                        }}
-                      />
+                {/* Formatting Quick Toolbar */}
+                {editorTab === 'write' && (
+                  <div
+                    style={{
+                      background: 'var(--bg-surface-elevated)',
+                      border: '1px solid var(--border)',
+                      borderBottom: 'none',
+                      borderTopLeftRadius: 'var(--radius-md)',
+                      borderTopRightRadius: 'var(--radius-md)',
+                      padding: '0.4rem 0.65rem',
+                      display: 'flex',
+                      gap: '0.35rem',
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    {[
+                      { label: 'H2', action: () => insertMarkdownSnippet('\n## ', '\n') },
+                      { label: 'H3', action: () => insertMarkdownSnippet('\n### ', '\n') },
+                      { label: 'Bold', action: () => insertMarkdownSnippet('**', '**') },
+                      { label: 'Italic', action: () => insertMarkdownSnippet('*', '*') },
+                      { label: 'List', action: () => insertMarkdownSnippet('\n- ', '') },
+                      { label: 'Quote', action: () => insertMarkdownSnippet('\n> ', '\n') },
+                      { label: 'Code', action: () => insertMarkdownSnippet('\n```\n', '\n```\n') },
+                      { label: 'Divider', action: () => insertMarkdownSnippet('\n\n---\n\n') },
+                    ].map((btn) => (
                       <button
+                        key={btn.label}
                         type="button"
-                        onClick={handleAddTag}
+                        onClick={btn.action}
                         style={{
-                          background: '#334155',
-                          color: '#f8fafc',
-                          border: 'none',
-                          padding: '6px 12px',
-                          borderRadius: '6px',
-                          fontSize: '12px',
+                          background: 'var(--bg-surface)',
+                          color: 'var(--text-secondary)',
+                          border: '1px solid var(--border)',
+                          borderRadius: 'var(--radius-sm)',
+                          padding: '0.2rem 0.5rem',
+                          fontSize: '0.6875rem',
+                          fontWeight: 600,
                           cursor: 'pointer',
                         }}
                       >
-                        + Add
+                        {btn.label}
                       </button>
-                    </div>
-                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                      {(formData.tags || []).map((tag) => (
-                        <span
-                          key={tag}
-                          style={{
-                            background: '#1e293b',
-                            border: '1px solid #334155',
-                            color: '#cbd5e1',
-                            padding: '2px 8px',
-                            borderRadius: '12px',
-                            fontSize: '11px',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                          }}
-                        >
-                          {tag}
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveTag(tag)}
-                            style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '12px', padding: 0 }}
-                          >
-                            ×
-                          </button>
-                        </span>
-                      ))}
-                    </div>
+                    ))}
                   </div>
+                )}
 
-                  {/* Google SERP Search Snippet Simulator */}
-                  <div style={{ background: 'var(--bg-surface-elevated)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', marginTop: '8px' }}>
-                    <div style={{ color: 'var(--text-muted)', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                      <Search size={12} /> Google Search SERP Simulator
-                    </div>
-                    <div style={{ fontSize: '12px', color: '#10b981', fontFamily: 'sans-serif' }}>
-                      https://adhocx.com › blogs › {formData.slug || 'article-url'}
-                    </div>
-                    <div style={{ fontSize: '15px', color: '#60a5fa', fontWeight: '600', marginTop: '2px', cursor: 'pointer' }}>
-                      {formData.seoTitle || formData.title || 'Your Article Title'}
-                    </div>
+                {editorTab === 'write' ? (
+                  <textarea
+                    id="blog-content-area"
+                    required
+                    rows={12}
+                    value={formData.content}
+                    onChange={(e) => updateFormData({ content: e.target.value })}
+                    placeholder="Write your article in structured markdown format..."
+                    style={{
+                      width: '100%',
+                      background: 'var(--bg-base)',
+                      border: '1px solid var(--border)',
+                      borderBottomLeftRadius: 'var(--radius-md)',
+                      borderBottomRightRadius: 'var(--radius-md)',
+                      padding: '0.85rem',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.875rem',
+                      fontFamily: 'ui-monospace, monospace',
+                      lineHeight: 1.6,
+                      outline: 'none',
+                      resize: 'vertical',
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      background: 'var(--bg-base)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: '1rem',
+                      color: 'var(--text-primary)',
+                      minHeight: '260px',
+                      fontSize: '0.875rem',
+                      lineHeight: 1.7,
+                      whiteSpace: 'pre-wrap',
+                    }}
+                  >
+                    {formData.content || '(No content written yet)'}
                   </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right Column: Taxonomy, Metadata & SERP Preview */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.95rem' }}>
+              {/* Category Selector */}
+              <div>
+                <label className="form-label" style={{ display: 'block', marginBottom: '0.35rem' }}>
+                  Category *
+                </label>
+                <select
+                  className="form-select"
+                  value={formData.category}
+                  onChange={(e) => updateFormData({ category: e.target.value })}
+                >
+                  {CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Status Toggle */}
+              <div>
+                <label className="form-label" style={{ display: 'block', marginBottom: '0.35rem' }}>
+                  Publishing Status
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => updateFormData({ status: 'PUBLISHED' })}
+                    style={{
+                      background: formData.status === 'PUBLISHED' ? 'rgba(16, 185, 129, 0.14)' : 'var(--bg-surface-elevated)',
+                      border: `1px solid ${formData.status === 'PUBLISHED' ? 'var(--color-success)' : 'var(--border)'}`,
+                      color: formData.status === 'PUBLISHED' ? 'var(--color-success)' : 'var(--text-secondary)',
+                      padding: '0.55rem 0.75rem',
+                      borderRadius: 'var(--radius-md)',
+                      fontWeight: 600,
+                      fontSize: '0.8125rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.4rem',
+                    }}
+                  >
+                    <CheckCircle2 size={14} /> Published
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateFormData({ status: 'DRAFT' })}
+                    style={{
+                      background: formData.status === 'DRAFT' ? 'rgba(245, 158, 11, 0.14)' : 'var(--bg-surface-elevated)',
+                      border: `1px solid ${formData.status === 'DRAFT' ? 'var(--color-warning)' : 'var(--border)'}`,
+                      color: formData.status === 'DRAFT' ? 'var(--color-warning)' : 'var(--text-secondary)',
+                      padding: '0.55rem 0.75rem',
+                      borderRadius: 'var(--radius-md)',
+                      fontWeight: 600,
+                      fontSize: '0.8125rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.4rem',
+                    }}
+                  >
+                    <Clock size={14} /> Draft Only
+                  </button>
                 </div>
               </div>
 
-              {/* Modal Footer Actions */}
+              {/* Author & Read Time */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.65rem' }}>
+                <div>
+                  <label className="form-label" style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                    Author Name
+                  </label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={formData.authorName}
+                    onChange={(e) => updateFormData({ authorName: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="form-label" style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                    Read Time
+                  </label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={formData.readTime}
+                    onChange={(e) => updateFormData({ readTime: e.target.value })}
+                    placeholder="5 min read"
+                  />
+                </div>
+              </div>
+
+              {/* Cover Image & Presets */}
+              <div>
+                <label className="form-label" style={{ display: 'block', marginBottom: '0.35rem' }}>
+                  Cover Image URL
+                </label>
+                <input
+                  type="url"
+                  className="form-input"
+                  value={formData.coverImage || ''}
+                  onChange={(e) => updateFormData({ coverImage: e.target.value })}
+                  placeholder="https://images.unsplash.com/..."
+                  style={{ marginBottom: '0.5rem' }}
+                />
+                <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                  {PRESET_COVERS.map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => updateFormData({ coverImage: preset.url })}
+                      style={{
+                        background: formData.coverImage === preset.url ? 'var(--brand-primary)' : 'var(--bg-surface-elevated)',
+                        color: formData.coverImage === preset.url ? '#ffffff' : 'var(--text-secondary)',
+                        border: `1px solid ${formData.coverImage === preset.url ? 'var(--brand-primary)' : 'var(--border)'}`,
+                        padding: '0.2rem 0.5rem',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: '0.6875rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Tags */}
+              <div>
+                <label className="form-label" style={{ display: 'block', marginBottom: '0.35rem' }}>
+                  Tags &amp; Topics
+                </label>
+                <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.5rem' }}>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Add tag (e.g. Rate Cards)"
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddTag();
+                      }
+                    }}
+                    style={{ flex: 1 }}
+                  />
+                  <Button type="button" variant="secondary" size="sm" onClick={handleAddTag}>
+                    + Add
+                  </Button>
+                </div>
+                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                  {(formData.tags || []).map((tag) => (
+                    <span
+                      key={tag}
+                      style={{
+                        background: 'var(--bg-surface-elevated)',
+                        border: '1px solid var(--border)',
+                        color: 'var(--text-secondary)',
+                        padding: '0.15rem 0.5rem',
+                        borderRadius: '9999px',
+                        fontSize: '0.75rem',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.3rem',
+                      }}
+                    >
+                      {tag}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveTag(tag)}
+                        aria-label={`Remove tag ${tag}`}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--text-muted)',
+                          cursor: 'pointer',
+                          fontSize: '0.8125rem',
+                          padding: 0,
+                          lineHeight: 1,
+                        }}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Google SERP Search Snippet Simulator */}
               <div
                 style={{
-                  borderTop: '1px solid #1e293b',
-                  marginTop: '24px',
-                  paddingTop: '18px',
-                  display: 'flex',
-                  justifyContent: 'flex-end',
-                  gap: '12px',
+                  background: 'var(--bg-surface-elevated)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '0.85rem',
+                  marginTop: '0.25rem',
                 }}
               >
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
+                <div
                   style={{
-                    background: '#1e293b',
-                    color: '#cbd5e1',
-                    border: '1px solid #334155',
-                    borderRadius: '8px',
-                    padding: '10px 18px',
-                    fontSize: '14px',
-                    cursor: 'pointer',
+                    color: 'var(--text-muted)',
+                    fontSize: '0.6875rem',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    marginBottom: '0.45rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
                   }}
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  style={{
-                    background: 'linear-gradient(135deg, #10b981, #059669)',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: '8px',
-                    padding: '10px 24px',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
-                    opacity: isSubmitting ? 0.7 : 1,
-                  }}
-                >
-                  {isSubmitting ? 'Saving...' : editingBlog ? 'Update Article' : 'Publish Article'}
-                </button>
+                  <Search size={12} /> Google Search SERP Simulator
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--color-success)' }}>
+                  https://adhocx.com › blogs › {formData.slug || 'article-url'}
+                </div>
+                <div style={{ fontSize: '0.9375rem', color: 'var(--brand-primary)', fontWeight: 600, marginTop: '0.15rem' }}>
+                  {formData.seoTitle || formData.title || 'Your Article Title'}
+                </div>
+                {formData.excerpt && (
+                  <div
+                    style={{
+                      fontSize: '0.75rem',
+                      color: 'var(--text-secondary)',
+                      marginTop: '0.25rem',
+                      lineHeight: 1.4,
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {formData.excerpt}
+                  </div>
+                )}
               </div>
-            </form>
+            </div>
           </div>
-        </div>
-      )}
+        </form>
+      </Drawer>
+
+      {/* Delete Article Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={Boolean(deleteTarget)}
+        onClose={() => !isDeleting && setDeleteTarget(null)}
+        onConfirm={handleExecuteDelete}
+        variant="danger"
+        isLoading={isDeleting}
+        title="Delete Blog Article?"
+        subtitle="Permanent removal from Marketing Hub"
+        description={
+          deleteTarget ? (
+            <span>
+              Are you sure you want to delete <strong>&ldquo;{deleteTarget.title}&rdquo;</strong>? This will remove the article from the CMS and invalidate its public marketing URL.
+            </span>
+          ) : (
+            ''
+          )
+        }
+        confirmLabel="Delete Article"
+      />
+
+      {/* Unsaved Changes Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={discardConfirmOpen}
+        onClose={() => setDiscardConfirmOpen(false)}
+        onConfirm={() => {
+          setDiscardConfirmOpen(false);
+          setIsDirty(false);
+          setIsModalOpen(false);
+        }}
+        variant="warning"
+        title="Discard Unsaved Changes?"
+        subtitle="Editorial draft buffer"
+        description="You have unsaved edits in this article. Closing the editor drawer now will discard your changes."
+        confirmLabel="Discard Changes"
+        cancelLabel="Keep Editing"
+      />
     </div>
   );
 }

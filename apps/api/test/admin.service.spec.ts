@@ -61,6 +61,19 @@ describe('AdminService Unit Tests', () => {
         count: jest.fn().mockResolvedValue(1),
         findMany: jest.fn().mockResolvedValue([]),
       },
+      corporateTenant: {
+        findMany: jest.fn().mockResolvedValue([]),
+        findUnique: jest.fn().mockResolvedValue(null),
+      },
+      corporateInvoice: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      corporateDriverEarning: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      corporatePayout: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
       auditLog: {
         findMany: jest.fn(),
       },
@@ -375,6 +388,89 @@ describe('AdminService Unit Tests', () => {
     await expect(service.getDailyFinancialReport('2026-02-30')).rejects.toThrow(
       'A valid report date is required.',
     );
+  });
+
+  it('should list vendors and corporate tenants sorted alphabetically A-Z for financial filters', async () => {
+    db.vendor.findMany.mockResolvedValue([
+      { id: 'v-2', organizationName: 'zeta Logistics', fullName: 'Zeta' },
+      { id: 'v-1', organizationName: 'Alpha Fleet Co', fullName: 'Alpha' },
+      { id: 'v-3', organizationName: '   ', fullName: '   ' },
+    ]);
+    db.corporateTenant.findMany.mockResolvedValue([
+      { id: 't-1', name: 'Beta Mobility', legalEntityName: 'Beta Pvt Ltd', code: 'BETA' },
+    ]);
+
+    const companies = await service.getFinancialCompanies();
+    expect(companies).toEqual([
+      { id: 'VENDOR:v-1', entityId: 'v-1', companyType: 'VENDOR', name: 'Alpha Fleet Co', code: null },
+      { id: 'CORPORATE_TENANT:t-1', entityId: 't-1', companyType: 'CORPORATE_TENANT', name: 'Beta Mobility', code: 'BETA' },
+      { id: 'VENDOR:v-2', entityId: 'v-2', companyType: 'VENDOR', name: 'zeta Logistics', code: null },
+    ]);
+  });
+
+  it('should filter daily financial metrics for a selected vendor company', async () => {
+    db.payment.findMany
+      .mockResolvedValueOnce([{ amount: 2400 }])
+      .mockResolvedValueOnce([{ amount: 500 }]);
+    db.ledgerEntry.findMany.mockResolvedValue([
+      { amount: 180, referenceId: 'trip-v1', accountId: 'drv-1' },
+      { amount: 90, referenceId: 'trip-other', accountId: 'drv-2' },
+    ]);
+    db.trip.findMany
+      .mockResolvedValueOnce([{ driverId: 'drv-1' }])
+      .mockResolvedValueOnce([{ id: 'trip-v1' }]);
+    db.settlement.findMany.mockResolvedValue([{ amount: 1200 }]);
+
+    const report = await service.getDailyFinancialReport('2026-11-10', 'vendor-1', 'VENDOR');
+
+    expect(report).toEqual({
+      date: '2026-11-10',
+      currency: 'INR',
+      grossBookingValue: 2400,
+      revenue: 180,
+      expenditure: 1200,
+      activeEscrowHoldValue: 500,
+      grossProfit: -1020,
+      capturedPaymentCount: 1,
+      platformRevenueEntryCount: 1,
+      settledPayoutCount: 1,
+      activeEscrowHoldCount: 1,
+    });
+    expect(db.payment.findMany).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: expect.objectContaining({ vendorId: 'vendor-1', status: 'CAPTURED' }),
+      }),
+    );
+    expect(db.settlement.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ status: 'SETTLED', driverId: { in: ['drv-1'] } }),
+      }),
+    );
+  });
+
+  it('should filter daily financial metrics for a selected corporate tenant company', async () => {
+    db.corporateInvoice.findMany.mockResolvedValue([{ totalAmountPaise: BigInt(150000) }]);
+    db.corporateDriverEarning.findMany.mockResolvedValue([{ id: 'earn-1', totalEarnedPaise: BigInt(80000) }]);
+    db.corporatePayout.findMany.mockResolvedValue([
+      { netPaise: BigInt(72000), grossPaise: BigInt(80000), earningIds: ['earn-1'] },
+    ]);
+
+    const report = await service.getDailyFinancialReport('2026-11-10', 'CORPORATE_TENANT:tenant-1');
+
+    expect(report).toEqual({
+      date: '2026-11-10',
+      currency: 'INR',
+      grossBookingValue: 1500,
+      revenue: 0,
+      expenditure: 720,
+      activeEscrowHoldValue: 0,
+      grossProfit: -720,
+      capturedPaymentCount: 1,
+      platformRevenueEntryCount: 0,
+      settledPayoutCount: 1,
+      activeEscrowHoldCount: 0,
+    });
   });
 
   it('should aggregate platform operational metrics', async () => {

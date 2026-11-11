@@ -1,17 +1,19 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Headphones, Clock, Search, CheckCircle2, X } from 'lucide-react';
+import { Headphones, Clock, Search, CheckCircle2 } from 'lucide-react';
 import { adminApi } from '../../lib/api/client';
 import { SupportTicketItem } from '../../lib/api/types';
 import {
   PageHeader,
-  MetricCard,
+  KpiStrip,
   FilterBar,
   DataTable,
   StatusBadge,
   Button,
   Drawer,
+  FeedbackBanner,
+  ConfirmDialog,
 } from '../../components/common';
 
 const STATUS_TABS = [
@@ -29,6 +31,7 @@ export default function SupportPage() {
   const [selectedTicket, setSelectedTicket] = useState<SupportTicketItem | null>(null);
   const [resolutionNotes, setResolutionNotes] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [confirmResolveOpen, setConfirmResolveOpen] = useState(false);
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   useEffect(() => {
@@ -84,6 +87,7 @@ export default function SupportPage() {
         type: 'success',
         message: `Support ticket #${selectedTicket.id.slice(0, 8).toUpperCase()} updated to ${status}.`,
       });
+      setConfirmResolveOpen(false);
       setSelectedTicket(null);
       setResolutionNotes('');
       loadTickets(activeTab);
@@ -95,31 +99,14 @@ export default function SupportPage() {
   }
 
   return (
-    <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div className="admin-page">
       {/* Alert Banner */}
       {alert && (
-        <div
-          style={{
-            padding: '0.875rem 1.25rem',
-            borderRadius: 'var(--radius-md)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: 'rgba(16, 185, 129, 0.12)',
-            border: '1px solid rgba(16, 185, 129, 0.3)',
-            color: 'var(--color-success)',
-            fontSize: '0.875rem',
-            fontWeight: 500,
-          }}
-        >
-          <span>{alert.message}</span>
-          <button
-            onClick={() => setAlert(null)}
-            style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-          >
-            <X size={16} />
-          </button>
-        </div>
+        <FeedbackBanner
+          type={alert.type}
+          message={alert.message}
+          onDismiss={() => setAlert(null)}
+        />
       )}
 
       {/* Page Header */}
@@ -130,42 +117,43 @@ export default function SupportPage() {
       />
 
       {/* KPI Metrics */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-          gap: '1.25rem',
-        }}
-      >
-        <MetricCard
-          label="Total Support Cases"
-          value={metrics.total}
-          subtext="Active ticket queue"
-          icon={<Headphones size={18} color="var(--brand-primary)" />}
-          accentColor="var(--brand-primary)"
-        />
-        <MetricCard
-          label="Pending Triage"
-          value={metrics.pending}
-          subtext="Unassigned tickets"
-          icon={<Clock size={18} color="var(--color-danger)" />}
-          accentColor="var(--color-danger)"
-        />
-        <MetricCard
-          label="Under Investigation"
-          value={metrics.review}
-          subtext="Operator active handling"
-          icon={<Search size={18} color="var(--color-warning)" />}
-          accentColor="var(--color-warning)"
-        />
-        <MetricCard
-          label="Resolved Cases"
-          value={metrics.resolved}
-          subtext="Completed interventions"
-          icon={<CheckCircle2 size={18} color="var(--color-success)" />}
-          accentColor="var(--color-success)"
-        />
-      </div>
+      <KpiStrip
+        columns={4}
+        items={[
+          {
+            id: 'total',
+            label: 'Total Support Cases',
+            value: metrics.total,
+            subtext: 'Active ticket queue',
+            icon: <Headphones size={16} color="var(--brand-primary)" />,
+            tone: 'indigo',
+          },
+          {
+            id: 'pending',
+            label: 'Pending Triage',
+            value: metrics.pending,
+            subtext: 'Unassigned tickets',
+            icon: <Clock size={16} color="var(--color-danger)" />,
+            tone: 'danger',
+          },
+          {
+            id: 'review',
+            label: 'Under Investigation',
+            value: metrics.review,
+            subtext: 'Operator active handling',
+            icon: <Search size={16} color="var(--color-warning)" />,
+            tone: 'warning',
+          },
+          {
+            id: 'resolved',
+            label: 'Resolved Cases',
+            value: metrics.resolved,
+            subtext: 'Completed interventions',
+            icon: <CheckCircle2 size={16} color="var(--color-success)" />,
+            tone: 'success',
+          },
+        ]}
+      />
 
       {/* Filter Bar */}
       <FilterBar
@@ -202,7 +190,7 @@ export default function SupportPage() {
             label: 'REPORTER & CONTACT',
             render: (t: SupportTicketItem) => (
               <div>
-                <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.875rem' }}>
+                <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.8rem' }}>
                   {t.reporterName}
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.125rem' }}>
@@ -294,7 +282,7 @@ export default function SupportPage() {
                 </Button>
               )}
               {selectedTicket.status !== 'RESOLVED' && (
-                <Button variant="primary" size="sm" onClick={() => handleResolve('RESOLVED')} disabled={actionLoading}>
+                <Button variant="primary" size="sm" onClick={() => setConfirmResolveOpen(true)} disabled={actionLoading}>
                   Resolve Ticket
                 </Button>
               )}
@@ -427,6 +415,23 @@ export default function SupportPage() {
           </div>
         )}
       </Drawer>
+
+      <ConfirmDialog
+        isOpen={confirmResolveOpen && !!selectedTicket}
+        onClose={() => !actionLoading && setConfirmResolveOpen(false)}
+        onConfirm={() => handleResolve('RESOLVED')}
+        variant="success"
+        isLoading={actionLoading}
+        title="Mark Support Ticket Resolved?"
+        subtitle={selectedTicket ? `Ticket #${selectedTicket.id.slice(0, 8).toUpperCase()}` : undefined}
+        description={
+          <span>
+            Confirm resolving this {selectedTicket?.issueType} case reported by{' '}
+            <strong>{selectedTicket?.reporterName}</strong> and persisting operator triage notes.
+          </span>
+        }
+        confirmLabel="Resolve Ticket"
+      />
     </div>
   );
 }

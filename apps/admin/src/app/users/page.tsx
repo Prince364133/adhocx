@@ -4,7 +4,6 @@ import React, { useEffect, useState, useMemo } from 'react';
 import {
   Building2,
   Users,
-  X,
   Trash2,
   AlertTriangle,
   ArrowLeft,
@@ -43,8 +42,11 @@ import {
   Column,
   StatusBadge,
   Button,
-  Card,
   MetricCard,
+  SegmentedTabs,
+  FeedbackBanner,
+  ConfirmDialog,
+  Drawer,
 } from '../../components/common';
 
 const VENDOR_STATUS_TABS = [
@@ -418,6 +420,208 @@ export default function UsersAndVendorsPage() {
     });
   };
 
+  const sharedDialogs = (
+    <>
+      {/* EDIT CORPORATE VENDOR DRAWER */}
+      <Drawer
+        isOpen={Boolean(editingVendor)}
+        onClose={() => {
+          if (!editLoading) setEditingVendor(null);
+        }}
+        width="min(92vw, 500px)"
+        title="Edit Corporate Vendor"
+        subtitle="Update enterprise credentials and contact information"
+        icon={<Building2 size={17} />}
+        footer={
+          <>
+            <Button variant="outline" size="sm" onClick={() => setEditingVendor(null)} disabled={editLoading}>
+              Cancel
+            </Button>
+            <Button variant="primary" size="sm" onClick={handleSaveVendorEdit} isLoading={editLoading}>
+              Save Changes
+            </Button>
+          </>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div>
+            <label className="form-label">Company / Organization Name</label>
+            <input
+              type="text"
+              className="form-input"
+              value={editFormData.organizationName || ''}
+              onChange={(e) => setEditFormData({ ...editFormData, organizationName: e.target.value })}
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.85rem' }}>
+            <div>
+              <label className="form-label">Contact Person</label>
+              <input
+                type="text"
+                className="form-input"
+                value={editFormData.contactPerson || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, contactPerson: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <label className="form-label">Phone Number</label>
+              <input
+                type="text"
+                className="form-input"
+                value={editFormData.phone || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.85rem' }}>
+            <div>
+              <label className="form-label">Email Address</label>
+              <input
+                type="email"
+                className="form-input"
+                value={editFormData.email || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <label className="form-label">GST / Tax Identifier</label>
+              <input
+                type="text"
+                className="form-input"
+                value={editFormData.gstNumber || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, gstNumber: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="form-label">Registered Address</label>
+            <textarea
+              className="form-textarea"
+              rows={3}
+              value={editFormData.address || ''}
+              onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
+            />
+          </div>
+        </div>
+      </Drawer>
+
+      {/* EDIT USER PROFILE DRAWER */}
+      <Drawer
+        isOpen={Boolean(editingUser)}
+        onClose={() => {
+          if (!editLoading) setEditingUser(null);
+        }}
+        width="min(92vw, 500px)"
+        title="Edit User Profile"
+        subtitle="Update user information, contact details, and account standing"
+        icon={<Edit3 size={17} />}
+        footer={
+          <>
+            <Button variant="outline" size="sm" onClick={() => setEditingUser(null)} disabled={editLoading}>
+              Cancel
+            </Button>
+            <Button variant="primary" size="sm" onClick={handleSaveUserEdit} isLoading={editLoading}>
+              Save Changes
+            </Button>
+          </>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div>
+            <label className="form-label">Full Legal Name</label>
+            <input
+              type="text"
+              className="form-input"
+              value={editFormData.fullName || ''}
+              onChange={(e) => setEditFormData({ ...editFormData, fullName: e.target.value })}
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.85rem' }}>
+            <div>
+              <label className="form-label">Phone Number</label>
+              <input
+                type="text"
+                className="form-input"
+                value={editFormData.phone || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <label className="form-label">Email Address</label>
+              <input
+                type="email"
+                className="form-input"
+                value={editFormData.email || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="form-label">Account Standing</label>
+            <select
+              className="form-select"
+              value={editFormData.status || 'ACTIVE'}
+              onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value })}
+            >
+              <option value="ACTIVE">ACTIVE — Normal Operations</option>
+              <option value="SUSPENDED">SUSPENDED — Temporary Hold</option>
+              <option value="DEACTIVATED">DEACTIVATED / BLOCKED</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="form-label">Registered Address</label>
+            <textarea
+              className="form-textarea"
+              rows={3}
+              value={editFormData.address || ''}
+              onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
+            />
+          </div>
+        </div>
+      </Drawer>
+
+      {/* PERMANENT DELETE CONFIRMATION MODAL */}
+      <ConfirmDialog
+        isOpen={Boolean(deleteTarget)}
+        onClose={() => {
+          if (!deleteLoading) setDeleteTarget(null);
+        }}
+        onConfirm={handleExecuteDelete}
+        variant="danger"
+        title={
+          deleteTarget
+            ? `Permanently Delete ${deleteTarget.type === 'VENDOR' ? 'Corporate Vendor' : 'User Account'}?`
+            : 'Permanently Delete Record?'
+        }
+        subtitle="Irreversible database removal"
+        description={
+          deleteTarget ? (
+            <>
+              Are you sure you want to permanently delete{' '}
+              <strong style={{ color: 'var(--text-primary)' }}>
+                {deleteTarget.name} {deleteTarget.phone ? `(${deleteTarget.phone})` : ''}
+              </strong>{' '}
+              from the AdhocX database? All associated vendor records, requirements, trips, and authentication sessions will be permanently purged.
+            </>
+          ) : (
+            ''
+          )
+        }
+        confirmLabel="Permanently Delete"
+        isLoading={deleteLoading}
+      />
+    </>
+  );
+
   /* =========================================================================
    * 1. FULL-PAGE VIEW: CORPORATE VENDOR DETAILS (Matches Driver Details)
    * ========================================================================= */
@@ -445,34 +649,30 @@ export default function UsersAndVendorsPage() {
     const barWidth = Math.min(36, colStep * 0.55);
 
     return (
-      <div style={{ maxWidth: '1440px', margin: '0 auto', paddingBottom: '3rem' }}>
+      <div style={{ width: '100%', paddingBottom: '0.5rem' }}>
         {/* Top Navigation Bar with Back Button and Quick Actions */}
         <div
+          className="module-bar"
           style={{
-            display: 'flex',
-            alignItems: 'center',
+            marginTop: '0.15rem',
+            marginBottom: '1.15rem',
+            padding: '0.68rem 1rem',
             justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '1rem',
-            marginBottom: '1.5rem',
-            paddingBottom: '1rem',
-            borderBottom: '1px solid var(--border)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
             <Button
-              variant="secondary"
+              variant="outline"
               size="sm"
               onClick={() => {
                 setSelectedVendor(null);
                 setActionType(null);
               }}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700 }}
+              leftIcon={<ArrowLeft size={15} />}
             >
-              <ArrowLeft size={16} />
-              <span>Back to Corporate Vendors</span>
+              Back to Corporate Vendors
             </Button>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
               <span>Vendors</span>
               <span>/</span>
               <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{selectedVendor.companyName}</span>
@@ -484,10 +684,9 @@ export default function UsersAndVendorsPage() {
               variant="outline"
               size="sm"
               onClick={() => handleOpenEditVendor(selectedVendor)}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+              leftIcon={<Edit3 size={14} />}
             >
-              <Edit3 size={15} />
-              <span>Edit Details</span>
+              Edit Details
             </Button>
 
             {selectedVendor.verificationStatus !== 'VERIFIED' && (
@@ -519,107 +718,68 @@ export default function UsersAndVendorsPage() {
                   phone: selectedVendor.phone,
                 })
               }
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+              leftIcon={<Trash2 size={14} />}
             >
-              <Trash2 size={14} />
-              <span>Delete</span>
+              Delete
             </Button>
           </div>
         </div>
 
         {/* Global Toast Alert */}
-        {alert && (
-          <div
-            style={{
-              padding: '0.875rem 1.25rem',
-              borderRadius: 'var(--radius-md)',
-              marginBottom: '1.5rem',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              background: alert.type === 'success' ? 'var(--color-success-bg)' : 'var(--color-danger-bg)',
-              border: `1px solid ${alert.type === 'success' ? 'var(--color-success-border)' : 'var(--color-danger-border)'}`,
-              color: alert.type === 'success' ? 'var(--color-success)' : 'var(--color-danger)',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-            }}
-          >
-            <span>{alert.message}</span>
-            <button
-              onClick={() => setAlert(null)}
-              style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-            >
-              <X size={16} />
-            </button>
-          </div>
+        {alert && !actionType && (
+          <FeedbackBanner
+            type={alert.type}
+            message={alert.message}
+            onDismiss={() => setAlert(null)}
+            style={{ marginBottom: '1.15rem' }}
+          />
         )}
 
-        {/* Action Reason Banner / Confirm Dialog */}
-        {actionType && (
-          <Card
-            variant="accent"
-            style={{
-              marginBottom: '1.5rem',
-              border: `1px solid ${
-                actionType === 'VERIFIED' ? 'var(--color-success-border)' : 'var(--color-danger-border)'
-              }`,
-              background: 'var(--bg-surface)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '0.9375rem' }}>
-                <AlertTriangle
-                  size={18}
-                  color={actionType === 'VERIFIED' ? 'var(--color-success)' : 'var(--color-danger)'}
+        {/* Vendor Status Transition Confirm Dialog */}
+        <ConfirmDialog
+          isOpen={Boolean(actionType)}
+          onClose={() => {
+            if (!actionLoading) {
+              setActionType(null);
+              setActionReason('');
+            }
+          }}
+          onConfirm={() => handleExecuteStatusAction('VENDOR', selectedVendor.id)}
+          variant={actionType === 'VERIFIED' ? 'confirm' : 'danger'}
+          title={actionType === 'VERIFIED' ? 'Approve & Verify Vendor' : `${actionType} Vendor`}
+          subtitle={selectedVendor.companyName}
+          description={
+            actionType === 'VERIFIED'
+              ? 'Approve corporate verification and unlock enterprise fulfillment.'
+              : 'Transitioning vendor account standing updates platform operational permissions.'
+          }
+          requireReason={actionType === 'REJECTED' || actionType === 'SUSPENDED'}
+          reasonLabel={
+            actionType === 'REJECTED'
+              ? 'Mandatory Reason for Rejection'
+              : 'Mandatory Reason for Suspension'
+          }
+          reasonPlaceholder="Add administrative notes for the compliance audit trail..."
+          reasonValue={actionReason}
+          onReasonChange={setActionReason}
+          details={
+            actionType === 'VERIFIED' ? (
+              <div>
+                <label className="form-label">Optional Verification Notes</label>
+                <textarea
+                  className="form-textarea"
+                  rows={3}
+                  placeholder="Add administrative notes for the compliance audit trail..."
+                  value={actionReason}
+                  onChange={(e) => setActionReason(e.target.value)}
+                  disabled={actionLoading}
                 />
-                <span>
-                  Confirm Transition: {actionType === 'VERIFIED' ? 'Approve & Verify Vendor' : `${actionType} Vendor`}
-                </span>
               </div>
-              <button
-                onClick={() => setActionType(null)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <label className="form-label" style={{ marginBottom: '0.5rem', display: 'block', fontSize: '0.8125rem' }}>
-              {actionType === 'REJECTED' && 'Mandatory Reason for Rejection:'}
-              {actionType === 'SUSPENDED' && 'Mandatory Reason for Suspension:'}
-              {actionType === 'VERIFIED' && 'Optional Verification Notes:'}
-            </label>
-            <textarea
-              className="form-textarea"
-              rows={3}
-              placeholder="Add administrative notes for the compliance audit trail..."
-              value={actionReason}
-              onChange={(e) => setActionReason(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border)',
-                background: 'var(--bg-base)',
-                color: 'var(--text-primary)',
-                fontSize: '0.875rem',
-                marginBottom: '1rem',
-              }}
-            />
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-              <Button variant="outline" size="sm" onClick={() => setActionType(null)} disabled={actionLoading}>
-                Cancel
-              </Button>
-              <Button
-                variant={actionType === 'VERIFIED' ? 'success' : 'danger'}
-                size="sm"
-                onClick={() => handleExecuteStatusAction('VENDOR', selectedVendor.id)}
-                isLoading={actionLoading}
-              >
-                Execute {actionType}
-              </Button>
-            </div>
-          </Card>
-        )}
+            ) : undefined
+          }
+          confirmLabel={`Execute ${actionType}`}
+          isLoading={actionLoading}
+        />
 
         {/* 1. TOP PROFILE DETAILS HEADER CARD */}
         <div
@@ -884,7 +1044,7 @@ export default function UsersAndVendorsPage() {
             boxShadow: 'var(--shadow-sm)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem', paddingTop: '0.15rem' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <TrendingUp size={20} color="var(--brand-primary)" />
@@ -942,7 +1102,7 @@ export default function UsersAndVendorsPage() {
           <div style={{ width: '100%', overflowX: 'auto', paddingBottom: '0.5rem' }}>
             <svg
               viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-              style={{ width: '100%', maxWidth: '900px', height: '240px', display: 'block', margin: '0 auto' }}
+              style={{ width: '100%', maxWidth: '900px', height: '195px', display: 'block', margin: '0 auto' }}
             >
               <defs>
                 <linearGradient id="vendorBarGrad" x1="0" y1="0" x2="0" y2="1">
@@ -1111,7 +1271,7 @@ export default function UsersAndVendorsPage() {
             boxShadow: 'var(--shadow-sm)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem', paddingTop: '0.15rem' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <FileText size={20} color="var(--brand-primary)" />
@@ -1306,6 +1466,7 @@ export default function UsersAndVendorsPage() {
             emptySubtitle="Adjust your search, status, or timeframe filters."
           />
         </div>
+        {sharedDialogs}
       </div>
     );
   }
@@ -1317,34 +1478,30 @@ export default function UsersAndVendorsPage() {
     const filteredUserOrders = filterOrders(selectedUser.orders || []);
 
     return (
-      <div style={{ maxWidth: '1440px', margin: '0 auto', paddingBottom: '3rem' }}>
+      <div style={{ width: '100%', paddingBottom: '0.5rem' }}>
         {/* Top Navigation Bar with Back Button and Quick Actions */}
         <div
+          className="module-bar"
           style={{
-            display: 'flex',
-            alignItems: 'center',
+            marginTop: '0.15rem',
+            marginBottom: '1.15rem',
+            padding: '0.68rem 1rem',
             justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '1rem',
-            marginBottom: '1.5rem',
-            paddingBottom: '1rem',
-            borderBottom: '1px solid var(--border)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
             <Button
-              variant="secondary"
+              variant="outline"
               size="sm"
               onClick={() => {
                 setSelectedUser(null);
                 setActionType(null);
               }}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700 }}
+              leftIcon={<ArrowLeft size={13} />}
             >
-              <ArrowLeft size={16} />
-              <span>Back to Users List</span>
+              Back to Users List
             </Button>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
               <span>Users</span>
               <span>/</span>
               <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{selectedUser.fullName}</span>
@@ -1356,10 +1513,9 @@ export default function UsersAndVendorsPage() {
               variant="outline"
               size="sm"
               onClick={() => handleOpenEditUser(selectedUser)}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+              leftIcon={<Edit3 size={14} />}
             >
-              <Edit3 size={15} />
-              <span>Edit Profile</span>
+              Edit Profile
             </Button>
 
             {selectedUser.status !== 'ACTIVE' && (
@@ -1391,98 +1547,59 @@ export default function UsersAndVendorsPage() {
                   phone: selectedUser.phone,
                 })
               }
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+              leftIcon={<Trash2 size={14} />}
             >
-              <Trash2 size={14} />
-              <span>Delete</span>
+              Delete
             </Button>
           </div>
         </div>
 
         {/* Global Toast Alert */}
-        {alert && (
-          <div
-            style={{
-              padding: '0.875rem 1.25rem',
-              borderRadius: 'var(--radius-md)',
-              marginBottom: '1.5rem',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              background: alert.type === 'success' ? 'var(--color-success-bg)' : 'var(--color-danger-bg)',
-              border: `1px solid ${alert.type === 'success' ? 'var(--color-success-border)' : 'var(--color-danger-border)'}`,
-              color: alert.type === 'success' ? 'var(--color-success)' : 'var(--color-danger)',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-            }}
-          >
-            <span>{alert.message}</span>
-            <button
-              onClick={() => setAlert(null)}
-              style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-            >
-              <X size={16} />
-            </button>
-          </div>
+        {alert && !actionType && (
+          <FeedbackBanner
+            type={alert.type}
+            message={alert.message}
+            onDismiss={() => setAlert(null)}
+            style={{ marginBottom: '1.15rem' }}
+          />
         )}
 
-        {/* Action Reason Banner */}
-        {actionType && (
-          <Card
-            variant="accent"
-            style={{
-              marginBottom: '1.5rem',
-              border: `1px solid ${actionType === 'ACTIVE' ? 'var(--color-success-border)' : 'var(--color-danger-border)'}`,
-              background: 'var(--bg-surface)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '0.9375rem' }}>
-                <AlertTriangle size={18} color={actionType === 'ACTIVE' ? 'var(--color-success)' : 'var(--color-danger)'} />
-                <span>Confirm User Status: {actionType === 'ACTIVE' ? 'Reactivate Account' : actionType === 'SUSPENDED' ? 'Deactivate Account' : 'Block Account'}</span>
-              </div>
-              <button
-                onClick={() => setActionType(null)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
-              >
-                <X size={18} />
-              </button>
+        {/* User Status Confirm Dialog */}
+        <ConfirmDialog
+          isOpen={Boolean(actionType)}
+          onClose={() => {
+            if (!actionLoading) {
+              setActionType(null);
+              setActionReason('');
+            }
+          }}
+          onConfirm={() => handleExecuteStatusAction('USER', selectedUser.id)}
+          variant={actionType === 'ACTIVE' ? 'confirm' : 'danger'}
+          title={
+            actionType === 'ACTIVE'
+              ? 'Reactivate Account'
+              : actionType === 'SUSPENDED'
+              ? 'Deactivate Account'
+              : 'Block Account'
+          }
+          subtitle={selectedUser.fullName}
+          description="Confirm this account status transition. Changes apply immediately to active sessions."
+          details={
+            <div>
+              <label className="form-label">Optional Reason / Audit Notes</label>
+              <textarea
+                className="form-textarea"
+                rows={3}
+                placeholder="Enter administrative notes for audit logging..."
+                value={actionReason}
+                onChange={(e) => setActionReason(e.target.value)}
+                disabled={actionLoading}
+              />
             </div>
-            <label className="form-label" style={{ marginBottom: '0.5rem', display: 'block', fontSize: '0.8125rem' }}>
-              Optional Reason / Audit Notes:
-            </label>
-            <textarea
-              className="form-textarea"
-              rows={3}
-              placeholder="Enter administrative notes for audit logging..."
-              value={actionReason}
-              onChange={(e) => setActionReason(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border)',
-                background: 'var(--bg-base)',
-                color: 'var(--text-primary)',
-                fontSize: '0.875rem',
-                marginBottom: '1rem',
-              }}
-            />
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-              <Button variant="outline" size="sm" onClick={() => setActionType(null)} disabled={actionLoading}>
-                Cancel
-              </Button>
-              <Button
-                variant={actionType === 'ACTIVE' ? 'success' : 'danger'}
-                size="sm"
-                onClick={() => handleExecuteStatusAction('USER', selectedUser.id)}
-                isLoading={actionLoading}
-              >
-                Execute {actionType}
-              </Button>
-            </div>
-          </Card>
-        )}
+          }
+          confirmLabel={`Execute ${actionType}`}
+          isLoading={actionLoading}
+        />
 
         {/* 1. TOP PROFILE DETAILS HEADER CARD */}
         <div
@@ -1685,9 +1802,9 @@ export default function UsersAndVendorsPage() {
               boxShadow: 'var(--shadow-sm)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', paddingTop: '0.15rem' }}>
               <Navigation size={18} color="var(--brand-primary)" />
-              <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+              <h3 style={{ fontSize: '1.08rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
                 User Location & Geocoding
               </h3>
             </div>
@@ -1833,9 +1950,9 @@ export default function UsersAndVendorsPage() {
               flexDirection: 'column',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', paddingTop: '0.15rem' }}>
               <Activity size={18} color="var(--brand-primary)" />
-              <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+              <h3 style={{ fontSize: '1.08rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
                 Recent Login & Audit History
               </h3>
             </div>
@@ -1899,7 +2016,7 @@ export default function UsersAndVendorsPage() {
             boxShadow: 'var(--shadow-sm)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem', paddingTop: '0.15rem' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <FileText size={20} color="var(--brand-primary)" />
@@ -2078,6 +2195,7 @@ export default function UsersAndVendorsPage() {
             emptySubtitle="No booking transactions match the active criteria for this user account."
           />
         </div>
+        {sharedDialogs}
       </div>
     );
   }
@@ -2332,7 +2450,7 @@ export default function UsersAndVendorsPage() {
   ];
 
   return (
-    <div>
+    <div className="admin-page">
       <PageHeader
         title="Users & Corporate Vendors"
         subtitle="Lifecycle oversight of enterprise clients, retail passengers, and vendor accounts across the AdhocX platform"
@@ -2341,109 +2459,32 @@ export default function UsersAndVendorsPage() {
 
       {/* Global Toast / Feedback */}
       {alert && (
-        <div
-          style={{
-            padding: '0.875rem 1.25rem',
-            borderRadius: 'var(--radius-md)',
-            marginBottom: '1.5rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: alert.type === 'success' ? 'var(--color-success-bg)' : 'var(--color-danger-bg)',
-            border: `1px solid ${alert.type === 'success' ? 'var(--color-success-border)' : 'var(--color-danger-border)'}`,
-            color: alert.type === 'success' ? 'var(--color-success)' : 'var(--color-danger)',
-            fontSize: '0.875rem',
-            fontWeight: 600,
-          }}
-        >
-          <span>{alert.message}</span>
-          <button
-            onClick={() => setAlert(null)}
-            style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-          >
-            <X size={16} />
-          </button>
-        </div>
+        <FeedbackBanner
+          type={alert.type}
+          message={alert.message}
+          onDismiss={() => setAlert(null)}
+        />
       )}
 
       {/* TOP-LEVEL DUAL-SECTION SWITCHER */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          background: 'var(--bg-surface-elevated)',
-          padding: '0.35rem',
-          borderRadius: 'var(--radius-lg)',
-          border: '1px solid var(--border)',
-          width: 'fit-content',
-          marginBottom: '1.5rem',
-        }}
-      >
-        <button
-          onClick={() => setActiveSection('VENDORS')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.55rem 1.25rem',
-            borderRadius: 'var(--radius-md)',
-            border: 'none',
-            background: activeSection === 'VENDORS' ? 'var(--brand-primary)' : 'transparent',
-            color: activeSection === 'VENDORS' ? '#ffffff' : 'var(--text-secondary)',
-            fontWeight: 700,
-            fontSize: '0.875rem',
-            cursor: 'pointer',
-            transition: 'all 0.15s ease',
-          }}
-        >
-          <Building2 size={16} />
-          <span>Corporate Vendors</span>
-          <span
-            style={{
-              padding: '0.1rem 0.45rem',
-              borderRadius: 'var(--radius-pill)',
-              background: activeSection === 'VENDORS' ? 'rgba(255, 255, 255, 0.22)' : 'var(--bg-card)',
-              fontSize: '0.72rem',
-              fontWeight: 800,
-            }}
-          >
-            {vendors.length}
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveSection('USERS')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.55rem 1.25rem',
-            borderRadius: 'var(--radius-md)',
-            border: 'none',
-            background: activeSection === 'USERS' ? 'var(--brand-primary)' : 'transparent',
-            color: activeSection === 'USERS' ? '#ffffff' : 'var(--text-secondary)',
-            fontWeight: 700,
-            fontSize: '0.875rem',
-            cursor: 'pointer',
-            transition: 'all 0.15s ease',
-          }}
-        >
-          <Users size={16} />
-          <span>Users & Enterprise Accounts</span>
-          <span
-            style={{
-              padding: '0.1rem 0.45rem',
-              borderRadius: 'var(--radius-pill)',
-              background: activeSection === 'USERS' ? 'rgba(255, 255, 255, 0.22)' : 'var(--bg-card)',
-              fontSize: '0.72rem',
-              fontWeight: 800,
-            }}
-          >
-            {users.length}
-          </span>
-        </button>
-      </div>
+      <SegmentedTabs
+        activeTab={activeSection}
+        onChange={setActiveSection}
+        tabs={[
+          {
+            id: 'VENDORS',
+            label: 'Corporate Vendors',
+            count: vendors.length,
+            icon: <Building2 size={15} />,
+          },
+          {
+            id: 'USERS',
+            label: 'Users & Enterprise Accounts',
+            count: users.length,
+            icon: <Users size={15} />,
+          },
+        ]}
+      />
 
       {/* SECTION 1: CORPORATE VENDORS TABLE */}
       {activeSection === 'VENDORS' && (
@@ -2517,426 +2558,7 @@ export default function UsersAndVendorsPage() {
         </div>
       )}
 
-      {/* EDIT CORPORATE VENDOR MODAL */}
-      {editingVendor && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.65)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-            padding: '1rem',
-          }}
-          onClick={() => !editLoading && setEditingVendor(null)}
-        >
-          <div
-            style={{
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-xl)',
-              maxWidth: '520px',
-              width: '100%',
-              padding: '1.75rem',
-              boxShadow: 'var(--shadow-xl)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                  Edit Corporate Vendor
-                </h3>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                  Update enterprise credentials and contact information
-                </div>
-              </div>
-              <button
-                onClick={() => setEditingVendor(null)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
-                  Company / Organization Name
-                </label>
-                <input
-                  type="text"
-                  value={editFormData.organizationName || ''}
-                  onChange={(e) => setEditFormData({ ...editFormData, organizationName: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '0.65rem 0.85rem',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border)',
-                    background: 'var(--bg-base)',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.875rem',
-                  }}
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
-                    Contact Person
-                  </label>
-                  <input
-                    type="text"
-                    value={editFormData.contactPerson || ''}
-                    onChange={(e) => setEditFormData({ ...editFormData, contactPerson: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '0.65rem 0.85rem',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border)',
-                      background: 'var(--bg-base)',
-                      color: 'var(--text-primary)',
-                      fontSize: '0.875rem',
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
-                    Phone Number
-                  </label>
-                  <input
-                    type="text"
-                    value={editFormData.phone || ''}
-                    onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '0.65rem 0.85rem',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border)',
-                      background: 'var(--bg-base)',
-                      color: 'var(--text-primary)',
-                      fontSize: '0.875rem',
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    value={editFormData.email || ''}
-                    onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '0.65rem 0.85rem',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border)',
-                      background: 'var(--bg-base)',
-                      color: 'var(--text-primary)',
-                      fontSize: '0.875rem',
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
-                    GST / Tax Identifier
-                  </label>
-                  <input
-                    type="text"
-                    value={editFormData.gstNumber || ''}
-                    onChange={(e) => setEditFormData({ ...editFormData, gstNumber: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '0.65rem 0.85rem',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border)',
-                      background: 'var(--bg-base)',
-                      color: 'var(--text-primary)',
-                      fontSize: '0.875rem',
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
-                  Registered Address
-                </label>
-                <textarea
-                  rows={2}
-                  value={editFormData.address || ''}
-                  onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '0.65rem 0.85rem',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border)',
-                    background: 'var(--bg-base)',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.875rem',
-                  }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.75rem' }}>
-                <Button variant="secondary" size="md" onClick={() => setEditingVendor(null)} disabled={editLoading}>
-                  Cancel
-                </Button>
-                <Button variant="primary" size="md" onClick={handleSaveVendorEdit} isLoading={editLoading}>
-                  Save Changes
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* EDIT USER PROFILE MODAL */}
-      {editingUser && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.65)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-            padding: '1rem',
-          }}
-          onClick={() => !editLoading && setEditingUser(null)}
-        >
-          <div
-            style={{
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-xl)',
-              maxWidth: '520px',
-              width: '100%',
-              padding: '1.75rem',
-              boxShadow: 'var(--shadow-xl)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                  Edit User Profile
-                </h3>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                  Update user information, contact details, and account standing
-                </div>
-              </div>
-              <button
-                onClick={() => setEditingUser(null)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
-                  Full Legal Name
-                </label>
-                <input
-                  type="text"
-                  value={editFormData.fullName || ''}
-                  onChange={(e) => setEditFormData({ ...editFormData, fullName: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '0.65rem 0.85rem',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border)',
-                    background: 'var(--bg-base)',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.875rem',
-                  }}
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
-                    Phone Number
-                  </label>
-                  <input
-                    type="text"
-                    value={editFormData.phone || ''}
-                    onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '0.65rem 0.85rem',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border)',
-                      background: 'var(--bg-base)',
-                      color: 'var(--text-primary)',
-                      fontSize: '0.875rem',
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    value={editFormData.email || ''}
-                    onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '0.65rem 0.85rem',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border)',
-                      background: 'var(--bg-base)',
-                      color: 'var(--text-primary)',
-                      fontSize: '0.875rem',
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
-                  Account Standing
-                </label>
-                <select
-                  value={editFormData.status || 'ACTIVE'}
-                  onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '0.65rem 0.85rem',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border)',
-                    background: 'var(--bg-base)',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.875rem',
-                  }}
-                >
-                  <option value="ACTIVE">ACTIVE — Normal Operations</option>
-                  <option value="SUSPENDED">SUSPENDED — Temporary Hold</option>
-                  <option value="DEACTIVATED">DEACTIVATED / BLOCKED</option>
-                </select>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
-                  Registered Address
-                </label>
-                <textarea
-                  rows={2}
-                  value={editFormData.address || ''}
-                  onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '0.65rem 0.85rem',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border)',
-                    background: 'var(--bg-base)',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.875rem',
-                  }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.75rem' }}>
-                <Button variant="secondary" size="md" onClick={() => setEditingUser(null)} disabled={editLoading}>
-                  Cancel
-                </Button>
-                <Button variant="primary" size="md" onClick={handleSaveUserEdit} isLoading={editLoading}>
-                  Save Changes
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* DELETE CONFIRMATION DIALOG */}
-      {deleteTarget && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0, 0, 0, 0.65)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-            padding: '1rem',
-          }}
-          onClick={() => !deleteLoading && setDeleteTarget(null)}
-        >
-          <div
-            style={{
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-xl)',
-              maxWidth: '460px',
-              width: '100%',
-              padding: '1.5rem',
-              boxShadow: 'var(--shadow-xl)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-              <div
-                style={{
-                  width: '42px',
-                  height: '42px',
-                  borderRadius: '50%',
-                  background: 'rgba(239, 68, 68, 0.12)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'var(--color-danger)',
-                  flexShrink: 0,
-                }}
-              >
-                <AlertTriangle size={24} />
-              </div>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                  Permanently Delete {deleteTarget.type === 'VENDOR' ? 'Corporate Vendor' : 'User Account'}?
-                </h3>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
-                  Irreversible database removal
-                </div>
-              </div>
-            </div>
-
-            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 1.25rem 0' }}>
-              Are you sure you want to permanently delete{' '}
-              <strong style={{ color: 'var(--text-primary)' }}>
-                {deleteTarget.name} {deleteTarget.phone ? `(${deleteTarget.phone})` : ''}
-              </strong>{' '}
-              from the AdhocX database? All associated vendor records, requirements, trips, and authentication sessions will be permanently purged.
-            </p>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
-              <Button variant="secondary" size="md" disabled={deleteLoading} onClick={() => setDeleteTarget(null)}>
-                Cancel
-              </Button>
-              <Button variant="danger" size="md" loading={deleteLoading} onClick={handleExecuteDelete}>
-                Permanently Delete
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {sharedDialogs}
     </div>
   );
 }

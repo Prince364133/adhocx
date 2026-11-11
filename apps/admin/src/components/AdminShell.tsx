@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import { ToastProvider } from './common/ToastProvider';
 import { AdhocxBrandLogo } from './AdhocxBrandLogo';
 import {
   adminApi,
@@ -175,12 +176,14 @@ export const AdminShell: React.FC<{ children: React.ReactNode }> = ({ children }
 
   // Authenticated layout with Sidebar & Header
   return (
-    <div className="admin-layout">
-      <Sidebar />
-      <div className="admin-main">
-        <Header />
-        <div className="admin-content">{children}</div>
+    <ToastProvider>
+      <div className="admin-layout">
+        <Sidebar />
+        <div className="admin-main">
+          <Header />
+          <div className="admin-content">{children}</div>
+        </div>
       </div>
-    </div>
+    </ToastProvider>
   );
 };

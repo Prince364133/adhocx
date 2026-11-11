@@ -94,20 +94,20 @@ export const ForbiddenState: React.FC<{ what: string; message?: string }> = ({ w
     className="card"
     role="alert"
     style={{
-      padding: '2rem',
+      padding: '1.35rem',
       textAlign: 'center',
       borderRadius: 'var(--radius-xl)',
       borderColor: 'var(--color-warning-border)',
       backgroundColor: 'var(--color-warning-bg)',
     }}
   >
-    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.75rem' }}>
-      <Lock size={30} color="var(--color-warning)" />
+    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.55rem' }}>
+      <Lock size={24} color="var(--color-warning)" />
     </div>
-    <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
+    <h3 style={{ fontSize: '1.04rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.24rem' }}>
       You are not authorised to view {what}
     </h3>
-    <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', maxWidth: 480, margin: '0 auto' }}>
+    <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', maxWidth: 460, margin: '0 auto' }}>
       {message ?? 'This area is limited to AdhocX platform administrators. Sign in with an admin account or ask a super admin for access.'}
     </p>
   </div>
@@ -134,17 +134,18 @@ export const Banner: React.FC<{ banner: BannerState; onClose: () => void }> = ({
   return (
     <div
       role={banner.type === 'error' ? 'alert' : 'status'}
+      className="animate-banner"
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: '0.75rem',
-        padding: '0.75rem 1rem',
-        borderRadius: 'var(--radius-md)',
+        gap: '0.7rem',
+        padding: '0.7rem 0.95rem',
+        borderRadius: 'var(--radius-lg)',
         backgroundColor: palette.bg,
         border: `1px solid ${palette.border}`,
         color: palette.color,
-        fontSize: '0.875rem',
-        fontWeight: 500,
+        fontSize: '0.8125rem',
+        fontWeight: 600,
       }}
     >
       {banner.type === 'success' ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
@@ -200,13 +201,13 @@ export const SectionCard: React.FC<{ title: string; subtitle?: string; actions?:
         justifyContent: 'space-between',
         gap: '1rem',
         flexWrap: 'wrap',
-        padding: '1rem 1.25rem',
+        padding: '1.02rem 1.15rem 0.92rem',
         borderBottom: '1px solid var(--border)',
       }}
     >
       <div>
-        <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{title}</h2>
-        {subtitle && <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: '0.25rem 0 0' }}>{subtitle}</p>}
+        <h2 style={{ fontSize: '1.08rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{title}</h2>
+        {subtitle && <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0.2rem 0 0' }}>{subtitle}</p>}
       </div>
       {actions && <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>{actions}</div>}
     </div>

@@ -45,61 +45,46 @@ export const VerificationCard: React.FC<CardProps> = ({
   return (
     <div
       onClick={() => onSelect(item)}
+      className="card interactive-card"
       style={{
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border-subtle)',
-        borderRadius: 'var(--radius-lg)',
-        padding: '1.25rem',
+        padding: '0.85rem 0.98rem',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        cursor: 'pointer',
-        boxShadow: 'var(--shadow-card)',
-        transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
         position: 'relative',
         overflow: 'hidden',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = 'var(--brand-primary)';
-        e.currentTarget.style.transform = 'translateY(-2px)';
-        e.currentTarget.style.boxShadow = 'var(--shadow-elevated)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = 'var(--border-subtle)';
-        e.currentTarget.style.transform = 'translateY(0)';
-        e.currentTarget.style.boxShadow = 'var(--shadow-card)';
       }}
     >
       <div>
         {/* Card Header: Entity Type Tag & Status */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.875rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.68rem' }}>
           <span
             style={{
-              fontSize: '0.6875rem',
+              fontSize: '0.65rem',
               fontWeight: 700,
               letterSpacing: '0.06em',
               textTransform: 'uppercase',
               color: isDriver ? 'var(--brand-primary)' : 'var(--color-info)',
               background: isDriver ? 'var(--brand-primary-subtle)' : 'rgba(14, 165, 233, 0.12)',
-              padding: '0.25rem 0.5rem',
+              padding: '0.18rem 0.44rem',
               borderRadius: 'var(--radius-xs)',
               display: 'flex',
               alignItems: 'center',
-              gap: '0.375rem',
+              gap: '0.32rem',
             }}
           >
-            {isDriver ? <BadgeCheck size={13} /> : <Building2 size={13} />}
+            {isDriver ? <BadgeCheck size={12} /> : <Building2 size={12} />}
             <span>{isDriver ? 'DRIVER' : 'VENDOR'} KYC</span>
           </span>
 
           <span
             style={{
-              fontSize: '0.6875rem',
+              fontSize: '0.65rem',
               fontWeight: 700,
               letterSpacing: '0.04em',
               color: statusColor,
               background: statusBg,
-              padding: '0.25rem 0.5rem',
+              padding: '0.18rem 0.44rem',
               borderRadius: 'var(--radius-xs)',
             }}
           >
@@ -108,11 +93,11 @@ export const VerificationCard: React.FC<CardProps> = ({
         </div>
 
         {/* Applicant Avatar & Name */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.875rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.62rem', marginBottom: '0.68rem' }}>
           <div
             style={{
-              width: '42px',
-              height: '42px',
+              width: '36px',
+              height: '36px',
               borderRadius: '50%',
               background: isDriver
                 ? 'linear-gradient(135deg, #6347F9, #4328E0)'
@@ -121,7 +106,7 @@ export const VerificationCard: React.FC<CardProps> = ({
               alignItems: 'center',
               justifyContent: 'center',
               fontWeight: 700,
-              fontSize: '1rem',
+              fontSize: '0.88rem',
               color: '#ffffff',
               flexShrink: 0,
             }}
@@ -131,7 +116,7 @@ export const VerificationCard: React.FC<CardProps> = ({
           <div style={{ overflow: 'hidden' }}>
             <div
               style={{
-                fontSize: '1rem',
+                fontSize: '0.9rem',
                 fontWeight: 700,
                 color: 'var(--text-primary)',
                 whiteSpace: 'nowrap',

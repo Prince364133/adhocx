@@ -27,13 +27,15 @@ export default function RootLayout({
             __html: `
               try {
                 var t = localStorage.getItem('adhocx_theme');
-                var isDark = t === 'dark';
+                var isDark = t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
                 if (isDark) {
                   document.documentElement.setAttribute('data-theme', 'dark');
                   document.documentElement.classList.add('dark');
+                  document.documentElement.classList.remove('light');
                 } else {
                   document.documentElement.setAttribute('data-theme', 'light');
                   document.documentElement.classList.add('light');
+                  document.documentElement.classList.remove('dark');
                 }
               } catch (e) {}
             `,

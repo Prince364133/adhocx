@@ -1,17 +1,20 @@
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { Clock, CreditCard, RotateCcw, ShieldCheck, X } from 'lucide-react';
+import { Clock, CreditCard, RotateCcw, ShieldCheck } from 'lucide-react';
 import { adminApi } from '../../lib/api/client';
 import { SettlementListItem } from '../../lib/api/types';
 import {
   PageHeader,
-  MetricCard,
+  KpiStrip,
+  SegmentedTabs,
   FilterBar,
   DataTable,
   StatusBadge,
   Button,
   Drawer,
+  FeedbackBanner,
+  ConfirmDialog,
 } from '../../components/common';
 import { CorporatePayoutBatchesSection } from './CorporatePayoutBatchesSection';
 
@@ -33,6 +36,7 @@ export default function SettlementsPage() {
   const [transactionRef, setTransactionRef] = useState('');
   const [failureReason, setFailureReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [confirmActionOpen, setConfirmActionOpen] = useState(false);
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   useEffect(() => {
@@ -81,6 +85,19 @@ export default function SettlementsPage() {
     };
   }, [settlements]);
 
+  function requestActionConfirm() {
+    if (!selectedSettlement || !actionType) return;
+    if (actionType === 'SETTLED' && !transactionRef.trim()) {
+      setAlert({ type: 'error', message: 'Bank UTR / Transaction Reference is required to settle.' });
+      return;
+    }
+    if (actionType === 'FAILED' && !failureReason.trim()) {
+      setAlert({ type: 'error', message: 'Failure reason is required.' });
+      return;
+    }
+    setConfirmActionOpen(true);
+  }
+
   async function handleExecuteAction() {
     if (!selectedSettlement || !actionType) return;
     setActionLoading(true);
@@ -116,6 +133,7 @@ export default function SettlementsPage() {
         });
       }
 
+      setConfirmActionOpen(false);
       setSelectedSettlement(null);
       setActionType(null);
       loadSettlements(activeTab);
@@ -127,31 +145,14 @@ export default function SettlementsPage() {
   }
 
   return (
-    <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div className="admin-page">
       {/* Alert Banner */}
       {alert && (
-        <div
-          style={{
-            padding: '0.875rem 1.25rem',
-            borderRadius: 'var(--radius-md)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: alert.type === 'success' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-            border: `1px solid ${alert.type === 'success' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
-            color: alert.type === 'success' ? 'var(--color-success)' : 'var(--color-danger)',
-            fontSize: '0.875rem',
-            fontWeight: 500,
-          }}
-        >
-          <span>{alert.message}</span>
-          <button
-            onClick={() => setAlert(null)}
-            style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-          >
-            <X size={16} />
-          </button>
-        </div>
+        <FeedbackBanner
+          type={alert.type}
+          message={alert.message}
+          onDismiss={() => setAlert(null)}
+        />
       )}
 
       {/* Page Header */}
@@ -162,49 +163,14 @@ export default function SettlementsPage() {
       />
 
       {/* Module Selector: Corporate ETS Batches vs On-Demand Settlements */}
-      <div
-        style={{
-          display: 'flex',
-          gap: '0.5rem',
-          borderBottom: '1px solid var(--border)',
-          paddingBottom: '0.75rem',
-          marginBottom: '1.25rem',
-          marginTop: '1rem',
-        }}
-      >
-        <button
-          onClick={() => setActiveModule('CORPORATE_BATCHES')}
-          style={{
-            background: activeModule === 'CORPORATE_BATCHES' ? 'var(--brand-primary)' : 'transparent',
-            color: activeModule === 'CORPORATE_BATCHES' ? '#FFFFFF' : 'var(--text-secondary)',
-            border: 'none',
-            padding: '0.5rem 1.25rem',
-            borderRadius: 'var(--radius-md)',
-            fontWeight: 700,
-            fontSize: '0.875rem',
-            cursor: 'pointer',
-            transition: 'all 0.15s ease-in-out',
-          }}
-        >
-          Corporate Driver Payout Batches (Maker-Checker)
-        </button>
-        <button
-          onClick={() => setActiveModule('ON_DEMAND')}
-          style={{
-            background: activeModule === 'ON_DEMAND' ? 'var(--brand-primary)' : 'transparent',
-            color: activeModule === 'ON_DEMAND' ? '#FFFFFF' : 'var(--text-secondary)',
-            border: 'none',
-            padding: '0.5rem 1.25rem',
-            borderRadius: 'var(--radius-md)',
-            fontWeight: 700,
-            fontSize: '0.875rem',
-            cursor: 'pointer',
-            transition: 'all 0.15s ease-in-out',
-          }}
-        >
-          On-Demand Driver Withdrawals
-        </button>
-      </div>
+      <SegmentedTabs
+        tabs={[
+          { id: 'CORPORATE_BATCHES', label: 'Corporate Driver Payout Batches (Maker-Checker)' },
+          { id: 'ON_DEMAND', label: 'On-Demand Driver Withdrawals' },
+        ]}
+        activeTab={activeModule}
+        onChange={setActiveModule}
+      />
 
       {activeModule === 'CORPORATE_BATCHES' ? (
         <CorporatePayoutBatchesSection />
@@ -212,35 +178,35 @@ export default function SettlementsPage() {
         <>
 
       {/* Settlement Metrics KPI Grid */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-          gap: '1.25rem',
-        }}
-      >
-        <MetricCard
-          label="Pending Payouts"
-          value={metrics.pendingCount}
-          subtext={`₹ ${metrics.pendingTotal.toLocaleString('en-IN')} awaiting authorization`}
-          icon={<Clock size={18} color="var(--color-warning)" />}
-          accentColor="var(--color-warning)"
-        />
-        <MetricCard
-          label="Settled Disbursals"
-          value={metrics.settledCount}
-          subtext={`₹ ${metrics.settledTotal.toLocaleString('en-IN')} successfully wired`}
-          icon={<CreditCard size={18} color="var(--color-success)" />}
-          accentColor="var(--color-success)"
-        />
-        <MetricCard
-          label="Failed / Rollbacks"
-          value={metrics.failedCount}
-          subtext="Refunded to driver wallets"
-          icon={<RotateCcw size={18} color="var(--color-danger)" />}
-          accentColor="var(--color-danger)"
-        />
-      </div>
+      <KpiStrip
+        columns={3}
+        items={[
+          {
+            id: 'pending',
+            label: 'Pending Payouts',
+            value: metrics.pendingCount,
+            subtext: `₹ ${metrics.pendingTotal.toLocaleString('en-IN')} awaiting authorization`,
+            icon: <Clock size={16} color="var(--color-warning)" />,
+            tone: 'warning',
+          },
+          {
+            id: 'settled',
+            label: 'Settled Disbursals',
+            value: metrics.settledCount,
+            subtext: `₹ ${metrics.settledTotal.toLocaleString('en-IN')} successfully wired`,
+            icon: <CreditCard size={16} color="var(--color-success)" />,
+            tone: 'success',
+          },
+          {
+            id: 'failed',
+            label: 'Failed / Rollbacks',
+            value: metrics.failedCount,
+            subtext: 'Refunded to driver wallets',
+            icon: <RotateCcw size={16} color="var(--color-danger)" />,
+            tone: 'danger',
+          },
+        ]}
+      />
 
       {/* Filter Bar */}
       <FilterBar
@@ -279,7 +245,7 @@ export default function SettlementsPage() {
             header: 'DRIVER INFO',
             accessor: (s) => (
               <div>
-                <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.875rem' }}>
+                <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.8rem' }}>
                   {s.driverName || 'Driver'}
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: '0.125rem' }}>
@@ -291,7 +257,7 @@ export default function SettlementsPage() {
           {
             header: 'PAYOUT AMOUNT',
             accessor: (s) => (
-              <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--color-success)' }}>
+              <div style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--color-success)' }}>
                 ₹ {Number(s.amount).toLocaleString('en-IN')}
               </div>
             ),
@@ -398,7 +364,7 @@ export default function SettlementsPage() {
                 <Button
                   variant={actionType === 'SETTLED' ? 'success' : 'danger'}
                   size="sm"
-                  onClick={handleExecuteAction}
+                  onClick={requestActionConfirm}
                   loading={actionLoading}
                 >
                   Confirm {actionType === 'SETTLED' ? 'Settlement' : 'Rollback'}
@@ -611,6 +577,44 @@ export default function SettlementsPage() {
           </div>
         )}
       </Drawer>
+
+      <ConfirmDialog
+        isOpen={confirmActionOpen && !!selectedSettlement && !!actionType}
+        onClose={() => !actionLoading && setConfirmActionOpen(false)}
+        onConfirm={handleExecuteAction}
+        variant={actionType === 'FAILED' ? 'danger' : 'success'}
+        isLoading={actionLoading}
+        title={actionType === 'FAILED' ? 'Fail Payout & Refund Wallet?' : 'Authorize & Settle Driver Payout?'}
+        subtitle={selectedSettlement ? `Settlement #${selectedSettlement.id}` : undefined}
+        description={
+          actionType === 'FAILED' ? (
+            <span>
+              Marking this payout as <strong>FAILED</strong> will immediately refund{' '}
+              <strong>₹{Number(selectedSettlement?.amount || 0).toLocaleString('en-IN')}</strong> back to{' '}
+              <strong>{selectedSettlement?.driverName || 'driver'}</strong>&apos;s wallet ledger.
+            </span>
+          ) : (
+            <span>
+              Confirm wiring <strong>₹{Number(selectedSettlement?.amount || 0).toLocaleString('en-IN')}</strong> to{' '}
+              <strong>{selectedSettlement?.bankAccountName || selectedSettlement?.driverName || 'beneficiary'}</strong>.
+            </span>
+          )
+        }
+        details={
+          <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+            {actionType === 'SETTLED' ? (
+              <>
+                <strong>Bank UTR Ref:</strong> <span style={{ fontFamily: 'monospace' }}>{transactionRef}</span>
+              </>
+            ) : (
+              <>
+                <strong>Rejection Reason:</strong> {failureReason}
+              </>
+            )}
+          </div>
+        }
+        confirmLabel={actionType === 'FAILED' ? 'Confirm Fail & Refund' : 'Confirm Settlement'}
+      />
         </>
       )}
     </div>

@@ -614,6 +614,16 @@ export interface TripFrequencyReport {
   }> | null;
 }
 
+export type FinancialCompanySource = 'VENDOR' | 'CORPORATE_TENANT';
+
+export interface FinancialCompanyOption {
+  id: string;
+  entityId: string;
+  companyType: FinancialCompanySource;
+  name: string;
+  code?: string | null;
+}
+
 export interface DailyFinancialReport {
   date: string;
   currency: 'INR';

@@ -6,12 +6,14 @@ import { adminApi } from '../../lib/api/client';
 import { DisputeListItem } from '../../lib/api/types';
 import {
   PageHeader,
-  MetricCard,
+  KpiStrip,
   FilterBar,
   DataTable,
   StatusBadge,
   Button,
   Drawer,
+  FeedbackBanner,
+  ConfirmDialog,
 } from '../../components/common';
 
 const STATUS_TABS = [
@@ -31,6 +33,7 @@ export default function DisputesPage() {
   const [resolutionStatus, setResolutionStatus] = useState<'RESOLVED' | 'REJECTED'>('RESOLVED');
   const [resolutionText, setResolutionText] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [confirmResolveOpen, setConfirmResolveOpen] = useState(false);
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   useEffect(() => {
@@ -81,6 +84,15 @@ export default function DisputesPage() {
     return { open, review, resolved, rejected };
   }, [disputes]);
 
+  function requestResolveConfirm() {
+    if (!selectedDispute) return;
+    if (!resolutionText.trim()) {
+      setAlert({ type: 'error', message: 'Resolution justification is required.' });
+      return;
+    }
+    setConfirmResolveOpen(true);
+  }
+
   async function handleResolve() {
     if (!selectedDispute) return;
     if (!resolutionText.trim()) {
@@ -100,6 +112,7 @@ export default function DisputesPage() {
         message: `Dispute ticket #${selectedDispute.id} marked as ${resolutionStatus}. Both parties notified.`,
       });
 
+      setConfirmResolveOpen(false);
       setSelectedDispute(null);
       setResolutionText('');
       loadDisputes(activeTab);
@@ -111,31 +124,14 @@ export default function DisputesPage() {
   }
 
   return (
-    <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div className="admin-page">
       {/* Alert Banner */}
       {alert && (
-        <div
-          style={{
-            padding: '0.875rem 1.25rem',
-            borderRadius: 'var(--radius-md)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: alert.type === 'success' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-            border: `1px solid ${alert.type === 'success' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
-            color: alert.type === 'success' ? 'var(--color-success)' : 'var(--color-danger)',
-            fontSize: '0.875rem',
-            fontWeight: 500,
-          }}
-        >
-          <span>{alert.message}</span>
-          <button
-            onClick={() => setAlert(null)}
-            style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-          >
-            <X size={16} />
-          </button>
-        </div>
+        <FeedbackBanner
+          type={alert.type}
+          message={alert.message}
+          onDismiss={() => setAlert(null)}
+        />
       )}
 
       {/* Page Header */}
@@ -146,42 +142,43 @@ export default function DisputesPage() {
       />
 
       {/* Dispute KPI Summary Grid */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: '1.25rem',
-        }}
-      >
-        <MetricCard
-          label="Open Tickets"
-          value={metrics.open}
-          subtext="Requires immediate investigation"
-          icon={<AlertCircle size={18} color="var(--color-danger)" />}
-          accentColor="var(--color-danger)"
-        />
-        <MetricCard
-          label="Under Review"
-          value={metrics.review}
-          subtext="Telemetry & receipt audit"
-          icon={<Search size={18} color="var(--color-warning)" />}
-          accentColor="var(--color-warning)"
-        />
-        <MetricCard
-          label="Resolved Cases"
-          value={metrics.resolved}
-          subtext="Settled or refunded"
-          icon={<CheckCircle2 size={18} color="var(--color-success)" />}
-          accentColor="var(--color-success)"
-        />
-        <MetricCard
-          label="Dismissed / Rejected"
-          value={metrics.rejected}
-          subtext="Unsubstantiated claims"
-          icon={<OctagonAlert size={18} color="var(--text-muted)" />}
-          accentColor="var(--text-muted)"
-        />
-      </div>
+      <KpiStrip
+        columns={4}
+        items={[
+          {
+            id: 'open',
+            label: 'Open Tickets',
+            value: metrics.open,
+            subtext: 'Requires immediate investigation',
+            icon: <AlertCircle size={16} color="var(--color-danger)" />,
+            tone: 'danger',
+          },
+          {
+            id: 'review',
+            label: 'Under Review',
+            value: metrics.review,
+            subtext: 'Telemetry & receipt audit',
+            icon: <Search size={16} color="var(--color-warning)" />,
+            tone: 'warning',
+          },
+          {
+            id: 'resolved',
+            label: 'Resolved Cases',
+            value: metrics.resolved,
+            subtext: 'Settled or refunded',
+            icon: <CheckCircle2 size={16} color="var(--color-success)" />,
+            tone: 'success',
+          },
+          {
+            id: 'rejected',
+            label: 'Dismissed / Rejected',
+            value: metrics.rejected,
+            subtext: 'Unsubstantiated claims',
+            icon: <OctagonAlert size={16} color="var(--text-muted)" />,
+            tone: 'neutral',
+          },
+        ]}
+      />
 
       {/* Filter Bar */}
       <FilterBar
@@ -322,7 +319,7 @@ export default function DisputesPage() {
               <Button
                 variant="primary"
                 size="sm"
-                onClick={handleResolve}
+                onClick={requestResolveConfirm}
                 loading={actionLoading}
               >
                 Submit Arbitration Finding
@@ -427,7 +424,7 @@ export default function DisputesPage() {
                   color: 'var(--text-secondary)',
                   padding: '0.875rem',
                   borderRadius: 'var(--radius-sm)',
-                  backgroundColor: 'var(--bg-canvas)',
+                  backgroundColor: 'var(--bg-base)',
                   border: '1px solid var(--border-subtle)',
                 }}
               >
@@ -445,7 +442,7 @@ export default function DisputesPage() {
                   padding: '1.25rem',
                 }}
               >
-                <h4 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '1rem' }}>
+                <h4 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.1rem', marginBottom: '1rem' }}>
                   Execute Official Arbitration Decision
                 </h4>
 
@@ -522,11 +519,12 @@ export default function DisputesPage() {
                     value={resolutionText}
                     onChange={(e) => setResolutionText(e.target.value)}
                     placeholder="Document telemetry cross-checks, route review, or any refund/credit issued..."
+                    className="form-textarea"
                     style={{
                       width: '100%',
                       padding: '0.625rem 0.875rem',
                       borderRadius: 'var(--radius-md)',
-                      backgroundColor: 'var(--bg-canvas)',
+                      backgroundColor: 'var(--bg-base)',
                       border: '1px solid var(--border-subtle)',
                       color: 'var(--text-primary)',
                       fontSize: '0.8125rem',
@@ -568,6 +566,29 @@ export default function DisputesPage() {
           </div>
         )}
       </Drawer>
+
+      <ConfirmDialog
+        isOpen={confirmResolveOpen && !!selectedDispute}
+        onClose={() => !actionLoading && setConfirmResolveOpen(false)}
+        onConfirm={handleResolve}
+        variant={resolutionStatus === 'REJECTED' ? 'warning' : 'success'}
+        isLoading={actionLoading}
+        title={resolutionStatus === 'REJECTED' ? 'Dismiss & Reject Dispute Claim?' : 'Accept & Resolve Dispute Claim?'}
+        subtitle={selectedDispute ? `Ticket #${selectedDispute.id}` : undefined}
+        description={
+          <span>
+            This arbitration finding will be recorded in the incident audit log and notifications will be dispatched to both{' '}
+            <strong>{selectedDispute?.reporterName || selectedDispute?.reporterId}</strong> and{' '}
+            <strong>{selectedDispute?.accusedName || selectedDispute?.accusedId}</strong>.
+          </span>
+        }
+        details={
+          <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+            <strong>Recorded Decision:</strong> {resolutionText}
+          </div>
+        }
+        confirmLabel={resolutionStatus === 'REJECTED' ? 'Reject Claim' : 'Submit Resolution'}
+      />
     </div>
   );
 }

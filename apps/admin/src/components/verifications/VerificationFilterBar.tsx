@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Search, RotateCw } from 'lucide-react';
+import { Search, RotateCw, X } from 'lucide-react';
 import { EntityFilter, StatusFilter } from '../../hooks/useVerificationCenter';
 
 interface FilterBarProps {
@@ -29,73 +29,73 @@ export const VerificationFilterBar: React.FC<FilterBarProps> = ({
 }) => {
   return (
     <div
+      className="card"
       style={{
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border-subtle)',
-        borderRadius: 'var(--radius-lg)',
-        padding: '1rem',
-        marginBottom: '1.5rem',
+        padding: '0.9rem 1.05rem',
+        marginBottom: '1rem',
         display: 'flex',
         flexDirection: 'column',
-        gap: '1rem',
-        boxShadow: 'var(--shadow-card)',
+        gap: '0.75rem',
       }}
     >
       {/* Top row: Search input & Refresh */}
-      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-        <div style={{ flex: 1, minWidth: '280px', position: 'relative' }}>
-          <span
+      <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 280px', position: 'relative' }}>
+          <Search
+            size={14}
             style={{
               position: 'absolute',
-              left: '1rem',
+              left: '0.78rem',
               top: '50%',
               transform: 'translateY(-50%)',
               color: 'var(--text-muted)',
-              display: 'flex',
-              alignItems: 'center',
+              pointerEvents: 'none',
             }}
-          >
-            <Search size={16} />
-          </span>
+          />
           <input
             type="text"
             placeholder="Search by Name, Mobile (+91), License, Vehicle Plate, or GST..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
+            className="form-input"
             style={{
-              width: '100%',
-              padding: '0.625rem 1rem 0.625rem 2.5rem',
-              background: 'var(--bg-card-elevated)',
-              border: '1px solid var(--border-light)',
-              borderRadius: 'var(--radius-md)',
-              color: 'var(--text-primary)',
-              fontSize: '0.875rem',
-              outline: 'none',
-              transition: 'border-color 0.15s ease',
+              paddingLeft: '2rem',
+              paddingRight: searchQuery ? '1.85rem' : '0.68rem',
+              height: '32px',
+              fontSize: '0.775rem',
             }}
           />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => onSearchChange('')}
+              aria-label="Clear verification search"
+              style={{
+                position: 'absolute',
+                right: '0.55rem',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                padding: '0.15rem',
+              }}
+            >
+              <X size={13} />
+            </button>
+          )}
         </div>
 
         <button
+          type="button"
           onClick={onRefresh}
           disabled={isLoading}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.625rem 1rem',
-            background: 'var(--bg-surface-elevated)',
-            border: '1px solid var(--border-light)',
-            borderRadius: 'var(--radius-md)',
-            color: 'var(--text-primary)',
-            fontSize: '0.875rem',
-            fontWeight: 600,
-            cursor: isLoading ? 'not-allowed' : 'pointer',
-            opacity: isLoading ? 0.7 : 1,
-            transition: 'all 0.18s ease',
-          }}
+          className="btn btn-secondary btn-sm"
+          style={{ height: '32px' }}
         >
-          <RotateCw size={15} className={isLoading ? 'animate-spin' : ''} />
+          <RotateCw size={13} className={isLoading ? 'animate-spin' : ''} />
           <span>{isLoading ? 'Syncing...' : 'Refresh Queue'}</span>
         </button>
       </div>
@@ -107,13 +107,12 @@ export const VerificationFilterBar: React.FC<FilterBarProps> = ({
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: '1rem',
+          gap: '0.75rem',
           borderTop: '1px solid var(--border-subtle)',
-          paddingTop: '0.875rem',
+          paddingTop: '0.75rem',
         }}
       >
-        {/* Entity Tabs */}
-        <div style={{ display: 'flex', gap: '0.375rem', background: 'var(--bg-card-elevated)', padding: '0.25rem', borderRadius: 'var(--radius-md)' }}>
+        <div className="tabs">
           {(
             [
               { id: 'ALL', label: 'All Applicants' },
@@ -125,17 +124,12 @@ export const VerificationFilterBar: React.FC<FilterBarProps> = ({
             return (
               <button
                 key={tab.id}
+                type="button"
                 onClick={() => onEntityFilterChange(tab.id)}
+                className={`tab-item${isSelected ? ' active' : ''}`}
                 style={{
-                  padding: '0.375rem 0.875rem',
-                  borderRadius: 'var(--radius-sm)',
-                  fontSize: '0.8125rem',
-                  fontWeight: isSelected ? 700 : 500,
-                  color: isSelected ? '#ffffff' : 'var(--text-secondary)',
                   background: isSelected ? 'var(--brand-primary)' : 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
+                  color: isSelected ? '#ffffff' : 'var(--text-secondary)',
                 }}
               >
                 {tab.label}
@@ -144,43 +138,31 @@ export const VerificationFilterBar: React.FC<FilterBarProps> = ({
           })}
         </div>
 
-        {/* Status Filter Pills */}
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
-            Status:
-          </span>
+        <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Status:</span>
           {(
             [
-              { id: 'UNDER_REVIEW', label: 'Under Review', color: 'var(--color-warning)' },
-              { id: 'ALL', label: 'All', color: 'var(--text-secondary)' },
-              { id: 'VERIFIED', label: 'Approved', color: 'var(--color-success)' },
-              { id: 'REJECTED', label: 'Declined', color: 'var(--color-danger)' },
+              { id: 'UNDER_REVIEW', label: 'Under Review' },
+              { id: 'ALL', label: 'All' },
+              { id: 'VERIFIED', label: 'Approved' },
+              { id: 'REJECTED', label: 'Declined' },
             ] as const
           ).map((pill) => {
             const isSelected = statusFilter === pill.id;
             return (
               <button
                 key={pill.id}
+                type="button"
                 onClick={() => onStatusFilterChange(pill.id)}
-                style={{
-                  padding: '0.25rem 0.625rem',
-                  borderRadius: 'var(--radius-pill)',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  background: isSelected ? pill.color : 'var(--bg-card-elevated)',
-                  color: isSelected ? '#ffffff' : 'var(--text-secondary)',
-                  border: isSelected ? `1px solid ${pill.color}` : '1px solid var(--border-subtle)',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
+                className={`filter-pill-chip${isSelected ? ' active' : ''}`}
               >
                 {pill.label}
               </button>
             );
           })}
-          <div style={{ marginLeft: '0.5rem', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
-            Showing <strong>{totalCount}</strong> results
-          </div>
+          <span style={{ marginLeft: '0.35rem', fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+            <strong style={{ color: 'var(--text-primary)' }}>{totalCount}</strong> results
+          </span>
         </div>
       </div>
     </div>

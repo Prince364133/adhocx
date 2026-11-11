@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
-import { Inbox, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
+'use client';
+
+import React from 'react';
+import { ChevronLeft, ChevronRight, Inbox } from 'lucide-react';
+import { EmptyState } from '../EmptyState';
 
 export interface Column<T> {
   key?: string;
@@ -32,294 +35,299 @@ export interface DataTableProps<T> {
   emptySubtitle?: string;
   emptyMessage?: string;
   pagination?: PaginationProps;
+  title?: string;
+  subtitle?: string;
+  countLabel?: string;
+  toolbar?: React.ReactNode;
+  maxHeight?: string;
 }
 
 export function DataTable<T extends Record<string, any>>({
   columns,
-  data,
+  data = [],
   keyExtractor,
   loading = false,
   onRowClick,
   emptyIcon,
-  emptyTitle = 'No records found',
-  emptySubtitle = 'There are no items matching the selected filters.',
+  emptyTitle = 'No matching records',
+  emptySubtitle = 'Adjust your active filters or search query to inspect entries.',
   emptyMessage,
   pagination,
+  title,
+  subtitle,
+  countLabel,
+  toolbar,
+  maxHeight,
 }: DataTableProps<T>) {
-  const [sortKey, setSortKey] = useState<string | null>(null);
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const safeData = Array.isArray(data) ? data : [];
+  const effectiveEmptyDesc = emptyMessage || emptySubtitle;
 
-  const safeData = React.useMemo(() => {
-    if (Array.isArray(data)) return data;
-    if (data && typeof data === 'object') {
-      if (Array.isArray((data as any).data)) return (data as any).data as T[];
-      if (Array.isArray((data as any).items)) return (data as any).items as T[];
-    }
-    return [] as T[];
-  }, [data]);
+  const [sortKey, setSortKey] = React.useState<string | null>(null);
+  const [sortDir, setSortDir] = React.useState<'asc' | 'desc'>('asc');
 
-  const handleSort = (key: string) => {
+  const handleSort = (key?: string, sortable?: boolean) => {
+    if (!sortable || !key) return;
     if (sortKey === key) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+      setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'));
     } else {
       setSortKey(key);
-      setSortOrder('asc');
+      setSortDir('asc');
     }
   };
 
   const sortedData = React.useMemo(() => {
     if (!sortKey) return safeData;
     return [...safeData].sort((a, b) => {
-      const valA = a[sortKey];
-      const valB = b[sortKey];
-      if (valA === valB) return 0;
-      if (valA === undefined || valA === null) return 1;
-      if (valB === undefined || valB === null) return -1;
-      if (typeof valA === 'number' && typeof valB === 'number') {
-        return sortOrder === 'asc' ? valA - valB : valB - valA;
+      const aVal = a[sortKey];
+      const bVal = b[sortKey];
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return sortDir === 'asc' ? aVal - bVal : bVal - aVal;
       }
-      return sortOrder === 'asc'
-        ? String(valA).localeCompare(String(valB))
-        : String(valB).localeCompare(String(valA));
+      return sortDir === 'asc'
+        ? String(aVal).localeCompare(String(bVal))
+        : String(bVal).localeCompare(String(aVal));
     });
-  }, [safeData, sortKey, sortOrder]);
+  }, [safeData, sortKey, sortDir]);
 
-  const getKey = React.useCallback(
-    (row: T, index: number): string | number => {
-      if (keyExtractor) {
-        try {
-          return keyExtractor(row, index);
-        } catch {
-          // fallback
-        }
-      }
-      return row?.id ?? row?._id ?? row?.key ?? row?.code ?? row?.vehicleType ?? index;
-    },
-    [keyExtractor]
-  );
+  const hasTopBar = Boolean(title || subtitle || countLabel || toolbar);
 
   return (
     <div
       style={{
         background: 'var(--bg-card)',
-        border: '1px solid var(--border-subtle)',
-        borderRadius: 'var(--radius-lg)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-xl)',
         overflow: 'hidden',
         boxShadow: 'var(--shadow-card)',
-        width: '100%',
-        transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
       }}
     >
-      <div style={{ overflowX: 'auto', width: '100%' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-          <thead>
-            <tr>
-              {columns.map((col, cIdx) => {
-                const title = col.header || col.title || '';
-                const isSortable = col.sortable && typeof col.accessor === 'string';
-                const sortableKey = isSortable ? (col.accessor as string) : (col.key || '');
+      {hasTopBar && (
+        <div
+          style={{
+            padding: '1.06rem 1.1rem 0.86rem',
+            borderBottom: toolbar ? 'none' : '1px solid var(--border)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.75rem',
+          }}
+        >
+          {(title || subtitle || countLabel) && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                justifyContent: 'space-between',
+                gap: '0.75rem',
+                flexWrap: 'wrap',
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                {title && (
+                  <h3 style={{ margin: 0, fontSize: '1.06rem', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.3 }}>
+                    {title}
+                  </h3>
+                )}
+                {subtitle && (
+                  <p style={{ margin: '0.16rem 0 0', fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                    {subtitle}
+                  </p>
+                )}
+              </div>
+              {countLabel && (
+                <span style={{ fontSize: '0.71rem', fontWeight: 500, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                  {countLabel}
+                </span>
+              )}
+            </div>
+          )}
+          {toolbar}
+        </div>
+      )}
 
-                return (
+      {loading ? (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-card)' }}>
+                {columns.map((col, idx) => (
                   <th
-                    key={sortableKey || cIdx}
-                    onClick={() => isSortable && handleSort(sortableKey)}
+                    key={col.key || `col-${idx}`}
                     style={{
-                      padding: '0.875rem 1.25rem',
-                      background: 'var(--bg-card-elevated)',
+                      padding: '0.56rem 0.82rem',
+                      fontSize: '0.7rem',
+                      fontWeight: 600,
                       color: 'var(--text-secondary)',
-                      fontWeight: 700,
-                      fontSize: '0.75rem',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                      borderBottom: '1px solid var(--border-subtle)',
-                      width: col.width,
                       textAlign: col.align || 'left',
-                      cursor: isSortable ? 'pointer' : 'default',
-                      userSelect: 'none',
+                      width: col.width,
                       whiteSpace: 'nowrap',
-                      transition: 'color 0.15s ease',
                     }}
                   >
-                    <div
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.375rem',
-                        justifyContent:
-                          col.align === 'right'
-                            ? 'flex-end'
-                            : col.align === 'center'
-                            ? 'center'
-                            : 'flex-start',
-                      }}
-                    >
-                      <span>{title}</span>
-                      {isSortable && (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', opacity: sortKey === sortableKey ? 1 : 0.4 }}>
-                          {sortKey === sortableKey ? (
-                            sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
-                          ) : (
-                            <ChevronsUpDown size={14} />
-                          )}
-                        </span>
-                      )}
-                    </div>
+                    {col.header || col.label || col.title || ''}
                   </th>
-                );
-              })}
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              Array.from({ length: 5 }).map((_, rIdx) => (
-                <tr key={`skel-${rIdx}`}>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {[...Array(5)].map((_, rIdx) => (
+                <tr key={rIdx} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                   {columns.map((_, cIdx) => (
-                    <td key={`skel-c-${cIdx}`} style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--border-subtle)' }}>
+                    <td key={cIdx} style={{ padding: '0.62rem 0.82rem' }}>
                       <div
                         className="animate-shimmer"
                         style={{
-                          height: '16px',
-                          width: cIdx === 0 ? '75%' : '50%',
+                          height: '12px',
                           borderRadius: 'var(--radius-xs)',
+                          width: cIdx === 0 ? '70%' : cIdx === columns.length - 1 ? '45%' : '58%',
                         }}
                       />
                     </td>
                   ))}
                 </tr>
-              ))
-            ) : sortedData.length === 0 ? (
-              <tr>
-                <td colSpan={columns.length} style={{ padding: '3.5rem 1.5rem', textAlign: 'center' }}>
-                  <div
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : sortedData.length === 0 ? (
+        <EmptyState
+          icon={emptyIcon || <Inbox size={26} color="var(--text-muted)" />}
+          title={emptyTitle}
+          description={effectiveEmptyDesc}
+        />
+      ) : (
+        <div style={{ overflowX: 'auto', maxHeight: maxHeight || undefined }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <thead>
+              <tr
+                style={{
+                  borderBottom: '1px solid var(--border)',
+                  background: 'var(--bg-card)',
+                }}
+              >
+                {columns.map((col, idx) => {
+                  const colKey = col.key || (typeof col.accessor === 'string' ? col.accessor : `col-${idx}`);
+                  return (
+                    <th
+                      key={colKey}
+                      onClick={() => handleSort(colKey, col.sortable)}
+                      style={{
+                        padding: '0.56rem 0.82rem',
+                        fontSize: '0.7rem',
+                        fontWeight: 600,
+                        color: 'var(--text-secondary)',
+                        textAlign: col.align || 'left',
+                        width: col.width,
+                        whiteSpace: 'nowrap',
+                        cursor: col.sortable ? 'pointer' : 'default',
+                        userSelect: 'none',
+                      }}
+                    >
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                        {col.header || col.label || col.title || ''}
+                        {col.sortable && sortKey === colKey && (
+                          <span style={{ fontSize: '0.65rem', color: 'var(--brand-primary)' }}>
+                            {sortDir === 'asc' ? '↑' : '↓'}
+                          </span>
+                        )}
+                      </span>
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+
+            <tbody>
+              {sortedData.map((row, idx) => {
+                const key = keyExtractor ? keyExtractor(row, idx) : row.id ?? idx;
+                return (
+                  <tr
+                    key={key}
+                    onClick={() => onRowClick?.(row)}
                     style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      width: '48px',
-                      height: '48px',
-                      borderRadius: 'var(--radius-xl)',
-                      backgroundColor: 'var(--bg-card-elevated)',
-                      color: 'var(--text-muted)',
-                      marginBottom: '0.75rem',
+                      borderBottom: idx === sortedData.length - 1 ? 'none' : '1px solid var(--border-subtle)',
+                      cursor: onRowClick ? 'pointer' : 'default',
+                      transition: 'background-color 0.14s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = 'var(--bg-card-elevated)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent';
                     }}
                   >
-                    {emptyIcon || <Inbox size={24} />}
-                  </div>
-                  <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
-                    {emptyMessage || emptyTitle}
-                  </div>
-                  <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                    {emptyMessage ? '' : emptySubtitle}
-                  </div>
-                </td>
-              </tr>
-            ) : (
-              sortedData.map((row, rIdx) => (
-                <tr
-                  key={String(getKey(row, rIdx))}
-                  onClick={() => onRowClick && onRowClick(row)}
-                  style={{
-                    cursor: onRowClick ? 'pointer' : 'default',
-                    transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                  }}
-                >
-                  {columns.map((col, cIdx) => {
-                    let cellContent: React.ReactNode = null;
-                    if (col.render) {
-                      cellContent = col.render(row, rIdx);
-                    } else if (typeof col.accessor === 'function') {
-                      cellContent = col.accessor(row, rIdx);
-                    } else if (col.accessor && typeof col.accessor === 'string') {
-                      cellContent = row[col.accessor];
-                    } else if (col.key) {
-                      cellContent = row[col.key];
-                    }
+                    {columns.map((col, cIdx) => {
+                      const colKey = col.key || (typeof col.accessor === 'string' ? col.accessor : `col-${cIdx}`);
+                      let cellContent: React.ReactNode = null;
+                      if (col.render) {
+                        cellContent = col.render(row, idx);
+                      } else if (col.accessor) {
+                        cellContent =
+                          typeof col.accessor === 'function'
+                            ? col.accessor(row, idx)
+                            : row[col.accessor as keyof T];
+                      } else if (col.key) {
+                        cellContent = row[col.key as keyof T];
+                      }
 
-                    return (
-                      <td
-                        key={col.key || cIdx}
-                        style={{
-                          padding: '1rem 1.25rem',
-                          borderBottom: '1px solid var(--border-subtle)',
-                          color: 'var(--text-primary)',
-                          fontSize: '0.875rem',
-                          textAlign: col.align || 'left',
-                          verticalAlign: 'middle',
-                        }}
-                      >
-                        {cellContent}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+                      return (
+                        <td
+                          key={colKey}
+                          style={{
+                            padding: '0.56rem 0.82rem',
+                            fontSize: '0.775rem',
+                            color: 'var(--text-primary)',
+                            textAlign: col.align || 'left',
+                            verticalAlign: 'middle',
+                          }}
+                        >
+                          {cellContent}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {pagination && pagination.totalPages > 1 && (
         <div
           style={{
-            padding: '0.875rem 1.25rem',
-            borderTop: '1px solid var(--border-subtle)',
+            padding: '0.58rem 0.9rem',
+            borderTop: '1px solid var(--border)',
+            background: 'var(--bg-card-elevated)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            fontSize: '0.8125rem',
-            color: 'var(--text-secondary)',
-            background: 'var(--bg-card)',
+            flexWrap: 'wrap',
+            gap: '0.65rem',
           }}
         >
-          <div>
-            Showing <strong style={{ color: 'var(--text-primary)' }}>{(pagination.currentPage - 1) * (pagination.pageSize || 10) + 1}</strong> to{' '}
-            <strong style={{ color: 'var(--text-primary)' }}>
-              {Math.min(pagination.currentPage * (pagination.pageSize || 10), pagination.totalItems || 0)}
-            </strong>{' '}
-            of <strong style={{ color: 'var(--text-primary)' }}>{pagination.totalItems || 0}</strong> entries
-          </div>
+          <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+            Page <strong style={{ color: 'var(--text-primary)' }}>{pagination.currentPage}</strong> of{' '}
+            <strong style={{ color: 'var(--text-primary)' }}>{pagination.totalPages}</strong>
+            {pagination.totalItems !== undefined && ` (${pagination.totalItems} records)`}
+          </span>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
             <button
+              type="button"
               disabled={pagination.currentPage <= 1}
               onClick={() => pagination.onPageChange(pagination.currentPage - 1)}
-              style={{
-                padding: '0.35rem 0.65rem',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border-subtle)',
-                background: 'var(--bg-card-elevated)',
-                color: pagination.currentPage <= 1 ? 'var(--text-muted)' : 'var(--text-primary)',
-                cursor: pagination.currentPage <= 1 ? 'not-allowed' : 'pointer',
-                fontWeight: 600,
-                transition: 'all 0.15s ease',
-              }}
+              className="btn btn-secondary btn-sm"
             >
-              Previous
+              <ChevronLeft size={14} /> Previous
             </button>
-            <span style={{ padding: '0 0.5rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-              Page {pagination.currentPage} of {pagination.totalPages}
-            </span>
             <button
+              type="button"
               disabled={pagination.currentPage >= pagination.totalPages}
               onClick={() => pagination.onPageChange(pagination.currentPage + 1)}
-              style={{
-                padding: '0.35rem 0.65rem',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border-subtle)',
-                background: 'var(--bg-card-elevated)',
-                color: pagination.currentPage >= pagination.totalPages ? 'var(--text-muted)' : 'var(--text-primary)',
-                cursor: pagination.currentPage >= pagination.totalPages ? 'not-allowed' : 'pointer',
-                fontWeight: 600,
-                transition: 'all 0.15s ease',
-              }}
+              className="btn btn-secondary btn-sm"
             >
-              Next
+              Next <ChevronRight size={14} />
             </button>
           </div>
         </div>
