@@ -496,7 +496,9 @@ export default function OpsRoutesPage() {
           >
             <option value="ALL">All Dispatch States</option>
             <option value="PENDING">PENDING</option>
-            <option value="OFFERED">OFFERED (Searching)</option>
+            <option value="SEARCHING">SEARCHING (run in progress)</option>
+            <option value="OFFERED">OFFERED (awaiting driver)</option>
+            <option value="RETRY_SCHEDULED">RETRY_SCHEDULED (next run in 5 min)</option>
             <option value="DRIVER_ASSIGNED">DRIVER_ASSIGNED</option>
             <option value="NO_DRIVERS_FOUND">NO_DRIVERS_FOUND</option>
           </select>

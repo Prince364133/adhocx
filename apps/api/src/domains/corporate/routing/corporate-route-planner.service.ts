@@ -1,4 +1,5 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, ConflictException } from '@nestjs/common';
+import { randomBytes, randomInt } from 'crypto';
 import * as ExcelJS from 'exceljs';
 import * as XLSX from '@e965/xlsx';
 import * as h3 from 'h3-js';
@@ -8,6 +9,7 @@ import { GoogleRoutesV2Adapter, RouteRequestOptions, haversineKm } from './googl
 import {
   clusterEmployees,
   solveCabRoute,
+  solveLogoutCabRoute,
   EmployeeRecord,
   SolverConfig,
   SolverCalculatedRoute,
@@ -17,6 +19,45 @@ import {
   PricingConfig,
   DEFAULT_PRICING_CONFIG,
 } from './cost-optimizer';
+import { getPhoneVariants, normalizeIndianPhone } from '../../../common/utils/uniqueness.util';
+import { istWallClockToUtc } from '../replanning/cutoff-policy';
+
+/** A plan optimized to an office this far from the saved office is rejected at commit. */
+const OFFICE_PLAN_MAX_DRIFT_KM = 2;
+const SUV_CAPACITY = 6;
+const COMMIT_TX_TIMEOUT_MS = 120_000;
+
+/** 4-digit boarding OTP from a CSPRNG (never taken from the client payload). */
+export function generateBoardingOtp(): string {
+  return String(randomInt(1000, 10000));
+}
+
+/** IST wall clock (YYYY-MM-DD, HH:mm) -> instant; invalid input -> Invalid Date. */
+function istWallClock(date: string, hhmm: string): Date {
+  try {
+    return istWallClockToUtc(date, hhmm);
+  } catch {
+    return new Date(NaN);
+  }
+}
+
+/** Instant -> IST calendar date + HH:mm. */
+function istParts(at: Date): { date: string; time: string } {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    })
+      .formatToParts(at)
+      .map(({ type, value }) => [type, value]),
+  );
+  return { date: `${parts.year}-${parts.month}-${parts.day}`, time: `${parts.hour}:${parts.minute}` };
+}
 
 export interface PlanRoutesFromFileOptions {
   tenantId?: string;
@@ -182,21 +223,27 @@ export class CorporateRoutePlannerService {
     }
 
     let policyDwellMinutes = 10;
+    let policyCapacity: number | undefined;
+    let policyBufferMinutes: number | undefined;
     let dbOfficeAddress: string | undefined;
     let dbOfficeCoords: { lat: number; lng: number } | undefined;
 
-    if (options.tenantId && !options.pickupWaitMinutes && (this.db as any)?.corporateTenantPolicy?.findFirst) {
+    if (options.tenantId && (this.db as any)?.corporateTenantPolicy?.findFirst) {
       try {
-        const latestPolicy = await this.db.corporateTenantPolicy.findFirst({
+        const latestPolicy: any = await this.db.corporateTenantPolicy.findFirst({
           where: { tenantId: options.tenantId },
           orderBy: { version: 'desc' },
-          select: { stopDwellMinutes: true },
+          select: { stopDwellMinutes: true, defaultCapacity: true, officeArrivalBufferMinutes: true },
         });
         if (latestPolicy?.stopDwellMinutes) {
           policyDwellMinutes = Math.min(Math.max(Number(latestPolicy.stopDwellMinutes), 1), 10);
         }
+        if (Number(latestPolicy?.defaultCapacity) > 0) policyCapacity = Number(latestPolicy.defaultCapacity);
+        if (latestPolicy?.officeArrivalBufferMinutes != null) {
+          policyBufferMinutes = Number(latestPolicy.officeArrivalBufferMinutes);
+        }
       } catch {
-        // Safe fallback to 10 min standard dwell
+        // Safe fallback to 10 min standard dwell / request values
       }
     }
 
@@ -246,6 +293,7 @@ export class CorporateRoutePlannerService {
       return { ...row, officeAddress, loginTime };
     });
 
+    const isLogout = options.direction === 'LOGOUT';
     const maxTripKm = Number(options.maxTripKm) || 50;
     const pricingConfig = options.pricingConfig || DEFAULT_PRICING_CONFIG;
 
@@ -258,9 +306,14 @@ export class CorporateRoutePlannerService {
       logoutTime: options.logoutTime ? new Date(options.logoutTime) : undefined,
       officeRadiusKm: Number(options.officeRadiusKm) || 50,
       maxTripKm,
-      bufferMinutes: Number(options.bufferMinutes) || 15,
+      // Explicit request value, else the company's office-arrival buffer, else 15 min.
+      bufferMinutes:
+        options.bufferMinutes != null && Number.isFinite(Number(options.bufferMinutes))
+          ? Math.max(0, Number(options.bufferMinutes))
+          : policyBufferMinutes ?? 15,
       pickupWaitMinutes: resolvedWaitMinutes,
-      cabCapacity: Number(options.cabCapacity) || 6,
+      // Explicit request value, else the company's policy capacity (SEDAN 4 / SUV 6), else 4.
+      cabCapacity: Math.min(Math.max(Math.round(Number(options.cabCapacity) || policyCapacity || 4), 1), 12),
       routingPreference: options.routingPreference || 'TRAFFIC_UNAWARE',
       avoidTolls: options.avoidTolls !== false,
       avoidHighways: Boolean(options.avoidHighways),
@@ -276,8 +329,12 @@ export class CorporateRoutePlannerService {
     }
 
     // Geocode all pickup and office addresses once, including separate destination hubs.
+    // Rows that carry their own coordinates are never geocoded.
     const uniqueAddresses = Array.from(
-      new Set([...rowsWithTargets.map((row) => row.pickupAddress), ...Array.from(officesByKey.values(), (office) => office.name)]),
+      new Set([
+        ...rowsWithTargets.filter((row) => row.latitude === undefined).map((row) => row.pickupAddress),
+        ...Array.from(officesByKey.values(), (office) => office.name),
+      ]),
     );
     const geocodeMap = await this.geocodingAdapter.batchGeocode(
       uniqueAddresses,
@@ -327,7 +384,10 @@ export class CorporateRoutePlannerService {
     }> = [];
 
     for (const row of rowsWithTargets) {
-      const geo = geocodeMap.get(row.pickupAddress.toLowerCase());
+      const geo =
+        row.latitude !== undefined && row.longitude !== undefined
+          ? { lat: row.latitude, lng: row.longitude, matchedAddress: row.pickupAddress }
+          : geocodeMap.get(row.pickupAddress.toLowerCase());
       if (!geo) throw new BadRequestException(`Could not geocode pickup_address "${row.pickupAddress}" for ${row.employeeName}`);
       const office = officesByKey.get(`${row.officeAddress.toLowerCase()}|${row.loginTime.toISOString()}`);
       if (!office) throw new BadRequestException(`Missing route destination for ${row.employeeName}`);
@@ -405,7 +465,7 @@ export class CorporateRoutePlannerService {
 
     for (let i = 0; i < routeGroups.length; i++) {
       const group = routeGroups[i];
-      const cabRoute = await solveCabRoute(
+      const cabRoute = await (isLogout ? solveLogoutCabRoute : solveCabRoute)(
         i + 1,
         group.employees,
         group.officeName,
@@ -533,15 +593,29 @@ export class CorporateRoutePlannerService {
   }
 
   /**
-   * Commits calculated route plan directly into production database.
+   * Commits a calculated route plan into corporate routes + stops (one transaction).
+   *
+   * The plan comes from the browser, so everything that matters is re-derived or checked here:
+   *  - the office must belong to the tenant and sit where the plan was optimized to (<= 2 km);
+   *  - boarding OTPs are generated server-side (never taken from the payload);
+   *  - employees are linked by employee code, else phone; never by name (names collide);
+   *  - an employee may ride at most one live route per shift date + direction (re-commits and
+   *    double clicks are rejected instead of putting the person in two cabs);
+   *  - LOGIN = pickups -> office DROPOFF; LOGOUT = office PICKUP -> drops;
+   *  - capacity follows the vehicle category / company policy.
    */
   async commitPlanToDatabase(
     dto: CommitPlanDto,
   ): Promise<{ routesCreated: number; stopsCreated: number; routeIds?: string[]; employeesLinked?: number }> {
-    const { tenantId, officeId, shiftDate, shiftTime, direction, vehicleCategory = 'SEDAN', plan } = dto;
+    const { tenantId, officeId, shiftDate, shiftTime, vehicleCategory = 'SEDAN', plan } = dto;
+    const direction = String(dto.direction ?? 'LOGIN').toUpperCase() as 'LOGIN' | 'LOGOUT';
+    const isLogout = direction === 'LOGOUT';
 
     if (!plan || !plan.routes || plan.routes.length === 0) {
       throw new BadRequestException('No routes present in the plan to commit');
+    }
+    if (direction !== 'LOGIN' && direction !== 'LOGOUT') {
+      throw new BadRequestException('direction must be LOGIN or LOGOUT');
     }
     const destinations = new Set(
       plan.routes.map((route) => {
@@ -552,195 +626,210 @@ export class CorporateRoutePlannerService {
     if (destinations.size > 1) {
       throw new BadRequestException('Plans with multiple office destinations cannot be committed to a single office. Export the plan or split it by destination.');
     }
+    for (const route of plan.routes) {
+      if (route.direction && route.direction !== direction) {
+        throw new BadRequestException(
+          `Route ${route.cab} was optimized for ${route.direction} but is being committed as ${direction}; re-run the optimizer`,
+        );
+      }
+      if (!Array.isArray(route.stops) || route.stops.length === 0) {
+        throw new BadRequestException(`Route ${route.cab} has no employee stops`);
+      }
+      for (const stop of route.stops) {
+        if (!Number.isFinite(Number(stop.lat)) || !Number.isFinite(Number(stop.lng))) {
+          throw new BadRequestException(`Route ${route.cab} stop "${stop.name}" has no valid coordinates`);
+        }
+      }
+    }
+
+    // Office must be this tenant's, and the plan must have been optimized to its location.
+    let office: any = null;
+    if (typeof (this.db as any)?.corporateOffice?.findUnique === 'function') {
+      office = await this.db.corporateOffice.findUnique({
+        where: { id: officeId },
+        select: { id: true, tenantId: true, name: true, addressText: true, latitude: true, longitude: true },
+      } as any);
+      if (!office || office.tenantId !== tenantId) {
+        throw new BadRequestException('officeId does not belong to this company');
+      }
+      const planOffice = plan.routes[0].office ?? plan.office;
+      if (office.latitude != null && office.longitude != null && planOffice) {
+        const driftKm = haversineKm(
+          { lat: Number(office.latitude), lng: Number(office.longitude) },
+          { lat: Number(planOffice.lat), lng: Number(planOffice.lng) },
+        );
+        if (driftKm > OFFICE_PLAN_MAX_DRIFT_KM) {
+          throw new BadRequestException(
+            `The plan was optimized to an office location ${driftKm.toFixed(1)} km away from the saved office "${office.name}". ` +
+              'Save the office address/coordinates first, then re-run the optimizer.',
+          );
+        }
+      }
+    }
+
+    // Policy: dwell + sedan capacity
+    let defaultDwellSeconds =
+      dto.stopDwellMinutes != null
+        ? Math.min(Math.max(Math.round(Number(dto.stopDwellMinutes) * 60), 60), 600)
+        : 600;
+    let sedanCapacity = 4;
+    if (typeof (this.db as any)?.corporateTenantPolicy?.findFirst === 'function') {
+      const policy: any = await this.db.corporateTenantPolicy.findFirst({
+        where: { tenantId },
+        orderBy: { version: 'desc' },
+        select: { stopDwellMinutes: true, defaultCapacity: true, defaultVehicleCategory: true },
+      } as any);
+      if (dto.stopDwellMinutes == null && policy?.stopDwellMinutes) {
+        defaultDwellSeconds = Math.min(Math.max(Number(policy.stopDwellMinutes) * 60, 60), 600);
+      }
+      if (String(policy?.defaultVehicleCategory ?? 'SEDAN').toUpperCase() === 'SEDAN' && Number(policy?.defaultCapacity) > 0) {
+        sedanCapacity = Math.min(Number(policy.defaultCapacity), 4);
+      }
+    }
+
+    // An employee may appear once in the plan.
+    const identityOf = (stop: any): string => {
+      const code = String(stop.employeeCode ?? '').trim().toLowerCase();
+      if (stop.employeeId) return `id:${stop.employeeId}`;
+      if (code) return `code:${code}`;
+      const digits = String(stop.phoneNumber ?? '').replace(/\D/g, '');
+      if (digits.length >= 10) return `phone:${digits.slice(-10)}`;
+      return `name:${String(stop.name ?? '').trim().toLowerCase()}`;
+    };
+    const seen = new Map<string, string>();
+    for (const route of plan.routes) {
+      for (const stop of route.stops) {
+        const key = identityOf(stop);
+        if (seen.has(key)) {
+          throw new BadRequestException(`Employee "${stop.name}" appears in more than one route of this plan`);
+        }
+        seen.set(key, stop.name);
+      }
+    }
 
     let stopsCreated = 0;
     let employeesLinked = 0;
     const routeIds: string[] = [];
 
-    await this.db.$transaction(async (tx: any) => {
-      let defaultDwellSeconds =
-        dto.stopDwellMinutes != null
-          ? Math.min(Math.max(Math.round(Number(dto.stopDwellMinutes) * 60), 60), 600)
-          : 600;
-
-      if (dto.stopDwellMinutes == null && tx.corporateTenantPolicy?.findFirst) {
-        const policy = await tx.corporateTenantPolicy.findFirst({
-          where: { tenantId },
-          orderBy: { version: 'desc' },
-          select: { stopDwellMinutes: true },
-        });
-        if (policy?.stopDwellMinutes) {
-          defaultDwellSeconds = Math.min(Math.max(Number(policy.stopDwellMinutes) * 60, 60), 600);
-        }
-      }
-
-      for (const route of plan.routes) {
-        const firstStop = route.stops[0];
-
-        const targetPickup1Time = route.departureDateTime
-          ? new Date(route.departureDateTime)
-          : firstStop?.etaIso
-            ? new Date(firstStop.etaIso)
-            : firstStop
-              ? new Date(`${shiftDate}T00:00:00Z`)
-              : new Date();
-        const targetOfficeArrivalTime = route.requiredArrivalDateTime
-          ? new Date(route.requiredArrivalDateTime)
-          : new Date(`${shiftDate}T${shiftTime}:00Z`);
-        const indiaParts = Object.fromEntries(
-          new Intl.DateTimeFormat('en-GB', {
-            timeZone: 'Asia/Kolkata',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            hourCycle: 'h23',
-          })
-            .formatToParts(targetOfficeArrivalTime)
-            .map(({ type, value }) => [type, value]),
-        );
-        const routeShiftDate = `${indiaParts.year}-${indiaParts.month}-${indiaParts.day}`;
-        const routeShiftTime = `${indiaParts.hour}:${indiaParts.minute}`;
-
-        const effectiveCategory = route.cabType?.toUpperCase() === 'SUV' ? 'SUV' : (vehicleCategory || 'SEDAN');
-        const effectiveMaxCapacity = effectiveCategory === 'SUV' ? 6 : 3;
-
-        const createdRoute = await tx.corporateRoute.create({
-          data: {
-            tenantId,
-            officeId,
-            shiftDate: new Date(`${routeShiftDate}T00:00:00.000Z`),
-            shiftTime: routeShiftTime,
-            direction,
-            vehicleCategory: effectiveCategory,
-            maxCapacity: effectiveMaxCapacity,
-            assignedPassengerCount: route.stops.length,
-            status: 'PLANNED',
-            dispatchStatus: 'PENDING',
-            targetPickup1Time,
-            targetOfficeArrivalTime,
-            estDistanceMeters: Math.round(route.distanceKm * 1000),
-            estDurationSeconds: Math.round(route.driveMinutes * 60),
-          },
-        });
-        routeIds.push(createdRoute.id);
-
-        let runningFallbackEta = new Date(targetPickup1Time.getTime());
-
-        // Create Employee Pickup Stops
-        for (const stop of route.stops) {
-          const stopDwellSeconds = Math.min(
-            Math.max(Number(stop.dwellSeconds ?? route.dwellSeconds ?? defaultDwellSeconds), 60),
-            600,
-          );
-          const stopPlannedEta = this.resolvePlannedStopEta(
-            stop,
-            routeShiftDate,
-            targetPickup1Time,
-            runningFallbackEta,
-          );
-          runningFallbackEta = new Date(
-            stopPlannedEta.getTime() + stopDwellSeconds * 1000 + Math.round((stop.travelToNextMinutes || 5) * 60_000),
-          );
-
-          let linkedEmployeeId: string | undefined = stop.employeeId;
-          if (!linkedEmployeeId && tx.corporateEmployee?.findFirst) {
-            const normalizedPhone = (stop.phoneNumber || '').trim();
-            const normalizedCode = (stop.employeeCode || '').trim();
-            const existingEmp = await tx.corporateEmployee.findFirst({
-              where: {
-                tenantId,
-                OR: [
-                  ...(normalizedCode ? [{ employeeCode: normalizedCode }] : []),
-                  ...(normalizedPhone ? [{ phoneNumber: normalizedPhone }] : []),
-                  { fullName: { equals: stop.name, mode: 'insensitive' } },
-                ],
-              },
-              select: { id: true },
-            });
-
-            if (existingEmp) {
-              linkedEmployeeId = existingEmp.id;
-            } else if (tx.corporateEmployee?.create) {
-              const generatedCode = (
-                normalizedCode ||
-                `EMP-${stop.name.replace(/[^A-Za-z0-9]/g, '').slice(0, 8).toUpperCase() || 'USR'}-${Math.random()
-                  .toString(36)
-                  .slice(2, 6)
-                  .toUpperCase()}`
-              ).slice(0, 64);
-              const createdEmp = await tx.corporateEmployee.create({
-                data: {
-                  tenantId,
-                  officeId,
-                  employeeCode: generatedCode,
-                  fullName: stop.name,
-                  email: stop.email || `${generatedCode.toLowerCase()}@roster.corporate.local`,
-                  phoneNumber: normalizedPhone || '0000000000',
-                  gender: this.normalizeCorporateGender(stop.gender),
-                  department: stop.department || null,
-                },
-                select: { id: true },
-              });
-              linkedEmployeeId = createdEmp.id;
-
-              if (tx.corporateEmployeeLocation?.create) {
-                await tx.corporateEmployeeLocation.create({
-                  data: {
-                    employeeId: createdEmp.id,
-                    addressText: stop.address || stop.matchedAddress || 'Pickup location',
-                    latitude: stop.lat,
-                    longitude: stop.lng,
-                    h3Res8Index: h3.latLngToCell(stop.lat, stop.lng, 8),
-                    isDefault: true,
-                  },
-                });
-              }
-            }
+    await this.db.$transaction(
+      async (tx: any) => {
+        for (const route of plan.routes) {
+          const fallbackAnchor = istWallClock(shiftDate, shiftTime);
+          // LOGIN: pickup-1 -> office arrival. LOGOUT: office departure (= pickup-1 at the office).
+          const officeArrival = route.requiredArrivalDateTime ? new Date(route.requiredArrivalDateTime) : fallbackAnchor;
+          // LOGIN without an ISO departure: first stop's ETA (ISO or IST clock on the shift date).
+          const firstStopEta =
+            !isLogout && route.stops[0] && (route.stops[0].etaIso || route.stops[0].eta)
+              ? this.resolvePlannedStopEta(route.stops[0], istParts(officeArrival).date, officeArrival, new Date(NaN))
+              : null;
+          const departure = route.departureDateTime
+            ? new Date(route.departureDateTime)
+            : isLogout
+              ? officeArrival
+              : firstStopEta;
+          if (!departure || Number.isNaN(departure.getTime()) || Number.isNaN(officeArrival.getTime())) {
+            throw new BadRequestException(`Route ${route.cab} has no valid departure / arrival time; re-run the optimizer`);
           }
-          if (linkedEmployeeId) {
-            employeesLinked++;
+          const targetPickup1Time = departure;
+          const targetOfficeArrivalTime = isLogout ? departure : officeArrival;
+          const { date: routeShiftDate, time: routeShiftTime } = istParts(isLogout ? departure : officeArrival);
+
+          let effectiveCategory: 'SEDAN' | 'SUV' =
+            route.cabType?.toUpperCase() === 'SUV' || vehicleCategory === 'SUV' ? 'SUV' : 'SEDAN';
+          if (effectiveCategory === 'SEDAN' && route.stops.length > sedanCapacity) effectiveCategory = 'SUV';
+          const effectiveMaxCapacity = effectiveCategory === 'SUV' ? SUV_CAPACITY : sedanCapacity;
+          if (route.stops.length > effectiveMaxCapacity) {
+            throw new BadRequestException(
+              `Route ${route.cab} has ${route.stops.length} employees; a ${effectiveCategory} seats ${effectiveMaxCapacity}`,
+            );
           }
 
-          await tx.corporateRouteStop.create({
+          const stopDwell = (stop: any) =>
+            Math.min(Math.max(Number(stop.dwellSeconds ?? route.dwellSeconds ?? defaultDwellSeconds), 60), 600);
+          const totalDwellSeconds = route.stops.reduce((sum, stop) => sum + stopDwell(stop), 0);
+
+          const createdRoute = await tx.corporateRoute.create({
             data: {
-              routeId: createdRoute.id,
-              employeeId: linkedEmployeeId || null,
-              stopSequence: stop.sequence,
-              stopType: 'PICKUP',
-              addressText: stop.address || stop.matchedAddress || 'Pickup location',
-              employeeName: stop.name,
-              employeePhone: stop.phoneNumber || null,
-              latitude: stop.lat,
-              longitude: stop.lng,
-              plannedEta: stopPlannedEta,
-              dwellBufferSeconds: stopDwellSeconds,
-              boardingOtp: stop.boardingOtp || '1234',
-              status: 'PENDING',
+              tenantId,
+              officeId,
+              shiftDate: new Date(`${routeShiftDate}T00:00:00.000Z`),
+              shiftTime: routeShiftTime,
+              direction,
+              vehicleCategory: effectiveCategory,
+              maxCapacity: effectiveMaxCapacity,
+              assignedPassengerCount: route.stops.length,
+              status: 'PLANNED',
+              dispatchStatus: 'PENDING',
+              targetPickup1Time,
+              targetOfficeArrivalTime,
+              estDistanceMeters: Math.round(Number(route.distanceKm || 0) * 1000),
+              // Total route time incl. dwell, as the DDA expects (pickup-1 = office arrival - this).
+              estDurationSeconds: Math.round(Number(route.driveMinutes || 0) * 60) + totalDwellSeconds,
             },
           });
-          stopsCreated++;
-        }
+          routeIds.push(createdRoute.id);
 
-        // Add Office Dropoff Stop
-        await tx.corporateRouteStop.create({
-          data: {
+          const officeStopData = {
             routeId: createdRoute.id,
-            stopSequence: route.stops.length + 1,
-            stopType: 'DROPOFF',
-            addressText: route.office?.name || plan.office?.name || 'Corporate Office Hub',
-            latitude: route.office?.lat ?? plan.office.lat,
-            longitude: route.office?.lng ?? plan.office.lng,
-            plannedEta: targetOfficeArrivalTime,
+            stopSequence: isLogout ? 1 : route.stops.length + 1,
+            stopType: isLogout ? 'PICKUP' : 'DROPOFF',
+            addressText: office?.addressText || route.office?.name || plan.office?.name || 'Corporate Office Hub',
+            latitude: office?.latitude ?? route.office?.lat ?? plan.office.lat,
+            longitude: office?.longitude ?? route.office?.lng ?? plan.office.lng,
+            plannedEta: isLogout ? departure : targetOfficeArrivalTime,
             dwellBufferSeconds: 0,
-            boardingOtp: '0000',
+            boardingOtp: '------',
             status: 'PENDING',
-          },
-        });
-        stopsCreated++;
-      }
-    });
+          };
+          if (isLogout) {
+            await tx.corporateRouteStop.create({ data: officeStopData });
+            stopsCreated++;
+          }
+
+          let runningFallbackEta = new Date(targetPickup1Time.getTime());
+          for (let idx = 0; idx < route.stops.length; idx++) {
+            const stop = route.stops[idx];
+            const dwellSeconds = stopDwell(stop);
+            const stopPlannedEta = this.resolvePlannedStopEta(stop, routeShiftDate, targetPickup1Time, runningFallbackEta);
+            runningFallbackEta = new Date(
+              stopPlannedEta.getTime() + dwellSeconds * 1000 + Math.round((stop.travelToNextMinutes || 5) * 60_000),
+            );
+
+            const linkedEmployeeId = await this.resolveEmployeeForStop(tx, tenantId, officeId, stop);
+            if (linkedEmployeeId) {
+              employeesLinked++;
+              await this.assertEmployeeNotOnLiveRoute(tx, tenantId, linkedEmployeeId, routeShiftDate, direction, stop.name);
+            }
+
+            await tx.corporateRouteStop.create({
+              data: {
+                routeId: createdRoute.id,
+                employeeId: linkedEmployeeId || null,
+                stopSequence: isLogout ? idx + 2 : idx + 1,
+                stopType: isLogout ? 'DROPOFF' : 'PICKUP',
+                addressText: stop.address || stop.matchedAddress || (isLogout ? 'Drop location' : 'Pickup location'),
+                employeeName: stop.name,
+                employeePhone: normalizeIndianPhone(stop.phoneNumber) || null,
+                latitude: Number(stop.lat),
+                longitude: Number(stop.lng),
+                plannedEta: stopPlannedEta,
+                dwellBufferSeconds: isLogout ? Math.min(dwellSeconds, 600) : dwellSeconds,
+                boardingOtp: generateBoardingOtp(),
+                status: 'PENDING',
+              },
+            });
+            stopsCreated++;
+          }
+
+          if (!isLogout) {
+            await tx.corporateRouteStop.create({ data: officeStopData });
+            stopsCreated++;
+          }
+        }
+      },
+      // Hundreds of stops x a few queries each: Prisma's 5 s interactive default is not enough.
+      { maxWait: 10_000, timeout: COMMIT_TX_TIMEOUT_MS },
+    );
 
     if (dto.includeMetadata) {
       return {
@@ -755,6 +844,91 @@ export class CorporateRoutePlannerService {
       routesCreated: plan.routes.length,
       stopsCreated,
     };
+  }
+
+  /** Employee code -> phone (any Indian format) -> new employee. Never by name. */
+  private async resolveEmployeeForStop(tx: any, tenantId: string, officeId: string, stop: any): Promise<string | undefined> {
+    if (stop.employeeId) {
+      if (typeof tx.corporateEmployee?.findFirst === 'function') {
+        const own = await tx.corporateEmployee.findFirst({ where: { id: stop.employeeId, tenantId }, select: { id: true } });
+        if (!own) throw new BadRequestException(`Employee ${stop.employeeId} does not belong to this company`);
+      }
+      return stop.employeeId;
+    }
+    if (typeof tx.corporateEmployee?.findFirst !== 'function') return undefined;
+
+    const code = String(stop.employeeCode ?? '').trim();
+    const phone = normalizeIndianPhone(stop.phoneNumber);
+    if (code) {
+      const byCode = await tx.corporateEmployee.findFirst({ where: { tenantId, employeeCode: code }, select: { id: true } });
+      if (byCode) return byCode.id;
+    }
+    if (phone) {
+      const byPhone = await tx.corporateEmployee.findFirst({
+        where: { tenantId, phoneNumber: { in: getPhoneVariants(phone) } },
+        select: { id: true },
+      });
+      if (byPhone) return byPhone.id;
+    }
+    if (typeof tx.corporateEmployee?.create !== 'function') return undefined;
+
+    const generatedCode = (code || `EMP-${randomBytes(4).toString('hex').toUpperCase()}`).slice(0, 64);
+    const created = await tx.corporateEmployee.create({
+      data: {
+        tenantId,
+        officeId,
+        employeeCode: generatedCode,
+        fullName: stop.name,
+        email: stop.email || `${generatedCode.toLowerCase()}@roster.corporate.local`,
+        phoneNumber: phone || '0000000000',
+        gender: this.normalizeCorporateGender(stop.gender),
+        department: stop.department || null,
+      },
+      select: { id: true },
+    });
+    if (typeof tx.corporateEmployeeLocation?.create === 'function') {
+      await tx.corporateEmployeeLocation.create({
+        data: {
+          employeeId: created.id,
+          addressText: stop.address || stop.matchedAddress || 'Pickup location',
+          latitude: Number(stop.lat),
+          longitude: Number(stop.lng),
+          h3Res8Index: h3.latLngToCell(Number(stop.lat), Number(stop.lng), 8),
+          isDefault: true,
+        },
+      });
+    }
+    return created.id;
+  }
+
+  private async assertEmployeeNotOnLiveRoute(
+    tx: any,
+    tenantId: string,
+    employeeId: string,
+    routeShiftDate: string,
+    direction: 'LOGIN' | 'LOGOUT',
+    name: string,
+  ): Promise<void> {
+    if (typeof tx.corporateRouteStop?.findFirst !== 'function') return;
+    const clash = await tx.corporateRouteStop.findFirst({
+      where: {
+        employeeId,
+        status: { notIn: ['CANCELLED', 'NO_SHOW'] },
+        route: {
+          tenantId,
+          direction,
+          shiftDate: new Date(`${routeShiftDate}T00:00:00.000Z`),
+          status: { notIn: ['CANCELLED', 'COMPLETED'] },
+        },
+      },
+      select: { routeId: true },
+    });
+    if (clash) {
+      throw new ConflictException(
+        `${name} is already on live ${direction} route ${clash.routeId} for ${routeShiftDate}. ` +
+          'Cancel that route (or remove the employee) before committing again.',
+      );
+    }
   }
 
   /**
@@ -1187,11 +1361,17 @@ export class CorporateRoutePlannerService {
       return `name:${this.normalizeEmployeeName(row.employeeName)}`;
     };
     const counts = new Map<string, number>();
-    for (const row of rows) counts.set(identityOf(row), (counts.get(identityOf(row)) ?? 0) + 1);
+    const firstName = new Map<string, string>();
+    for (const row of rows) {
+      const key = identityOf(row);
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+      if (!firstName.has(key)) firstName.set(key, row.employeeName);
+    }
     const duplicateNames = new Set<string>();
     const kept = rows.filter((row) => {
-      if ((counts.get(identityOf(row)) ?? 0) > 1) {
-        duplicateNames.add(row.employeeName);
+      const key = identityOf(row);
+      if ((counts.get(key) ?? 0) > 1) {
+        duplicateNames.add(firstName.get(key) ?? row.employeeName);
         return false;
       }
       return true;

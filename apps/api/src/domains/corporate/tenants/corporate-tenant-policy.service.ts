@@ -174,21 +174,26 @@ export class CorporateTenantPolicyService {
   }
 
   private validate(v: Partial<CorporateTenantPolicyValues>): CorporateTenantPolicyValues {
-    const out: any = { ...DEFAULT_TENANT_POLICY, ...v };
-    for (const [key, [min, max]] of Object.entries(INT_RANGES)) {
-      const n = Number(out[key]);
-      if (!Number.isInteger(n) || n < min || n > max) {
-        throw new BadRequestException(`${key} must be an integer between ${min} and ${max}`);
-      }
-      out[key] = n;
-    }
-    out.defaultVehicleCategory = String(out.defaultVehicleCategory).trim().toUpperCase();
-    if (!VEHICLE_CATEGORIES.includes(out.defaultVehicleCategory)) {
-      throw new BadRequestException(`defaultVehicleCategory must be one of ${VEHICLE_CATEGORIES.join(', ')}`);
-    }
-    for (const key of ['nightShiftStart', 'nightShiftEnd']) {
-      if (!isValidShiftTime(out[key])) throw new BadRequestException(`${key} must be HH:mm`);
-    }
-    return out;
+    return validateTenantPolicyValues(v);
   }
+}
+
+/** Shared validation for every policy write (versioned updates and company onboarding). */
+export function validateTenantPolicyValues(v: Partial<CorporateTenantPolicyValues>): CorporateTenantPolicyValues {
+  const out: any = { ...DEFAULT_TENANT_POLICY, ...v };
+  for (const [key, [min, max]] of Object.entries(INT_RANGES)) {
+    const n = Number(out[key]);
+    if (!Number.isInteger(n) || n < min || n > max) {
+      throw new BadRequestException(`${key} must be an integer between ${min} and ${max}`);
+    }
+    out[key] = n;
+  }
+  out.defaultVehicleCategory = String(out.defaultVehicleCategory).trim().toUpperCase();
+  if (!VEHICLE_CATEGORIES.includes(out.defaultVehicleCategory)) {
+    throw new BadRequestException(`defaultVehicleCategory must be one of ${VEHICLE_CATEGORIES.join(', ')}`);
+  }
+  for (const key of ['nightShiftStart', 'nightShiftEnd']) {
+    if (!isValidShiftTime(out[key])) throw new BadRequestException(`${key} must be HH:mm`);
+  }
+  return out;
 }

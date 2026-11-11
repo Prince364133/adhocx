@@ -45,6 +45,7 @@ function envPositiveNumber(name: string, fallback: number): number {
 }
 
 /** Redis key layout shared by the dispatch service and the scheduler / reaper. */
+export const corporateManualWindowKey = (routeId: string) => `corporate:dispatch:manual:${routeId}`;
 export const CorporateDispatchKeys = {
   ACTIVE_OFFERS_SET: 'corporate:active_offers_set',
   /** Sorted set routeId -> offer expiry (ms). Any instance pops due entries and reaps them. */
@@ -204,6 +205,40 @@ export class CorporateDispatchService {
       maxRuns,
       policyStopDwellSeconds,
     };
+  }
+
+  /**
+   * Last moment a driver may still be searched for: the driver needs `approachLeadMinutes` to
+   * reach pickup 1 (LOGIN) or to report at the office 15 min before departure (LOGOUT).
+   * Default LOGIN: pickup1 - 30 m, so the 30 m search window is [pickup1 - 60 m, pickup1 - 30 m].
+   */
+  public dispatchDeadlineMs(route: any, policy: DispatchPolicySettings): number {
+    const pickup1Ms = route?.targetPickup1Time ? new Date(route.targetPickup1Time).getTime() : NaN;
+    if (!Number.isFinite(pickup1Ms)) return Infinity;
+    const stagingMs = route?.direction === 'LOGOUT' ? this.LOGOUT_STAGING_LEAD_MINUTES * 60_000 : 0;
+    return pickup1Ms - stagingMs - policy.approachLeadMinutes * 60_000;
+  }
+
+  /** A re-entry less than one retry interval after the run started belongs to that same run. */
+  private isWithinCurrentRun(route: any, policy: DispatchPolicySettings, nowMs: number): boolean {
+    const attempts = Number(route?.dispatchAttempts) || 0;
+    if (attempts <= 0 || !route?.lastDispatchAttemptAt) return false;
+    const lastMs = new Date(route.lastDispatchAttemptAt).getTime();
+    return Number.isFinite(lastMs) && nowMs - lastMs < policy.retryIntervalMinutes * 60_000;
+  }
+
+  /** Ops "Start now" opens a fresh window that may run past the natural deadline. */
+  private async hasManualWindow(client: any, routeId: string): Promise<boolean> {
+    if (!client) return false;
+    try {
+      return Boolean(await client.get(corporateManualWindowKey(routeId)));
+    } catch {
+      return false;
+    }
+  }
+
+  private exhaustionReason(policy: DispatchPolicySettings, attempts: number): string {
+    return `Drivers not found within ${policy.searchRadiusKm}km after ${policy.dispatchWindowMinutes}m dispatch window (${attempts} runs)`;
   }
 
   private computeRouteDwellSeconds(stops: any[], policyStopDwellSeconds: number | null): number {
@@ -528,6 +563,23 @@ export class CorporateDispatchService {
     }
   }
 
+  /** Writes dispatchStatus only while the route is still unassigned (never clobbers an accept). */
+  private async setDispatchStatusIfOpen(routeId: string, dispatchStatus: string): Promise<void> {
+    const repo: any = (this.db as any)?.corporateRoute;
+    try {
+      if (typeof repo?.updateMany === 'function') {
+        await repo.updateMany({
+          where: { id: routeId, driverId: null, status: { in: ['PLANNED', 'DISPATCHING'] } },
+          data: { dispatchStatus },
+        });
+      } else if (typeof repo?.update === 'function') {
+        await repo.update({ where: { id: routeId }, data: { dispatchStatus } });
+      }
+    } catch {
+      // status is advisory; the authoritative state is status/driverId
+    }
+  }
+
   private async markRouteDriversNotFound(
     route: any,
     client: any,
@@ -621,70 +673,94 @@ export class CorporateDispatchService {
   }
 
   /**
-   * Transitions DISPATCHING unassigned routes whose 30-min dispatch window / 6-run budget
-   * has exhausted (at approach cutoff T - 30m or maxRuns) cleanly into NO_DRIVERS_FOUND.
+   * Retry + exhaustion sweep for unassigned DISPATCHING routes (run once per scheduler tick).
+   *  - deadline passed (or run budget spent) and no live offer -> NO_DRIVERS_FOUND;
+   *  - otherwise, once `retryIntervalMinutes` has elapsed since the current run started and no
+   *    offer is live, the next run starts. Runs are anchored to `lastDispatchAttemptAt` in the DB,
+   *    so the cadence is exact (T-60, T-55, ... T-35) and survives restarts.
+   * Returns the ids marked NO_DRIVERS_FOUND; `retried` lists the routes that started a new run.
    */
-  public async checkAndMarkExhaustedWindows(nowMs: number = Date.now()): Promise<string[]> {
+  public async sweepDispatchWindows(
+    nowMs: number = Date.now(),
+    options: { retry?: boolean; pageSize?: number } = {},
+  ): Promise<{ exhausted: string[]; retried: string[] }> {
     const now = this.getCurrentNowMs(nowMs);
-    if (typeof (this.db as any)?.corporateRoute?.findMany !== 'function') return [];
-
-    let candidates: any[] = [];
-    try {
-      candidates = await this.db.corporateRoute.findMany({
-        where: {
-          status: 'DISPATCHING',
-          driverId: null,
-          targetPickup1Time: { gte: new Date(now - 2 * 60 * 60_000) },
-        },
-        include: { tenant: true },
-        take: 250,
-      });
-    } catch {
-      return [];
-    }
-
+    const out = { exhausted: [] as string[], retried: [] as string[] };
+    if (typeof (this.db as any)?.corporateRoute?.findMany !== 'function') return out;
+    const pageSize = Math.max(1, options.pageSize ?? 200);
     const client = this.redis?.getClient();
-    const exhaustedIds: string[] = [];
+    const policies = new Map<string, DispatchPolicySettings>();
+    const policyFor = async (tenantId: string) => {
+      if (!policies.has(tenantId)) policies.set(tenantId, await this.loadDispatchPolicy(tenantId));
+      return policies.get(tenantId)!;
+    };
 
-    for (const route of candidates ?? []) {
-      if (!route || route.driverId || route.dispatchStatus === 'NO_DRIVERS_FOUND') continue;
-      if (!route.dispatchWindowStartedAt && !(Number(route.dispatchAttempts) > 0)) continue;
+    let cursor: string | undefined;
+    for (;;) {
+      let page: any[] = [];
+      try {
+        page = await this.db.corporateRoute.findMany({
+          where: {
+            status: 'DISPATCHING',
+            driverId: null,
+            dispatchStatus: { not: 'NO_DRIVERS_FOUND' },
+            targetPickup1Time: { gte: new Date(now - 2 * 60 * 60_000) },
+            ...(cursor ? { id: { gt: cursor } } : {}),
+          },
+          include: { tenant: true },
+          orderBy: { id: 'asc' },
+          take: pageSize,
+        } as any);
+      } catch {
+        return out;
+      }
+      if (!page || page.length === 0) break;
 
-      const policy = await this.loadDispatchPolicy(route.tenantId);
-      const attempts = Number(route.dispatchAttempts) || 0;
-      const windowStartedMs = route.dispatchWindowStartedAt
-        ? new Date(route.dispatchWindowStartedAt).getTime()
-        : null;
-      const pickup1Ms = route.targetPickup1Time ? new Date(route.targetPickup1Time).getTime() : NaN;
-      const approachCutoffMs = Number.isFinite(pickup1Ms)
-        ? pickup1Ms - policy.approachLeadMinutes * 60_000
-        : Infinity;
+      for (const route of page) {
+        if (!route || route.driverId || route.dispatchStatus === 'NO_DRIVERS_FOUND') continue;
+        const attempts = Number(route.dispatchAttempts) || 0;
+        if (attempts <= 0) continue; // never searched yet: the due-route scan owns its first run
+        const activeOffer = client ? await client.get(CorporateDispatchKeys.offer(route.id)).catch(() => null) : null;
+        if (activeOffer) continue; // the driver may still accept; the reaper cascades on expiry
 
-      const activeOffer = client ? await client.get(CorporateDispatchKeys.offer(route.id)) : null;
-      if (activeOffer) continue;
+        const policy = await policyFor(route.tenantId);
+        const manual = await this.hasManualWindow(client, route.id);
+        const pastDeadline = now >= this.dispatchDeadlineMs(route, policy);
+        const intervalElapsed = !this.isWithinCurrentRun(route, policy, now);
+        const runsSpent = attempts >= policy.maxRuns && intervalElapsed;
 
-      const lastAttemptMs = route.lastDispatchAttemptAt ? new Date(route.lastDispatchAttemptAt).getTime() : 0;
-      const retryCooldownElapsed = now - lastAttemptMs >= policy.retryIntervalMinutes * 60_000;
+        if ((pastDeadline && !manual) || runsSpent) {
+          const changed = await this.markRouteDriversNotFound(route, client, {
+            attempts,
+            searchRadiusKm: policy.searchRadiusKm,
+            reason: this.exhaustionReason(policy, attempts),
+            nowMs: now,
+          });
+          if (changed) out.exhausted.push(route.id);
+          continue;
+        }
 
-      const runsExhausted = attempts >= policy.maxRuns && retryCooldownElapsed;
-      const windowElapsedPastCutoff =
-        windowStartedMs !== null &&
-        attempts >= 2 &&
-        now - windowStartedMs >= policy.dispatchWindowMinutes * 60_000 &&
-        now >= approachCutoffMs;
+        if (options.retry !== false && intervalElapsed) {
+          try {
+            await this.dispatchRoute(route.id, false, undefined, { nowMs: now });
+            out.retried.push(route.id);
+          } catch (err: any) {
+            if (!(err instanceof ConflictException)) {
+              this.logger.error(`Dispatch retry for route ${route.id} failed: ${err?.message ?? err}`);
+            }
+          }
+        }
+      }
 
-      if (!runsExhausted && !windowElapsedPastCutoff) continue;
-
-      const changed = await this.markRouteDriversNotFound(route, client, {
-        attempts,
-        searchRadiusKm: policy.searchRadiusKm,
-        reason: `Drivers not found within ${policy.searchRadiusKm}km after ${policy.dispatchWindowMinutes}m dispatch window (${attempts} runs)`,
-        nowMs: now,
-      });
-      if (changed) exhaustedIds.push(route.id);
+      if (page.length < pageSize) break;
+      cursor = page[page.length - 1].id;
     }
+    return out;
+  }
 
-    return exhaustedIds;
+  /** Back-compat: exhaustion only (no new runs). */
+  public async checkAndMarkExhaustedWindows(nowMs: number = Date.now()): Promise<string[]> {
+    return (await this.sweepDispatchWindows(nowMs, { retry: false })).exhausted;
   }
 
   /**
@@ -781,33 +857,39 @@ export class CorporateDispatchService {
       }
 
       let currentAttempts = Number(route.dispatchAttempts) || 0;
-      const pickup1Ms = route.targetPickup1Time ? new Date(route.targetPickup1Time).getTime() : NaN;
-      const approachCutoffMs = Number.isFinite(pickup1Ms)
-        ? pickup1Ms - policy.approachLeadMinutes * 60_000
-        : Infinity;
-      const windowStartedAtMs = route.dispatchWindowStartedAt
-        ? new Date(route.dispatchWindowStartedAt).getTime()
-        : null;
+      const deadlineMs = this.dispatchDeadlineMs(route, policy);
+      let manualWindow = false;
 
       if (forceStart) {
+        // Ops "Start now": a fresh window of `maxRuns` runs, allowed past the natural deadline.
         currentAttempts = 0;
+        manualWindow = true;
         if (client) {
           await client.del(CorporateDispatchKeys.rejected(routeId));
           await client.del(CorporateDispatchKeys.unserved(routeId));
+          await client.set(
+            corporateManualWindowKey(routeId),
+            '1',
+            'EX',
+            (policy.dispatchWindowMinutes + policy.retryIntervalMinutes) * 60,
+          );
         }
-      } else if (!isCascade) {
-        const exhaustedByRuns = currentAttempts >= policy.maxRuns;
-        const exhaustedByWindow =
-          windowStartedAtMs !== null &&
-          currentAttempts >= 2 &&
-          nowMs - windowStartedAtMs >= policy.dispatchWindowMinutes * 60_000 &&
-          nowMs >= approachCutoffMs;
+      } else {
+        manualWindow = await this.hasManualWindow(client, routeId);
+      }
 
-        if (exhaustedByRuns || exhaustedByWindow) {
+      // A busy-retry / crash-recovery re-entry inside the retry interval continues the current
+      // run; only a re-entry after the interval is a new run (a cascade never is).
+      const continuesRun = isCascade || (!forceStart && this.isWithinCurrentRun(route, policy, nowMs));
+      if (!forceStart) {
+        const exhaustedByRuns = !continuesRun && currentAttempts >= policy.maxRuns;
+        // At least one run always happens (a route committed late still gets one search).
+        const exhaustedByDeadline = currentAttempts >= 1 && nowMs >= deadlineMs && !manualWindow;
+        if (exhaustedByRuns || exhaustedByDeadline) {
           await this.markRouteDriversNotFound(route, client, {
             attempts: currentAttempts,
             searchRadiusKm: policy.searchRadiusKm,
-            reason: `Drivers not found within ${policy.searchRadiusKm}km after ${policy.dispatchWindowMinutes}m dispatch window (${currentAttempts} runs)`,
+            reason: this.exhaustionReason(policy, currentAttempts),
             nowMs,
           });
           return {
@@ -818,14 +900,13 @@ export class CorporateDispatchService {
             candidatesCount: 0,
           };
         }
-
-        // Restarting a fresh dispatch search wave after 5m wait: clear previous wave rejections
-        if (currentAttempts > 0 && client) {
+        // A new run restarts the 10 km search from scratch: drivers who declined last run are asked again.
+        if (!continuesRun && currentAttempts > 0 && client) {
           await client.del(CorporateDispatchKeys.rejected(routeId));
         }
       }
 
-      const waveNumber = isCascade ? Math.max(1, currentAttempts) : currentAttempts + 1;
+      const waveNumber = continuesRun ? Math.max(1, currentAttempts) : currentAttempts + 1;
       const windowStartedDate =
         forceStart || !route.dispatchWindowStartedAt ? new Date(nowMs) : new Date(route.dispatchWindowStartedAt);
 
@@ -835,14 +916,14 @@ export class CorporateDispatchService {
           where: { id: routeId, status: { in: ['PLANNED', 'DISPATCHING'] } },
           data: {
             status: 'DISPATCHING',
-            ...(isCascade
+            ...(continuesRun
               ? {}
               : {
                   dispatchAttempts: waveNumber,
                   dispatchWindowStartedAt: windowStartedDate,
                   lastDispatchAttemptAt: new Date(nowMs),
                   dispatchFailureReason: null,
-                  dispatchStatus: 'PENDING',
+                  dispatchStatus: 'SEARCHING',
                 }),
           },
         });
@@ -925,12 +1006,12 @@ export class CorporateDispatchService {
 
       if (!selectedDriver) {
         const retrySeconds = policy.retryIntervalMinutes * 60;
+        // Next run would start after the deadline (or the budget is spent): report now.
+        const nextRunStartMs = (continuesRun && route.lastDispatchAttemptAt
+          ? new Date(route.lastDispatchAttemptAt).getTime()
+          : nowMs) + retrySeconds * 1000;
         const hitExhaustion =
-          waveNumber >= policy.maxRuns ||
-          (!forceStart &&
-            nowMs - windowStartedDate.getTime() >= policy.dispatchWindowMinutes * 60_000 &&
-            nowMs >= approachCutoffMs &&
-            waveNumber >= 2);
+          waveNumber >= policy.maxRuns || (!manualWindow && nextRunStartMs > deadlineMs);
 
         if (hitExhaustion) {
           await this.markRouteDriversNotFound(route, client, {
@@ -940,12 +1021,7 @@ export class CorporateDispatchService {
             nowMs,
           });
         } else {
-          await Promise.resolve(
-            this.db.corporateRoute.update({
-              where: { id: routeId },
-              data: { dispatchStatus: 'PENDING' },
-            }),
-          ).catch(() => undefined);
+          await this.setDispatchStatusIfOpen(routeId, 'RETRY_SCHEDULED');
           if (client) {
             await client.set(
               CorporateDispatchKeys.unserved(routeId),
@@ -1005,12 +1081,7 @@ export class CorporateDispatchService {
       // Store atomic offer in Redis with 60s TTL, then the durable WS-A CorporateDriverOffer row
       await this.publishOffer(client, offerData);
       await this.persistOfferRow(route.tenantId, routeId, selectedDriver.id, farePaise, offerExpiresAt);
-      await Promise.resolve(
-        this.db.corporateRoute.update({
-          where: { id: routeId },
-          data: { dispatchStatus: 'OFFERED' },
-        }),
-      ).catch(() => undefined);
+      await this.setDispatchStatusIfOpen(routeId, 'OFFERED');
 
       // Send Realtime WebSocket Event + FCM Push to Driver
       this.notifications.emitEvent(`driver:${selectedDriver.id}`, 'CORPORATE_ROUTE_OFFER', offerData);
@@ -1198,7 +1269,7 @@ export class CorporateDispatchService {
       try {
         await this.db.corporateRoute.update({
           where: { id: routeId, status: { in: ['PLANNED', 'DISPATCHING'] } },
-          data: { status: 'DISPATCHING' },
+          data: { status: 'DISPATCHING', dispatchStatus: 'OFFERED', dispatchFailureReason: null },
         });
       } catch (err: any) {
         if (err?.code === 'P2025') throw new ConflictException(`Route ${routeId} is no longer open for an offer`);

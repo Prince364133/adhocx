@@ -22,7 +22,13 @@ import {
   CorporateRole,
   userRoleForCorporateRole,
 } from './corporate-permissions';
-import { DEFAULT_TENANT_POLICY } from './corporate-tenant-policy.service';
+import { DEFAULT_TENANT_POLICY, validateTenantPolicyValues } from './corporate-tenant-policy.service';
+import { normalizeIndianPhone } from '../../../common/utils/uniqueness.util';
+
+/** Portal password minimum (spec: 8). */
+export const CORPORATE_PORTAL_PASSWORD_MIN = 8;
+/** Seats a policy may assign per category. */
+const CATEGORY_MAX_CAPACITY: Record<string, number> = { SEDAN: 4, SUV: 7 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TENANT_CODE_RE = /^[A-Z0-9_-]{2,32}$/;
@@ -83,13 +89,26 @@ export class CorporateOnboardingService {
 
     let officeLat = Number(dto?.office?.latitude);
     let officeLng = Number(dto?.office?.longitude);
-    if (
-      dto?.office?.latitude === undefined ||
-      dto?.office?.longitude === undefined ||
-      !Number.isFinite(officeLat) ||
-      !Number.isFinite(officeLng)
-    ) {
-      const geo = await this.geocoding.geocode(officeAddress);
+    const coordsGiven =
+      dto?.office?.latitude !== undefined &&
+      dto?.office?.latitude !== null &&
+      dto?.office?.longitude !== undefined &&
+      dto?.office?.longitude !== null &&
+      Number.isFinite(officeLat) &&
+      Number.isFinite(officeLng);
+    if (!coordsGiven) {
+      let geo;
+      try {
+        geo = await this.geocoding.geocode(officeAddress);
+      } catch (err: any) {
+        throw new BadRequestException(
+          `Could not locate the office address on Google Maps (${err?.message ?? 'geocoding failed'}). ` +
+            'Check the address or enter the office latitude/longitude manually.',
+        );
+      }
+      if (!geo.isRealGeocode && !GoogleGeocodingAdapter.fallbackAllowed()) {
+        throw new BadRequestException('Office address could not be verified; enter latitude/longitude manually.');
+      }
       officeLat = geo.lat;
       officeLng = geo.lng;
     }
@@ -108,7 +127,7 @@ export class CorporateOnboardingService {
     // 2. Validate primary Corporate Portal admin account
     const adminName = sanitizeRealName(dto?.adminUser?.fullName ?? '');
     const adminEmail = String(dto?.adminUser?.email ?? '').trim().toLowerCase();
-    const adminPhone = String(dto?.adminUser?.phone ?? '').trim().replace(/[\s-]/g, '');
+    const adminPhone = normalizeIndianPhone(String(dto?.adminUser?.phone ?? '').replace(/[\s-]/g, '')) ?? '';
     const rawPassword =
       dto?.adminUser?.password !== undefined && dto.adminUser.password !== null
         ? String(dto.adminUser.password)
@@ -123,8 +142,10 @@ export class CorporateOnboardingService {
     if (adminPhone.replace(/\D/g, '').length < 10) {
       throw new BadRequestException('A valid corporate admin phone number (>= 10 digits) is required');
     }
-    if (rawPassword && rawPassword.length < 6) {
-      throw new BadRequestException('Initial portal password must be at least 6 characters');
+    if (rawPassword && rawPassword.length < CORPORATE_PORTAL_PASSWORD_MIN) {
+      throw new BadRequestException(
+        `Initial portal password must be at least ${CORPORATE_PORTAL_PASSWORD_MIN} characters`,
+      );
     }
 
     const rawCorpRole = String(dto?.adminUser?.corporateRole ?? CorporateRole.CORP_SUPER_ADMIN)
@@ -170,8 +191,12 @@ export class CorporateOnboardingService {
 
     const passwordHash = rawPassword ? await hashPassword(rawPassword) : undefined;
     const status = dto?.status ?? CorporateTenantStatus.ACTIVE;
+    // Onboarding creates a live tenant; suspension is a separate, audited tenant update.
+    if (String(status) !== CorporateTenantStatus.ACTIVE) {
+      throw new BadRequestException('A company can only be onboarded as ACTIVE');
+    }
 
-    const result = await this.db.$transaction(async (tx: any) => {
+    const result = await this.runOnboardingTransaction(async (tx: any) => {
       const existingTenant = await tx.corporateTenant.findUnique({ where: { code } });
       if (existingTenant) {
         throw new ConflictException(`Corporate tenant with code '${code}' already exists`);
@@ -303,51 +328,39 @@ export class CorporateOnboardingService {
     };
   }
 
-  private normalizePolicy(input?: OnboardCorporateCompanyDto['policy']) {
-    const merged = {
-      ...DEFAULT_TENANT_POLICY,
-      ...(input ?? {}),
-    };
-    const cat = String(merged.defaultVehicleCategory ?? 'SEDAN').toUpperCase();
-    if (cat !== 'SEDAN' && cat !== 'SUV') {
-      throw new BadRequestException('defaultVehicleCategory must be SEDAN or SUV');
+  /** Concurrent onboards race on unique code / email / phone: report a 409, not a 500. */
+  private async runOnboardingTransaction<T>(fn: (tx: any) => Promise<T>): Promise<T> {
+    try {
+      return await this.db.$transaction(fn);
+    } catch (err: any) {
+      if (err?.code === 'P2002') {
+        const target = Array.isArray(err?.meta?.target) ? err.meta.target.join(', ') : String(err?.meta?.target ?? 'a unique field');
+        throw new ConflictException(`A company or portal user with the same ${target} already exists`);
+      }
+      throw err;
     }
-    const stopDwell = Number(merged.stopDwellMinutes);
-    if (!Number.isInteger(stopDwell) || stopDwell < 1 || stopDwell > 10) {
-      throw new BadRequestException('stopDwellMinutes must be an integer between 1 and 10');
-    }
-    const approach = Number(merged.approachLeadMinutes);
-    if (!Number.isInteger(approach) || approach < 5 || approach > 120) {
-      throw new BadRequestException('approachLeadMinutes must be between 5 and 120');
-    }
-    const dispatchWin = Number(merged.dispatchWindowMinutes);
-    if (!Number.isInteger(dispatchWin) || dispatchWin < 5 || dispatchWin > 120) {
-      throw new BadRequestException('dispatchWindowMinutes must be between 5 and 120');
-    }
-    const retryInterval = Number(merged.dispatchRetryIntervalMinutes);
-    if (!Number.isInteger(retryInterval) || retryInterval < 1 || retryInterval > 30) {
-      throw new BadRequestException('dispatchRetryIntervalMinutes must be between 1 and 30');
-    }
-    const radius = Number(merged.searchRadiusKm);
-    if (!Number.isInteger(radius) || radius < 1 || radius > 25) {
-      throw new BadRequestException('searchRadiusKm must be between 1 and 25');
-    }
+  }
 
-    return {
-      cancelCutoffHours: Number(merged.cancelCutoffHours),
-      maxRideMinutes: Number(merged.maxRideMinutes),
-      defaultVehicleCategory: cat,
-      defaultCapacity: input?.defaultCapacity !== undefined ? Number(input.defaultCapacity) : cat === 'SUV' ? 6 : 4,
-      escalationLeadMinutes: Number(merged.escalationLeadMinutes),
-      officeArrivalBufferMinutes: Number(merged.officeArrivalBufferMinutes),
-      stopDwellMinutes: stopDwell,
-      approachLeadMinutes: approach,
-      dispatchWindowMinutes: dispatchWin,
-      dispatchRetryIntervalMinutes: retryInterval,
-      searchRadiusKm: radius,
-      nightShiftStart: merged.nightShiftStart,
-      nightShiftEnd: merged.nightShiftEnd,
-    };
+  private normalizePolicy(input?: OnboardCorporateCompanyDto['policy']) {
+    const raw: any = { ...(input ?? {}) };
+    const category = String(raw.defaultVehicleCategory ?? DEFAULT_TENANT_POLICY.defaultVehicleCategory)
+      .trim()
+      .toUpperCase();
+    // Capacity follows the category unless given: SEDAN 4, SUV 6.
+    if (raw.defaultCapacity === undefined || raw.defaultCapacity === null || raw.defaultCapacity === '') {
+      raw.defaultCapacity = category === 'SUV' ? 6 : 4;
+    }
+    for (const key of Object.keys(raw)) {
+      if (raw[key] === undefined || raw[key] === null || raw[key] === '') delete raw[key];
+    }
+    const values = validateTenantPolicyValues({ ...raw, defaultVehicleCategory: category });
+    const maxSeats = CATEGORY_MAX_CAPACITY[values.defaultVehicleCategory] ?? 7;
+    if (values.defaultCapacity > maxSeats) {
+      throw new BadRequestException(
+        `defaultCapacity ${values.defaultCapacity} exceeds the ${maxSeats} seats of a ${values.defaultVehicleCategory}`,
+      );
+    }
+    return values;
   }
 }
 

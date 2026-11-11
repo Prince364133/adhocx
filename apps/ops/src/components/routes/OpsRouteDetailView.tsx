@@ -445,7 +445,13 @@ export function OpsRouteDetailView({ routeId }: { routeId: string }) {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <div style={{ fontSize: '15px', fontWeight: 700, color: isDriversNotFound ? 'var(--color-danger)' : 'var(--color-warning, #B45309)' }}>
-                {isDriversNotFound ? 'Drivers Not Found (10km)' : 'Awaiting Driver Assignment'}
+                {isDriversNotFound
+                  ? 'Drivers Not Found (10km)'
+                  : route.dispatchStatus === 'SEARCHING'
+                    ? 'Searching Nearby Drivers (10km)'
+                    : route.dispatchStatus === 'RETRY_SCHEDULED'
+                      ? 'Retry Scheduled (Next Run in 5m)'
+                      : 'Awaiting Driver Assignment'}
               </div>
               <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                 Autonomous search radius: <strong>10 km</strong> · Interval: <strong>5 min (max 6 runs)</strong>

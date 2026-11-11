@@ -815,10 +815,9 @@ export class AuthService implements OnModuleInit {
     if (isSuspended) {
       throw new ForbiddenException('Your account has been suspended. Please contact AdhocX support.');
     }
-    const isRejected =
-      user.driver?.verificationStatus === 'REJECTED' ||
-      user.vendor?.verificationStatus === 'REJECTED';
-    if (!isRejected && typeof this.redis?.unrevokeUser === 'function') {
+    // Clear any stale user_revoked key for active (non-suspended) accounts, including
+    // KYC-rejected drivers/vendors so they can log in, see rejection feedback, and re-apply.
+    if (typeof this.redis?.unrevokeUser === 'function') {
       await this.redis.unrevokeUser(user.id).catch(() => undefined);
     }
   }
@@ -992,6 +991,7 @@ export class AuthService implements OnModuleInit {
 
   private async generateAuthResponse(user: any): Promise<AuthResponseDto> {
     const tokenPayload = {
+      jti: crypto.randomUUID(),
       id: user.id,
       phone: user.phone,
       email: user.email,
@@ -1263,6 +1263,7 @@ export class AuthService implements OnModuleInit {
     // Corporate claims are re-derived from the database on every refresh so a
     // tenant re-assignment / employee unlink takes effect without re-login.
     const tokenPayload = {
+      jti: crypto.randomUUID(),
       id: payload.id,
       phone: payload.phone,
       email: payload.email,

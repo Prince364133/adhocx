@@ -62,6 +62,8 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
     ACKNOWLEDGED: { bgLight: '#EFF6FF', textLight: '#2563EB', borderLight: '#BFDBFE', bgDark: 'rgba(59, 130, 246, 0.16)', textDark: '#93C5FD', borderDark: 'rgba(59, 130, 246, 0.3)' },
 
     // Red (Delayed, Cancelled, Rejected, Overdue, Critical)
+    SEARCHING: { bgLight: '#DBEAFE', textLight: '#1D4ED8', borderLight: '#93C5FD', bgDark: 'rgba(59, 130, 246, 0.16)', textDark: '#60A5FA', borderDark: 'rgba(59, 130, 246, 0.35)' },
+    RETRY_SCHEDULED: { bgLight: '#FEF3C7', textLight: '#B45309', borderLight: '#FCD34D', bgDark: 'rgba(245, 158, 11, 0.16)', textDark: '#FBBF24', borderDark: 'rgba(245, 158, 11, 0.35)' },
     NO_DRIVERS_FOUND: { bgLight: '#FEE2E2', textLight: '#B91C1C', borderLight: '#FCA5A5', bgDark: 'rgba(239, 68, 68, 0.22)', textDark: '#F87171', borderDark: 'rgba(239, 68, 68, 0.5)' },
     DRIVERS_NOT_FOUND: { bgLight: '#FEE2E2', textLight: '#B91C1C', borderLight: '#FCA5A5', bgDark: 'rgba(239, 68, 68, 0.22)', textDark: '#F87171', borderDark: 'rgba(239, 68, 68, 0.5)' },
     DRIVER_ASSIGNED: { bgLight: '#DCFCE7', textLight: '#15803D', borderLight: '#86EFAC', bgDark: 'rgba(34, 197, 94, 0.16)', textDark: '#4ADE80', borderDark: 'rgba(34, 197, 94, 0.35)' },

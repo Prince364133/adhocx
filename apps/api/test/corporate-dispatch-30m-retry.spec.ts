@@ -256,7 +256,7 @@ describe('Autonomous Dispatch 30m Approach + 30m Search (6 Runs x 5m) & Exhausti
     // Driver 2 also declines -> Run 1 ends unserved, 5-min retry marker placed
     await dispatchService.withClock(nowMs, () => dispatchService.rejectRouteOffer('route-retry-1', 'drv-2', 'BUSY'));
     expect(kv.get(CorporateDispatchKeys.unserved('route-retry-1'))?.value).toBe('NO_SUPPLY');
-    expect(routes.get('route-retry-1').dispatchStatus).toBe('PENDING');
+    expect(routes.get('route-retry-1').dispatchStatus).toBe('RETRY_SCHEDULED');
 
     // After 3 minutes (within 5-min wait): recovery MUST wait
     nowMs += 3 * MIN;

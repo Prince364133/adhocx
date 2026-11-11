@@ -260,9 +260,16 @@ export class CorporateDispatchSchedulerService implements OnModuleInit, OnModule
           recoveredRoutes = await this.recoverStuckRoutes(nowMs);
         }
 
-        // 3b. Enforce 30-min / 6-run dispatch exhaustion -> NO_DRIVERS_FOUND
-        if (typeof (this.dispatchService as any).checkAndMarkExhaustedWindows === 'function') {
-          await Promise.resolve((this.dispatchService as any).checkAndMarkExhaustedWindows(nowMs)).catch(() => undefined);
+        // 3b. Every tick: start due 5-min retry runs (DB-anchored cadence) and mark routes whose
+        //     30-min window / run budget is spent NO_DRIVERS_FOUND.
+        if (typeof (this.dispatchService as any).sweepDispatchWindows === 'function') {
+          const sweep = await Promise.resolve(
+            (this.dispatchService as any).sweepDispatchWindows(nowMs, { pageSize: this.config.pageSize }),
+          ).catch((err: any) => {
+            this.logger.warn(`Dispatch window sweep failed: ${err?.message ?? err}`);
+            return { exhausted: [], retried: [] };
+          });
+          recoveredRoutes = [...recoveredRoutes, ...(sweep?.retried ?? [])];
         }
 
         // 4. ALLOC-05 escalation, once per tick across instances (under the tick lock). The
@@ -596,10 +603,6 @@ export class CorporateDispatchSchedulerService implements OnModuleInit, OnModule
     if (!client) return [];
 
     return this.runWithClock(nowMs, async () => {
-      if (typeof (this.dispatchService as any).checkAndMarkExhaustedWindows === 'function') {
-        await Promise.resolve((this.dispatchService as any).checkAndMarkExhaustedWindows(nowMs)).catch(() => undefined);
-      }
-
       const recovered: string[] = [];
       for await (const page of this.pageRoutes({
         status: 'DISPATCHING',

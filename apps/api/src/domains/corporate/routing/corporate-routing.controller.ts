@@ -20,7 +20,12 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import { UserRole } from '@adhocx/contracts';
 import { RouteSolverService } from './route-solver.service';
-import { CorporateRoutePlannerService, CommitPlanDto, PlanRoutesResult } from './corporate-route-planner.service';
+import {
+  CorporateRoutePlannerService,
+  CommitPlanDto,
+  PlanRoutesFromFileOptions,
+  PlanRoutesResult,
+} from './corporate-route-planner.service';
 import { CorporateRouteDirectionsService } from './corporate-route-directions.service';
 import { generateSampleCsv, generateSampleExcelBuffer } from './sample-roster-generator';
 import { DatabaseService } from '../../../database/database.service';
@@ -30,6 +35,10 @@ import { RolesGuard } from '../../../common/guards/roles.guard';
 import { CorporateAccessGuard } from '../../../common/guards/corporate-access.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { CorporateResource, CorporateTenantScoped } from '../../../common/decorators/corporate-resource.decorator';
+
+const ROUTE_STATUSES = ['PLANNED', 'DISPATCHING', 'ASSIGNED', 'IN_TRANSIT', 'COMPLETED', 'CANCELLED'];
+/** Only platform staff see boarding OTPs; drivers must get them from the employee at the door. */
+const OTP_VISIBLE_ROLES = new Set<string>([UserRole.ADMIN, UserRole.OPS]);
 
 @ApiTags('Corporate ETS - Routing')
 @ApiBearerAuth()
@@ -57,44 +66,10 @@ export class CorporateRoutingController {
       throw new BadRequestException('A valid employee route CSV file must be uploaded');
     }
 
-    const excluded = body.excludedEmployees
-      ? typeof body.excludedEmployees === 'string'
-        ? body.excludedEmployees.split(',').map((s: string) => s.trim())
-        : body.excludedEmployees
-      : undefined;
-
-    let pricingConfig = undefined;
-    if (body.pricingConfig) {
-      try {
-        pricingConfig = typeof body.pricingConfig === 'string' ? JSON.parse(body.pricingConfig) : body.pricingConfig;
-      } catch {
-        // ignore parse error and fallback to default
-      }
-    }
-
     return this.routePlannerService!.planFromFile(
       file.buffer,
       file.originalname || 'employees.xlsx',
-      {
-        tenantId: body.tenantId,
-        officeId: body.officeId,
-        office: body.office || body.officeName,
-        officeLat: body.officeLat ? Number(body.officeLat) : undefined,
-        officeLng: body.officeLng ? Number(body.officeLng) : undefined,
-        direction: body.direction,
-        loginTime: body.loginTime || body.deadline,
-        logoutTime: body.logoutTime,
-        officeRadiusKm: body.officeRadiusKm ? Number(body.officeRadiusKm) : 50,
-        maxTripKm: body.maxTripKm ? Number(body.maxTripKm) : 50,
-        bufferMinutes: body.bufferMinutes ? Number(body.bufferMinutes) : 15,
-        pickupWaitMinutes: body.pickupWaitMinutes ? Number(body.pickupWaitMinutes) : undefined,
-        cabCapacity: body.cabCapacity ? Number(body.cabCapacity) : 6,
-        routingPreference: body.routingPreference || 'TRAFFIC_UNAWARE',
-        avoidTolls: body.avoidTolls === undefined ? true : body.avoidTolls === 'true' || body.avoidTolls === true,
-        avoidHighways: body.avoidHighways === 'true' || body.avoidHighways === true,
-        excludedEmployees: excluded,
-        pricingConfig,
-      },
+      this.buildPlanOptions(body),
     );
   }
 
@@ -145,44 +120,10 @@ export class CorporateRoutingController {
         });
       }, 15_000);
 
-      const excluded = body.excludedEmployees
-        ? typeof body.excludedEmployees === 'string'
-          ? body.excludedEmployees.split(',').map((s: string) => s.trim())
-          : body.excludedEmployees
-        : undefined;
-
-      let pricingConfig = undefined;
-      if (body.pricingConfig) {
-        try {
-          pricingConfig = typeof body.pricingConfig === 'string' ? JSON.parse(body.pricingConfig) : body.pricingConfig;
-        } catch {
-          // ignore parse error and fallback to default
-        }
-      }
-
       const plan = await this.routePlannerService!.planFromFile(
         file.buffer,
         file.originalname || 'employees.xlsx',
-        {
-          tenantId: body.tenantId,
-          officeId: body.officeId,
-          office: body.office || body.officeName,
-          officeLat: body.officeLat ? Number(body.officeLat) : undefined,
-          officeLng: body.officeLng ? Number(body.officeLng) : undefined,
-          direction: body.direction,
-          loginTime: body.loginTime || body.deadline,
-          logoutTime: body.logoutTime,
-          officeRadiusKm: body.officeRadiusKm ? Number(body.officeRadiusKm) : 50,
-          maxTripKm: body.maxTripKm ? Number(body.maxTripKm) : 50,
-          bufferMinutes: body.bufferMinutes ? Number(body.bufferMinutes) : 15,
-          pickupWaitMinutes: body.pickupWaitMinutes ? Number(body.pickupWaitMinutes) : undefined,
-          cabCapacity: body.cabCapacity ? Number(body.cabCapacity) : 6,
-          routingPreference: body.routingPreference || 'TRAFFIC_UNAWARE',
-          avoidTolls: body.avoidTolls === undefined ? true : body.avoidTolls === 'true' || body.avoidTolls === true,
-          avoidHighways: body.avoidHighways === 'true' || body.avoidHighways === true,
-          excludedEmployees: excluded,
-          pricingConfig,
-        },
+        this.buildPlanOptions(body),
         (type, percent, message, data) => {
           latestPercent = percent;
           sendSse('progress', { stage: type, percent, message, data });
@@ -216,6 +157,52 @@ export class CorporateRoutingController {
     @Res() res: Response,
   ) {
     return this.planStream(file, body, res);
+  }
+
+  /** Multipart form fields -> planner options. Absent numeric fields fall back to the company policy. */
+  private buildPlanOptions(body: any): PlanRoutesFromFileOptions {
+    const num = (v: unknown): number | undefined => {
+      if (v === undefined || v === null || v === '') return undefined;
+      const n = Number(v);
+      return Number.isFinite(n) ? n : undefined;
+    };
+    const excluded = body.excludedEmployees
+      ? typeof body.excludedEmployees === 'string'
+        ? body.excludedEmployees.split(',').map((s: string) => s.trim())
+        : body.excludedEmployees
+      : undefined;
+    let pricingConfig = undefined;
+    if (body.pricingConfig) {
+      try {
+        pricingConfig = typeof body.pricingConfig === 'string' ? JSON.parse(body.pricingConfig) : body.pricingConfig;
+      } catch {
+        // ignore parse error and fall back to default pricing
+      }
+    }
+    const direction = String(body.direction ?? 'LOGIN').toUpperCase();
+    if (direction !== 'LOGIN' && direction !== 'LOGOUT') {
+      throw new BadRequestException('direction must be LOGIN or LOGOUT');
+    }
+    return {
+      tenantId: body.tenantId,
+      officeId: body.officeId,
+      office: body.office || body.officeName,
+      officeLat: num(body.officeLat),
+      officeLng: num(body.officeLng),
+      direction,
+      loginTime: body.loginTime || body.deadline,
+      logoutTime: body.logoutTime,
+      officeRadiusKm: num(body.officeRadiusKm) ?? 50,
+      maxTripKm: num(body.maxTripKm) ?? 50,
+      bufferMinutes: num(body.bufferMinutes),
+      pickupWaitMinutes: num(body.pickupWaitMinutes),
+      cabCapacity: num(body.cabCapacity),
+      routingPreference: body.routingPreference || 'TRAFFIC_UNAWARE',
+      avoidTolls: body.avoidTolls === undefined ? true : body.avoidTolls === 'true' || body.avoidTolls === true,
+      avoidHighways: body.avoidHighways === 'true' || body.avoidHighways === true,
+      excludedEmployees: excluded,
+      pricingConfig,
+    };
   }
 
   @Post('commit-plan')
@@ -319,6 +306,7 @@ export class CorporateRoutingController {
       throw new BadRequestException('tenantId query parameter is required');
     }
     return this.queryRoutes({
+      officeScope: req?.corporateOfficeScope ?? null,
       tenantId: tenantId || undefined,
       shiftDate,
       shiftTime,
@@ -349,8 +337,10 @@ export class CorporateRoutingController {
     @Query('includeAnalytics') includeAnalytics?: string,
     @Query('dispatchStatus') dispatchStatus?: string,
     @Query('search') search?: string,
+    @Req() req?: any,
   ) {
     return this.queryRoutes({
+      officeScope: req?.corporateOfficeScope ?? null,
       tenantId: tenantId || undefined,
       shiftDate,
       shiftTime,
@@ -366,6 +356,8 @@ export class CorporateRoutingController {
   }
 
   private async queryRoutes(params: {
+    /** WS-F office scope of a corporate user (null = all offices). */
+    officeScope?: string[] | null;
     tenantId?: string;
     shiftDate?: string;
     shiftTime?: string;
@@ -399,16 +391,28 @@ export class CorporateRoutingController {
     if (tenantId) {
       where.tenantId = tenantId;
     }
+    if (params.officeScope && params.officeScope.length > 0) {
+      where.officeId = { in: params.officeScope };
+    }
     if (shiftDate) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(shiftDate) || Number.isNaN(new Date(shiftDate).getTime())) {
+        throw new BadRequestException('shiftDate must be YYYY-MM-DD');
+      }
       where.shiftDate = new Date(shiftDate);
     }
     if (shiftTime) {
       where.shiftTime = shiftTime;
     }
     if (direction) {
+      if (direction !== 'LOGIN' && direction !== 'LOGOUT') {
+        throw new BadRequestException('direction must be LOGIN or LOGOUT');
+      }
       where.direction = direction;
     }
     if (status) {
+      if (!ROUTE_STATUSES.includes(String(status))) {
+        throw new BadRequestException(`status must be one of ${ROUTE_STATUSES.join(', ')}`);
+      }
       where.status = status;
     }
     if (dispatchStatus) {
@@ -546,7 +550,7 @@ export class CorporateRoutingController {
     if (!this.directionsService) {
       throw new BadRequestException('Route directions service unavailable');
     }
-    return this.directionsService.getDirectionsForRoute(id, refresh === 'true');
+    return this.directionsService.getDirectionsForRoute(id, { forceRefresh: refresh === 'true' });
   }
 
   @Get(':id')
@@ -562,7 +566,9 @@ export class CorporateRoutingController {
   public async getRouteById(
     @Param('id') id: string,
     @Query('includeDirections') includeDirections?: string,
+    @Req() req?: any,
   ) {
+    const showOtp = OTP_VISIBLE_ROLES.has(String(req?.user?.role ?? '').toUpperCase());
     const route: any = await this.db.corporateRoute.findUnique({
       where: { id },
       include: {
@@ -621,8 +627,9 @@ export class CorporateRoutingController {
       throw new NotFoundException(`Corporate route ${id} not found`);
     }
 
-    const enrichedStops = (route.stops ?? []).map((stop: any) => ({
+    const enrichedStops = (route.stops ?? []).map(({ boardingOtp, ...stop }: any) => ({
       ...stop,
+      ...(showOtp ? { boardingOtp } : {}),
       employeeName: stop.employeeName ?? stop.employee?.fullName ?? null,
       employeePhone: stop.employeePhone ?? stop.employee?.phoneNumber ?? null,
       addressText:
@@ -639,7 +646,10 @@ export class CorporateRoutingController {
     };
 
     if (includeDirections === 'true' && this.directionsService) {
-      enrichedRoute.directions = await this.directionsService.computeFromRouteRecord(enrichedRoute);
+      // Shared 180 s cache with GET :id/directions: a page load is not a Google Routes call.
+      enrichedRoute.directions = await this.directionsService
+        .getDirectionsForRoute(id, { routeRecord: enrichedRoute })
+        .catch(() => null);
     }
 
     return enrichedRoute;

@@ -76,6 +76,8 @@ export interface SolverPlannedSegment {
 
 export interface SolverCalculatedRoute {
   cab: number;
+  /** LOGIN: homes -> office (stops are pickups). LOGOUT: office -> homes (stops are drops). */
+  direction?: 'LOGIN' | 'LOGOUT';
   office: { name: string; lat: number; lng: number };
   requiredArrival: string;
   requiredArrivalDateTime: string;
@@ -346,6 +348,7 @@ export async function solveCabRoute(
 
   return {
     cab: cabNumber,
+    direction: 'LOGIN',
     office: { name: officeName, lat: officeCoord.lat, lng: officeCoord.lng },
     requiredArrival: formatClock(config.loginTime),
     requiredArrivalDateTime: config.loginTime.toISOString(),
@@ -365,6 +368,138 @@ export async function solveCabRoute(
     driveMinutes: Number((driveSeconds / 60).toFixed(1)),
     status: meetsDeadline ? 'Meets deadline' : 'Misses deadline',
     bufferStatus: meetsBuffer ? 'Meets buffer' : 'Misses buffer',
+    timeSource: route.isRealRoad ? 'Google Routes traffic aware' : 'High-fidelity road factor fallback',
+    path: route.decodedPath,
+    _departureSort: departure,
+  };
+}
+
+
+/** Hand-over time budgeted at each LOGOUT drop (employee alights; no boarding wait). */
+export const LOGOUT_DROP_DWELL_SECONDS = 120;
+
+/**
+ * LOGOUT itinerary for one cab: departs the office at the shift logout time (`config.loginTime`
+ * carries the logout anchor) and drops employees nearest-first, ending at the farthest home.
+ * Stops are drops; `departureDateTime` = office departure = `requiredArrivalDateTime`.
+ */
+export async function solveLogoutCabRoute(
+  cabNumber: number,
+  group: EmployeeRecord[],
+  officeName: string,
+  officeCoord: RouteCoord,
+  config: SolverConfig,
+  routesAdapter: GoogleRoutesV2Adapter,
+  pricingConfig: PricingConfig = DEFAULT_PRICING_CONFIG,
+  fleetUsed: Record<string, number> = {},
+): Promise<SolverCalculatedRoute> {
+  const people = orderPickupsByShortestPath(group, officeCoord).reverse();
+  const departure = new Date(config.loginTime.getTime());
+  const options: RouteRequestOptions = {
+    routingPreference: config.routingPreference || 'TRAFFIC_UNAWARE',
+    avoidTolls: config.avoidTolls,
+    avoidHighways: config.avoidHighways,
+  };
+
+  const last = people[people.length - 1];
+  const route = await routesAdapter.computeRoute(
+    officeCoord,
+    people.slice(0, -1).map((p) => p.coord),
+    last.coord,
+    departure,
+    options,
+  );
+
+  const legs = Array.isArray(route.legs) ? route.legs : [];
+  const legSeconds = people.map((_, i) => Number(legs[i]?.durationSeconds) || Math.round(route.durationSeconds / people.length));
+  const sumLegs = legSeconds.reduce((a, b) => a + b, 0);
+  if (legSeconds.length > 0) legSeconds[legSeconds.length - 1] += Math.max(0, route.durationSeconds - sumLegs);
+
+  const stops: SolverPlannedStop[] = [];
+  const segments: SolverPlannedSegment[] = [];
+  let clock = new Date(departure.getTime());
+  let fromName = officeName;
+  for (let idx = 0; idx < people.length; idx++) {
+    const person = people[idx];
+    const legSec = legSeconds[idx];
+    const legDistanceMeters = legs[idx]?.distanceMeters ?? Math.round(route.distanceMeters / people.length);
+    const arrive = new Date(clock.getTime() + legSec * 1000);
+    const handOverUntil = new Date(arrive.getTime() + LOGOUT_DROP_DWELL_SECONDS * 1000);
+    const next = people[idx + 1];
+    segments.push({
+      from: fromName,
+      to: person.employeeName,
+      depart: formatClock(clock),
+      arrive: formatClock(arrive),
+      minutes: Number((legSec / 60).toFixed(1)),
+      distanceKm: Number((legDistanceMeters / 1000).toFixed(2)),
+    });
+    stops.push({
+      sequence: idx + 1,
+      name: person.employeeName,
+      address: person.pickupAddress,
+      matchedAddress: person.matchedAddress,
+      employeeId: person.employeeId,
+      employeeCode: person.employeeCode,
+      phoneNumber: person.phoneNumber,
+      gender: person.gender,
+      email: person.email,
+      department: person.department,
+      lat: person.coord.lat,
+      lng: person.coord.lng,
+      eta: formatClock(arrive),
+      etaIso: arrive.toISOString(),
+      dwellUntil: formatClock(handOverUntil),
+      dwellUntilIso: handOverUntil.toISOString(),
+      dwellSeconds: LOGOUT_DROP_DWELL_SECONDS,
+      nextStop: next ? next.employeeName : 'End of route',
+      travelToNextMinutes: next ? Number(((legSeconds[idx + 1] ?? 0) / 60).toFixed(1)) : 0,
+      distanceToNextKm: next ? Number((((legs[idx + 1]?.distanceMeters ?? 0) as number) / 1000).toFixed(2)) : 0,
+      arrivalAtNext: next ? formatClock(new Date(handOverUntil.getTime() + (legSeconds[idx + 1] ?? 0) * 1000)) : '',
+      officeDistanceKm: person.officeDistanceKm,
+      outOfRadius: person.outOfRadius,
+    });
+    clock = handOverUntil;
+    fromName = person.employeeName;
+  }
+
+  const effectivePricing = config.pricingConfig || pricingConfig || DEFAULT_PRICING_CONFIG;
+  const cabType = selectCheapestCab(route.distanceKm, group.length, effectivePricing, fleetUsed);
+  if (!cabType) {
+    throw new Error(`No compatible available vehicle for a route with ${group.length} passengers`);
+  }
+  fleetUsed[cabType.name] = (fleetUsed[cabType.name] || 0) + 1;
+  const driverPayout = calculateDistanceCharge(route.distanceKm, cabType);
+  const corporateRevenue = Number(
+    (
+      (effectivePricing.employeeRevenue || 0) * group.length +
+      (effectivePricing.revenuePerKm || 0) * route.distanceKm
+    ).toFixed(2),
+  );
+  const arrival = clock;
+
+  return {
+    cab: cabNumber,
+    direction: 'LOGOUT',
+    office: { name: officeName, lat: officeCoord.lat, lng: officeCoord.lng },
+    requiredArrival: formatClock(departure),
+    requiredArrivalDateTime: departure.toISOString(),
+    departureDateTime: departure.toISOString(),
+    dwellSeconds: LOGOUT_DROP_DWELL_SECONDS,
+    cabType: cabType.name || 'sedan',
+    driverPayout,
+    corporateRevenue,
+    projectedMargin: Number((corporateRevenue - driverPayout).toFixed(2)),
+    driverStart: `${officeName} (office departure)`,
+    sequence: [officeName, ...people.map((p) => p.employeeName)].join(' -> '),
+    stops,
+    segments,
+    departure: formatClock(departure),
+    arrival: formatClock(arrival),
+    distanceKm: route.distanceKm,
+    driveMinutes: Number((route.durationSeconds / 60).toFixed(1)),
+    status: 'Meets deadline',
+    bufferStatus: 'Meets buffer',
     timeSource: route.isRealRoad ? 'Google Routes traffic aware' : 'High-fidelity road factor fallback',
     path: route.decodedPath,
     _departureSort: departure,

@@ -166,9 +166,12 @@ export default function CompaniesOnboardingPage() {
 
   function generateSecurePassword() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789@#';
+    // Web Crypto RNG (Math.random is predictable); modulo bias over 58 chars is negligible here.
+    const bytes = new Uint32Array(12);
+    crypto.getRandomValues(bytes);
     let pwd = 'Adx!';
-    for (let i = 0; i < 8; i++) {
-      pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+    for (const b of bytes) {
+      pwd += chars.charAt(b % chars.length);
     }
     setForm((prev) => ({ ...prev, adminPassword: pwd }));
   }
@@ -189,8 +192,8 @@ export default function CompaniesOnboardingPage() {
       setFormError('Corporate Admin Full Name, Email, and Mobile Number are required.');
       return;
     }
-    if (!form.adminPassword || form.adminPassword.trim().length < 6) {
-      setFormError('Initial Corporate Portal password must be at least 6 characters.');
+    if (!form.adminPassword || form.adminPassword.trim().length < 8) {
+      setFormError('Initial Corporate Portal password must be at least 8 characters.');
       return;
     }
 
@@ -918,7 +921,7 @@ export default function CompaniesOnboardingPage() {
                       type="text"
                       value={form.adminPassword}
                       onChange={(e) => setForm({ ...form, adminPassword: e.target.value })}
-                      placeholder="Min 6 characters"
+                      placeholder="Min 8 characters"
                       required
                     />
                     <Button

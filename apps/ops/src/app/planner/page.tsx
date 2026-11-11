@@ -74,7 +74,6 @@ export default function RouteOptimizerPage() {
   const [autoExcludedEmployees, setAutoExcludedEmployees] = useState<string[]>([]);
   const [stopDwellMinutes, setStopDwellMinutes] = useState(10);
   const [bufferMinutes, setBufferMinutes] = useState(15);
-  const cabCapacity = 6;
   const [routingPreference, setRoutingPreference] = useState<RoutingPreference>('TRAFFIC_AWARE');
   const [avoidTolls, setAvoidTolls] = useState(true);
   const [avoidHighways] = useState(false);
@@ -177,7 +176,12 @@ export default function RouteOptimizerPage() {
   }, [companySearch]);
 
   const selectedUploadTenant = tenants.find((tenant) => tenant.id === selectedUploadTenantId);
-  const canCommitUploadPlan = Boolean(selectedUploadTenant && selectedOfficeId && selectedCabsForCommit.size > 0);
+  // Seats per cab come from the company policy (SEDAN 4 / SUV 6), never a hard-coded 6.
+  const cabCapacity = Math.min(Math.max(Number(selectedUploadTenant?.policies?.[0]?.defaultCapacity) || 4, 1), 12);
+  // A committed plan cannot be committed again (the API also rejects employees already on a live route).
+  const canCommitUploadPlan = Boolean(
+    selectedUploadTenant && selectedOfficeId && selectedCabsForCommit.size > 0 && !committedSuccess,
+  );
 
   async function handleUploadCompanyChange(tenantId: string) {
     setSelectedUploadTenantId(tenantId);

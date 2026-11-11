@@ -52,6 +52,8 @@ export interface RouteDirectionsResult {
 export class CorporateRouteDirectionsService {
   private readonly logger = new Logger(CorporateRouteDirectionsService.name);
   private readonly CACHE_TTL_SECONDS = 180;
+  /** A forced refresh hits Google at most once per route per this many seconds (all callers). */
+  private readonly REFRESH_THROTTLE_SECONDS = 60;
 
   constructor(
     private readonly db: DatabaseService,
@@ -63,9 +65,23 @@ export class CorporateRouteDirectionsService {
    * Computes live-traffic turn/leg directions and road polyline for a committed route
    * using Google Maps Routes v2 API (`TRAFFIC_AWARE_OPTIMAL`) with short-lived Redis cache.
    */
-  public async getDirectionsForRoute(routeId: string, forceRefresh = false): Promise<RouteDirectionsResult> {
+  public async getDirectionsForRoute(
+    routeId: string,
+    opts: boolean | { forceRefresh?: boolean; routeRecord?: any } = {},
+  ): Promise<RouteDirectionsResult> {
+    const { forceRefresh = false, routeRecord } = typeof opts === 'boolean' ? { forceRefresh: opts } : opts;
     const cacheKey = `corp:route:dir:${routeId}`;
-    if (!forceRefresh && this.redis) {
+    let refresh = forceRefresh;
+    if (refresh && this.redis) {
+      // Throttle: a second "refresh" inside the window is served from cache.
+      try {
+        const token = await this.redis.acquireLockToken(`corp:route:dir:refresh:${routeId}`, this.REFRESH_THROTTLE_SECONDS);
+        if (!token) refresh = false;
+      } catch {
+        // Redis unavailable: fall through to a live compute
+      }
+    }
+    if (!refresh && this.redis) {
       try {
         const cached = await this.redis.get(cacheKey);
         if (cached) {
@@ -76,7 +92,7 @@ export class CorporateRouteDirectionsService {
       }
     }
 
-    const route = await this.db.corporateRoute.findUnique({
+    const route = routeRecord ?? (await this.db.corporateRoute.findUnique({
       where: { id: routeId },
       include: {
         office: { select: { id: true, name: true, addressText: true, latitude: true, longitude: true } },
@@ -99,7 +115,7 @@ export class CorporateRouteDirectionsService {
           orderBy: { stopSequence: 'asc' },
         },
       },
-    });
+    }));
 
     if (!route) {
       throw new NotFoundException(`Corporate route ${routeId} not found`);
@@ -135,7 +151,8 @@ export class CorporateRouteDirectionsService {
       plannedEta?: Date;
     }> = rawStops.map((s) => {
       const emp = s.employee || {};
-      const isOfficeStop = s.stopType === 'DROPOFF' && !s.employeeId && !s.employeeName;
+      // The office stop is the one with no employee (LOGIN: last DROPOFF, LOGOUT: first PICKUP).
+      const isOfficeStop = !s.employeeId && !s.employeeName && !s.employee;
       return {
         id: s.id,
         sequence: s.stopSequence,
@@ -154,13 +171,12 @@ export class CorporateRouteDirectionsService {
       };
     });
 
-    const hasOfficeWaypoint = waypoints.some(
-      (w) => w.type === 'DROPOFF' && route.office && w.label === (route.office.name || 'Corporate Office Hub'),
-    );
+    const isLogout = route.direction === 'LOGOUT';
+    const hasOfficeWaypoint = rawStops.some((s) => !s.employeeId && !s.employeeName && !s.employee);
     if (!hasOfficeWaypoint && route.office?.latitude != null && route.office?.longitude != null) {
-      waypoints.push({
+      const officeWaypoint = {
         id: `office-${route.office.id}`,
-        sequence: waypoints.length + 1,
+        sequence: isLogout ? 0 : waypoints.length + 1,
         type: route.direction === 'LOGOUT' ? 'PICKUP' : 'DROPOFF',
         label: route.office.name || 'Corporate Office Hub',
         address: route.office.addressText || route.office.name || 'Corporate Office',
@@ -168,8 +184,17 @@ export class CorporateRouteDirectionsService {
         lat: Number(route.office.latitude),
         lng: Number(route.office.longitude),
         dwellBufferSeconds: 0,
-        plannedEta: route.targetOfficeArrivalTime ? new Date(route.targetOfficeArrivalTime) : undefined,
-      });
+        plannedEta: isLogout
+          ? route.targetPickup1Time
+            ? new Date(route.targetPickup1Time)
+            : undefined
+          : route.targetOfficeArrivalTime
+            ? new Date(route.targetOfficeArrivalTime)
+            : undefined,
+      };
+      // LOGIN ends at the office; LOGOUT starts there.
+      if (isLogout) waypoints.unshift(officeWaypoint);
+      else waypoints.push(officeWaypoint);
     }
 
     if (waypoints.length < 2) {
@@ -233,7 +258,12 @@ export class CorporateRouteDirectionsService {
         Math.round(rawLeg?.distanceMeters ?? computed.distanceMeters / Math.max(1, waypoints.length - 1)),
       );
 
-      const arrivalFrom = from.plannedEta ? new Date(from.plannedEta.getTime()) : new Date(runningClock.getTime());
+      // Live arrival = the later of the plan and the traffic-propagated clock: a cab never
+      // reaches a stop before its planned time matters (it waits), but a delay carries forward.
+      const arrivalFrom =
+        from.plannedEta && i === 0
+          ? new Date(from.plannedEta.getTime())
+          : new Date(Math.max(runningClock.getTime(), from.plannedEta?.getTime() ?? 0));
       const departFrom = new Date(arrivalFrom.getTime() + from.dwellBufferSeconds * 1000);
       const estArrivalTo = new Date(departFrom.getTime() + legDurationSec * 1000);
 

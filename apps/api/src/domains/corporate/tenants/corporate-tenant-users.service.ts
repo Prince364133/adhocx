@@ -109,7 +109,7 @@ export class CorporateTenantUsersService {
     let passwordHash: string | undefined;
     if (input?.password !== undefined && input.password !== null && String(input.password).length > 0) {
       const rawPwd = String(input.password);
-      if (rawPwd.length < 6) throw new BadRequestException('password must be at least 6 characters');
+      if (rawPwd.length < 8) throw new BadRequestException('password must be at least 8 characters');
       passwordHash = await hashPassword(rawPwd);
     }
 

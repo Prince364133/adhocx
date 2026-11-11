@@ -337,7 +337,18 @@ export class CorporateOperationsService {
       const res = await tx.corporateRoute.updateMany({
         where: { id: routeId, status: 'ASSIGNED', driverId: previousDriverId },
         // atRisk resets: the route is unassigned again, so ALLOC-05 may escalate it afresh.
-        data: { status: 'DISPATCHING', driverId: null, vehicleId: null, atRisk: false },
+        // Dispatch counters restart: the replacement search is a fresh window, not run 7 of the old one.
+        data: {
+          status: 'DISPATCHING',
+          driverId: null,
+          vehicleId: null,
+          atRisk: false,
+          dispatchStatus: 'PENDING',
+          dispatchAttempts: 0,
+          dispatchWindowStartedAt: null,
+          lastDispatchAttemptAt: null,
+          dispatchFailureReason: null,
+        },
       });
       if (res.count !== 1) {
         throw new ConflictException(`Route ${routeId} was changed concurrently; reload and retry`);

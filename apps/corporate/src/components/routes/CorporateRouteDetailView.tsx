@@ -384,12 +384,20 @@ export function CorporateRouteDetailView({ routeId }: { routeId: string }) {
             ) : (
               <>
                 <div style={{ fontSize: 14, fontWeight: 700, color: driversNotFound ? '#DC2626' : '#B45309', marginTop: 6 }}>
-                  {driversNotFound ? 'Drivers Not Found' : 'Pending Driver Acceptance'}
+                  {driversNotFound
+                    ? 'Drivers Not Found'
+                    : dispatchStatus === 'SEARCHING'
+                      ? 'Searching Drivers Nearby'
+                      : dispatchStatus === 'RETRY_SCHEDULED'
+                        ? 'Retry Scheduled (Every 5m)'
+                        : 'Pending Driver Acceptance'}
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>
                   {driversNotFound
                     ? 'Ops escalation raised automatically.'
-                    : 'Cron scans within 10km starting T-60m.'}
+                    : dispatchStatus === 'RETRY_SCHEDULED'
+                      ? 'Waiting 5 min before next 10km search run.'
+                      : 'Cron scans within 10km starting T-60m.'}
                 </div>
               </>
             )}

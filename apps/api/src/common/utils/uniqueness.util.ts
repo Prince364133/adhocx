@@ -1,6 +1,17 @@
 import { ConflictException } from '@nestjs/common';
 import { DatabaseService } from '../../database/database.service';
 
+/** 10-digit Indian numbers -> +91XXXXXXXXXX (also 91XXXXXXXXXX / 0XXXXXXXXXX); others kept trimmed. */
+export function normalizeIndianPhone(raw?: string | null): string | undefined {
+  const trimmed = String(raw ?? '').trim();
+  if (!trimmed) return undefined;
+  const digits = trimmed.replace(/\D/g, '');
+  if (digits.length === 10) return `+91${digits}`;
+  if (digits.length === 12 && digits.startsWith('91')) return `+${digits}`;
+  if (digits.length === 11 && digits.startsWith('0')) return `+91${digits.slice(1)}`;
+  return trimmed.startsWith('+') ? `+${digits}` : trimmed;
+}
+
 /**
  * Returns canonical phone number variants for Indian & International formats.
  * e.g. given '+919876543210', '9876543210', '919876543210', '09876543210',
