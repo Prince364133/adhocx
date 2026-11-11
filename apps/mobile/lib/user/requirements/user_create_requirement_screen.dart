@@ -10,6 +10,7 @@ import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/app_primary_button.dart';
+import '../../core/config/feature_flags.dart';
 import '../../core/networking/api_client.dart';
 import '../../core/utils/app_toast.dart';
 import '../../shared/widgets/pending_review_gate.dart';
@@ -41,7 +42,11 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
     super.initState();
     final draft = context.read<RequirementDraftProvider>();
     _cartNameController.text = draft.cartName;
-    _loadWallet();
+    if (FeatureFlags.isVendorWalletEnabled) {
+      _loadWallet();
+    } else {
+      _isLoadingWallet = false;
+    }
     _checkPendingReviewOnEntry();
   }
 
@@ -432,7 +437,9 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
     final double netTotal = (draft.cartTotalEstimatedFare - discount).clamp(0.0, double.infinity);
 
     // Check wallet balance
-    if (_walletBalance != null && _walletBalance! < netTotal) {
+    if (FeatureFlags.isVendorWalletEnabled &&
+        _walletBalance != null &&
+        _walletBalance! < netTotal) {
       Fluttertoast.showToast(
         msg: 'Insufficient wallet balance. Please top up to deploy fleet.',
         backgroundColor: AppColors.error,
@@ -730,7 +737,9 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
 
     final double discount = ((_appliedCoupon?['discountAmount'] as num?)?.toDouble() ?? 0.0);
     final double netTotal = (draft.cartTotalEstimatedFare - discount).clamp(0.0, double.infinity);
-    final bool isInsufficient = _walletBalance != null && _walletBalance! < netTotal;
+    final bool isInsufficient = FeatureFlags.isVendorWalletEnabled &&
+        _walletBalance != null &&
+        _walletBalance! < netTotal;
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
@@ -1250,59 +1259,61 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                         ),
                       ),
 
-                    const SizedBox(height: 10),
+                    if (FeatureFlags.isVendorWalletEnabled) ...[
+                      const SizedBox(height: 10),
 
-                    // Wallet Balance
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: isInsufficient
-                            ? AppColors.error.withValues(alpha: 0.08)
-                            : (isDark ? AppColors.bgDark : AppColors.slate100),
-                        borderRadius: BorderRadius.circular(AppRadius.md),
-                        border: Border.all(
+                      // Wallet Balance
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
                           color: isInsufficient
-                              ? AppColors.error.withValues(alpha: 0.3)
-                              : Colors.transparent,
+                              ? AppColors.error.withValues(alpha: 0.08)
+                              : (isDark ? AppColors.bgDark : AppColors.slate100),
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          border: Border.all(
+                            color: isInsufficient
+                                ? AppColors.error.withValues(alpha: 0.3)
+                                : Colors.transparent,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.account_balance_wallet_outlined,
+                                    size: 16,
+                                    color: isInsufficient ? AppColors.error : AppColors.primary,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      _isLoadingWallet
+                                          ? 'Checking Wallet...'
+                                          : 'Wallet: ₹${(_walletBalance ?? 0.0).toStringAsFixed(0)} Available',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: isInsufficient ? AppColors.error : null,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            InkWell(
+                              onTap: _showTopUpBottomSheet,
+                              child: const Text('+ Top Up', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                            ),
+                          ],
                         ),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.account_balance_wallet_outlined,
-                                  size: 16,
-                                  color: isInsufficient ? AppColors.error : AppColors.primary,
-                                ),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Text(
-                                    _isLoadingWallet
-                                        ? 'Checking Wallet...'
-                                        : 'Wallet: ₹${(_walletBalance ?? 0.0).toStringAsFixed(0)} Available',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: isInsufficient ? AppColors.error : null,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          InkWell(
-                            onTap: _showTopUpBottomSheet,
-                            child: const Text('+ Top Up', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary)),
-                          ),
-                        ],
-                      ),
-                    ),
+                    ],
 
                     const SizedBox(height: 10),
 

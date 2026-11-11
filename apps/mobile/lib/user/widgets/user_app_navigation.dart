@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/config/feature_flags.dart';
 import '../../shared/theme/app_colors.dart';
 import '../../services/language_service.dart';
 
@@ -48,8 +49,31 @@ class _UserAppNavigationState extends State<UserAppNavigation> {
     ),
   ];
 
+  List<_UserTabSpec> get _visibleTabs => FeatureFlags.isVendorWalletEnabled
+      ? _tabs
+      : _tabs.where((tab) => tab.branchIndex != 3).toList(growable: false);
+
+  void _syncSelectedVisualIndex() {
+    final tabs = _visibleTabs;
+    for (int i = 0; i < tabs.length; i++) {
+      if (tabs[i].branchIndex == widget.navigationShell.currentIndex) {
+        _selectedVisualIndex = i;
+        return;
+      }
+    }
+    _selectedVisualIndex = 0;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _syncSelectedVisualIndex();
+  }
+
   void _onTap(int visualIndex) {
-    final tab = _tabs[visualIndex];
+    final tabs = _visibleTabs;
+    if (visualIndex < 0 || visualIndex >= tabs.length) return;
+    final tab = tabs[visualIndex];
     if (tab.branchIndex == null) return;
     setState(() => _selectedVisualIndex = visualIndex);
     widget.navigationShell.goBranch(
@@ -61,12 +85,7 @@ class _UserAppNavigationState extends State<UserAppNavigation> {
   @override
   void didUpdateWidget(UserAppNavigation oldWidget) {
     super.didUpdateWidget(oldWidget);
-    for (int i = 0; i < _tabs.length; i++) {
-      if (_tabs[i].branchIndex == widget.navigationShell.currentIndex) {
-        _selectedVisualIndex = i;
-        break;
-      }
-    }
+    _syncSelectedVisualIndex();
   }
 
   @override
@@ -75,6 +94,11 @@ class _UserAppNavigationState extends State<UserAppNavigation> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final activeColor = AppColors.primary;
+    final tabs = _visibleTabs;
+    final activeVisualIndex =
+        _selectedVisualIndex >= 0 && _selectedVisualIndex < tabs.length
+            ? _selectedVisualIndex
+            : 0;
 
     return SafeArea(
       top: false,
@@ -107,9 +131,9 @@ class _UserAppNavigationState extends State<UserAppNavigation> {
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: List.generate(_tabs.length, (i) {
-                final tab = _tabs[i];
-                final isActive = i == _selectedVisualIndex;
+              children: List.generate(tabs.length, (i) {
+                final tab = tabs[i];
+                final isActive = i == activeVisualIndex;
 
                 return Expanded(
                   child: GestureDetector(

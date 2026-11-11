@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/config/feature_flags.dart';
 import '../../routes/app_routes.dart';
+import '../../services/auth_service.dart';
 import '../../services/driver_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/in_app_message_service.dart';
@@ -153,7 +155,10 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen> {
         } else if (type.contains('PAY') || type.contains('WALLET')) {
           icon = Icons.account_balance_wallet_rounded;
           color = AppColors.accentGreenDark;
-          if (routeTarget.isEmpty) routeTarget = '/wallet';
+          final isDriver = AuthService.instance.currentUser?.isDriver ?? true;
+          if (routeTarget.isEmpty && (isDriver || FeatureFlags.isVendorWalletEnabled)) {
+            routeTarget = '/wallet';
+          }
         } else if (type.contains('KYC') || type.contains('VERIF')) {
           icon = Icons.verified_user_rounded;
           color = AppColors.primary;
@@ -343,11 +348,33 @@ class _NotificationsFeedScreenState extends State<NotificationsFeedScreen> {
     Fluttertoast.showToast(msg: 'All notifications cleared');
   }
 
+  bool _isHiddenVendorWalletTarget(String? route, String? type) {
+    final isDriver = AuthService.instance.currentUser?.isDriver ?? true;
+    if (isDriver || FeatureFlags.isVendorWalletEnabled) return false;
+    final normalized = (route ?? '').trim();
+    final upperType = (type ?? '').toUpperCase();
+    if (normalized == '/wallet' ||
+        normalized == '/earnings' ||
+        normalized == '/payments' ||
+        normalized == '/coupons' ||
+        normalized == AppRoutes.walletScreen ||
+        AppRoutes.isVendorWalletPath(normalized)) {
+      return true;
+    }
+    return upperType.contains('PAY') || upperType.contains('WALLET');
+  }
+
   bool _hasNavigationTarget(NotificationItem item) {
+    if (_isHiddenVendorWalletTarget(item.routeTarget, item.type)) {
+      return false;
+    }
     if (item.routeTarget.trim().isNotEmpty) return true;
     if (item.extra is Map) {
       final extra = item.extra as Map;
       final route = extra['route']?.toString().trim() ?? extra['actionUrl']?.toString().trim();
+      if (_isHiddenVendorWalletTarget(route, item.type)) {
+        return false;
+      }
       if (route != null && route.isNotEmpty) return true;
       for (final key in const ['offerId', 'requirementId', 'tripId', 'invoiceId', 'paymentId']) {
         final v = extra[key]?.toString().trim();

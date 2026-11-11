@@ -11,6 +11,7 @@ import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/app_primary_button.dart';
+import '../../core/config/feature_flags.dart';
 import '../../core/networking/api_client.dart';
 import '../../shared/widgets/pending_review_gate.dart';
 import '../../core/utils/app_toast.dart';
@@ -36,7 +37,11 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
   @override
   void initState() {
     super.initState();
-    _loadWallet();
+    if (FeatureFlags.isVendorWalletEnabled) {
+      _loadWallet();
+    } else {
+      _isLoadingWallet = false;
+    }
     _loadVehicleTiers();
   }
 
@@ -532,7 +537,9 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
     final estTotal = (rawTotal - discount).clamp(0.0, double.infinity);
 
     // Auto-open top-up bottom sheet if wallet balance is insufficient
-    if (_walletBalance != null && _walletBalance! < estTotal) {
+    if (FeatureFlags.isVendorWalletEnabled &&
+        _walletBalance != null &&
+        _walletBalance! < estTotal) {
       Fluttertoast.showToast(
         msg: 'Insufficient wallet balance. Please top up to deploy fleet.',
         backgroundColor: AppColors.error,
@@ -627,7 +634,7 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
               duration: const Duration(seconds: 5),
             ),
           );
-        } else if (isLowBalance) {
+        } else if (isLowBalance && FeatureFlags.isVendorWalletEnabled) {
           Fluttertoast.showToast(
             msg: rawMsg,
             backgroundColor: AppColors.error,
@@ -1011,102 +1018,104 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
                       ),
                     ),
 
-                    const SizedBox(height: AppSpacing.md),
+                    if (FeatureFlags.isVendorWalletEnabled) ...[
+                      const SizedBox(height: AppSpacing.md),
 
-                    // AdhocX Wallet Balance & Deduction Indicator
-                    Builder(
-                      builder: (context) {
-                        final ratePerVehicle = _getRatePerVehicle(draft);
-                        final rawTotal = draft.quantity * ratePerVehicle;
-                        final discount = ((_appliedCoupon?['discountAmount'] as num?)?.toDouble() ?? 0.0);
-                        final estTotal = (rawTotal - discount).clamp(0.0, double.infinity);
-                        final isInsufficient = _walletBalance != null && _walletBalance! < estTotal;
+                      // AdhocX Wallet Balance & Deduction Indicator
+                      Builder(
+                        builder: (context) {
+                          final ratePerVehicle = _getRatePerVehicle(draft);
+                          final rawTotal = draft.quantity * ratePerVehicle;
+                          final discount = ((_appliedCoupon?['discountAmount'] as num?)?.toDouble() ?? 0.0);
+                          final estTotal = (rawTotal - discount).clamp(0.0, double.infinity);
+                          final isInsufficient = _walletBalance != null && _walletBalance! < estTotal;
 
-                        return Container(
-                          padding: const EdgeInsets.all(AppSpacing.md),
-                          decoration: BoxDecoration(
-                            color: isInsufficient
-                                ? AppColors.error.withValues(alpha: 0.06)
-                                : (isDark ? AppColors.surfaceDark : AppColors.surfaceLight),
-                            borderRadius: BorderRadius.circular(AppRadius.lg),
-                            border: Border.all(
+                          return Container(
+                            padding: const EdgeInsets.all(AppSpacing.md),
+                            decoration: BoxDecoration(
                               color: isInsufficient
-                                  ? AppColors.error.withValues(alpha: 0.5)
-                                  : (isDark ? AppColors.borderDark : AppColors.borderLight),
-                              width: isInsufficient ? 1.5 : 1.0,
-                            ),
-                          ),
-                          child: Column(
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.account_balance_wallet_outlined,
-                                        color: isInsufficient ? AppColors.error : AppColors.primary,
-                                        size: 22,
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'AdhocX Wallet (Platform Deductions)',
-                                            style: AppTypography.caption(
-                                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                                            ),
-                                          ),
-                                          Text(
-                                            _isLoadingWallet
-                                                ? 'Checking...'
-                                                : '₹${(_walletBalance ?? 0.0).toStringAsFixed(2)} Available',
-                                            style: TextStyle(
-                                              fontSize: 15,
-                                              fontWeight: FontWeight.bold,
-                                              color: isInsufficient ? AppColors.error : AppColors.success,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                  OutlinedButton.icon(
-                                    onPressed: () {
-                                      _showTopUpBottomSheet();
-                                    },
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: isInsufficient ? AppColors.error : AppColors.primary,
-                                      side: BorderSide(color: isInsufficient ? AppColors.error : AppColors.primary),
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.full)),
-                                    ),
-                                    icon: const Icon(Icons.add_circle_outline, size: 14),
-                                    label: const Text('Top Up', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                                  ),
-                                ],
+                                  ? AppColors.error.withValues(alpha: 0.06)
+                                  : (isDark ? AppColors.surfaceDark : AppColors.surfaceLight),
+                              borderRadius: BorderRadius.circular(AppRadius.lg),
+                              border: Border.all(
+                                color: isInsufficient
+                                    ? AppColors.error.withValues(alpha: 0.5)
+                                    : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                                width: isInsufficient ? 1.5 : 1.0,
                               ),
-                              if (isInsufficient) ...[
-                                const SizedBox(height: 8),
+                            ),
+                            child: Column(
+                              children: [
                                 Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Icon(Icons.warning_amber_rounded, size: 14, color: AppColors.error),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text(
-                                        'Top up ₹${(estTotal - (_walletBalance ?? 0.0)).toStringAsFixed(0)} more to post this requirement.',
-                                        style: const TextStyle(fontSize: 11, color: AppColors.error, fontWeight: FontWeight.w600),
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.account_balance_wallet_outlined,
+                                          color: isInsufficient ? AppColors.error : AppColors.primary,
+                                          size: 22,
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'AdhocX Wallet (Platform Deductions)',
+                                              style: AppTypography.caption(
+                                                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                              ),
+                                            ),
+                                            Text(
+                                              _isLoadingWallet
+                                                  ? 'Checking...'
+                                                  : '₹${(_walletBalance ?? 0.0).toStringAsFixed(2)} Available',
+                                              style: TextStyle(
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.bold,
+                                                color: isInsufficient ? AppColors.error : AppColors.success,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                    OutlinedButton.icon(
+                                      onPressed: () {
+                                        _showTopUpBottomSheet();
+                                      },
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: isInsufficient ? AppColors.error : AppColors.primary,
+                                        side: BorderSide(color: isInsufficient ? AppColors.error : AppColors.primary),
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.full)),
                                       ),
+                                      icon: const Icon(Icons.add_circle_outline, size: 14),
+                                      label: const Text('Top Up', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                                     ),
                                   ],
                                 ),
+                                if (isInsufficient) ...[
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.warning_amber_rounded, size: 14, color: AppColors.error),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(
+                                          'Top up ₹${(estTotal - (_walletBalance ?? 0.0)).toStringAsFixed(0)} more to post this requirement.',
+                                          style: const TextStyle(fontSize: 11, color: AppColors.error, fontWeight: FontWeight.w600),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ],
-                            ],
-                          ),
-                        );
-                      },
-                    ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
 
                     const SizedBox(height: AppSpacing.xl),
 

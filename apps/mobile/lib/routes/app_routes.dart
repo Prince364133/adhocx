@@ -42,6 +42,7 @@ import '../presentation/wallet_screen/earnings_transactions_screen.dart';
 import '../presentation/wallet_screen/earnings_withdraw_screen.dart';
 import '../presentation/wallet_screen/earnings_withdrawal_details_screen.dart';
 import '../presentation/location_picker/universal_location_picker_screen.dart';
+import '../core/config/feature_flags.dart';
 import '../services/auth_service.dart';
 import '../widgets/app_scaffold.dart';
 import '../user/widgets/user_app_scaffold.dart';
@@ -294,6 +295,9 @@ class AppRoutes {
   static const String vendorTicketDetailsResolvedScreen = userTicketDetailsResolvedScreen;
   static const String vendorAppSettingsScreen = userAppSettingsScreen;
 
+  static bool isVendorWalletPath(String path) =>
+      path == userPaymentsScreen || path.startsWith('$userPaymentsScreen/');
+
   /// Centralized Deep Link & Notification Route Resolver
   /// Maps incoming REST-style notification routes (/offers/:id, /trips/:id, /requirements/:id, /wallet)
   /// and push payloads into valid GoRouter destinations.
@@ -437,7 +441,13 @@ class AppRoutes {
           type == 'WALLET_CREDIT' ||
           type == 'WALLET_UPDATE' ||
           type == 'PAYMENT_RECEIVED') {
-        context.push(isDriver ? AppRoutes.walletScreen : AppRoutes.userPaymentsScreen);
+        if (isDriver) {
+          context.push(AppRoutes.walletScreen);
+        } else if (FeatureFlags.isVendorWalletEnabled) {
+          context.push(AppRoutes.userPaymentsScreen);
+        } else {
+          context.go(AppRoutes.userHomeScreen);
+        }
         return;
       }
 
@@ -466,7 +476,13 @@ class AppRoutes {
 
       // 11. Promos & Coupons (/coupons)
       if (rawTargetRoute == '/coupons' || type == 'MARKETING_PROMO') {
-        context.push(isDriver ? AppRoutes.walletScreen : AppRoutes.userPaymentsScreen);
+        if (isDriver) {
+          context.push(AppRoutes.walletScreen);
+        } else if (FeatureFlags.isVendorWalletEnabled) {
+          context.push(AppRoutes.userPaymentsScreen);
+        } else {
+          context.go(AppRoutes.userHomeScreen);
+        }
         return;
       }
 
@@ -495,6 +511,181 @@ class AppRoutes {
       } catch (_) {}
     }
   }
+
+  /// Resolves global authentication, verification, and role-based route guards.
+  static String? resolveRedirect(UserModel? user, String currentPath) {
+    final isLoggedIn = user != null;
+
+    // Automatic redirect from legacy /vendor/* paths to /user/*
+    if (currentPath.startsWith('/vendor/')) {
+      final rewritten = currentPath.replaceFirst('/vendor/', '/user/');
+      if (user != null &&
+          user.isVerified &&
+          user.isUser &&
+          !FeatureFlags.isVendorWalletEnabled &&
+          isVendorWalletPath(rewritten)) {
+        return userHomeScreen;
+      }
+      return rewritten;
+    }
+
+    const publicAuthRoutes = {
+      initial,
+      splashScreen,
+      languageSelectionScreen,
+      signInScreen,
+      loginOtpScreen,
+      signUpScreen,
+      forgotPasswordScreen,
+      forgotPasswordOtpScreen,
+      resetPasswordScreen,
+    };
+
+    // 1. Unauthenticated users:
+    // If not logged in and visiting root or splash, show splash screen.
+    // Allow other public auth routes (/sign-in, /sign-up, etc.), otherwise redirect to splash.
+    if (!isLoggedIn) {
+      if (currentPath == initial || currentPath == splashScreen) {
+        return null;
+      }
+      if (publicAuthRoutes.contains(currentPath)) {
+        return null;
+      }
+      return splashScreen;
+    }
+
+    // 2. Mandatory Password Setup Guard:
+    // If authenticated user does not have a password configured, force setPasswordScreen
+    if (!user.hasPassword) {
+      if (currentPath == setPasswordScreen) {
+        return null;
+      }
+      return setPasswordScreen;
+    }
+
+    // 3. Mandatory Onboarding Completion Guard:
+    // If authenticated user has not completed onboarding, force appropriate onboarding screen
+    if (!user.isOnboarded && !user.isUnderReview && !user.isVerified) {
+      const allowedOnboardingRoutes = {
+        chooseRoleScreen,
+        onboardingPersonalScreen,
+        onboardingVehicleScreen,
+        onboardingDocumentsScreen,
+        onboardingFaceVerificationScreen,
+        onboardingReviewScreen,
+        welcomeSuccessScreen,
+        setPasswordScreen,
+        universalLocationSearchScreen,
+        universalLocationPickerScreen,
+        documentDetailsScreen,
+        helpSupportScreen,
+      };
+
+      if (allowedOnboardingRoutes.contains(currentPath)) {
+        return null;
+      }
+
+      return onboardingPersonalScreen;
+    }
+
+    // 4. Mandatory Verification Gate (Wall) for Drivers & Vendors:
+    // If user is not yet verified by Admin, lock to waitlistGateScreen
+    if (!user.isVerified) {
+      // If user has already submitted profile/documents and is under review (not rejected), redirect away from onboarding
+      if ((user.isOnboarded || user.isUnderReview) && !user.isRejected) {
+        if (currentPath == onboardingPersonalScreen ||
+            currentPath == onboardingVehicleScreen ||
+            currentPath == onboardingDocumentsScreen ||
+            currentPath == onboardingFaceVerificationScreen ||
+            currentPath == onboardingReviewScreen ||
+            currentPath == chooseRoleScreen) {
+          return waitlistGateScreen;
+        }
+      }
+
+      const allowedUnverifiedRoutes = {
+        waitlistGateScreen,
+        welcomeSuccessScreen,
+        chooseRoleScreen,
+        onboardingPersonalScreen,
+        onboardingDocumentsScreen,
+        onboardingFaceVerificationScreen,
+        onboardingVehicleScreen,
+        onboardingReviewScreen,
+        kycUploadScreen,
+        kycVerificationScreen,
+        notificationsFeedScreen,
+        profileScreen,
+        personalInfoScreen,
+        editPersonalInfoScreen,
+        helpSupportScreen,
+        userSupportCenterScreen,
+        accountStatusScreen,
+        userAccountStatusScreen,
+        universalLocationSearchScreen,
+        universalLocationPickerScreen,
+        documentDetailsScreen,
+      };
+
+      if (allowedUnverifiedRoutes.contains(currentPath)) {
+        return null;
+      }
+
+      return waitlistGateScreen;
+    }
+
+    // 5. Authenticated, Onboarded & Verified users:
+    // If on root, splash, or an auth/onboarding screen, immediately route to their home dashboard
+    const authAndOnboardingScreens = {
+      initial,
+      splashScreen,
+      signInScreen,
+      signUpScreen,
+      loginOtpScreen,
+      setPasswordScreen,
+      chooseRoleScreen,
+      onboardingPersonalScreen,
+      onboardingVehicleScreen,
+      onboardingDocumentsScreen,
+      onboardingFaceVerificationScreen,
+      onboardingReviewScreen,
+      waitlistGateScreen,
+    };
+    if (authAndOnboardingScreens.contains(currentPath)) {
+      return user.isDriver ? homeScreen : userHomeScreen;
+    }
+
+    // 6. Strict Role Separation:
+    // Drivers cannot access /user/* routes
+    if (user.isDriver && currentPath.startsWith('/user/')) {
+      return homeScreen;
+    }
+
+    // Users / Corporate bookers cannot access driver dashboard & opportunities
+    const driverOnlyRoutes = {
+      homeScreen,
+      tripsScreen,
+      opportunitiesScreen,
+      opportunityDetailsScreen,
+      opportunityOfferScreen,
+      walletScreen,
+      earningsTransactionsScreen,
+      earningsWithdrawScreen,
+      earningsWithdrawalDetailsScreen,
+    };
+    if (user.isUser && driverOnlyRoutes.contains(currentPath)) {
+      return userHomeScreen;
+    }
+
+    // Hide Wallet / Payments routes from Vendor (User) access while keeping Driver Earnings untouched
+    if (user.isUser &&
+        !FeatureFlags.isVendorWalletEnabled &&
+        isVendorWalletPath(currentPath)) {
+      return userHomeScreen;
+    }
+
+    return null;
+  }
 }
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -504,164 +695,10 @@ final GoRouter appRouter = GoRouter(
   initialLocation: AppRoutes.initial,
   refreshListenable: AuthService.instance.authStateListenable,
   redirect: (BuildContext context, GoRouterState state) async {
-    final user = AuthService.instance.currentUser;
-    final isLoggedIn = user != null;
-    final currentPath = state.matchedLocation;
-
-    // Automatic redirect from legacy /vendor/* paths to /user/*
-    if (currentPath.startsWith('/vendor/')) {
-      return currentPath.replaceFirst('/vendor/', '/user/');
-    }
-
-    const publicAuthRoutes = {
-      AppRoutes.initial,
-      AppRoutes.splashScreen,
-      AppRoutes.languageSelectionScreen,
-      AppRoutes.signInScreen,
-      AppRoutes.loginOtpScreen,
-      AppRoutes.signUpScreen,
-      AppRoutes.forgotPasswordScreen,
-      AppRoutes.forgotPasswordOtpScreen,
-      AppRoutes.resetPasswordScreen,
-    };
-
-    // 1. Unauthenticated users:
-    // If not logged in and visiting root or splash, show splash screen.
-    // Allow other public auth routes (/sign-in, /sign-up, etc.), otherwise redirect to splash.
-    if (!isLoggedIn) {
-      if (currentPath == AppRoutes.initial || currentPath == AppRoutes.splashScreen) {
-        return null;
-      }
-      if (publicAuthRoutes.contains(currentPath)) {
-        return null;
-      }
-      return AppRoutes.splashScreen;
-    }
-
-    // 2. Mandatory Password Setup Guard:
-    // If authenticated user does not have a password configured, force setPasswordScreen
-    if (!user.hasPassword) {
-      if (currentPath == AppRoutes.setPasswordScreen) {
-        return null;
-      }
-      return AppRoutes.setPasswordScreen;
-    }
-
-    // 3. Mandatory Onboarding Completion Guard:
-    // If authenticated user has not completed onboarding, force appropriate onboarding screen
-    if (!user.isOnboarded && !user.isUnderReview && !user.isVerified) {
-      const allowedOnboardingRoutes = {
-        AppRoutes.chooseRoleScreen,
-        AppRoutes.onboardingPersonalScreen,
-        AppRoutes.onboardingVehicleScreen,
-        AppRoutes.onboardingDocumentsScreen,
-        AppRoutes.onboardingFaceVerificationScreen,
-        AppRoutes.onboardingReviewScreen,
-        AppRoutes.welcomeSuccessScreen,
-        AppRoutes.setPasswordScreen,
-        AppRoutes.universalLocationSearchScreen,
-        AppRoutes.universalLocationPickerScreen,
-        AppRoutes.documentDetailsScreen,
-        AppRoutes.helpSupportScreen,
-      };
-
-      if (allowedOnboardingRoutes.contains(currentPath)) {
-        return null;
-      }
-
-      return AppRoutes.onboardingPersonalScreen;
-    }
-
-    // 4. Mandatory Verification Gate (Wall) for Drivers & Vendors:
-    // If user is not yet verified by Admin, lock to waitlistGateScreen
-    if (!user.isVerified) {
-      // If user has already submitted profile/documents and is under review (not rejected), redirect away from onboarding
-      if ((user.isOnboarded || user.isUnderReview) && !user.isRejected) {
-        if (currentPath == AppRoutes.onboardingPersonalScreen ||
-            currentPath == AppRoutes.onboardingVehicleScreen ||
-            currentPath == AppRoutes.onboardingDocumentsScreen ||
-            currentPath == AppRoutes.onboardingFaceVerificationScreen ||
-            currentPath == AppRoutes.onboardingReviewScreen ||
-            currentPath == AppRoutes.chooseRoleScreen) {
-          return AppRoutes.waitlistGateScreen;
-        }
-      }
-
-      const allowedUnverifiedRoutes = {
-        AppRoutes.waitlistGateScreen,
-        AppRoutes.welcomeSuccessScreen,
-        AppRoutes.chooseRoleScreen,
-        AppRoutes.onboardingPersonalScreen,
-        AppRoutes.onboardingDocumentsScreen,
-        AppRoutes.onboardingFaceVerificationScreen,
-        AppRoutes.onboardingVehicleScreen,
-        AppRoutes.onboardingReviewScreen,
-        AppRoutes.kycUploadScreen,
-        AppRoutes.kycVerificationScreen,
-        AppRoutes.notificationsFeedScreen,
-        AppRoutes.profileScreen,
-        AppRoutes.personalInfoScreen,
-        AppRoutes.editPersonalInfoScreen,
-        AppRoutes.helpSupportScreen,
-        AppRoutes.userSupportCenterScreen,
-        AppRoutes.accountStatusScreen,
-        AppRoutes.userAccountStatusScreen,
-        AppRoutes.universalLocationSearchScreen,
-        AppRoutes.universalLocationPickerScreen,
-        AppRoutes.documentDetailsScreen,
-      };
-
-      if (allowedUnverifiedRoutes.contains(currentPath)) {
-        return null;
-      }
-
-      return AppRoutes.waitlistGateScreen;
-    }
-
-    // 5. Authenticated, Onboarded & Verified users:
-    // If on root, splash, or an auth/onboarding screen, immediately route to their home dashboard
-    const authAndOnboardingScreens = {
-      AppRoutes.initial,
-      AppRoutes.splashScreen,
-      AppRoutes.signInScreen,
-      AppRoutes.signUpScreen,
-      AppRoutes.loginOtpScreen,
-      AppRoutes.setPasswordScreen,
-      AppRoutes.chooseRoleScreen,
-      AppRoutes.onboardingPersonalScreen,
-      AppRoutes.onboardingVehicleScreen,
-      AppRoutes.onboardingDocumentsScreen,
-      AppRoutes.onboardingFaceVerificationScreen,
-      AppRoutes.onboardingReviewScreen,
-      AppRoutes.waitlistGateScreen,
-    };
-    if (authAndOnboardingScreens.contains(currentPath)) {
-      return user.isDriver ? AppRoutes.homeScreen : AppRoutes.userHomeScreen;
-    }
-
-    // 6. Strict Role Separation:
-    // Drivers cannot access /user/* routes
-    if (user.isDriver && currentPath.startsWith('/user/')) {
-      return AppRoutes.homeScreen;
-    }
-
-    // Users / Corporate bookers cannot access driver dashboard & opportunities
-    const driverOnlyRoutes = {
-      AppRoutes.homeScreen,
-      AppRoutes.tripsScreen,
-      AppRoutes.opportunitiesScreen,
-      AppRoutes.opportunityDetailsScreen,
-      AppRoutes.opportunityOfferScreen,
-      AppRoutes.walletScreen,
-      AppRoutes.earningsTransactionsScreen,
-      AppRoutes.earningsWithdrawScreen,
-      AppRoutes.earningsWithdrawalDetailsScreen,
-    };
-    if (user.isUser && driverOnlyRoutes.contains(currentPath)) {
-      return AppRoutes.userHomeScreen;
-    }
-
-    return null;
+    return AppRoutes.resolveRedirect(
+      AuthService.instance.currentUser,
+      state.matchedLocation,
+    );
   },
   routes: [
     GoRoute(
@@ -1161,7 +1198,9 @@ final GoRouter appRouter = GoRouter(
       path: '/wallet',
       redirect: (context, state) =>
           AuthService.instance.currentUser?.isDriver == false
-              ? AppRoutes.userPaymentsScreen
+              ? (FeatureFlags.isVendorWalletEnabled
+                  ? AppRoutes.userPaymentsScreen
+                  : AppRoutes.userHomeScreen)
               : AppRoutes.walletScreen,
     ),
     GoRoute(
@@ -1175,7 +1214,9 @@ final GoRouter appRouter = GoRouter(
       path: '/coupons',
       redirect: (context, state) =>
           AuthService.instance.currentUser?.isDriver == false
-              ? AppRoutes.userPaymentsScreen
+              ? (FeatureFlags.isVendorWalletEnabled
+                  ? AppRoutes.userPaymentsScreen
+                  : AppRoutes.userHomeScreen)
               : AppRoutes.walletScreen,
     ),
     GoRoute(
