@@ -982,26 +982,6 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
                                                         }
                                                       },
                                                     ),
-                                                    if (_profile['vehiclePlate'] != null && _profile['vehiclePlate'].toString().trim().isNotEmpty)
-                                                      ActionChip(
-                                                        avatar: const Icon(Icons.directions_car_filled_outlined, size: 15),
-                                                        label: const Text('Verify RC', style: TextStyle(fontSize: 11)),
-                                                        onPressed: () async {
-                                                          try {
-                                                            final r = await DigioService.instance.verifyVehicleRc(
-                                                              registrationNumber: _profile['vehiclePlate'].toString(),
-                                                            );
-                                                            if (context.mounted) {
-                                                              AppToast.showInfo(
-                                                                r['complianceNotes']?.toString() ?? 'RC verified',
-                                                                context: context,
-                                                              );
-                                                            }
-                                                          } catch (e) {
-                                                            if (context.mounted) AppToast.showError(AppToast.cleanErrorMessage(e), context: context);
-                                                          }
-                                                        },
-                                                      ),
                                                   ],
                                                 );
                                               },

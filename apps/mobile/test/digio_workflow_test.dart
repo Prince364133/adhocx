@@ -59,26 +59,31 @@ void main() {
     expect(find.text('Verify GSTIN'), findsNothing);
   });
 
-  testWidgets('OnboardingDocumentsScreen updates Digio badges and DigiLocker Sync visibility dynamically',
+  testWidgets('OnboardingDocumentsScreen updates DigiLocker badges and Sync visibility dynamically',
       (WidgetTester tester) async {
     final onboarding = OnboardingProvider()..setRole('DRIVER');
     await tester.pumpWidget(_wrapWithProviders(const OnboardingDocumentsScreen(), onboarding));
 
     expect(find.text('Sync DigiLocker'), findsNothing);
+    expect(find.text('Verify PAN'), findsNothing);
+    expect(find.text('Verify DL'), findsNothing);
     DigioService.instance.activeDigilockerRequestId.value = 'KID_FLUTTER_1';
+    // Non-DigiLocker PAN/DL records must NOT auto-mark documents green
     DigioService.instance.latestByTypeNotifier.value = {
       'LIVENESS': {'verified': true},
       'ID_OCR': {'verified': true},
       'PAN': {'verified': true},
+      'DRIVING_LICENSE': {'verified': true},
     };
     await tester.pump();
 
     expect(find.text('Sync DigiLocker'), findsOneWidget);
-    expect(find.text('PAN Verified'), findsAtLeastNWidgets(2));
+    expect(find.text('PAN Verified'), findsNothing);
+    expect(find.text('DL Verified'), findsNothing);
     expect(find.textContaining('Selfie Liveness Verified'), findsOneWidget);
   });
 
-  testWidgets('OnboardingVehicleScreen & OnboardingReviewScreen surface Digio readiness pills',
+  testWidgets('OnboardingVehicleScreen & OnboardingReviewScreen only surface DigiLocker-verified readiness pills',
       (WidgetTester tester) async {
     final onboarding = OnboardingProvider()
       ..setRole('DRIVER')
@@ -91,13 +96,18 @@ void main() {
       );
 
     await tester.pumpWidget(_wrapWithProviders(const OnboardingVehicleScreen(), onboarding));
-    expect(find.text('Verify RC with Parivahan'), findsOneWidget);
+    expect(find.text('Verify RC with Parivahan'), findsNothing);
+    expect(find.text('Verify Insurance by Policy Number'), findsNothing);
 
     DigioService.instance.latestByTypeNotifier.value = {
       'LIVENESS': {'verified': true},
       'AADHAAR_MASK': {'verified': true},
-      'DRIVING_LICENSE': {'verified': true},
-      'VEHICLE_RC': {'verified': true},
+      'DIGILOCKER': {
+        'verified': true,
+        'summary': {
+          'verifiedDocs': {'aadhaar': true, 'dl': true, 'rc': true},
+        },
+      },
     };
 
     await tester.pumpWidget(_wrapWithProviders(const OnboardingReviewScreen(), onboarding));

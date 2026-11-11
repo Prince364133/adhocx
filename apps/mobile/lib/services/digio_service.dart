@@ -49,49 +49,30 @@ class DigioService {
             (summary[extractedKey] != null &&
                 summary[extractedKey].toString().trim().isNotEmpty));
 
-    final panOk =
-        (latestByType['PAN'] is Map && latestByType['PAN']['verified'] == true) ||
-            dlkrHas('pan', 'extractedPan');
-    final dlOk = (latestByType['DRIVING_LICENSE'] is Map &&
-            latestByType['DRIVING_LICENSE']['verified'] == true) ||
-        dlkrHas('dl', 'extractedDl');
-    final rcOk = (latestByType['VEHICLE_RC'] is Map &&
-            latestByType['VEHICLE_RC']['verified'] == true) ||
-        dlkrHas('rc', 'extractedRc');
-    final insOk = (latestByType['VEHICLE_INSURANCE'] is Map &&
-            latestByType['VEHICLE_INSURANCE']['verified'] == true) ||
-        dlkrHas('insurance', 'extractedInsurance');
-    final aadhaarOk = dlkrHas('aadhaar', 'maskedAadhaar');
-
+    // Only documents directly delivered through the user's authenticated
+    // DigiLocker session satisfy onboarding uploads automatically.
+    // Self-entered PAN/DL/RC/Policy checks must not bypass photo uploads.
     return {
       'digilocker': dlkrVerified,
-      'aadhaar': aadhaarOk,
-      'pan': panOk,
-      'dl': dlOk,
-      'rc': rcOk,
-      'insurance': insOk,
+      'aadhaar': dlkrHas('aadhaar', 'maskedAadhaar'),
+      'pan': dlkrHas('pan', 'extractedPan'),
+      'dl': dlkrHas('dl', 'extractedDl'),
+      'rc': dlkrHas('rc', 'extractedRc'),
+      'insurance': false,
     };
   }
 
-  /// Extracts verified government ID numbers (`panNumber`, `dlNumber`, `rcNumber`,
-  /// vehicle attributes, and insurance metadata) from [latestByType].
+  /// Extracts verified government ID numbers (`panNumber`, `dlNumber`, `rcNumber`)
+  /// solely from a verified `DIGILOCKER` record in [latestByType].
   static Map<String, String> extractedIdentifiersFromMap(
       Map<String, dynamic> latestByType) {
     final out = <String, String>{};
-    final pan = latestByType['PAN'];
-    final dl = latestByType['DRIVING_LICENSE'];
-    final rc = latestByType['VEHICLE_RC'];
-    final ins = latestByType['VEHICLE_INSURANCE'];
     final dlkr = latestByType['DIGILOCKER'];
-    final dlkrSum = (dlkr is Map && dlkr['summary'] is Map)
-        ? dlkr['summary'] as Map
-        : const <String, dynamic>{};
-    final rcSum = (rc is Map && rc['summary'] is Map)
-        ? rc['summary'] as Map
-        : const <String, dynamic>{};
-    final insSum = (ins is Map && ins['summary'] is Map)
-        ? ins['summary'] as Map
-        : const <String, dynamic>{};
+    final dlkrVerified = dlkr is Map && dlkr['verified'] == true;
+    if (!dlkrVerified) return out;
+
+    final dlkrSum =
+        dlkr['summary'] is Map ? dlkr['summary'] as Map : const <String, dynamic>{};
 
     String? pick(dynamic v, {bool upper = true}) {
       final s = v?.toString().trim() ?? '';
@@ -99,42 +80,20 @@ class DigioService {
       return upper ? s.toUpperCase() : s;
     }
 
-    final panNum = pick(pan is Map ? pan['identifier'] : null) ??
-        pick(dlkrSum['extractedPan']);
-    final dlNum = pick(dl is Map ? dl['identifier'] : null) ??
-        pick(dlkrSum['extractedDl']);
-    final rcNum = pick(rc is Map ? rc['identifier'] : null) ??
-        pick(dlkrSum['extractedRc']);
+    final panNum = pick(dlkrSum['extractedPan']);
+    final dlNum = pick(dlkrSum['extractedDl']);
+    final rcNum = pick(dlkrSum['extractedRc']);
 
     if (panNum != null) out['panNumber'] = panNum;
     if (dlNum != null) out['dlNumber'] = dlNum;
     if (rcNum != null) out['rcNumber'] = rcNum;
 
-    final model = pick(rcSum['makerModel'], upper: false);
-    final color = pick(rcSum['color'], upper: false);
-    String? year = pick(rcSum['modelYear'], upper: false);
-    if (year == null) {
-      final rawDate = rcSum['manufacturingDate'] ?? rcSum['registrationDate'];
-      final match = rawDate != null
-          ? RegExp(r'\b(19\d{2}|20\d{2})\b').firstMatch(rawDate.toString())
-          : null;
-      year = match?.group(1);
-    }
+    final model = pick(dlkrSum['makerModel'], upper: false);
+    final color = pick(dlkrSum['color'], upper: false);
+    final year = pick(dlkrSum['modelYear'], upper: false);
     if (model != null) out['vehicleModel'] = model;
     if (color != null) out['color'] = color;
     if (year != null) out['modelYear'] = year;
-
-    final insPolicy = pick(ins is Map ? ins['identifier'] : null) ??
-        pick(insSum['insurancePolicyNumber']) ??
-        pick(rcSum['insurancePolicyNumber']);
-    final insCompany = pick(insSum['insuranceCompany'], upper: false) ??
-        pick(rcSum['insuranceCompany'], upper: false);
-    final insUpto = pick(insSum['insuranceUpto'], upper: false) ??
-        pick(rcSum['insuranceUpto'], upper: false);
-
-    if (insPolicy != null) out['insurancePolicyNumber'] = insPolicy;
-    if (insCompany != null) out['insuranceCompany'] = insCompany;
-    if (insUpto != null) out['insuranceUpto'] = insUpto;
     return out;
   }
 

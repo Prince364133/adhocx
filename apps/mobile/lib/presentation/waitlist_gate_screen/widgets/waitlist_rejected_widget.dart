@@ -8,12 +8,16 @@ import '../../../widgets/common/app_primary_button.dart';
 class WaitlistRejectedWidget extends StatelessWidget {
   final String reason;
   final VoidCallback onReApply;
+  final VoidCallback? onSignOut;
+  final bool isSigningOut;
   final bool isBusiness;
 
   const WaitlistRejectedWidget({
     super.key,
     required this.reason,
     required this.onReApply,
+    this.onSignOut,
+    this.isSigningOut = false,
     this.isBusiness = false,
   });
 
@@ -89,8 +93,38 @@ class WaitlistRejectedWidget extends StatelessWidget {
           AppPrimaryButton(
             text: isBusiness ? 'Update Corporate Details & Re-Submit' : 'Re-Upload Documents & Re-Apply',
             icon: isBusiness ? Icons.edit_note_rounded : Icons.upload_file_rounded,
-            onPressed: onReApply,
+            onPressed: isSigningOut ? null : onReApply,
           ),
+          if (onSignOut != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: isSigningOut ? null : onSignOut,
+                icon: isSigningOut
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.redAccent,
+                        ),
+                      )
+                    : const Icon(Icons.logout_rounded, size: 18, color: Colors.redAccent),
+                label: Text(
+                  isSigningOut ? 'Signing Out...' : 'Sign Out',
+                  style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: Colors.redAccent.withValues(alpha: 0.4)),
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

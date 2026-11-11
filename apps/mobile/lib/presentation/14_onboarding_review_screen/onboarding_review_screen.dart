@@ -451,10 +451,9 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
                         final chips = <(String, String, bool)>[
                           ('LIVENESS', 'Selfie Liveness', latest['LIVENESS']?['verified'] == true),
                           ('AADHAAR_MASK', 'Aadhaar', latest['AADHAAR_MASK']?['verified'] == true || vDocs['aadhaar'] == true),
-                          ('PAN', 'PAN', latest['PAN']?['verified'] == true || vDocs['pan'] == true),
-                          ('DRIVING_LICENSE', 'DL', latest['DRIVING_LICENSE']?['verified'] == true || vDocs['dl'] == true),
-                          ('VEHICLE_RC', 'Vehicle RC', latest['VEHICLE_RC']?['verified'] == true || vDocs['rc'] == true),
-                          ('VEHICLE_INSURANCE', 'Insurance', latest['VEHICLE_INSURANCE']?['verified'] == true || vDocs['insurance'] == true),
+                          ('PAN', 'PAN', vDocs['pan'] == true),
+                          ('DRIVING_LICENSE', 'DL', vDocs['dl'] == true),
+                          ('VEHICLE_RC', 'Vehicle RC', vDocs['rc'] == true),
                           ('FACE_MATCH', 'Face Match', latest['FACE_MATCH']?['verified'] == true),
                           ('DIGILOCKER', 'DigiLocker', vDocs['digilocker'] == true),
                         ];

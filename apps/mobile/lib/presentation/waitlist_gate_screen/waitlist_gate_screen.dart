@@ -34,6 +34,7 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
   String? _rejectionReason;
   Timer? _statusPoller;
   bool _isChecking = false;
+  bool _isSigningOut = false;
 
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
@@ -104,9 +105,10 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
   }
 
   Future<void> _pollStatusOnce() async {
+    if (_isSigningOut || !mounted) return;
     try {
       final user = await AuthService.instance.fetchCurrentUser(forceRefresh: true);
-      if (!mounted || user == null) return;
+      if (_isSigningOut || !mounted || user == null) return;
 
       context.read<AuthProvider>().setUser(user);
 
@@ -261,6 +263,8 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
           _ApprovalState.rejected => WaitlistRejectedWidget(
               reason: _rejectionReason ?? 'Your application requires updates.',
               onReApply: _reApply,
+              onSignOut: _handleSignOut,
+              isSigningOut: _isSigningOut,
               isBusiness: isBusiness,
             ),
           _ApprovalState.waiting => _buildWaitingState(isDark),
@@ -542,7 +546,7 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
         Expanded(
           flex: 3,
           child: ElevatedButton.icon(
-            onPressed: _isChecking ? null : _manualCheck,
+            onPressed: (_isChecking || _isSigningOut) ? null : _manualCheck,
             icon: _isChecking
                 ? const SizedBox(
                     width: 16,
@@ -572,23 +576,21 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
         Expanded(
           flex: 2,
           child: OutlinedButton.icon(
-            onPressed: () async {
-              final authProvider = context.read<AuthProvider>();
-              final onboardingProvider = context.read<OnboardingProvider>();
-              final router = GoRouter.of(context);
-              try {
-                AppLogger.info('User sign out from review gate', tag: 'AUTH');
-                await authProvider.logout();
-                onboardingProvider.reset();
-              } catch (e) {
-                AppLogger.error('Error during sign out: $e', tag: 'AUTH', error: e);
-              }
-              if (mounted) {
-                router.go(AppRoutes.signInScreen);
-              }
-            },
-            icon: const Icon(Icons.logout_rounded, size: 18, color: Colors.redAccent),
-            label: const Text('Sign Out', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600)),
+            onPressed: _isSigningOut ? null : _handleSignOut,
+            icon: _isSigningOut
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.redAccent,
+                    ),
+                  )
+                : const Icon(Icons.logout_rounded, size: 18, color: Colors.redAccent),
+            label: Text(
+              _isSigningOut ? 'Signing Out...' : 'Sign Out',
+              style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600),
+            ),
             style: OutlinedButton.styleFrom(
               side: BorderSide(color: Colors.redAccent.withValues(alpha: 0.4)),
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
@@ -600,6 +602,29 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
         ),
       ],
     );
+  }
+
+  Future<void> _handleSignOut() async {
+    if (_isSigningOut) return;
+    _statusPoller?.cancel();
+    _statusPoller = null;
+    if (mounted) {
+      setState(() => _isSigningOut = true);
+    }
+
+    final authProvider = context.read<AuthProvider>();
+    final onboardingProvider = context.read<OnboardingProvider>();
+    final router = GoRouter.maybeOf(context);
+
+    try {
+      AppLogger.info('User sign out from review gate', tag: 'AUTH');
+      await authProvider.logout();
+      onboardingProvider.reset();
+    } catch (e) {
+      AppLogger.error('Error during sign out: $e', tag: 'AUTH', error: e);
+    }
+
+    router?.go(AppRoutes.signInScreen);
   }
 
   Widget _buildApprovedState(bool isDark) {

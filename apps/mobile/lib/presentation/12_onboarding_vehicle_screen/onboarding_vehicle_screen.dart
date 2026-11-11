@@ -38,9 +38,7 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
 
   String _category = 'SEDAN';
   bool _isSubmitting = false;
-  bool _verifyingRc = false;
   String? _inlineErrorMessage;
-  String? _rcErrorMessage;
   final Map<String, bool> _uploadingState = {};
   final ImagePicker _picker = ImagePicker();
 
@@ -96,10 +94,9 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
   }
 
   void _clearErrorOnType() {
-    if ((_inlineErrorMessage != null || _rcErrorMessage != null) && mounted) {
+    if (_inlineErrorMessage != null && mounted) {
       setState(() {
         _inlineErrorMessage = null;
-        _rcErrorMessage = null;
       });
     }
   }
@@ -528,290 +525,6 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
     }
   }
 
-  Future<void> _verifyRcWithParivahan() async {
-    final onboarding = context.read<OnboardingProvider>();
-    final plate = _plateController.text.trim().toUpperCase().replaceAll(RegExp(r'\s+'), '');
-    if (plate.length < 6) {
-      const msg = 'Enter a valid registration plate number first';
-      setState(() => _rcErrorMessage = msg);
-      AppToast.showError(msg, context: context);
-      return;
-    }
-
-    setState(() {
-      _verifyingRc = true;
-      _rcErrorMessage = null;
-      _inlineErrorMessage = null;
-    });
-
-    try {
-      AppToast.showInfo('Verifying RC via Parivahan...', context: context);
-      final res = await DigioService.instance.verifyVehicleRc(
-        registrationNumber: plate,
-      );
-      if (!mounted) return;
-
-      onboarding.syncFromDigioLatest(
-        DigioService.instance.latestByTypeNotifier.value,
-      );
-
-      final summary = res['summary'];
-      if (summary is Map) {
-        final makerModelRaw = summary['makerModel']?.toString().trim() ?? '';
-        final make = summary['make']?.toString().trim() ?? '';
-        final model = summary['model']?.toString().trim() ?? '';
-        final combinedModel = makerModelRaw.isNotEmpty
-            ? makerModelRaw
-            : [make, model].where((s) => s.isNotEmpty).join(' ');
-        if (combinedModel.isNotEmpty && _modelNameController.text.trim().isEmpty) {
-          _modelNameController.text = combinedModel;
-        }
-
-        final rcYear = summary['modelYear']?.toString().trim() ?? '';
-        String resolvedYear = RegExp(r'^(19|20)\d{2}$').hasMatch(rcYear) ? rcYear : '';
-        if (resolvedYear.isEmpty) {
-          final dateCandidate = (summary['manufacturingDate'] ?? summary['registrationDate'])?.toString() ?? '';
-          final match = RegExp(r'(20\d{2}|19\d{2})').firstMatch(dateCandidate);
-          if (match != null) resolvedYear = match.group(1)!;
-        }
-        if (resolvedYear.isNotEmpty && _yearController.text.trim().isEmpty) {
-          _yearController.text = resolvedYear;
-        }
-
-        final rcColor = summary['color']?.toString().trim() ?? '';
-        if (rcColor.isNotEmpty && _colorController.text.trim().isEmpty) {
-          _colorController.text = rcColor;
-        }
-
-        final policyNo = summary['insurancePolicyNumber']?.toString().trim();
-        final insurer = summary['insuranceCompany']?.toString().trim();
-        final insUpto = summary['insuranceUpto']?.toString().trim();
-        if ((policyNo != null && policyNo.isNotEmpty) ||
-            (insurer != null && insurer.isNotEmpty) ||
-            (insUpto != null && insUpto.isNotEmpty)) {
-          onboarding.setInsuranceDetails(
-            policyNumber: policyNo,
-            insurerName: insurer,
-            expiryDate: insUpto,
-          );
-        }
-
-        onboarding.setVehicleDetails(
-          vehicleType: _category,
-          carModel: _modelNameController.text.trim().isNotEmpty
-              ? _modelNameController.text.trim()
-              : _getCategoryLabel(_category),
-          color: _colorController.text.trim(),
-          registrationNumber: plate,
-          modelYear: _yearController.text.trim(),
-        );
-      }
-
-      if (mounted) {
-        if (res['verified'] == true && res['complianceOk'] == true) {
-          AppToast.showSuccess(
-            'RC Verified (${summary is Map && summary['makerModel'] != null ? summary['makerModel'] : plate})',
-            context: context,
-          );
-        } else {
-          AppToast.showInfo(
-            res['complianceNotes']?.toString() ?? 'RC status checked',
-            context: context,
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        final msg = AppToast.cleanErrorMessage(e);
-        setState(() => _rcErrorMessage = msg);
-        AppToast.showError(msg, context: context);
-      }
-    } finally {
-      if (mounted) setState(() => _verifyingRc = false);
-    }
-  }
-
-  Future<void> _showInsuranceVerifySheet(
-    BuildContext parentContext,
-    OnboardingProvider onboarding,
-  ) async {
-    final isDark = Theme.of(parentContext).brightness == Brightness.dark;
-    final policyCtrl = TextEditingController(text: onboarding.insurancePolicyNumber);
-    final insurerCtrl = TextEditingController(text: onboarding.insuranceCompany);
-    bool isVerifying = false;
-    String? sheetError;
-
-    await showModalBottomSheet<void>(
-      context: parentContext,
-      isScrollControlled: true,
-      useRootNavigator: true,
-      backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
-      ),
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) => Padding(
-          padding: EdgeInsets.only(
-            left: AppSpacing.xl,
-            right: AppSpacing.xl,
-            top: AppSpacing.md,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + AppSpacing.xl,
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: AppSpacing.md),
-                    decoration: BoxDecoration(
-                      color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                      borderRadius: BorderRadius.circular(AppRadius.pill),
-                    ),
-                  ),
-                ),
-                Text(
-                  'Verify Commercial Insurance',
-                  style: AppTypography.h3(
-                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Enter your Commercial Vehicle Insurance Policy / Certificate Number to verify against Parivahan records.',
-                  style: AppTypography.caption(
-                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                TextField(
-                  controller: policyCtrl,
-                  textCapitalization: TextCapitalization.characters,
-                  decoration: InputDecoration(
-                    labelText: 'Insurance Policy / Certificate Number *',
-                    hintText: 'e.g. OG-24-1102-1803-00001234',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                TextField(
-                  controller: insurerCtrl,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: InputDecoration(
-                    labelText: 'Insurance Company (Optional)',
-                    hintText: 'e.g. ICICI Lombard / HDFC ERGO / New India',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                  ),
-                ),
-                if (sheetError != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    sheetError!,
-                    style: const TextStyle(
-                      color: AppColors.error,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: AppSpacing.lg),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                  ),
-                  onPressed: isVerifying
-                      ? null
-                      : () async {
-                          final policyNo = policyCtrl.text.trim().toUpperCase();
-                          if (policyNo.length < 4) {
-                            setModalState(() => sheetError = 'Enter a valid policy / certificate number');
-                            return;
-                          }
-                          setModalState(() {
-                            isVerifying = true;
-                            sheetError = null;
-                          });
-                          try {
-                            final plate = _plateController.text.trim().toUpperCase();
-                            final res = await DigioService.instance.verifyVehicleInsurance(
-                              policyNumber: policyNo,
-                              registrationNumber: plate.isNotEmpty ? plate : null,
-                              insurerName: insurerCtrl.text.trim().isNotEmpty
-                                  ? insurerCtrl.text.trim()
-                                  : null,
-                            );
-                            onboarding.syncFromDigioLatest(
-                              DigioService.instance.latestByTypeNotifier.value,
-                            );
-                            final sum = res['summary'] is Map ? res['summary'] as Map : const {};
-                            onboarding.setInsuranceDetails(
-                              policyNumber: sum['policyNumber']?.toString() ?? policyNo,
-                              insurerName: sum['insurerName']?.toString() ?? insurerCtrl.text.trim(),
-                              expiryDate: sum['insuranceUpto']?.toString(),
-                            );
-                            if (res['verified'] == true) {
-                              if (ctx.mounted) Navigator.pop(ctx);
-                              if (mounted) {
-                                AppToast.showSuccess(
-                                  'Commercial Insurance verified!',
-                                  context: context,
-                                );
-                                setState(() {});
-                              }
-                            } else {
-                              setModalState(() {
-                                isVerifying = false;
-                                sheetError = res['complianceNotes']?.toString() ??
-                                    'Could not verify policy number automatically. Please upload your insurance PDF/photo instead.';
-                              });
-                            }
-                          } catch (e) {
-                            setModalState(() {
-                              isVerifying = false;
-                              sheetError = AppToast.cleanErrorMessage(e);
-                            });
-                          }
-                        },
-                  icon: isVerifying
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Icon(Icons.verified_user_outlined, size: 18),
-                  label: Text(isVerifying ? 'Verifying Policy...' : 'Verify Policy Number'),
-                ),
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    _showDocumentSourcePicker('INSURANCE', 'Insurance Certificate');
-                  },
-                  child: const Text('Upload Insurance PDF / Photo Instead'),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-    policyCtrl.dispose();
-    insurerCtrl.dispose();
-  }
-
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) {
       const msg = 'Please fill in all mandatory vehicle details correctly.';
@@ -827,8 +540,7 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
     );
     final bool rcVerifiedDigitally =
         onboarding.isRcVerifiedDigitally || vDocs['rc'] == true;
-    final bool insSatisfied =
-        onboarding.isInsuranceSatisfied || vDocs['insurance'] == true;
+    final bool insSatisfied = onboarding.isInsuranceSatisfied;
 
     if (onboarding.rcFrontUrl == null &&
         onboarding.rcBookUrl == null &&
@@ -847,7 +559,7 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
     }
 
     if (!insSatisfied) {
-      const msg = 'Please upload your Commercial Vehicle Insurance Certificate or verify your Policy Number.';
+      const msg = 'Please upload your Commercial Vehicle Insurance Certificate.';
       setState(() => _inlineErrorMessage = msg);
       AppToast.showError(msg, context: context);
       return;
@@ -1238,165 +950,9 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                               return null;
                             },
                           ),
-                          const SizedBox(height: 10),
-                          ValueListenableBuilder<Map<String, dynamic>>(
-                            valueListenable: DigioService.instance.latestByTypeNotifier,
-                            builder: (context, latest, _) {
-                              final rc = latest['VEHICLE_RC'];
-                              final rcVerified = rc?['verified'] == true;
-                              final rcComplianceOk = rc?['complianceOk'] == true;
-                              final rcSummary = rc?['summary'] is Map ? rc!['summary'] as Map : null;
-                              final greenColor = isDark
-                                  ? AppColors.accentGreenLight
-                                  : AppColors.accentGreenDark;
-                              final bool rcFullyOk = rcVerified && rcComplianceOk;
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  SizedBox(
-                                    width: double.infinity,
-                                    height: 48,
-                                    child: ElevatedButton.icon(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: rcFullyOk
-                                            ? greenColor
-                                            : AppColors.primary,
-                                        disabledBackgroundColor:
-                                            greenColor.withValues(alpha: 0.16),
-                                        disabledForegroundColor: greenColor,
-                                        foregroundColor: Colors.white,
-                                        elevation: rcFullyOk ? 0 : 1,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(AppRadius.md),
-                                          side: rcFullyOk
-                                              ? BorderSide(
-                                                  color: greenColor.withValues(
-                                                      alpha: 0.45))
-                                              : BorderSide.none,
-                                        ),
-                                      ),
-                                      onPressed: (_verifyingRc || rcFullyOk)
-                                          ? null
-                                          : _verifyRcWithParivahan,
-                                      icon: _verifyingRc
-                                          ? const SizedBox(
-                                              width: 18,
-                                              height: 18,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                color: Colors.white,
-                                              ),
-                                            )
-                                          : Icon(
-                                              rcVerified
-                                                  ? Icons.verified_rounded
-                                                  : Icons.directions_car_filled_outlined,
-                                              size: 18,
-                                            ),
-                                      label: Text(
-                                        _verifyingRc
-                                            ? 'Verifying RC with Parivahan...'
-                                            : (rcVerified
-                                                ? (rcComplianceOk
-                                                    ? 'RC Verified (Parivahan)'
-                                                    : 'Re-check RC (Parivahan)')
-                                                : 'Verify RC with Parivahan'),
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  if (_rcErrorMessage != null) ...[
-                                    const SizedBox(height: 8),
-                                    Container(
-                                      padding: const EdgeInsets.all(10),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.error.withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(AppRadius.sm),
-                                        border: Border.all(
-                                          color: AppColors.error.withValues(alpha: 0.35),
-                                        ),
-                                      ),
-                                      child: Row(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          const Icon(
-                                            Icons.info_outline_rounded,
-                                            size: 16,
-                                            color: AppColors.error,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Text(
-                                              _rcErrorMessage!,
-                                              style: AppTypography.caption(
-                                                color: isDark
-                                                    ? AppColors.errorContainer
-                                                    : AppColors.error,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                  if (rc != null) ...[
-                                    const SizedBox(height: 8),
-                                    Container(
-                                      padding: const EdgeInsets.all(10),
-                                      decoration: BoxDecoration(
-                                        color: (rcFullyOk
-                                                ? AppColors.accentGreenDark
-                                                : AppColors.warning)
-                                            .withValues(alpha: 0.08),
-                                        borderRadius: BorderRadius.circular(AppRadius.sm),
-                                        border: Border.all(
-                                          color: (rcFullyOk
-                                                  ? AppColors.accentGreenDark
-                                                  : AppColors.warning)
-                                              .withValues(alpha: 0.3),
-                                        ),
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            '${rcSummary?['makerModel'] ?? rc['identifier'] ?? _plateController.text.trim().toUpperCase()} • ${rcSummary?['rcStatus'] ?? rc['status']}',
-                                            style: AppTypography.caption(
-                                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          if (rc['verifiedName'] != null)
-                                            Text(
-                                              'Owner: ${rc['verifiedName']} | Fitness: ${rcSummary?['fitUpto'] ?? 'N/A'} | Insurance: ${rcSummary?['insuranceUpto'] ?? 'N/A'}',
-                                              style: AppTypography.micro(
-                                                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                                              ),
-                                            ),
-                                          if (rc['complianceNotes'] != null)
-                                            Text(
-                                              rc['complianceNotes'].toString(),
-                                              style: AppTypography.micro(
-                                                color: rcComplianceOk ? AppColors.accentGreenDark : AppColors.warning,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              );
-                            },
-                          ),
                           const SizedBox(height: AppSpacing.lg),
 
-                          // ── Model Name (auto-filled from RC if available) ──
+                          // ── Model Name ───────────────────────────────────
                           _buildTextField(
                             label: 'Vehicle Model Name *',
                             controller: _modelNameController,
@@ -1466,31 +1022,8 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                             valueListenable: DigioService.instance.latestByTypeNotifier,
                             builder: (context, latest, _) {
                               final vDocs = DigioService.verifiedDocsFromMap(latest);
-                              final dlkrSummary = (latest['DIGILOCKER'] is Map &&
-                                      latest['DIGILOCKER']['summary'] is Map)
-                                  ? latest['DIGILOCKER']['summary'] as Map
-                                  : const <String, dynamic>{};
-                              final dlkrDocs = dlkrSummary['verifiedDocs'] is Map
-                                  ? dlkrSummary['verifiedDocs'] as Map
-                                  : const <String, dynamic>{};
-                              final bool rcVerifiedViaDlkr = vDocs['digilocker'] == true &&
-                                  (dlkrDocs['rc'] == true ||
-                                      dlkrSummary['extractedRc'] != null);
                               final bool rcDigitallyVerified =
                                   vDocs['rc'] == true || onboarding.isRcVerifiedDigitally;
-                              final badge =
-                                  rcVerifiedViaDlkr ? 'DigiLocker' : 'Parivahan';
-                              final sub = rcVerifiedViaDlkr
-                                  ? 'Verified via DigiLocker — already uploaded'
-                                  : 'Verified via Govt RC check — no upload needed';
-
-                              final bool insDigitallyVerified =
-                                  vDocs['insurance'] == true ||
-                                      onboarding.isInsuranceVerifiedDigitally;
-                              final insPolicy = onboarding.insurancePolicyNumber;
-                              final insSub = insPolicy.isNotEmpty
-                                  ? 'Policy $insPolicy verified via Parivahan'
-                                  : 'Verified via Parivahan insurance check';
 
                               return Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1501,8 +1034,9 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                                     isUploaded: onboarding.rcFrontUrl != null ||
                                         onboarding.rcBookUrl != null,
                                     isVerifiedDigitally: rcDigitallyVerified,
-                                    verifiedBadgeLabel: badge,
-                                    verifiedSubtitle: sub,
+                                    verifiedBadgeLabel: 'DigiLocker',
+                                    verifiedSubtitle:
+                                        'Verified via DigiLocker — already uploaded',
                                     isUploading: _uploadingState['RC_FRONT'] ?? false,
                                     onTap: () => _showDocumentSourcePicker(
                                         'RC_FRONT', 'Vehicle RC Photo (Front)'),
@@ -1513,8 +1047,9 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                                     isDark: isDark,
                                     isUploaded: onboarding.rcBackUrl != null,
                                     isVerifiedDigitally: rcDigitallyVerified,
-                                    verifiedBadgeLabel: badge,
-                                    verifiedSubtitle: sub,
+                                    verifiedBadgeLabel: 'DigiLocker',
+                                    verifiedSubtitle:
+                                        'Verified via DigiLocker — already uploaded',
                                     isUploading: _uploadingState['RC_BACK'] ?? false,
                                     onTap: () => _showDocumentSourcePicker(
                                         'RC_BACK', 'Vehicle RC Photo (Back)'),
@@ -1524,53 +1059,10 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                                     title: 'Commercial Insurance Certificate *',
                                     isDark: isDark,
                                     isUploaded: onboarding.insuranceUrl != null,
-                                    isVerifiedDigitally: insDigitallyVerified,
-                                    verifiedBadgeLabel: 'Insured',
-                                    verifiedSubtitle: insSub,
                                     isUploading: _uploadingState['INSURANCE'] ?? false,
                                     onTap: () => _showDocumentSourcePicker(
                                         'INSURANCE', 'Insurance Certificate'),
                                   ),
-                                  if (!insDigitallyVerified) ...[
-                                    const SizedBox(height: 8),
-                                    SizedBox(
-                                      width: double.infinity,
-                                      child: OutlinedButton.icon(
-                                        style: OutlinedButton.styleFrom(
-                                          padding: const EdgeInsets.symmetric(
-                                              vertical: 11, horizontal: 14),
-                                          side: BorderSide(
-                                            color: isDark
-                                                ? AppColors.borderDark
-                                                : AppColors.primary.withValues(alpha: 0.4),
-                                          ),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(AppRadius.md),
-                                          ),
-                                        ),
-                                        onPressed: () =>
-                                            _showInsuranceVerifySheet(context, onboarding),
-                                        icon: Icon(
-                                          Icons.verified_user_outlined,
-                                          size: 16,
-                                          color: isDark
-                                              ? AppColors.primaryLight
-                                              : AppColors.primary,
-                                        ),
-                                        label: Text(
-                                          'Verify Insurance by Policy Number',
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w600,
-                                            color: isDark
-                                                ? AppColors.primaryLight
-                                                : AppColors.primary,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
                                 ],
                               );
                             },

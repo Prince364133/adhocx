@@ -274,14 +274,16 @@ class FcmService {
     if (_fcmToken == null) return;
     try {
       final uri = Uri.parse('$apiBaseUrl/notifications/device-token');
-      await http.delete(
-        uri,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $authToken',
-        },
-        body: jsonEncode({'token': _fcmToken}),
-      );
+      await http
+          .delete(
+            uri,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $authToken',
+            },
+            body: jsonEncode({'token': _fcmToken}),
+          )
+          .timeout(const Duration(seconds: 3));
       debugPrint('📱 [FCM DEACTIVATED] Token unregistered from backend.');
     } catch (e) {
       debugPrint('⚠️ [FCM UNREGISTER NOTICE] $e');

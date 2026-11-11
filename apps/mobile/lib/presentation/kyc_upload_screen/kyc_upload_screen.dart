@@ -174,10 +174,6 @@ class _KycUploadScreenState extends State<KycUploadScreen> {
       if (aadhaarPath != null && aadhaarPath.isNotEmpty) {
         DigioService.instance.maskStoredAadhaar(documentUrl: aadhaarPath, side: 'FRONT').catchError((_) => <String, dynamic>{});
       }
-      final plate = (_formData['rc_number'] as String? ?? _formData['vehicle_number'] as String?)?.trim();
-      if (plate != null && plate.length >= 6) {
-        DigioService.instance.verifyVehicleRc(registrationNumber: plate).catchError((_) => <String, dynamic>{});
-      }
 
       if (!mounted) return;
       setState(() => _isSubmitting = false);

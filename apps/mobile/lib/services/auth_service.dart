@@ -251,6 +251,7 @@ class AuthService {
   final ApiClient _api = ApiClient.instance;
   static const String _userCacheKey = 'adhocx_cached_user';
   UserModel? _currentUser;
+  int _sessionEpoch = 0;
   final ValueNotifier<UserModel?> authStateListenable = ValueNotifier<UserModel?>(null);
 
   UserModel? get currentUser => _currentUser;
@@ -691,8 +692,10 @@ class AuthService {
   }
 
   Future<UserModel?> _executeFetchCurrentUser() async {
+    final epoch = _sessionEpoch;
     try {
       final response = await _api.get('/auth/me');
+      if (epoch != _sessionEpoch) return null;
       if (response is Map<String, dynamic>) {
         final data = response['data'] is Map<String, dynamic> ? response['data'] as Map<String, dynamic> : response;
         final user = UserModel.fromJson(data);
@@ -708,6 +711,7 @@ class AuthService {
         if (refreshed) {
           try {
             final retryResponse = await _api.get('/auth/me');
+            if (epoch != _sessionEpoch) return null;
             if (retryResponse is Map<String, dynamic>) {
               final data = retryResponse['data'] is Map<String, dynamic> ? retryResponse['data'] as Map<String, dynamic> : retryResponse;
               final user = UserModel.fromJson(data);
@@ -717,6 +721,7 @@ class AuthService {
             }
           } catch (_) {}
         }
+        if (epoch != _sessionEpoch) return null;
         // Only if refresh token is truly expired/rejected, clear user session
         await _api.clearToken();
         await _persistCurrentUser(null);
@@ -836,7 +841,14 @@ class AuthService {
 
   Future<void> logout() async {
     AppLogger.info('User sign out started for: ${_currentUser?.id ?? "session"}', tag: 'AUTH');
-    await _teardownDriverSessionOnSignOut(notifyBackendOffline: true);
+    _sessionEpoch++;
+    _inFlightUserFetch = null;
+    try {
+      await _teardownDriverSessionOnSignOut(notifyBackendOffline: true)
+          .timeout(const Duration(seconds: 4));
+    } catch (e) {
+      AppLogger.warn('Driver teardown timed out or failed on sign out: $e', tag: 'AUTH');
+    }
 
     try {
       final token = await _api.getToken();
@@ -851,7 +863,7 @@ class AuthService {
     }
 
     try {
-      await _api.post('/auth/logout');
+      await _api.post('/auth/logout').timeout(const Duration(seconds: 3));
       AppLogger.info('Backend session invalidated via /auth/logout', tag: 'AUTH');
     } catch (e) {
       AppLogger.warn('Backend logout request note: $e', tag: 'AUTH');

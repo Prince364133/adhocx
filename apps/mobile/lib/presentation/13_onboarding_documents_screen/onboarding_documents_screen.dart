@@ -424,38 +424,6 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen>
     }
   }
 
-  Future<void> _showPanVerifySheet(
-    BuildContext context,
-    OnboardingProvider onboarding,
-  ) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => _PanVerifyBottomSheet(
-        onboarding: onboarding,
-        parentContext: context,
-      ),
-    );
-  }
-
-  Future<void> _showDlVerifySheet(
-    BuildContext context,
-    OnboardingProvider onboarding,
-  ) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => _DlVerifyBottomSheet(
-        onboarding: onboarding,
-        parentContext: context,
-      ),
-    );
-  }
-
   Future<void> _syncDigilocker(
     String activeKid, {
     bool silentIfPending = false,
@@ -538,8 +506,6 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen>
       valueListenable: DigioService.instance.latestByTypeNotifier,
       builder: (context, latest, _) {
         final vDocs = DigioService.verifiedDocsFromMap(latest);
-        final panOk = vDocs['pan'] == true || onboarding.isPanVerifiedDigitally;
-        final dlOk = vDocs['dl'] == true || onboarding.isDlVerifiedDigitally;
         final dlkrOk = vDocs['digilocker'] == true;
         final livenessOk = latest['LIVENESS']?['verified'] == true;
         final ocrOk = latest['ID_OCR']?['verified'] == true;
@@ -562,7 +528,7 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen>
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'DigiLocker & Instant KYC',
+                      'DigiLocker Verification',
                       style: AppTypography.body(
                         color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         fontWeight: FontWeight.bold,
@@ -621,70 +587,6 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen>
                           ),
                         ),
                       ],
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 8),
-                                foregroundColor: panOk
-                                    ? greenColor
-                                    : (isDark ? AppColors.textPrimaryDark : AppColors.primary),
-                                backgroundColor: panOk ? greenColor.withValues(alpha: 0.10) : null,
-                                side: BorderSide(
-                                  color: panOk
-                                      ? greenColor.withValues(alpha: 0.45)
-                                      : (isDark ? AppColors.borderDark : AppColors.primary.withValues(alpha: 0.35)),
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(AppRadius.md),
-                                ),
-                              ),
-                              icon: Icon(
-                                panOk ? Icons.check_circle : Icons.badge_outlined,
-                                size: 16,
-                                color: panOk ? greenColor : null,
-                              ),
-                              label: Text(
-                                panOk ? 'PAN Verified' : 'Verify PAN',
-                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                              ),
-                              onPressed: panOk ? null : () => _showPanVerifySheet(context, onboarding),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 8),
-                                foregroundColor: dlOk
-                                    ? greenColor
-                                    : (isDark ? AppColors.textPrimaryDark : AppColors.primary),
-                                backgroundColor: dlOk ? greenColor.withValues(alpha: 0.10) : null,
-                                side: BorderSide(
-                                  color: dlOk
-                                      ? greenColor.withValues(alpha: 0.45)
-                                      : (isDark ? AppColors.borderDark : AppColors.primary.withValues(alpha: 0.35)),
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(AppRadius.md),
-                                ),
-                              ),
-                              icon: Icon(
-                                dlOk ? Icons.check_circle : Icons.credit_card_outlined,
-                                size: 16,
-                                color: dlOk ? greenColor : null,
-                              ),
-                              label: Text(
-                                dlOk ? 'DL Verified' : 'Verify DL',
-                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                              ),
-                              onPressed: dlOk ? null : () => _showDlVerifySheet(context, onboarding),
-                            ),
-                          ),
-                        ],
-                      ),
                     ],
                   );
                 },
@@ -722,7 +624,7 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen>
 
     final dlOk = onboarding.isDlSatisfied || vDocs['dl'] == true;
     if (!dlOk) {
-      const msg = 'Please upload or verify your Driving License before proceeding';
+      const msg = 'Please upload your Driving License or verify via DigiLocker before proceeding';
       setState(() => _inlineErrorMessage = msg);
       AppToast.showError(msg, context: context);
       return;
@@ -746,7 +648,7 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen>
 
     final panOk = onboarding.isPanSatisfied || vDocs['pan'] == true;
     if (!panOk) {
-      const msg = 'Please upload or verify PAN Card (Front) before proceeding';
+      const msg = 'Please upload PAN Card (Front) or verify via DigiLocker before proceeding';
       setState(() => _inlineErrorMessage = msg);
       AppToast.showError(msg, context: context);
       return;
@@ -766,17 +668,6 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen>
       valueListenable: DigioService.instance.latestByTypeNotifier,
       builder: (context, latest, _) {
         final vDocs = DigioService.verifiedDocsFromMap(latest);
-        final dlkrSummary = (latest['DIGILOCKER'] is Map && latest['DIGILOCKER']['summary'] is Map)
-            ? latest['DIGILOCKER']['summary'] as Map
-            : const <String, dynamic>{};
-        final dlkrDocs = dlkrSummary['verifiedDocs'] is Map
-            ? dlkrSummary['verifiedDocs'] as Map
-            : const <String, dynamic>{};
-
-        final bool dlVerifiedViaDlkr = vDocs['digilocker'] == true &&
-            (dlkrDocs['dl'] == true || dlkrSummary['extractedDl'] != null);
-        final bool panVerifiedViaDlkr = vDocs['digilocker'] == true &&
-            (dlkrDocs['pan'] == true || dlkrSummary['extractedPan'] != null);
 
         final bool dlDigitallyVerified =
             vDocs['dl'] == true || onboarding.isDlVerifiedDigitally;
@@ -880,11 +771,8 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen>
                           icon: Icons.badge_outlined,
                           isUploaded: onboarding.drivingLicenseUrl != null,
                           isVerifiedDigitally: dlDigitallyVerified,
-                          verifiedBadgeLabel:
-                              dlVerifiedViaDlkr ? 'DigiLocker' : 'DL Verified',
-                          verifiedSubtitle: dlVerifiedViaDlkr
-                              ? 'Verified via DigiLocker — already uploaded'
-                              : 'Verified via Govt DL check — no upload needed',
+                          verifiedBadgeLabel: 'DigiLocker',
+                          verifiedSubtitle: 'Verified via DigiLocker — already uploaded',
                           isUploading: _uploadingState['DRIVING_LICENSE'] ?? false,
                           onUploadTap: () =>
                               _showImageSourcePicker('DRIVING_LICENSE', 'Driving License'),
@@ -928,11 +816,8 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen>
                           icon: Icons.assignment_ind_outlined,
                           isUploaded: onboarding.panCardUrl != null,
                           isVerifiedDigitally: panDigitallyVerified,
-                          verifiedBadgeLabel:
-                              panVerifiedViaDlkr ? 'DigiLocker' : 'PAN Verified',
-                          verifiedSubtitle: panVerifiedViaDlkr
-                              ? 'Verified via DigiLocker — already uploaded'
-                              : 'Verified via PAN check — no upload needed',
+                          verifiedBadgeLabel: 'DigiLocker',
+                          verifiedSubtitle: 'Verified via DigiLocker — already uploaded',
                           isUploading: _uploadingState['PAN_CARD'] ?? false,
                           onUploadTap: () =>
                               _showImageSourcePicker('PAN_CARD', 'PAN Card (Front)'),
@@ -961,411 +846,6 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen>
       ),
         );
       },
-    );
-  }
-}
-
-class _DigioVerifySheetShell extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Widget child;
-  final String? errorText;
-  final bool busy;
-  final String submitLabel;
-  final Key? submitButtonKey;
-  final VoidCallback onCancel;
-  final VoidCallback onSubmit;
-
-  const _DigioVerifySheetShell({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.child,
-    required this.errorText,
-    required this.busy,
-    required this.submitLabel,
-    this.submitButtonKey,
-    required this.onCancel,
-    required this.onSubmit,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      padding: EdgeInsets.fromLTRB(20, 12, 20, bottomInset + 24),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade400,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(icon, color: AppColors.primary, size: 22),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: isDark ? Colors.grey.shade400 : AppColors.textSecondaryLight,
-                            ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 18),
-            child,
-            if (errorText != null) ...[
-              const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(
-                  color: AppColors.error.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.error.withValues(alpha: 0.35)),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.error_outline, color: AppColors.error, size: 18),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        errorText!,
-                        style: const TextStyle(color: AppColors.error, fontSize: 12.5, height: 1.35),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: busy ? null : onCancel,
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: const Text('Cancel'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 2,
-                  child: ElevatedButton(
-                    key: submitButtonKey,
-                    onPressed: busy ? null : onSubmit,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: busy
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                          )
-                        : Text(submitLabel),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PanVerifyBottomSheet extends StatefulWidget {
-  final OnboardingProvider onboarding;
-  final BuildContext parentContext;
-
-  const _PanVerifyBottomSheet({
-    required this.onboarding,
-    required this.parentContext,
-  });
-
-  @override
-  State<_PanVerifyBottomSheet> createState() => _PanVerifyBottomSheetState();
-}
-
-class _PanVerifyBottomSheetState extends State<_PanVerifyBottomSheet> {
-  late final TextEditingController _panCtrl;
-  bool _busy = false;
-  String? _err;
-
-  @override
-  void initState() {
-    super.initState();
-    _panCtrl = TextEditingController(text: widget.onboarding.panNumber);
-  }
-
-  @override
-  void dispose() {
-    _panCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _submit() async {
-    final pan = _panCtrl.text.trim().toUpperCase();
-    if (!RegExp(r'^[A-Z]{5}[0-9]{4}[A-Z]$').hasMatch(pan)) {
-      setState(() => _err = 'Enter a valid 10-character PAN (e.g. ABCDE1234F)');
-      return;
-    }
-    setState(() {
-      _busy = true;
-      _err = null;
-    });
-    try {
-      final res = await DigioService.instance.verifyPan(
-        panNumber: pan,
-        name: widget.onboarding.fullName.isNotEmpty ? widget.onboarding.fullName : null,
-      );
-      if (res['verified'] == true) {
-        widget.onboarding.setKycIdentifiers(panNumber: pan);
-        widget.onboarding.syncFromDigioLatest(
-          DigioService.instance.latestByTypeNotifier.value,
-        );
-      }
-      if (mounted) Navigator.pop(context);
-      if (widget.parentContext.mounted) {
-        if (res['verified'] == true) {
-          AppToast.showSuccess(
-            'PAN verified${res['verifiedName'] != null ? ' (${res['verifiedName']})' : ''}',
-            context: widget.parentContext,
-          );
-        } else {
-          AppToast.showError(
-            res['complianceNotes']?.toString() ?? 'PAN could not be verified',
-            context: widget.parentContext,
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _busy = false;
-          _err = AppToast.cleanErrorMessage(e);
-        });
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return _DigioVerifySheetShell(
-      icon: Icons.credit_card_outlined,
-      title: 'Verify PAN Instantly',
-      subtitle: 'Verify against Income Tax database via DigiLocker KYC',
-      errorText: _err,
-      busy: _busy,
-      submitLabel: 'Verify PAN',
-      submitButtonKey: const Key('pan_verify_submit_btn'),
-      onCancel: () => Navigator.pop(context),
-      onSubmit: _submit,
-      child: TextField(
-        key: const Key('pan_verify_input'),
-        controller: _panCtrl,
-        textCapitalization: TextCapitalization.characters,
-        maxLength: 10,
-        autofocus: true,
-        textInputAction: TextInputAction.done,
-        onSubmitted: (_) {
-          if (!_busy) _submit();
-        },
-        decoration: const InputDecoration(
-          labelText: 'PAN Number',
-          hintText: 'ABCDE1234F',
-          border: OutlineInputBorder(),
-        ),
-      ),
-    );
-  }
-}
-
-class _DlVerifyBottomSheet extends StatefulWidget {
-  final OnboardingProvider onboarding;
-  final BuildContext parentContext;
-
-  const _DlVerifyBottomSheet({
-    required this.onboarding,
-    required this.parentContext,
-  });
-
-  @override
-  State<_DlVerifyBottomSheet> createState() => _DlVerifyBottomSheetState();
-}
-
-class _DlVerifyBottomSheetState extends State<_DlVerifyBottomSheet> {
-  late final TextEditingController _dlCtrl;
-  late final TextEditingController _dobCtrl;
-  bool _busy = false;
-  String? _err;
-
-  @override
-  void initState() {
-    super.initState();
-    _dlCtrl = TextEditingController(text: widget.onboarding.dlNumber);
-    final dob = widget.onboarding.dateOfBirth;
-    final defaultDob = dob != null
-        ? '${dob.day.toString().padLeft(2, '0')}/${dob.month.toString().padLeft(2, '0')}/${dob.year}'
-        : '';
-    _dobCtrl = TextEditingController(text: defaultDob);
-  }
-
-  @override
-  void dispose() {
-    _dlCtrl.dispose();
-    _dobCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _pickDob() async {
-    final now = DateTime.now();
-    final initial = widget.onboarding.dateOfBirth ?? DateTime(now.year - 28, 1, 1);
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: initial,
-      firstDate: DateTime(1940),
-      lastDate: DateTime(now.year - 18, now.month, now.day),
-    );
-    if (picked != null && mounted) {
-      _dobCtrl.text =
-          '${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year}';
-    }
-  }
-
-  Future<void> _submit() async {
-    if (_dlCtrl.text.trim().length < 8 || _dobCtrl.text.trim().length < 8) {
-      setState(() => _err = 'Enter valid DL number and DOB (DD/MM/YYYY)');
-      return;
-    }
-    setState(() {
-      _busy = true;
-      _err = null;
-    });
-    try {
-      final cleanDl = _dlCtrl.text.trim().toUpperCase().replaceAll(RegExp(r'\s+'), '');
-      final res = await DigioService.instance.verifyDrivingLicense(
-        dlNumber: cleanDl,
-        dob: _dobCtrl.text.trim(),
-        name: widget.onboarding.fullName.isNotEmpty ? widget.onboarding.fullName : null,
-      );
-      if (res['verified'] == true) {
-        widget.onboarding.setKycIdentifiers(dlNumber: cleanDl);
-        widget.onboarding.syncFromDigioLatest(
-          DigioService.instance.latestByTypeNotifier.value,
-        );
-      }
-      if (mounted) Navigator.pop(context);
-      if (widget.parentContext.mounted) {
-        if (res['verified'] == true && res['complianceOk'] == true) {
-          AppToast.showSuccess('Driving License active & verified!', context: widget.parentContext);
-        } else {
-          AppToast.showInfo(
-            res['complianceNotes']?.toString() ?? 'DL checked',
-            context: widget.parentContext,
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _busy = false;
-          _err = AppToast.cleanErrorMessage(e);
-        });
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return _DigioVerifySheetShell(
-      icon: Icons.badge_outlined,
-      title: 'Verify Driving License',
-      subtitle: 'Check Parivahan DL status & commercial transport validity',
-      errorText: _err,
-      busy: _busy,
-      submitLabel: 'Verify DL',
-      submitButtonKey: const Key('dl_verify_submit_btn'),
-      onCancel: () => Navigator.pop(context),
-      onSubmit: _submit,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            key: const Key('dl_verify_input'),
-            controller: _dlCtrl,
-            textCapitalization: TextCapitalization.characters,
-            autofocus: true,
-            decoration: const InputDecoration(
-              labelText: 'DL Number',
-              hintText: 'TS0920200012345',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            key: const Key('dl_dob_input'),
-            controller: _dobCtrl,
-            keyboardType: TextInputType.datetime,
-            decoration: InputDecoration(
-              labelText: 'Date of Birth (DD/MM/YYYY)',
-              hintText: '14/05/1992',
-              border: const OutlineInputBorder(),
-              suffixIcon: IconButton(
-                tooltip: 'Select date',
-                icon: const Icon(Icons.calendar_today_outlined, size: 18),
-                onPressed: _busy ? null : _pickDob,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

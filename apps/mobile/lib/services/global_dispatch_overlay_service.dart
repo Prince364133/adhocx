@@ -272,7 +272,12 @@ class GlobalDispatchOverlayService {
       _overlayActionSub?.cancel();
       _overlayActionSub = null;
       _isBubbleActive = false;
-      await FlutterOverlayWindow.closeOverlay();
+      final isActive = await FlutterOverlayWindow.isActive()
+          .timeout(const Duration(seconds: 2), onTimeout: () => false);
+      if (isActive) {
+        await FlutterOverlayWindow.closeOverlay()
+            .timeout(const Duration(seconds: 2));
+      }
       debugPrint('⚪ [OverlayService] Assistive floating bubble closed');
     } catch (e) {
       debugPrint('⚠️ [OverlayService] Error closing overlay: $e');
