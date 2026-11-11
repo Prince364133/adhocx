@@ -14,12 +14,12 @@ export interface ArticleData {
 }
 
 export const ARTICLES_CONTENT: Record<string, ArticleData> = {
-  'how-adhocx-reverse-auction-cuts-enterprise-cab-costs': {
-    slug: 'how-adhocx-reverse-auction-cuts-enterprise-cab-costs',
-    title: 'How Automated Algorithmic Dispatch Cuts Enterprise Corporate Cab Costs',
+  'how-algorithmic-direct-dispatch-cuts-enterprise-cab-costs': {
+    slug: 'how-algorithmic-direct-dispatch-cuts-enterprise-cab-costs',
+    title: 'How AdhocX Algorithmic Direct Dispatch Cuts Enterprise Spot Cab Costs by 28%',
     category: 'Corporate Mobility',
     readTime: '4 min read',
-    date: 'Oct 15, 2026',
+    date: 'Sep 01, 2026',
     author: 'AdhocX Fleet Operations Research',
     authorRole: 'Enterprise Fleet & Logistics Research Desk',
     summary: 'Discover how programmatic driver pairing and instant fulfillment eliminate middlemen broker markups for corporate logistics and spot employee transit in Hyderabad.',
@@ -64,6 +64,34 @@ export const ARTICLES_CONTENT: Record<string, ArticleData> = {
       </p>
       <p>
         This financial guarantee eliminates capital lockup, allowing enterprise procurement desks to audit their transport ledger in real time with complete peace of mind.
+      </p>
+    `
+  },
+  'how-adhocx-reverse-auction-cuts-enterprise-cab-costs': {
+    slug: 'how-adhocx-reverse-auction-cuts-enterprise-cab-costs',
+    title: 'How Automated Algorithmic Dispatch Cuts Enterprise Corporate Cab Costs',
+    category: 'Corporate Mobility',
+    readTime: '4 min read',
+    date: 'Oct 15, 2026',
+    author: 'AdhocX Fleet Operations Research',
+    authorRole: 'Enterprise Fleet & Logistics Research Desk',
+    summary: 'Discover how programmatic driver pairing and instant fulfillment eliminate middlemen broker markups for corporate logistics and spot employee transit in Hyderabad.',
+    directAnswer: 'AdhocX reduces corporate cab expenditure by replacing manual broker networks with a direct algorithmic dispatch engine. By connecting enterprise facility desks directly to verified yellow-plate 4-seater and 7-seater drivers with a strict allocation cutoff and zero unfulfilled booking fees, corporate transport desks eliminate hidden markups, surge premiums, and administrative dispatch overhead.',
+    coverImage: 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=1200&q=80',
+    keyTakeaways: [
+      'Eliminates the typical middleman broker markups charged by unorganized transport aggregators in Hyderabad IT corridors.',
+      'Strict allocation cutoff guarantees immediate escalation and prevents employee stranding during evening shift transitions.',
+      'Verified commercial yellow-plate fleet compliance with commercial fitness and statutory motor insurance.',
+      'Automated single-source GST invoicing replaces manual paper trip slips and spreadsheet reconciliation.'
+    ],
+    contentHtml: `
+      <h2>The Crisis of Traditional Corporate Cab Procurement in Hyderabad</h2>
+      <p>
+        In high-density technology hubs like HITEC City, Gachibowli, and the Financial District, corporate employee mobility represents one of the largest operational line items for IT, ITES, and BFSI organizations. Traditionally, transport managers rely on fragmented WhatsApp coordinator groups and manual taxi brokers to handle daily employee roster drops and ad-hoc executive trips.
+      </p>
+      <h2>The AdhocX Algorithmic Dispatch Architecture</h2>
+      <p>
+        AdhocX solves corporate fleet instability by deploying an automated algorithmic dispatch engine built specifically for B2B commercial mobility.
       </p>
     `
   },
@@ -209,6 +237,90 @@ export const ARTICLES_CONTENT: Record<string, ArticleData> = {
       <p>
         AdhocX completely de-risks corporate logistics teams. Our automated compliance engine audits driver licenses, vehicle fitness, and insurance expiry dates before dispatching any ride. Expired vehicles are automatically locked out of the marketplace, ensuring total statutory compliance across every kilometer traveled.
       </p>
+    `
+  },
+  'driver-empowerment-1-hour-payouts-milestone-bonus': {
+    slug: 'driver-empowerment-1-hour-payouts-milestone-bonus',
+    title: 'Driver Empowerment: Why 1-Hour Bank Payouts and the ₹2,000 Milestone Bonus Win in 2026',
+    category: 'Driver Welfare & Earnings',
+    readTime: '5 min read',
+    date: 'Sep 05, 2026',
+    author: 'Varsha Adigoppula',
+    authorRole: 'Operations & Partner Success Lead',
+    summary: 'Why weekly or monthly payment delays stifle driver retention, and how AdhocX instant settlement ledger and 100-ride ₹2,000 cash bonuses empower commercial drivers.',
+    directAnswer: 'AdhocX guarantees 1-hour direct bank payouts via instant IMPS and UPI rails after every completed corporate trip, combined with a flat ₹2,000 cash milestone bonus upon completing 100 trips. This solves the driver liquidity crisis, eliminates platform deduction traps, and achieves 99.8% driver retention.',
+    coverImage: 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=1200&q=80',
+    keyTakeaways: [
+      'Direct 1-hour bank payouts via automated double-entry ledger integration.',
+      'Flat ₹2,000 cash bonus upon completing 100 verified trips on the platform.',
+      'Zero hidden commission deductions and full upfront visibility into trip fares and toll charges.',
+      'Continuous shift allocations provide predictable daily earnings for commercial fleet partners.'
+    ],
+    contentHtml: `
+      <h2>The Liquidity Crisis in Commercial Driving</h2>
+      <p>
+        For commercial drivers operating yellow-plate Sedans, SUVs, and Tempo Travellers in urban metropolitan areas, cash flow is daily oxygen. Fuel expenses (CNG/Diesel), toll charges, and vehicle EMI installments occur daily, yet traditional aggregator platforms hold driver payouts for 7 to 14 days or impose opaque penalty deductions.
+      </p>
+      <p>
+        This creates extreme churn, driver dissatisfaction, and high ride-cancellation rates that degrade customer trust.
+      </p>
+
+      <h2>The AdhocX Direct Payout Standard</h2>
+      <p>
+        At AdhocX, we engineered an <strong>Automated Double-Entry Settlement Ledger</strong> directly tied to banking partner APIs:
+      </p>
+      <ul>
+        <li><strong>1-Hour Bank Payouts:</strong> The moment a corporate trip is marked completed and digital trip telemetry is verified, the net earnings are dispatched directly to the driver's linked bank account (IMPS/UPI).</li>
+        <li><strong>Zero Hidden Commission Deductions:</strong> Drivers see the exact breakdown of fare, platform convenience fee, and incentives before accepting any trip.</li>
+        <li><strong>₹2,000 Milestone Bonus:</strong> To celebrate dedication, every driver who completes 100 verified trips on the AdhocX platform receives a flat ₹2,000 direct bank cash bonus.</li>
+      </ul>
+
+      <h2>Transparent Rate Cards & Guaranteed Payouts</h2>
+      <p>
+        Unlike consumer rideshare apps that leave drivers stranded in distant industrial or suburban clusters with uncertain fares, AdhocX provides:
+      </p>
+      <ol>
+        <li><strong>Clear Outstation Tariffs:</strong> Guaranteed fixed rates with zero hidden deductions.</li>
+        <li><strong>Dedicated Bulk Contract Matching:</strong> Continuous morning and evening shift assignments for predictable monthly revenue.</li>
+        <li><strong>24/7 Driver Support & Dispute Protection:</strong> Dedicated hotline for route discrepancies, toll claims, and parking reimbursements.</li>
+      </ol>
+    `
+  },
+  'bulk-fleet-outsourcing-vs-spot-dispatch-guide': {
+    slug: 'bulk-fleet-outsourcing-vs-spot-dispatch-guide',
+    title: 'Bulk Fleet Outsourcing vs Spot Dispatch: A Strategic Guide for Corporate Logistics',
+    category: 'Enterprise Logistics',
+    readTime: '6 min read',
+    date: 'Sep 08, 2026',
+    author: 'AdhocX Enterprise Solutions',
+    authorRole: 'Supply Chain Strategy Director',
+    summary: 'Comparing dedicated monthly fleet retainers against dynamic on-demand spot dispatching to optimize corporate transport budgets and maintain 99.8% SLA punctuality.',
+    directAnswer: 'Top-performing enterprises adopt a 70/30 hybrid mobility model: maintaining contracted fleet retainers for 70% of high-volume predictable employee routes, while fulfilling the remaining 30% elastic demand through AdhocX algorithmic spot dispatch. This eliminates idle vehicle waste on weekends while ensuring a 99.8% on-time arrival SLA.',
+    coverImage: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80',
+    keyTakeaways: [
+      'Fixed retainer fleets create up to 35% idle vehicle loss during weekends and holidays.',
+      'AdhocX dynamic spot dispatch provides infinite elasticity with zero idle fleet liability.',
+      'The 70/30 hybrid architecture maximizes corporate cost savings while ensuring 99.8% SLA punctuality.',
+      'Digital GPS telemetry and unified monthly GST invoices streamline finance audits.'
+    ],
+    contentHtml: `
+      <h2>The Strategic Dilemma: Fixed Retainer or On-Demand Flexibility?</h2>
+      <p>
+        Corporate facilities and logistics executives frequently debate the most cost-effective fleet structure:
+      </p>
+      <ul>
+        <li>Should the company lease a dedicated fleet of 50 vehicles on fixed monthly retainer?</li>
+        <li>Or should the enterprise operate a lean core fleet and fulfill peak fluctuations through digital spot marketplaces?</li>
+      </ul>
+
+      <h2>Comparative Breakdown: Dedicated vs. Spot Dispatch</h2>
+      <p>
+        Top-performing enterprises adopt a <strong>hybrid mobility strategy</strong>:
+      </p>
+      <ol>
+        <li><strong>70% Core Baseline:</strong> Maintain dedicated contracts for predictable, high-volume recurring employee routes.</li>
+        <li><strong>30% Elastic Buffer with AdhocX:</strong> Utilize AdhocX's automated direct dispatch marketplace for emergency shifts, client airport transfers, VIP delegations, and seasonal peaks.</li>
+      </ol>
     `
   }
 };

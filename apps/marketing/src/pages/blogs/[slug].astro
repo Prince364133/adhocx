@@ -3,6 +3,31 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import Icon from '../../components/Icon.astro';
 import { ARTICLES_CONTENT, type ArticleData } from '../../data/blogArticles';
 
+function parseMarkdown(md?: string): string {
+  if (!md) return '';
+  let html = md.trim();
+  if (html.startsWith('<h') || html.startsWith('<p') || html.startsWith('<div')) return html;
+  html = html.replace(/```([\s\S]*?)```/g, '<pre class="article-code-block"><code>$1</code></pre>');
+  html = html.replace(/^### (.*$)/gim, '<h3 class="article-heading-h3">$1</h3>');
+  html = html.replace(/^## (.*$)/gim, '<h2 class="article-heading-h2">$1</h2>');
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+  html = html.replace(/^---$/gim, '<hr class="article-divider" />');
+  html = html.replace(/^\- (.*$)/gim, '<li>$1</li>');
+  html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul class="article-ul">$1</ul>');
+  html = html.replace(/^\d+\. (.*$)/gim, '<li>$1</li>');
+  html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ol class="article-ol">$1</ol>');
+  const paragraphs = html.split(/\n\n+/).map((p) => {
+    p = p.trim();
+    if (!p) return '';
+    if (p.startsWith('<h') || p.startsWith('<pre') || p.startsWith('<ul') || p.startsWith('<ol') || p.startsWith('<hr')) {
+      return p;
+    }
+    return `<p>${p}</p>`;
+  });
+  return paragraphs.join('\n');
+}
+
 export async function getStaticPaths() {
   let paths = Object.keys(ARTICLES_CONTENT).map((slug) => ({
     params: { slug },
@@ -16,9 +41,9 @@ export async function getStaticPaths() {
       'http://localhost:7001/api/v1';
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 1200);
+    const timeout = setTimeout(() => controller.abort(), 5000);
 
-    const res = await fetch(`${apiUrl}/blogs?status=PUBLISHED&limit=20`, {
+    const res = await fetch(`${apiUrl}/blogs?status=PUBLISHED&limit=50`, {
       signal: controller.signal,
       headers: { 'Content-Type': 'application/json' },
     });
@@ -62,7 +87,7 @@ export async function getStaticPaths() {
                   '15-minute search cutoff and automated driver pairing.',
                   '1-Hour Direct Bank Refund SLA via instant IMPS/UPI rails.'
                 ],
-                contentHtml: p.content || `<p>${p.excerpt || p.summary || p.title}</p>`
+                contentHtml: parseMarkdown(p.content) || `<p>${p.excerpt || p.summary || p.title}</p>`
               }
             }
           });
@@ -197,7 +222,7 @@ const otherArticles = Object.values(ARTICLES_CONTENT).filter(a => a.slug !== art
 
     <!-- Direct Answer Callout for GEO & AEO (High-density 40-60 words) -->
     <div class="container" style="margin-top: var(--space-8); margin-bottom: var(--space-8);">
-      <div class="direct-answer-callout" style="max-width: 820px; margin: 0 auto; background: #F6F3FF; border-left: 4px solid var(--color-primary-600); padding: 24px; border-radius: 8px;">
+      <div class="direct-answer-callout" style="width: 100%; box-sizing: border-box; background: #F6F3FF; border-left: 4px solid var(--color-primary-600); padding: 24px; border-radius: 8px;">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
           <Icon name="sparkles" size={18} color="var(--color-primary-600)" />
           <strong style="color:var(--color-primary-900); font-size:0.95rem;">Executive Summary (Direct Answer)</strong>
@@ -210,7 +235,7 @@ const otherArticles = Object.values(ARTICLES_CONTENT).filter(a => a.slug !== art
 
     <!-- Key Takeaways Box (GEO Optimization) -->
     <div class="container" style="margin-bottom: var(--space-8);">
-      <div style="max-width: 820px; margin: 0 auto; background: #FFFFFF; border: 1px solid var(--color-border); padding: 24px; border-radius: 12px; box-shadow: var(--shadow-sm);">
+      <div style="width: 100%; box-sizing: border-box; background: #FFFFFF; border: 1px solid var(--color-border); padding: 24px; border-radius: 12px; box-shadow: var(--shadow-sm);">
         <h2 style="font-size: 1.15rem; font-weight: 800; color: var(--color-primary-900); margin: 0 0 12px 0; display:flex; align-items:center; gap:8px;">
           <Icon name="shield-check" size={20} color="var(--color-success)" /> Key Takeaways for Corporate Fleet Desks
         </h2>
@@ -224,7 +249,7 @@ const otherArticles = Object.values(ARTICLES_CONTENT).filter(a => a.slug !== art
 
     <!-- Article Rich Body -->
     <div class="container">
-      <div class="article-body-wrapper" style="max-width: 820px; margin: 0 auto; font-size: 1.05rem; line-height: 1.8; color: var(--color-text-secondary);">
+      <div class="article-body-wrapper" style="width: 100%; box-sizing: border-box; font-size: 1.05rem; line-height: 1.8; color: var(--color-text-secondary);">
         <div set:html={article.contentHtml} />
 
         <!-- Author Authority Signoff Box -->
@@ -299,7 +324,7 @@ const otherArticles = Object.values(ARTICLES_CONTENT).filter(a => a.slug !== art
     margin-bottom: var(--space-6);
   }
   .article-header-inner {
-    max-width: 820px;
+    width: 100%;
     margin: 0 auto;
   }
   .breadcrumb-nav {
@@ -333,7 +358,7 @@ const otherArticles = Object.values(ARTICLES_CONTENT).filter(a => a.slug !== art
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    max-width: 260px;
+    max-width: 600px;
   }
   .article-header-meta {
     display: flex;
@@ -393,13 +418,14 @@ const otherArticles = Object.values(ARTICLES_CONTENT).filter(a => a.slug !== art
     text-align: right;
   }
   .article-cover-container {
-    max-width: 820px;
+    width: 100%;
     margin: 0 auto;
   }
   .article-cover-wrap {
     border-radius: 16px;
     overflow: hidden;
-    max-height: 420px;
+    max-height: 520px;
+    width: 100%;
     border: 1px solid var(--color-border);
     box-shadow: var(--shadow-md);
   }

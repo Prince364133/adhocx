@@ -41,7 +41,14 @@ export default function DisputesPage() {
     setLoading(true);
     try {
       const data = await adminApi.getDisputes(status).catch(() => [] as DisputeListItem[]);
-      setDisputes(data);
+      const list = Array.isArray(data)
+        ? data
+        : (data as any)?.items && Array.isArray((data as any).items)
+        ? (data as any).items
+        : [];
+      setDisputes(list);
+    } catch {
+      setDisputes([]);
     } finally {
       setLoading(false);
     }
@@ -49,9 +56,10 @@ export default function DisputesPage() {
 
   // Filter disputes by search query
   const filteredDisputes = useMemo(() => {
-    if (!searchQuery.trim()) return disputes;
+    const list = Array.isArray(disputes) ? disputes : [];
+    if (!searchQuery.trim()) return list;
     const q = searchQuery.toLowerCase();
-    return disputes.filter(
+    return list.filter(
       (d) =>
         d.id.toLowerCase().includes(q) ||
         d.tripId.toLowerCase().includes(q) ||
@@ -64,10 +72,11 @@ export default function DisputesPage() {
 
   // Calculate ticket metrics
   const metrics = useMemo(() => {
-    const open = disputes.filter((d) => d.status === 'OPEN').length;
-    const review = disputes.filter((d) => d.status === 'UNDER_REVIEW').length;
-    const resolved = disputes.filter((d) => d.status === 'RESOLVED').length;
-    const rejected = disputes.filter((d) => d.status === 'REJECTED').length;
+    const list = Array.isArray(disputes) ? disputes : [];
+    const open = list.filter((d) => d.status === 'OPEN').length;
+    const review = list.filter((d) => d.status === 'UNDER_REVIEW').length;
+    const resolved = list.filter((d) => d.status === 'RESOLVED').length;
+    const rejected = list.filter((d) => d.status === 'REJECTED').length;
 
     return { open, review, resolved, rejected };
   }, [disputes]);
@@ -176,14 +185,17 @@ export default function DisputesPage() {
 
       {/* Filter Bar */}
       <FilterBar
-        tabs={STATUS_TABS.map((t) => ({
-          id: t.id,
-          label: t.label,
-          count:
-            t.id === 'ALL'
-              ? disputes.length
-              : disputes.filter((d) => d.status === t.id).length,
-        }))}
+        tabs={STATUS_TABS.map((t) => {
+          const list = Array.isArray(disputes) ? disputes : [];
+          return {
+            id: t.id,
+            label: t.label,
+            count:
+              t.id === 'ALL'
+                ? list.length
+                : list.filter((d) => d.status === t.id).length,
+          };
+        })}
         activeTab={activeTab}
         onTabChange={setActiveTab}
         searchQuery={searchQuery}
