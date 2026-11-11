@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import './widgets/payment_integration_pending_sheet.dart';
 import '../../routes/app_routes.dart';
 import '../../services/user_service.dart';
 import '../../shared/theme/app_colors.dart';
@@ -19,10 +20,21 @@ class UserPaymentDetailsScreen extends StatefulWidget {
 class _UserPaymentDetailsScreenState extends State<UserPaymentDetailsScreen> {
   Map<String, dynamic>? _transaction;
   bool _isLoading = true;
+  bool _hasShownWebSheet = false;
 
   @override
   void initState() {
     super.initState();
+    if (isWebPaymentIntegrationPendingMode) {
+      _isLoading = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_hasShownWebSheet) {
+          _hasShownWebSheet = true;
+          PaymentIntegrationPendingSheet.show(context);
+        }
+      });
+      return;
+    }
     if (widget.transaction != null) {
       _transaction = widget.transaction;
       _isLoading = false;
@@ -32,6 +44,10 @@ class _UserPaymentDetailsScreenState extends State<UserPaymentDetailsScreen> {
   }
 
   Future<void> _loadTransaction() async {
+    if (isWebPaymentIntegrationPendingMode) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
     setState(() => _isLoading = true);
     try {
       final list = await UserService.instance.getWalletTransactions();
@@ -48,6 +64,15 @@ class _UserPaymentDetailsScreenState extends State<UserPaymentDetailsScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+
+    if (isWebPaymentIntegrationPendingMode) {
+      return const WebPaymentIntegrationPendingScaffold(
+        title: 'Payment Details',
+        subtitle:
+            'We are waiting for payment integration on the AdhocX web portal. Payment details will appear here once payment integration is complete.',
+        fallbackHomeRoute: AppRoutes.userHomeScreen,
+      );
+    }
 
     final t = _transaction ?? {};
     final id = t['referenceId'] ?? t['id'] ?? 'TXN-LIVE';
