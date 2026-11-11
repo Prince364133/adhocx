@@ -16,6 +16,7 @@ import {
   Radio,
   CalendarClock,
   Ticket,
+  Users,
 } from 'lucide-react';
 
 interface NavItem {
@@ -78,6 +79,11 @@ const OPERATIONS_ITEMS: NavItem[] = [
     href: '/routes',
     label: 'Routes & Trips',
     icon: <Navigation size={18} />,
+  },
+  {
+    href: '/drivers',
+    label: 'Drivers',
+    icon: <Users size={18} />,
   },
   {
     href: '/safety',

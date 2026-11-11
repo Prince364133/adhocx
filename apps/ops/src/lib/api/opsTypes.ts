@@ -220,6 +220,93 @@ export interface TripEvent {
   createdAt: string;
 }
 
+export type OpsDriverVerificationStatus =
+  | 'PENDING'
+  | 'UNDER_REVIEW'
+  | 'VERIFIED'
+  | 'REJECTED'
+  | 'SUSPENDED';
+
+export interface OpsDriverTrustSummary {
+  score: number | null;
+  averageRating: number | null;
+  ratingCount: number;
+  totalTrips: number;
+  acceptanceRate?: number | null;
+  acceptedOffers?: number;
+  declinedOffers?: number;
+}
+
+export interface OpsDriverDocumentStatus {
+  type: string;
+  uploaded: boolean;
+  status: 'MISSING' | 'PENDING' | 'UNDER_REVIEW' | 'VERIFIED' | 'REJECTED' | string;
+}
+
+export interface OpsDriverProfile {
+  fullName: string | null;
+  phone: string | null;
+  email: string | null;
+  verificationStatus: OpsDriverVerificationStatus;
+  availabilityStatus: string;
+  vehicleType: string | null;
+  vehicleModel: string | null;
+  vehiclePlate: string | null;
+  createdAt: string;
+  userStatus?: 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED' | string;
+  updatedAt?: string;
+}
+
+export interface OpsDriverListItem {
+  driverId: string;
+  userId: string;
+  profile: OpsDriverProfile;
+  verificationDocuments: OpsDriverDocumentStatus[];
+  trustScore: OpsDriverTrustSummary;
+}
+
+export interface OpsDriverTripHistory {
+  id: string;
+  status: string;
+  pickupAddress: string | null;
+  dropAddress: string | null;
+  reportingTime: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+}
+
+export interface OpsDriverCorporateRouteHistory {
+  id: string;
+  shiftDate: string;
+  shiftTime: string;
+  direction: 'LOGIN' | 'LOGOUT' | string;
+  status: string;
+  tenant: { id: string; name: string } | null;
+  office: { id: string; name: string } | null;
+}
+
+export interface OpsDriverDetail extends OpsDriverListItem {
+  profile: OpsDriverProfile & { userStatus: string; updatedAt: string };
+  trustScore: OpsDriverTrustSummary & {
+    acceptanceRate: number | null;
+    acceptedOffers: number;
+    declinedOffers: number;
+  };
+  history: {
+    trips: OpsDriverTripHistory[];
+    corporateRoutes: OpsDriverCorporateRouteHistory[];
+  };
+}
+
+export interface OpsDriverListResponse {
+  items: OpsDriverListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 export interface RouteWaypointsResponse {
   routeId: string;
   direction: 'LOGIN' | 'LOGOUT';

@@ -1,5 +1,12 @@
 import { StorageService } from '../../common/storage/storage.service';
-import { Injectable, NotFoundException, BadRequestException, Logger, Optional } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Logger,
+  Optional,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import {
   AdminDriverQueryDto,
   AdminVendorQueryDto,
@@ -12,6 +19,7 @@ import {
   VerificationStatus,
   validateVerificationTransition,
 } from '@adhocx/contracts';
+import { UserStatus as PrismaUserStatus } from '@prisma/client';
 import { DatabaseService } from '../../database/database.service';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -376,10 +384,22 @@ export class AdminService {
    * Suspend verified driver.
    * State Transition: VERIFIED -> SUSPENDED per docs/12_STATE_MACHINES.md.
    */
-  async suspendDriver(id: string, adminId: string, dto: SuspendDriverDto) {
+  async suspendDriver(
+    id: string,
+    adminId: string,
+    dto: SuspendDriverDto,
+    actorRole: 'ADMIN' | 'OPS' = 'ADMIN',
+    requireDistributedSessionSync = false,
+  ) {
     const driver = await this.db.driver.findUnique({ where: { id } });
     if (!driver) {
       throw new NotFoundException('Driver not found');
+    }
+
+    if (requireDistributedSessionSync && driver.verificationStatus === VerificationStatus.SUSPENDED) {
+      const sessionSyncFailure = await this.synchronizeDriverSessions(id, driver.userId, true, true);
+      if (sessionSyncFailure) throw sessionSyncFailure;
+      return driver;
     }
 
     validateVerificationTransition(
@@ -394,15 +414,16 @@ export class AdminService {
       },
     });
 
-    if (driver.userId && this.redis) {
-      await this.redis.revokeUserSessions(driver.userId).catch((err) =>
-        this.logger.warn(`Failed to revoke sessions for suspended driver ${id}: ${err.message}`),
-      );
-    }
+    const sessionSyncFailure = await this.synchronizeDriverSessions(
+      id,
+      driver.userId,
+      true,
+      requireDistributedSessionSync,
+    );
 
     await this.audit.log({
       userId: adminId,
-      action: 'ADMIN_DRIVER_SUSPENDED',
+      action: `${actorRole}_DRIVER_SUSPENDED`,
       entityType: 'DRIVER',
       entityId: id,
       metadata: {
@@ -412,7 +433,8 @@ export class AdminService {
       },
     });
 
-    this.logger.log(`Driver ${id} suspended by admin ${adminId}: ${dto.reason}`);
+    this.logger.log(`Driver ${id} suspended by ${actorRole.toLowerCase()} ${adminId}: ${dto.reason}`);
+    if (sessionSyncFailure) throw sessionSyncFailure;
     return updated;
   }
 
@@ -420,10 +442,22 @@ export class AdminService {
    * Reactivate suspended driver.
    * State Transition: SUSPENDED -> VERIFIED per docs/12_STATE_MACHINES.md.
    */
-  async reactivateDriver(id: string, adminId: string, dto: ReactivateDriverDto) {
+  async reactivateDriver(
+    id: string,
+    adminId: string,
+    dto: ReactivateDriverDto,
+    actorRole: 'ADMIN' | 'OPS' = 'ADMIN',
+    requireDistributedSessionSync = false,
+  ) {
     const driver = await this.db.driver.findUnique({ where: { id } });
     if (!driver) {
       throw new NotFoundException('Driver not found');
+    }
+
+    if (requireDistributedSessionSync && driver.verificationStatus === VerificationStatus.VERIFIED) {
+      const sessionSyncFailure = await this.synchronizeDriverSessions(id, driver.userId, false, true);
+      if (sessionSyncFailure) throw sessionSyncFailure;
+      return driver;
     }
 
     validateVerificationTransition(
@@ -438,15 +472,16 @@ export class AdminService {
       },
     });
 
-    if (driver.userId && this.redis) {
-      await this.redis.unrevokeUser(driver.userId).catch((err) =>
-        this.logger.warn(`Failed to unrevoke sessions for reactivated driver ${id}: ${err.message}`),
-      );
-    }
+    const sessionSyncFailure = await this.synchronizeDriverSessions(
+      id,
+      driver.userId,
+      false,
+      requireDistributedSessionSync,
+    );
 
     await this.audit.log({
       userId: adminId,
-      action: 'ADMIN_DRIVER_REACTIVATED',
+      action: `${actorRole}_DRIVER_REACTIVATED`,
       entityType: 'DRIVER',
       entityId: id,
       metadata: {
@@ -456,8 +491,44 @@ export class AdminService {
       },
     });
 
-    this.logger.log(`Driver ${id} reactivated by admin ${adminId}`);
+    this.logger.log(`Driver ${id} reactivated by ${actorRole.toLowerCase()} ${adminId}`);
+    if (sessionSyncFailure) throw sessionSyncFailure;
     return updated;
+  }
+
+  private async synchronizeDriverSessions(
+    driverId: string,
+    userId: string | null | undefined,
+    revoke: boolean,
+    requireDistributedStore: boolean,
+  ): Promise<ServiceUnavailableException | undefined> {
+    if (!userId) return undefined;
+    if (!this.redis) {
+      if (!requireDistributedStore) return undefined;
+      return new ServiceUnavailableException(
+        `Driver ${driverId} status changed, but distributed session synchronization is unavailable. Retry the action later.`,
+      );
+    }
+    try {
+      if (revoke) {
+        if (requireDistributedStore) await this.redis.revokeUserSessions(userId, true);
+        else await this.redis.revokeUserSessions(userId);
+      } else if (requireDistributedStore) {
+        await this.redis.unrevokeUser(userId, true);
+      } else {
+        await this.redis.unrevokeUser(userId);
+      }
+      return undefined;
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(
+        `Failed to ${revoke ? 'revoke' : 'restore'} sessions for driver ${driverId}: ${message}`,
+      );
+      if (!requireDistributedStore) return undefined;
+      return new ServiceUnavailableException(
+        `Driver ${driverId} status changed, but distributed session ${revoke ? 'revocation' : 'restoration'} failed. Retry the action to reconcile sessions.`,
+      );
+    }
   }
 
   /**
@@ -1068,21 +1139,47 @@ export class AdminService {
   /**
    * Update user account status (ACTIVE, SUSPENDED, DEACTIVATED).
    */
-  async updateUserStatus(id: string, adminId: string, status: string, reason?: string) {
-    const user = await this.db.user.findUnique({ where: { id } });
-    if (!user) throw new NotFoundException('User not found');
-
-    const updated = await this.db.user.update({
-      where: { id },
-      data: { status: status as any },
-    });
+  async updateUserStatus(
+    id: string,
+    adminId: string,
+    status: PrismaUserStatus,
+    reason?: string,
+    actorRole: 'ADMIN' | 'OPS' ,
+    expectedCurrentStatus?: PrismaUserStatus,
+  ) {
+    let previousStatus: PrismaUserStatus;
+    let updated: Awaited<ReturnType<DatabaseService['user']['findUnique']>>;
+    if (expectedCurrentStatus) {
+      const transition = await this.db.user.updateMany({
+        where: { id, status: expectedCurrentStatus },
+        data: { status },
+      });
+      if (transition.count !== 1) {
+        const current = await this.db.user.findUnique({ where: { id }, select: { status: true } });
+        if (!current) throw new NotFoundException('User not found');
+        throw new BadRequestException(
+          `User status changed concurrently; expected ${expectedCurrentStatus}, found ${current.status}`,
+        );
+      }
+      previousStatus = expectedCurrentStatus;
+      updated = await this.db.user.findUnique({ where: { id } });
+      if (!updated) throw new NotFoundException('User not found after status update');
+    } else {
+      const user = await this.db.user.findUnique({ where: { id } });
+      if (!user) throw new NotFoundException('User not found');
+      previousStatus = user.status;
+      updated = await this.db.user.update({
+        where: { id },
+        data: { status },
+      });
+    }
 
     await this.audit.log({
       userId: adminId,
-      action: `ADMIN_USER_STATUS_${status}`,
+      action: `${actorRole}_USER_STATUS_${status}`,
       entityType: 'USER',
       entityId: id,
-      metadata: { previousStatus: user.status, newStatus: status, reason },
+      metadata: { previousStatus, newStatus: status, reason },
     });
 
     return updated;

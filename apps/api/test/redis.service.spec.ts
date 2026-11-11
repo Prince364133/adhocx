@@ -72,4 +72,12 @@ describe('RedisService (In-Memory Fallback & Rate Limiting)', () => {
     await service.blacklistToken(token, 300);
     expect(await service.isTokenBlacklisted(token)).toBe(true);
   });
+
+  it('does not silently use process-local fallback for distributed session transitions', async () => {
+    await expect(service.revokeUserSessions('driver-user', true))
+      .rejects.toThrow('distributed session revocation cannot be guaranteed');
+    await expect(service.unrevokeUser('driver-user', true))
+      .rejects.toThrow('distributed session restoration cannot be guaranteed');
+    expect(await service.isUserRevoked('driver-user')).toBe(false);
+  });
 });

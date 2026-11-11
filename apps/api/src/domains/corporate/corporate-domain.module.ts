@@ -3,6 +3,7 @@ import { DatabaseModule } from '../../database/database.module';
 import { RedisModule } from '../../redis/redis.module';
 import { NotificationsModule } from '../../modules/notifications/notifications.module';
 import { AuditModule } from '../../modules/audit/audit.module';
+import { AdminModule } from '../../modules/admin/admin.module';
 import { LocationsModule } from '../../modules/locations/locations.module';
 import { GoogleMapsService } from '../../modules/locations/google-maps.service';
 import { RedisService } from '../../redis/redis.service';
@@ -79,8 +80,10 @@ import { CORPORATE_PAYOUT_PROVIDER, createPayoutProviderFromEnv } from './billin
 import { CorporateOperationsService } from './operations/corporate-operations.service';
 import {
   CorporateOperationsController,
+  CorporateOpsDriversController,
   CorporateRouteCancellationController,
 } from './operations/corporate-operations.controller';
+import { CorporateOpsDriversService } from './operations/corporate-ops-drivers.service';
 import { CorporateAnalyticsService } from './analytics/corporate-analytics.service';
 import { CorporateAnalyticsController } from './analytics/corporate-analytics.controller';
 
@@ -100,6 +103,7 @@ import { CorporateRiderController } from './rider/corporate-rider.controller';
     RedisModule,
     NotificationsModule,
     AuditModule,
+    AdminModule,
     LocationsModule,
     CorporateTrackingModule,
   ],
@@ -136,6 +140,7 @@ import { CorporateRiderController } from './rider/corporate-rider.controller';
     CorporateRateCardAdminService,
     CorporateInvoiceDisputeService,
     CorporateOperationsService, // WS-D
+    CorporateOpsDriversService,
     CorporateAnalyticsService, // WS-D
     CorporateRiderService, // WS-C
     // WS-F
@@ -158,6 +163,7 @@ import { CorporateRiderController } from './rider/corporate-rider.controller';
     CorporateRateCardController, // wire/billing-payouts
     CorporatePayoutWebhookController, // wire/billing-payouts (HMAC-signed, no JWT)
     CorporateOperationsController, // WS-D
+    CorporateOpsDriversController,
     CorporateRouteCancellationController, // admin-ops: POST corporate/trips/routes/:id/cancel
     CorporateAnalyticsController, // WS-D
     CorporateRiderController, // WS-C

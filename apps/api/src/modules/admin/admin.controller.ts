@@ -24,6 +24,7 @@ import {
   AuthUserDto,
   UserRole,
 } from '@adhocx/contracts';
+import { UserStatus as PrismaUserStatus } from '@prisma/client';
 import { JwtAuthGuard, RolesGuard, Roles, CurrentUser } from '../../common';
 import { AdminService } from './admin.service';
 
@@ -226,7 +227,7 @@ export class AdminController {
   async updateUserStatus(
     @Param('id') id: string,
     @CurrentUser() admin: AuthUserDto,
-    @Body() dto: { status: string; reason?: string },
+    @Body() dto: { status: PrismaUserStatus; reason?: string },
   ) {
     return this.adminService.updateUserStatus(id, admin.id, dto.status, dto.reason);
   }
