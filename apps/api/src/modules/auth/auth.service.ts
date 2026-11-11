@@ -236,8 +236,8 @@ export class AuthService implements OnModuleInit {
     await this.enforceAttemptLimit(
       `admin_login:${value.toLowerCase()}`,
       5,
-      15 * 60,
-      'Too many admin login attempts. Try again in 15 minutes.',
+      30,
+      'Too many admin login attempts. Try again in 30 seconds.',
     );
 
     let user: any;
