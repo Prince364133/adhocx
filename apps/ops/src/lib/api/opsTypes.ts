@@ -130,6 +130,56 @@ export interface OpsBoardResponse {
   staleGps: CorporateRouteItem[];
 }
 
+export interface LiveOperationsResponse {
+  asOf: string;
+  timezone: string;
+  period: { from: string; to: string; days: number };
+  summary: {
+    companies: number;
+    activeCompanies: number;
+    activeRoutes: number;
+    plannedRoutes: number;
+    completedToday: number;
+    atRiskRoutes: number;
+    staleGpsRoutes: number;
+    routes14Days: number;
+  };
+  trend: {
+    date: string;
+    total: number;
+    completed: number;
+    inProgress: number;
+    planned: number;
+  }[];
+  companies: {
+    id: string;
+    code: string;
+    name: string;
+    status: string;
+    activeEmployees: number;
+    offices: number;
+    routes14Days: number;
+    routesToday: number;
+    completed14Days: number;
+    inProgress14Days: number;
+  }[];
+  routes: {
+    items: CorporateRouteItem[];
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+  activities: {
+    id: string;
+    action: string;
+    entityName: string;
+    entityId: string | null;
+    actorRole: string | null;
+    createdAt: string;
+  }[];
+}
+
 export interface RequirementListItem {
   id: string;
   vendorName: string;

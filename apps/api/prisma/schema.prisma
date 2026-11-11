@@ -1288,6 +1288,7 @@ model CorporateRoute {
   atRisk         Boolean                     @default(false) @map("at_risk")
 
   @@index([tenantId, shiftDate, shiftTime])
+  @@index([shiftDate, tenantId, status])
   @@index([driverId])
   @@index([status])
   @@map("corporate_routes")
@@ -2035,4 +2036,3 @@ model DigioVerification {
   @@index([tenantId])
   @@map("digio_verifications")
 }
-

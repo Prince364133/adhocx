@@ -1144,7 +1144,7 @@ export class AdminService {
     adminId: string,
     status: PrismaUserStatus,
     reason?: string,
-    actorRole: 'ADMIN' | 'OPS' ,
+    actorRole: 'ADMIN' | 'OPS' = 'ADMIN',
     expectedCurrentStatus?: PrismaUserStatus,
   ) {
     let previousStatus: PrismaUserStatus;

@@ -12,6 +12,7 @@ import {
   TripEvent,
   OpsDriverDetail,
   OpsDriverListResponse,
+  LiveOperationsResponse,
 } from './opsTypes';
 import {
   getStoredOpsToken,
@@ -320,6 +321,14 @@ export const opsApi = {
     if (params.pageSize) q.set('pageSize', String(params.pageSize));
 
     return request<OpsBoardResponse>(`/corporate/ops/board?${q.toString()}`);
+  },
+
+  getLiveOperations: (params: { routePage?: number; routePageSize?: number } = {}): Promise<LiveOperationsResponse> => {
+    const query = new URLSearchParams();
+    if (params.routePage) query.set('routePage', String(params.routePage));
+    if (params.routePageSize) query.set('routePageSize', String(params.routePageSize));
+    const suffix = query.size ? `?${query.toString()}` : '';
+    return request<LiveOperationsResponse>(`/corporate/ops/live-operations${suffix}`);
   },
 
   getRouteDetail: async (routeId: string): Promise<CorporateRouteItem> => {

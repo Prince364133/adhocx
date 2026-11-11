@@ -1,1 +1,5 @@
-export { default } from '../../../../../../corporate/src/app/live/trips/[id]/page';
+import { redirect } from 'next/navigation';
+
+export default function RemovedLiveTripDetailPage() {
+  redirect('/live');
+}

@@ -55,6 +55,22 @@ export class CorporateOperationsController {
     });
   }
 
+  @Get('live-operations')
+  @Roles(UserRole.ADMIN, UserRole.OPS)
+  @ApiOperation({
+    summary: 'Cross-company live operations summary, 14-day route trend, company rollups, routes and recent activity',
+  })
+  @ApiResponse({ status: 200, description: 'Live operations dashboard data' })
+  public liveOperations(
+    @Query('routePage') routePage?: string,
+    @Query('routePageSize') routePageSize?: string,
+  ) {
+    return this.ops.getLiveOperations(
+      routePage !== undefined ? Number(routePage) : undefined,
+      routePageSize !== undefined ? Number(routePageSize) : undefined,
+    );
+  }
+
   @Get('routes/:id/detail')
   @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateResource('route', 'id')

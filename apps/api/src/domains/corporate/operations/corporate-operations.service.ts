@@ -7,6 +7,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
+import { Prisma } from '@prisma/client';
 import { DatabaseService } from '../../../database/database.service';
 import { RedisService } from '../../../redis/redis.service';
 import { NotificationsService } from '../../../modules/notifications/notifications.service';
@@ -64,6 +65,11 @@ const ROUTE_SUMMARY_SELECT = {
   driver: { select: { id: true, fullName: true, phone: true } },
   vehicle: { select: { id: true, registrationNumber: true, model: true } },
 } as const;
+
+const LIVE_OPERATIONS_ROUTE_SELECT = {
+  ...ROUTE_SUMMARY_SELECT,
+  _count: { select: { stops: true } },
+} as const satisfies Prisma.CorporateRouteSelect;
 
 export interface OpsBoardQuery {
   date?: string;
@@ -208,6 +214,149 @@ export class CorporateOperationsService {
       ),
       atRisk: { leadMinutes: leadMin, items: atRisk },
       staleGps: { summary: gpsSummary, items: staleGps },
+    };
+  }
+
+  async getLiveOperations(routePage = 1, routePageSize = 25, now: Date = new Date()) {
+    const today = istToday(now);
+    const endDate = parseDateOnly(today);
+    if (!endDate) throw new BadRequestException('Unable to determine the current IST calendar day');
+    const startDate = new Date(endDate.getTime() - 13 * 24 * 60 * 60 * 1000);
+    const startDay = startDate.toISOString().slice(0, 10);
+    const endDay = today;
+    const page = clampInt(routePage, 1, 1, 10_000);
+    const pageSize = clampInt(routePageSize, 25, 1, 100);
+    const routeWhere: Prisma.CorporateRouteWhereInput = {
+      shiftDate: { gte: startDate, lte: endDate },
+    };
+    const db = this.db;
+
+    const [board, tenants, routeGroups, activeEmployees, officeCounts, routeTotal, routes, activities] =
+      await Promise.all([
+        this.getBoard({ date: today, pageSize: 1 }, now),
+        db.corporateTenant.findMany({
+          select: { id: true, code: true, name: true, status: true },
+          orderBy: { name: 'asc' },
+        }),
+        db.corporateRoute.groupBy({
+          by: ['shiftDate', 'tenantId', 'status'],
+          where: routeWhere,
+          _count: { _all: true },
+        }),
+        db.corporateEmployee.groupBy({
+          by: ['tenantId'],
+          where: { isActive: true },
+          _count: { _all: true },
+        }),
+        db.corporateOffice.groupBy({
+          by: ['tenantId'],
+          _count: { _all: true },
+        }),
+        db.corporateRoute.count({ where: routeWhere }),
+        db.corporateRoute.findMany({
+          where: routeWhere,
+          select: LIVE_OPERATIONS_ROUTE_SELECT,
+          orderBy: [{ shiftDate: 'desc' }, { targetPickup1Time: 'desc' }, { id: 'asc' }],
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+        }),
+        db.auditLog.findMany({
+          where: {
+            createdAt: { gte: startDate, lte: now },
+            entityName: { startsWith: 'CORPORATE_' },
+          },
+          select: {
+            id: true,
+            action: true,
+            entityName: true,
+            entityId: true,
+            actorRole: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 12,
+        }),
+      ]);
+
+    const trend = Array.from({ length: 14 }, (_, index) => {
+      const date = new Date(startDate.getTime() + index * 24 * 60 * 60 * 1000);
+      return {
+        date: date.toISOString().slice(0, 10),
+        total: 0,
+        completed: 0,
+        inProgress: 0,
+        planned: 0,
+      };
+    });
+    const trendByDate = new Map(trend.map((day) => [day.date, day]));
+    const companyMap = new Map(
+      tenants.map((tenant) => [
+        tenant.id,
+        {
+          ...tenant,
+          activeEmployees: 0,
+          offices: 0,
+          routes14Days: 0,
+          routesToday: 0,
+          completed14Days: 0,
+          inProgress14Days: 0,
+        },
+      ]),
+    );
+
+    for (const group of routeGroups) {
+      const date = group.shiftDate.toISOString().slice(0, 10);
+      const count = group._count._all;
+      const day = trendByDate.get(date);
+      const company = companyMap.get(group.tenantId);
+      if (day) {
+        day.total += count;
+        if (group.status === 'COMPLETED') day.completed += count;
+        else if (group.status === 'IN_TRANSIT' || group.status === 'ASSIGNED') day.inProgress += count;
+        else if (group.status === 'PLANNED' || group.status === 'DISPATCHING') day.planned += count;
+      }
+      if (company) {
+        company.routes14Days += count;
+        if (date === endDay) company.routesToday += count;
+        if (group.status === 'COMPLETED') company.completed14Days += count;
+        if (group.status === 'IN_TRANSIT' || group.status === 'ASSIGNED') company.inProgress14Days += count;
+      }
+    }
+
+    for (const group of activeEmployees) {
+      const company = companyMap.get(group.tenantId);
+      if (company) company.activeEmployees = group._count._all;
+    }
+    for (const group of officeCounts) {
+      const company = companyMap.get(group.tenantId);
+      if (company) company.offices = group._count._all;
+    }
+
+    const counts = board.counts;
+    return {
+      asOf: now.toISOString(),
+      timezone: 'Asia/Kolkata',
+      period: { from: startDay, to: endDay, days: 14 },
+      summary: {
+        companies: tenants.length,
+        activeCompanies: tenants.filter((tenant) => tenant.status === 'ACTIVE').length,
+        activeRoutes: counts.ASSIGNED + counts.IN_TRANSIT,
+        plannedRoutes: counts.PLANNED + counts.DISPATCHING,
+        completedToday: counts.COMPLETED,
+        atRiskRoutes: board.atRisk.items.length,
+        staleGpsRoutes: board.staleGps.summary.STALE + board.staleGps.summary.OFFLINE,
+        routes14Days: routeTotal,
+      },
+      trend,
+      companies: [...companyMap.values()],
+      routes: {
+        items: routes,
+        page,
+        pageSize,
+        total: routeTotal,
+        totalPages: Math.ceil(routeTotal / pageSize),
+      },
+      activities,
     };
   }
 

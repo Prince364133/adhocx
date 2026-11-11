@@ -263,6 +263,12 @@ export class FakeDb {
         case 'lte':
           if (!(value != null && v <= a)) return false;
           break;
+        case 'contains':
+          if (typeof value !== 'string' || typeof arg !== 'string' || !value.includes(arg)) return false;
+          break;
+        case 'startsWith':
+          if (typeof value !== 'string' || typeof arg !== 'string' || !value.startsWith(arg)) return false;
+          break;
         default:
           break;
       }
