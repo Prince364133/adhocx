@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import './widgets/payment_integration_pending_sheet.dart';
 import '../../routes/app_routes.dart';
 import '../../services/user_service.dart';
 import '../../shared/theme/app_colors.dart';
@@ -18,7 +17,6 @@ class UserPaymentHistoryScreen extends StatefulWidget {
 class _UserPaymentHistoryScreenState extends State<UserPaymentHistoryScreen> {
   String _selectedFilter = 'All';
   bool _isLoading = true;
-  bool _hasShownWebSheet = false;
   List<dynamic> _transactions = [];
 
   final List<String> _filters = ['All', 'TOPUP', 'ESCROW', 'PAYOUT'];
@@ -26,24 +24,10 @@ class _UserPaymentHistoryScreenState extends State<UserPaymentHistoryScreen> {
   @override
   void initState() {
     super.initState();
-    if (isWebPaymentIntegrationPendingMode) {
-      _isLoading = false;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && !_hasShownWebSheet) {
-          _hasShownWebSheet = true;
-          PaymentIntegrationPendingSheet.show(context);
-        }
-      });
-      return;
-    }
     _loadTransactions();
   }
 
   Future<void> _loadTransactions() async {
-    if (isWebPaymentIntegrationPendingMode) {
-      if (mounted) setState(() => _isLoading = false);
-      return;
-    }
     setState(() => _isLoading = true);
     try {
       final list = await UserService.instance.getWalletTransactions();
@@ -78,15 +62,6 @@ class _UserPaymentHistoryScreenState extends State<UserPaymentHistoryScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-
-    if (isWebPaymentIntegrationPendingMode) {
-      return const WebPaymentIntegrationPendingScaffold(
-        title: 'Payment History',
-        subtitle:
-            'We are waiting for payment integration on the AdhocX web portal. Payment history will appear here once payment integration is complete.',
-        fallbackHomeRoute: AppRoutes.userHomeScreen,
-      );
-    }
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,

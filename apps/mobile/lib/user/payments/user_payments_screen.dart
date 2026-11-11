@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import './user_payment_details_screen.dart';
-import './widgets/payment_integration_pending_sheet.dart';
-import '../../routes/app_routes.dart';
 import '../../services/razorpay_checkout_service.dart';
 import '../../services/user_service.dart';
 import '../../shared/theme/app_colors.dart';
@@ -19,7 +17,6 @@ class UserPaymentsScreen extends StatefulWidget {
 
 class _UserPaymentsScreenState extends State<UserPaymentsScreen> {
   bool _isLoading = true;
-  bool _hasShownWebSheet = false;
   Map<String, dynamic>? _walletData;
   List<dynamic> _transactions = [];
   String? _errorMessage;
@@ -27,24 +24,10 @@ class _UserPaymentsScreenState extends State<UserPaymentsScreen> {
   @override
   void initState() {
     super.initState();
-    if (isWebPaymentIntegrationPendingMode) {
-      _isLoading = false;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && !_hasShownWebSheet) {
-          _hasShownWebSheet = true;
-          PaymentIntegrationPendingSheet.show(context);
-        }
-      });
-      return;
-    }
     _loadWallet();
   }
 
   Future<void> _loadWallet() async {
-    if (isWebPaymentIntegrationPendingMode) {
-      if (mounted) setState(() => _isLoading = false);
-      return;
-    }
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -82,10 +65,6 @@ class _UserPaymentsScreenState extends State<UserPaymentsScreen> {
   }
 
   void _showTopUpDialog() {
-    if (isWebPaymentIntegrationPendingMode) {
-      PaymentIntegrationPendingSheet.show(context);
-      return;
-    }
     final amountController = TextEditingController(text: '5000');
     final couponController = TextEditingController();
     bool isProcessing = false;
@@ -480,16 +459,6 @@ class _UserPaymentsScreenState extends State<UserPaymentsScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-
-    if (isWebPaymentIntegrationPendingMode) {
-      return const WebPaymentIntegrationPendingScaffold(
-        title: 'Payments',
-        subtitle:
-            'We are waiting for payment integration on the AdhocX web portal. Payment options will appear here once payment integration goes live.',
-        showBackButton: false,
-        fallbackHomeRoute: AppRoutes.userHomeScreen,
-      );
-    }
 
     final balance = (_walletData?['walletBalance'] as num?)?.toDouble() ?? (_walletData?['balance'] as num?)?.toDouble() ?? 0.0;
     final escrowHeld = (_walletData?['escrowBalance'] as num?)?.toDouble() ?? (_walletData?['escrowHeld'] as num?)?.toDouble() ?? 0.0;

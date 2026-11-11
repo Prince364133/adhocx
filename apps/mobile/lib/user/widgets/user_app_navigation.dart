@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../shared/theme/app_colors.dart';
 import '../../services/language_service.dart';
-import '../payments/widgets/payment_integration_pending_sheet.dart';
 
 class UserAppNavigation extends StatefulWidget {
   final StatefulNavigationShell navigationShell;
@@ -52,10 +51,6 @@ class _UserAppNavigationState extends State<UserAppNavigation> {
   void _onTap(int visualIndex) {
     final tab = _tabs[visualIndex];
     if (tab.branchIndex == null) return;
-    if (isWebPaymentIntegrationPendingMode && tab.branchIndex == 3) {
-      PaymentIntegrationPendingSheet.show(context);
-      return;
-    }
     setState(() => _selectedVisualIndex = visualIndex);
     widget.navigationShell.goBranch(
       tab.branchIndex!,
@@ -115,10 +110,6 @@ class _UserAppNavigationState extends State<UserAppNavigation> {
               children: List.generate(_tabs.length, (i) {
                 final tab = _tabs[i];
                 final isActive = i == _selectedVisualIndex;
-                final IconData tabIcon =
-                    isWebPaymentIntegrationPendingMode && tab.branchIndex == 3
-                        ? (isActive ? Icons.payments : Icons.payments_outlined)
-                        : (isActive ? tab.selectedIcon : tab.icon);
 
                 return Expanded(
                   child: GestureDetector(
@@ -144,7 +135,7 @@ class _UserAppNavigationState extends State<UserAppNavigation> {
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Icon(
-                              tabIcon,
+                              isActive ? tab.selectedIcon : tab.icon,
                               color: isActive
                                   ? activeColor
                                   : (isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
