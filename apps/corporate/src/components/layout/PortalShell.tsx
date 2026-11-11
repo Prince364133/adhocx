@@ -5,13 +5,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
-  Radio,
   Users,
-  Building2,
-  CalendarClock,
-  Ticket,
   Navigation,
-  ShieldAlert,
   LifeBuoy,
   Receipt,
   BarChart3,
@@ -22,6 +17,7 @@ import {
   ChevronDown,
   LogOut,
   Building,
+  AlertTriangle,
 } from 'lucide-react';
 import { SessionProvider, useSession } from '../../lib/auth/SessionContext';
 import { CORPORATE_ROLE_LABELS, CorporatePermission } from '../../lib/auth/permissions';
@@ -36,16 +32,16 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { href: '/dashboard', label: 'Overview', icon: <LayoutDashboard size={18} /> },
-  { href: '/live', label: 'Live Operations', icon: <Radio size={18} />, badge: 'Live' },
+ // { href: '/live', label: 'Live Operations', icon: <Radio size={18} />, badge: 'Live' },
   { href: '/employees', label: 'Employees', icon: <Users size={18} /> },
-  { href: '/offices', label: 'Offices & Sites', icon: <Building2 size={18} /> },
-  { href: '/rosters', label: 'Shifts & Rosters', icon: <CalendarClock size={18} /> },
-  { href: '/bookings', label: 'Bookings', icon: <Ticket size={18} /> },
+  //{ href: '/rosters', label: 'Shifts & Rosters', icon: <CalendarClock size={18} /> },
   { href: '/routes', label: 'Routes & Trips', icon: <Navigation size={18} /> },
-  { href: '/safety', label: 'Safety & Incidents', icon: <ShieldAlert size={18} />, badge: 3 },
+  //{ href: '/safety', label: 'Safety & Incidents', icon: <ShieldAlert size={18} />, badge: 3 },
   { href: '/support', label: 'Support & SLA', icon: <LifeBuoy size={18} /> },
   { href: '/billing', label: 'Billing & Invoices', icon: <Receipt size={18} /> },
   { href: '/reports', label: 'Reports & Analytics', icon: <BarChart3 size={18} /> },
+  { href: '/dashboard/analytics', label: 'Transport Analytics', icon: <BarChart3 size={15} /> },
+  { href: '/dashboard/exceptions', label: 'Exceptions Dashboard', icon: <AlertTriangle size={15} /> },
   { href: '/settings', label: 'Organization Settings', icon: <Settings size={18} /> },
 ];
 

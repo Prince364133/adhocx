@@ -16,11 +16,13 @@ import {
 } from 'lucide-react';
 import { setSession } from '../../lib/auth/session';
 import { authApi } from '../../lib/api/corporate';
+import { useSession } from '../../lib/auth/SessionContext';
 import { ThemeToggle } from '../../components/common/ThemeToggle';
 
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { acceptSession } = useSession();
   const redirectUrl = searchParams.get('redirect') || '/dashboard';
 
   const [phone, setPhone] = useState('');
@@ -47,17 +49,18 @@ function LoginContent() {
 
   const cleanIndianDigits = (raw: string) => {
     let digits = raw.replace(/\D/g, '');
-    if (digits.startsWith('91') && digits.length == 12) {
+    if (digits.startsWith('91') && digits.length > 10) {
       digits = digits.substring(2);
-    } else if (digits.startsWith('0') && digits.length == 11) {
+    } else if (digits.startsWith('0') && digits.length > 10) {
       digits = digits.substring(1);
     }
-    return digits;
+    return digits.slice(0, 10);
   };
 
+  const isValidIndianMobile = (digits: string) => /^[6-9]\d{9}$/.test(digits);
+
   const handlePhoneChange = (val: string) => {
-    const digits = val.replace(/\D/g, '').slice(0, 10);
-    setPhone(digits);
+    setPhone(cleanIndianDigits(val));
     setErrorMessage(null);
   };
 
@@ -67,6 +70,7 @@ function LoginContent() {
     refreshToken?: string,
   ) => {
     setSession(token, refreshToken, user);
+    acceptSession(token, user);
     router.replace(redirectUrl);
   };
 
@@ -77,7 +81,7 @@ function LoginContent() {
     e.preventDefault();
 
     const digits = cleanIndianDigits(phone);
-    if (digits.length !== 10) {
+    if (!isValidIndianMobile(digits)) {
       setErrorMessage('Please enter a valid 10-digit Indian mobile number.');
       return;
     }
@@ -124,8 +128,10 @@ function LoginContent() {
    * SMS OTP Request Flow (Dispatches via MSG91 Flow API)
    */
   const handleRequestOtp = async () => {
+    if (isLoading) return;
+
     const digits = cleanIndianDigits(phone);
-    if (digits.length !== 10) {
+    if (!isValidIndianMobile(digits)) {
       setErrorMessage('Please enter a valid 10-digit Indian mobile number.');
       return;
     }
@@ -139,19 +145,23 @@ function LoginContent() {
         phone: phoneE164,
       });
 
-      if (res && res.requestId) {
-        setOtpRequestId(res.requestId);
-        setIsOtpSent(true);
-        setCountdown(res.retryAfterSeconds || 30);
-      } else {
-        setIsOtpSent(true);
-        setCountdown(30);
+      if (!res?.requestId) {
+        throw new Error('The OTP service returned an invalid response. Please try again.');
       }
-    } catch (err: any) {
-      setErrorMessage(err?.message || 'Failed to dispatch SMS OTP. Please check your number.');
+
+      setOtpRequestId(res.requestId);
+      setIsOtpSent(true);
+      setCountdown(res.retryAfterSeconds > 0 ? res.retryAfterSeconds : 30);
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to dispatch SMS OTP. Please check your number.');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleOtpRequestSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    void handleRequestOtp();
   };
 
   /**
@@ -198,6 +208,69 @@ function LoginContent() {
       setIsLoading(false);
     }
   };
+
+  const phoneInput = (
+    <div style={{ width: '100%', boxSizing: 'border-box' }}>
+      <label
+        htmlFor="corporate-phone-otp"
+        style={{
+          display: 'block',
+          fontSize: '0.77rem',
+          fontWeight: 700,
+          color: 'var(--text-secondary, #334155)',
+          marginBottom: '0.35rem',
+        }}
+      >
+        Indian Mobile Number (+91)
+      </label>
+      <div style={{ position: 'relative', width: '100%', boxSizing: 'border-box' }}>
+        <div
+          style={{
+            position: 'absolute',
+            left: '0.75rem',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            fontSize: '0.8rem',
+            fontWeight: 700,
+            color: 'var(--text-primary, #0F172A)',
+            pointerEvents: 'none',
+          }}
+        >
+          <span>🇮🇳</span>
+          <span>+91</span>
+          <span style={{ color: 'var(--border-strong, #CBD5E1)', marginLeft: '2px' }}>|</span>
+        </div>
+        <input
+          id="corporate-phone-otp"
+          type="tel"
+          inputMode="numeric"
+          autoComplete="tel-national"
+          maxLength={16}
+          value={phone}
+          onChange={(e) => handlePhoneChange(e.target.value)}
+          placeholder="98765 43210"
+          disabled={isLoading || isOtpSent}
+          aria-label="Indian mobile number"
+          style={{
+            width: '100%',
+            height: 38,
+            padding: '0 0.85rem 0 3.8rem',
+            borderRadius: '8px',
+            border: '1.5px solid var(--border-strong, #CBD5E1)',
+            backgroundColor: isOtpSent ? 'var(--bg-surface-muted, #F8FAFC)' : 'var(--bg-input, #FFFFFF)',
+            color: 'var(--text-primary, #0F172A)',
+            fontSize: '0.84rem',
+            outline: 'none',
+            boxSizing: 'border-box',
+            letterSpacing: '0.5px',
+          }}
+        />
+      </div>
+    </div>
+  );
 
   return (
     <main
@@ -342,106 +415,48 @@ function LoginContent() {
         {/* SMS OTP Authentication Flow (Primary) */}
         {authMode === 'otp' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
-            {/* Indian Mobile Number Input */}
-            <div style={{ width: '100%', boxSizing: 'border-box' }}>
-              <label
-                htmlFor="corporate-phone-otp"
-                style={{
-                  display: 'block',
-                  fontSize: '0.77rem',
-                  fontWeight: 700,
-                  color: 'var(--text-secondary, #334155)',
-                  marginBottom: '0.35rem',
-                }}
-              >
-                Indian Mobile Number (+91)
-              </label>
-              <div style={{ position: 'relative', width: '100%', boxSizing: 'border-box' }}>
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: '0.75rem',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    fontSize: '0.8rem',
-                    fontWeight: 700,
-                    color: 'var(--text-primary, #0F172A)',
-                    pointerEvents: 'none',
-                  }}
-                >
-                  <span>🇮🇳</span>
-                  <span>+91</span>
-                  <span style={{ color: 'var(--border-strong, #CBD5E1)', marginLeft: '2px' }}>|</span>
-                </div>
-                <input
-                  id="corporate-phone-otp"
-                  type="tel"
-                  autoComplete="tel"
-                  maxLength={10}
-                  value={phone}
-                  onChange={(e) => handlePhoneChange(e.target.value)}
-                  placeholder="98765 43210"
-                  disabled={isLoading || isOtpSent}
+            {!isOtpSent ? (
+              <form onSubmit={handleOtpRequestSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+                {phoneInput}
+                <button
+                  type="submit"
+                  disabled={isLoading || !isValidIndianMobile(phone)}
                   style={{
                     width: '100%',
                     height: 38,
-                    padding: '0 0.85rem 0 3.8rem',
+                    backgroundColor: '#5728B2',
+                    backgroundImage: 'linear-gradient(135deg, #5728B2 0%, #431E8E 100%)',
+                    color: '#FFFFFF',
+                    border: 'none',
                     borderRadius: '8px',
-                    border: '1.5px solid var(--border-strong, #CBD5E1)',
-                    backgroundColor: isOtpSent ? 'var(--bg-surface-muted, #F8FAFC)' : 'var(--bg-input, #FFFFFF)',
-                    color: 'var(--text-primary, #0F172A)',
-                    fontSize: '0.84rem',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    letterSpacing: '0.5px',
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    cursor: isLoading || !isValidIndianMobile(phone) ? 'not-allowed' : 'pointer',
+                    opacity: isLoading || !isValidIndianMobile(phone) ? 0.7 : 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.45rem',
                   }}
-                />
-              </div>
-            </div>
-
-            {/* If OTP not yet sent: Show Send SMS OTP button */}
-            {!isOtpSent ? (
-              <button
-                type="button"
-                onClick={handleRequestOtp}
-                disabled={isLoading || phone.length !== 10}
-                style={{
-                  width: '100%',
-                  height: 38,
-                  backgroundColor: '#5728B2',
-                  backgroundImage: 'linear-gradient(135deg, #5728B2 0%, #431E8E 100%)',
-                  color: '#FFFFFF',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '0.85rem',
-                  fontWeight: 700,
-                  cursor: isLoading || phone.length !== 10 ? 'not-allowed' : 'pointer',
-                  opacity: isLoading || phone.length !== 10 ? 0.7 : 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.45rem',
-                }}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 size={16} className="spin" />
-                    <span>Dispatching SMS OTP...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Send SMS OTP</span>
-                    <ArrowRight size={15} />
-                  </>
-                )}
-              </button>
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 size={16} className="spin" />
+                      <span>Dispatching SMS OTP...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Send SMS OTP</span>
+                      <ArrowRight size={15} />
+                    </>
+                  )}
+                </button>
+              </form>
             ) : (
-              /* If OTP sent: Show 6-digit code input & Verify button */
-              <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                <div style={{ width: '100%', boxSizing: 'border-box' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+                {phoneInput}
+                <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                  <div style={{ width: '100%', boxSizing: 'border-box' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
                     <label
                       htmlFor="corporate-otp-code"
@@ -488,6 +503,7 @@ function LoginContent() {
                     type="button"
                     onClick={() => {
                       setIsOtpSent(false);
+                      setOtpRequestId(null);
                       setOtpCode('');
                     }}
                     style={{
@@ -557,7 +573,8 @@ function LoginContent() {
                     </>
                   )}
                 </button>
-              </form>
+                </form>
+              </div>
             )}
 
             {/* Toggle to Password Sign-in */}
