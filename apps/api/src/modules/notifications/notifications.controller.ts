@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, Sse, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, ForbiddenException, Param, Query, Sse, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Observable } from 'rxjs';
 import { JwtAuthGuard, RolesGuard, Roles, CurrentUser } from '../../common';
@@ -31,6 +31,20 @@ export class NotificationsController {
     @Query('channel') channel?: string,
   ): Observable<{ data: RealtimeEvent }> {
     const targetChannel = channel || `user:${user.id}`;
+    if (targetChannel.startsWith('corporate:')) {
+      const tenantBoundUser = user as AuthUserDto & { corporateTenantId?: string };
+      const ownTenantChannel = tenantBoundUser.corporateTenantId
+        ? `corporate:${tenantBoundUser.corporateTenantId}`
+        : null;
+      const canReadAnyTenant = user.role === UserRole.ADMIN || user.role === UserRole.OPS;
+      const canReadOwnTenant = user.role === UserRole.CORPORATE_ADMIN || user.role === UserRole.CORPORATE_MANAGER;
+      if (
+        !canReadAnyTenant &&
+        (!canReadOwnTenant || !ownTenantChannel || (targetChannel !== ownTenantChannel && !targetChannel.startsWith(`${ownTenantChannel}:`)))
+      ) {
+        throw new ForbiddenException('You cannot subscribe to this corporate event channel.');
+      }
+    }
     return this.notificationsService.getEventStream(targetChannel);
   }
 
@@ -191,4 +205,3 @@ export class NotificationsController {
     return this.notificationsService.getMetrics();
   }
 }
-

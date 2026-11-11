@@ -3,10 +3,17 @@ import { METHOD_METADATA } from '@nestjs/common/constants';
 import { Reflector } from '@nestjs/core';
 import { UserRole } from '@adhocx/contracts';
 import { CorporateAccessGuard } from '../src/common/guards/corporate-access.guard';
+import { RolesGuard } from '../src/common/guards/roles.guard';
 import { ROLES_KEY } from '../src/common/decorators/roles.decorator';
 import { CorporateTenantController } from '../src/domains/corporate/tenants/corporate-tenant.controller';
 import { CorporateRosterController } from '../src/domains/corporate/rosters/corporate-roster.controller';
 import { CorporateSchedulingController } from '../src/domains/corporate/scheduling/corporate-scheduling.controller';
+import { CorporateRoutingController } from '../src/domains/corporate/routing/corporate-routing.controller';
+import { CorporateTrackingController } from '../src/domains/corporate/tracking/corporate-tracking.controller';
+import { CorporateTripExecutionController } from '../src/domains/corporate/execution/corporate-trip-execution.controller';
+import { CorporateSafetyController } from '../src/domains/corporate/safety/corporate-safety.controller';
+import { CorporateDispatchController } from '../src/domains/corporate/dispatch/corporate-dispatch.controller';
+import { CorporateAnalyticsController } from '../src/domains/corporate/analytics/corporate-analytics.controller';
 import {
   CORPORATE_PERMISSION_KEY,
   CORPORATE_PERMISSIONS,
@@ -83,14 +90,38 @@ describe('WS-F corporate roles, permission matrix and office scope', () => {
     if (denied !== '(none)') expect(await can(corpUser(role), CorporateTenantController, denied)).toBe(false);
   });
 
-  it('roster lifecycle: HR may approve but not publish; TRANSPORT may publish; FINANCE and READ_ONLY cannot upload', async () => {
-    const roster = { params: { id: 'roster-a' } };
-    expect(await can(corpUser(CorporateRole.HR), CorporateRosterController, 'approveRoster', roster)).toBe(true);
-    expect(await can(corpUser(CorporateRole.HR), CorporateRosterController, 'publishRoster', roster)).toBe(false);
-    expect(await can(corpUser(CorporateRole.TRANSPORT), CorporateRosterController, 'publishRoster', roster)).toBe(true);
-    expect(await can(corpUser(CorporateRole.FINANCE), CorporateRosterController, 'uploadRoster', {})).toBe(false);
-    expect(await can(corpUser(CorporateRole.READ_ONLY), CorporateRosterController, 'uploadRoster', {})).toBe(false);
-    expect(await can(corpUser(CorporateRole.READ_ONLY), CorporateRosterController, 'listRosters', {})).toBe(true);
+  it('migrated operational permissions are not granted to corporate roles', () => {
+    expect(CORPORATE_PERMISSIONS.filter((permission) =>
+      /^(rosters|shifts|routes|dispatch|trips|safety):/.test(permission),
+    )).toEqual([]);
+
+    const rolesGuard = new RolesGuard(new Reflector());
+    const endpoints: Array<[any, string]> = [
+      [CorporateRosterController, 'listRosters'],
+      [CorporateRosterController, 'uploadRoster'],
+      [CorporateRosterController, 'approveRoster'],
+      [CorporateSchedulingController, 'listShiftTemplates'],
+      [CorporateRoutingController, 'listRoutes'],
+      [CorporateRoutingController, 'optimizeRoutes'],
+      [CorporateTrackingController, 'getTracking'],
+      [CorporateTrackingController, 'getFleetSnapshot'],
+      [CorporateTripExecutionController, 'listRequests'],
+      [CorporateTripExecutionController, 'reviewRequest'],
+      [CorporateTripExecutionController, 'rescheduleOrCancel'],
+      [CorporateSafetyController, 'listAlerts'],
+      [CorporateSafetyController, 'getTrackingLossRoutes'],
+      [CorporateDispatchController, 'getDispatchStatus'],
+      [CorporateAnalyticsController, 'exceptions'],
+    ];
+
+    for (const [controller, method] of endpoints) {
+      expect(rolesGuard.canActivate(ctx(controller, method, req({ id: 'ops', role: UserRole.OPS })))).toBe(true);
+      for (const role of [UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER]) {
+        expect(() =>
+          rolesGuard.canActivate(ctx(controller, method, req({ id: 'corporate', role }))),
+        ).toThrow(ForbiddenException);
+      }
+    }
   });
 
   it('READ_ONLY has no mutation permission and FINANCE has invoices but no employee PII edit', () => {
@@ -111,7 +142,9 @@ describe('WS-F corporate roles, permission matrix and office scope', () => {
     expect(effectiveCorporateRole({ role: UserRole.EMPLOYEE })).toBeNull();
 
     const legacyManager = { id: 'm', role: UserRole.CORPORATE_MANAGER, corporateTenantId: T1.id };
-    expect(await can(legacyManager, CorporateRosterController, 'publishRoster', { params: { id: 'roster-a' } })).toBe(true);
+    expect(() =>
+      new RolesGuard(new Reflector()).canActivate(ctx(CorporateRosterController, 'publishRoster', req(legacyManager))),
+    ).toThrow(ForbiddenException);
     expect(await can(legacyManager, CorporateTenantController, 'inviteUser')).toBe(false);
     const legacyAdmin = { id: 'a', role: UserRole.CORPORATE_ADMIN, corporateTenantId: T1.id };
     expect(await can(legacyAdmin, CorporateTenantController, 'inviteUser')).toBe(true);

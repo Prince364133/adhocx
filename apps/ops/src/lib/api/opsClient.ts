@@ -200,9 +200,88 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
   return json as T;
 }
 
+export interface CorporateTenantRealtimeEvent {
+  channel: string;
+  event: string;
+  payload: Record<string, unknown>;
+  timestamp: string;
+}
+
+export async function streamCorporateTenantEvents(
+  tenantId: string,
+  signal: AbortSignal,
+  onEvent: (event: CorporateTenantRealtimeEvent) => void,
+  onOpen: () => void,
+): Promise<void> {
+  const url = `${getApiBaseUrl()}/notifications/events?channel=${encodeURIComponent(`corporate:${tenantId}`)}`;
+  let token = getStoredOpsToken();
+  if (!token) throw new Error('Operations session is unavailable.');
+
+  const open = (accessToken: string) => fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}`, Accept: 'text/event-stream' },
+    cache: 'no-store',
+    signal,
+  });
+  let response = await open(token);
+  if (response.status === 401) {
+    await request<unknown>('/corporate/tenants?page=1&limit=1');
+    token = getStoredOpsToken();
+    if (!token) throw new Error('Operations session expired.');
+    response = await open(token);
+  }
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(`Realtime stream failed [${response.status}]: ${detail || response.statusText}`);
+  }
+  if (!response.body) throw new Error('Realtime stream did not provide a response body.');
+
+  onOpen();
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  const dispatchFrame = (frame: string) => {
+    const data = frame.split(/\r?\n/)
+      .filter((line) => line.startsWith('data:'))
+      .map((line) => line.slice(5).trimStart())
+      .join('\n');
+    if (!data) return;
+    let event: CorporateTenantRealtimeEvent;
+    try {
+      event = JSON.parse(data) as CorporateTenantRealtimeEvent;
+    } catch (error) {
+      throw new Error('Realtime stream returned an invalid event payload.', { cause: error });
+    }
+    if (event && typeof event.event === 'string') onEvent(event);
+  };
+
+  try {
+    while (!signal.aborted) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let boundary = buffer.search(/\r?\n\r?\n/);
+      while (boundary >= 0) {
+        const frame = buffer.slice(0, boundary);
+        const separator = buffer.match(/\r?\n\r?\n/);
+        const separatorLength = separator?.[0].length ?? 2;
+        buffer = buffer.slice(boundary + separatorLength);
+        dispatchFrame(frame);
+        boundary = buffer.search(/\r?\n\r?\n/);
+      }
+    }
+    buffer += decoder.decode();
+    if (buffer.trim()) dispatchFrame(buffer);
+  } finally {
+    await reader.cancel().catch(() => undefined);
+  }
+}
+
 export const opsApi = {
   /** Latest known position of every active cab in scope (only cabs that have reported GPS). */
-  getFleetSnapshot: () => request<LiveVehicleTelemetryPayload[]>('/corporate/trips/routes/fleet/live'),
+  getFleetSnapshot: (tenantId?: string) =>
+    request<LiveVehicleTelemetryPayload[]>(
+      `/corporate/trips/routes/fleet/live${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ''}`,
+    ),
   /** Single-use 30 s ticket for opening a live-stream EventSource (the access token never goes in a URL). */
   createStreamTicket: () =>
     request<{ ticket: string; expiresAt: string }>('/corporate/trips/live-stream-tickets', { method: 'POST', body: '{}' }),
@@ -315,6 +394,9 @@ export const opsApi = {
     }>(`/corporate/tenants?${q.toString()}`);
   },
 
+  getTenant: (tenantId: string): Promise<CorporateTenantOption> =>
+    request<CorporateTenantOption>(`/corporate/tenants/${encodeURIComponent(tenantId)}`),
+
   // ── Routes & Filtering ──
   getRoutes: async (params: {
     tenantId: string;
@@ -324,6 +406,8 @@ export const opsApi = {
     status?: string;
     limit?: number;
     offset?: number;
+    includeStops?: boolean;
+    includeAnalytics?: boolean;
   }): Promise<CorporateRouteItem[]> => {
     const q = new URLSearchParams({ tenantId: params.tenantId });
     if (params.shiftDate) q.set('shiftDate', params.shiftDate);
@@ -332,6 +416,8 @@ export const opsApi = {
     if (params.status) q.set('status', params.status);
     if (params.limit) q.set('limit', String(params.limit));
     if (params.offset) q.set('offset', String(params.offset));
+    if (params.includeStops) q.set('includeStops', 'true');
+    if (params.includeAnalytics) q.set('includeAnalytics', 'true');
 
     return request<CorporateRouteItem[]>(`/corporate/routes?${q.toString()}`);
   },

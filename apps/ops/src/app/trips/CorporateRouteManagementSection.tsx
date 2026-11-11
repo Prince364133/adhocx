@@ -80,6 +80,7 @@ export function CorporateRouteManagementSection() {
     setSelectedTenantId(id);
     try {
       localStorage.setItem(COMPANY_STORAGE_KEY, id);
+      window.dispatchEvent(new Event('adhocx:ops-tenant-changed'));
     } catch {
       // not remembered; harmless
     }

@@ -11,7 +11,6 @@ import {
   HttpStatus,
   BadRequestException,
   NotFoundException,
-  ForbiddenException,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -27,7 +26,6 @@ import { RolesGuard } from '../../../common/guards/roles.guard';
 import { CorporateAccessGuard, resolveScopedTenantId } from '../../../common/guards/corporate-access.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { CorporateResource, CorporateTenantScoped } from '../../../common/decorators/corporate-resource.decorator';
-import { CorporatePermission, corporateRoleHas } from '../tenants/corporate-permissions';
 import { RosterLifecycleService } from './roster-lifecycle.service';
 
 /** Office scope bound by CorporateAccessGuard (null = all offices / platform admin). */
@@ -46,8 +44,7 @@ export class CorporateRosterController {
   ) {}
 
   @Get('template')
-  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
-  @CorporatePermission('rosters:read')
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @ApiOperation({ summary: 'Download the official AdhocX Corporate Roster Excel template (.xlsx)' })
   @ApiResponse({ status: 200, description: 'Excel template stream' })
   public async downloadTemplate(@Res() res: Response): Promise<void> {
@@ -63,9 +60,8 @@ export class CorporateRosterController {
   }
 
   @Post('validate')
-  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateTenantScoped()
-  @CorporatePermission('rosters:write')
   @ApiOperation({ summary: 'Dry-run validate an uploaded Excel roster file without persisting changes' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -98,9 +94,8 @@ export class CorporateRosterController {
   }
 
   @Post('upload')
-  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateTenantScoped()
-  @CorporatePermission('rosters:write')
   @ApiOperation({
     summary: 'Upload, validate, and ingest corporate roster; generates transport requests',
     description:
@@ -149,17 +144,12 @@ export class CorporateRosterController {
     if (mode === 'draft') {
       return this.rosterIngestionService.ingestDraftRoster(tenantId, file.buffer, actorId, scopeOf(req));
     }
-    // Immediate publish generates demand, so a corporate user also needs rosters:publish.
-    if (req?.corporateRole && !corporateRoleHas(req.corporateRole, 'rosters:publish')) {
-      throw new ForbiddenException(`Corporate role ${req.corporateRole} must upload with mode=draft (no rosters:publish)`);
-    }
     return this.rosterIngestionService.ingestAndPublishRoster(tenantId, file.buffer, actorId, scopeOf(req));
   }
 
   @Get()
-  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateTenantScoped()
-  @CorporatePermission('rosters:read')
   @ApiOperation({ summary: 'List corporate rosters for a tenant (office-scoped users: their offices)' })
   public async listRosters(
     @Query('tenantId') tenantId: string,
@@ -203,9 +193,8 @@ export class CorporateRosterController {
   }
 
   @Get(':id')
-  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateResource('roster', 'id')
-  @CorporatePermission('rosters:read')
   @ApiOperation({ summary: 'Get details of a specific corporate roster' })
   public async getRosterById(@Param('id') id: string) {
     const roster = await this.db.corporateRoster.findUnique({
@@ -254,18 +243,16 @@ export class CorporateRosterController {
   }
 
   @Post(':id/approve')
-  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateResource('roster', 'id')
-  @CorporatePermission('rosters:approve')
   @ApiOperation({ summary: 'Approve a DRAFT roster version (DRAFT -> APPROVED); idempotent; actor audited' })
   public async approveRoster(@Param('id') id: string, @Req() req: any) {
     return this.rosterLifecycleService.approve(id, this.actorOf(req));
   }
 
   @Post(':id/publish')
-  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateResource('roster', 'id')
-  @CorporatePermission('rosters:publish')
   @ApiOperation({
     summary: 'Publish an APPROVED roster version (APPROVED -> PUBLISHED) and generate demand idempotently',
     description: 'Requests are keyed by idempotencyHash; re-publishing creates nothing. Holiday shift days are skipped.',
@@ -275,9 +262,8 @@ export class CorporateRosterController {
   }
 
   @Get(':id/requests')
-  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateResource('roster', 'id')
-  @CorporatePermission('rosters:read')
   @ApiOperation({ summary: 'Get all transport requests belonging to a corporate roster' })
   public async getRosterTransportRequests(
     @Param('id') id: string,

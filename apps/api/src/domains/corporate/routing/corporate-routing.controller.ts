@@ -40,7 +40,7 @@ export class CorporateRoutingController {
   ) {}
 
   @Post('plan-from-file')
-  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateTenantScoped()
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
@@ -100,7 +100,7 @@ export class CorporateRoutingController {
   }
 
   @Post('plan-stream')
-  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateTenantScoped()
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
@@ -211,7 +211,7 @@ export class CorporateRoutingController {
   }
 
   @Post('plan-from-file/stream')
-  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateTenantScoped()
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
@@ -225,7 +225,7 @@ export class CorporateRoutingController {
   }
 
   @Post('commit-plan')
-  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateTenantScoped()
   @ApiOperation({ summary: 'Commit calculated route plan into active corporate routes in the database' })
   public async commitPlan(@Body() body: CommitPlanDto) {
@@ -236,7 +236,7 @@ export class CorporateRoutingController {
   }
 
   @Get('sample-template')
-  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateTenantScoped()
   @ApiOperation({ summary: 'Download sample Excel or CSV template for employee pickup routing' })
   public async downloadSampleTemplate(@Query('format') format: string, @Res() res: Response) {
@@ -256,7 +256,7 @@ export class CorporateRoutingController {
   }
 
   @Post('export-plan')
-  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateTenantScoped()
   @ApiOperation({ summary: 'Export calculated route plan to formatted multi-sheet Excel file' })
   public async exportPlanToExcel(@Body() plan: PlanRoutesResult, @Res() res: Response) {
@@ -270,7 +270,7 @@ export class CorporateRoutingController {
   }
 
   @Post('optimize')
-  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateTenantScoped()
   @ApiOperation({ summary: 'Plan capacity- and ride-time-constrained corporate routes for a shift on road travel times' })
   @ApiBody({
@@ -302,7 +302,7 @@ export class CorporateRoutingController {
   }
 
   @Get()
-  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateTenantScoped()
   @ApiOperation({ summary: 'List corporate routes with optional filters (paged: limit default 500, max 1000; offset)' })
   public async listRoutes(
@@ -313,6 +313,8 @@ export class CorporateRoutingController {
     @Query('status') status?: any,
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
+    @Query('includeStops') includeStops?: string,
+    @Query('includeAnalytics') includeAnalytics?: string,
   ) {
     if (!tenantId) {
       throw new BadRequestException('tenantId query parameter is required');
@@ -334,11 +336,11 @@ export class CorporateRoutingController {
       where.status = status;
     }
 
-    return this.db.corporateRoute.findMany({
+    const routes: any[] = await this.db.corporateRoute.findMany({
       where,
       include: {
         office: {
-          select: { id: true, code: true, name: true },
+          select: { id: true, code: true, name: true, addressText: true, latitude: true, longitude: true },
         },
         driver: {
           select: { id: true, fullName: true, phone: true },
@@ -349,15 +351,86 @@ export class CorporateRoutingController {
         _count: {
           select: { stops: true },
         },
+        ...(includeStops === 'true'
+          ? {
+              stops: {
+                orderBy: { stopSequence: 'asc' as const },
+                select: {
+                  id: true,
+                  stopSequence: true,
+                  stopType: true,
+                  status: true,
+                  latitude: true,
+                  longitude: true,
+                  plannedEta: true,
+                  actualArrivalTime: true,
+                  actualDepartureTime: true,
+                  dwellBufferSeconds: true,
+                  noShowReason: true,
+                  employee: {
+                    select: {
+                      id: true,
+                      employeeCode: true,
+                      fullName: true,
+                      gender: true,
+                      phoneNumber: true,
+                      department: true,
+                      locations: {
+                        where: { isDefault: true },
+                        take: 1,
+                        select: { addressText: true },
+                      },
+                    },
+                  },
+                },
+              },
+            }
+          : {}),
       },
       orderBy: [{ shiftDate: 'desc' }, { shiftTime: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
       take,
       skip,
     });
+
+    const routesWithStopAddresses = includeStops === 'true'
+      ? routes.map((route) => ({
+          ...route,
+          stops: route.stops?.map((stop: {
+            employee?: { locations: Array<{ addressText: string }> } | null;
+          }) => ({
+            ...stop,
+            addressText: stop.employee?.locations[0]?.addressText
+              ?? (stop.employee ? 'Address unavailable' : route.office?.addressText ?? route.office?.name ?? 'Office destination'),
+          })),
+        }))
+      : routes;
+
+    if (includeAnalytics !== 'true' || routesWithStopAddresses.length === 0) return routesWithStopAddresses;
+    const events = await this.db.corporateTripEvent.findMany({
+      where: {
+        tenantId,
+        routeId: { in: routesWithStopAddresses.map((route) => route.id) },
+        type: { in: ['ROUTE_STARTED', 'ROUTE_COMPLETED'] },
+      },
+      select: { routeId: true, type: true, at: true },
+      orderBy: [{ at: 'asc' }, { id: 'asc' }],
+    });
+    const eventsByRoute = new Map<string, { startedAt?: Date; completedAt?: Date }>();
+    for (const event of events) {
+      const current = eventsByRoute.get(event.routeId) ?? {};
+      if (event.type === 'ROUTE_STARTED' && !current.startedAt) current.startedAt = event.at;
+      if (event.type === 'ROUTE_COMPLETED') current.completedAt = event.at;
+      eventsByRoute.set(event.routeId, current);
+    }
+
+    return routesWithStopAddresses.map((route) => ({
+      ...route,
+      ...eventsByRoute.get(route.id),
+    }));
   }
 
   @Get(':id')
-  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER, UserRole.DRIVER)
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.DRIVER)
   @CorporateResource('route', 'id')
   @ApiOperation({ summary: 'Get full itinerary and ordered stops for a specific corporate route' })
   public async getRouteById(@Param('id') id: string) {

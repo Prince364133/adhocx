@@ -13,6 +13,9 @@ import {
   ExternalLink,
   ClipboardList,
   Truck,
+  Radio,
+  CalendarClock,
+  Ticket,
 } from 'lucide-react';
 
 interface NavItem {
@@ -48,12 +51,6 @@ const NAV_ITEMS: NavItem[] = [
     badge: 'CVRPTW',
   },
   {
-    href: '/safety',
-    label: 'SOS Cockpit',
-    icon: <ShieldAlert size={18} />,
-    badgeColor: '#DC2626',
-  },
-  {
     href: '/deviations',
     label: 'Corridor Monitor',
     icon: <Route size={18} />,
@@ -61,6 +58,33 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 const OPERATIONS_ITEMS: NavItem[] = [
+  {
+    href: '/live',
+    label: 'Live Operations',
+    icon: <Radio size={18} />,
+    badge: 'LIVE',
+  },
+  {
+    href: '/rosters',
+    label: 'Shifts & Rosters',
+    icon: <CalendarClock size={18} />,
+  },
+  {
+    href: '/bookings',
+    label: 'Bookings',
+    icon: <Ticket size={18} />,
+  },
+  {
+    href: '/routes',
+    label: 'Routes & Trips',
+    icon: <Navigation size={18} />,
+  },
+  {
+    href: '/safety',
+    label: 'Safety & Incidents',
+    icon: <ShieldAlert size={18} />,
+    badgeColor: '#DC2626',
+  },
   {
     href: '/requirements',
     label: 'Requirements',
@@ -167,7 +191,7 @@ export const OpsSidebar: React.FC = () => {
             marginBottom: '8px',
           }}
         >
-          OPERATIONS
+          CORPORATE OPERATIONS
         </div>
 
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '16px' }}>

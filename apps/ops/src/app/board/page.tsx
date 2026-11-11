@@ -257,6 +257,7 @@ function LiveRouteDeckContent() {
               onChange={(e) => {
                 setSelectedTenantId(e.target.value);
                 localStorage.setItem('adhocx_ops_selected_tenant', e.target.value);
+                window.dispatchEvent(new Event('adhocx:ops-tenant-changed'));
               }}
               style={{
                 width: '100%',

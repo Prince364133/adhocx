@@ -85,7 +85,7 @@ export class CorporateTenantController {
   }
 
   @Get(':id')
-  @Roles(...CORPORATE_PORTAL_ROLES)
+  @Roles(...CORPORATE_PORTAL_ROLES, UserRole.OPS)
   @CorporateResource('tenant', 'id')
   @CorporatePermission('tenant:read')
   @ApiOperation({ summary: 'Get corporate tenant profile with offices and metrics' })
@@ -243,7 +243,7 @@ export class CorporateTenantController {
   }
 
   @Get(':id/offices')
-  @Roles(...CORPORATE_PORTAL_ROLES)
+  @Roles(...CORPORATE_PORTAL_ROLES, UserRole.OPS)
   @CorporateResource('tenant', 'id')
   @CorporatePermission('offices:read')
   @ApiOperation({ summary: 'List all office campuses for a corporate tenant (office-scoped users: their offices)' })
@@ -307,7 +307,7 @@ export class CorporateTenantController {
   }
 
   @Get(':id/employees')
-  @Roles(...CORPORATE_PORTAL_ROLES)
+  @Roles(...CORPORATE_PORTAL_ROLES, UserRole.OPS)
   @CorporateResource('tenant', 'id')
   @CorporatePermission('employees:read')
   @ApiOperation({ summary: 'List corporate employees with search and filters (office-scoped users: their offices)' })

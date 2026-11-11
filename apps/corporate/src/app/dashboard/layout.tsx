@@ -1,14 +1,12 @@
 'use client';
 
 import React from 'react';
-import { LayoutDashboard, BarChart3, Radio, AlertTriangle } from 'lucide-react';
+import { LayoutDashboard, BarChart3 } from 'lucide-react';
 import { SubNavTabs, SubNavTab } from '../../components/layout/SubNavTabs';
 
 const DASHBOARD_TABS: SubNavTab[] = [
   { href: '/dashboard', label: 'Company Overview', icon: <LayoutDashboard size={15} /> },
   { href: '/dashboard/analytics', label: 'Transport Analytics', icon: <BarChart3 size={15} /> },
-  { href: '/dashboard/live-summary', label: 'Live Operations Summary', icon: <Radio size={15} /> },
-  { href: '/dashboard/exceptions', label: 'Exceptions Dashboard', icon: <AlertTriangle size={15} /> },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

@@ -300,11 +300,19 @@ describe('Corporate access control', () => {
         .rejects.toThrow(/SUSPENDED/);
     });
 
-    it('may reschedule (cutoff enforced) for their own tenant employees only', async () => {
-      await expect(guard.canActivate(ctx(CorporateTripExecutionController, 'rescheduleOrCancel',
-        req(corpAdmin1, { params: { id: 'req-2' }, body: { employeeId: 'emp-2', action: 'CANCEL' } })))).resolves.toBe(true);
-      await expect(guard.canActivate(ctx(CorporateTripExecutionController, 'rescheduleOrCancel',
-        req(corpAdmin1, { params: { id: 'req-9' }, body: { employeeId: 'emp-9', action: 'CANCEL' } })))).rejects.toThrow(ForbiddenException);
+    it('cannot reschedule booking requests after the module moves to Ops', () => {
+      const rolesGuard = new RolesGuard(new Reflector());
+      for (const user of [corpAdmin1, manager1]) {
+        expect(() =>
+          rolesGuard.canActivate(
+            ctx(
+              CorporateTripExecutionController,
+              'rescheduleOrCancel',
+              req(user, { params: { id: 'req-2' }, body: { employeeId: 'emp-2', action: 'CANCEL' } }),
+            ),
+          ),
+        ).toThrow(ForbiddenException);
+      }
     });
 
     it('cannot read driver earnings (not a tenant resource)', async () => {

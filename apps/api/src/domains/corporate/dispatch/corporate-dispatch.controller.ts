@@ -104,7 +104,7 @@ export class CorporateDispatchController {
   }
 
   @Get('routes/:id/status')
-  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateResource('route', 'id')
   @ApiOperation({ summary: 'Get current real-time dispatch offer state for a corporate route' })
   public async getDispatchStatus(@Param('id') routeId: string) {

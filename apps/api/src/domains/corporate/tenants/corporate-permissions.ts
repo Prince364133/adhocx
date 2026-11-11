@@ -43,19 +43,6 @@ export const CORPORATE_PERMISSIONS = [
   'costcenters:write',
   'policy:read',
   'policy:write',
-  'rosters:read',
-  'rosters:write',
-  'rosters:approve',
-  'rosters:publish',
-  'shifts:read',
-  'shifts:write',
-  'routes:read',
-  'routes:write',
-  'dispatch:read',
-  'trips:read',
-  'trips:write',
-  'safety:read',
-  'safety:write',
   'invoices:read',
   'billing:write',
   'reports:read',
@@ -67,9 +54,8 @@ const READS = CORPORATE_PERMISSIONS.filter((p) => p.endsWith(':read')) as Corpor
 
 /**
  * Role -> permission matrix. Platform ADMIN bypasses it. Segregation of duties:
- * - HR owns people data and prepares rosters (upload + approve); TRANSPORT publishes and plans.
- * - FINANCE sees invoices / cost centers but no employee PII and no roster mutations.
- * - SAFETY sees employees, routes and trips and owns SOS / incidents.
+ * - HR owns people data; FINANCE sees invoices / cost centers but no employee PII.
+ * - Operational modules are managed by UserRole.OPS rather than corporate roles.
  * - READ_ONLY can read everything and mutate nothing.
  */
 export const CORPORATE_ROLE_PERMISSIONS: Readonly<Record<CorporateRole, ReadonlySet<CorporatePermission>>> = {
@@ -84,10 +70,6 @@ export const CORPORATE_ROLE_PERMISSIONS: Readonly<Record<CorporateRole, Readonly
     'departments:write',
     'costcenters:read',
     'policy:read',
-    'rosters:read',
-    'rosters:write',
-    'rosters:approve',
-    'shifts:read',
     'reports:read',
   ]),
   [CorporateRole.TRANSPORT]: new Set<CorporatePermission>([
@@ -99,18 +81,6 @@ export const CORPORATE_ROLE_PERMISSIONS: Readonly<Record<CorporateRole, Readonly
     'departments:read',
     'costcenters:read',
     'policy:read',
-    'rosters:read',
-    'rosters:write',
-    'rosters:approve',
-    'rosters:publish',
-    'shifts:read',
-    'shifts:write',
-    'routes:read',
-    'routes:write',
-    'dispatch:read',
-    'trips:read',
-    'trips:write',
-    'safety:read',
     'reports:read',
   ]),
   [CorporateRole.FINANCE]: new Set<CorporatePermission>([
@@ -129,13 +99,6 @@ export const CORPORATE_ROLE_PERMISSIONS: Readonly<Record<CorporateRole, Readonly
     'offices:read',
     'employees:read',
     'policy:read',
-    'rosters:read',
-    'shifts:read',
-    'routes:read',
-    'dispatch:read',
-    'trips:read',
-    'safety:read',
-    'safety:write',
     'reports:read',
   ]),
   [CorporateRole.READ_ONLY]: new Set<CorporatePermission>(READS),

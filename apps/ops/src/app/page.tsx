@@ -45,6 +45,7 @@ export default function CompanyHubPage() {
 
       const initial = items.find((t) => t.id === remembered)?.id ?? items[0]?.id ?? '';
       setSelectedTenantId(initial);
+      if (initial) handleSelectTenant(initial);
     } catch (err) {
       console.error('Failed to load tenants:', err);
     } finally {
@@ -56,6 +57,7 @@ export default function CompanyHubPage() {
     setSelectedTenantId(id);
     try {
       localStorage.setItem(COMPANY_STORAGE_KEY, id);
+      window.dispatchEvent(new Event('adhocx:ops-tenant-changed'));
     } catch {}
   }
 

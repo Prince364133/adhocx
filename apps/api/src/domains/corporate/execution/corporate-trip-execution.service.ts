@@ -470,6 +470,13 @@ export class CorporateTripExecutionService {
       stopSequence: stop.stopSequence,
       departureTime,
     });
+    this.notifications.emitEvent(`corporate:${stop.route.tenantId}`, 'ROUTE_STOP_BOARDED', {
+      routeId,
+      stopId,
+      stopSequence: stop.stopSequence,
+      status: 'BOARDED',
+      occurredAt: departureTime,
+    });
 
     if (stop.employeeId) {
       const waitedSeconds = stop.actualArrivalTime
@@ -577,6 +584,13 @@ export class CorporateTripExecutionService {
       stopSequence: stop.stopSequence,
       departureTime,
       message: 'No-Show recorded. Depart immediately to next stop.',
+    });
+    this.notifications.emitEvent(`corporate:${stop.route.tenantId}`, 'ROUTE_STOP_NO_SHOW', {
+      routeId,
+      stopId,
+      stopSequence: stop.stopSequence,
+      status: 'NO_SHOW',
+      occurredAt: departureTime,
     });
 
     // Employee (websocket + push with reason) and corporate dashboard ATTENDANCE_NO_SHOW
