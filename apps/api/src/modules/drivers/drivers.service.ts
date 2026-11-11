@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException, Logger, Optional } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException, ForbiddenException, Logger, Optional } from '@nestjs/common';
 import { PickupRadiusConfig } from '../dispatch/pickup-radius';
 import { RedisService } from '../../redis/redis.service';
 import {
@@ -419,27 +419,21 @@ export class DriversService {
   }
 
   async updateAvailability(userId: string, dto: UpdateAvailabilityDto): Promise<DriverProfileDto> {
-    let driver = await this.db.driver.findUnique({ where: { userId } });
+    const driver = await this.db.driver.findUnique({ where: { userId } });
 
     if (!driver) {
-      const user = await this.db.user.findUnique({ where: { id: userId } });
-      if (!user) {
-        throw new NotFoundException('User account not found');
-      }
+      throw new ForbiddenException(
+        'Driver KYC is incomplete. Submit your KYC and wait for admin verification before going online.',
+      );
+    }
 
-      driver = await this.db.driver.create({
-        data: {
-          userId,
-          fullName: user.fullName || 'Driver',
-          phone: user.phone || '',
-          verificationStatus: VerificationStatus.VERIFIED,
-          availabilityStatus: dto.status,
-          currentLat: dto.currentLocation?.latitude,
-          currentLng: dto.currentLocation?.longitude,
-          lastLocationAt: dto.currentLocation ? new Date() : undefined,
-        },
-      });
-      return this.getProfile(driver.userId);
+    if (
+      dto.status !== DriverAvailability.OFFLINE &&
+      driver.verificationStatus !== VerificationStatus.VERIFIED
+    ) {
+      throw new ForbiddenException(
+        'Your KYC is under admin review. You can go online only after admin verification.',
+      );
     }
 
     validateAvailabilityTransition(
@@ -451,7 +445,6 @@ export class DriversService {
       where: { userId },
       data: {
         availabilityStatus: dto.status,
-        verificationStatus: VerificationStatus.VERIFIED,
         currentLat: dto.currentLocation?.latitude ?? driver.currentLat,
         currentLng: dto.currentLocation?.longitude ?? driver.currentLng,
         lastLocationAt: dto.currentLocation ? new Date() : driver.lastLocationAt,

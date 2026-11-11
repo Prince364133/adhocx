@@ -1361,6 +1361,44 @@ export class NotificationsService implements OnModuleInit {
     return { success: true };
   }
 
+  /**
+   * Delete a single in-app notification belonging to a user.
+   */
+  async deleteNotification(userId: string, notificationId: string) {
+    if (!this.db) return { success: true, unreadCount: 0 };
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(notificationId)) {
+      const unreadCount = await this.db.notification.count({ where: { userId, isRead: false } }).catch(() => 0);
+      return { success: true, deletedCount: 0, unreadCount };
+    }
+    try {
+      const res = await this.db.notification.deleteMany({
+        where: { id: notificationId, userId },
+      });
+      const unreadCount = await this.db.notification.count({ where: { userId, isRead: false } });
+      return { success: true, deletedCount: res.count, unreadCount };
+    } catch (err: any) {
+      this.logger.warn(`Failed to delete notification ${notificationId}: ${err.message}`);
+      return { success: false, deletedCount: 0 };
+    }
+  }
+
+  /**
+   * Clear (delete) all in-app notifications for a user.
+   */
+  async clearAllNotifications(userId: string) {
+    if (!this.db) return { success: true, deletedCount: 0, unreadCount: 0 };
+    try {
+      const res = await this.db.notification.deleteMany({
+        where: { userId },
+      });
+      return { success: true, deletedCount: res.count, unreadCount: 0 };
+    } catch (err: any) {
+      this.logger.warn(`Failed to clear notifications for user ${userId}: ${err.message}`);
+      return { success: false, deletedCount: 0 };
+    }
+  }
+
   // ─── Admin Campaigns & Metrics ───────────────────────────────────────────────
 
   /**

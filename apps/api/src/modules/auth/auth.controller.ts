@@ -157,10 +157,10 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Log out and invalidate current session token' })
   @SwaggerResponse({ status: 200, description: 'Logged out successfully' })
-  async logout(@Req() req: any) {
+  async logout(@Req() req: any, @CurrentUser() user?: AuthUserDto) {
     const authHeader = req.headers.authorization;
     const token = authHeader?.split(' ')[1] || '';
-    await this.authService.logout(token);
+    await this.authService.logout(token, user?.id);
     return { success: true, message: 'Logged out successfully' };
   }
 

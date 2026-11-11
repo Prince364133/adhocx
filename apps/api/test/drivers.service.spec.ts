@@ -1,3 +1,4 @@
+import { ForbiddenException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DriversService } from '../src/modules/drivers/drivers.service';
 import { DatabaseService } from '../src/database/database.service';
@@ -26,6 +27,9 @@ describe('DriversService Unit Tests', () => {
       user: {
         findUnique: jest.fn().mockResolvedValue(null),
         update: jest.fn().mockResolvedValue({}),
+      },
+      offer: {
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
     };
 
@@ -59,6 +63,7 @@ describe('DriversService Unit Tests', () => {
       .mockResolvedValueOnce({
         id: 'drv-1',
         userId: 'usr-1',
+        verificationStatus: VerificationStatus.VERIFIED,
         availabilityStatus: DriverAvailability.OFFLINE,
       })
       .mockResolvedValueOnce({
@@ -92,6 +97,7 @@ describe('DriversService Unit Tests', () => {
     db.driver.findUnique.mockResolvedValue({
       id: 'drv-1',
       userId: 'usr-1',
+      verificationStatus: VerificationStatus.VERIFIED,
       availabilityStatus: DriverAvailability.OFFLINE,
     });
 
@@ -100,6 +106,62 @@ describe('DriversService Unit Tests', () => {
         status: DriverAvailability.BUSY,
       }),
     ).rejects.toThrow(InvalidStateTransitionError);
+  });
+
+  it.each([
+    VerificationStatus.PENDING,
+    VerificationStatus.UNDER_REVIEW,
+    VerificationStatus.REJECTED,
+  ])(
+    'should block %s driver from going AVAILABLE without admin approval',
+    async (status) => {
+      db.driver.findUnique.mockResolvedValueOnce({
+        id: 'drv-unverified',
+        userId: 'usr-unverified',
+        verificationStatus: status,
+        availabilityStatus: DriverAvailability.OFFLINE,
+      });
+
+      await expect(
+        service.updateAvailability('usr-unverified', {
+          status: DriverAvailability.AVAILABLE,
+        }),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(db.driver.update).not.toHaveBeenCalled();
+      expect(db.driver.upsert).not.toHaveBeenCalled();
+    },
+  );
+
+  it('should allow unverified driver to mark OFFLINE without promoting verificationStatus', async () => {
+    db.driver.findUnique
+      .mockResolvedValueOnce({
+        id: 'drv-review',
+        userId: 'usr-review',
+        verificationStatus: VerificationStatus.UNDER_REVIEW,
+        availabilityStatus: DriverAvailability.OFFLINE,
+      })
+      .mockResolvedValueOnce({
+        id: 'drv-review',
+        userId: 'usr-review',
+        fullName: 'Pending Driver',
+        phone: '+919876543211',
+        verificationStatus: VerificationStatus.UNDER_REVIEW,
+        availabilityStatus: DriverAvailability.OFFLINE,
+        walletBalance: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+    db.driver.update.mockResolvedValue({ userId: 'usr-review' });
+
+    const result = await service.updateAvailability('usr-review', {
+      status: DriverAvailability.OFFLINE,
+    });
+
+    expect(result.verificationStatus).toBe(VerificationStatus.UNDER_REVIEW);
+    const updateArg = db.driver.update.mock.calls[0][0];
+    expect(updateArg.data.verificationStatus).toBeUndefined();
   });
 
   it('should submit KYC and transition status to UNDER_REVIEW with audit log', async () => {

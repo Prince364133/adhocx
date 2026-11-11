@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'digio_service.dart';
 
 /// State management provider for the 4-step Driver and Vendor Onboarding Flow.
 class OnboardingProvider extends ChangeNotifier {
@@ -49,6 +50,10 @@ class OnboardingProvider extends ChangeNotifier {
   String? _aadharBackUrl;
   String? _panCardUrl;
   String? _selfieUrl;
+  bool _aadhaarVerifiedDigitally = false;
+  bool _panVerifiedDigitally = false;
+  bool _dlVerifiedDigitally = false;
+  bool _rcVerifiedDigitally = false;
 
   // Getters
   String get role => _role;
@@ -99,16 +104,31 @@ class OnboardingProvider extends ChangeNotifier {
   String? get panCardUrl => _panCardUrl;
   String? get selfieUrl => _selfieUrl ?? _profilePhotoUrl;
 
+  bool get isAadhaarVerifiedDigitally => _aadhaarVerifiedDigitally;
+  bool get isPanVerifiedDigitally => _panVerifiedDigitally;
+  bool get isDlVerifiedDigitally => _dlVerifiedDigitally;
+  bool get isRcVerifiedDigitally => _rcVerifiedDigitally;
+
+  bool get isAadhaarFrontSatisfied =>
+      _aadharFrontUrl != null || _aadhaarVerifiedDigitally;
+  bool get isAadhaarBackSatisfied =>
+      _aadharBackUrl != null || _aadhaarVerifiedDigitally;
+  bool get isPanSatisfied => _panCardUrl != null || _panVerifiedDigitally;
+  bool get isDlSatisfied => _drivingLicenseUrl != null || _dlVerifiedDigitally;
+  bool get isRcFrontSatisfied =>
+      _rcFrontUrl != null || _rcBookUrl != null || _rcVerifiedDigitally;
+  bool get isRcBackSatisfied => _rcBackUrl != null || _rcVerifiedDigitally;
+
   int get uploadedDocumentsCount {
     int count = 0;
-    if (_drivingLicenseUrl != null) count++;
-    if (_rcFrontUrl != null || _rcBookUrl != null) count++;
-    if (_rcBackUrl != null) count++;
+    if (isDlSatisfied) count++;
+    if (isRcFrontSatisfied) count++;
+    if (isRcBackSatisfied) count++;
     if (_insuranceUrl != null) count++;
     if (_vehiclePhotoUrl != null) count++;
-    if (_aadharFrontUrl != null) count++;
-    if (_aadharBackUrl != null) count++;
-    if (_panCardUrl != null) count++;
+    if (isAadhaarFrontSatisfied) count++;
+    if (isAadhaarBackSatisfied) count++;
+    if (isPanSatisfied) count++;
     return count;
   }
 
@@ -296,6 +316,80 @@ class OnboardingProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Syncs verified flags, extracted govt IDs, and DigiLocker-attached document URLs
+  /// into onboarding state so already-verified documents auto-mark green without re-upload.
+  void syncFromDigioLatest(
+    Map<String, dynamic> latestByType, {
+    Map<String, dynamic>? syncedMediaUrls,
+    bool notify = true,
+  }) {
+    final docs = DigioService.verifiedDocsFromMap(latestByType);
+    final ids = DigioService.extractedIdentifiersFromMap(latestByType);
+    bool changed = false;
+
+    void setFlag(bool current, bool next, void Function(bool) assign) {
+      if (next && !current) {
+        assign(true);
+        changed = true;
+      }
+    }
+
+    setFlag(_aadhaarVerifiedDigitally, docs['aadhaar'] == true,
+        (v) => _aadhaarVerifiedDigitally = v);
+    setFlag(_panVerifiedDigitally, docs['pan'] == true,
+        (v) => _panVerifiedDigitally = v);
+    setFlag(_dlVerifiedDigitally, docs['dl'] == true,
+        (v) => _dlVerifiedDigitally = v);
+    setFlag(_rcVerifiedDigitally, docs['rc'] == true,
+        (v) => _rcVerifiedDigitally = v);
+
+    if (ids['dlNumber'] != null && _dlNumber.isEmpty) {
+      _dlNumber = ids['dlNumber']!;
+      changed = true;
+    }
+    if (ids['panNumber'] != null && _panNumber.isEmpty) {
+      _panNumber = ids['panNumber']!;
+      changed = true;
+    }
+    if (ids['rcNumber'] != null && _rcNumber.isEmpty) {
+      _rcNumber = ids['rcNumber']!;
+      changed = true;
+    }
+    if (ids['rcNumber'] != null && _registrationNumber.isEmpty) {
+      _registrationNumber = ids['rcNumber']!;
+      changed = true;
+    }
+
+    if (syncedMediaUrls != null) {
+      void fillUrl(String? current, dynamic incoming, void Function(String) assign) {
+        final s = incoming?.toString().trim() ?? '';
+        if ((current == null || current.isEmpty) && s.isNotEmpty) {
+          assign(s);
+          changed = true;
+        }
+      }
+
+      fillUrl(_aadharFrontUrl, syncedMediaUrls['aadharFrontUrl'],
+          (u) => _aadharFrontUrl = u);
+      fillUrl(_aadharBackUrl, syncedMediaUrls['aadharBackUrl'],
+          (u) => _aadharBackUrl = u);
+      fillUrl(_panCardUrl, syncedMediaUrls['panDocUrl'],
+          (u) => _panCardUrl = u);
+      fillUrl(_drivingLicenseUrl, syncedMediaUrls['dlFrontUrl'],
+          (u) => _drivingLicenseUrl = u);
+      final rcUrl = syncedMediaUrls['rcFrontUrl'] ?? syncedMediaUrls['rcDocUrl'];
+      fillUrl(_rcFrontUrl, rcUrl, (u) {
+        _rcFrontUrl = u;
+        _rcBookUrl ??= u;
+      });
+      fillUrl(_rcBackUrl, syncedMediaUrls['rcBackUrl'], (u) => _rcBackUrl = u);
+    }
+
+    if (changed && notify) {
+      notifyListeners();
+    }
+  }
+
   void reset() {
     _role = 'DRIVER';
     _fullName = '';
@@ -328,6 +422,10 @@ class OnboardingProvider extends ChangeNotifier {
     _aadharBackUrl = null;
     _panCardUrl = null;
     _selfieUrl = null;
+    _aadhaarVerifiedDigitally = false;
+    _panVerifiedDigitally = false;
+    _dlVerifiedDigitally = false;
+    _rcVerifiedDigitally = false;
     notifyListeners();
   }
 }

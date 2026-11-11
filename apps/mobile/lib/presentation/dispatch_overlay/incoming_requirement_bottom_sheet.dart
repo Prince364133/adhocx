@@ -64,8 +64,10 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
     super.initState();
     _calculateInitialExpiry();
     _resolveRoadDistanceAndEta();
-    _startCountdown();
-    DispatchSoundPlayer.playIncomingOfferAlert();
+    if (_secondsRemaining > 0) {
+      _startCountdown();
+      DispatchSoundPlayer.playIncomingOfferAlert();
+    }
   }
 
   void _resolveRoadDistanceAndEta() {
@@ -211,17 +213,26 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
   }
 
   void _calculateInitialExpiry() {
-    final expiresAtStr = widget.offerData['expiresAt'] as String?;
-    if (expiresAtStr != null) {
+    final status = widget.offerData['status']?.toString().trim().toUpperCase();
+    if (status != null && status.isNotEmpty && status != 'SENT') {
+      _secondsRemaining = 0;
+      return;
+    }
+    final expiresAtStr = widget.offerData['expiresAt']?.toString();
+    if (expiresAtStr != null && expiresAtStr.isNotEmpty) {
       final expiresAt = DateTime.tryParse(expiresAtStr);
       if (expiresAt != null) {
         final diff = expiresAt.difference(DateTime.now()).inSeconds;
-        _secondsRemaining = (diff > 0 && diff <= 60) ? diff : _totalSeconds;
+        _secondsRemaining = diff > 0 ? diff : 0;
         return;
       }
     }
-    final inSec = widget.offerData['expiresInSeconds'] as int?;
-    _secondsRemaining = (inSec != null && inSec > 0) ? inSec : _totalSeconds;
+    final inSec = int.tryParse(widget.offerData['expiresInSeconds']?.toString() ?? '');
+    if (inSec != null) {
+      _secondsRemaining = inSec > 0 ? inSec : 0;
+      return;
+    }
+    _secondsRemaining = _totalSeconds;
   }
 
   void _startCountdown() {
@@ -488,7 +499,7 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'INCOMING DISPATCH',
+                          _secondsRemaining <= 0 ? 'OFFER EXPIRED' : 'INCOMING DISPATCH',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w800,
@@ -497,7 +508,7 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
                           ),
                         ),
                         Text(
-                          'Tap accept before timer ends',
+                          _secondsRemaining <= 0 ? 'This offer has expired' : 'Tap accept before timer ends',
                           style: AppTypography.caption(
                             color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                           ),
@@ -803,7 +814,7 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
                   child: SizedBox(
                     height: 52,
                     child: ElevatedButton(
-                      onPressed: _isSubmitting ? null : _handleAccept,
+                      onPressed: (_isSubmitting || _secondsRemaining <= 0) ? null : _handleAccept,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.accentGreenDark,
                         foregroundColor: Colors.white,

@@ -76,7 +76,7 @@ class _AadhaarConsentSheetState extends State<AadhaarConsentSheet> {
               ),
               const SizedBox(height: 12),
               point('Why: to confirm your identity before you can drive with AdhocX.'),
-              point('Who: Digio (our verification partner) processes your Aadhaar on AdhocX\'s behalf.'),
+              point('Who: Our authorized UIDAI/DigiLocker verification gateway processes your Aadhaar on AdhocX\'s behalf.'),
               point('What we keep: a masked copy of your Aadhaar (first 8 digits hidden) is used on your profile.'),
               point('Your choice: you can withdraw this consent at any time by contacting AdhocX support. You can also verify through DigiLocker instead.'),
               const SizedBox(height: 4),

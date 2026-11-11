@@ -1,12 +1,14 @@
 import { Module, Global } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { LocationsModule } from '../locations/locations.module';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 
 @Global()
 @Module({
   imports: [
+    LocationsModule,
     JwtModule.registerAsync({
       global: true,
       inject: [ConfigService],

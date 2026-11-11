@@ -47,7 +47,14 @@ export class HttpExceptionFilter implements ExceptionFilter {
       }
     }
 
-    if (status >= 500) {
+    const rawMsgStr = Array.isArray(message) ? message.join('. ') : String(message ?? '');
+    const isControlledUpstreamError =
+      exception instanceof HttpException &&
+      (status === HttpStatus.BAD_GATEWAY || status === HttpStatus.SERVICE_UNAVAILABLE) &&
+      rawMsgStr.trim().length > 0 &&
+      !/(prisma|sqlstate|select\s+.*from|econnrefused|\bat\s+\S+:\d+)/i.test(rawMsgStr);
+
+    if (status >= 500 && !isControlledUpstreamError) {
       message = 'An unexpected internal error occurred. Please try again shortly.';
       details = undefined;
     }

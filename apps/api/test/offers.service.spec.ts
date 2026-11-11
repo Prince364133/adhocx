@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, ForbiddenException } from '@nestjs/common';
 import { OffersService } from '../src/modules/offers/offers.service';
 
 import { DatabaseService } from '../src/database/database.service';
@@ -269,5 +269,27 @@ describe('OffersService Unit Tests', () => {
     expect(db.offer.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: 'off-1', driverId: 'drv-1', seenAt: null } }),
     );
+  });
+
+  it('getOfferById computes EXPIRED status and 0s countdown when expiresAt is in the past', async () => {
+    db.offer.findUnique.mockResolvedValue(sentOffer({ expiresAt: new Date(Date.now() - 5000) }));
+
+    const result = await service.getOfferById('off-1', 'usr-drv-1');
+
+    expect(result.id).toBe('off-1');
+    expect(result.status).toBe(OfferStatus.EXPIRED);
+    expect(result.expiresInSeconds).toBe(0);
+    expect(db.offer.update).not.toHaveBeenCalled();
+  });
+
+  it('getOfferById returns SENT with positive expiresInSeconds for an active offer and forbids other drivers', async () => {
+    db.offer.findUnique.mockResolvedValue(sentOffer({ expiresAt: new Date(Date.now() + 20000) }));
+
+    const result = await service.getOfferById('off-1', 'usr-drv-1');
+    expect(result.status).toBe(OfferStatus.SENT);
+    expect(result.expiresInSeconds).toBeGreaterThan(0);
+
+    db.offer.findUnique.mockResolvedValue(sentOffer({ driverId: 'drv-other' }));
+    await expect(service.getOfferById('off-1', 'usr-drv-1')).rejects.toThrow(ForbiddenException);
   });
 });

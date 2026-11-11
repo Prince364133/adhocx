@@ -130,7 +130,7 @@ class WelcomeSuccessScreen extends StatelessWidget {
                   Text(
                     isUser
                         ? 'Your account is ready to book bulk & outstation rides.'
-                        : 'Your account has been created successfully.',
+                        : 'Your KYC application has been submitted for admin review.',
                     style: AppTypography.body(
                       color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                     ),
@@ -156,9 +156,9 @@ class WelcomeSuccessScreen extends StatelessWidget {
                               _buildCheckItem('Track trips & receipts in real-time', isDark),
                             ]
                           : [
-                              _buildCheckItem('You are all set to start earning', isDark),
-                              _buildCheckItem('Go online to receive trip offers', isDark),
-                              _buildCheckItem('Complete trips and earn more', isDark),
+                              _buildCheckItem('Your documents & KYC checks are now under admin review', isDark),
+                              _buildCheckItem('Driver access activates only after admin approval', isDark),
+                              _buildCheckItem('You will be notified as soon as your profile is verified', isDark),
                             ],
                     ),
                   ),

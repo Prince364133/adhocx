@@ -75,7 +75,7 @@ export class DigioClient {
       this.configService.get<string>('digio.clientSecret') || '';
     if (!clientId || !clientSecret) {
       throw new ServiceUnavailableException(
-        'Digio verification service is not configured on this server',
+        'DigiLocker / Govt KYC verification service is not configured on this server',
       );
     }
     return `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`;
@@ -118,6 +118,40 @@ export class DigioClient {
     );
   }
 
+  private extractErrorMessage(parsed: unknown, status: number): string {
+    if (typeof parsed === 'string' && parsed.trim()) return parsed.trim();
+    if (parsed && typeof parsed === 'object') {
+      const obj = parsed as Record<string, any>;
+      const errObj = obj.error && typeof obj.error === 'object' ? obj.error : undefined;
+      const candidates = [
+        obj.message,
+        obj.error_description,
+        errObj?.error_message,
+        errObj?.message,
+        typeof obj.error === 'string' ? obj.error : undefined,
+        typeof obj.details === 'string' ? obj.details : undefined,
+        obj.code,
+      ];
+      for (const candidate of candidates) {
+        if (typeof candidate === 'string' && candidate.trim()) {
+          return candidate.trim();
+        }
+      }
+      try {
+        const serialized = JSON.stringify(parsed);
+        if (serialized && serialized !== '{}') return serialized.slice(0, 300);
+      } catch (_) {}
+    }
+    return `KYC verification service HTTP ${status}`;
+  }
+
+  private extractErrorCode(parsed: unknown): string | undefined {
+    if (!parsed || typeof parsed !== 'object') return undefined;
+    const obj = parsed as Record<string, any>;
+    const code = obj.code ?? obj.error?.code ?? obj.error?.status;
+    return typeof code === 'string' && code.trim() ? code.trim() : undefined;
+  }
+
   private async executeRequest<T = any>(
     endpointPath: string,
     init: RequestInit,
@@ -150,32 +184,29 @@ export class DigioClient {
       }
 
       if (!response.ok) {
-        const message =
-          (typeof parsed === 'object' &&
-            parsed &&
-            (parsed.message || parsed.error_description || parsed.error)) ||
-          `Digio HTTP ${response.status}`;
+        const message = this.extractErrorMessage(parsed, response.status);
+        const digioCode = this.extractErrorCode(parsed);
         this.logger.warn(
-          `Digio call ${endpointPath} failed (${response.status}): ${String(message)}`,
+          `Digio call ${endpointPath} failed (${response.status}): ${message}`,
         );
 
         if (response.status >= 400 && response.status < 500 && response.status !== 401 && response.status !== 403) {
           throw new BadRequestException({
-            message: String(message),
-            digioCode: typeof parsed === 'object' ? parsed?.code : undefined,
+            message,
+            digioCode,
             digioStatus: response.status,
           });
         }
         throw new BadGatewayException({
-          message: `Digio upstream error (${response.status}): ${String(message)}`,
-          digioCode: typeof parsed === 'object' ? parsed?.code : undefined,
+          message: `KYC verification error (${response.status}): ${message}`,
+          digioCode,
         });
       }
 
       return parsed as T;
     } catch (err: any) {
       if (err?.name === 'AbortError') {
-        throw new BadGatewayException('Digio verification API request timed out');
+        throw new BadGatewayException('Verification service request timed out');
       }
       if (
         err instanceof BadRequestException ||
@@ -188,7 +219,7 @@ export class DigioClient {
         `Digio network error on ${endpointPath}: ${err?.message || String(err)}`,
       );
       throw new BadGatewayException(
-        `Unable to reach Digio verification service: ${err?.message || 'Network error'}`,
+        `Unable to reach verification service: ${err?.message || 'Network error'}`,
       );
     } finally {
       clearTimeout(timer);
@@ -224,7 +255,7 @@ export class DigioClient {
       const buffer = Buffer.from(arr);
       if (!res.ok) {
         throw new BadGatewayException(
-          `Digio media fetch failed (${res.status}): ${buffer.toString('utf8').slice(0, 200)}`,
+          `KYC verification media fetch failed (${res.status}): ${buffer.toString('utf8').slice(0, 200)}`,
         );
       }
       if (contentType.includes('application/json')) {

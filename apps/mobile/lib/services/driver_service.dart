@@ -352,6 +352,16 @@ class DriverService {
     return _cachedOffers ?? [];
   }
 
+  /// Fetch a single offer by ID including current status and remaining expiry time.
+  Future<Map<String, dynamic>?> getOfferById(String offerId, {bool forceRefresh = true}) async {
+    await _ensureDriverSession();
+    final response = await _api.get('/offers/$offerId', force: forceRefresh);
+    if (response is Map) {
+      return Map<String, dynamic>.from(response);
+    }
+    return null;
+  }
+
   Future<dynamic> acceptOffer(String offerId) async {
     await _ensureDriverSession();
     final res = await _api.post('/offers/$offerId/accept');

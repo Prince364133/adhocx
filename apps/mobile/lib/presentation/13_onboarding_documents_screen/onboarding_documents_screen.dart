@@ -24,22 +24,63 @@ class OnboardingDocumentsScreen extends StatefulWidget {
       _OnboardingDocumentsScreenState();
 }
 
-class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
+class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen>
+    with WidgetsBindingObserver {
   final Map<String, bool> _uploadingState = {};
   final ImagePicker _picker = ImagePicker();
   String? _inlineErrorMessage;
+  bool _digilockerSyncing = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadExistingDocuments();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      final activeKid = DigioService.instance.activeDigilockerRequestId.value;
+      final dlkrVerified = DigioService.verifiedDocsFromMap(
+              DigioService.instance.latestByTypeNotifier.value)['digilocker'] ==
+          true;
+      if (activeKid != null && activeKid.isNotEmpty && !dlkrVerified) {
+        _syncDigilocker(activeKid, silentIfPending: true);
+      }
+    }
   }
 
   Future<void> _loadExistingDocuments() async {
     try {
       final onboarding = context.read<OnboardingProvider>();
-      final profile = await DriverService.instance.getProfile();
-      if (!mounted || profile is! Map) return;
+      onboarding.syncFromDigioLatest(
+        DigioService.instance.latestByTypeNotifier.value,
+        notify: false,
+      );
+
+      final results = await Future.wait([
+        DriverService.instance.getProfile(),
+        DigioService.instance
+            .getMyVerifications(force: true)
+            .catchError((_) => <String, dynamic>{}),
+      ]);
+      if (!mounted) return;
+
+      final profile = results[0];
+      onboarding.syncFromDigioLatest(
+        DigioService.instance.latestByTypeNotifier.value,
+      );
+      if (profile is! Map) {
+        setState(() {});
+        return;
+      }
 
       final vehiclePhoto = profile['vehiclePhotoUrl']?.toString();
       final profilePhoto = profile['profilePhotoUrl']?.toString();
@@ -356,13 +397,25 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
       if (session == null) return; // consent declined
       final gatewayUrl = session['gatewayUrl']?.toString();
       if (gatewayUrl != null && gatewayUrl.isNotEmpty) {
-        await DigioService.instance.launchGatewayUrl(gatewayUrl);
+        final launched = await DigioService.instance.launchGatewayUrl(gatewayUrl);
         if (context.mounted) {
-          AppToast.showInfo(
-            'DigiLocker opened. Complete authorization, then tap "Sync DigiLocker".',
-            context: context,
-          );
+          if (launched) {
+            AppToast.showInfo(
+              'DigiLocker opened. Complete authorization, then tap "Sync DigiLocker".',
+              context: context,
+            );
+          } else {
+            AppToast.showError(
+              'Unable to open DigiLocker in your browser. Please allow browser links and try again.',
+              context: context,
+            );
+          }
         }
+      } else if (context.mounted) {
+        AppToast.showError(
+          'DigiLocker session did not return a launch link. Please try again.',
+          context: context,
+        );
       }
     } catch (e) {
       if (context.mounted) {
@@ -371,181 +424,109 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
     }
   }
 
-  Future<void> _showPanVerifyDialog(BuildContext context, OnboardingProvider onboarding) async {
-    final panCtrl = TextEditingController(text: onboarding.panNumber);
-    bool busy = false;
-    String? err;
-    await showDialog<void>(
+  Future<void> _showPanVerifySheet(
+    BuildContext context,
+    OnboardingProvider onboarding,
+  ) async {
+    await showModalBottomSheet<void>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setS) => AlertDialog(
-          title: const Text('Verify PAN Instantly (Digio)'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextField(
-                controller: panCtrl,
-                textCapitalization: TextCapitalization.characters,
-                maxLength: 10,
-                decoration: const InputDecoration(
-                  labelText: 'PAN Number',
-                  hintText: 'ABCDE1234F',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              if (err != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: Text(err!, style: const TextStyle(color: AppColors.error, fontSize: 12)),
-                ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: busy ? null : () => Navigator.pop(ctx), child: const Text('Cancel')),
-            ElevatedButton(
-              onPressed: busy
-                  ? null
-                  : () async {
-                      final pan = panCtrl.text.trim().toUpperCase();
-                      if (pan.length != 10) {
-                        setS(() => err = 'Enter a valid 10-character PAN');
-                        return;
-                      }
-                      setS(() {
-                        busy = true;
-                        err = null;
-                      });
-                      try {
-                        final res = await DigioService.instance.verifyPan(
-                          panNumber: pan,
-                          name: onboarding.fullName.isNotEmpty ? onboarding.fullName : null,
-                        );
-                        if (res['verified'] == true) {
-                          onboarding.setKycIdentifiers(panNumber: pan);
-                        }
-                        if (ctx.mounted) Navigator.pop(ctx);
-                        if (context.mounted) {
-                          if (res['verified'] == true) {
-                            AppToast.showSuccess(
-                              'PAN verified${res['verifiedName'] != null ? ' (${res['verifiedName']})' : ''}',
-                              context: context,
-                            );
-                          } else {
-                            AppToast.showError('PAN could not be verified', context: context);
-                          }
-                        }
-                      } catch (e) {
-                        setS(() {
-                          busy = false;
-                          err = AppToast.cleanErrorMessage(e);
-                        });
-                      }
-                    },
-              child: busy
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Text('Verify PAN'),
-            ),
-          ],
-        ),
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _PanVerifyBottomSheet(
+        onboarding: onboarding,
+        parentContext: context,
       ),
     );
-    panCtrl.dispose();
   }
 
-  Future<void> _showDlVerifyDialog(BuildContext context, OnboardingProvider onboarding) async {
-    final dlCtrl = TextEditingController(text: onboarding.dlNumber);
-    final defaultDob = onboarding.dateOfBirth != null
-        ? '${onboarding.dateOfBirth!.day.toString().padLeft(2, '0')}/${onboarding.dateOfBirth!.month.toString().padLeft(2, '0')}/${onboarding.dateOfBirth!.year}'
-        : '';
-    final dobCtrl = TextEditingController(text: defaultDob);
-    bool busy = false;
-    String? err;
-    await showDialog<void>(
+  Future<void> _showDlVerifySheet(
+    BuildContext context,
+    OnboardingProvider onboarding,
+  ) async {
+    await showModalBottomSheet<void>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setS) => AlertDialog(
-          title: const Text('Verify Driving License (Digio)'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: dlCtrl,
-                textCapitalization: TextCapitalization.characters,
-                decoration: const InputDecoration(
-                  labelText: 'DL Number',
-                  hintText: 'TS0920200012345',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: dobCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Date of Birth (DD/MM/YYYY)',
-                  hintText: '14/05/1992',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              if (err != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: Text(err!, style: const TextStyle(color: AppColors.error, fontSize: 12)),
-                ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: busy ? null : () => Navigator.pop(ctx), child: const Text('Cancel')),
-            ElevatedButton(
-              onPressed: busy
-                  ? null
-                  : () async {
-                      if (dlCtrl.text.trim().length < 8 || dobCtrl.text.trim().length < 8) {
-                        setS(() => err = 'Enter valid DL number and DOB (DD/MM/YYYY)');
-                        return;
-                      }
-                      setS(() {
-                        busy = true;
-                        err = null;
-                      });
-                      try {
-                        final cleanDl = dlCtrl.text.trim().toUpperCase().replaceAll(RegExp(r'\s+'), '');
-                        final res = await DigioService.instance.verifyDrivingLicense(
-                          dlNumber: cleanDl,
-                          dob: dobCtrl.text.trim(),
-                          name: onboarding.fullName.isNotEmpty ? onboarding.fullName : null,
-                        );
-                        if (res['verified'] == true) {
-                          onboarding.setKycIdentifiers(dlNumber: cleanDl);
-                        }
-                        if (ctx.mounted) Navigator.pop(ctx);
-                        if (context.mounted) {
-                          if (res['verified'] == true && res['complianceOk'] == true) {
-                            AppToast.showSuccess('Driving License active & verified!', context: context);
-                          } else {
-                            AppToast.showInfo(
-                              res['complianceNotes']?.toString() ?? 'DL checked',
-                              context: context,
-                            );
-                          }
-                        }
-                      } catch (e) {
-                        setS(() {
-                          busy = false;
-                          err = AppToast.cleanErrorMessage(e);
-                        });
-                      }
-                    },
-              child: busy
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Text('Verify DL'),
-            ),
-          ],
-        ),
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _DlVerifyBottomSheet(
+        onboarding: onboarding,
+        parentContext: context,
       ),
     );
-    dlCtrl.dispose();
-    dobCtrl.dispose();
+  }
+
+  Future<void> _syncDigilocker(
+    String activeKid, {
+    bool silentIfPending = false,
+  }) async {
+    if (_digilockerSyncing) return;
+    _digilockerSyncing = true;
+    final onboarding = context.read<OnboardingProvider>();
+    try {
+      final res = await DigioService.instance.syncDigilockerStatus(activeKid);
+      if (res['verified'] == true) {
+        Map<String, dynamic>? docUrls;
+        try {
+          final mediaRes =
+              await DigioService.instance.syncDigilockerMedia(activeKid);
+          if (mediaRes['documentUrls'] is Map) {
+            docUrls = Map<String, dynamic>.from(mediaRes['documentUrls']);
+          }
+          final files = mediaRes['attachedFiles'];
+          if (files is List) {
+            for (final f in files) {
+              if (f is Map) {
+                final dt = f['docType']?.toString().toUpperCase() ?? '';
+                final u = f['url']?.toString();
+                if (u != null && u.isNotEmpty) {
+                  if (dt.contains('AADHAAR')) {
+                    if (onboarding.aadharFrontUrl == null) {
+                      onboarding.setDocumentUrl('AADHAR_FRONT', u);
+                    }
+                    if (onboarding.aadharBackUrl == null) {
+                      onboarding.setDocumentUrl('AADHAR_BACK', u);
+                    }
+                  } else if (dt.contains('DRIVING') &&
+                      onboarding.drivingLicenseUrl == null) {
+                    onboarding.setDocumentUrl('DRIVING_LICENSE', u);
+                  } else if (dt.contains('PAN') &&
+                      onboarding.panCardUrl == null) {
+                    onboarding.setDocumentUrl('PAN_CARD', u);
+                  } else if (dt.contains('RC')) {
+                    if (onboarding.rcFrontUrl == null) {
+                      onboarding.setDocumentUrl('RC_FRONT', u);
+                    }
+                    if (onboarding.rcBackUrl == null) {
+                      onboarding.setDocumentUrl('RC_BACK', u);
+                    }
+                  }
+                }
+              }
+            }
+          }
+        } catch (_) {}
+
+        onboarding.syncFromDigioLatest(
+          DigioService.instance.latestByTypeNotifier.value,
+          syncedMediaUrls: docUrls,
+        );
+      }
+      if (mounted && (res['verified'] == true || !silentIfPending)) {
+        AppToast.showInfo(
+          res['verified'] == true
+              ? 'DigiLocker documents synced & auto-marked below!'
+              : 'DigiLocker status: ${res['status']}',
+          context: context,
+        );
+      }
+    } catch (e) {
+      if (mounted && !silentIfPending) {
+        AppToast.showError(AppToast.cleanErrorMessage(e), context: context);
+      }
+    } finally {
+      _digilockerSyncing = false;
+    }
   }
 
   Widget _buildDigioAssistantBanner(
@@ -556,12 +537,13 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
     return ValueListenableBuilder<Map<String, dynamic>>(
       valueListenable: DigioService.instance.latestByTypeNotifier,
       builder: (context, latest, _) {
-        final panOk = latest['PAN']?['verified'] == true;
-        final dlOk = latest['DRIVING_LICENSE']?['verified'] == true;
+        final vDocs = DigioService.verifiedDocsFromMap(latest);
+        final panOk = vDocs['pan'] == true || onboarding.isPanVerifiedDigitally;
+        final dlOk = vDocs['dl'] == true || onboarding.isDlVerifiedDigitally;
+        final dlkrOk = vDocs['digilocker'] == true;
         final faceOk = latest['FACE_MATCH']?['verified'] == true;
         final livenessOk = latest['LIVENESS']?['verified'] == true;
         final ocrOk = latest['ID_OCR']?['verified'] == true;
-        final dlkr = latest['DIGILOCKER'];
 
         return Container(
           padding: const EdgeInsets.all(14),
@@ -581,7 +563,7 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Digio Instant KYC & DigiLocker',
+                      'DigiLocker & Instant KYC',
                       style: AppTypography.body(
                         color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         fontWeight: FontWeight.bold,
@@ -592,7 +574,7 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
               ),
               const SizedBox(height: 6),
               Text(
-                'Connect DigiLocker or run instant Govt verification for faster driver approval.',
+                'Connect DigiLocker or verify Govt IDs below — verified documents auto-mark green with no duplicate upload. Admin reviews all KYC before activation.',
                 style: AppTypography.caption(
                   color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                 ),
@@ -607,62 +589,18 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
                     children: [
                       ActionChip(
                         avatar: Icon(
-                          dlkr?['verified'] == true ? Icons.check_circle : Icons.account_balance_wallet_outlined,
+                          dlkrOk ? Icons.check_circle : Icons.account_balance_wallet_outlined,
                           size: 16,
-                          color: dlkr?['verified'] == true ? AppColors.accentGreenDark : AppColors.primary,
+                          color: dlkrOk ? AppColors.accentGreenDark : AppColors.primary,
                         ),
-                        label: Text(dlkr?['verified'] == true ? 'DigiLocker Verified' : 'Connect DigiLocker'),
-                        onPressed: () => _launchDigilockerFlow(context, onboarding),
+                        label: Text(dlkrOk ? 'DigiLocker Verified' : 'Connect DigiLocker'),
+                        onPressed: dlkrOk ? null : () => _launchDigilockerFlow(context, onboarding),
                       ),
                       if (activeKid != null)
                         ActionChip(
                           avatar: const Icon(Icons.sync_rounded, size: 16),
                           label: const Text('Sync DigiLocker'),
-                          onPressed: () async {
-                            try {
-                              final res = await DigioService.instance.syncDigilockerStatus(activeKid);
-                              if (res['verified'] == true) {
-                                final summary = res['summary'];
-                                if (summary is Map) {
-                                  onboarding.setKycIdentifiers(
-                                    panNumber: summary['extractedPan']?.toString(),
-                                    dlNumber: summary['extractedDl']?.toString(),
-                                  );
-                                }
-                                try {
-                                  final mediaRes = await DigioService.instance.syncDigilockerMedia(activeKid);
-                                  final files = mediaRes['attachedFiles'];
-                                  if (files is List) {
-                                    for (final f in files) {
-                                      if (f is Map) {
-                                        final dt = f['docType']?.toString() ?? '';
-                                        final u = f['url']?.toString();
-                                        if (u != null && u.isNotEmpty) {
-                                          if (dt.contains('AADHAAR') && onboarding.aadharFrontUrl == null) {
-                                            onboarding.setDocumentUrl('AADHAR_FRONT', u);
-                                          } else if (dt.contains('DRIVING') && onboarding.drivingLicenseUrl == null) {
-                                            onboarding.setDocumentUrl('DRIVING_LICENSE', u);
-                                          } else if (dt.contains('PAN') && onboarding.panCardUrl == null) {
-                                            onboarding.setDocumentUrl('PAN_CARD', u);
-                                          }
-                                        }
-                                      }
-                                    }
-                                  }
-                                } catch (_) {}
-                              }
-                              if (context.mounted) {
-                                AppToast.showInfo(
-                                  res['verified'] == true
-                                      ? 'DigiLocker documents synced & verified!'
-                                      : 'DigiLocker status: ${res['status']}',
-                                  context: context,
-                                );
-                              }
-                            } catch (e) {
-                              if (context.mounted) AppToast.showError(AppToast.cleanErrorMessage(e), context: context);
-                            }
-                          },
+                          onPressed: () => _syncDigilocker(activeKid),
                         ),
                       ActionChip(
                         avatar: Icon(
@@ -671,7 +609,7 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
                           color: panOk ? AppColors.accentGreenDark : null,
                         ),
                         label: Text(panOk ? 'PAN Verified' : 'Verify PAN'),
-                        onPressed: () => _showPanVerifyDialog(context, onboarding),
+                        onPressed: panOk ? null : () => _showPanVerifySheet(context, onboarding),
                       ),
                       ActionChip(
                         avatar: Icon(
@@ -680,7 +618,7 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
                           color: dlOk ? AppColors.accentGreenDark : null,
                         ),
                         label: Text(dlOk ? 'DL Verified' : 'Verify DL'),
-                        onPressed: () => _showDlVerifyDialog(context, onboarding),
+                        onPressed: dlOk ? null : () => _showDlVerifySheet(context, onboarding),
                       ),
                       if (onboarding.profilePhotoUrl != null &&
                           (onboarding.drivingLicenseUrl != null || onboarding.aadharFrontUrl != null))
@@ -750,6 +688,9 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
 
   void _handleContinue() {
     final onboarding = context.read<OnboardingProvider>();
+    final vDocs = DigioService.verifiedDocsFromMap(
+      DigioService.instance.latestByTypeNotifier.value,
+    );
 
     if (onboarding.profilePhotoUrl == null ||
         onboarding.profilePhotoUrl!.trim().isEmpty ||
@@ -761,29 +702,33 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
       return;
     }
 
-    if (onboarding.drivingLicenseUrl == null) {
-      const msg = 'Please upload your Driving License before proceeding';
+    final dlOk = onboarding.isDlSatisfied || vDocs['dl'] == true;
+    if (!dlOk) {
+      const msg = 'Please upload or verify your Driving License before proceeding';
       setState(() => _inlineErrorMessage = msg);
       AppToast.showError(msg, context: context);
       return;
     }
 
-    if (onboarding.aadharFrontUrl == null) {
-      const msg = 'Please upload Aadhaar Card (Front) before proceeding';
+    final adhFrontOk = onboarding.isAadhaarFrontSatisfied || vDocs['aadhaar'] == true;
+    if (!adhFrontOk) {
+      const msg = 'Please upload Aadhaar Card (Front) or connect DigiLocker before proceeding';
       setState(() => _inlineErrorMessage = msg);
       AppToast.showError(msg, context: context);
       return;
     }
 
-    if (onboarding.aadharBackUrl == null) {
-      const msg = 'Please upload Aadhaar Card (Back) before proceeding';
+    final adhBackOk = onboarding.isAadhaarBackSatisfied || vDocs['aadhaar'] == true;
+    if (!adhBackOk) {
+      const msg = 'Please upload Aadhaar Card (Back) or connect DigiLocker before proceeding';
       setState(() => _inlineErrorMessage = msg);
       AppToast.showError(msg, context: context);
       return;
     }
 
-    if (onboarding.panCardUrl == null) {
-      const msg = 'Please upload PAN Card (Front) before proceeding';
+    final panOk = onboarding.isPanSatisfied || vDocs['pan'] == true;
+    if (!panOk) {
+      const msg = 'Please upload or verify PAN Card (Front) before proceeding';
       setState(() => _inlineErrorMessage = msg);
       AppToast.showError(msg, context: context);
       return;
@@ -804,13 +749,36 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
         onboarding.profilePhotoUrl != 'null' &&
         onboarding.profilePhotoUrl != 'undefined';
 
-    final int uploadedCount = (hasProfilePhoto ? 1 : 0) +
-        (onboarding.drivingLicenseUrl != null ? 1 : 0) +
-        (onboarding.aadharFrontUrl != null ? 1 : 0) +
-        (onboarding.aadharBackUrl != null ? 1 : 0) +
-        (onboarding.panCardUrl != null ? 1 : 0);
+    return ValueListenableBuilder<Map<String, dynamic>>(
+      valueListenable: DigioService.instance.latestByTypeNotifier,
+      builder: (context, latest, _) {
+        final vDocs = DigioService.verifiedDocsFromMap(latest);
+        final dlkrSummary = (latest['DIGILOCKER'] is Map && latest['DIGILOCKER']['summary'] is Map)
+            ? latest['DIGILOCKER']['summary'] as Map
+            : const <String, dynamic>{};
+        final dlkrDocs = dlkrSummary['verifiedDocs'] is Map
+            ? dlkrSummary['verifiedDocs'] as Map
+            : const <String, dynamic>{};
 
-    return Scaffold(
+        final bool dlVerifiedViaDlkr = vDocs['digilocker'] == true &&
+            (dlkrDocs['dl'] == true || dlkrSummary['extractedDl'] != null);
+        final bool panVerifiedViaDlkr = vDocs['digilocker'] == true &&
+            (dlkrDocs['pan'] == true || dlkrSummary['extractedPan'] != null);
+
+        final bool dlDigitallyVerified =
+            vDocs['dl'] == true || onboarding.isDlVerifiedDigitally;
+        final bool aadhaarDigitallyVerified =
+            vDocs['aadhaar'] == true || onboarding.isAadhaarVerifiedDigitally;
+        final bool panDigitallyVerified =
+            vDocs['pan'] == true || onboarding.isPanVerifiedDigitally;
+
+        final int uploadedCount = (hasProfilePhoto ? 1 : 0) +
+            ((onboarding.drivingLicenseUrl != null || dlDigitallyVerified) ? 1 : 0) +
+            ((onboarding.aadharFrontUrl != null || aadhaarDigitallyVerified) ? 1 : 0) +
+            ((onboarding.aadharBackUrl != null || aadhaarDigitallyVerified) ? 1 : 0) +
+            ((onboarding.panCardUrl != null || panDigitallyVerified) ? 1 : 0);
+
+        return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: SafeArea(
         child: Center(
@@ -910,6 +878,12 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
                           subtitle: 'Front side of commercial / transport driving license',
                           icon: Icons.badge_outlined,
                           isUploaded: onboarding.drivingLicenseUrl != null,
+                          isVerifiedDigitally: dlDigitallyVerified,
+                          verifiedBadgeLabel:
+                              dlVerifiedViaDlkr ? 'DigiLocker' : 'DL Verified',
+                          verifiedSubtitle: dlVerifiedViaDlkr
+                              ? 'Verified via DigiLocker — already uploaded'
+                              : 'Verified via Govt DL check — no upload needed',
                           isUploading: _uploadingState['DRIVING_LICENSE'] ?? false,
                           onUploadTap: () =>
                               _showImageSourcePicker('DRIVING_LICENSE', 'Driving License'),
@@ -922,6 +896,9 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
                           subtitle: 'Front side with photo and Aadhaar number',
                           icon: Icons.credit_card_rounded,
                           isUploaded: onboarding.aadharFrontUrl != null,
+                          isVerifiedDigitally: aadhaarDigitallyVerified,
+                          verifiedBadgeLabel: 'DigiLocker',
+                          verifiedSubtitle: 'Verified via DigiLocker — already uploaded',
                           isUploading: _uploadingState['AADHAR_FRONT'] ?? false,
                           onUploadTap: () =>
                               _showImageSourcePicker('AADHAR_FRONT', 'Aadhaar Card (Front)'),
@@ -934,6 +911,9 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
                           subtitle: 'Back side showing residential address',
                           icon: Icons.credit_card_outlined,
                           isUploaded: onboarding.aadharBackUrl != null,
+                          isVerifiedDigitally: aadhaarDigitallyVerified,
+                          verifiedBadgeLabel: 'DigiLocker',
+                          verifiedSubtitle: 'Verified via DigiLocker — already uploaded',
                           isUploading: _uploadingState['AADHAR_BACK'] ?? false,
                           onUploadTap: () =>
                               _showImageSourcePicker('AADHAR_BACK', 'Aadhaar Card (Back)'),
@@ -946,6 +926,12 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
                           subtitle: 'Front side with PAN number and signature',
                           icon: Icons.assignment_ind_outlined,
                           isUploaded: onboarding.panCardUrl != null,
+                          isVerifiedDigitally: panDigitallyVerified,
+                          verifiedBadgeLabel:
+                              panVerifiedViaDlkr ? 'DigiLocker' : 'PAN Verified',
+                          verifiedSubtitle: panVerifiedViaDlkr
+                              ? 'Verified via DigiLocker — already uploaded'
+                              : 'Verified via PAN check — no upload needed',
                           isUploading: _uploadingState['PAN_CARD'] ?? false,
                           onUploadTap: () =>
                               _showImageSourcePicker('PAN_CARD', 'PAN Card (Front)'),
@@ -971,6 +957,413 @@ class _OnboardingDocumentsScreenState extends State<OnboardingDocumentsScreen> {
             ),
           ),
         ),
+      ),
+        );
+      },
+    );
+  }
+}
+
+class _DigioVerifySheetShell extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Widget child;
+  final String? errorText;
+  final bool busy;
+  final String submitLabel;
+  final Key? submitButtonKey;
+  final VoidCallback onCancel;
+  final VoidCallback onSubmit;
+
+  const _DigioVerifySheetShell({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.child,
+    required this.errorText,
+    required this.busy,
+    required this.submitLabel,
+    this.submitButtonKey,
+    required this.onCancel,
+    required this.onSubmit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.surfaceDark : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.fromLTRB(20, 12, 20, bottomInset + 24),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade400,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: AppColors.primary, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: isDark ? Colors.grey.shade400 : AppColors.textSecondaryLight,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            child,
+            if (errorText != null) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.error.withValues(alpha: 0.35)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.error_outline, color: AppColors.error, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        errorText!,
+                        style: const TextStyle(color: AppColors.error, fontSize: 12.5, height: 1.35),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: busy ? null : onCancel,
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: ElevatedButton(
+                    key: submitButtonKey,
+                    onPressed: busy ? null : onSubmit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: busy
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : Text(submitLabel),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PanVerifyBottomSheet extends StatefulWidget {
+  final OnboardingProvider onboarding;
+  final BuildContext parentContext;
+
+  const _PanVerifyBottomSheet({
+    required this.onboarding,
+    required this.parentContext,
+  });
+
+  @override
+  State<_PanVerifyBottomSheet> createState() => _PanVerifyBottomSheetState();
+}
+
+class _PanVerifyBottomSheetState extends State<_PanVerifyBottomSheet> {
+  late final TextEditingController _panCtrl;
+  bool _busy = false;
+  String? _err;
+
+  @override
+  void initState() {
+    super.initState();
+    _panCtrl = TextEditingController(text: widget.onboarding.panNumber);
+  }
+
+  @override
+  void dispose() {
+    _panCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final pan = _panCtrl.text.trim().toUpperCase();
+    if (!RegExp(r'^[A-Z]{5}[0-9]{4}[A-Z]$').hasMatch(pan)) {
+      setState(() => _err = 'Enter a valid 10-character PAN (e.g. ABCDE1234F)');
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _err = null;
+    });
+    try {
+      final res = await DigioService.instance.verifyPan(
+        panNumber: pan,
+        name: widget.onboarding.fullName.isNotEmpty ? widget.onboarding.fullName : null,
+      );
+      if (res['verified'] == true) {
+        widget.onboarding.setKycIdentifiers(panNumber: pan);
+        widget.onboarding.syncFromDigioLatest(
+          DigioService.instance.latestByTypeNotifier.value,
+        );
+      }
+      if (mounted) Navigator.pop(context);
+      if (widget.parentContext.mounted) {
+        if (res['verified'] == true) {
+          AppToast.showSuccess(
+            'PAN verified${res['verifiedName'] != null ? ' (${res['verifiedName']})' : ''}',
+            context: widget.parentContext,
+          );
+        } else {
+          AppToast.showError(
+            res['complianceNotes']?.toString() ?? 'PAN could not be verified',
+            context: widget.parentContext,
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _err = AppToast.cleanErrorMessage(e);
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _DigioVerifySheetShell(
+      icon: Icons.credit_card_outlined,
+      title: 'Verify PAN Instantly',
+      subtitle: 'Verify against Income Tax database via DigiLocker KYC',
+      errorText: _err,
+      busy: _busy,
+      submitLabel: 'Verify PAN',
+      submitButtonKey: const Key('pan_verify_submit_btn'),
+      onCancel: () => Navigator.pop(context),
+      onSubmit: _submit,
+      child: TextField(
+        key: const Key('pan_verify_input'),
+        controller: _panCtrl,
+        textCapitalization: TextCapitalization.characters,
+        maxLength: 10,
+        autofocus: true,
+        textInputAction: TextInputAction.done,
+        onSubmitted: (_) {
+          if (!_busy) _submit();
+        },
+        decoration: const InputDecoration(
+          labelText: 'PAN Number',
+          hintText: 'ABCDE1234F',
+          border: OutlineInputBorder(),
+        ),
+      ),
+    );
+  }
+}
+
+class _DlVerifyBottomSheet extends StatefulWidget {
+  final OnboardingProvider onboarding;
+  final BuildContext parentContext;
+
+  const _DlVerifyBottomSheet({
+    required this.onboarding,
+    required this.parentContext,
+  });
+
+  @override
+  State<_DlVerifyBottomSheet> createState() => _DlVerifyBottomSheetState();
+}
+
+class _DlVerifyBottomSheetState extends State<_DlVerifyBottomSheet> {
+  late final TextEditingController _dlCtrl;
+  late final TextEditingController _dobCtrl;
+  bool _busy = false;
+  String? _err;
+
+  @override
+  void initState() {
+    super.initState();
+    _dlCtrl = TextEditingController(text: widget.onboarding.dlNumber);
+    final dob = widget.onboarding.dateOfBirth;
+    final defaultDob = dob != null
+        ? '${dob.day.toString().padLeft(2, '0')}/${dob.month.toString().padLeft(2, '0')}/${dob.year}'
+        : '';
+    _dobCtrl = TextEditingController(text: defaultDob);
+  }
+
+  @override
+  void dispose() {
+    _dlCtrl.dispose();
+    _dobCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickDob() async {
+    final now = DateTime.now();
+    final initial = widget.onboarding.dateOfBirth ?? DateTime(now.year - 28, 1, 1);
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(1940),
+      lastDate: DateTime(now.year - 18, now.month, now.day),
+    );
+    if (picked != null && mounted) {
+      _dobCtrl.text =
+          '${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year}';
+    }
+  }
+
+  Future<void> _submit() async {
+    if (_dlCtrl.text.trim().length < 8 || _dobCtrl.text.trim().length < 8) {
+      setState(() => _err = 'Enter valid DL number and DOB (DD/MM/YYYY)');
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _err = null;
+    });
+    try {
+      final cleanDl = _dlCtrl.text.trim().toUpperCase().replaceAll(RegExp(r'\s+'), '');
+      final res = await DigioService.instance.verifyDrivingLicense(
+        dlNumber: cleanDl,
+        dob: _dobCtrl.text.trim(),
+        name: widget.onboarding.fullName.isNotEmpty ? widget.onboarding.fullName : null,
+      );
+      if (res['verified'] == true) {
+        widget.onboarding.setKycIdentifiers(dlNumber: cleanDl);
+        widget.onboarding.syncFromDigioLatest(
+          DigioService.instance.latestByTypeNotifier.value,
+        );
+      }
+      if (mounted) Navigator.pop(context);
+      if (widget.parentContext.mounted) {
+        if (res['verified'] == true && res['complianceOk'] == true) {
+          AppToast.showSuccess('Driving License active & verified!', context: widget.parentContext);
+        } else {
+          AppToast.showInfo(
+            res['complianceNotes']?.toString() ?? 'DL checked',
+            context: widget.parentContext,
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _err = AppToast.cleanErrorMessage(e);
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _DigioVerifySheetShell(
+      icon: Icons.badge_outlined,
+      title: 'Verify Driving License',
+      subtitle: 'Check Parivahan DL status & commercial transport validity',
+      errorText: _err,
+      busy: _busy,
+      submitLabel: 'Verify DL',
+      submitButtonKey: const Key('dl_verify_submit_btn'),
+      onCancel: () => Navigator.pop(context),
+      onSubmit: _submit,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            key: const Key('dl_verify_input'),
+            controller: _dlCtrl,
+            textCapitalization: TextCapitalization.characters,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'DL Number',
+              hintText: 'TS0920200012345',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            key: const Key('dl_dob_input'),
+            controller: _dobCtrl,
+            keyboardType: TextInputType.datetime,
+            decoration: InputDecoration(
+              labelText: 'Date of Birth (DD/MM/YYYY)',
+              hintText: '14/05/1992',
+              border: const OutlineInputBorder(),
+              suffixIcon: IconButton(
+                tooltip: 'Select date',
+                icon: const Icon(Icons.calendar_today_outlined, size: 18),
+                onPressed: _busy ? null : _pickDob,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

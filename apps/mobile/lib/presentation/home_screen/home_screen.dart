@@ -18,6 +18,7 @@ import '../../shared/widgets/trip_start_otp_bottom_sheet.dart';
 import '../../shared/widgets/app_adaptive_skeleton.dart';
 import '../../shared/widgets/app_profile_avatar.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/edge_case_manager.dart';
 import '../../services/permission_service.dart';
 import '../../services/location_monitor_service.dart';
@@ -37,7 +38,10 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+  static const String _pendingGoOnlineTsKey = 'pending_go_online_ts';
+  static const int _pendingGoOnlineMaxAgeMs = 120000;
+
   DriverHomeState _currentState = DriverHomeState.offline;
   bool _isLoading = true;
   bool _isTogglingOnline = false;
@@ -57,6 +61,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadLiveDriverData();
     _startAutoRefresh();
     _listenToTripLifecycleEvents();
@@ -94,6 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _autoRefreshTimer?.cancel();
     _tripEventsSubscription?.cancel();
     _otpController.dispose();
@@ -101,6 +107,46 @@ class _HomeScreenState extends State<HomeScreen> {
     LocationMonitorService.instance.stopMonitoring();
     stopDriverLocationLoops();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        mounted &&
+        _currentState == DriverHomeState.offline &&
+        !_isTogglingOnline) {
+      unawaited(_resumePendingGoOnlineIfGranted());
+    }
+  }
+
+  Future<void> _setPendingGoOnlineFlag(bool active) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (active) {
+        await prefs.setInt(_pendingGoOnlineTsKey, DateTime.now().millisecondsSinceEpoch);
+      } else {
+        await prefs.remove(_pendingGoOnlineTsKey);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _resumePendingGoOnlineIfGranted() async {
+    if (!mounted || kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+    if (_currentState != DriverHomeState.offline || _isTogglingOnline) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final ts = prefs.getInt(_pendingGoOnlineTsKey);
+      if (ts == null) return;
+      await prefs.remove(_pendingGoOnlineTsKey);
+
+      final ageMs = DateTime.now().millisecondsSinceEpoch - ts;
+      if (ageMs < 0 || ageMs > _pendingGoOnlineMaxAgeMs) return;
+
+      final hasOverlay = await GlobalDispatchOverlayService.isOverlayPermissionGranted();
+      if (hasOverlay && mounted && _currentState == DriverHomeState.offline && !_isTogglingOnline) {
+        unawaited(_toggleOnline(true));
+      }
+    } catch (_) {}
   }
 
   bool _isSyncing = false;
@@ -201,6 +247,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   },
                 );
               }
+            } else if (avail == 'OFFLINE') {
+              GlobalDispatchOverlayService.instance.stopAssistiveBubble();
+              GlobalDispatchOverlayService.instance.stopRealtimeListener();
+              LocationMonitorService.instance.stopMonitoring();
             }
           }
 
@@ -289,6 +339,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _isSyncing = false;
       if (!silent && mounted) setState(() => _isLoading = false);
       _syncLocationHeartbeat();
+      unawaited(_resumePendingGoOnlineIfGranted());
     }
   }
 
@@ -380,7 +431,17 @@ class _HomeScreenState extends State<HomeScreen> {
             });
           }
           if (!mounted) return;
-          final hasOverlay = await GlobalDispatchOverlayService.ensureOverlayPermissionMandatory(context);
+          final alreadyHasOverlay = await GlobalDispatchOverlayService.isOverlayPermissionGranted();
+          bool hasOverlay = alreadyHasOverlay;
+          if (!alreadyHasOverlay) {
+            await _setPendingGoOnlineFlag(true);
+            try {
+              if (!mounted) return;
+              hasOverlay = await GlobalDispatchOverlayService.ensureOverlayPermissionMandatory(context);
+            } finally {
+              await _setPendingGoOnlineFlag(false);
+            }
+          }
           if (!hasOverlay) {
             if (mounted) {
               Fluttertoast.showToast(

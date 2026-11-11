@@ -25,6 +25,81 @@ class DigioService {
     }
   }
 
+  void clearSessionCache() {
+    latestByTypeNotifier.value = {};
+    activeDigilockerRequestId.value = null;
+    _aadhaarConsentGranted = null;
+  }
+
+  /// Derives canonical document satisfaction booleans (`digilocker`, `aadhaar`, `pan`, `dl`, `rc`)
+  /// from [latestByType] so Step 2, Step 3 Vehicle, and Step 4 Review agree without duplicating logic.
+  static Map<String, bool> verifiedDocsFromMap(Map<String, dynamic> latestByType) {
+    final dlkr = latestByType['DIGILOCKER'];
+    final dlkrVerified = dlkr is Map && dlkr['verified'] == true;
+    final summary = (dlkr is Map && dlkr['summary'] is Map)
+        ? dlkr['summary'] as Map
+        : const <String, dynamic>{};
+    final vDocs = summary['verifiedDocs'] is Map
+        ? summary['verifiedDocs'] as Map
+        : const <String, dynamic>{};
+
+    bool dlkrHas(String key, String extractedKey) =>
+        dlkrVerified &&
+        (vDocs[key] == true ||
+            (summary[extractedKey] != null &&
+                summary[extractedKey].toString().trim().isNotEmpty));
+
+    final panOk =
+        (latestByType['PAN'] is Map && latestByType['PAN']['verified'] == true) ||
+            dlkrHas('pan', 'extractedPan');
+    final dlOk = (latestByType['DRIVING_LICENSE'] is Map &&
+            latestByType['DRIVING_LICENSE']['verified'] == true) ||
+        dlkrHas('dl', 'extractedDl');
+    final rcOk = (latestByType['VEHICLE_RC'] is Map &&
+            latestByType['VEHICLE_RC']['verified'] == true) ||
+        dlkrHas('rc', 'extractedRc');
+    final aadhaarOk = dlkrHas('aadhaar', 'maskedAadhaar');
+
+    return {
+      'digilocker': dlkrVerified,
+      'aadhaar': aadhaarOk,
+      'pan': panOk,
+      'dl': dlOk,
+      'rc': rcOk,
+    };
+  }
+
+  /// Extracts verified government ID numbers (`panNumber`, `dlNumber`, `rcNumber`, `verifiedName`)
+  /// from [latestByType] for prefilling onboarding state and KYC payload submission.
+  static Map<String, String> extractedIdentifiersFromMap(
+      Map<String, dynamic> latestByType) {
+    final out = <String, String>{};
+    final pan = latestByType['PAN'];
+    final dl = latestByType['DRIVING_LICENSE'];
+    final rc = latestByType['VEHICLE_RC'];
+    final dlkr = latestByType['DIGILOCKER'];
+    final dlkrSum = (dlkr is Map && dlkr['summary'] is Map)
+        ? dlkr['summary'] as Map
+        : const <String, dynamic>{};
+
+    String? pick(dynamic v) {
+      final s = v?.toString().trim() ?? '';
+      return s.isEmpty ? null : s.toUpperCase();
+    }
+
+    final panNum = pick(pan is Map ? pan['identifier'] : null) ??
+        pick(dlkrSum['extractedPan']);
+    final dlNum = pick(dl is Map ? dl['identifier'] : null) ??
+        pick(dlkrSum['extractedDl']);
+    final rcNum = pick(rc is Map ? rc['identifier'] : null) ??
+        pick(dlkrSum['extractedRc']);
+
+    if (panNum != null) out['panNumber'] = panNum;
+    if (dlNum != null) out['dlNumber'] = dlNum;
+    if (rcNum != null) out['rcNumber'] = rcNum;
+    return out;
+  }
+
   // ---------------------------------------------------------------------------
   // Error helpers (API error envelope: {success:false, error:{code, message, details}})
   // ---------------------------------------------------------------------------
@@ -149,7 +224,15 @@ class DigioService {
     final map = Map<String, dynamic>.from(res as Map);
     final latest = map['latestByType'];
     if (latest is Map) {
-      latestByTypeNotifier.value = Map<String, dynamic>.from(latest);
+      final next = Map<String, dynamic>.from(latest);
+      latestByTypeNotifier.value = next;
+      final dlkr = next['DIGILOCKER'];
+      if (dlkr is Map && dlkr['digioRequestId'] != null) {
+        final kid = dlkr['digioRequestId'].toString();
+        if (kid.isNotEmpty && dlkr['verified'] != true) {
+          activeDigilockerRequestId.value ??= kid;
+        }
+      }
     }
     return map;
   }

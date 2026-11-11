@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/networking/api_client.dart';
 import '../../routes/app_routes.dart';
 import '../../services/driver_service.dart';
 import '../../theme/app_colors.dart';
@@ -19,65 +20,195 @@ class OpportunityOfferScreen extends StatefulWidget {
 }
 
 class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
+  static const Set<String> _terminalStatuses = {
+    'ACCEPTED',
+    'DECLINED',
+    'CANCELLED',
+    'WITHDRAWN',
+    'SUPERSEDED',
+    'FAILED',
+  };
+
   int _secondsRemaining = 25;
   Timer? _timer;
   bool _isAccepting = false;
+  bool _isExpired = false;
+  String? _terminalStatus;
   Map<String, dynamic>? _activeOffer;
 
   @override
   void initState() {
     super.initState();
-    _activeOffer = widget.offer;
-    final expSec = int.tryParse(_activeOffer?['expiresInSeconds']?.toString() ?? '');
-    if (expSec != null && expSec > 0) {
-      _secondsRemaining = expSec;
+    _activeOffer = widget.offer != null ? Map<String, dynamic>.from(widget.offer!) : null;
+    _applyOfferState(_activeOffer);
+    _loadOfferDetails();
+  }
+
+  String? _extractOfferId(Map<String, dynamic>? offer) {
+    final raw = offer?['id']?.toString().trim() ?? offer?['offerId']?.toString().trim();
+    if (raw == null || raw.isEmpty) return null;
+    return raw;
+  }
+
+  String _formatTerminalStatus(String status) {
+    switch (status.toUpperCase()) {
+      case 'ACCEPTED':
+        return 'Accepted';
+      case 'DECLINED':
+        return 'Declined';
+      case 'CANCELLED':
+        return 'Cancelled';
+      case 'WITHDRAWN':
+        return 'Withdrawn';
+      case 'SUPERSEDED':
+        return 'Unavailable';
+      case 'FAILED':
+        return 'Expired';
+      case 'EXPIRED':
+        return 'Expired';
+      default:
+        return status;
+    }
+  }
+
+  /// Synchronizes countdown and expiry/terminal state from an offer payload.
+  void _applyOfferState(Map<String, dynamic>? offer, {bool fromServer = false}) {
+    final status = offer?['status']?.toString().trim().toUpperCase();
+    if (status == 'EXPIRED') {
+      _timer?.cancel();
+      _isExpired = true;
+      _terminalStatus = null;
+      _secondsRemaining = 0;
+      return;
+    }
+    if (status != null && _terminalStatuses.contains(status)) {
+      _timer?.cancel();
+      _isExpired = false;
+      _terminalStatus = status;
+      _secondsRemaining = 0;
+      return;
     }
 
-    final hasFullDetails = _activeOffer != null &&
-        (_activeOffer!['pickupLocation'] != null ||
-            _activeOffer!['pickupAddress'] != null ||
-            _activeOffer!['rate'] != null ||
-            _activeOffer!['offeredPrice'] != null);
-
-    if (!hasFullDetails) {
-      _loadOfferDetails();
+    final expiresAtStr = offer?['expiresAt']?.toString();
+    if (expiresAtStr != null && expiresAtStr.isNotEmpty) {
+      final expiresAt = DateTime.tryParse(expiresAtStr);
+      if (expiresAt != null) {
+        final diff = expiresAt.difference(DateTime.now()).inSeconds;
+        if (diff <= 0) {
+          _timer?.cancel();
+          _isExpired = true;
+          _terminalStatus = null;
+          _secondsRemaining = 0;
+          return;
+        }
+        _isExpired = false;
+        _terminalStatus = null;
+        _secondsRemaining = diff;
+        _startTimer();
+        return;
+      }
     }
+
+    final expSec = int.tryParse(offer?['expiresInSeconds']?.toString() ?? '');
+    if (expSec != null) {
+      if (expSec <= 0) {
+        _timer?.cancel();
+        _isExpired = true;
+        _terminalStatus = null;
+        _secondsRemaining = 0;
+        return;
+      }
+      if (!fromServer || _secondsRemaining <= 0) {
+        _secondsRemaining = expSec;
+      } else {
+        _secondsRemaining = expSec;
+      }
+    }
+
+    _isExpired = false;
+    _terminalStatus = null;
     _startTimer();
   }
 
   Future<void> _loadOfferDetails() async {
+    final targetId = _extractOfferId(_activeOffer) ?? _extractOfferId(widget.offer);
+    if (targetId != null) {
+      try {
+        final detailed = await DriverService.instance.getOfferById(targetId);
+        if (detailed != null && mounted) {
+          setState(() {
+            _activeOffer = detailed;
+            _applyOfferState(detailed, fromServer: true);
+          });
+          return;
+        }
+      } on ApiException catch (e) {
+        if (e.statusCode != 404 && e.statusCode != 403 && e.statusCode != 410) {
+          return;
+        }
+      } catch (_) {
+        return;
+      }
+    }
+
     try {
-      final targetId = widget.offer?['id']?.toString() ?? widget.offer?['offerId']?.toString();
       final list = await DriverService.instance.getOffers(forceRefresh: true);
-      if (list.isNotEmpty && mounted) {
-        if (targetId != null && targetId.isNotEmpty) {
-          final match = list.firstWhere(
-            (o) => o is Map && (o['id']?.toString() == targetId || o['offerId']?.toString() == targetId),
-            orElse: () => list.first,
+      if (!mounted) return;
+      if (list.isNotEmpty) {
+        if (targetId != null) {
+          final matches = list.whereType<Map>().where(
+            (o) => o['id']?.toString() == targetId || o['offerId']?.toString() == targetId,
           );
-          if (match is Map) {
-            setState(() => _activeOffer = Map<String, dynamic>.from(match));
+          if (matches.isNotEmpty) {
+            final updated = Map<String, dynamic>.from(matches.first);
+            setState(() {
+              _activeOffer = updated;
+              _applyOfferState(updated, fromServer: true);
+            });
+            return;
+          }
+        } else {
+          final first = list.first;
+          if (first is Map) {
+            final updated = Map<String, dynamic>.from(first);
+            setState(() {
+              _activeOffer = updated;
+              _applyOfferState(updated, fromServer: true);
+            });
             return;
           }
         }
-        setState(() => _activeOffer = list.first as Map<String, dynamic>);
+      }
+
+      if (targetId != null) {
+        _timer?.cancel();
+        setState(() {
+          _isExpired = true;
+          _terminalStatus = null;
+          _secondsRemaining = 0;
+        });
       }
     } catch (_) {}
   }
 
   void _startTimer() {
+    _timer?.cancel();
+    if (_isExpired || _terminalStatus != null || _secondsRemaining <= 0) {
+      return;
+    }
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
-      if (_secondsRemaining > 0) {
-        if (mounted) setState(() => _secondsRemaining--);
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
+      if (_secondsRemaining > 1) {
+        setState(() => _secondsRemaining--);
       } else {
-        _timer?.cancel();
-        if (mounted) {
-          Fluttertoast.showToast(
-            msg: 'Trip offer expired',
-            backgroundColor: AppColors.error,
-          );
-          if (context.canPop()) context.pop();
-        }
+        t.cancel();
+        setState(() {
+          _secondsRemaining = 0;
+          _isExpired = true;
+        });
       }
     });
   }
@@ -89,8 +220,9 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
   }
 
   void _declineOffer() async {
+    if (_isExpired || _terminalStatus != null || _isAccepting) return;
     _timer?.cancel();
-    final offerId = _activeOffer?['id'] as String?;
+    final offerId = _extractOfferId(_activeOffer);
     if (offerId != null) {
       try {
         await DriverService.instance.declineOffer(offerId);
@@ -107,10 +239,11 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
   }
 
   void _acceptOffer() async {
+    if (_isExpired || _terminalStatus != null || _isAccepting) return;
     _timer?.cancel();
     setState(() => _isAccepting = true);
 
-    final offerId = _activeOffer?['id'] as String?;
+    final offerId = _extractOfferId(_activeOffer);
     if (offerId != null) {
       try {
         await DriverService.instance.acceptOffer(offerId);
@@ -125,9 +258,17 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
         return;
       } catch (err) {
         if (mounted) {
-          setState(() => _isAccepting = false);
+          final msg = err.toString().replaceAll('Exception: ', '');
+          final isExpiredErr = msg.toLowerCase().contains('expir');
+          setState(() {
+            _isAccepting = false;
+            if (isExpiredErr) {
+              _isExpired = true;
+              _secondsRemaining = 0;
+            }
+          });
           Fluttertoast.showToast(
-            msg: 'Accept failed: ${err.toString().replaceAll("Exception: ", "")}',
+            msg: isExpiredErr ? 'This trip offer has expired' : 'Accept failed: $msg',
             backgroundColor: AppColors.error,
           );
         }
@@ -141,10 +282,78 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
     }
   }
 
+  String? _firstNonEmptyString(List<dynamic> candidates) {
+    for (final c in candidates) {
+      final str = c?.toString().trim();
+      if (str != null && str.isNotEmpty) return str;
+    }
+    return null;
+  }
+
+  String _formatDistance(Map<String, dynamic>? req) {
+    final raw = _activeOffer?['tripDistanceKm'] ??
+        _activeOffer?['distanceKm'] ??
+        req?['tripDistanceKm'] ??
+        req?['distanceKm'];
+    final d = raw is num ? raw.toDouble() : double.tryParse(raw?.toString() ?? '');
+    if (d != null && d > 0) return '${d.toStringAsFixed(1)} km';
+    return '--';
+  }
+
+  String _formatDuration(Map<String, dynamic>? req) {
+    final raw = _activeOffer?['tripEtaMinutes'] ??
+        _activeOffer?['durationMinutes'] ??
+        req?['tripEtaMinutes'] ??
+        req?['durationMinutes'];
+    final m = raw is num ? raw.round() : int.tryParse(raw?.toString() ?? '');
+    if (m != null && m > 0) return '$m min';
+    return '--';
+  }
+
+  String _formatEarnings() {
+    final payout = DriverService.resolveDriverPayout(_activeOffer);
+    if (payout > 0) return DriverService.resolveDriverPayoutFormatted(_activeOffer);
+    if (_extractOfferId(_activeOffer) != null) {
+      final rawRate = _activeOffer?['rate'];
+      final rateVal = rawRate is num ? rawRate.toDouble() : double.tryParse(rawRate?.toString() ?? '');
+      if (rateVal != null && rateVal > 0) {
+        return '₹${rateVal.toStringAsFixed(0)}';
+      }
+    }
+    return '₹--';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final formattedSecs = _secondsRemaining.toString().padLeft(2, '0');
+    final formattedMins = (_secondsRemaining ~/ 60).toString().padLeft(2, '0');
+    final formattedSecs = (_secondsRemaining % 60).toString().padLeft(2, '0');
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bool isInactive = _isExpired || _terminalStatus != null;
+    final String? inactiveLabel = _isExpired
+        ? 'Expired'
+        : (_terminalStatus != null ? _formatTerminalStatus(_terminalStatus!) : null);
+    final Color bannerAccent = _isExpired
+        ? AppColors.error
+        : (_terminalStatus == 'ACCEPTED'
+            ? AppColors.accentGreenDark
+            : (_terminalStatus != null
+                ? (isDark ? AppColors.textMutedDark : AppColors.textMutedLight)
+                : AppColors.warning));
+    final Color bannerBg = _isExpired
+        ? AppColors.error.withValues(alpha: isDark ? 0.16 : 0.1)
+        : (_terminalStatus != null
+            ? bannerAccent.withValues(alpha: 0.12)
+            : (isDark ? AppColors.warning.withValues(alpha: 0.15) : AppColors.warningContainer));
+    final Color bannerBorder = _isExpired
+        ? AppColors.error.withValues(alpha: 0.35)
+        : (_terminalStatus != null
+            ? bannerAccent.withValues(alpha: 0.3)
+            : (isDark ? AppColors.warning.withValues(alpha: 0.3) : AppColors.warningContainer));
+    final IconData bannerIcon = _isExpired
+        ? Icons.timer_off_outlined
+        : (_terminalStatus == 'ACCEPTED'
+            ? Icons.check_circle_outline
+            : (_terminalStatus != null ? Icons.cancel_outlined : Icons.notifications_active_outlined));
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
@@ -213,10 +422,10 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
                       Container(
                         padding: const EdgeInsets.all(AppSpacing.xl),
                         decoration: BoxDecoration(
-                          color: isDark ? AppColors.warning.withValues(alpha: 0.15) : AppColors.warningContainer,
+                          color: bannerBg,
                           borderRadius: BorderRadius.circular(AppRadius.xl),
                           border: Border.all(
-                            color: isDark ? AppColors.warning.withValues(alpha: 0.3) : AppColors.warningContainer,
+                            color: bannerBorder,
                           ),
                         ),
                         child: Row(
@@ -226,34 +435,49 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Offer expires in',
+                                    isInactive ? 'Offer status' : 'Offer expires in',
                                     style: AppTypography.caption(
-                                      color: isDark ? AppColors.warning : AppColors.warningText,
+                                      color: isInactive
+                                          ? bannerAccent
+                                          : (isDark ? AppColors.warning : AppColors.warningText),
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                   const SizedBox(height: 4),
-                                  Row(
-                                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                                    textBaseline: TextBaseline.alphabetic,
-                                    children: [
-                                      Text(
-                                        '00 : $formattedSecs',
-                                        style: AppTypography.h1(
-                                          color: AppColors.warning,
-                                          fontWeight: FontWeight.bold,
-                                        ).copyWith(fontSize: 36),
+                                  if (inactiveLabel != null)
+                                    Text(
+                                      inactiveLabel,
+                                      style: AppTypography.h1(
+                                        color: bannerAccent,
+                                        fontWeight: FontWeight.bold,
+                                      ).copyWith(fontSize: 32),
+                                    )
+                                  else
+                                    FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      alignment: Alignment.centerLeft,
+                                      child: Row(
+                                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                                        textBaseline: TextBaseline.alphabetic,
+                                        children: [
+                                          Text(
+                                            '$formattedMins : $formattedSecs',
+                                            style: AppTypography.h1(
+                                              color: AppColors.warning,
+                                              fontWeight: FontWeight.bold,
+                                            ).copyWith(fontSize: 36),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Text(
+                                            'MIN   SEC',
+                                            style: AppTypography.caption(
+                                              color: AppColors.warning,
+                                              fontWeight: FontWeight.bold,
+                                            ).copyWith(fontSize: 10),
+                                          ),
+                                        ],
                                       ),
-                                      const SizedBox(width: 10),
-                                      Text(
-                                        'MIN   SEC',
-                                        style: AppTypography.caption(
-                                          color: AppColors.warning,
-                                          fontWeight: FontWeight.bold,
-                                        ).copyWith(fontSize: 10),
-                                      ),
-                                    ],
-                                  ),
+                                    ),
                                 ],
                               ),
                             ),
@@ -261,12 +485,14 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
                               width: 56,
                               height: 56,
                               decoration: BoxDecoration(
-                                color: isDark ? AppColors.warning.withValues(alpha: 0.2) : AppColors.warningContainer,
+                                color: isInactive
+                                    ? bannerAccent.withValues(alpha: 0.18)
+                                    : (isDark ? AppColors.warning.withValues(alpha: 0.2) : AppColors.warningContainer),
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(
-                                Icons.notifications_active_outlined,
-                                color: AppColors.warning,
+                              child: Icon(
+                                bannerIcon,
+                                color: bannerAccent,
                                 size: 30,
                               ),
                             ),
@@ -279,17 +505,29 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
                       Builder(
                         builder: (context) {
                           final req = _activeOffer?['requirement'] as Map<String, dynamic>?;
-                          final title = req?['title'] as String? ?? _activeOffer?['title'] as String? ?? 'Trip Requirement';
-                          final vehicle = req?['vehicleType'] as String? ?? _activeOffer?['vehicleType'] as String? ?? 'Sedan';
-                          final pickup = req?['pickupAddress'] as String? ??
-                              _activeOffer?['pickupAddress'] as String? ??
-                              _activeOffer?['pickup'] as String? ??
+                          final title = _firstNonEmptyString([req?['title'], _activeOffer?['title']]) ??
+                              'Trip Requirement';
+                          final vehicle = _firstNonEmptyString([req?['vehicleType'], _activeOffer?['vehicleType']]) ??
+                              'Sedan';
+                          final pickup = _firstNonEmptyString([
+                                req?['pickupAddress'],
+                                (req?['pickupLocation'] as Map?)?['address'],
+                                _activeOffer?['pickupAddress'],
+                                (_activeOffer?['pickupLocation'] as Map?)?['address'],
+                                _activeOffer?['pickup'],
+                              ]) ??
                               'Pickup address';
-                          final drop = req?['dropAddress'] as String? ??
-                              _activeOffer?['dropAddress'] as String? ??
-                              _activeOffer?['drop'] as String? ??
+                          final drop = _firstNonEmptyString([
+                                req?['dropAddress'],
+                                (req?['dropLocation'] as Map?)?['address'],
+                                _activeOffer?['dropAddress'],
+                                (_activeOffer?['dropLocation'] as Map?)?['address'],
+                                _activeOffer?['drop'],
+                              ]) ??
                               'Drop address';
-                          final earnings = DriverService.resolveDriverPayoutFormatted(_activeOffer);
+                          final distanceText = _formatDistance(req);
+                          final durationText = _formatDuration(req);
+                          final earnings = _formatEarnings();
 
                           return Container(
                             padding: const EdgeInsets.all(AppSpacing.lg),
@@ -426,7 +664,7 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
                                       child: _buildMetricTile(
                                         icon: Icons.navigation_outlined,
                                         label: 'Distance',
-                                        value: '12.4 km',
+                                        value: distanceText,
                                         isDark: isDark,
                                       ),
                                     ),
@@ -435,7 +673,7 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
                                       child: _buildMetricTile(
                                         icon: Icons.access_time,
                                         label: 'Duration',
-                                        value: '28 min',
+                                        value: durationText,
                                         isDark: isDark,
                                       ),
                                     ),
@@ -506,60 +744,89 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
                       const SizedBox(height: AppSpacing.xl),
 
                       // ── Bottom Action Buttons ──────────────────────────────
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: _declineOffer,
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                                side: const BorderSide(color: AppColors.warning),
-                                foregroundColor: AppColors.warning,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(AppRadius.md),
-                                ),
+                      if (isInactive)
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton(
+                            onPressed: () {
+                              if (context.canPop()) {
+                                context.pop();
+                              } else {
+                                context.go(AppRoutes.homeScreen);
+                              }
+                            },
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              side: BorderSide(color: bannerAccent),
+                              foregroundColor: bannerAccent,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(AppRadius.md),
                               ),
-                              child: Text(
-                                'DECLINE',
-                                style: AppTypography.body(
-                                  color: AppColors.warning,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                            ),
+                            child: Text(
+                              'GO BACK',
+                              style: AppTypography.body(
+                                color: bannerAccent,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
-                          const SizedBox(width: AppSpacing.md),
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: _acceptOffer,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.warning,
-                                elevation: 0,
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(AppRadius.md),
+                        )
+                      else
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: _declineOffer,
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  side: const BorderSide(color: AppColors.warning),
+                                  foregroundColor: AppColors.warning,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(AppRadius.md),
+                                  ),
+                                ),
+                                child: Text(
+                                  'DECLINE',
+                                  style: AppTypography.body(
+                                    color: AppColors.warning,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
-                              child: _isAccepting
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        color: Colors.white,
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : Text(
-                                      'ACCEPT',
-                                      style: AppTypography.body(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
                             ),
-                          ),
-                        ],
-                      ),
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: _acceptOffer,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.warning,
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(AppRadius.md),
+                                  ),
+                                ),
+                                child: _isAccepting
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : Text(
+                                        'ACCEPT',
+                                        style: AppTypography.body(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                          ],
+                        ),
                     ],
                   ),
                 ),

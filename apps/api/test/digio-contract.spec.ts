@@ -99,10 +99,12 @@ function setup(opts: { webhookSecret?: string } = {}) {
   };
   const client = new DigioClient({ get: (k: string) => cfg[k] } as any);
   const db = makeDb();
+  let savedSeq = 0;
   const storage = {
     readStoredFile: jest.fn(async () => ({ buffer: Buffer.from('img'), mimeType: 'image/jpeg', filename: 'x.jpg' })),
     getFileBuffer: jest.fn(async () => ({ buffer: Buffer.from('img'), mimeType: 'image/jpeg', filename: 'x.jpg' })),
     saveBuffer: jest.fn(async () => '/uploads/masked.jpg'),
+    saveFile: jest.fn(async (f: any) => ({ url: `/uploads/${++savedSeq}-${f?.originalname || 'doc.jpg'}` })),
     uploadBuffer: jest.fn(async () => ({ url: '/uploads/masked.jpg' })),
   };
   const service = new DigioService(db, client, storage as any);
@@ -401,5 +403,151 @@ describe('Admin approval guard', () => {
     const meta = (audit.log.mock.calls[0] as any)[0].metadata;
     expect(meta.complianceOverride.reason).toMatch(/physically/);
     expect(meta.complianceOverride.blockers.length).toBeGreaterThan(0);
+  });
+});
+
+describe('Digio error extraction & HTTP filter propagation', () => {
+  it('extracts nested Digio error.error_message instead of [object Object]', async () => {
+    const t = setup();
+    t.reply(400, { error: { error_message: 'unable to fetch details', status: 'BAD_REQUEST', code: 'NOT_FOUND' } });
+
+    const err: any = await t.service.verifyPan(driver, { panNumber: 'ABCDE1234F' } as any).catch((e) => e);
+    expect(err).toBeInstanceOf(BadRequestException);
+    const resp = err.getResponse();
+    expect(resp.message).toBe('unable to fetch details');
+    expect(resp.message).not.toContain('[object Object]');
+  });
+
+  it('HttpExceptionFilter preserves explicit 503 ServiceUnavailableException while masking unhandled 500s', async () => {
+    const { ServiceUnavailableException, InternalServerErrorException } = await import('@nestjs/common');
+    const { HttpExceptionFilter } = await import('../src/common/filters/http-exception.filter');
+
+    const json = jest.fn();
+    const res = { status: jest.fn().mockReturnValue({ json }) };
+    const host = { switchToHttp: () => ({ getResponse: () => res }) } as any;
+
+    new HttpExceptionFilter().catch(
+      new ServiceUnavailableException('DigiLocker / Govt KYC verification service is not configured on this server'),
+      host,
+    );
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(json.mock.calls[0][0].error.message).toBe(
+      'DigiLocker / Govt KYC verification service is not configured on this server',
+    );
+
+    const json500 = jest.fn();
+    const res500 = { status: jest.fn().mockReturnValue({ json: json500 }) };
+    new HttpExceptionFilter().catch(
+      new InternalServerErrorException('PrismaClientKnownRequestError at /app/src'),
+      { switchToHttp: () => ({ getResponse: () => res500 }) } as any,
+    );
+    expect(res500.status).toHaveBeenCalledWith(500);
+    expect(json500.mock.calls[0][0].error.message).toBe(
+      'An unexpected internal error occurred. Please try again shortly.',
+    );
+  });
+});
+
+describe('DigiLocker verifiedDocs extraction, media sync & mandatory admin gate', () => {
+  it('extracts verifiedDocs & RC/PAN/DL/Aadhaar from DigiLocker while keeping driver UNDER_REVIEW until admin approval', async () => {
+    const t = setup();
+    await t.service.recordAadhaarConsent(
+      driver,
+      { accepted: true, textVersion: 'AADHAAR_CONSENT_V1' },
+      { ip: '1.2.3.4' },
+    );
+    t.reply(200, {
+      id: 'KID_DLKR_CONTRACT_1',
+      access_token: { id: 'GWT_CONTRACT_1' },
+      reference_id: 'REF_1',
+      transaction_id: 'TXN_1',
+      status: 'requested',
+    });
+    const created: any = await t.service.createDigilockerSession(driver, {});
+    expect(created.digioRequestId).toBe('KID_DLKR_CONTRACT_1');
+
+    const dlkrPayload = {
+      id: 'KID_DLKR_CONTRACT_1',
+      status: 'approved',
+      actions: [
+        {
+          type: 'digilocker',
+          status: 'approved',
+          details: {
+            aadhaar: {
+              name: 'VIKRAM SINGH',
+              id_number: 'XXXX-XXXX-4455',
+              file_id: 'FILE_AADHAAR_1',
+            },
+            pan: {
+              name: 'VIKRAM SINGH',
+              id_number: 'ABCDE1234F',
+              file_id: 'FILE_PAN_1',
+            },
+            driving_licence: {
+              name: 'VIKRAM SINGH',
+              id_number: 'DL0120200012345',
+              file_id: 'FILE_DL_1',
+            },
+            vehicle_rc: {
+              rc_number: 'TS09AB1234',
+              file_id: 'FILE_RC_1',
+            },
+          },
+        },
+      ],
+    };
+
+    t.db.driverRow.vehiclePlate = null;
+    t.reply(200, dlkrPayload);
+    const syncedStatus: any = await t.service.syncDigilockerResponse(
+      driver,
+      'KID_DLKR_CONTRACT_1',
+    );
+    expect(syncedStatus.verified).toBe(true);
+    expect(syncedStatus.summary.verifiedDocs).toEqual({
+      aadhaar: true,
+      pan: true,
+      dl: true,
+      rc: true,
+    });
+    expect(syncedStatus.summary.extractedPan).toBe('ABCDE1234F');
+    expect(syncedStatus.summary.extractedDl).toBe('DL0120200012345');
+    expect(syncedStatus.summary.extractedRc).toBe('TS09AB1234');
+    // Mandatory admin gate: instant DigiLocker verification must NOT auto-verify the driver
+    expect(t.db.driverRow.verificationStatus).toBe('UNDER_REVIEW');
+    expect(t.db.driverRow.kycDocuments.rcNumber).toBe('TS09AB1234');
+    expect(t.db.driverRow.kycDocuments.digilockerVerifiedDocs).toEqual({
+      aadhaar: true,
+      pan: true,
+      dl: true,
+      rc: true,
+    });
+    expect(t.db.driverRow.vehiclePlate).toBe('TS09AB1234');
+
+    // Sync media for Aadhaar (populates both Front & Back), PAN, DL, RC (Front & Back)
+    t.reply(200, dlkrPayload);
+    const bytesB64 = Buffer.from('digilocker-doc-bytes').toString('base64');
+    t.reply(200, { base64: bytesB64 });
+    t.reply(200, { base64: bytesB64 });
+    t.reply(200, { base64: bytesB64 });
+    t.reply(200, { base64: bytesB64 });
+
+    const mediaRes: any = await t.service.syncDigilockerMedia(
+      driver,
+      'KID_DLKR_CONTRACT_1',
+    );
+    expect(mediaRes.attachedCount).toBe(4);
+    expect(mediaRes.documentUrls.aadharFrontUrl).toBeTruthy();
+    expect(mediaRes.documentUrls.aadharBackUrl).toBe(
+      mediaRes.documentUrls.aadharFrontUrl,
+    );
+    expect(mediaRes.documentUrls.panDocUrl).toBeTruthy();
+    expect(mediaRes.documentUrls.dlFrontUrl).toBeTruthy();
+    expect(mediaRes.documentUrls.rcFrontUrl).toBeTruthy();
+    expect(mediaRes.documentUrls.rcBackUrl).toBe(
+      mediaRes.documentUrls.rcFrontUrl,
+    );
+    expect(t.db.driverRow.verificationStatus).toBe('UNDER_REVIEW');
   });
 });

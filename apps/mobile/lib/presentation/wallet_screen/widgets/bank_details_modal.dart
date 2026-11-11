@@ -502,7 +502,7 @@ class _BankDetailsModalState extends State<BankDetailsModal> {
                                         return;
                                       }
                                       try {
-                                        AppToast.showInfo('Verifying bank account via Digio...', context: context);
+                                        AppToast.showInfo('Verifying bank account...', context: context);
                                         final res = await DigioService.instance.verifyBankAccount(
                                           accountNumber: acc,
                                           ifsc: ifsc,

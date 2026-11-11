@@ -145,60 +145,98 @@ export class OffersService {
 
     const now = Date.now();
     const maps = this.googleMapsService ?? GoogleMapsService.sharedInstance();
-    return Promise.all(
-      offers.map(async (o) => {
-        const expiresAtMs = new Date(o.expiresAt).getTime();
-        const expiresInSeconds = Math.max(0, Math.floor((expiresAtMs - now) / 1000));
-        const pLat = Number(o.requirement.pickupLat);
-        const pLng = Number(o.requirement.pickupLng);
-        const dLat = Number(o.requirement.dropLat);
-        const dLng = Number(o.requirement.dropLng);
-        const tripRoute = await maps.computeRoadRoute(
-          { latitude: pLat, longitude: pLng },
-          { latitude: dLat, longitude: dLng },
-        );
-        const hasEscort = Boolean(
-          (o.requirement as any)?.pricingSnapshot?.hasEscort ||
-          (typeof o.requirement?.notes === 'string' && o.requirement.notes.includes('Security Escort: Required')),
-        );
-
-        return {
-          id: o.id,
-          requirementId: o.requirementId,
-          driverId: o.driverId,
-          vehicleType: o.vehicleType as unknown as VehicleType,
-          pickupLocation: {
-            latitude: pLat,
-            longitude: pLng,
-            address: o.requirement.pickupAddress,
-          },
-          dropLocation: {
-            latitude: dLat,
-            longitude: dLng,
-            address: o.requirement.dropAddress,
-          },
-          pickupLat: pLat,
-          pickupLng: pLng,
-          dropLat: dLat,
-          dropLng: dLng,
-          distanceKm: tripRoute.distanceKm,
-          tripDistanceKm: tripRoute.distanceKm,
-          tripEtaMinutes: tripRoute.durationMinutes,
-          hasEscort,
-          escortRequired: hasEscort,
-          reportingTime: o.requirement.reportingTime.toISOString(),
-          offeredRate: Number(o.offeredRate),
-          status: o.status as OfferStatus,
-          expiresAt: o.expiresAt.toISOString(),
-          expiresInSeconds,
-          vendorOrganizationName: o.requirement.vendor.organizationName,
-          createdAt: o.createdAt.toISOString(),
-        };
-      }),
-    );
+    return Promise.all(offers.map((o) => this.formatOfferResponse(o, now, maps)));
     } catch (_) {
       return [];
     }
+  }
+
+  /**
+   * Retrieve a single trip offer for the authenticated driver regardless of current status
+   * (SENT, EXPIRED, ACCEPTED, DECLINED, CANCELLED), computing authoritative countdown & expiry.
+   */
+  async getOfferById(offerId: string, driverUserId: string): Promise<OfferResponseDto> {
+    const driver = await this.db.driver.findUnique({ where: { userId: driverUserId }, select: { id: true } });
+    if (!driver) {
+      throw new ForbiddenException('Driver profile not found');
+    }
+
+    const offer = await this.db.offer.findUnique({
+      where: { id: offerId },
+      include: {
+        requirement: {
+          include: { vendor: true, pricingSnapshot: true },
+        },
+      },
+    });
+    if (!offer) {
+      throw new NotFoundException('Offer not found');
+    }
+    if (offer.driverId !== driver.id) {
+      throw new ForbiddenException('Not authorized to view this offer');
+    }
+
+    const maps = this.googleMapsService ?? GoogleMapsService.sharedInstance();
+    return this.formatOfferResponse(offer, Date.now(), maps);
+  }
+
+  private async formatOfferResponse(
+    o: any,
+    nowMs: number,
+    maps: GoogleMapsService,
+  ): Promise<OfferResponseDto> {
+    const expiresAtMs = new Date(o.expiresAt).getTime();
+    const expiresInSeconds = Math.max(0, Math.floor((expiresAtMs - nowMs) / 1000));
+    const effectiveStatus =
+      o.status === OfferStatus.SENT && nowMs > expiresAtMs
+        ? OfferStatus.EXPIRED
+        : (o.status as OfferStatus);
+
+    const pLat = Number(o.requirement.pickupLat);
+    const pLng = Number(o.requirement.pickupLng);
+    const dLat = Number(o.requirement.dropLat);
+    const dLng = Number(o.requirement.dropLng);
+    const tripRoute = await maps.computeRoadRoute(
+      { latitude: pLat, longitude: pLng },
+      { latitude: dLat, longitude: dLng },
+    );
+    const hasEscort = Boolean(
+      o.requirement?.pricingSnapshot?.hasEscort ||
+        (typeof o.requirement?.notes === 'string' && o.requirement.notes.includes('Security Escort: Required')),
+    );
+
+    return {
+      id: o.id,
+      requirementId: o.requirementId,
+      driverId: o.driverId,
+      vehicleType: o.vehicleType as unknown as VehicleType,
+      pickupLocation: {
+        latitude: pLat,
+        longitude: pLng,
+        address: o.requirement.pickupAddress,
+      },
+      dropLocation: {
+        latitude: dLat,
+        longitude: dLng,
+        address: o.requirement.dropAddress,
+      },
+      pickupLat: pLat,
+      pickupLng: pLng,
+      dropLat: dLat,
+      dropLng: dLng,
+      distanceKm: tripRoute.distanceKm,
+      tripDistanceKm: tripRoute.distanceKm,
+      tripEtaMinutes: tripRoute.durationMinutes,
+      hasEscort,
+      escortRequired: hasEscort,
+      reportingTime: o.requirement.reportingTime.toISOString(),
+      offeredRate: Number(o.offeredRate),
+      status: effectiveStatus,
+      expiresAt: o.expiresAt.toISOString(),
+      expiresInSeconds,
+      vendorOrganizationName: o.requirement.vendor?.organizationName,
+      createdAt: o.createdAt.toISOString(),
+    } as OfferResponseDto;
   }
 
   /**

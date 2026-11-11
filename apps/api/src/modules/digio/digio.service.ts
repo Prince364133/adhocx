@@ -805,7 +805,7 @@ export class DigioService {
         severity: missing,
         code: 'DL_NOT_VERIFIED',
         message: driver?.dlFrontUrl
-          ? 'Driving License uploaded but not yet verified via Digio'
+          ? 'Driving License uploaded but not yet verified via Govt KYC'
           : 'Driving License has not been verified',
       });
     } else if (!dl.verified) {
@@ -2281,7 +2281,7 @@ export class DigioService {
     const kid = String(res?.id || '');
     const tokenId = String(res?.access_token?.id || '');
     if (!kid || !tokenId) {
-      throw new BadRequestException('Digio did not return a valid session ID / access token');
+      throw new BadRequestException('DigiLocker service did not return a valid session ID / access token');
     }
 
     const gatewayUrl = this.digioClient.buildGatewayUrl({
@@ -2331,7 +2331,7 @@ export class DigioService {
       where: { digioRequestId },
     });
     if (!existing) {
-      throw new NotFoundException(`Digio KYC request ${digioRequestId} not found`);
+      throw new NotFoundException(`DigiLocker KYC request ${digioRequestId} not found`);
     }
 
     if (
@@ -2349,26 +2349,64 @@ export class DigioService {
     let extractedName: string | null = null;
     let extractedPan: string | null = null;
     let extractedDl: string | null = null;
+    let extractedRc: string | null = null;
     let maskedAadhaar: string | null = null;
+    const verifiedDocs = {
+      aadhaar: false,
+      pan: false,
+      dl: false,
+      rc: false,
+    };
+
+    const isPositiveActionStatus = (s: unknown) => {
+      const val = String(s || '').toLowerCase();
+      return (
+        val === 'approved' ||
+        val === 'completed' ||
+        val === 'success' ||
+        val === 'approval_pending' ||
+        digioStatus === 'approved'
+      );
+    };
 
     for (const action of actions) {
       const details = action?.details || {};
+      const actionStatus = String(action?.status || '').toLowerCase();
+      const actionFailed = actionStatus === 'rejected' || actionStatus === 'failed' || actionStatus === 'expired';
+      const actionType = String(action?.doc_type || action?.type || '').toUpperCase();
+
       const aadhaar = details?.aadhaar || details?.AADHAAR;
-      if (aadhaar) {
+      if (aadhaar && !actionFailed) {
+        verifiedDocs.aadhaar = true;
         extractedName = extractedName || aadhaar.name || null;
         if (aadhaar.id_number) {
           maskedAadhaar = this.maskAadhaarInText(String(aadhaar.id_number));
         }
       }
       const pan = details?.pan || details?.PAN;
-      if (pan) {
+      if (pan && !actionFailed) {
+        verifiedDocs.pan = true;
         extractedPan = pan.id_number || pan.pan_no || extractedPan;
         extractedName = extractedName || pan.name || null;
       }
       const dl = details?.driving_licence || details?.driving_license || details?.DRIVING_LICENSE;
-      if (dl) {
+      if (dl && !actionFailed) {
+        verifiedDocs.dl = true;
         extractedDl = dl.id_number || dl.dl_number || extractedDl;
         extractedName = extractedName || dl.name || null;
+      }
+      const rc = details?.vehicle_rc || details?.VEHICLE_RC || details?.rc;
+      if (rc && !actionFailed) {
+        verifiedDocs.rc = true;
+        extractedRc =
+          rc.id_number || rc.rc_number || rc.registration_number || extractedRc;
+      }
+
+      if (!actionFailed && isPositiveActionStatus(action?.status)) {
+        if (actionType.includes('AADHAAR')) verifiedDocs.aadhaar = true;
+        if (actionType.includes('PAN')) verifiedDocs.pan = true;
+        if (actionType.includes('DRIVING') || actionType === 'DL') verifiedDocs.dl = true;
+        if (actionType.includes('VEHICLE_RC') || actionType === 'RC') verifiedDocs.rc = true;
       }
     }
 
@@ -2381,6 +2419,13 @@ export class DigioService {
           String(a?.status || '').toLowerCase() === 'completed' ||
           String(a?.status || '').toLowerCase() === 'success',
       );
+
+    if (!verified) {
+      verifiedDocs.aadhaar = false;
+      verifiedDocs.pan = false;
+      verifiedDocs.dl = false;
+      verifiedDocs.rc = false;
+    }
 
     const status =
       digioStatus === 'approved'
@@ -2410,7 +2455,9 @@ export class DigioService {
           extractedName,
           extractedPan,
           extractedDl,
+          extractedRc,
           maskedAadhaar,
+          verifiedDocs,
           actionsCount: actions.length,
           actionStatuses: actions.map((a) => ({
             type: a?.type,
@@ -2432,20 +2479,42 @@ export class DigioService {
         verifiedAt: updated.verifiedAt?.toISOString() || null,
       });
 
-      if (extractedPan || extractedDl) {
+      if (
+        extractedPan ||
+        extractedDl ||
+        extractedRc ||
+        Object.values(verifiedDocs).some(Boolean)
+      ) {
         const driver = await this.db.driver.findUnique({
           where: { id: updated.driverId },
-          select: { kycDocuments: true },
+          select: { kycDocuments: true, vehiclePlate: true },
         });
         const kyc: Record<string, any> =
           driver?.kycDocuments && typeof driver.kycDocuments === 'object' && !Array.isArray(driver.kycDocuments)
             ? { ...(driver.kycDocuments as Record<string, any>) }
             : {};
+        const prevDlkrDocs =
+          kyc.digilockerVerifiedDocs && typeof kyc.digilockerVerifiedDocs === 'object'
+            ? { ...kyc.digilockerVerifiedDocs }
+            : {};
+        kyc.digilockerVerifiedDocs = {
+          ...prevDlkrDocs,
+          ...(verifiedDocs.aadhaar ? { aadhaar: true } : {}),
+          ...(verifiedDocs.pan ? { pan: true } : {}),
+          ...(verifiedDocs.dl ? { dl: true } : {}),
+          ...(verifiedDocs.rc ? { rc: true } : {}),
+        };
         if (extractedPan) kyc.panNumber = extractedPan;
         if (extractedDl) kyc.dlNumber = extractedDl;
+        if (extractedRc) kyc.rcNumber = String(extractedRc).trim().toUpperCase();
         await this.db.driver.update({
           where: { id: updated.driverId },
-          data: { kycDocuments: kyc as any },
+          data: {
+            kycDocuments: kyc as any,
+            ...(!driver?.vehiclePlate && extractedRc
+              ? { vehiclePlate: String(extractedRc).trim().toUpperCase() }
+              : {}),
+          },
         });
       }
     }
@@ -2459,7 +2528,7 @@ export class DigioService {
     dto: ManageDigilockerApprovalDto,
   ) {
     if (actor.role !== UserRole.ADMIN) {
-      throw new ForbiddenException('Only admins can manage Digio KYC approval state');
+      throw new ForbiddenException('Only admins can manage DigiLocker KYC approval state');
     }
     await this.digioClient.manageKycApproval(
       digioRequestId,
@@ -2474,7 +2543,7 @@ export class DigioService {
       where: { digioRequestId },
     });
     if (!existing) {
-      throw new NotFoundException('Digio KYC session not found');
+      throw new NotFoundException('DigiLocker KYC session not found');
     }
     if (actor.role !== UserRole.ADMIN && existing.userId !== actor.id) {
       throw new ForbiddenException('Cannot reattempt another user session');
@@ -2497,7 +2566,7 @@ export class DigioService {
       where: { digioRequestId },
     });
     if (!existing) {
-      throw new NotFoundException(`Digio KYC request ${digioRequestId} not found`);
+      throw new NotFoundException(`DigiLocker KYC request ${digioRequestId} not found`);
     }
     if (actor.role !== UserRole.ADMIN && existing.userId !== actor.id) {
       throw new ForbiddenException('You do not have access to this KYC session');
@@ -2507,6 +2576,8 @@ export class DigioService {
     const actions: any[] = Array.isArray(res?.actions) ? res.actions : [];
     const attachedFiles: Array<{ docType: string; fileId: string; url: string }> = [];
     const driverPatch: Record<string, string> = {};
+    const kycPatch: Record<string, any> = {};
+    const mediaVerifiedDocs: Record<string, boolean> = {};
 
     const candidates: Array<{ docType: string; fileId: string }> = [];
     for (const action of actions) {
@@ -2526,7 +2597,7 @@ export class DigioService {
       );
       tryPush(
         'VEHICLE_RC',
-        details?.vehicle_rc?.file_id || details?.VEHICLE_RC?.file_id,
+        details?.vehicle_rc?.file_id || details?.VEHICLE_RC?.file_id || details?.rc?.file_id,
       );
       if (action?.file_id) {
         tryPush(String(action?.doc_type || action?.type || 'DOCUMENT').toUpperCase(), action.file_id);
@@ -2555,14 +2626,22 @@ export class DigioService {
 
         attachedFiles.push({ docType: item.docType, fileId: item.fileId, url: saved.url });
         if (existing.driverId) {
-          if (item.docType.includes('AADHAAR') && !driverPatch.aadharFrontUrl) {
-            driverPatch.aadharFrontUrl = saved.url;
+          if (item.docType.includes('AADHAAR')) {
+            if (!driverPatch.aadharFrontUrl) driverPatch.aadharFrontUrl = saved.url;
+            driverPatch.aadharBackUrl = saved.url;
+            mediaVerifiedDocs.aadhaar = true;
           } else if (item.docType.includes('DRIVING') && !driverPatch.dlFrontUrl) {
             driverPatch.dlFrontUrl = saved.url;
+            mediaVerifiedDocs.dl = true;
           } else if (item.docType.includes('PAN') && !driverPatch.panDocUrl) {
             driverPatch.panDocUrl = saved.url;
+            mediaVerifiedDocs.pan = true;
           } else if (item.docType.includes('RC') && !driverPatch.rcDocUrl) {
             driverPatch.rcDocUrl = saved.url;
+            kycPatch.rcDocUrl = saved.url;
+            kycPatch.rcFrontUrl = saved.url;
+            kycPatch.rcBackUrl = saved.url;
+            mediaVerifiedDocs.rc = true;
           }
         }
       } catch (err: any) {
@@ -2572,10 +2651,35 @@ export class DigioService {
       }
     }
 
-    if (existing.driverId && Object.keys(driverPatch).length) {
+    if (
+      existing.driverId &&
+      (Object.keys(driverPatch).length || Object.keys(kycPatch).length || Object.keys(mediaVerifiedDocs).length)
+    ) {
+      const driver = await this.db.driver.findUnique({
+        where: { id: existing.driverId },
+        select: { kycDocuments: true },
+      });
+      const existingKyc =
+        driver?.kycDocuments && typeof driver.kycDocuments === 'object' && !Array.isArray(driver.kycDocuments)
+          ? { ...(driver.kycDocuments as Record<string, any>) }
+          : {};
+      const existingDlkrDocs =
+        existingKyc.digilockerVerifiedDocs && typeof existingKyc.digilockerVerifiedDocs === 'object'
+          ? { ...existingKyc.digilockerVerifiedDocs }
+          : {};
       await this.db.driver.update({
         where: { id: existing.driverId },
-        data: driverPatch,
+        data: {
+          ...driverPatch,
+          kycDocuments: {
+            ...existingKyc,
+            ...kycPatch,
+            digilockerVerifiedDocs: {
+              ...existingDlkrDocs,
+              ...mediaVerifiedDocs,
+            },
+          } as any,
+        },
       });
     }
 
@@ -2583,6 +2687,10 @@ export class DigioService {
       digioRequestId,
       attachedCount: attachedFiles.length,
       attachedFiles,
+      documentUrls: {
+        ...driverPatch,
+        ...kycPatch,
+      },
     };
   }
 

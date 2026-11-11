@@ -859,7 +859,7 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
                                                 const SizedBox(width: 8),
                                                 Expanded(
                                                   child: Text(
-                                                    'Digio Govt & Biometric Checks',
+                                                    'DigiLocker & Govt KYC Checks',
                                                     style: AppTypography.body(
                                                       color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                                       fontWeight: FontWeight.bold,

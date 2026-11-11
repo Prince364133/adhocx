@@ -275,4 +275,64 @@ describe('password setup & reset session handling', () => {
     expect(redis.kv.has('user_revoked:u-reset')).toBe(false);
     expect(Number(redis.kv.get('user_min_iat:u-reset'))).toBeGreaterThan(0);
   });
+
+  it('logout transitions an AVAILABLE driver to OFFLINE, clears spatial index & cancels SENT offers', async () => {
+    const locations = { removeDriverFromAvailable: jest.fn(async () => undefined) };
+    const driverFindUnique = jest.fn(async () => ({ id: 'drv-online-1', availabilityStatus: 'AVAILABLE' }));
+    const driverUpdate = jest.fn(async () => ({ id: 'drv-online-1', availabilityStatus: 'OFFLINE' }));
+    const offerUpdateMany = jest.fn(async () => ({ count: 2 }));
+
+    const db: any = {
+      user: { findFirst: jest.fn(), findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
+      driver: { findUnique: driverFindUnique, update: driverUpdate },
+      offer: { updateMany: offerUpdateMany },
+      trip: { findFirst: jest.fn(async () => null) },
+    };
+    const redis = fakeRedis();
+    const svc = new AuthService(
+      db,
+      { signAsync: jest.fn(), verifyAsync: jest.fn(), decode: jest.fn(() => ({ sub: 'u-drv-1' })) } as any,
+      { get: jest.fn() } as any,
+      redis as any,
+      { sendOtp: jest.fn() } as any,
+      locations as any,
+    );
+
+    await svc.logout('jwt-access-1', 'u-drv-1');
+
+    expect(redis.blacklistToken).toHaveBeenCalledWith('jwt-access-1', 3600);
+    expect(driverUpdate).toHaveBeenCalledWith({
+      where: { id: 'drv-online-1' },
+      data: { availabilityStatus: 'OFFLINE' },
+    });
+    expect(locations.removeDriverFromAvailable).toHaveBeenCalledWith('drv-online-1');
+    expect(offerUpdateMany).toHaveBeenCalledWith({
+      where: { driverId: 'drv-online-1', status: 'SENT' },
+      data: { status: 'CANCELLED' },
+    });
+  });
+
+  it('logout preserves BUSY status only while an active trip exists', async () => {
+    const locations = { removeDriverFromAvailable: jest.fn(async () => undefined) };
+    const driverUpdate = jest.fn(async () => ({}));
+    const db: any = {
+      user: { findFirst: jest.fn(), findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
+      driver: { findUnique: jest.fn(async () => ({ id: 'drv-busy-1', availabilityStatus: 'BUSY' })), update: driverUpdate },
+      offer: { updateMany: jest.fn(async () => ({ count: 0 })) },
+      trip: { findFirst: jest.fn(async () => ({ id: 'trip-active-1' })) },
+    };
+    const redis = fakeRedis();
+    const svc = new AuthService(
+      db,
+      { signAsync: jest.fn(), verifyAsync: jest.fn() } as any,
+      { get: jest.fn() } as any,
+      redis as any,
+      { sendOtp: jest.fn() } as any,
+      locations as any,
+    );
+
+    await svc.logout('jwt-busy-1', 'u-busy-1');
+    expect(driverUpdate).not.toHaveBeenCalled();
+    expect(locations.removeDriverFromAvailable).not.toHaveBeenCalled();
+  });
 });

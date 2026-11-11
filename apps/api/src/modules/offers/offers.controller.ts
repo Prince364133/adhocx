@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, UseGuards, ParseUUIDPipe } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse as SwaggerResponse } from '@nestjs/swagger';
 import {
   DeclineOfferDto,
@@ -26,6 +26,17 @@ export class OffersController {
     @Query() query: OfferQueryDto,
   ) {
     return this.offersService.getOffersForDriver(user.id, query);
+  }
+
+  @Get(':id')
+  @Roles(UserRole.DRIVER)
+  @ApiOperation({ summary: 'Get a single trip offer by ID with authoritative status and expiry' })
+  @SwaggerResponse({ status: 200, type: OfferResponseDto })
+  async getOfferById(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthUserDto,
+  ) {
+    return this.offersService.getOfferById(id, user.id);
   }
 
   @Post(':id/accept')

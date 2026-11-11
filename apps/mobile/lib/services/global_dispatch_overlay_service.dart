@@ -461,6 +461,21 @@ class GlobalDispatchOverlayService {
       return null;
     }
 
+    // Do not alert or open an offer that has already expired
+    final rawStatus = offerData['status']?.toString().toUpperCase();
+    if (rawStatus != null && rawStatus != 'SENT') {
+      debugPrint('🚫 [OverlayService] Dropping incoming offer $offerId: non-pending status $rawStatus');
+      return null;
+    }
+    final expiresAtStr = offerData['expiresAt']?.toString();
+    if (expiresAtStr != null && expiresAtStr.isNotEmpty) {
+      final expiresAt = DateTime.tryParse(expiresAtStr);
+      if (expiresAt != null && !DateTime.now().isBefore(expiresAt)) {
+        debugPrint('🚫 [OverlayService] Dropping expired incoming offer $offerId (expired at $expiresAtStr)');
+        return null;
+      }
+    }
+
     // Vehicle compatibility guard: Ensure Sedan driver does NOT receive Hatchback or SUV offers
     final driverProf = AuthService.instance.currentUser?.driverProfile;
     final driverV = VehicleUtils.extractVehicleType(driverProf);
@@ -637,31 +652,123 @@ class GlobalDispatchOverlayService {
     }
   }
 
+  /// Safely checks whether Android SYSTEM_ALERT_WINDOW ("Display over other apps") is granted.
+  static Future<bool> isOverlayPermissionGranted() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return true;
+    try {
+      final granted = await FlutterOverlayWindow.isPermissionGranted();
+      if (granted) return true;
+    } catch (_) {}
+    try {
+      final nativeGranted = await _foregroundChannel.invokeMethod<bool>('canDrawOverlays');
+      if (nativeGranted != null) return nativeGranted;
+    } catch (_) {}
+    try {
+      final status = await Permission.systemAlertWindow.status;
+      return status.isGranted;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Opens Android's "Display over other apps" settings screen and waits for the user to
+  /// return to the app (`AppLifecycleState.resumed`), then re-checks the live OS permission.
+  ///
+  /// Intentionally avoids `FlutterOverlayWindow.requestPermission()` because
+  /// `flutter_overlay_window` 0.5.0 does not register `ActivityResultListener` on Android,
+  /// causing its Future to hang forever and leaving the UI stuck on "Connecting...".
+  static Future<bool> _requestOverlayPermissionViaSettings() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return true;
+    if (await isOverlayPermissionGranted()) return true;
+
+    final completer = Completer<bool>();
+    final openedAt = DateTime.now();
+    bool sawBackground = false;
+    bool sawInactive = false;
+
+    final observer = _OverlayLifecycleObserver(
+      onStateChanged: (state) async {
+        if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
+          sawBackground = true;
+        } else if (state == AppLifecycleState.inactive) {
+          sawInactive = true;
+        } else if (state == AppLifecycleState.resumed) {
+          final elapsedMs = DateTime.now().difference(openedAt).inMilliseconds;
+          if (sawBackground || (sawInactive && elapsedMs >= 300)) {
+            // Brief window for Android Settings.canDrawOverlays to settle after user toggles it
+            await Future.delayed(const Duration(milliseconds: 250));
+            final granted = await isOverlayPermissionGranted();
+            if (!completer.isCompleted) {
+              completer.complete(granted);
+            }
+          }
+        }
+      },
+    );
+
+    WidgetsBinding.instance.addObserver(observer);
+    Timer? launchCheckTimer;
+    Timer? maxWaitTimer;
+
+    try {
+      bool launched = false;
+      try {
+        final res = await _foregroundChannel.invokeMethod<bool>('openOverlaySettings');
+        launched = res ?? true;
+      } catch (_) {
+        launched = false;
+      }
+
+      if (!launched) {
+        try {
+          launched = await openAppSettings();
+        } catch (_) {
+          launched = false;
+        }
+      }
+
+      if (!launched) {
+        final granted = await isOverlayPermissionGranted();
+        if (!completer.isCompleted) completer.complete(granted);
+      } else {
+        launchCheckTimer = Timer(const Duration(milliseconds: 2500), () async {
+          if (!sawBackground && !sawInactive && !completer.isCompleted) {
+            final granted = await isOverlayPermissionGranted();
+            if (!completer.isCompleted) completer.complete(granted);
+          }
+        });
+        maxWaitTimer = Timer(const Duration(minutes: 5), () async {
+          if (!completer.isCompleted) {
+            final granted = await isOverlayPermissionGranted();
+            if (!completer.isCompleted) completer.complete(granted);
+          }
+        });
+      }
+
+      return await completer.future;
+    } finally {
+      launchCheckTimer?.cancel();
+      maxWaitTimer?.cancel();
+      WidgetsBinding.instance.removeObserver(observer);
+    }
+  }
+
   /// Mandatory Check & Enforcement for SYSTEM_ALERT_WINDOW ("Display over other apps").
-  /// Directly opens system settings if not granted, and if denied, shows a mandatory explanation modal.
-  /// Returns `true` if permission is granted, `false` otherwise.
+  /// Directly opens system settings if not granted, and if still denied upon return, shows a
+  /// mandatory explanation modal. Returns `true` if permission is granted, `false` otherwise.
   static Future<bool> ensureOverlayPermissionMandatory(BuildContext context) async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return true;
 
-    bool isGranted = await FlutterOverlayWindow.isPermissionGranted();
+    bool isGranted = await isOverlayPermissionGranted();
     if (isGranted) return true;
 
-    // 1. Directly request / open system settings as requested without just a soft prompt:
-    try {
-      await FlutterOverlayWindow.requestPermission();
-    } catch (_) {
-      try {
-        await openAppSettings();
-      } catch (_) {}
-    }
-
-    // 2. Re-check after user returns from system settings
-    isGranted = await FlutterOverlayWindow.isPermissionGranted();
+    // 1. Directly open system settings and wait until user returns to the app
+    isGranted = await _requestOverlayPermissionViaSettings();
     if (isGranted) return true;
 
-    // 3. If still denied, show firm mandatory bottom sheet explaining that it is required to go online
+    // 2. If still denied, show firm mandatory bottom sheet explaining that it is required to go online
     if (context.mounted) {
-      await showModalBottomSheet(
+      await showModalBottomSheet<bool>(
         context: context,
         useRootNavigator: true,
         isDismissible: false,
@@ -669,84 +776,134 @@ class GlobalDispatchOverlayService {
         backgroundColor: Colors.transparent,
         builder: (ctx) {
           final isDark = Theme.of(ctx).brightness == Brightness.dark;
-          return Container(
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            ),
-            padding: const EdgeInsets.all(AppSpacing.xl),
-            child: SafeArea(
-              top: false,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: AppColors.error.withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.layers_rounded, size: 32, color: AppColors.error),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  Text(
-                    'Permission Mandatory',
-                    style: AppTypography.h2(
-                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    'To go online and receive floating trip dispatches while using Google Maps or other apps, "Display over other apps" permission is mandatory. Please turn it on in Settings.',
-                    textAlign: TextAlign.center,
-                    style: AppTypography.caption(
-                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        Navigator.of(ctx).pop();
-                        try {
-                          await FlutterOverlayWindow.requestPermission();
-                        } catch (_) {
-                          try {
-                            await openAppSettings();
-                          } catch (_) {}
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+          bool isChecking = false;
+          return StatefulBuilder(
+            builder: (ctx, setSheetState) {
+              return Container(
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                padding: const EdgeInsets.all(AppSpacing.xl),
+                child: SafeArea(
+                  top: false,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: AppColors.error.withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.layers_rounded, size: 32, color: AppColors.error),
                       ),
-                      child: const Text('OPEN SETTINGS & ENABLE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    ),
+                      const SizedBox(height: AppSpacing.md),
+                      Text(
+                        'Permission Mandatory',
+                        style: AppTypography.h2(
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        'To go online and receive floating trip dispatches while using Google Maps or other apps, "Display over other apps" permission is mandatory. Please turn it on in Settings.',
+                        textAlign: TextAlign.center,
+                        style: AppTypography.caption(
+                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: ElevatedButton(
+                          onPressed: isChecking
+                              ? null
+                              : () async {
+                                  setSheetState(() => isChecking = true);
+                                  final navigator = Navigator.of(ctx);
+                                  final granted = await _requestOverlayPermissionViaSettings();
+                                  if (ctx.mounted) {
+                                    if (granted) {
+                                      navigator.pop(true);
+                                    } else {
+                                      setSheetState(() => isChecking = false);
+                                    }
+                                  }
+                                },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                          ),
+                          child: isChecking
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                )
+                              : const Text(
+                                  'OPEN SETTINGS & ENABLE',
+                                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                ),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      TextButton(
+                        onPressed: isChecking ? null : () => Navigator.of(ctx).pop(false),
+                        child: Text(
+                          'Cancel (Stay Offline)',
+                          style: TextStyle(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: AppSpacing.sm),
-                  TextButton(
-                    onPressed: () => Navigator.of(ctx).pop(),
-                    child: Text('Cancel (Stay Offline)', style: TextStyle(color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
-                  ),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           );
         },
       );
 
-      isGranted = await FlutterOverlayWindow.isPermissionGranted();
+      isGranted = await isOverlayPermissionGranted();
     }
 
     return isGranted;
   }
 
+  /// Clear stale dispatch data cached in memory (offers / active trip).
+  void clearCachedState() {
+    _lastActiveTrip = null;
+    _lastOffers = [];
+  }
+
+  /// Close any lingering overlay bubble (e.g., orphaned across app restart/logout).
+  Future<void> closeOrphanedOverlayIfActive() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+    try {
+      final isActive = await FlutterOverlayWindow.isActive();
+      if (isActive) {
+        await FlutterOverlayWindow.closeOverlay();
+      }
+    } catch (e) {
+      debugPrint('Orphaned overlay cleanup check skipped: $e');
+    }
+  }
+
   /// Backward-compatible alias for existing call sites
   static Future<void> promptAndroidOverlayPermission(BuildContext context, {bool force = false}) async {
     await ensureOverlayPermissionMandatory(context);
+  }
+}
+
+class _OverlayLifecycleObserver with WidgetsBindingObserver {
+  final Future<void> Function(AppLifecycleState state) onStateChanged;
+  _OverlayLifecycleObserver({required this.onStateChanged});
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    onStateChanged(state);
   }
 }

@@ -25,6 +25,7 @@ import './services/fcm_service.dart';
 import './core/networking/api_client.dart';
 import './core/security/security_service.dart';
 import './services/app_update_service.dart';
+import './services/global_dispatch_overlay_service.dart';
 
 import './presentation/overlay/driver_bubble_overlay.dart';
 
@@ -122,6 +123,14 @@ void main() async {
   } catch (e) {
     AppLogger.debug('Auth session network sync deferred to background: $e', tag: 'MAIN');
   }
+
+  // Ensure no floating driver bubble lingers when unauthenticated or logged in as non-driver.
+  try {
+    if (!authProvider.isAuthenticated ||
+        authProvider.user?.role.toUpperCase() != 'DRIVER') {
+      await GlobalDispatchOverlayService.instance.closeOrphanedOverlayIfActive();
+    }
+  } catch (_) {}
 
   // Initialize Onboarding Provider
   final onboardingProvider = OnboardingProvider();

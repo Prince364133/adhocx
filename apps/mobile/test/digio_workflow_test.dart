@@ -74,7 +74,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('Sync DigiLocker'), findsOneWidget);
-    expect(find.text('PAN Verified'), findsOneWidget);
+    expect(find.text('PAN Verified'), findsAtLeastNWidgets(2));
     expect(find.textContaining('Selfie Liveness Verified'), findsOneWidget);
   });
 
@@ -103,7 +103,7 @@ void main() {
     await tester.pumpWidget(_wrapWithProviders(const OnboardingReviewScreen(), onboarding));
     await tester.pump();
     expect(find.text('✓ Selfie Liveness'), findsOneWidget);
-    expect(find.text('✓ Aadhaar Masked'), findsOneWidget);
+    expect(find.text('✓ Aadhaar'), findsOneWidget);
     expect(find.text('✓ DL'), findsOneWidget);
     expect(find.text('✓ Vehicle RC'), findsOneWidget);
   });

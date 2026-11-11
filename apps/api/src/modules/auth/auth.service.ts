@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, BadRequestException, NotFoundException, ForbiddenException, ConflictException, OnModuleInit, Logger, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, NotFoundException, ForbiddenException, ConflictException, OnModuleInit, Logger, HttpException, HttpStatus, Optional } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
@@ -20,11 +20,15 @@ import {
   UserMeResponseDto,
   UpdateUserDto,
   UserRole,
+  DriverAvailability,
+  OfferStatus,
+  TripStatus,
 } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
 import { RedisService } from '../../redis/redis.service';
 import { resolveJwtSecret } from '../../config/auth.config';
 import { NotificationsService } from '../notifications/notifications.service';
+import { LocationsService } from '../locations/locations.service';
 import { getPhoneVariants, assertPhoneAvailable, sanitizeRealName, isPlaceholderName } from '../../common';
 
 @Injectable()
@@ -37,6 +41,7 @@ export class AuthService implements OnModuleInit {
     private readonly configService: ConfigService,
     private readonly redis: RedisService,
     private readonly notifications: NotificationsService,
+    @Optional() private readonly locations?: LocationsService,
   ) {}
 
   async onModuleInit() {
@@ -1101,10 +1106,64 @@ export class AuthService implements OnModuleInit {
     };
   }
 
-  async logout(accessToken: string): Promise<void> {
-    try {
-      await this.redis.blacklistToken(accessToken, 3600);
-    } catch (_) {}
+  async logout(accessToken: string, userId?: string): Promise<void> {
+    if (accessToken) {
+      try {
+        await this.redis.blacklistToken(accessToken, 3600);
+      } catch (_) {}
+    }
+
+    let resolvedUserId = userId;
+    if (!resolvedUserId && accessToken && typeof (this.jwtService as any)?.decode === 'function') {
+      try {
+        const decoded = (this.jwtService as any).decode(accessToken);
+        if (decoded && typeof decoded === 'object' && typeof decoded.sub === 'string') {
+          resolvedUserId = decoded.sub;
+        }
+      } catch (_) {}
+    }
+
+    if (resolvedUserId && this.db.driver?.findUnique) {
+      try {
+        const driver = await this.db.driver.findUnique({
+          where: { userId: resolvedUserId },
+          select: { id: true, availabilityStatus: true },
+        });
+        if (driver && driver.availabilityStatus !== DriverAvailability.OFFLINE) {
+          let hasActiveTrip = false;
+          if (driver.availabilityStatus === DriverAvailability.BUSY && this.db.trip?.findFirst) {
+            const activeTrip = await this.db.trip.findFirst({
+              where: {
+                driverId: driver.id,
+                status: {
+                  in: [TripStatus.ASSIGNED, TripStatus.ARRIVED, TripStatus.IN_PROGRESS],
+                },
+              },
+              select: { id: true },
+            });
+            hasActiveTrip = Boolean(activeTrip);
+          }
+
+          if (!hasActiveTrip) {
+            await this.db.driver.update({
+              where: { id: driver.id },
+              data: { availabilityStatus: DriverAvailability.OFFLINE },
+            });
+            await this.locations?.removeDriverFromAvailable(driver.id);
+            if (this.db.offer?.updateMany) {
+              await this.db.offer.updateMany({
+                where: { driverId: driver.id, status: OfferStatus.SENT },
+                data: { status: OfferStatus.CANCELLED },
+              });
+            }
+            this.logger.log(`Driver ${driver.id} automatically set to OFFLINE on logout`);
+          }
+        }
+      } catch (err: any) {
+        this.logger.warn(`Failed to set driver OFFLINE on logout for user ${resolvedUserId}: ${err?.message || err}`);
+      }
+    }
+
     this.logger.log('User logged out and token invalidated');
   }
 

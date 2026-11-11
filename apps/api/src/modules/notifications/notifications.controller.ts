@@ -126,6 +126,25 @@ export class NotificationsController {
     return this.notificationsService.markAllAsRead(user.id);
   }
 
+  @Delete('in-app')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Clear all in-app notifications for current user' })
+  async clearAllInAppNotifications(@CurrentUser() user: AuthUserDto) {
+    return this.notificationsService.clearAllNotifications(user.id);
+  }
+
+  @Delete('in-app/:id')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Delete a single in-app notification for current user' })
+  async deleteInAppNotification(
+    @CurrentUser() user: AuthUserDto,
+    @Param('id') id: string,
+  ) {
+    return this.notificationsService.deleteNotification(user.id, id);
+  }
+
   // ─── Admin Push Campaign & Analytics Endpoints ─────────────────────────────
 
   @Post('admin/broadcast')

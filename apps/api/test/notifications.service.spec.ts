@@ -46,6 +46,7 @@ describe('NotificationsService', () => {
         ]),
         count: jest.fn().mockResolvedValue(1),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       notificationPreference: {
         findUnique: jest.fn().mockResolvedValue({
@@ -206,6 +207,27 @@ describe('NotificationsService', () => {
     const key = 'trip_offer_123_drv1';
     const isFirstDupe = await queueService.isDuplicate(key, 60);
     expect(isFirstDupe).toBe(false);
+  });
+
+  it('should delete a single in-app notification and clear all notifications for a user', async () => {
+    const uuid = '11111111-1111-1111-1111-111111111111';
+    mockDb.notification.count.mockResolvedValueOnce(2);
+    const delRes = await service.deleteNotification('usr-1', uuid);
+    expect(delRes.success).toBe(true);
+    expect(delRes.deletedCount).toBe(1);
+    expect(delRes.unreadCount).toBe(2);
+    expect(mockDb.notification.deleteMany).toHaveBeenCalledWith({
+      where: { id: uuid, userId: 'usr-1' },
+    });
+
+    mockDb.notification.deleteMany.mockResolvedValueOnce({ count: 5 });
+    const clearRes = await service.clearAllNotifications('usr-1');
+    expect(clearRes.success).toBe(true);
+    expect(clearRes.deletedCount).toBe(5);
+    expect(clearRes.unreadCount).toBe(0);
+    expect(mockDb.notification.deleteMany).toHaveBeenCalledWith({
+      where: { userId: 'usr-1' },
+    });
   });
 });
 

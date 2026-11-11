@@ -112,10 +112,27 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
   Future<void> _loadExistingData() async {
     try {
       final onboarding = context.read<OnboardingProvider>();
-      final profile = await DriverService.instance.getProfile();
+      final results = await Future.wait<dynamic>([
+        DriverService.instance.getProfile(),
+        DigioService.instance
+            .getMyVerifications(force: true)
+            .catchError((_) => <String, dynamic>{}),
+      ]);
       if (!mounted) return;
-      if (_plateController.text.isEmpty && profile['vehiclePlate'] != null) {
-        _plateController.text = profile['vehiclePlate'].toString();
+
+      onboarding.syncFromDigioLatest(
+        DigioService.instance.latestByTypeNotifier.value,
+      );
+
+      final profile = results[0] as Map<String, dynamic>;
+      final profilePlate = profile['vehiclePlate']?.toString().trim() ?? '';
+      final preferredPlate = profilePlate.isNotEmpty
+          ? profilePlate
+          : (onboarding.rcNumber.isNotEmpty
+              ? onboarding.rcNumber
+              : onboarding.registrationNumber);
+      if (_plateController.text.isEmpty && preferredPlate.isNotEmpty) {
+        _plateController.text = preferredPlate;
       }
       if (profile['vehicleType'] != null && onboarding.vehicleType.isEmpty) {
         final vType = profile['vehicleType'].toString().toUpperCase();
@@ -409,15 +426,22 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
 
     final onboarding = context.read<OnboardingProvider>();
     final driverService = context.read<DriverService>();
+    final vDocs = DigioService.verifiedDocsFromMap(
+      DigioService.instance.latestByTypeNotifier.value,
+    );
+    final bool rcVerifiedDigitally =
+        onboarding.isRcVerifiedDigitally || vDocs['rc'] == true;
 
-    if (onboarding.rcFrontUrl == null && onboarding.rcBookUrl == null) {
+    if (onboarding.rcFrontUrl == null &&
+        onboarding.rcBookUrl == null &&
+        !rcVerifiedDigitally) {
       const msg = 'Please upload your Vehicle RC (Front) document.';
       setState(() => _inlineErrorMessage = msg);
       AppToast.showError(msg, context: context);
       return;
     }
 
-    if (onboarding.rcBackUrl == null) {
+    if (onboarding.rcBackUrl == null && !rcVerifiedDigitally) {
       const msg = 'Please upload your Vehicle RC (Back) document.';
       setState(() => _inlineErrorMessage = msg);
       AppToast.showError(msg, context: context);
@@ -811,7 +835,9 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                                   Align(
                                     alignment: Alignment.centerRight,
                                     child: OutlinedButton.icon(
-                                      onPressed: () async {
+                                      onPressed: (rcVerified && rcComplianceOk)
+                                          ? null
+                                          : () async {
                                         final plate = _plateController.text.trim().toUpperCase();
                                         if (plate.length < 6) {
                                           AppToast.showError(
@@ -821,9 +847,12 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                                           return;
                                         }
                                         try {
-                                          AppToast.showInfo('Verifying RC via Parivahan (Digio)...', context: context);
+                                          AppToast.showInfo('Verifying RC via Parivahan...', context: context);
                                           final res = await DigioService.instance.verifyVehicleRc(
                                             registrationNumber: plate,
+                                          );
+                                          onboarding.syncFromDigioLatest(
+                                            DigioService.instance.latestByTypeNotifier.value,
                                           );
                                           final summary = res['summary'];
                                           if (summary is Map &&
@@ -863,7 +892,11 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                                             : AppColors.primary,
                                       ),
                                       label: Text(
-                                        rcVerified ? 'Re-verify RC (Parivahan)' : 'Verify RC with Parivahan',
+                                        rcVerified
+                                            ? (rcComplianceOk
+                                                ? 'RC Verified (Parivahan)'
+                                                : 'Re-check RC (Parivahan)')
+                                            : 'Verify RC with Parivahan',
                                         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                                       ),
                                     ),
@@ -969,23 +1002,58 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                           ),
                           const SizedBox(height: AppSpacing.md),
 
-                          // ── Vehicle RC Front ─────────────────────────────
-                          _buildUploadTile(
-                            title: 'Vehicle RC Photo (Front) *',
-                            isDark: isDark,
-                            isUploaded: onboarding.rcFrontUrl != null || onboarding.rcBookUrl != null,
-                            isUploading: _uploadingState['RC_FRONT'] ?? false,
-                            onTap: () => _showDocumentSourcePicker('RC_FRONT', 'Vehicle RC Photo (Front)'),
-                          ),
-                          const SizedBox(height: AppSpacing.md),
+                          // ── Vehicle RC Front & Back ───────────────────────
+                          ValueListenableBuilder<Map<String, dynamic>>(
+                            valueListenable: DigioService.instance.latestByTypeNotifier,
+                            builder: (context, latest, _) {
+                              final vDocs = DigioService.verifiedDocsFromMap(latest);
+                              final dlkrSummary = (latest['DIGILOCKER'] is Map &&
+                                      latest['DIGILOCKER']['summary'] is Map)
+                                  ? latest['DIGILOCKER']['summary'] as Map
+                                  : const <String, dynamic>{};
+                              final dlkrDocs = dlkrSummary['verifiedDocs'] is Map
+                                  ? dlkrSummary['verifiedDocs'] as Map
+                                  : const <String, dynamic>{};
+                              final bool rcVerifiedViaDlkr = vDocs['digilocker'] == true &&
+                                  (dlkrDocs['rc'] == true ||
+                                      dlkrSummary['extractedRc'] != null);
+                              final bool rcDigitallyVerified =
+                                  vDocs['rc'] == true || onboarding.isRcVerifiedDigitally;
+                              final badge =
+                                  rcVerifiedViaDlkr ? 'DigiLocker' : 'Parivahan';
+                              final sub = rcVerifiedViaDlkr
+                                  ? 'Verified via DigiLocker — already uploaded'
+                                  : 'Verified via Govt RC check — no upload needed';
 
-                          // ── Vehicle RC Back ──────────────────────────────
-                          _buildUploadTile(
-                            title: 'Vehicle RC Photo (Back) *',
-                            isDark: isDark,
-                            isUploaded: onboarding.rcBackUrl != null,
-                            isUploading: _uploadingState['RC_BACK'] ?? false,
-                            onTap: () => _showDocumentSourcePicker('RC_BACK', 'Vehicle RC Photo (Back)'),
+                              return Column(
+                                children: [
+                                  _buildUploadTile(
+                                    title: 'Vehicle RC Photo (Front) *',
+                                    isDark: isDark,
+                                    isUploaded: onboarding.rcFrontUrl != null ||
+                                        onboarding.rcBookUrl != null,
+                                    isVerifiedDigitally: rcDigitallyVerified,
+                                    verifiedBadgeLabel: badge,
+                                    verifiedSubtitle: sub,
+                                    isUploading: _uploadingState['RC_FRONT'] ?? false,
+                                    onTap: () => _showDocumentSourcePicker(
+                                        'RC_FRONT', 'Vehicle RC Photo (Front)'),
+                                  ),
+                                  const SizedBox(height: AppSpacing.md),
+                                  _buildUploadTile(
+                                    title: 'Vehicle RC Photo (Back) *',
+                                    isDark: isDark,
+                                    isUploaded: onboarding.rcBackUrl != null,
+                                    isVerifiedDigitally: rcDigitallyVerified,
+                                    verifiedBadgeLabel: badge,
+                                    verifiedSubtitle: sub,
+                                    isUploading: _uploadingState['RC_BACK'] ?? false,
+                                    onTap: () => _showDocumentSourcePicker(
+                                        'RC_BACK', 'Vehicle RC Photo (Back)'),
+                                  ),
+                                ],
+                              );
+                            },
                           ),
                           const SizedBox(height: AppSpacing.md),
 
@@ -1090,17 +1158,26 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
     required bool isUploaded,
     required bool isUploading,
     required VoidCallback onTap,
+    bool isVerifiedDigitally = false,
+    String verifiedBadgeLabel = 'DigiLocker',
+    String verifiedSubtitle = 'Verified via DigiLocker — already uploaded',
   }) {
+    final bool isSatisfied = isUploaded || isVerifiedDigitally;
+    final Color greenColor =
+        isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark;
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        color: isVerifiedDigitally
+            ? AppColors.accentGreenDark.withValues(alpha: isDark ? 0.14 : 0.06)
+            : (isDark ? AppColors.surfaceDark : AppColors.surfaceLight),
         borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(
-          color: isUploaded
-              ? (isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark)
+          color: isSatisfied
+              ? greenColor
               : (isDark ? AppColors.borderDark : AppColors.borderLight),
-          width: isUploaded ? 1.5 : 1,
+          width: isSatisfied ? 1.5 : 1,
         ),
       ),
       child: Row(
@@ -1108,15 +1185,15 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: isUploaded
+              color: isSatisfied
                   ? AppColors.accentGreenDark.withValues(alpha: 0.15)
                   : (isDark ? AppColors.surfaceElevatedDark : AppColors.primary.withValues(alpha: 0.08)),
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
             child: Icon(
-              isUploaded ? Icons.check_circle_rounded : Icons.cloud_upload_outlined,
-              color: isUploaded
-                  ? (isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark)
+              isSatisfied ? Icons.check_circle_rounded : Icons.cloud_upload_outlined,
+              color: isSatisfied
+                  ? greenColor
                   : (isDark ? AppColors.primaryLight : AppColors.primary),
               size: 22,
             ),
@@ -1134,10 +1211,12 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                   ),
                 ),
                 Text(
-                  isUploaded ? 'Document uploaded & attached' : 'PDF or JPG/PNG up to 10MB',
+                  isVerifiedDigitally
+                      ? verifiedSubtitle
+                      : (isUploaded ? 'Document uploaded & attached' : 'PDF or JPG/PNG up to 10MB'),
                   style: AppTypography.caption(
-                    color: isUploaded
-                        ? (isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark)
+                    color: isSatisfied
+                        ? greenColor
                         : (isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
                   ),
                 ),
@@ -1149,6 +1228,30 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
               width: 24,
               height: 24,
               child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          else if (isVerifiedDigitally)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: greenColor.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+                border: Border.all(color: greenColor.withValues(alpha: 0.4)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.verified_rounded, size: 14, color: greenColor),
+                  const SizedBox(width: 4),
+                  Text(
+                    verifiedBadgeLabel,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: greenColor,
+                    ),
+                  ),
+                ],
+              ),
             )
           else
             TextButton(

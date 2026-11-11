@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -5,7 +6,11 @@ import '../core/networking/api_client.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../core/utils/app_logger.dart';
 import '../core/utils/name_utils.dart';
+import './driver_location_heartbeat_service.dart';
+import './driver_service.dart';
 import './fcm_service.dart';
+import './global_dispatch_overlay_service.dart';
+import './location_monitor_service.dart';
 
 class UserModel {
   final String id;
@@ -784,8 +789,55 @@ class AuthService {
     return false;
   }
 
+  @visibleForTesting
+  Future<void> Function()? debugOnDriverSignOutOffline;
+
+  /// Stops driver background tracking, realtime listeners, and floating assistive bubble,
+  /// and best-effort switches an online driver OFFLINE before clearing session tokens.
+  Future<void> _teardownDriverSessionOnSignOut({bool notifyBackendOffline = true}) async {
+    try {
+      LocationMonitorService.instance.stopMonitoring();
+    } catch (_) {}
+    try {
+      stopDriverLocationLoops();
+    } catch (_) {}
+    try {
+      GlobalDispatchOverlayService.instance.stopRealtimeListener();
+      GlobalDispatchOverlayService.instance.clearCachedState();
+    } catch (_) {}
+    try {
+      await GlobalDispatchOverlayService.instance.stopAssistiveBubble();
+    } catch (_) {}
+
+    if (notifyBackendOffline && _currentUser?.role.toUpperCase() == 'DRIVER') {
+      try {
+        if (debugOnDriverSignOutOffline != null) {
+          await debugOnDriverSignOutOffline!();
+        } else {
+          final token = await _api.getToken();
+          if (token != null && token.isNotEmpty) {
+            await _api
+                .patch('/drivers/availability', body: {'status': 'OFFLINE'})
+                .timeout(const Duration(seconds: 3));
+          }
+        }
+      } catch (e) {
+        AppLogger.warn('Best-effort driver OFFLINE before sign-out skipped: $e', tag: 'AUTH');
+      }
+    }
+
+    try {
+      DriverService.instance.invalidateCache(all: true);
+    } catch (_) {}
+    try {
+      DigioService.instance.clearSessionCache();
+    } catch (_) {}
+  }
+
   Future<void> logout() async {
     AppLogger.info('User sign out started for: ${_currentUser?.id ?? "session"}', tag: 'AUTH');
+    await _teardownDriverSessionOnSignOut(notifyBackendOffline: true);
+
     try {
       final token = await _api.getToken();
       if (token != null && token.isNotEmpty) {
@@ -825,6 +877,7 @@ class AuthService {
   /// Permanently delete account and all data from database
   Future<void> deleteAccount() async {
     AppLogger.warn('Initiating permanent account deletion from database...', tag: 'AUTH');
+    await _teardownDriverSessionOnSignOut(notifyBackendOffline: false);
     try {
       final token = await _api.getToken();
       if (token != null && token.isNotEmpty) {
@@ -866,6 +919,11 @@ class AuthService {
       final refreshToken = payload['refreshToken']?.toString();
       if (accessToken != null && accessToken.isNotEmpty) {
         await _api.setToken(accessToken, refreshToken: refreshToken);
+        // Ensure no stale overlay or cached driver state from a prior account survives login.
+        unawaited(GlobalDispatchOverlayService.instance.closeOrphanedOverlayIfActive());
+        try {
+          DriverService.instance.invalidateCache(all: true);
+        } catch (_) {}
         if (payload['user'] is Map) {
           final user = UserModel.fromJson(Map<String, dynamic>.from(payload['user'] as Map));
           await _persistCurrentUser(user);

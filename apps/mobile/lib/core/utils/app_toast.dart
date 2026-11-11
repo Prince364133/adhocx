@@ -127,9 +127,21 @@ class AppToast {
       return 'Unable to connect to the server. Please check your internet connection.';
     }
 
-    // 10. Database / Server / Internal errors / Technical code dumps
-    if ((statusCode != null && statusCode >= 500) ||
+    // 10. DigiLocker / external KYC service errors & Database / Internal error masking
+    if (lower.contains('verification service is not configured')) {
+      return 'DigiLocker / Instant KYC is temporarily unavailable on the server. Please upload your documents manually below.';
+    }
+    if (lower.contains('upstream error (401)') ||
+        lower.contains('upstream error (403)') ||
+        lower.contains('kyc verification error (401)') ||
+        lower.contains('kyc verification error (403)')) {
+      return 'KYC verification provider authentication failed. Please upload documents manually below or contact support.';
+    }
+
+    final isTechnicalServerMsg =
         lower.contains('internal server error') ||
+        lower.contains('an unexpected internal error') ||
+        lower.contains('server is temporarily unavailable') ||
         lower.contains('prismaclient') ||
         lower.contains('prisma') ||
         lower.contains('database') ||
@@ -139,7 +151,12 @@ class AppToast {
         lower.contains('nullcheckoperator') ||
         lower.contains('stack trace') ||
         lower.contains('nosuchmethod') ||
-        lower.contains('request failed with status')) {
+        lower.contains('request failed with status');
+
+    if ((statusCode != null && (statusCode == 500 || statusCode > 504)) ||
+        ((statusCode == 502 || statusCode == 503 || statusCode == 504) &&
+            isTechnicalServerMsg) ||
+        isTechnicalServerMsg) {
       return 'Something went wrong. Please try again shortly.';
     }
 
@@ -151,7 +168,8 @@ class AppToast {
       return 'Unable to complete your request. Please check your details and try again.';
     }
 
-    return raw;
+    return raw.replaceAll(RegExp(r'\bDigio\s*upstream\s*error\b', caseSensitive: false), 'KYC verification error')
+        .replaceAll(RegExp(r'\bDigio\b', caseSensitive: false), 'DigiLocker');
   }
 
   /// Displays a vibrant RED alert for errors or invalid field validations.

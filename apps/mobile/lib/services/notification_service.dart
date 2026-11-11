@@ -114,4 +114,32 @@ class NotificationService {
       AppLogger.warn('Failed to mark all notifications as read: $e', tag: 'NOTIFS');
     }
   }
+
+  /// Delete a single in-app notification for the current user.
+  Future<bool> deleteNotification(String notificationId) async {
+    try {
+      final res = await ApiClient.instance.delete('/notifications/in-app/$notificationId');
+      if (res is Map && res['unreadCount'] is num) {
+        unreadCount.value = (res['unreadCount'] as num).toInt();
+      } else {
+        await refreshUnreadCount();
+      }
+      return true;
+    } catch (e) {
+      AppLogger.warn('Failed to delete notification $notificationId: $e', tag: 'NOTIFS');
+      return false;
+    }
+  }
+
+  /// Delete all in-app notifications for the current user.
+  Future<bool> clearAllNotifications() async {
+    try {
+      await ApiClient.instance.delete('/notifications/in-app');
+      unreadCount.value = 0;
+      return true;
+    } catch (e) {
+      AppLogger.warn('Failed to clear all notifications: $e', tag: 'NOTIFS');
+      return false;
+    }
+  }
 }

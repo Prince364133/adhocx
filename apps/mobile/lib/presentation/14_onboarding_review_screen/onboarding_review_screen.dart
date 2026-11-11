@@ -39,19 +39,34 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
 
     final onboarding = context.read<OnboardingProvider>();
     final driverService = context.read<DriverService>();
+    final vDocs = DigioService.verifiedDocsFromMap(
+      DigioService.instance.latestByTypeNotifier.value,
+    );
 
-    // Validate all required documents are uploaded
+    // Validate all required documents are uploaded or verified via DigiLocker/Govt KYC
     final missingDocs = <String>[];
     if (onboarding.profilePhotoUrl == null || onboarding.profilePhotoUrl!.isEmpty) {
       missingDocs.add('Driver Profile Photo');
     }
-    if (onboarding.drivingLicenseUrl == null) missingDocs.add('Driving License');
-    if (onboarding.rcFrontUrl == null && onboarding.rcBookUrl == null) missingDocs.add('RC Front');
-    if (onboarding.rcBackUrl == null) missingDocs.add('RC Back');
+    if (!onboarding.isDlSatisfied && vDocs['dl'] != true) {
+      missingDocs.add('Driving License');
+    }
+    if (!onboarding.isRcFrontSatisfied && vDocs['rc'] != true) {
+      missingDocs.add('RC Front');
+    }
+    if (!onboarding.isRcBackSatisfied && vDocs['rc'] != true) {
+      missingDocs.add('RC Back');
+    }
     if (onboarding.insuranceUrl == null) missingDocs.add('Insurance');
-    if (onboarding.aadharFrontUrl == null) missingDocs.add('Aadhaar Front');
-    if (onboarding.aadharBackUrl == null) missingDocs.add('Aadhaar Back');
-    if (onboarding.panCardUrl == null) missingDocs.add('PAN Card');
+    if (!onboarding.isAadhaarFrontSatisfied && vDocs['aadhaar'] != true) {
+      missingDocs.add('Aadhaar Front');
+    }
+    if (!onboarding.isAadhaarBackSatisfied && vDocs['aadhaar'] != true) {
+      missingDocs.add('Aadhaar Back');
+    }
+    if (!onboarding.isPanSatisfied && vDocs['pan'] != true) {
+      missingDocs.add('PAN Card');
+    }
 
     if (missingDocs.isNotEmpty) {
       final msg = 'Please upload missing documents: ${missingDocs.join(", ")}';
@@ -75,25 +90,25 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
 
     try {
       final profileUrl = onboarding.profilePhotoUrl;
-      final dlUrl = onboarding.drivingLicenseUrl!;
+      final dlUrl = onboarding.drivingLicenseUrl;
       final rcFUrl = onboarding.rcFrontUrl ?? onboarding.rcBookUrl;
       final rcBUrl = onboarding.rcBackUrl;
       final insUrl = onboarding.insuranceUrl!;
       final vehUrl = onboarding.vehiclePhotoUrl;
-      final aadharFUrl = onboarding.aadharFrontUrl!;
-      final aadharBUrl = onboarding.aadharBackUrl!;
-      final panUrl = onboarding.panCardUrl!;
+      final aadharFUrl = onboarding.aadharFrontUrl;
+      final aadharBUrl = onboarding.aadharBackUrl;
+      final panUrl = onboarding.panCardUrl;
 
       final docList = [
         if (profileUrl != null) profileUrl,
-        dlUrl,
+        if (dlUrl != null) dlUrl,
         if (rcFUrl != null) rcFUrl,
         if (rcBUrl != null) rcBUrl,
         insUrl,
         if (vehUrl != null) vehUrl,
-        aadharFUrl,
-        aadharBUrl,
-        panUrl,
+        if (aadharFUrl != null) aadharFUrl,
+        if (aadharBUrl != null) aadharBUrl,
+        if (panUrl != null) panUrl,
       ];
 
       await driverService.submitKyc(
@@ -399,69 +414,88 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
                     padding: const EdgeInsets.all(AppSpacing.lg),
                     backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                     borderColor: isDark ? AppColors.borderDark : AppColors.borderLight,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    child: ValueListenableBuilder<Map<String, dynamic>>(
+                      valueListenable: DigioService.instance.latestByTypeNotifier,
+                      builder: (context, latest, _) {
+                        final vDocs = DigioService.verifiedDocsFromMap(latest);
+                        final bool hasDl = onboarding.isDlSatisfied || vDocs['dl'] == true;
+                        final bool hasRcF = onboarding.isRcFrontSatisfied || vDocs['rc'] == true;
+                        final bool hasRcB = onboarding.isRcBackSatisfied || vDocs['rc'] == true;
+                        final bool hasIns = onboarding.insuranceUrl != null;
+                        final bool hasVeh = onboarding.vehiclePhotoUrl != null;
+                        final bool hasAadF = onboarding.isAadhaarFrontSatisfied || vDocs['aadhaar'] == true;
+                        final bool hasAadB = onboarding.isAadhaarBackSatisfied || vDocs['aadhaar'] == true;
+                        final bool hasPan = onboarding.isPanSatisfied || vDocs['pan'] == true;
+                        final int readyCount = (hasDl ? 1 : 0) +
+                            (hasRcF ? 1 : 0) +
+                            (hasRcB ? 1 : 0) +
+                            (hasIns ? 1 : 0) +
+                            (hasVeh ? 1 : 0) +
+                            (hasAadF ? 1 : 0) +
+                            (hasAadB ? 1 : 0) +
+                            (hasPan ? 1 : 0);
+
+                        final chips = <(String, String, bool)>[
+                          ('LIVENESS', 'Selfie Liveness', latest['LIVENESS']?['verified'] == true),
+                          ('AADHAAR_MASK', 'Aadhaar', latest['AADHAAR_MASK']?['verified'] == true || vDocs['aadhaar'] == true),
+                          ('PAN', 'PAN', latest['PAN']?['verified'] == true || vDocs['pan'] == true),
+                          ('DRIVING_LICENSE', 'DL', latest['DRIVING_LICENSE']?['verified'] == true || vDocs['dl'] == true),
+                          ('VEHICLE_RC', 'Vehicle RC', latest['VEHICLE_RC']?['verified'] == true || vDocs['rc'] == true),
+                          ('FACE_MATCH', 'Face Match', latest['FACE_MATCH']?['verified'] == true),
+                          ('DIGILOCKER', 'DigiLocker', vDocs['digilocker'] == true),
+                        ];
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'KYC Documents',
-                              style: AppTypography.caption(
-                                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                                fontWeight: FontWeight.w600,
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'KYC Documents',
+                                  style: AppTypography.caption(
+                                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                Text(
+                                  '$readyCount/${hasVeh ? 8 : 7} Ready',
+                                  style: AppTypography.caption(
+                                    color: isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: [
+                                  _buildDocThumbnail('DL', Icons.badge, hasDl, isDark),
+                                  const SizedBox(width: AppSpacing.sm),
+                                  _buildDocThumbnail('RC Front', Icons.description, hasRcF, isDark),
+                                  const SizedBox(width: AppSpacing.sm),
+                                  _buildDocThumbnail('RC Back', Icons.description_outlined, hasRcB, isDark),
+                                  const SizedBox(width: AppSpacing.sm),
+                                  _buildDocThumbnail('Insurance', Icons.verified_user, hasIns, isDark),
+                                  const SizedBox(width: AppSpacing.sm),
+                                  _buildDocThumbnail('Vehicle', Icons.directions_car, hasVeh, isDark),
+                                  const SizedBox(width: AppSpacing.sm),
+                                  _buildDocThumbnail('Aadhar Front', Icons.credit_card, hasAadF, isDark),
+                                  const SizedBox(width: AppSpacing.sm),
+                                  _buildDocThumbnail('Aadhar Back', Icons.credit_card_outlined, hasAadB, isDark),
+                                  const SizedBox(width: AppSpacing.sm),
+                                  _buildDocThumbnail('PAN Card', Icons.assignment_ind, hasPan, isDark),
+                                ],
                               ),
                             ),
-                            Text(
-                              '${onboarding.uploadedCount}/7 Ready',
-                              style: AppTypography.caption(
-                                color: isDark ? AppColors.accentGreenLight : AppColors.accentGreenDark,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: [
-                              _buildDocThumbnail('DL', Icons.badge, onboarding.drivingLicenseUrl != null, isDark),
-                              const SizedBox(width: AppSpacing.sm),
-                              _buildDocThumbnail('RC Front', Icons.description, (onboarding.rcFrontUrl != null || onboarding.rcBookUrl != null), isDark),
-                              const SizedBox(width: AppSpacing.sm),
-                              _buildDocThumbnail('RC Back', Icons.description_outlined, onboarding.rcBackUrl != null, isDark),
-                              const SizedBox(width: AppSpacing.sm),
-                              _buildDocThumbnail('Insurance', Icons.verified_user, onboarding.insuranceUrl != null, isDark),
-                              const SizedBox(width: AppSpacing.sm),
-                              _buildDocThumbnail('Vehicle', Icons.directions_car, onboarding.vehiclePhotoUrl != null, isDark),
-                              const SizedBox(width: AppSpacing.sm),
-                              _buildDocThumbnail('Aadhar Front', Icons.credit_card, onboarding.aadharFrontUrl != null, isDark),
-                              const SizedBox(width: AppSpacing.sm),
-                              _buildDocThumbnail('Aadhar Back', Icons.credit_card_outlined, onboarding.aadharBackUrl != null, isDark),
-                              const SizedBox(width: AppSpacing.sm),
-                              _buildDocThumbnail('PAN Card', Icons.assignment_ind, onboarding.panCardUrl != null, isDark),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        ValueListenableBuilder<Map<String, dynamic>>(
-                          valueListenable: DigioService.instance.latestByTypeNotifier,
-                          builder: (context, latest, _) {
-                            final chips = <(String, String)>[
-                              ('LIVENESS', 'Selfie Liveness'),
-                              ('AADHAAR_MASK', 'Aadhaar Masked'),
-                              ('PAN', 'PAN'),
-                              ('DRIVING_LICENSE', 'DL'),
-                              ('VEHICLE_RC', 'Vehicle RC'),
-                              ('FACE_MATCH', 'Face Match'),
-                              ('DIGILOCKER', 'DigiLocker'),
-                            ];
-                            return Wrap(
+                            const SizedBox(height: AppSpacing.md),
+                            Wrap(
                               spacing: 6,
                               runSpacing: 6,
                               children: chips.map((c) {
-                                final ok = latest[c.$1]?['verified'] == true;
+                                final ok = c.$3;
                                 final clr = ok ? AppColors.accentGreenDark : (isDark ? AppColors.textMutedDark : AppColors.textMutedLight);
                                 return Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -476,10 +510,10 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
                                   ),
                                 );
                               }).toList(),
-                            );
-                          },
-                        ),
-                      ],
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
