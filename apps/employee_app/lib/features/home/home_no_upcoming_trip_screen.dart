@@ -7,12 +7,14 @@ import 'package:adhocx_employee/widgets/employee_secondary_button.dart';
 import 'package:adhocx_employee/widgets/employee_bottom_nav_bar.dart';
 import 'package:adhocx_employee/widgets/batch_02_illustrations.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
+import 'package:adhocx_employee/shared/components/navigation/employee_app_bar.dart';
 
 class HomeNoUpcomingTripScreen extends StatefulWidget {
   const HomeNoUpcomingTripScreen({super.key});
 
   @override
-  State<HomeNoUpcomingTripScreen> createState() => _HomeNoUpcomingTripScreenState();
+  State<HomeNoUpcomingTripScreen> createState() =>
+      _HomeNoUpcomingTripScreenState();
 }
 
 class _HomeNoUpcomingTripScreenState extends State<HomeNoUpcomingTripScreen> {
@@ -39,7 +41,8 @@ class _HomeNoUpcomingTripScreenState extends State<HomeNoUpcomingTripScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: AppColors.primaryBlue)),
+        body: Center(
+            child: CircularProgressIndicator(color: AppColors.primaryBlue)),
       );
     }
 
@@ -52,46 +55,16 @@ class _HomeNoUpcomingTripScreenState extends State<HomeNoUpcomingTripScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: Column(
             children: [
-              // Header: Greeting + Notification Bell
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Good Morning,',
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '$name 👋',
-                        style: GoogleFonts.inter(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: const Icon(
-                      Icons.notifications_none_rounded,
-                      color: AppColors.textPrimary,
-                      size: 22,
-                    ),
-                  ),
-                ],
+              EmployeeGreetingHeader(
+                name: name,
+                unreadNotificationsCount: 1,
+                onNotificationTap: () =>
+                    context.push(AppRoutes.notificationsCenter),
+                onSosTap: () => context.push(AppRoutes.safetySos),
+                onProfileTap: () => context.push(AppRoutes.profileDetails),
               ),
+
+              const SizedBox(height: 24),
 
               const Spacer(),
 
@@ -149,6 +122,3 @@ class _HomeNoUpcomingTripScreenState extends State<HomeNoUpcomingTripScreen> {
     );
   }
 }
-
-
-

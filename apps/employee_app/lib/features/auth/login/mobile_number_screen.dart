@@ -46,7 +46,8 @@ class _MobileNumberScreenState extends State<MobileNumberScreen> {
 
   void _onKeypadBackspace() {
     if (_inputController.text.isNotEmpty) {
-      final newText = _inputController.text.substring(0, _inputController.text.length - 1);
+      final newText =
+          _inputController.text.substring(0, _inputController.text.length - 1);
       _inputController.text = newText;
       _inputController.selection = TextSelection.fromPosition(
         TextPosition(offset: newText.length),
@@ -72,7 +73,8 @@ class _MobileNumberScreenState extends State<MobileNumberScreen> {
     if (digits.length != 10 || !RegExp(r'^[6-9]\d{9}$').hasMatch(digits)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please enter a valid 10-digit Indian mobile number (e.g. 9876543210).'),
+          content: Text(
+              'Please enter a valid 10-digit Indian mobile number (e.g. 9876543210).'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -107,7 +109,8 @@ class _MobileNumberScreenState extends State<MobileNumberScreen> {
           children: [
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -134,31 +137,44 @@ class _MobileNumberScreenState extends State<MobileNumberScreen> {
 
                     // Phone Input Field (+91 India)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                      height: 56,
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: rawText.isNotEmpty ? AppColors.primaryBlue : AppColors.border,
-                          width: rawText.isNotEmpty ? 2.0 : 1.5,
+                          color: rawText.isNotEmpty
+                              ? AppColors.borderFocused
+                              : AppColors.border,
+                          width: rawText.isNotEmpty ? 1.4 : 1,
                         ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.darkNavy.withValues(alpha: 0.04),
+                            blurRadius: 14,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
                       child: Row(
                         children: [
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Text('🇮🇳', style: TextStyle(fontSize: 16)),
-                              const SizedBox(width: 5),
+                              const Text(
+                                '🇮🇳',
+                                style: TextStyle(fontSize: 17),
+                              ),
+                              const SizedBox(width: 7),
                               Text(
                                 '+91',
                                 style: GoogleFonts.inter(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
                                   color: AppColors.textPrimary,
                                 ),
                               ),
-                              const SizedBox(width: 4),
+                              const SizedBox(width: 3),
                               const Icon(
                                 Icons.keyboard_arrow_down_rounded,
                                 size: 18,
@@ -167,52 +183,67 @@ class _MobileNumberScreenState extends State<MobileNumberScreen> {
                             ],
                           ),
                           Container(
-                            height: 24,
+                            height: 28,
                             width: 1,
                             color: AppColors.border,
-                            margin: const EdgeInsets.symmetric(horizontal: 10),
+                            margin: const EdgeInsets.symmetric(horizontal: 14),
                           ),
                           Expanded(
-                            child: TextField(
-                              controller: _inputController,
-                              keyboardType: TextInputType.phone,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                                LengthLimitingTextInputFormatter(10),
-                              ],
-                              style: GoogleFonts.inter(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
-                                letterSpacing: 0.6,
-                              ),
-                              decoration: InputDecoration(
-                                hintText: '98765 43210',
-                                hintStyle: GoogleFonts.inter(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w400,
-                                  color: AppColors.textMuted,
-                                  letterSpacing: 0,
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: _inputController,
+                                    keyboardType: TextInputType.phone,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly,
+                                      LengthLimitingTextInputFormatter(10),
+                                    ],
+                                    style: GoogleFonts.inter(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.textPrimary,
+                                      letterSpacing: 0.25,
+                                    ),
+                                    decoration: InputDecoration(
+                                      hintText: '98765 43210',
+                                      hintStyle: GoogleFonts.inter(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w400,
+                                        color: AppColors.textMuted,
+                                        letterSpacing: 0,
+                                      ),
+                                      enabledBorder: InputBorder.none,
+                                      focusedBorder: InputBorder.none,
+                                      errorBorder: InputBorder.none,
+                                      focusedErrorBorder: InputBorder.none,
+                                      border: InputBorder.none,
+                                      filled: false,
+                                      isDense: true,
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                        vertical: 12,
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                                border: InputBorder.none,
-                                isDense: true,
-                                contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                              ),
+                                if (rawText.isNotEmpty)
+                                  IconButton(
+                                    onPressed: _inputController.clear,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(
+                                      minWidth: 32,
+                                      minHeight: 40,
+                                    ),
+                                    icon: const Icon(
+                                      Icons.close_rounded,
+                                      size: 17,
+                                      color: AppColors.textMuted,
+                                    ),
+                                  ),
+                              ],
                             ),
                           ),
-                          if (rawText.isNotEmpty)
-                            GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _inputController.clear();
-                                });
-                              },
-                              child: const Icon(
-                                Icons.cancel,
-                                size: 18,
-                                color: AppColors.textMuted,
-                              ),
-                            ),
                         ],
                       ),
                     ),
@@ -221,7 +252,8 @@ class _MobileNumberScreenState extends State<MobileNumberScreen> {
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                          const Icon(Icons.error_outline, size: 16, color: AppColors.error),
+                          const Icon(Icons.error_outline,
+                              size: 16, color: AppColors.error),
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
@@ -247,100 +279,6 @@ class _MobileNumberScreenState extends State<MobileNumberScreen> {
                     ),
 
                     const SizedBox(height: 16),
-
-                    // 1-Click Instant Demo Commuter Access & Test Numbers
-                    Center(
-                      child: Column(
-                        children: [
-                          TextButton.icon(
-                            onPressed: authProvider.isLoading
-                                ? null
-                                : () async {
-                                    final res = await authProvider.loginWithPassword(
-                                      identifier: 'ravi.kumar@hitec.com',
-                                      password: 'Admin@AdhocX2026!',
-                                    );
-                                    if (context.mounted && res == AuthStatus.authenticated) {
-                                      context.go(AppRoutes.employeeVerified);
-                                    }
-                                  },
-                            icon: const Icon(Icons.bolt, size: 16, color: AppColors.primaryBlue),
-                            label: Text(
-                              '1-Click Demo Commuter (Ravi Kumar - EMP10204)',
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.primaryBlue,
-                              ),
-                            ),
-                            style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                              backgroundColor: const Color(0xFFEFF6FF),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                'Test Numbers: ',
-                                style: GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted),
-                              ),
-                              InkWell(
-                                onTap: () {
-                                  setState(() {
-                                    _phoneNumber = '8888888888';
-                                    _phoneController.text = _phoneNumber;
-                                  });
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFF3F4F6),
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(color: AppColors.border),
-                                  ),
-                                  child: Text(
-                                    '8888888888',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.primaryBlue,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              InkWell(
-                                onTap: () {
-                                  setState(() {
-                                    _phoneNumber = '9876543203';
-                                    _phoneController.text = _phoneNumber;
-                                  });
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFF3F4F6),
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(color: AppColors.border),
-                                  ),
-                                  child: Text(
-                                    '9876543203',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.primaryBlue,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
                   ],
                 ),
               ),

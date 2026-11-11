@@ -28,6 +28,40 @@ class HomeScreenPlaceholder extends StatelessWidget {
           logoTheme: LogoTheme.light,
         ),
         actions: [
+          InkWell(
+            onTap: () => context.push(AppRoutes.safetySos),
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFDC2626),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.notifications_active_rounded,
+                      color: Colors.white,
+                      size: 17,
+                    ),
+                  ),
+                  Text(
+                    'SOS',
+                    style: GoogleFonts.inter(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFFDC2626),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
           Stack(
             clipBehavior: Clip.none,
             children: [

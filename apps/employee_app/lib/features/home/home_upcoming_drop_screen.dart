@@ -42,7 +42,8 @@ class _HomeUpcomingDropScreenState extends State<HomeUpcomingDropScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: AppColors.primaryBlue)),
+        body: Center(
+            child: CircularProgressIndicator(color: AppColors.primaryBlue)),
       );
     }
 
@@ -68,7 +69,9 @@ class _HomeUpcomingDropScreenState extends State<HomeUpcomingDropScreen> {
                 name: name,
                 greeting: 'Good Afternoon,',
                 unreadNotificationsCount: 1,
-                onNotificationTap: () => context.push(AppRoutes.notificationsCenter),
+                onNotificationTap: () =>
+                    context.push(AppRoutes.notificationsCenter),
+                onSosTap: () => context.push(AppRoutes.safetySos),
                 onProfileTap: () => context.push(AppRoutes.profileDetails),
               ),
 
@@ -147,11 +150,9 @@ class _HomeUpcomingDropScreenState extends State<HomeUpcomingDropScreen> {
         onTap: (index) {
           if (index == 1) context.go(AppRoutes.scheduleToday);
           if (index == 2) context.go(AppRoutes.historyOverview);
-          if (index == 3) context.go(AppRoutes.safetyOverview);
           if (index == 4) context.go(AppRoutes.profileDetails);
         },
       ),
     );
   }
 }
-
