@@ -79,29 +79,17 @@ describe('Corporate ETS - Routing Planner Controller & Wire Suite', () => {
         partialMatch: false,
         isRealGeocode: true,
       }),
-      batchGeocode: jest.fn().mockResolvedValue(
-        new Map([
-          [
-            'kondapur, hyderabad',
-            {
-              lat: 17.4699,
-              lng: 78.3578,
-              matchedAddress: 'Kondapur, Hyderabad',
-              partialMatch: false,
-              isRealGeocode: true,
-            },
-          ],
-          [
-            'gachibowli, hyderabad',
-            {
-              lat: 17.4401,
-              lng: 78.3489,
-              matchedAddress: 'Gachibowli, Hyderabad',
-              partialMatch: false,
-              isRealGeocode: true,
-            },
-          ],
-        ]),
+      batchGeocode: jest.fn().mockImplementation(async (addresses: string[]) =>
+        new Map(addresses.map((address) => [
+          address.toLowerCase(),
+          {
+            lat: 17.44,
+            lng: 78.38,
+            matchedAddress: address,
+            partialMatch: false,
+            isRealGeocode: true,
+          },
+        ])),
       ),
     } as any;
 
@@ -136,28 +124,28 @@ describe('Corporate ETS - Routing Planner Controller & Wire Suite', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should throw BadRequestException if office address is missing', async () => {
-      const csv = generateSampleCsv();
+    it('should reject a roster row with no office destination', async () => {
+      const csv = 'employee_name,pickup_address,required_arrival_date,required_arrival_time\n"Test Employee","Kondapur","2026-11-11","08:00"';
       const mockFile: Express.Multer.File = {
         buffer: Buffer.from(csv),
         originalname: 'roster.csv',
       } as any;
 
       await expect(
-        controller.planFromFile(mockFile, { office: '', deadline: '2026-11-10T08:00' }),
-      ).rejects.toThrow('office address is required');
+        controller.planFromFile(mockFile, {}),
+      ).rejects.toThrow('Row 2 is missing office_address');
     });
 
-    it('should throw BadRequestException if deadline is missing', async () => {
-      const csv = generateSampleCsv();
+    it('should reject a roster row with no required arrival date/time', async () => {
+      const csv = 'employee_name,pickup_address,office_address\n"Test Employee","Kondapur","Mindspace"';
       const mockFile: Express.Multer.File = {
         buffer: Buffer.from(csv),
         originalname: 'roster.csv',
       } as any;
 
       await expect(
-        controller.planFromFile(mockFile, { office: 'Mindspace', deadline: '' }),
-      ).rejects.toThrow('loginTime (or deadline) is required');
+        controller.planFromFile(mockFile, {}),
+      ).rejects.toThrow('Row 2 is missing login_time (or required_arrival_date and required_arrival_time)');
     });
 
     it('should plan routes successfully from valid CSV file buffer', async () => {
@@ -168,8 +156,6 @@ describe('Corporate ETS - Routing Planner Controller & Wire Suite', () => {
       } as any;
 
       const result = await controller.planFromFile(mockFile, {
-        office: 'Mindspace IT Park, Hitec City, Hyderabad',
-        deadline: '2026-11-10T08:00',
         cabCapacity: '4',
         officeRadiusKm: '50',
       });

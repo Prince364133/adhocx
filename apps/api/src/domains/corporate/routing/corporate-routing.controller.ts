@@ -44,23 +44,13 @@ export class CorporateRoutingController {
   @CorporateTenantScoped()
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
-  @ApiOperation({ summary: 'Calculate traffic-aware routes and clustered cabs from an uploaded employee pickup Excel/CSV' })
+  @ApiOperation({ summary: 'Calculate traffic-aware routes using employee, office, and arrival details from each roster row' })
   public async planFromFile(
     @UploadedFile() file: Express.Multer.File,
     @Body() body: any,
   ) {
     if (!file || !file.buffer) {
-      throw new BadRequestException('A valid employee pickup file (.xlsx, .xls, .csv) must be uploaded');
-    }
-
-    const office = body.office || body.officeName;
-    const loginTime = body.loginTime || body.deadline;
-
-    if (!office) {
-      throw new BadRequestException('office address is required');
-    }
-    if (!loginTime) {
-      throw new BadRequestException('loginTime (or deadline) is required');
+      throw new BadRequestException('A valid employee route CSV file must be uploaded');
     }
 
     const excluded = body.excludedEmployees
@@ -82,14 +72,14 @@ export class CorporateRoutingController {
       file.buffer,
       file.originalname || 'employees.xlsx',
       {
-        office,
-        loginTime,
+        office: body.office || body.officeName,
+        loginTime: body.loginTime || body.deadline,
         logoutTime: body.logoutTime,
         officeRadiusKm: body.officeRadiusKm ? Number(body.officeRadiusKm) : 50,
         maxTripKm: body.maxTripKm ? Number(body.maxTripKm) : 50,
         bufferMinutes: body.bufferMinutes ? Number(body.bufferMinutes) : 15,
         pickupWaitMinutes: body.pickupWaitMinutes ? Number(body.pickupWaitMinutes) : 5,
-        cabCapacity: body.cabCapacity ? Number(body.cabCapacity) : 4,
+        cabCapacity: body.cabCapacity ? Number(body.cabCapacity) : 6,
         routingPreference: body.routingPreference || 'TRAFFIC_UNAWARE',
         avoidTolls: body.avoidTolls === undefined ? true : body.avoidTolls === 'true' || body.avoidTolls === true,
         avoidHighways: body.avoidHighways === 'true' || body.avoidHighways === true,
@@ -104,24 +94,14 @@ export class CorporateRoutingController {
   @CorporateTenantScoped()
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
-  @ApiOperation({ summary: 'Stream route planning progress in real-time via Server-Sent Events (SSE)' })
+  @ApiOperation({ summary: 'Stream route planning progress for an uploaded employee route CSV via Server-Sent Events (SSE)' })
   public async planStream(
     @UploadedFile() file: Express.Multer.File,
     @Body() body: any,
     @Res() res: Response,
   ) {
     if (!file || !file.buffer) {
-      throw new BadRequestException('A valid employee pickup file (.xlsx, .xls, .csv) must be uploaded');
-    }
-
-    const office = body.office || body.officeName;
-    const loginTime = body.loginTime || body.deadline;
-
-    if (!office) {
-      throw new BadRequestException('office address is required');
-    }
-    if (!loginTime) {
-      throw new BadRequestException('loginTime (or deadline) is required');
+      throw new BadRequestException('A valid employee route CSV file must be uploaded');
     }
 
     res.setHeader('Content-Type', 'text/event-stream');
@@ -175,14 +155,14 @@ export class CorporateRoutingController {
         file.buffer,
         file.originalname || 'employees.xlsx',
         {
-          office,
-          loginTime,
+          office: body.office || body.officeName,
+          loginTime: body.loginTime || body.deadline,
           logoutTime: body.logoutTime,
           officeRadiusKm: body.officeRadiusKm ? Number(body.officeRadiusKm) : 50,
           maxTripKm: body.maxTripKm ? Number(body.maxTripKm) : 50,
           bufferMinutes: body.bufferMinutes ? Number(body.bufferMinutes) : 15,
           pickupWaitMinutes: body.pickupWaitMinutes ? Number(body.pickupWaitMinutes) : 5,
-          cabCapacity: body.cabCapacity ? Number(body.cabCapacity) : 4,
+          cabCapacity: body.cabCapacity ? Number(body.cabCapacity) : 6,
           routingPreference: body.routingPreference || 'TRAFFIC_UNAWARE',
           avoidTolls: body.avoidTolls === undefined ? true : body.avoidTolls === 'true' || body.avoidTolls === true,
           avoidHighways: body.avoidHighways === 'true' || body.avoidHighways === true,

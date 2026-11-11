@@ -37,10 +37,11 @@ const ROUTE_COLORS = [
 
 type RoutingPreference = 'TRAFFIC_UNAWARE' | 'TRAFFIC_AWARE' | 'TRAFFIC_AWARE_OPTIMAL';
 const PICKUP_DETAILS_ZOOM = 13;
+const ROSTER_FILE_EXTENSIONS = ['csv', 'xls', 'xlsx', 'xlsm', 'xlsb', 'xlt', 'xltx', 'xltm', 'xml', 'ods'];
 
-function tomorrowMorningIst(): string {
-  const d = new Date(Date.now() + 24 * 3600_000 + 330 * 60_000);
-  return `${d.toISOString().slice(0, 10)}T08:00`;
+function isSupportedRosterFile(file: File): boolean {
+  const extension = file.name.split('.').pop()?.toLowerCase();
+  return Boolean(extension && ROSTER_FILE_EXTENSIONS.includes(extension));
 }
 
 function getLocationShortcut(address: string, fallback: string): string {
@@ -59,14 +60,13 @@ export default function RouteOptimizerPage() {
   const [activeTab, setActiveTab] = useState<'FILE_UPLOAD' | 'DB_SHIFT'>('FILE_UPLOAD');
 
   // File Upload Form State
-  const [officeAddress, setOfficeAddress] = useState('Mindspace IT Park, Hitec City, Hyderabad');
-  const [deadline, setDeadline] = useState(tomorrowMorningIst());
   const [officeRadiusKm, setOfficeRadiusKm] = useState(50);
   const [maxTripKm, setMaxTripKm] = useState(50);
   const [excludedEmployees, setExcludedEmployees] = useState('');
+  const [autoExcludedEmployees, setAutoExcludedEmployees] = useState<string[]>([]);
   const [stopDwellMinutes, setStopDwellMinutes] = useState(5);
   const [bufferMinutes, setBufferMinutes] = useState(15);
-  const [cabCapacity, setCabCapacity] = useState(4);
+  const cabCapacity = 6;
   const [routingPreference, setRoutingPreference] = useState<RoutingPreference>('TRAFFIC_UNAWARE');
   const [avoidTolls, setAvoidTolls] = useState(true);
   const [avoidHighways] = useState(false);
@@ -79,11 +79,12 @@ export default function RouteOptimizerPage() {
   const [shiftDate, setShiftDate] = useState<string>(new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10));
   const [shiftTime, setShiftTime] = useState<string>('08:00');
   const [direction, setDirection] = useState<'LOGIN' | 'LOGOUT'>('LOGIN');
+  const [dbVehicleCategory, setDbVehicleCategory] = useState<'SEDAN' | 'SUV'>('SEDAN');
 
   // Solver & UI State
   const [viewMode, setViewMode] = useState<'MAP' | 'TOPOLOGY'>('MAP');
   const [mapLoadError, setMapLoadError] = useState(false);
-  const [downloadingTemplate, setDownloadingTemplate] = useState<'xlsx' | 'csv' | null>(null);
+  const [downloadingTemplate, setDownloadingTemplate] = useState<'csv' | null>(null);
   const [calculating, setCalculating] = useState(false);
   const [progressPct, setProgressPct] = useState(0);
   const [progressMsg, setProgressMsg] = useState('');
@@ -103,10 +104,19 @@ export default function RouteOptimizerPage() {
   const polylinesRef = useRef<any[]>([]);
   const markersRef = useRef<any[]>([]);
   const mapZoomListenerRef = useRef<any>(null);
-  const officeCircleRef = useRef<any>(null);
-  const officeMarkerRef = useRef<any>(null);
+  const officeCircleRefs = useRef<any[]>([]);
+  const officeMarkerRefs = useRef<any[]>([]);
   const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || '';
   const useTopologyFallback = !googleMapsApiKey || mapLoadError;
+  const isMultiOfficePlan = Boolean(
+    planResult &&
+      new Set(
+        planResult.routes.map((route) => {
+          const office = route.office ?? planResult.office;
+          return `${office.name.trim().toLowerCase()}|${office.lat}|${office.lng}`;
+        }),
+      ).size > 1,
+  );
 
   useEffect(() => {
     (async () => {
@@ -246,8 +256,10 @@ export default function RouteOptimizerPage() {
     polylinesRef.current = [];
     markersRef.current.forEach((m) => m.setMap(null));
     markersRef.current = [];
-    if (officeCircleRef.current) officeCircleRef.current.setMap(null);
-    if (officeMarkerRef.current) officeMarkerRef.current.setMap(null);
+    officeCircleRefs.current.forEach((circle) => circle.setMap(null));
+    officeCircleRefs.current = [];
+    officeMarkerRefs.current.forEach((marker) => marker.setMap(null));
+    officeMarkerRefs.current = [];
   }
 
   function renderMapObjects(plan: RoutePlanningResult, filterCab?: number) {
@@ -257,35 +269,36 @@ export default function RouteOptimizerPage() {
 
     const bounds = new google.maps.LatLngBounds();
 
-    // 1. Office HQ Marker & Catchment Circle
-    officeMarkerRef.current = new google.maps.Marker({
-      map: googleMapRef.current,
-      position: { lat: plan.office.lat, lng: plan.office.lng },
-      label: { text: 'HQ', color: '#FFFFFF', fontWeight: 'bold' },
-      title: plan.office.name,
-      icon: {
-        path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,
-        scale: 7,
-        fillColor: '#16A34A',
-        fillOpacity: 1,
-        strokeColor: '#FFFFFF',
-        strokeWeight: 2,
-      },
+    // Plot every CSV-provided office instead of implying a single shared hub.
+    const offices = plan.offices?.length ? plan.offices : [plan.office];
+    offices.forEach((office, index) => {
+      officeMarkerRefs.current.push(new google.maps.Marker({
+        map: googleMapRef.current,
+        position: { lat: office.lat, lng: office.lng },
+        label: { text: `H${index + 1}`, color: '#FFFFFF', fontWeight: 'bold' },
+        title: office.name,
+        icon: {
+          path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,
+          scale: 7,
+          fillColor: '#16A34A',
+          fillOpacity: 1,
+          strokeColor: '#FFFFFF',
+          strokeWeight: 2,
+        },
+      }));
+      officeCircleRefs.current.push(new google.maps.Circle({
+        map: googleMapRef.current,
+        center: { lat: office.lat, lng: office.lng },
+        radius: plan.officeRadiusKm * 1000,
+        strokeColor: '#5728B2',
+        strokeWeight: 1,
+        strokeOpacity: 0.35,
+        fillColor: '#5728B2',
+        fillOpacity: 0.025,
+      }));
+      bounds.extend({ lat: office.lat, lng: office.lng });
     });
-    bounds.extend({ lat: plan.office.lat, lng: plan.office.lng });
-
-    officeCircleRef.current = new google.maps.Circle({
-      map: googleMapRef.current,
-      center: { lat: plan.office.lat, lng: plan.office.lng },
-      radius: plan.officeRadiusKm * 1000,
-      strokeColor: '#5728B2',
-      strokeWeight: 1,
-      strokeOpacity: 0.35,
-      fillColor: '#5728B2',
-      fillOpacity: 0.025,
-    });
-
-    // 2. Render Routes
+    // Render routes
     const displayedRoutes = filterCab ? plan.routes.filter((r) => r.cab === filterCab) : plan.routes;
 
     displayedRoutes.forEach((route) => {
@@ -334,7 +347,7 @@ export default function RouteOptimizerPage() {
               <span style="color: #595F61;">${stop.matchedAddress}</span><br/>
               ${stop.outOfRadius ? '<span style="color: #DC2626; font-weight: bold;">⚠️ Outside Catchment Radius</span><br/>' : ''}
               <strong>Pickup ETA:</strong> ${stop.eta} (Dwell until ${stop.dwellUntil})<br/>
-              <strong>Distance to HQ:</strong> ${stop.officeDistanceKm} km
+              <strong>Distance to office:</strong> ${stop.officeDistanceKm} km
             </div>
           `,
         });
@@ -390,10 +403,32 @@ export default function RouteOptimizerPage() {
     });
   }
 
+  function handleRosterFileSelected(file: File | null) {
+    if (file && !isSupportedRosterFile(file)) {
+      setSelectedFile(null);
+      setErrorMsg('Upload a CSV, Excel workbook/template (.xls, .xlsx, .xlsm, .xlsb), or OpenDocument (.ods) file.');
+      return;
+    }
+    if (autoExcludedEmployees.length > 0) {
+      const previousAutoExcluded = new Set(autoExcludedEmployees.map((name) => name.trim().toLowerCase()));
+      setExcludedEmployees((current) =>
+        current
+          .split(',')
+          .map((name) => name.trim())
+          .filter((name) => name && !previousAutoExcluded.has(name.toLowerCase()))
+          .join(', '),
+      );
+    }
+    setAutoExcludedEmployees([]);
+    setSelectedFile(file);
+    setPlanResult(null);
+    setErrorMsg(null);
+  }
+
   async function handleCalculateRoutes(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedFile) {
-      setErrorMsg('Please select an Excel (.xlsx) or CSV file with employee pickups');
+      setErrorMsg('Please select a roster spreadsheet with employee, pickup, office, and login time columns.');
       return;
     }
 
@@ -406,8 +441,6 @@ export default function RouteOptimizerPage() {
 
     const formData = new FormData();
     formData.append('file', selectedFile);
-    formData.append('office', officeAddress);
-    formData.append('loginTime', deadline);
     formData.append('officeRadiusKm', String(officeRadiusKm));
     formData.append('maxTripKm', String(maxTripKm));
     if (excludedEmployees.trim()) {
@@ -424,6 +457,18 @@ export default function RouteOptimizerPage() {
       const result = await opsApi.planRoutesStream(formData, (update: any) => {
         setProgressPct(update.percent || update.pct || 0);
         setProgressMsg(update.message || 'Processing...');
+        const duplicateNames = update.data?.duplicateEmployeeNames;
+        if (Array.isArray(duplicateNames) && duplicateNames.length > 0) {
+          setAutoExcludedEmployees((current) => Array.from(new Set([...current, ...duplicateNames])));
+          setExcludedEmployees((current) => {
+            const existing = current
+              .split(',')
+              .map((name) => name.trim())
+              .filter(Boolean);
+            const existingNames = new Set(existing.map((name) => name.toLowerCase()));
+            return [...existing, ...duplicateNames.filter((name: string) => !existingNames.has(name.toLowerCase()))].join(', ');
+          });
+        }
       });
 
       if (!result.routes || result.routes.length === 0) {
@@ -458,7 +503,7 @@ export default function RouteOptimizerPage() {
         shiftDate,
         shiftTime,
         direction,
-        vehicleCategory: cabCapacity === 4 ? 'SEDAN' : 'SUV',
+        vehicleCategory: dbVehicleCategory,
       });
       setDbOptimizeResult(res);
     } catch (err: any) {
@@ -469,17 +514,35 @@ export default function RouteOptimizerPage() {
   }
 
   async function handleCommitToDatabase() {
-    if (!planResult) return;
+    if (!planResult || isMultiOfficePlan) return;
     setCommitting(true);
     setErrorMsg(null);
 
     try {
+      const firstRouteArrival = planResult.routes[0]?.requiredArrivalDateTime;
+      const arrivalParts = firstRouteArrival
+        ? Object.fromEntries(
+            new Intl.DateTimeFormat('en-GB', {
+              timeZone: 'Asia/Kolkata',
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              hourCycle: 'h23',
+            })
+              .formatToParts(new Date(firstRouteArrival))
+              .map(({ type, value }) => [type, value]),
+          )
+        : null;
       const res = await opsApi.commitRoutePlan({
         tenantId: selectedTenantId || '',
         officeId: selectedOfficeId || '',
         plan: planResult,
-        shiftDate: deadline.slice(0, 10),
-        shiftTime: deadline.slice(11, 16),
+        shiftDate: arrivalParts
+          ? `${arrivalParts.year}-${arrivalParts.month}-${arrivalParts.day}`
+          : shiftDate,
+        shiftTime: arrivalParts ? `${arrivalParts.hour}:${arrivalParts.minute}` : shiftTime,
         direction: 'LOGIN',
       });
       setCommittedSuccess(res);
@@ -493,13 +556,15 @@ export default function RouteOptimizerPage() {
   function handleExportExcel() {
     if (!planResult) return;
     const rows = [
-      ['Cab Number', 'Stop Letter', 'Employee Name', 'Matched Address', 'Pickup ETA', 'Dwell Until', 'Distance to HQ (km)', 'Out of Radius'],
+      ['Cab Number', 'Office Destination', 'Required Arrival DateTime', 'Stop Letter', 'Employee Name', 'Matched Address', 'Pickup ETA', 'Dwell Until', 'Distance to Office (km)', 'Out of Radius'],
     ];
 
     planResult.routes.forEach((r) => {
       r.stops.forEach((s, idx) => {
         rows.push([
           String(r.cab),
+          r.office?.name || planResult.office.name,
+          r.requiredArrivalDateTime || r.requiredArrival || '',
           String.fromCharCode(65 + idx),
           s.name,
           s.matchedAddress,
@@ -521,7 +586,7 @@ export default function RouteOptimizerPage() {
     document.body.removeChild(link);
   }
 
-  async function handleDownloadSample(format: 'xlsx' | 'csv') {
+  async function handleDownloadSample(format: 'csv') {
     setDownloadingTemplate(format);
     setErrorMsg(null);
     try {
@@ -535,7 +600,7 @@ export default function RouteOptimizerPage() {
       link.remove();
       window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Failed to download the sample roster.');
+      setErrorMsg(err instanceof Error ? err.message : 'Failed to download the sample CSV.');
     } finally {
       setDownloadingTemplate(null);
     }
@@ -551,7 +616,7 @@ export default function RouteOptimizerPage() {
             CVRPTW Route Optimization Engine & Fleet Planner
           </h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '2px' }}>
-            Traffic-aware clustering heuristic with Google Routes v2, 5-min dwell buffers, and radius catchment alerts
+            Calculates pickup ETAs from each employee&apos;s login time, destination, and route
           </p>
         </div>
 
@@ -562,22 +627,11 @@ export default function RouteOptimizerPage() {
             variant="primary"
             size="sm"
             leftIcon={<Download size={14} />}
-            onClick={() => handleDownloadSample('xlsx')}
-            disabled={downloadingTemplate !== null}
-            style={{ whiteSpace: 'normal', textAlign: 'left' }}
-          >
-            {downloadingTemplate === 'xlsx' ? 'Downloading roster...' : 'Download Sample Roster (.xlsx)'}
-          </Button>
-          <Button
-            type="button"
-            variant="primary"
-            size="sm"
-            leftIcon={<Download size={14} />}
             onClick={() => handleDownloadSample('csv')}
             disabled={downloadingTemplate !== null}
             style={{ whiteSpace: 'normal', textAlign: 'left' }}
           >
-            {downloadingTemplate === 'csv' ? 'Downloading CSV...' : 'Sample (.csv)'}
+            {downloadingTemplate === 'csv' ? 'Downloading CSV...' : 'Download CSV Template'}
           </Button>
         </div>
       </div>
@@ -784,53 +838,6 @@ export default function RouteOptimizerPage() {
                 /* FILE UPLOADER & HEURISTIC SOLVER */
                 <form onSubmit={handleCalculateRoutes} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
                   <div style={{ padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px', flex: 1, minHeight: 0 }}>
-                    {/* Office Destination */}
-                    <div>
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                        Office Destination / Central Hub *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={officeAddress}
-                        onChange={(e) => setOfficeAddress(e.target.value)}
-                        placeholder="e.g. Mindspace IT Park, Hitec City, Hyderabad"
-                        style={{
-                          width: '100%',
-                          padding: '8px 12px',
-                          backgroundColor: 'var(--bg-input)',
-                          border: '1px solid var(--border-subtle)',
-                          borderRadius: '6px',
-                          color: 'var(--text-primary)',
-                          fontSize: '13px',
-                          outline: 'none',
-                        }}
-                      />
-                    </div>
-
-                    {/* Arrival Deadline */}
-                    <div>
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                        Required Arrival Date & Time *
-                      </label>
-                      <input
-                        type="datetime-local"
-                        required
-                        value={deadline}
-                        onChange={(e) => setDeadline(e.target.value)}
-                        style={{
-                          width: '100%',
-                          padding: '8px 12px',
-                          backgroundColor: 'var(--bg-input)',
-                          border: '1px solid var(--border-subtle)',
-                          borderRadius: '6px',
-                          color: 'var(--text-primary)',
-                          fontSize: '13px',
-                          outline: 'none',
-                        }}
-                      />
-                    </div>
-
                     {/* Excluded Employees */}
                     <div>
                       <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
@@ -852,6 +859,11 @@ export default function RouteOptimizerPage() {
                           outline: 'none',
                         }}
                       />
+                      {autoExcludedEmployees.length > 0 && (
+                        <p style={{ margin: '6px 0 0', fontSize: '11px', color: 'var(--color-warning, #B45309)' }}>
+                          Duplicate names were excluded automatically: {autoExcludedEmployees.join(', ')}
+                        </p>
+                      )}
                     </div>
 
                     {/* 3-Column Grid for Radius, Max Trip, and Capacity */}
@@ -902,31 +914,22 @@ export default function RouteOptimizerPage() {
                       </div>
                       <div>
                         <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                          Cab Capacity
+                          Automatic Cab Assignment
                         </label>
-                        <select
-                          value={cabCapacity}
-                          onChange={(e) => setCabCapacity(Number(e.target.value))}
+                        <div
                           style={{
                             width: '100%',
-                            padding: '8px 12px',
+                            minHeight: '36px',
+                            padding: '8px 10px',
                             backgroundColor: 'var(--bg-input)',
                             border: '1px solid var(--border-subtle)',
                             borderRadius: '6px',
                             color: 'var(--text-primary)',
-                            fontSize: '13px',
-                            outline: 'none',
+                            fontSize: '12px',
                           }}
                         >
-                          <option value={1}>1 Pax</option>
-                          <option value={2}>2 Pax</option>
-                          <option value={3}>3 Pax</option>
-                          <option value={4}>4 Pax (Sedan)</option>
-                          <option value={5}>5 Pax</option>
-                          <option value={6}>6 Pax (SUV)</option>
-                          <option value={7}>7 Pax</option>
-                          <option value={12}>12 Pax (Tempo)</option>
-                        </select>
+                          Sedan: 1–3 riders · SUV: 4–6 riders
+                        </div>
                       </div>
                     </div>
 
@@ -981,9 +984,14 @@ export default function RouteOptimizerPage() {
                     {/* File Drag and Drop */}
                     <div>
                       <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                        Upload Employee Pickup Roster (.xlsx / .csv) *
+                        Upload Employee Route Spreadsheet *
                       </label>
                       <label
+                        onDragOver={(event) => event.preventDefault()}
+                        onDrop={(event) => {
+                          event.preventDefault();
+                          handleRosterFileSelected(event.dataTransfer.files[0] || null);
+                        }}
                         style={{
                           border: `2px dashed ${selectedFile ? 'var(--brand-blue-500, #5728B2)' : 'var(--border-strong)'}`,
                           borderRadius: '8px',
@@ -999,15 +1007,22 @@ export default function RouteOptimizerPage() {
                       >
                         <UploadCloud size={24} style={{ color: selectedFile ? 'var(--brand-blue-500, #5728B2)' : 'var(--text-muted)', marginBottom: '6px' }} />
                         <span style={{ fontSize: '12px', color: selectedFile ? 'var(--brand-blue-500, #5728B2)' : 'var(--text-secondary)', fontWeight: 600, textAlign: 'center' }}>
-                          {selectedFile ? selectedFile.name : 'Click or Drag & Drop Roster File'}
+                          {selectedFile ? selectedFile.name : 'Click or Drag & Drop CSV or Excel Workbook'}
                         </span>
                         <input
                           type="file"
-                          accept=".csv, .xlsx, .xls"
-                          onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                          accept=".csv,.xls,.xlsx,.xlsm,.xlsb,.xlt,.xltx,.xltm,.xml,.ods,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel.sheet.macroEnabled.12,application/vnd.ms-excel.sheet.binary.macroEnabled.12,application/vnd.oasis.opendocument.spreadsheet"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] || null;
+                            handleRosterFileSelected(file);
+                            if (file && !isSupportedRosterFile(file)) e.currentTarget.value = '';
+                          }}
                           style={{ display: 'none' }}
                         />
                       </label>
+                      <p style={{ margin: '6px 0 0', fontSize: '11px', color: 'var(--text-muted)' }}>
+                        CSV, Excel workbooks/templates, and ODS supported. Provide each employee&apos;s login time; pickup ETAs are calculated automatically. Without a date, the next future occurrence of that time in IST is used.
+                      </p>
                     </div>
 
                     {/* Routing preference */}
@@ -1211,8 +1226,8 @@ export default function RouteOptimizerPage() {
                           Vehicle Category
                         </label>
                         <select
-                          value={cabCapacity}
-                          onChange={(e) => setCabCapacity(Number(e.target.value))}
+                          value={dbVehicleCategory}
+                          onChange={(e) => setDbVehicleCategory(e.target.value as 'SEDAN' | 'SUV')}
                           style={{
                             width: '100%',
                             padding: '8px 12px',
@@ -1224,8 +1239,8 @@ export default function RouteOptimizerPage() {
                             outline: 'none',
                           }}
                         >
-                          <option value={4}>Sedan (4 Seater)</option>
-                          <option value={6}>SUV (6 Seater)</option>
+                          <option value="SEDAN">Sedan (up to 3 riders)</option>
+                          <option value="SUV">SUV (up to 6 riders)</option>
                         </select>
                       </div>
                     </div>
@@ -1379,6 +1394,9 @@ export default function RouteOptimizerPage() {
                               <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
                                 {route.departure} → {route.arrival} · {route.distanceKm} km · {route.driveMinutes} min
                               </div>
+                              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                                Office: {route.office?.name || planResult.office.name} · Required arrival: {route.requiredArrival || '—'}
+                              </div>
                               {(route.driverPayout !== undefined || route.projectedMargin !== undefined) && (
                                 <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
                                   Payout: <strong style={{ color: 'var(--text-primary)' }}>₹{route.driverPayout ?? 0}</strong> · Margin:{' '}
@@ -1467,11 +1485,16 @@ export default function RouteOptimizerPage() {
               </div>
 
               {/* Action Buttons: Commit and Export */}
+              {isMultiOfficePlan && (
+                <div style={{ padding: '0 18px 10px', fontSize: '12px', color: 'var(--color-warning, #B45309)' }}>
+                  This plan has multiple office destinations and cannot be committed as a single-office dispatch. Export it or plan each destination separately.
+                </div>
+              )}
               <div style={{ padding: '14px 18px', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: '10px' }}>
                 <Button
                   variant="primary"
                   style={{ width: '100%' }}
-                  disabled={committing}
+                  disabled={committing || isMultiOfficePlan}
                   onClick={handleCommitToDatabase}
                   leftIcon={committing ? <RefreshCw className="spin" size={14} /> : <CheckCircle size={14} />}
                 >

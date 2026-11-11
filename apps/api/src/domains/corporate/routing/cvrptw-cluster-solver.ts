@@ -4,6 +4,7 @@ import {
   calculateDistanceCharge,
   selectCheapestCab,
   optimizeGroups,
+  orderPickupsByShortestPath,
   DEFAULT_PRICING_CONFIG,
 } from './cost-optimizer';
 
@@ -25,7 +26,7 @@ export interface SolverConfig {
   logoutTime?: Date;
   bufferMinutes: number; // default 15
   pickupWaitMinutes: number; // default 5
-  cabCapacity: number; // default 4
+  cabCapacity: number; // maximum passengers per cab, default 6
   officeRadiusKm: number; // default 50
   maxTripKm?: number; // default 50
   routingPreference?: RouteRequestOptions['routingPreference'];
@@ -63,6 +64,10 @@ export interface SolverPlannedSegment {
 
 export interface SolverCalculatedRoute {
   cab: number;
+  office: { name: string; lat: number; lng: number };
+  requiredArrival: string;
+  requiredArrivalDateTime: string;
+  departureDateTime: string;
   cabType?: string;
   driverPayout?: number;
   corporateRevenue?: number;
@@ -83,13 +88,12 @@ export interface SolverCalculatedRoute {
 }
 
 export function formatClock(date: Date): string {
-  // Format to 12-hour AM/PM string, e.g. "6:45 AM"
-  const hours = date.getHours();
-  const minutes = date.getMinutes();
-  const ampm = hours >= 12 ? 'PM' : 'AM';
-  const displayHours = hours % 12 || 12;
-  const displayMinutes = minutes < 10 ? `0${minutes}` : `${minutes}`;
-  return `${displayHours}:${displayMinutes} ${ampm}`;
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Kolkata',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).format(date);
 }
 
 export function generate4DigitOtp(): string {
@@ -183,7 +187,7 @@ export async function solveCabRoute(
   // 1. Furthest employee from office starts the cab route
   const sortedByDist = [...group].sort((a, b) => b.officeDistanceKm - a.officeDistanceKm);
   const driver = sortedByDist[0];
-  const pending = group.filter((p) => p !== driver).sort((a, b) => b.officeDistanceKm - a.officeDistanceKm);
+  const pending = orderPickupsByShortestPath(group, officeCoord).filter((p) => p !== driver);
 
   const targetArrival = new Date(config.loginTime.getTime() - config.bufferMinutes * 60_000);
   const earliestDeparture = new Date(config.loginTime.getTime() - 12 * 3600_000);
@@ -300,9 +304,10 @@ export async function solveCabRoute(
   const meetsBuffer = arrival.getTime() <= targetArrival.getTime();
 
   const effectivePricing = config.pricingConfig || pricingConfig || DEFAULT_PRICING_CONFIG;
-  const cabType =
-    selectCheapestCab(route.distanceKm, group.length, effectivePricing, fleetUsed) ||
-    effectivePricing.cabTypes[0];
+  const cabType = selectCheapestCab(route.distanceKm, group.length, effectivePricing, fleetUsed);
+  if (!cabType) {
+    throw new Error(`No compatible available vehicle for a route with ${group.length} passengers`);
+  }
   if (cabType) {
     fleetUsed[cabType.name] = (fleetUsed[cabType.name] || 0) + 1;
   }
@@ -317,6 +322,10 @@ export async function solveCabRoute(
 
   return {
     cab: cabNumber,
+    office: { name: officeName, lat: officeCoord.lat, lng: officeCoord.lng },
+    requiredArrival: formatClock(config.loginTime),
+    requiredArrivalDateTime: config.loginTime.toISOString(),
+    departureDateTime: departure.toISOString(),
     cabType: cabType?.name || 'sedan',
     driverPayout,
     corporateRevenue,

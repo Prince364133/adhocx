@@ -61,7 +61,7 @@ describe('Corporate Route Capacity Solver (CVRPTW)', () => {
   });
 
   describe('Sedan Capacity & 5-Minute Dwell Buffer (LOGIN Commute)', () => {
-    it('should split 8 passengers into 2 Sedan routes of 4 passengers max and enforce 300s dwell buffer', async () => {
+    it('should split 8 passengers into Sedan routes of 3 passengers max and enforce 300s dwell buffer', async () => {
       // 8 employees along the same corridor (Kondapur / Gachibowli towards HITEC City)
       const mockRequests = Array.from({ length: 8 }).map((_, idx) => ({
         id: `req-${idx + 1}`,
@@ -91,37 +91,39 @@ describe('Corporate Route Capacity Solver (CVRPTW)', () => {
         shiftDate: '2026-11-10',
         shiftTime: '08:00',
         direction: 'LOGIN',
-        vehicleCategory: 'SEDAN', // max 4 pax
+        vehicleCategory: 'SEDAN', // max 3 pax
       });
 
-      expect(result.routesCreated).toBe(2);
+      expect(result.routesCreated).toBe(3);
       expect(result.passengersAssigned).toBe(8);
       expect(result.unassignedRequests).toBe(0);
-      expect(result.averagePassengersPerRoute).toBe(4);
+      expect(result.averagePassengersPerRoute).toBeCloseTo(8 / 3);
 
-      // Verify each created route has capacity <= 4
+      // Verify each created route has capacity <= 3
       for (const route of result.routes) {
-        expect(route.passengerCount).toBeLessThanOrEqual(4);
-        expect(route.maxCapacity).toBe(4);
+        expect(route.passengerCount).toBeLessThanOrEqual(3);
+        expect(route.maxCapacity).toBe(3);
       }
 
-      // Verify DB transaction calls: corporateRoute.create should be called twice
-      expect(mockDb.corporateRoute.create).toHaveBeenCalledTimes(2);
+      // Verify DB transaction calls: corporateRoute.create should be called three times
+      expect(mockDb.corporateRoute.create).toHaveBeenCalledTimes(3);
 
-      // Each route should have 5 stops (4 employee pickups + 1 office dropoff)
-      expect(mockDb.corporateRouteStop.create).toHaveBeenCalledTimes(10);
+      // 8 employee pickups + 3 office dropoffs
+      expect(mockDb.corporateRouteStop.create).toHaveBeenCalledTimes(11);
 
       // Verify stops for Route 1 have 300s dwell buffer for employee pickups
-      const firstRouteStops = mockDb.corporateRouteStop.create.mock.calls
-        .slice(0, 5)
+      const firstRouteStopCalls = mockDb.corporateRouteStop.create.mock.calls;
+      const firstRouteDropoffIndex = firstRouteStopCalls.findIndex(
+        (call: any) => call[0].data.stopType === 'DROPOFF',
+      );
+      const firstRouteStops = firstRouteStopCalls
+        .slice(0, firstRouteDropoffIndex + 1)
         .map((call: any) => call[0].data);
 
-      expect(firstRouteStops[0].dwellBufferSeconds).toBe(300);
-      expect(firstRouteStops[1].dwellBufferSeconds).toBe(300);
-      expect(firstRouteStops[2].dwellBufferSeconds).toBe(300);
-      expect(firstRouteStops[3].dwellBufferSeconds).toBe(300);
-      expect(firstRouteStops[4].stopType).toBe('DROPOFF'); // Office destination
-      expect(firstRouteStops[4].dwellBufferSeconds).toBe(0);
+      expect(firstRouteDropoffIndex).toBeGreaterThan(0);
+      expect(firstRouteStops.slice(0, -1).every((stop: any) => stop.dwellBufferSeconds === 300)).toBe(true);
+      expect(firstRouteStops[firstRouteStops.length - 1].stopType).toBe('DROPOFF');
+      expect(firstRouteStops[firstRouteStops.length - 1].dwellBufferSeconds).toBe(0);
     });
 
     it('should split 12 passengers into 2 SUV routes of 6 passengers max', async () => {
@@ -196,7 +198,7 @@ describe('Corporate Route Capacity Solver (CVRPTW)', () => {
         shiftDate: '2026-11-10',
         shiftTime: '17:00',
         direction: 'LOGOUT',
-        vehicleCategory: 'SEDAN',
+        vehicleCategory: 'SUV',
       });
 
       expect(result.routesCreated).toBe(1);
@@ -220,4 +222,3 @@ describe('Corporate Route Capacity Solver (CVRPTW)', () => {
     });
   });
 });
-

@@ -303,6 +303,10 @@ export interface PlannedRouteSegment {
 
 export interface CalculatedRoute {
   cab: number;
+  office?: { name: string; lat: number; lng: number };
+  requiredArrival?: string;
+  requiredArrivalDateTime?: string;
+  departureDateTime?: string;
   cabType?: string;
   driverPayout?: number;
   corporateRevenue?: number;
@@ -338,6 +342,7 @@ export interface RoutePlanningResult {
   }>;
   bufferedDeadline: string;
   office: { name: string; lat: number; lng: number };
+  offices?: Array<{ name: string; lat: number; lng: number }>;
   routes: CalculatedRoute[];
   totalKm?: number;
   totalDriverPayout?: number;

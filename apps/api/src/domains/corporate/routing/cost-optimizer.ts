@@ -10,6 +10,8 @@
  * 6. Financial projections (driver payout, expected corporate revenue, projected margin).
  */
 
+import { haversineKm } from './google-routes-v2.adapter';
+
 export interface DistanceSlab {
   upToKm: number;
   ratePerKm: number;
@@ -29,6 +31,10 @@ export interface PricingConfig {
   revenuePerKm: number;
   cabTypes: CabTypeConfig[];
 }
+
+// File planning has no live fleet inventory; enforce quotas only when explicitly configured.
+const DEFAULT_PLANNING_FLEET_COUNT = Number.MAX_SAFE_INTEGER;
+const MAX_PICKUP_DETOUR_KM = 6; // About 15 minutes at the fallback's 25 km/h.
 
 export interface OptimizedRouteCost {
   cabType: string;
@@ -60,8 +66,8 @@ export const DEFAULT_PRICING_CONFIG: PricingConfig = {
   cabTypes: [
     {
       name: 'sedan',
-      capacity: 4,
-      fleetCount: 100,
+      capacity: 3,
+      fleetCount: DEFAULT_PLANNING_FLEET_COUNT,
       fixedCharge: 350.0,
       perKmCharge: 14.0,
       distanceSlabs: [
@@ -73,7 +79,7 @@ export const DEFAULT_PRICING_CONFIG: PricingConfig = {
     {
       name: 'suv',
       capacity: 6,
-      fleetCount: 50,
+      fleetCount: DEFAULT_PLANNING_FLEET_COUNT,
       fixedCharge: 500.0,
       perKmCharge: 16.0,
       distanceSlabs: [
@@ -158,6 +164,65 @@ export function corridorPenalty(
   return Math.max(...officeBearings.map((b) => angularDistance(employeeBearing, b)));
 }
 
+export function orderPickupsByShortestPath<T extends CorridorableEmployee>(
+  group: T[],
+  office: GeoPoint,
+): T[] {
+  const pending = [...group].sort((a, b) => b.officeDistanceKm - a.officeDistanceKm);
+  let current = pending.shift();
+  if (!current) return [];
+
+  const ordered = [current];
+  while (pending.length > 0) {
+    let nearestIndex = 0;
+    let nearestDistanceKm =
+      haversineKm(current.coord, pending[0].coord) +
+      haversineKm(pending[0].coord, office) -
+      haversineKm(current.coord, office);
+    for (let index = 1; index < pending.length; index++) {
+      const candidateDistanceKm =
+        haversineKm(current.coord, pending[index].coord) +
+        haversineKm(pending[index].coord, office) -
+        haversineKm(current.coord, office);
+      if (candidateDistanceKm < nearestDistanceKm) {
+        nearestIndex = index;
+        nearestDistanceKm = candidateDistanceKm;
+      }
+    }
+
+    current = pending.splice(nearestIndex, 1)[0];
+    ordered.push(current);
+  }
+
+  return ordered;
+}
+
+function estimateClusterRouteKm<T extends CorridorableEmployee>(group: T[], office: GeoPoint): number {
+  const ordered = orderPickupsByShortestPath(group, office);
+  let distanceKm = 0;
+  for (let index = 1; index < ordered.length; index++) {
+    distanceKm += haversineKm(ordered[index - 1].coord, ordered[index].coord);
+  }
+  const lastPickup = ordered[ordered.length - 1];
+  return lastPickup ? distanceKm + haversineKm(lastPickup.coord, office) : 0;
+}
+
+function hasAcceptablePickupDetours<T extends CorridorableEmployee>(group: T[], office: GeoPoint): boolean {
+  const ordered = orderPickupsByShortestPath(group, office);
+  let remainingDistanceKm = haversineKm(ordered[ordered.length - 1].coord, office);
+
+  for (let index = ordered.length - 1; index >= 0; index--) {
+    if (index < ordered.length - 1) {
+      remainingDistanceKm += haversineKm(ordered[index].coord, ordered[index + 1].coord);
+    }
+    if (remainingDistanceKm - ordered[index].officeDistanceKm > MAX_PICKUP_DETOUR_KM) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 /**
  * Selects the cheapest available cab vehicle type (Sedan vs SUV)
  * that satisfies capacity and has remaining quota in the fleet inventory.
@@ -169,7 +234,9 @@ export function selectCheapestCab(
   fleetUsed: Record<string, number> = {},
 ): CabTypeConfig | null {
   const choices = pricing.cabTypes.filter(
-    (cab) => cab.capacity >= employeesCount && (fleetUsed[cab.name] || 0) < cab.fleetCount,
+    (cab) =>
+      cab.capacity >= employeesCount &&
+      (fleetUsed[cab.name] || 0) < cab.fleetCount,
   );
 
   if (choices.length === 0) {
@@ -184,113 +251,83 @@ export function selectCheapestCab(
 }
 
 /**
- * Distance-seeded directional corridor clustering heuristic.
- * Groups employees along common arterial corridors radiating outward from the office hub.
+ * Merges nearby pickup routes when combining them does not add distance and respects
+ * cab capacity and corridor compatibility.
  */
 export function optimizeGroups<T extends CorridorableEmployee>(
   employees: T[],
   office: GeoPoint,
   pricing: PricingConfig = DEFAULT_PRICING_CONFIG,
   maxCapacity = 4,
-  maxTripKm = 50,
+  _maxTripKm = 50,
 ): T[][] {
-  let remaining = [...employees];
-  const groups: T[][] = [];
-
-  const maxCabCapacity = Math.max(
-    ...pricing.cabTypes.map((c) => c.capacity),
-    maxCapacity,
-  );
+  const maxCabCapacity = Math.max(...pricing.cabTypes.map((cab) => cab.capacity), maxCapacity);
   const effectiveLimit = Math.min(maxCapacity, maxCabCapacity);
+  const bearings = employees.map((employee) => calculateBearing(office, employee.coord));
+  const candidates: Array<{ first: number; second: number; savingsKm: number }> = [];
 
-  while (remaining.length > 0) {
-    let seed: T;
+  for (let first = 0; first < employees.length; first++) {
+    for (let second = first + 1; second < employees.length; second++) {
+      if (angularDistance(bearings[first], bearings[second]) > 55) continue;
 
-    if (groups.length === 0) {
-      // First seed is the employee furthest from office
-      seed = remaining.reduce((furthest, current) =>
-        current.officeDistanceKm > furthest.officeDistanceKm ? current : furthest,
-      );
-    } else {
-      // Next seeds prioritize picking employees whose bearing to office is closest to an existing group
-      seed = remaining.reduce((bestSeed, person) => {
-        const personBearing = calculateBearing(office, person.coord);
-        let minAngularDifference = 180;
-
-        for (const group of groups) {
-          for (const member of group) {
-            const memberBearing = calculateBearing(office, member.coord);
-            const angDist = angularDistance(personBearing, memberBearing);
-            if (angDist < minAngularDifference) {
-              minAngularDifference = angDist;
-            }
-          }
-        }
-
-        const score = 180 - minAngularDifference;
-
-        const bestPersonBearing = calculateBearing(office, bestSeed.coord);
-        let bestMinDiff = 180;
-        for (const group of groups) {
-          for (const member of group) {
-            const memberBearing = calculateBearing(office, member.coord);
-            const angDist = angularDistance(bestPersonBearing, memberBearing);
-            if (angDist < bestMinDiff) {
-              bestMinDiff = angDist;
-            }
-          }
-        }
-        const bestScore = 180 - bestMinDiff;
-
-        return score < bestScore ? person : bestSeed;
-      });
+      const savingsKm =
+        employees[first].officeDistanceKm +
+        employees[second].officeDistanceKm -
+        haversineKm(employees[first].coord, employees[second].coord);
+      if (savingsKm >= -0.001) candidates.push({ first, second, savingsKm });
     }
+  }
+  candidates.sort((a, b) => b.savingsKm - a.savingsKm);
 
-    remaining = remaining.filter((p) => p !== seed);
-    const group: T[] = [seed];
+  const groups = employees.map((employee) => [employee]);
+  const groupForEmployee = employees.map((_, index) => index);
+  const employeeIndex = new Map(employees.map((employee, index) => [employee, index]));
 
-    while (group.length < effectiveLimit && remaining.length > 0) {
-      // Find candidate minimizing corridor penalty and angular deviation from last added passenger
-      const lastCoord = group[group.length - 1].coord;
-      const groupCoords = group.map((p) => p.coord);
+  for (const candidate of candidates) {
+    const firstGroupIndex = groupForEmployee[candidate.first];
+    const secondGroupIndex = groupForEmployee[candidate.second];
+    if (firstGroupIndex === secondGroupIndex) continue;
 
-      let bestCandidate: T | null = null;
-      let bestScore = Infinity;
+    const firstGroup = groups[firstGroupIndex];
+    const secondGroup = groups[secondGroupIndex];
+    const merged = [...firstGroup, ...secondGroup];
+    if (merged.length > effectiveLimit) continue;
 
-      for (const person of remaining) {
-        const penalty = corridorPenalty(person.coord, office, groupCoords);
-        const angToLast = angularDistance(
-          calculateBearing(person.coord, office),
-          calculateBearing(lastCoord, office),
+    let maxCorridor = 0;
+    for (const first of firstGroup) {
+      for (const second of secondGroup) {
+        maxCorridor = Math.max(
+          maxCorridor,
+          angularDistance(bearings[employeeIndex.get(first)!], bearings[employeeIndex.get(second)!]),
         );
-        const score = penalty * 0.4 + angToLast;
-
-        if (score < bestScore) {
-          bestScore = score;
-          bestCandidate = person;
-        }
       }
+    }
+    if (maxCorridor > 55) continue;
 
-      if (!bestCandidate) {
-        break;
-      }
-
-      const proposed = [...group, bestCandidate];
-      const roadEstimate =
-        proposed.reduce((sum, p) => sum + p.officeDistanceKm, 0) / Math.max(1, proposed.length - 1);
-
-      if (roadEstimate > maxTripKm) {
-        break;
-      }
-
-      group.push(bestCandidate);
-      remaining = remaining.filter((p) => p !== bestCandidate);
+    const separateDistanceKm =
+      estimateClusterRouteKm(firstGroup, office) + estimateClusterRouteKm(secondGroup, office);
+    const mergedDistanceKm = estimateClusterRouteKm(merged, office);
+    if (
+      mergedDistanceKm > separateDistanceKm + 0.001 ||
+      !hasAcceptablePickupDetours(merged, office)
+    ) {
+      continue;
     }
 
-    groups.push(group);
+    groups[firstGroupIndex] = merged;
+    groups[secondGroupIndex] = [];
+    for (const employee of merged) {
+      groupForEmployee[employeeIndex.get(employee)!] = firstGroupIndex;
+    }
   }
 
-  return mergeCompatibleGroups(groups, office, effectiveLimit, maxTripKm);
+  return groups
+    .filter((group) => group.length > 0)
+    .sort(
+      (a, b) =>
+        Math.max(...b.map((employee) => employee.officeDistanceKm)) -
+        Math.max(...a.map((employee) => employee.officeDistanceKm)),
+    );
 }
 
 /**
@@ -347,4 +384,3 @@ export function mergeCompatibleGroups<T extends CorridorableEmployee>(
 
   return result;
 }
-
