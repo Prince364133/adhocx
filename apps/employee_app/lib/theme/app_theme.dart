@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
+import '../shared/components/feedback/employee_page_transition.dart';
 
 /// AppTheme configuration for AdhocX Employee Mobile App
 class AppTheme {
@@ -13,6 +14,16 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: EmployeePageTransition(),
+          TargetPlatform.iOS: EmployeePageTransition(),
+          TargetPlatform.linux: EmployeePageTransition(),
+          TargetPlatform.macOS: EmployeePageTransition(),
+          TargetPlatform.windows: EmployeePageTransition(),
+          TargetPlatform.fuchsia: EmployeePageTransition(),
+        },
+      ),
       primaryColor: AppColors.primaryBlue,
       scaffoldBackgroundColor: AppColors.surface,
       colorScheme: const ColorScheme.light(
@@ -108,7 +119,8 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.surface,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.border),
@@ -119,7 +131,8 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.borderFocused, width: 2),
+          borderSide:
+              const BorderSide(color: AppColors.borderFocused, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -137,4 +150,3 @@ class AppTheme {
     );
   }
 }
-

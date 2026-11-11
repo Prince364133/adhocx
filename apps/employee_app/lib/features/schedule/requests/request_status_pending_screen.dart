@@ -7,6 +7,7 @@ import 'package:adhocx_employee/widgets/employee_app_bar.dart';
 import 'package:adhocx_employee/widgets/employee_secondary_button.dart';
 import 'package:adhocx_employee/widgets/batch_03_illustrations.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
+import 'package:adhocx_employee/shared/components/feedback/employee_entrance.dart';
 
 class RequestStatusPendingScreen extends StatefulWidget {
   const RequestStatusPendingScreen({super.key});
@@ -77,80 +78,85 @@ class _RequestStatusPendingScreenState
               const SizedBox(height: 24),
 
               // Pending Approval Badge Box
-              Container(
-                width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFFBEB),
-                  borderRadius: BorderRadius.circular(20),
-                  border:
-                      Border.all(color: const Color(0xFFFDE68A), width: 1.5),
-                ),
-                child: Column(
-                  children: [
-                    const PendingClockBadge(),
-                    const SizedBox(height: 14),
-                    Text(
-                      'Pending Approval',
-                      style: GoogleFonts.inter(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: const Color(0xFFB45309),
+              EmployeeEntrance(
+                child: Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFFBEB),
+                    borderRadius: BorderRadius.circular(20),
+                    border:
+                        Border.all(color: const Color(0xFFFDE68A), width: 1.5),
+                  ),
+                  child: Column(
+                    children: [
+                      const PendingClockBadge(),
+                      const SizedBox(height: 14),
+                      Text(
+                        'Pending Approval',
+                        style: GoogleFonts.inter(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFFB45309),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      message,
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        color: const Color(0xFF92400E),
-                        height: 1.45,
+                      const SizedBox(height: 6),
+                      Text(
+                        message,
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: const Color(0xFF92400E),
+                          height: 1.45,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
 
               const SizedBox(height: 28),
 
               // Request Details Card
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.border),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    _buildRow(
-                      icon: Icons.edit_note_rounded,
-                      label: 'Request Type',
-                      value: requestType,
-                    ),
-                    const Divider(color: AppColors.border, height: 28),
-                    _buildRow(
-                      icon: Icons.location_on_outlined,
-                      label: 'New Location',
-                      value: newLocation,
-                    ),
-                    const Divider(color: AppColors.border, height: 28),
-                    _buildRow(
-                      icon: Icons.calendar_month_outlined,
-                      label: 'Trip Date',
-                      value: tripDate,
-                    ),
-                  ],
+              EmployeeEntrance(
+                delay: const Duration(milliseconds: 100),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.border),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      _buildRow(
+                        icon: Icons.edit_note_rounded,
+                        label: 'Request Type',
+                        value: requestType,
+                      ),
+                      const Divider(color: AppColors.border, height: 28),
+                      _buildRow(
+                        icon: Icons.location_on_outlined,
+                        label: 'New Location',
+                        value: newLocation,
+                      ),
+                      const Divider(color: AppColors.border, height: 28),
+                      _buildRow(
+                        icon: Icons.calendar_month_outlined,
+                        label: 'Trip Date',
+                        value: tripDate,
+                      ),
+                    ],
+                  ),
                 ),
               ),
 

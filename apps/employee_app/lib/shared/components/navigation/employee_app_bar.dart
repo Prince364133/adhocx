@@ -103,75 +103,69 @@ class EmployeeGreetingHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: GestureDetector(
-            onTap: onProfileTap,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  greeting,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
-                  ),
+        GestureDetector(
+          onTap: onProfileTap,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                greeting,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  '$name 👋',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
-                  ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '$name 👋',
+                style: GoogleFonts.inter(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(width: 12),
         Row(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (onSosTap != null) ...[
-              InkWell(
-                onTap: onSosTap,
-                borderRadius: BorderRadius.circular(12),
-                child: SizedBox(
-                  width: 38,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 34,
-                        height: 34,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFDC2626),
-                          shape: BoxShape.circle,
+              Semantics(
+                button: true,
+                label: 'SOS emergency',
+                child: InkWell(
+                  onTap: onSosTap,
+                  borderRadius: BorderRadius.circular(18),
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: AppColors.error,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.sos_rounded,
+                              color: Colors.white, size: 20),
                         ),
-                        child: const Icon(
-                          Icons.notifications_active_rounded,
-                          color: Colors.white,
-                          size: 19,
+                        const SizedBox(height: 2),
+                        Text(
+                          'SOS',
+                          style: GoogleFonts.inter(
+                            color: AppColors.error,
+                            fontSize: 9,
+                            height: 1,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        'SOS',
-                        style: GoogleFonts.inter(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                          color: const Color(0xFFDC2626),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -184,19 +178,16 @@ class EmployeeGreetingHeader extends StatelessWidget {
                   onTap: onNotificationTap,
                   borderRadius: BorderRadius.circular(20),
                   child: Container(
-                    width: 34,
-                    height: 34,
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       shape: BoxShape.circle,
                       border: Border.all(color: AppColors.border),
                     ),
-                    child: const Center(
-                      child: Icon(
-                        Icons.notifications_none_rounded,
-                        color: AppColors.textPrimary,
-                        size: 20,
-                      ),
+                    child: const Icon(
+                      Icons.notifications_none_rounded,
+                      color: AppColors.textPrimary,
+                      size: 22,
                     ),
                   ),
                 ),
@@ -208,7 +199,7 @@ class EmployeeGreetingHeader extends StatelessWidget {
                       width: 9,
                       height: 9,
                       decoration: const BoxDecoration(
-                        color: AppColors.secondaryOrange,
+                        color: AppColors.error,
                         shape: BoxShape.circle,
                       ),
                     ),

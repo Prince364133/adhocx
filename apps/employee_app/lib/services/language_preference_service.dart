@@ -1,17 +1,14 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LanguagePreferenceService {
-  LanguagePreferenceService._();
+  static const _languageKey = 'employee_selected_language';
 
-  static const String _languageKey = 'employee_language';
-  static const String defaultLanguage = 'English';
-
-  static Future<String> getLanguage() async {
+  static Future<String> getSelectedLanguage() async {
     final preferences = await SharedPreferences.getInstance();
-    return preferences.getString(_languageKey) ?? defaultLanguage;
+    return preferences.getString(_languageKey) ?? 'English';
   }
 
-  static Future<void> setLanguage(String language) async {
+  static Future<void> setSelectedLanguage(String language) async {
     final preferences = await SharedPreferences.getInstance();
     await preferences.setString(_languageKey, language);
   }

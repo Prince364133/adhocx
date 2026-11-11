@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
+import '../shared/components/feedback/employee_press_scale.dart';
 
 enum ScheduleTab { day, week, month }
 
@@ -37,22 +38,31 @@ class ScheduleTabBar extends StatelessWidget {
     final isActive = activeTab == tab;
 
     return Expanded(
-      child: GestureDetector(
-        onTap: () => onTabChanged(tab),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            color: isActive ? AppColors.primaryBlue : Colors.transparent,
+      child: EmployeePressScale(
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          child: InkWell(
+            onTap: () => onTabChanged(tab),
             borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: GoogleFonts.inter(
-              fontSize: 13,
-              fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-              color: isActive ? Colors.white : AppColors.textSecondary,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              decoration: BoxDecoration(
+                color: isActive ? AppColors.primaryBlue : Colors.transparent,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOutCubic,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                  color: isActive ? Colors.white : AppColors.textSecondary,
+                ),
+                child: Text(label, textAlign: TextAlign.center),
+              ),
             ),
           ),
         ),
@@ -60,4 +70,3 @@ class ScheduleTabBar extends StatelessWidget {
     );
   }
 }
-

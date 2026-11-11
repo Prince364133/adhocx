@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../theme/app_colors.dart';
+import '../feedback/employee_press_scale.dart';
 
 /// Reusable Segmented Pill Filter Bar for AdhocX.
 /// Used in Notifications, Trip History, Schedule, and Request views.
@@ -33,49 +34,65 @@ class EmployeePillFilter extends StatelessWidget {
           final isSelected = selectedIndex == index;
           final count = counts?[index];
 
-          return InkWell(
-            onTap: () => onSelected(index),
-            borderRadius: BorderRadius.circular(20),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeInOut,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-              decoration: BoxDecoration(
-                color: isSelected ? AppColors.primaryBlue : Colors.transparent,
+          return EmployeePressScale(
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => onSelected(index),
                 borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    options[index],
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                      color: isSelected ? Colors.white : AppColors.textSecondary,
-                    ),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeInOut,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                  decoration: BoxDecoration(
+                    color:
+                        isSelected ? AppColors.primaryBlue : Colors.transparent,
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                  if (count != null && count > 0) ...[
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? Colors.white.withValues(alpha: 0.25)
-                            : AppColors.surfaceMuted,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        '$count',
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AnimatedDefaultTextStyle(
+                        duration: const Duration(milliseconds: 180),
+                        curve: Curves.easeOutCubic,
                         style: GoogleFonts.inter(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: isSelected ? Colors.white : AppColors.textPrimary,
+                          fontSize: 13,
+                          fontWeight:
+                              isSelected ? FontWeight.w700 : FontWeight.w500,
+                          color: isSelected
+                              ? Colors.white
+                              : AppColors.textSecondary,
                         ),
+                        child: Text(options[index]),
                       ),
-                    ),
-                  ],
-                ],
+                      if (count != null && count > 0) ...[
+                        const SizedBox(width: 6),
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? Colors.white.withValues(alpha: 0.25)
+                                : AppColors.surfaceMuted,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '$count',
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: isSelected
+                                  ? Colors.white
+                                  : AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
               ),
             ),
           );
@@ -113,19 +130,26 @@ class EmployeeIconButton extends StatelessWidget {
     final effectiveBg = backgroundColor ?? AppColors.surfaceMuted;
     final effectiveColor = iconColor ?? AppColors.textPrimary;
 
-    Widget button = InkWell(
-      onTap: onPressed,
-      borderRadius: BorderRadius.circular(size / 2),
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          color: effectiveBg,
-          shape: BoxShape.circle,
-          border: border,
-        ),
-        child: Center(
-          child: Icon(icon, size: iconSize, color: effectiveColor),
+    Widget button = EmployeePressScale(
+      enabled: onPressed != null,
+      child: Material(
+        color: Colors.transparent,
+        shape: const CircleBorder(),
+        child: InkWell(
+          onTap: onPressed,
+          customBorder: const CircleBorder(),
+          child: Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              color: effectiveBg,
+              shape: BoxShape.circle,
+              border: border,
+            ),
+            child: Center(
+              child: Icon(icon, size: iconSize, color: effectiveColor),
+            ),
+          ),
         ),
       ),
     );
@@ -136,4 +160,3 @@ class EmployeeIconButton extends StatelessWidget {
     return button;
   }
 }
-

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:adhocx_employee/services/language_preference_service.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/widgets/employee_primary_button.dart';
-import 'package:adhocx_employee/services/language_preference_service.dart';
 
 /// Screen 9: Select Language
 class SelectLanguageScreen extends StatefulWidget {
@@ -13,7 +13,7 @@ class SelectLanguageScreen extends StatefulWidget {
 }
 
 class _SelectLanguageScreenState extends State<SelectLanguageScreen> {
-  String _selectedLang = LanguagePreferenceService.defaultLanguage;
+  String _selectedLang = 'English';
 
   final List<String> _languages = [
     'English',
@@ -31,14 +31,14 @@ class _SelectLanguageScreenState extends State<SelectLanguageScreen> {
   }
 
   Future<void> _loadSelectedLanguage() async {
-    final language = await LanguagePreferenceService.getLanguage();
+    final language = await LanguagePreferenceService.getSelectedLanguage();
     if (mounted && _languages.contains(language)) {
       setState(() => _selectedLang = language);
     }
   }
 
   Future<void> _saveSelectedLanguage() async {
-    await LanguagePreferenceService.setLanguage(_selectedLang);
+    await LanguagePreferenceService.setSelectedLanguage(_selectedLang);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Language set to $_selectedLang.')),
@@ -89,8 +89,9 @@ class _SelectLanguageScreenState extends State<SelectLanguageScreen> {
                       children: [
                         ListTile(
                           onTap: () => setState(() => _selectedLang = lang),
-                          title: Text(
-                            lang,
+                          title: AnimatedDefaultTextStyle(
+                            duration: const Duration(milliseconds: 180),
+                            curve: Curves.easeOutCubic,
                             style: GoogleFonts.inter(
                               fontSize: 15,
                               fontWeight: isSelected
@@ -100,8 +101,11 @@ class _SelectLanguageScreenState extends State<SelectLanguageScreen> {
                                   ? AppColors.primaryBlue
                                   : AppColors.textPrimary,
                             ),
+                            child: Text(lang),
                           ),
-                          trailing: Container(
+                          trailing: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            curve: Curves.easeOutCubic,
                             width: 22,
                             height: 22,
                             decoration: BoxDecoration(
@@ -116,11 +120,26 @@ class _SelectLanguageScreenState extends State<SelectLanguageScreen> {
                                 width: 2,
                               ),
                             ),
-                            child: isSelected
-                                ? const Center(
-                                    child: Icon(Icons.check,
-                                        size: 14, color: Colors.white))
-                                : null,
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 160),
+                              transitionBuilder: (child, animation) =>
+                                  ScaleTransition(
+                                scale: animation,
+                                child: FadeTransition(
+                                  opacity: animation,
+                                  child: child,
+                                ),
+                              ),
+                              child: isSelected
+                                  ? const Center(
+                                      key: ValueKey('selected-language'),
+                                      child: Icon(Icons.check,
+                                          size: 14, color: Colors.white),
+                                    )
+                                  : const SizedBox.shrink(
+                                      key: ValueKey('unselected-language'),
+                                    ),
+                            ),
                           ),
                         ),
                         if (!isLast) const Divider(height: 1),

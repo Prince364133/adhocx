@@ -137,44 +137,35 @@ class _MobileNumberScreenState extends State<MobileNumberScreen> {
 
                     // Phone Input Field (+91 India)
                     Container(
-                      height: 56,
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 2),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(14),
                         border: Border.all(
                           color: rawText.isNotEmpty
-                              ? AppColors.borderFocused
+                              ? AppColors.primaryBlue
                               : AppColors.border,
-                          width: rawText.isNotEmpty ? 1.4 : 1,
+                          width: rawText.isNotEmpty ? 2.0 : 1.5,
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.darkNavy.withValues(alpha: 0.04),
-                            blurRadius: 14,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
                       ),
                       child: Row(
                         children: [
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Text(
-                                '🇮🇳',
-                                style: TextStyle(fontSize: 17),
-                              ),
-                              const SizedBox(width: 7),
+                              const Text('🇮🇳',
+                                  style: TextStyle(fontSize: 16)),
+                              const SizedBox(width: 5),
                               Text(
                                 '+91',
                                 style: GoogleFonts.inter(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
                                   color: AppColors.textPrimary,
                                 ),
                               ),
-                              const SizedBox(width: 3),
+                              const SizedBox(width: 4),
                               const Icon(
                                 Icons.keyboard_arrow_down_rounded,
                                 size: 18,
@@ -183,67 +174,74 @@ class _MobileNumberScreenState extends State<MobileNumberScreen> {
                             ],
                           ),
                           Container(
-                            height: 28,
+                            height: 24,
                             width: 1,
                             color: AppColors.border,
-                            margin: const EdgeInsets.symmetric(horizontal: 14),
+                            margin: const EdgeInsets.symmetric(horizontal: 10),
                           ),
                           Expanded(
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: TextField(
-                                    controller: _inputController,
-                                    keyboardType: TextInputType.phone,
-                                    inputFormatters: [
-                                      FilteringTextInputFormatter.digitsOnly,
-                                      LengthLimitingTextInputFormatter(10),
-                                    ],
-                                    style: GoogleFonts.inter(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w500,
-                                      color: AppColors.textPrimary,
-                                      letterSpacing: 0.25,
-                                    ),
-                                    decoration: InputDecoration(
-                                      hintText: '98765 43210',
-                                      hintStyle: GoogleFonts.inter(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w400,
-                                        color: AppColors.textMuted,
-                                        letterSpacing: 0,
-                                      ),
-                                      enabledBorder: InputBorder.none,
-                                      focusedBorder: InputBorder.none,
-                                      errorBorder: InputBorder.none,
-                                      focusedErrorBorder: InputBorder.none,
-                                      border: InputBorder.none,
-                                      filled: false,
-                                      isDense: true,
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                        vertical: 12,
-                                      ),
-                                    ),
+                            child: Theme(
+                              data: Theme.of(context).copyWith(
+                                inputDecorationTheme:
+                                    const InputDecorationTheme(
+                                  filled: false,
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  disabledBorder: InputBorder.none,
+                                  errorBorder: InputBorder.none,
+                                  focusedErrorBorder: InputBorder.none,
+                                ),
+                              ),
+                              child: TextField(
+                                controller: _inputController,
+                                keyboardType: TextInputType.phone,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                  LengthLimitingTextInputFormatter(10),
+                                ],
+                                style: GoogleFonts.inter(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textPrimary,
+                                  letterSpacing: 0.6,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: '98765 43210',
+                                  hintStyle: GoogleFonts.inter(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w400,
+                                    color: AppColors.textMuted,
+                                    letterSpacing: 0,
+                                  ),
+                                  filled: false,
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  disabledBorder: InputBorder.none,
+                                  errorBorder: InputBorder.none,
+                                  focusedErrorBorder: InputBorder.none,
+                                  isDense: true,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    vertical: 12,
                                   ),
                                 ),
-                                if (rawText.isNotEmpty)
-                                  IconButton(
-                                    onPressed: _inputController.clear,
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(
-                                      minWidth: 32,
-                                      minHeight: 40,
-                                    ),
-                                    icon: const Icon(
-                                      Icons.close_rounded,
-                                      size: 17,
-                                      color: AppColors.textMuted,
-                                    ),
-                                  ),
-                              ],
+                              ),
                             ),
                           ),
+                          if (rawText.isNotEmpty)
+                            GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _inputController.clear();
+                                });
+                              },
+                              child: const Icon(
+                                Icons.cancel,
+                                size: 18,
+                                color: AppColors.textMuted,
+                              ),
+                            ),
                         ],
                       ),
                     ),

@@ -25,6 +25,8 @@ class OtpVerificationScreen extends StatefulWidget {
 class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   String _otpCode = '';
   bool _hasError = false;
+  bool _isVerifying = false;
+  bool _isResending = false;
   String? _errorMessage;
 
   @override
@@ -38,6 +40,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   }
 
   Future<void> _handleVerify() async {
+    if (_isVerifying || context.read<EmployeeAuthProvider>().isLoading) return;
+
     if (_otpCode.length < 6) {
       setState(() {
         _hasError = true;
@@ -47,6 +51,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     }
 
     final authProvider = context.read<EmployeeAuthProvider>();
+    setState(() => _isVerifying = true);
     final result = await authProvider.verifyOtp(_otpCode);
 
     if (!mounted) return;
@@ -58,16 +63,31 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     } else {
       // Invalid OTP or expired OTP (Screen 14 state)
       setState(() {
+        _isVerifying = false;
         _hasError = true;
-        _errorMessage = authProvider.errorMessage ?? 'Invalid OTP. Please check and try again.';
+        _errorMessage = authProvider.errorMessage ??
+            'Invalid OTP. Please check and try again.';
       });
     }
   }
 
-  void _handleResend() {
+  Future<void> _handleResend() async {
     final authProvider = context.read<EmployeeAuthProvider>();
-    if (authProvider.resendCountdown <= 0) {
-      authProvider.resendOtp();
+    if (_isResending ||
+        authProvider.resendCountdown > 0 ||
+        authProvider.isLoading) {
+      return;
+    }
+
+    final phone = authProvider.currentPhone;
+    if (phone == null || phone.isEmpty) return;
+
+    setState(() => _isResending = true);
+    final sent = await authProvider.sendOtp(phone);
+    if (!mounted) return;
+    setState(() => _isResending = false);
+
+    if (sent) {
       setState(() {
         _hasError = false;
         _errorMessage = null;
@@ -79,13 +99,21 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
           duration: Duration(seconds: 2),
         ),
       );
+    } else {
+      setState(() {
+        _hasError = true;
+        _errorMessage =
+            authProvider.errorMessage ?? 'Unable to send a new OTP. Try again.';
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<EmployeeAuthProvider>();
-    final phone = (authProvider.currentPhone != null && authProvider.currentPhone!.isNotEmpty)
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final phone = (authProvider.currentPhone != null &&
+            authProvider.currentPhone!.isNotEmpty)
         ? authProvider.currentPhone!
         : 'your registered number';
     final countdown = authProvider.resendCountdown;
@@ -125,7 +153,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               EmployeeOtpInput(
                 length: 6,
                 hasError: _hasError,
-                initialValue: _otpCode.isNotEmpty ? _otpCode : null,
                 onChanged: (val) {
                   setState(() {
                     _otpCode = val;
@@ -144,55 +171,95 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               const SizedBox(height: 16),
 
               // Error banner if invalid (Screen 14)
-              if (_hasError && _errorMessage != null) ...[
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.error_outline_rounded,
-                      color: AppColors.error,
-                      size: 16,
+              AnimatedSize(
+                duration: reduceMotion
+                    ? Duration.zero
+                    : const Duration(milliseconds: 200),
+                curve: Curves.easeOutCubic,
+                child: AnimatedSwitcher(
+                  duration: reduceMotion
+                      ? Duration.zero
+                      : const Duration(milliseconds: 180),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  transitionBuilder: (child, animation) => FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0, -0.08),
+                        end: Offset.zero,
+                      ).animate(animation),
+                      child: child,
                     ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        _errorMessage!,
-                        style: GoogleFonts.inter(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.error,
+                  ),
+                  child: _hasError && _errorMessage != null
+                      ? Padding(
+                          key: ValueKey(_errorMessage),
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.error_outline_rounded,
+                                color: AppColors.error,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  _errorMessage!,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.error,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : const SizedBox.shrink(
+                          key: ValueKey('otp-error-hidden'),
                         ),
-                      ),
-                    ),
-                  ],
                 ),
-                const SizedBox(height: 16),
-              ],
+              ),
 
               // Resend countdown or action link
               Center(
-                child: countdown > 0 && !_hasError
-                    ? Text(
-                        'Resend OTP in $countdownFormatted',
-                        style: GoogleFonts.inter(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.primaryBlue,
-                        ),
-                      )
-                    : TextButton(
-                        onPressed: _handleResend,
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        ),
-                        child: Text(
-                          'Resend OTP',
+                child: AnimatedSwitcher(
+                  duration: reduceMotion
+                      ? Duration.zero
+                      : const Duration(milliseconds: 180),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  child: countdown > 0
+                      ? Text(
+                          'Resend OTP in $countdownFormatted',
+                          key: const ValueKey('otp-countdown'),
                           style: GoogleFonts.inter(
                             fontSize: 13,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w500,
                             color: AppColors.primaryBlue,
                           ),
+                        )
+                      : TextButton(
+                          key: const ValueKey('otp-resend'),
+                          onPressed: authProvider.isLoading || _isResending
+                              ? null
+                              : _handleResend,
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                          ),
+                          child: Text(
+                            'Resend OTP',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primaryBlue,
+                            ),
+                          ),
                         ),
-                      ),
+                ),
               ),
 
               const Spacer(),
@@ -211,6 +278,3 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     );
   }
 }
-
-
-

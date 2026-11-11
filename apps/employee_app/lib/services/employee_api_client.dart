@@ -23,7 +23,21 @@ class EmployeeApiClient {
   static String get defaultBaseUrl {
     const envUrl = String.fromEnvironment('API_URL');
     if (envUrl.isNotEmpty) return envUrl;
-    if (kIsWeb) return 'http://localhost:7001/api/v1';
+    if (kIsWeb) {
+      final appHost = Uri.base.host;
+      if (appHost == 'localhost' || appHost == '127.0.0.1') {
+        return 'http://localhost:7001/api/v1';
+      }
+      if (appHost == 'adhocx.com' || appHost.endsWith('.adhocx.com')) {
+        return 'https://api.adhocx.com/api/v1';
+      }
+      return Uri(
+        scheme: 'http',
+        host: appHost,
+        port: 7001,
+        path: '/api/v1',
+      ).toString();
+    }
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       return 'http://10.0.2.2:7001/api/v1';
     }
@@ -195,7 +209,8 @@ class EmployeeApiClient {
 
     // Silent Token Rotation on 401 Unauthorized
     if (res.statusCode == 401 && token != null) {
-      debugPrint('[EmployeeApiClient] 401 received. Attempting silent token rotation...');
+      debugPrint(
+          '[EmployeeApiClient] 401 received. Attempting silent token rotation...');
       final newToken = await _refreshToken();
       if (newToken != null) {
         res = await sendFn(newToken);
@@ -245,4 +260,3 @@ class ApiException implements Exception {
   @override
   String toString() => message;
 }
-

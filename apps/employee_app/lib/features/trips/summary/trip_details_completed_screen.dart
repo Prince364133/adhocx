@@ -6,6 +6,7 @@ import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/widgets/employee_app_bar.dart';
 import 'package:adhocx_employee/widgets/employee_primary_button.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
+import 'package:adhocx_employee/shared/components/feedback/employee_entrance.dart';
 
 class TripDetailsCompletedScreen extends StatefulWidget {
   const TripDetailsCompletedScreen({super.key});
@@ -127,62 +128,68 @@ class _TripDetailsCompletedScreenState
                     final time = item['time'] ?? '';
                     final isLast = index == timeline.length - 1;
 
-                    return IntrinsicHeight(
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Column(
-                            children: [
-                              Container(
-                                width: 22,
-                                height: 22,
-                                decoration: const BoxDecoration(
-                                  color: AppColors.success,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(Icons.check,
-                                    size: 14, color: Colors.white),
-                              ),
-                              if (!isLast)
-                                Expanded(
-                                  child: Container(
-                                    width: 2,
-                                    color: AppColors.successBorder,
-                                    margin:
-                                        const EdgeInsets.symmetric(vertical: 4),
+                    return EmployeeEntrance(
+                      delay: Duration(
+                        milliseconds: (index * 55).clamp(0, 330),
+                      ),
+                      child: IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Column(
+                              children: [
+                                Container(
+                                  width: 22,
+                                  height: 22,
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.success,
+                                    shape: BoxShape.circle,
                                   ),
+                                  child: const Icon(Icons.check,
+                                      size: 14, color: Colors.white),
                                 ),
-                            ],
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Padding(
-                              padding: EdgeInsets.only(bottom: isLast ? 0 : 20),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    event,
-                                    style: GoogleFonts.inter(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.textPrimary,
+                                if (!isLast)
+                                  Expanded(
+                                    child: Container(
+                                      width: 2,
+                                      color: AppColors.successBorder,
+                                      margin: const EdgeInsets.symmetric(
+                                          vertical: 4),
                                     ),
                                   ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    time,
-                                    style: GoogleFonts.inter(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
-                                      color: AppColors.textSecondary,
+                              ],
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Padding(
+                                padding:
+                                    EdgeInsets.only(bottom: isLast ? 0 : 20),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      event,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.textPrimary,
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      time,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     );
                   }),
