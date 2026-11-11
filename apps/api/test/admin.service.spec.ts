@@ -38,14 +38,28 @@ describe('AdminService Unit Tests', () => {
         findUnique: jest.fn(),
         delete: jest.fn(),
       },
+      payment: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      ledgerEntry: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
       requirement: {
         count: jest.fn().mockResolvedValue(3),
+        findMany: jest.fn().mockResolvedValue([]),
+        groupBy: jest.fn().mockResolvedValue([]),
       },
       trip: {
         count: jest.fn().mockResolvedValue(2),
+        findMany: jest.fn().mockResolvedValue([]),
+        groupBy: jest.fn().mockResolvedValue([]),
+      },
+      assignment: {
+        findMany: jest.fn().mockResolvedValue([]),
       },
       settlement: {
         count: jest.fn().mockResolvedValue(1),
+        findMany: jest.fn().mockResolvedValue([]),
       },
       auditLog: {
         findMany: jest.fn(),
@@ -178,12 +192,189 @@ describe('AdminService Unit Tests', () => {
       phone: '+919999999999',
       fullName: 'Departing Driver',
     });
+
     db.user.delete.mockResolvedValue({});
 
     await service.deleteUser('u-del-1', 'admin-1');
 
     expect(db.user.delete).toHaveBeenCalledWith({ where: { id: 'u-del-1' } });
     expect(redis.revokeUserSessions).toHaveBeenCalledWith('u-del-1');
+  });
+
+  it('should return daily trip counts for the last 30 UTC days', async () => {
+    db.driver.findMany.mockResolvedValue([]);
+    db.settlement.findMany.mockResolvedValue([]);
+    db.trip.findMany.mockImplementation(({ where }: { where?: { createdAt?: { gte: Date } } }) => {
+      if (!where?.createdAt?.gte) return Promise.resolve([]);
+      const firstDay = where.createdAt.gte;
+      const secondDay = new Date(firstDay);
+      secondDay.setUTCDate(secondDay.getUTCDate() + 1);
+      return Promise.resolve([
+        { createdAt: firstDay },
+        { createdAt: firstDay },
+        { createdAt: secondDay },
+      ]);
+    });
+
+    const report = await service.getOperationalReports();
+
+    expect(report.tripFrequency).toHaveLength(30);
+    expect(report.tripFrequency[0].count).toBe(2);
+    expect(report.tripFrequency[1].count).toBe(1);
+    expect(report.tripFrequency.slice(2).every((day) => day.count === 0)).toBe(true);
+  });
+
+  it('should return the selected month report and validate leap-year dates', async () => {
+    const februaryTripDate = new Date('2024-02-29T12:00:00.000Z');
+    db.trip.findMany.mockResolvedValue([{ createdAt: februaryTripDate }]);
+    db.trip.groupBy.mockResolvedValue([{ status: 'COMPLETED', _count: { _all: 1 } }]);
+
+    const report = await service.getTripFrequencyReport('2024', '2');
+
+    expect(report.dailyTrips).toHaveLength(29);
+    expect(report.totalTrips).toBe(1);
+    expect(report.dailyTrips[28]).toEqual({ date: '2024-02-29', count: 1 });
+    expect(report.statusBreakdown).toEqual([{ status: 'COMPLETED', count: 1 }]);
+
+    await expect(service.getTripFrequencyReport('2024', '2', '30')).rejects.toThrow(
+      'The selected day is not valid for this month.',
+    );
+  });
+
+  it('should include trip details when a day in the selected month is opened', async () => {
+    const trip = {
+      id: 'trip-1',
+      status: 'COMPLETED',
+      createdAt: new Date('2024-02-29T12:00:00.000Z'),
+      vehicleType: 'SEDAN',
+      pickupAddress: 'Pickup',
+      dropAddress: 'Dropoff',
+      driver: { fullName: 'Test Driver' },
+    };
+    db.trip.findMany.mockResolvedValueOnce([{ createdAt: trip.createdAt }]).mockResolvedValueOnce([trip]);
+    db.trip.groupBy.mockResolvedValue([{ status: 'COMPLETED', _count: { _all: 1 } }]);
+    db.trip.count.mockResolvedValue(1);
+
+    const report = await service.getTripFrequencyReport('2024', '2', '29');
+
+    expect(report.selectedDay).toBe('2024-02-29');
+    expect(report.selectedDayTotal).toBe(1);
+    expect(report.selectedDayTrips).toEqual([{ ...trip, createdAt: trip.createdAt.toISOString() }]);
+  });
+
+  it('should return a Monday-to-Sunday weekly report and reject invalid dates', async () => {
+    const monday = new Date('2024-02-26T10:00:00.000Z');
+    db.trip.findMany.mockResolvedValue([{ createdAt: monday }, { createdAt: new Date('2024-03-03T10:00:00.000Z') }]);
+    db.trip.groupBy.mockResolvedValue([{ status: 'COMPLETED', _count: { _all: 2 } }]);
+
+    const report = await service.getWeeklyTripFrequencyReport('2024-02-26');
+
+    expect(report.dailyTrips).toHaveLength(7);
+    expect(report.dailyTrips[0]).toEqual({ date: '2024-02-26', count: 1 });
+    expect(report.dailyTrips[6]).toEqual({ date: '2024-03-03', count: 1 });
+    expect(report.totalTrips).toBe(2);
+    expect(report.weekStart).toBe('2024-02-26');
+    expect(report.weekEnd).toBe('2024-03-03');
+
+    await expect(service.getWeeklyTripFrequencyReport('2024-02-27')).rejects.toThrow(
+      'The week-start date must be a valid Monday.',
+    );
+    await expect(service.getWeeklyTripFrequencyReport('2024-02-26', '2024-03-04')).rejects.toThrow(
+      'The selected date must be a valid date in the selected week.',
+    );
+  });
+
+  it('should include trip details for a selected day within the requested week', async () => {
+    const trip = {
+      id: 'trip-weekly-1',
+      status: 'ASSIGNED',
+      createdAt: new Date('2024-02-28T10:00:00.000Z'),
+      vehicleType: 'SEDAN',
+      pickupAddress: 'Pickup',
+      dropAddress: 'Dropoff',
+      driver: { fullName: 'Test Driver' },
+    };
+    db.trip.findMany.mockResolvedValueOnce([{ createdAt: trip.createdAt }]).mockResolvedValueOnce([trip]);
+    db.trip.groupBy.mockResolvedValue([{ status: 'ASSIGNED', _count: { _all: 1 } }]);
+    db.trip.count.mockResolvedValue(1);
+
+    const report = await service.getWeeklyTripFrequencyReport('2024-02-26', '2024-02-28');
+
+    expect(report.selectedDay).toBe('2024-02-28');
+    expect(report.selectedDayTotal).toBe(1);
+    expect(report.selectedDayTrips).toEqual([{ ...trip, createdAt: trip.createdAt.toISOString() }]);
+  });
+
+  it('should calculate date-filtered booking, revenue, payout, and escrow metrics for the India business date', async () => {
+    db.payment.findMany
+      .mockResolvedValueOnce([{ amount: 1000 }, { amount: 500 }])
+      .mockResolvedValueOnce([{ amount: 300 }]);
+    db.ledgerEntry.findMany.mockResolvedValue([{ amount: 140 }, { amount: 85 }]);
+    db.settlement.findMany.mockResolvedValue([{ amount: 100 }, { amount: 25 }]);
+
+    const report = await service.getDailyFinancialReport('2026-11-10');
+
+    expect(report).toEqual({
+      date: '2026-11-10',
+      currency: 'INR',
+      grossBookingValue: 1500,
+      revenue: 225,
+      expenditure: 125,
+      activeEscrowHoldValue: 300,
+      grossProfit: 100,
+      capturedPaymentCount: 2,
+      platformRevenueEntryCount: 2,
+      settledPayoutCount: 2,
+      activeEscrowHoldCount: 1,
+    });
+    expect(db.payment.findMany).toHaveBeenNthCalledWith(1, {
+      where: {
+        status: 'CAPTURED',
+        updatedAt: {
+          gte: new Date('2026-11-09T18:30:00.000Z'),
+          lt: new Date('2026-11-10T18:30:00.000Z'),
+        },
+      },
+      select: { amount: true },
+    });
+    expect(db.ledgerEntry.findMany).toHaveBeenCalledWith({
+      where: {
+        accountType: 'PLATFORM',
+        entryType: 'CREDIT',
+        referenceType: {
+          in: ['PLATFORM_COMMISSION', 'DISTANCE_PLATFORM_SPREAD', 'ZONAL_PLATFORM_SPREAD'],
+        },
+        createdAt: {
+          gte: new Date('2026-11-09T18:30:00.000Z'),
+          lt: new Date('2026-11-10T18:30:00.000Z'),
+        },
+      },
+      select: { amount: true },
+    });
+    expect(db.settlement.findMany).toHaveBeenCalledWith({
+      where: {
+        status: 'SETTLED',
+        processedAt: {
+          gte: new Date('2026-11-09T18:30:00.000Z'),
+          lt: new Date('2026-11-10T18:30:00.000Z'),
+        },
+      },
+      select: { amount: true },
+    });
+    expect(db.payment.findMany).toHaveBeenNthCalledWith(2, {
+      where: {
+        status: { in: ['AUTHORIZED', 'PENDING'] },
+        createdAt: {
+          gte: new Date('2026-11-09T18:30:00.000Z'),
+          lt: new Date('2026-11-10T18:30:00.000Z'),
+        },
+      },
+      select: { amount: true },
+    });
+
+    await expect(service.getDailyFinancialReport('2026-02-30')).rejects.toThrow(
+      'A valid report date is required.',
+    );
   });
 
   it('should aggregate platform operational metrics', async () => {

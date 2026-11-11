@@ -173,6 +173,38 @@ describe('Corporate Route Cost Optimizer & Corridor Heuristic Suite', () => {
       }
     });
 
+    it('groups pickups by nearby location and keeps opposite corridors in smaller cabs', () => {
+      const employees = [
+        createEmployee('east-a', 17.4, 78.55, 5.3),
+        createEmployee('north-a', 17.45, 78.5, 5.6),
+        createEmployee('east-b', 17.401, 78.551, 5.4),
+        createEmployee('north-b', 17.451, 78.501, 5.7),
+        createEmployee('east-c', 17.399, 78.552, 5.5),
+      ];
+
+      const groups = optimizeGroups(employees, office, customPricing, 6, 50);
+
+      expect(groups.map((group) => group.length).sort()).toEqual([2, 3]);
+      expect(groups.every((group) => group.length <= 6)).toBe(true);
+      for (const group of groups) {
+        expect(new Set(group.map((person) => person.employeeName.split('-')[0])).size).toBe(1);
+      }
+      expect(groups.flat().map((person) => person.employeeName).sort()).toEqual(
+        employees.map((person) => person.employeeName).sort(),
+      );
+    });
+
+    it('keeps pickups separate when sharing would add excessive passenger detour', () => {
+      const employees = [
+        createEmployee('far-north', 17.58, 78.5, 20),
+        createEmployee('near-southeast', 17.489, 78.593, 14),
+      ];
+
+      const groups = optimizeGroups(employees, office, customPricing, 6, 50);
+
+      expect(groups.map((group) => group.length)).toEqual([1, 1]);
+    });
+
     it('should merge compatible groups if mutual corridor angle is <= 55 degrees', () => {
       const group1 = [createEmployee('N1', 17.8, 78.5, 44)];
       const group2 = [createEmployee('N2', 17.9, 78.5, 55)];

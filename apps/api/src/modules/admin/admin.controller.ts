@@ -319,6 +319,31 @@ export class AdminController {
     return this.adminService.getCorridorAnalytics(range);
   }
 
+  @Get('reports/trips')
+  @ApiOperation({ summary: 'Get monthly trip frequency and an optional selected-day trip report' })
+  async getTripFrequencyReport(
+    @Query('year') year?: string,
+    @Query('month') month?: string,
+    @Query('day') day?: string,
+  ) {
+    return this.adminService.getTripFrequencyReport(year, month, day);
+  }
+
+  @Get('reports/trips/weekly')
+  @ApiOperation({ summary: 'Get a Monday-to-Sunday trip report and an optional selected-day report' })
+  async getWeeklyTripFrequencyReport(
+    @Query('weekStart') weekStart: string,
+    @Query('day') day?: string,
+  ) {
+    return this.adminService.getWeeklyTripFrequencyReport(weekStart, day);
+  }
+
+  @Get('reports/financial-daily')
+  @ApiOperation({ summary: 'Get date-filtered booking volume, platform revenue, payouts, and active escrow holds' })
+  async getDailyFinancialReport(@Query('date') date: string) {
+    return this.adminService.getDailyFinancialReport(date);
+  }
+
   @Get('reports/analytics')
   @Get('reports')
   @ApiOperation({ summary: 'Get operational SLA performance and platform GMV breakdown' })
@@ -348,5 +373,3 @@ export class AdminController {
     return this.adminService.resolveSupportTicket(id, admin.id, dto);
   }
 }
-
-

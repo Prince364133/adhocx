@@ -18,7 +18,7 @@ export class RouteSolverService {
   private readonly logger = new Logger(RouteSolverService.name);
 
   // Constants per PRD specs
-  private readonly DEFAULT_SEDAN_CAPACITY = 4;
+  private readonly DEFAULT_SEDAN_CAPACITY = 3;
   private readonly DEFAULT_SUV_CAPACITY = 6;
   private readonly STOP_DWELL_SECONDS = 300; // 5.0 minutes buffer per stop
   private readonly OFFICE_ARRIVAL_BUFFER_MINUTES = 10; // Arrive 10m before shift login

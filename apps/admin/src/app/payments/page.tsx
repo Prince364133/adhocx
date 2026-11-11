@@ -31,6 +31,7 @@ export default function PaymentsPage() {
     totalEscrowVolume: 0,
     activeEscrowHolds: 0,
     settledVolume: 0,
+    platformRevenue: 0,
     pendingTransactions: 0,
   });
   const [loading, setLoading] = useState(true);
@@ -52,6 +53,7 @@ export default function PaymentsPage() {
           totalEscrowVolume: 0,
           activeEscrowHolds: 0,
           settledVolume: 0,
+          platformRevenue: 0,
           pendingTransactions: 0,
         })),
       ]);

@@ -515,6 +515,7 @@ export interface AdminPaymentMetrics {
   totalEscrowVolume: number;
   activeEscrowHolds: number;
   settledVolume: number;
+  platformRevenue: number;
   pendingTransactions: number;
 }
 
@@ -586,9 +587,45 @@ export interface OperationalReportData {
   averageTripRating?: number;
   tripCancellationRate?: string;
   avgDriverResponse?: string;
+  tripFrequency?: Array<{ date: string; count: number }>;
   categoryBreakdown?: Array<{ category: string; rate: number; demands: number }>;
   slaHealth?: Array<{ metric: string; value: string; sla: string; desc: string }>;
   corridorAnalytics?: CorridorAnalytics[];
+}
+
+export interface TripFrequencyReport {
+  year: number;
+  month: number;
+  weekStart?: string;
+  weekEnd?: string;
+  totalTrips: number;
+  dailyTrips: Array<{ date: string; count: number }>;
+  statusBreakdown: Array<{ status: string; count: number }>;
+  selectedDay: string | null;
+  selectedDayTotal: number | null;
+  selectedDayTrips: Array<{
+    id: string;
+    status: string;
+    createdAt: string;
+    vehicleType: string;
+    pickupAddress: string;
+    dropAddress: string;
+    driver: { fullName: string };
+  }> | null;
+}
+
+export interface DailyFinancialReport {
+  date: string;
+  currency: 'INR';
+  grossBookingValue: number;
+  revenue: number;
+  expenditure: number;
+  activeEscrowHoldValue: number;
+  grossProfit: number;
+  capturedPaymentCount: number;
+  platformRevenueEntryCount: number;
+  settledPayoutCount: number;
+  activeEscrowHoldCount: number;
 }
 
 export interface SupportTicketItem {
@@ -1043,7 +1080,6 @@ export interface DistanceSimulationResult {
   grossSpreadRupees: number;
   grossMarginPercent: number;
 }
-
 // =============================================================================
 // DIGIO KYC / KYB VERIFICATION TYPES
 // =============================================================================
@@ -1272,4 +1308,3 @@ export interface DriverFinancialHistoryDetail {
     createdAt: string;
   }>;
 }
-

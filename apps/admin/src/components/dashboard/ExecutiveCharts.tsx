@@ -73,54 +73,33 @@ interface RevenueDataPoint {
 }
 
 export const RevenueIncomeChart: React.FC<{
-  currentGmv?: number;
-  currentRevenue?: number;
   timeSeriesData?: Record<string, RevenueDataPoint[]>;
-}> = ({ currentGmv = 0, currentRevenue = 0, timeSeriesData }) => {
+}> = ({ timeSeriesData }) => {
   const [timeframe, setTimeframe] = useState<'7D' | '30D' | '90D' | '1Y'>('7D');
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
-  // Generate real timeframe labels with real data (or 0 baseline if zero transactions)
-  const getRealData = (tf: '7D' | '30D' | '90D' | '1Y'): RevenueDataPoint[] => {
-    if (timeSeriesData && timeSeriesData[tf] && timeSeriesData[tf].length > 0) {
-      return timeSeriesData[tf];
-    }
+  const data = timeSeriesData?.[timeframe] ?? [];
+  if (data.length === 0) {
+    return (
+      <div
+        style={{
+          background: 'var(--bg-surface)',
+          borderRadius: 'var(--radius-xl)',
+          border: '1px solid var(--border)',
+          padding: '1.5rem',
+          boxShadow: 'var(--shadow-card)',
+        }}
+      >
+        <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+          Historical Financial Activity
+        </h3>
+        <p style={{ margin: '0.5rem 0 0', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+          Date-bucketed financial history is unavailable. No trend is shown until actual payment, ledger, and settlement history is provided.
+        </p>
+      </div>
+    );
+  }
 
-    if (currentGmv === 0) {
-      const labels =
-        tf === '7D'
-          ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-          : tf === '30D'
-          ? ['Week 1', 'Week 2', 'Week 3', 'Week 4']
-          : tf === '90D'
-          ? ['Month 1', 'Month 2', 'Month 3']
-          : ['Q1', 'Q2', 'Q3', 'Q4'];
-      return labels.map((label) => ({ label, gmv: 0, revenue: 0, payouts: 0 }));
-    }
-
-    // When real GMV exists, distribute proportionally across periods
-    const periods =
-      tf === '7D'
-        ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-        : tf === '30D'
-        ? ['Week 1', 'Week 2', 'Week 3', 'Week 4']
-        : tf === '90D'
-        ? ['Month 1', 'Month 2', 'Month 3']
-        : ['Q1', 'Q2', 'Q3', 'Q4'];
-
-    const totalPoints = periods.length;
-    const baseGmv = Math.round(currentGmv / totalPoints);
-    const baseRev = Math.round(currentRevenue / totalPoints);
-
-    return periods.map((label, idx) => ({
-      label,
-      gmv: idx === totalPoints - 1 ? currentGmv - baseGmv * (totalPoints - 1) : baseGmv,
-      revenue: idx === totalPoints - 1 ? currentRevenue - baseRev * (totalPoints - 1) : baseRev,
-      payouts: Math.round(baseGmv * 0.85),
-    }));
-  };
-
-  const data = getRealData(timeframe);
   const maxGmv = Math.max(...data.map((d) => d.gmv), 100);
 
   const width = 760;
@@ -201,24 +180,24 @@ export const RevenueIncomeChart: React.FC<{
               }}
             />
             <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-              Platform Revenue & Income Velocity
+              Platform Revenue & Income
             </h3>
             <span
               style={{
                 fontSize: '0.72rem',
                 fontWeight: 700,
-                color: currentGmv > 0 ? 'var(--color-success)' : 'var(--text-muted)',
-                background: currentGmv > 0 ? 'var(--color-success-bg)' : 'var(--bg-canvas)',
+                color: 'var(--color-success)',
+                background: 'var(--color-success-bg)',
                 padding: '0.15rem 0.5rem',
                 borderRadius: 'var(--radius-pill)',
-                border: '1px solid ' + (currentGmv > 0 ? 'var(--color-success-border)' : 'var(--border)'),
+                border: '1px solid var(--color-success-border)',
               }}
             >
-              {currentGmv > 0 ? 'Live Telemetry' : 'Live Ledger (0 Transactions)'}
+              Recorded period data
             </span>
           </div>
           <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: 0 }}>
-            Gross Booking Value (GMV) vs. Platform Take-Rate (15.0%) & Clearances
+            Gross booking value, platform ledger credits, and settled payouts
           </p>
         </div>
 
@@ -281,7 +260,7 @@ export const RevenueIncomeChart: React.FC<{
         </div>
         <div>
           <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
-            Net Take-Rate
+            Platform Revenue
           </div>
           <div style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--brand-secondary)', marginTop: '0.2rem' }}>
             ₹ {totalPeriodRev.toLocaleString('en-IN')}
@@ -300,7 +279,7 @@ export const RevenueIncomeChart: React.FC<{
             Status
           </div>
           <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
-            {currentGmv > 0 ? 'Active Volume' : 'Awaiting Trips'}
+            {data.length} recorded periods
           </div>
         </div>
       </div>
@@ -423,18 +402,18 @@ export const RevenueIncomeChart: React.FC<{
             }}
           >
             <div style={{ fontWeight: 800, color: 'var(--text-primary)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.25rem' }}>
-              {activePoint.label} Telemetry
+              {activePoint.label} Activity
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', color: '#5B42F3', fontWeight: 700 }}>
-              <span>Gross GMV:</span>
+              <span>Booking volume:</span>
               <span>₹ {activePoint.gmv.toLocaleString('en-IN')}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', color: '#FF6200', fontWeight: 700 }}>
-              <span>Take-Rate:</span>
+              <span>Platform revenue:</span>
               <span>₹ {activePoint.revenue.toLocaleString('en-IN')}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', color: '#16A34A', fontWeight: 700 }}>
-              <span>Payouts:</span>
+              <span>Settled payouts:</span>
               <span>₹ {activePoint.payouts.toLocaleString('en-IN')}</span>
             </div>
           </div>
@@ -449,11 +428,11 @@ export const RevenueIncomeChart: React.FC<{
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
           <span style={{ width: '12px', height: '3px', background: '#FF6200', borderRadius: '2px', display: 'inline-block' }} />
-          <span>Platform Take-Rate (15%)</span>
+          <span>Recorded platform revenue</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
           <span style={{ width: '12px', height: '3px', background: '#16A34A', borderRadius: '2px', display: 'inline-block' }} />
-          <span>Driver Payouts (85%)</span>
+          <span>Settled driver payouts</span>
         </div>
       </div>
     </div>
