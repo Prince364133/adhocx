@@ -1,6 +1,7 @@
 import { setBounded } from '../../../common/utils/bounded-map';
 import { Injectable, Logger } from '@nestjs/common';
 import * as https from 'https';
+import { createHash } from 'crypto';
 import { RedisService } from '../../../redis/redis.service';
 
 export interface GeocodedAddressResult {
@@ -22,6 +23,23 @@ export class GoogleGeocodingAdapter {
   }
 
   /**
+   * Synthetic (non-Google) coordinates are only acceptable outside production, or when explicitly
+   * enabled with CORPORATE_GEOCODE_FALLBACK=true. In production a failed geocode must surface as an
+   * error: a fabricated point would place an office or pickup somewhere the cab can't find.
+   */
+  static fallbackAllowed(): boolean {
+    const flag = (process.env.CORPORATE_GEOCODE_FALLBACK ?? '').trim().toLowerCase();
+    if (['true', '1', 'yes', 'on'].includes(flag)) return true;
+    if (['false', '0', 'no', 'off'].includes(flag)) return false;
+    return (process.env.NODE_ENV ?? '').toLowerCase() !== 'production';
+  }
+
+  /** Full-address digest: a truncated prefix collided for long addresses in the same complex. */
+  static cacheKey(normalized: string): string {
+    return `corporate:geocode:v2:${createHash('sha256').update(normalized).digest('hex')}`;
+  }
+
+  /**
    * Geocodes an address string using Google Geocoding API with Redis & in-memory caching.
    */
   async geocode(address: string): Promise<GeocodedAddressResult> {
@@ -39,7 +57,7 @@ export class GoogleGeocodingAdapter {
     }
 
     // 2. Check Redis cache
-    const redisKey = `corporate:geocode:${Buffer.from(normalized).toString('base64').slice(0, 48)}`;
+    const redisKey = GoogleGeocodingAdapter.cacheKey(normalized);
     try {
       const redisCached = await this.redis.get(redisKey);
       if (redisCached) {
@@ -63,14 +81,18 @@ export class GoogleGeocodingAdapter {
         }
         return result;
       } catch (err: any) {
-        this.logger.warn(`Google Geocoding failed for "${raw}" (${err.message}). Using high-fidelity Hyderabad spatial fallback.`);
+        if (!GoogleGeocodingAdapter.fallbackAllowed()) {
+          throw new Error(`Google Geocoding failed for "${raw}": ${err.message}`);
+        }
+        this.logger.warn(`Google Geocoding failed for "${raw}" (${err.message}). Using synthetic fallback coordinates (non-production).`);
       }
+    } else if (!GoogleGeocodingAdapter.fallbackAllowed()) {
+      throw new Error(`GOOGLE_MAPS_API_KEY is not configured; cannot geocode "${raw}"`);
     }
 
-    // 4. Deterministic fallback for test / offline / missing key environments
-    const fallback = this.generateFallbackCoordinates(raw);
-    setBounded(this.memoryCache, normalized, fallback, 5000);
-    return fallback;
+    // 4. Deterministic fallback for test / offline / missing key environments. Never cached, so a
+    //    real geocode replaces it as soon as Google is reachable again.
+    return this.generateFallbackCoordinates(raw);
   }
 
   /**

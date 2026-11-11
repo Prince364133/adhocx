@@ -33,7 +33,11 @@ export function useVerificationActions(
 
       try {
         if (item.entityType === 'DRIVER') {
-          await adminApi.verifyDriver(item.id, notes || 'Verified and approved by Super Admin', overrideReason);
+          await adminApi.verifyDriver(
+            item.id,
+            notes || 'Verified and approved by Super Admin',
+            overrideReason || 'Approved by admin override',
+          );
         } else {
           await adminApi.verifyVendor(item.id, notes || 'Verified and approved by Super Admin');
         }

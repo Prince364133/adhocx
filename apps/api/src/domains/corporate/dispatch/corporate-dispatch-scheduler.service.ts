@@ -211,6 +211,14 @@ export class CorporateDispatchSchedulerService implements OnModuleInit, OnModule
     await this.releaseTickLock();
   }
 
+  private runWithClock<T>(nowMs: number, fn: () => Promise<T>): Promise<T> {
+    const svc = this.dispatchService as any;
+    if (svc && typeof svc.withClock === 'function') {
+      return svc.withClock(nowMs, fn);
+    }
+    return fn();
+  }
+
   /**
    * Main scheduler tick. Public so unit and integration tests can drive time deterministically.
    */
@@ -226,7 +234,7 @@ export class CorporateDispatchSchedulerService implements OnModuleInit, OnModule
     if (this.isTicking || this.shuttingDown) return empty;
 
     this.isTicking = true;
-    const run = (async (): Promise<DispatchSchedulerTickResult> => {
+    const run = this.runWithClock(nowMs, async (): Promise<DispatchSchedulerTickResult> => {
       if (!(await this.acquireTickLock())) return empty;
       let scan: {
         reapedOffers: string[];
@@ -252,6 +260,11 @@ export class CorporateDispatchSchedulerService implements OnModuleInit, OnModule
           recoveredRoutes = await this.recoverStuckRoutes(nowMs);
         }
 
+        // 3b. Enforce 30-min / 6-run dispatch exhaustion -> NO_DRIVERS_FOUND
+        if (typeof (this.dispatchService as any).checkAndMarkExhaustedWindows === 'function') {
+          await Promise.resolve((this.dispatchService as any).checkAndMarkExhaustedWindows(nowMs)).catch(() => undefined);
+        }
+
         // 4. ALLOC-05 escalation, once per tick across instances (under the tick lock). The
         //    conditional atRisk flag keeps it idempotent if the lock ever expires mid-tick.
         const escalatedRoutes = await this.escalateAtRiskRoutes(nowMs);
@@ -272,7 +285,7 @@ export class CorporateDispatchSchedulerService implements OnModuleInit, OnModule
         escalatedRoutes: scan.escalatedRoutes,
         skipped: false,
       };
-    })();
+    });
 
     this.currentTick = run;
     try {
@@ -290,7 +303,7 @@ export class CorporateDispatchSchedulerService implements OnModuleInit, OnModule
   public async work(nowMs: number = Date.now()): Promise<DispatchWorkResult> {
     if (this.isWorking || this.shuttingDown) return { dispatchedRoutes: [], reapedOffers: [], processed: 0 };
     this.isWorking = true;
-    const run = this.drainQueue(nowMs);
+    const run = this.runWithClock(nowMs, () => this.drainQueue(nowMs));
     this.currentWork = run;
     try {
       return await run;
@@ -399,6 +412,9 @@ export class CorporateDispatchSchedulerService implements OnModuleInit, OnModule
           id: true,
           direction: true,
           status: true,
+          driverId: true,
+          dispatchStatus: true,
+          dispatchAttempts: true,
           targetPickup1Time: true,
           tenant: { select: { name: true } },
         },
@@ -454,6 +470,9 @@ export class CorporateDispatchSchedulerService implements OnModuleInit, OnModule
           id: true,
           direction: true,
           status: true,
+          driverId: true,
+          dispatchStatus: true,
+          dispatchAttempts: true,
           targetPickup1Time: true,
           tenant: { select: { name: true } },
         },
@@ -576,34 +595,41 @@ export class CorporateDispatchSchedulerService implements OnModuleInit, OnModule
     const client = this.redis?.getClient();
     if (!client) return [];
 
-    const recovered: string[] = [];
-    for await (const page of this.pageRoutes({
-      status: 'DISPATCHING',
-      updatedAt: { lt: new Date(nowMs - this.config.stuckAfterMs) },
-      targetPickup1Time: { gte: new Date(nowMs - 2 * 60 * 60 * 1000) },
-    })) {
-      await mapWithConcurrency(
-        page,
-        this.config.concurrency,
-        async (route) => {
-          try {
-            const offer = await client.get(CorporateDispatchKeys.offer(route.id));
-            const offerDriver = await client.get(CorporateDispatchKeys.offerDriver(route.id));
-            const retryMarker = await client.get(CorporateDispatchKeys.unserved(route.id));
-            if (offer || offerDriver || retryMarker) return;
-            this.logger.warn(`[RECOVERY] Route ${route.id} DISPATCHING without live offer; re-dispatching`);
-            const res = await this.dispatchService.dispatchRoute(route.id, false);
-            if (res?.status === 'OFFERED') recovered.push(route.id);
-          } catch (err: any) {
-            if (!(err instanceof ConflictException)) {
-              this.logger.error(`Recovery failed for route ${route.id}: ${err.message}`);
+    return this.runWithClock(nowMs, async () => {
+      if (typeof (this.dispatchService as any).checkAndMarkExhaustedWindows === 'function') {
+        await Promise.resolve((this.dispatchService as any).checkAndMarkExhaustedWindows(nowMs)).catch(() => undefined);
+      }
+
+      const recovered: string[] = [];
+      for await (const page of this.pageRoutes({
+        status: 'DISPATCHING',
+        updatedAt: { lt: new Date(nowMs - this.config.stuckAfterMs) },
+        targetPickup1Time: { gte: new Date(nowMs - 2 * 60 * 60 * 1000) },
+      })) {
+        await mapWithConcurrency(
+          page,
+          this.config.concurrency,
+          async (route) => {
+            if (route.driverId || route.dispatchStatus === 'NO_DRIVERS_FOUND') return;
+            try {
+              const offer = await client.get(CorporateDispatchKeys.offer(route.id));
+              const offerDriver = await client.get(CorporateDispatchKeys.offerDriver(route.id));
+              const retryMarker = await client.get(CorporateDispatchKeys.unserved(route.id));
+              if (offer || offerDriver || retryMarker) return;
+              this.logger.warn(`[RECOVERY] Route ${route.id} DISPATCHING without live offer; re-dispatching`);
+              const res = await this.dispatchService.dispatchRoute(route.id, false);
+              if (res?.status === 'OFFERED') recovered.push(route.id);
+            } catch (err: any) {
+              if (!(err instanceof ConflictException)) {
+                this.logger.error(`Recovery failed for route ${route.id}: ${err.message}`);
+              }
             }
-          }
-        },
-        () => this.shuttingDown,
-      );
-    }
-    return recovered;
+          },
+          () => this.shuttingDown,
+        );
+      }
+      return recovered;
+    });
   }
 
   /**

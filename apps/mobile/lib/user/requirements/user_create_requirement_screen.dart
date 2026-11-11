@@ -668,13 +668,20 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
           Fluttertoast.showToast(msg: 'Please rate your previous ride, then tap deploy again.');
           return;
         }
+        if (!FeatureFlags.isVendorWalletEnabled &&
+            deployErrors.any(FeatureFlags.isVendorRequirementWalletError)) {
+          AppToast.showWarning(
+            FeatureFlags.vendorPaymentGatewayPendingMessage,
+            context: mounted ? context : null,
+          );
+          return;
+        }
         final reason = deployErrors.isNotEmpty && deployErrors.first is ApiException
             ? (deployErrors.first as ApiException).message
             : 'Please check your connection and try again.';
-        Fluttertoast.showToast(
-          msg: 'No cabs were booked. $reason',
-          backgroundColor: AppColors.error,
-          textColor: Colors.white,
+        AppToast.showError(
+          'No cabs were booked. $reason',
+          context: mounted ? context : null,
         );
         return; // nothing booked: cart stays as it was
       }

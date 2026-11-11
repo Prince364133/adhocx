@@ -7,6 +7,7 @@ import {
   RouteWaypointsResponse,
   SosAlertItem,
   RoutePlanningResult,
+  RouteDirectionsResult,
   RequirementListItem,
   AssignmentItem,
   TripListItem,
@@ -415,27 +416,45 @@ export const opsApi = {
 
   // ── Routes & Filtering ──
   getRoutes: async (params: {
-    tenantId: string;
+    tenantId?: string;
     shiftDate?: string;
     shiftTime?: string;
     direction?: 'LOGIN' | 'LOGOUT';
     status?: string;
+    dispatchStatus?: string;
+    search?: string;
     limit?: number;
     offset?: number;
     includeStops?: boolean;
     includeAnalytics?: boolean;
   }): Promise<CorporateRouteItem[]> => {
-    const q = new URLSearchParams({ tenantId: params.tenantId });
+    const q = new URLSearchParams();
+    if (params.tenantId && params.tenantId !== 'ALL') q.set('tenantId', params.tenantId);
     if (params.shiftDate) q.set('shiftDate', params.shiftDate);
     if (params.shiftTime) q.set('shiftTime', params.shiftTime);
     if (params.direction) q.set('direction', params.direction);
     if (params.status) q.set('status', params.status);
+    if (params.dispatchStatus) q.set('dispatchStatus', params.dispatchStatus);
+    if (params.search?.trim()) q.set('search', params.search.trim());
     if (params.limit) q.set('limit', String(params.limit));
     if (params.offset) q.set('offset', String(params.offset));
     if (params.includeStops) q.set('includeStops', 'true');
     if (params.includeAnalytics) q.set('includeAnalytics', 'true');
 
-    return request<CorporateRouteItem[]>(`/corporate/routes?${q.toString()}`);
+    const query = q.toString();
+    return request<CorporateRouteItem[]>(`/corporate/routes${query ? `?${query}` : ''}`);
+  },
+
+  getRouteById: async (routeId: string, includeDirections = true): Promise<CorporateRouteItem> => {
+    return request<CorporateRouteItem>(
+      `/corporate/routes/${encodeURIComponent(routeId)}${includeDirections ? '?includeDirections=true' : ''}`,
+    );
+  },
+
+  getRouteDirections: async (routeId: string, refresh = false): Promise<RouteDirectionsResult> => {
+    return request<RouteDirectionsResult>(
+      `/corporate/routes/${encodeURIComponent(routeId)}/directions${refresh ? '?refresh=true' : ''}`,
+    );
   },
 
   // ── Manual Operations Interventions (§ 55) ──

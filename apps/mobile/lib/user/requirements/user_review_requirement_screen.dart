@@ -623,7 +623,7 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
         final rawMsg = e is ApiException
             ? e.message
             : e.toString().replaceAll("Exception: ", "").replaceAll("BadRequestException: ", "");
-        final isLowBalance = rawMsg.toLowerCase().contains("insufficient") || rawMsg.toLowerCase().contains("wallet") || rawMsg.toLowerCase().contains("balance");
+        final isLowBalance = FeatureFlags.isVendorRequirementWalletError(e);
 
         // Server review gate (structured 403): draft stays intact; rate, then tap submit again
         if (PendingReviewGate.handleBookingError(context, e)) {
@@ -634,13 +634,20 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
               duration: const Duration(seconds: 5),
             ),
           );
-        } else if (isLowBalance && FeatureFlags.isVendorWalletEnabled) {
-          Fluttertoast.showToast(
-            msg: rawMsg,
-            backgroundColor: AppColors.error,
-            textColor: Colors.white,
-          );
-          _showTopUpBottomSheet();
+        } else if (isLowBalance) {
+          if (FeatureFlags.isVendorWalletEnabled) {
+            Fluttertoast.showToast(
+              msg: rawMsg,
+              backgroundColor: AppColors.error,
+              textColor: Colors.white,
+            );
+            _showTopUpBottomSheet();
+          } else {
+            AppToast.showWarning(
+              FeatureFlags.vendorPaymentGatewayPendingMessage,
+              context: context,
+            );
+          }
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(

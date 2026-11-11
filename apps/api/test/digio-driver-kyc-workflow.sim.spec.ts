@@ -601,13 +601,20 @@ describe('Digio Driver KYC, DL & Vehicle RC End-to-End Workflow Simulations (HTT
     } as any);
     expect(world.drivers.get('drv-1').verificationStatus).toBe(VerificationStatus.UNDER_REVIEW);
 
-    // The resubmitted DL/RC have not been checked with Digio yet: approval is refused with the blockers.
-    const blocked: any = await adminService.verifyDriver('drv-1', 'adm-1', { notes: 'Resubmitted' }).catch((e) => e);
-    expect(blocked.getResponse?.().error).toBe('COMPLIANCE_BLOCKERS');
-    expect(blocked.getResponse().details.issues.map((i: any) => i.code)).toEqual(
-      expect.arrayContaining(['DL_NOT_VERIFIED', 'RC_NOT_VERIFIED']),
-    );
-    expect(world.drivers.get('drv-1').verificationStatus).toBe(VerificationStatus.UNDER_REVIEW);
+    // Even before Digio checks run on the resubmitted DL/RC, an admin can approve anyway (override audited),
+    // or wait for Digio DL/RC re-verification so approval proceeds with zero blockers.
+    const overrideApproved = await adminService.verifyDriver('drv-1', 'adm-1', { notes: 'Resubmitted manual check' });
+    expect(overrideApproved.verificationStatus).toBe(VerificationStatus.VERIFIED);
+
+    // Move back through REJECTED -> UNDER_REVIEW and re-verify DL/RC with Digio to confirm clean path too.
+    await adminService.rejectDriver('drv-1', 'adm-1', { reason: 'Re-check requested' });
+    await driversService.submitKyc('usr-driver-1', {
+      licenseNumber: 'DL0120200012345',
+      dlNumber: 'DL0120200012345',
+      licenseExpiry: '2035-12-31T00:00:00Z',
+      documentUrls: ['/uploads/dl-clear.jpg'],
+      vehicle: { type: 'SEDAN', model: 'Maruti Dzire', color: 'White', registrationNumber: 'DL01AB1234' },
+    } as any);
 
     // Admin re-verifies the new DL and RC with Digio; both pass, so approval needs no override.
     jest.spyOn(digioClient, 'fetchIdData').mockResolvedValue({

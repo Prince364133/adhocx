@@ -1617,8 +1617,6 @@ export default function RouteOptimizerPage() {
                   size="sm"
                   onClick={() => {
                     setPlanResult(null);
-                    setIsMockPlan(false);
-                    setMockSavedRoutesCount(0);
                   }}
                 >
                   Edit Params

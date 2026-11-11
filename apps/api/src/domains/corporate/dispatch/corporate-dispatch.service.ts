@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { PickupRadiusConfig } from '../../../modules/dispatch/pickup-radius';
 import {
   Inject,
@@ -119,20 +120,45 @@ export const CORPORATE_DISPATCH_UNSERVED_RETRY_SECONDS = 300;
 /** After an "all candidates busy" result, retry sooner: busy drivers free up within ~60s. */
 export const CORPORATE_DISPATCH_BUSY_RETRY_SECONDS = 60;
 
+export interface DispatchPolicySettings {
+  approachLeadMinutes: number;
+  dispatchWindowMinutes: number;
+  retryIntervalMinutes: number;
+  searchRadiusKm: number;
+  maxRuns: number;
+  policyStopDwellSeconds: number | null;
+}
+
+function clampDispatchInt(value: unknown, min: number, max: number, fallback: number): number {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return fallback;
+  return Math.max(min, Math.min(max, Math.round(num)));
+}
+
 @Injectable()
 export class CorporateDispatchService {
   private readonly logger = new Logger(CorporateDispatchService.name);
+  private readonly clockStorage = new AsyncLocalStorage<number>();
+  private readonly cascadeStorage = new AsyncLocalStorage<boolean>();
+
+  /** Runs a dispatch operation under an explicit synthetic clock (for deterministic ticks/simulations). */
+  public withClock<T>(nowMs: number, fn: () => Promise<T>): Promise<T> {
+    return this.clockStorage.run(nowMs, fn);
+  }
+
+  private getCurrentNowMs(overrideNowMs?: number): number {
+    if (overrideNowMs !== undefined && Number.isFinite(overrideNowMs)) return overrideNowMs;
+    return this.clockStorage.getStore() ?? Date.now();
+  }
 
   // Constants per PRD specification
-  private readonly STANDARD_DISPATCH_LEAD_MINUTES = 60; // 1 hour before pickup 1
+  private readonly APPROACH_BUFFER_MINUTES = 30; // 30m driver approach travel time to 10km pickup
+  private readonly DISPATCH_WINDOW_MINUTES = 30; // 30m driver search window before approach cutoff
+  private readonly RETRY_INTERVAL_MINUTES = 5; // 5m wait before restarting 10km search (up to 6 runs)
   private readonly LOGOUT_STAGING_LEAD_MINUTES = 15; // Cab at office 15m prior to logout
   /** Primary search: 5 km, never beyond the configured pickup radius (docs/23). */
   private get PRIMARY_SEARCH_RADIUS_KM(): number {
     return Math.min(5, PickupRadiusConfig.maxPickupRadiusKm);
-  }
-  /** Expanded search = the configured pickup radius (DISPATCH_MAX_PICKUP_RADIUS_KM, default 10 km). */
-  private get EXPANDED_SEARCH_RADIUS_KM(): number {
-    return PickupRadiusConfig.maxPickupRadiusKm;
   }
   private readonly OFFER_TTL_SECONDS = 60; // 60 seconds atomic offer countdown
   /** How long an accept waits for the route lock before answering 409 "retry". */
@@ -140,10 +166,61 @@ export class CorporateDispatchService {
   /** Fallback offer pricing, used only when no CorporateDriverRateCard is in force (logs a warning). */
   private readonly BASE_FARE_PAISE = 30000; // ₹300 base fare (in paise)
   private readonly RATE_PER_KM_PAISE = 2000; // ₹20/km (in paise)
-  private readonly STOP_DWELL_SECONDS = 300; // 5-minute boarding buffer per pickup
+  private readonly STOP_DWELL_SECONDS = 300; // Fallback boarding buffer when policy/stop dwell absent
   private readonly MODERATE_DELAY_MINUTES = 10; // congestion label only; does not advance dispatch
   /** DDA advances dispatch when traffic delay >= this many minutes (env CORPORATE_DDA_ADVANCE_THRESHOLD_MINUTES). */
   private readonly ddaAdvanceThresholdMinutes = envPositiveNumber('CORPORATE_DDA_ADVANCE_THRESHOLD_MINUTES', 30);
+
+  private async loadDispatchPolicy(tenantId?: string | null): Promise<DispatchPolicySettings> {
+    let policy: any = null;
+    if (tenantId && typeof (this.db as any)?.corporateTenantPolicy?.findFirst === 'function') {
+      try {
+        policy = await (this.db as any).corporateTenantPolicy.findFirst({
+          where: { tenantId },
+          orderBy: { version: 'desc' },
+        });
+      } catch {
+        policy = null;
+      }
+    }
+    const approachLeadMinutes = clampDispatchInt(policy?.approachLeadMinutes, 5, 120, this.APPROACH_BUFFER_MINUTES);
+    const dispatchWindowMinutes = clampDispatchInt(policy?.dispatchWindowMinutes, 5, 120, this.DISPATCH_WINDOW_MINUTES);
+    const retryIntervalMinutes = clampDispatchInt(policy?.dispatchRetryIntervalMinutes, 1, 30, this.RETRY_INTERVAL_MINUTES);
+    const maxAllowedRadius = Math.max(1, PickupRadiusConfig.maxPickupRadiusKm || 10);
+    const searchRadiusKm = Math.min(
+      maxAllowedRadius,
+      clampDispatchInt(policy?.searchRadiusKm, 1, 50, maxAllowedRadius),
+    );
+    const maxRuns = Math.max(1, Math.floor(dispatchWindowMinutes / retryIntervalMinutes));
+    const policyStopDwellSeconds =
+      typeof policy?.stopDwellMinutes === 'number' && policy.stopDwellMinutes > 0
+        ? Math.min(10, Math.round(policy.stopDwellMinutes)) * 60
+        : null;
+    return {
+      approachLeadMinutes,
+      dispatchWindowMinutes,
+      retryIntervalMinutes,
+      searchRadiusKm,
+      maxRuns,
+      policyStopDwellSeconds,
+    };
+  }
+
+  private computeRouteDwellSeconds(stops: any[], policyStopDwellSeconds: number | null): number {
+    const pickupStops = stops.filter((s) => s.stopType !== 'DROPOFF');
+    if (pickupStops.length === 0) return 0;
+    const hasExplicitDwell = pickupStops.some((s) => typeof s.dwellBufferSeconds === 'number' && s.dwellBufferSeconds > 0);
+    if (hasExplicitDwell) {
+      return pickupStops.reduce(
+        (sum, s) => sum + (typeof s.dwellBufferSeconds === 'number' && s.dwellBufferSeconds > 0 ? Math.min(600, s.dwellBufferSeconds) : policyStopDwellSeconds ?? this.STOP_DWELL_SECONDS),
+        0,
+      );
+    }
+    if (policyStopDwellSeconds !== null) {
+      return pickupStops.length * policyStopDwellSeconds;
+    }
+    return pickupStops.length * this.STOP_DWELL_SECONDS;
+  }
 
   constructor(
     private readonly db: DatabaseService,
@@ -227,13 +304,13 @@ export class CorporateDispatchService {
 
     const isLogout = route.direction === 'LOGOUT';
     const stops: any[] = Array.isArray(route.stops) ? route.stops : [];
+    const policy = await this.loadDispatchPolicy(route.tenantId);
     const storedPickup1 = new Date(route.targetPickup1Time);
     const officeArrival = route.targetOfficeArrivalTime ? new Date(route.targetOfficeArrivalTime) : null;
     const estDurationSec = Number(route.estDurationSeconds) || 0;
 
-    // Pickups that each carry a 5-minute dwell (LOGIN: employee homes; LOGOUT: none before office leg)
-    const dwellStops = isLogout ? 0 : stops.filter((s) => s.stopType !== 'DROPOFF').length;
-    const dwellSec = dwellStops * this.STOP_DWELL_SECONDS;
+    // Pickups carry configured boarding dwell buffer (stop dwellSeconds or policy default, falling back to 5m)
+    const dwellSec = isLogout ? 0 : this.computeRouteDwellSeconds(stops, policy.policyStopDwellSeconds);
 
     // Stable planning anchor (idempotent across polls even after pickup-1 has been persisted earlier)
     const plannedPickup1 =
@@ -258,10 +335,12 @@ export class CorporateDispatchService {
         ? 'MODERATE'
         : 'NORMAL';
 
+    // Total pre-pickup dispatch lead: 30m driver approach + 30m dispatch search window (= 60m default)
+    const dispatchLeadMinutes = policy.approachLeadMinutes + policy.dispatchWindowMinutes;
     const lead = (t: Date) =>
       new Date(
         t.getTime() -
-          ((isLogout ? this.LOGOUT_STAGING_LEAD_MINUTES : 0) + this.STANDARD_DISPATCH_LEAD_MINUTES) * 60_000,
+          ((isLogout ? this.LOGOUT_STAGING_LEAD_MINUTES : 0) + dispatchLeadMinutes) * 60_000,
       );
     const standardDispatchTime = lead(plannedPickup1);
 
@@ -449,16 +528,178 @@ export class CorporateDispatchService {
     }
   }
 
+  private async markRouteDriversNotFound(
+    route: any,
+    client: any,
+    params: { attempts: number; searchRadiusKm: number; reason: string; nowMs: number },
+  ): Promise<boolean> {
+    if (route.driverId || route.dispatchStatus === 'NO_DRIVERS_FOUND') {
+      return false;
+    }
+
+    let transitioned = false;
+    if (typeof (this.db as any)?.corporateRoute?.updateMany === 'function') {
+      const updated = await this.db.corporateRoute.updateMany({
+        where: {
+          id: route.id,
+          driverId: null,
+          status: { in: ['PLANNED', 'DISPATCHING'] },
+          dispatchStatus: { not: 'NO_DRIVERS_FOUND' },
+        },
+        data: {
+          dispatchStatus: 'NO_DRIVERS_FOUND',
+          dispatchFailureReason: params.reason,
+          lastDispatchAttemptAt: new Date(params.nowMs),
+          atRisk: true,
+        },
+      });
+      transitioned = (updated?.count ?? 0) > 0;
+    } else if (typeof (this.db as any)?.corporateRoute?.update === 'function') {
+      try {
+        await this.db.corporateRoute.update({
+          where: { id: route.id, status: { in: ['PLANNED', 'DISPATCHING'] } },
+          data: {
+            dispatchStatus: 'NO_DRIVERS_FOUND',
+            dispatchFailureReason: params.reason,
+            lastDispatchAttemptAt: new Date(params.nowMs),
+            atRisk: true,
+          },
+        });
+        transitioned = true;
+      } catch {
+        transitioned = false;
+      }
+    }
+
+    if (!transitioned) return false;
+
+    if (client) {
+      await Promise.resolve(client.del(CorporateDispatchKeys.unserved(route.id))).catch(() => undefined);
+      await Promise.resolve(client.del(CorporateDispatchKeys.offer(route.id))).catch(() => undefined);
+      await Promise.resolve(client.srem(CorporateDispatchKeys.ACTIVE_OFFERS_SET, route.id)).catch(() => undefined);
+      await Promise.resolve(client.zrem(CorporateDispatchKeys.OFFER_EXPIRY_ZSET, route.id)).catch(() => undefined);
+    }
+
+    const alertPayload = {
+      routeId: route.id,
+      tenantId: route.tenantId,
+      tenantName: route.tenant?.name || 'Corporate Client',
+      shiftDate: route.shiftDate,
+      shiftTime: route.shiftTime,
+      direction: route.direction,
+      dispatchStatus: 'NO_DRIVERS_FOUND',
+      attempts: params.attempts,
+      searchRadiusKm: params.searchRadiusKm,
+      reason: params.reason,
+    };
+
+    this.notifications.emitEvent('admin:operations', 'CORPORATE_DISPATCH_DRIVERS_NOT_FOUND', alertPayload);
+    this.notifications.emitEvent('admin:operations', 'CORPORATE_ROUTE_AT_RISK', alertPayload);
+    if (route.tenantId) {
+      this.notifications.emitEvent(`corporate:${route.tenantId}`, 'CORPORATE_DISPATCH_DRIVERS_NOT_FOUND', alertPayload);
+      this.notifications.emitEvent(`corporate:${route.tenantId}`, 'CORPORATE_ROUTE_AT_RISK', alertPayload);
+    }
+
+    await this.audit.log({
+      action: 'CORPORATE_DISPATCH_DRIVERS_NOT_FOUND',
+      actorRole: 'SYSTEM_AUTONOMOUS_DISPATCH',
+      entityId: route.id,
+      entityType: 'CORPORATE_ROUTE',
+      metadata: {
+        tenantId: route.tenantId,
+        attempts: params.attempts,
+        searchRadiusKm: params.searchRadiusKm,
+        reason: params.reason,
+      },
+    });
+
+    this.logger.error(
+      `[DISPATCH_EXHAUSTED] Drivers not found for route ${route.id} after ${params.attempts} runs within ${params.searchRadiusKm}km: ${params.reason}`,
+    );
+
+    return true;
+  }
+
+  /**
+   * Transitions DISPATCHING unassigned routes whose 30-min dispatch window / 6-run budget
+   * has exhausted (at approach cutoff T - 30m or maxRuns) cleanly into NO_DRIVERS_FOUND.
+   */
+  public async checkAndMarkExhaustedWindows(nowMs: number = Date.now()): Promise<string[]> {
+    const now = this.getCurrentNowMs(nowMs);
+    if (typeof (this.db as any)?.corporateRoute?.findMany !== 'function') return [];
+
+    let candidates: any[] = [];
+    try {
+      candidates = await this.db.corporateRoute.findMany({
+        where: {
+          status: 'DISPATCHING',
+          driverId: null,
+          targetPickup1Time: { gte: new Date(now - 2 * 60 * 60_000) },
+        },
+        include: { tenant: true },
+        take: 250,
+      });
+    } catch {
+      return [];
+    }
+
+    const client = this.redis?.getClient();
+    const exhaustedIds: string[] = [];
+
+    for (const route of candidates ?? []) {
+      if (!route || route.driverId || route.dispatchStatus === 'NO_DRIVERS_FOUND') continue;
+      if (!route.dispatchWindowStartedAt && !(Number(route.dispatchAttempts) > 0)) continue;
+
+      const policy = await this.loadDispatchPolicy(route.tenantId);
+      const attempts = Number(route.dispatchAttempts) || 0;
+      const windowStartedMs = route.dispatchWindowStartedAt
+        ? new Date(route.dispatchWindowStartedAt).getTime()
+        : null;
+      const pickup1Ms = route.targetPickup1Time ? new Date(route.targetPickup1Time).getTime() : NaN;
+      const approachCutoffMs = Number.isFinite(pickup1Ms)
+        ? pickup1Ms - policy.approachLeadMinutes * 60_000
+        : Infinity;
+
+      const activeOffer = client ? await client.get(CorporateDispatchKeys.offer(route.id)) : null;
+      if (activeOffer) continue;
+
+      const lastAttemptMs = route.lastDispatchAttemptAt ? new Date(route.lastDispatchAttemptAt).getTime() : 0;
+      const retryCooldownElapsed = now - lastAttemptMs >= policy.retryIntervalMinutes * 60_000;
+
+      const runsExhausted = attempts >= policy.maxRuns && retryCooldownElapsed;
+      const windowElapsedPastCutoff =
+        windowStartedMs !== null &&
+        attempts >= 2 &&
+        now - windowStartedMs >= policy.dispatchWindowMinutes * 60_000 &&
+        now >= approachCutoffMs;
+
+      if (!runsExhausted && !windowElapsedPastCutoff) continue;
+
+      const changed = await this.markRouteDriversNotFound(route, client, {
+        attempts,
+        searchRadiusKm: policy.searchRadiusKm,
+        reason: `Drivers not found within ${policy.searchRadiusKm}km after ${policy.dispatchWindowMinutes}m dispatch window (${attempts} runs)`,
+        nowMs: now,
+      });
+      if (changed) exhaustedIds.push(route.id);
+    }
+
+    return exhaustedIds;
+  }
+
   /**
    * Autonomous dispatch trigger for a route.
-   * Supports both scheduled automatic invocation and manual Super Admin override ("Start" button).
+   * Supports scheduled 30-min (6x 5m retry) waves, offer cascades, and manual Ops retry ("Start" / "Retry Search").
    */
   public async dispatchRoute(
     routeId: string,
     forceStart: boolean = false,
     actorUserId?: string,
+    waveOptions?: { nowMs?: number; isCascade?: boolean },
   ): Promise<CorporateDispatchWaveResult> {
-    const route = await this.db.corporateRoute.findUnique({
+    const nowMs = this.getCurrentNowMs(waveOptions?.nowMs);
+    const isCascade = Boolean(waveOptions?.isCascade || this.cascadeStorage.getStore());
+    const route: any = await this.db.corporateRoute.findUnique({
       where: { id: routeId },
       include: {
         tenant: true,
@@ -478,6 +719,18 @@ export class CorporateDispatchService {
         searchRadiusKm: 0,
         status: 'ALREADY_ASSIGNED',
         offeredToDriverId: route.driverId || undefined,
+        candidatesCount: 0,
+      };
+    }
+
+    const policy = await this.loadDispatchPolicy(route.tenantId);
+
+    if (route.dispatchStatus === 'NO_DRIVERS_FOUND' && !forceStart) {
+      return {
+        routeId,
+        waveNumber: Number(route.dispatchAttempts) || policy.maxRuns,
+        searchRadiusKm: policy.searchRadiusKm,
+        status: 'NO_DRIVERS_FOUND',
         candidatesCount: 0,
       };
     }
@@ -519,21 +772,79 @@ export class CorporateDispatchService {
         const existing: CorporateRouteOfferData = JSON.parse(existingRaw);
         return {
           routeId,
-          waveNumber: 0,
-          searchRadiusKm: 0,
+          waveNumber: Number(route.dispatchAttempts) || 1,
+          searchRadiusKm: policy.searchRadiusKm,
           status: 'OFFERED',
           offeredToDriverId: existing.driverId,
           candidatesCount: 0,
         };
       }
 
-      // Conditional transition (PLANNED|DISPATCHING -> DISPATCHING). Prisma 6 extended
-      // where-unique makes this a single atomic UPDATE ... WHERE id = ? AND status IN (...);
-      // a route that was assigned/cancelled concurrently is never overwritten.
+      let currentAttempts = Number(route.dispatchAttempts) || 0;
+      const pickup1Ms = route.targetPickup1Time ? new Date(route.targetPickup1Time).getTime() : NaN;
+      const approachCutoffMs = Number.isFinite(pickup1Ms)
+        ? pickup1Ms - policy.approachLeadMinutes * 60_000
+        : Infinity;
+      const windowStartedAtMs = route.dispatchWindowStartedAt
+        ? new Date(route.dispatchWindowStartedAt).getTime()
+        : null;
+
+      if (forceStart) {
+        currentAttempts = 0;
+        if (client) {
+          await client.del(CorporateDispatchKeys.rejected(routeId));
+          await client.del(CorporateDispatchKeys.unserved(routeId));
+        }
+      } else if (!isCascade) {
+        const exhaustedByRuns = currentAttempts >= policy.maxRuns;
+        const exhaustedByWindow =
+          windowStartedAtMs !== null &&
+          currentAttempts >= 2 &&
+          nowMs - windowStartedAtMs >= policy.dispatchWindowMinutes * 60_000 &&
+          nowMs >= approachCutoffMs;
+
+        if (exhaustedByRuns || exhaustedByWindow) {
+          await this.markRouteDriversNotFound(route, client, {
+            attempts: currentAttempts,
+            searchRadiusKm: policy.searchRadiusKm,
+            reason: `Drivers not found within ${policy.searchRadiusKm}km after ${policy.dispatchWindowMinutes}m dispatch window (${currentAttempts} runs)`,
+            nowMs,
+          });
+          return {
+            routeId,
+            waveNumber: currentAttempts,
+            searchRadiusKm: policy.searchRadiusKm,
+            status: 'NO_DRIVERS_FOUND',
+            candidatesCount: 0,
+          };
+        }
+
+        // Restarting a fresh dispatch search wave after 5m wait: clear previous wave rejections
+        if (currentAttempts > 0 && client) {
+          await client.del(CorporateDispatchKeys.rejected(routeId));
+        }
+      }
+
+      const waveNumber = isCascade ? Math.max(1, currentAttempts) : currentAttempts + 1;
+      const windowStartedDate =
+        forceStart || !route.dispatchWindowStartedAt ? new Date(nowMs) : new Date(route.dispatchWindowStartedAt);
+
+      // Conditional transition (PLANNED|DISPATCHING -> DISPATCHING).
       try {
         await this.db.corporateRoute.update({
           where: { id: routeId, status: { in: ['PLANNED', 'DISPATCHING'] } },
-          data: { status: 'DISPATCHING' },
+          data: {
+            status: 'DISPATCHING',
+            ...(isCascade
+              ? {}
+              : {
+                  dispatchAttempts: waveNumber,
+                  dispatchWindowStartedAt: windowStartedDate,
+                  lastDispatchAttemptAt: new Date(nowMs),
+                  dispatchFailureReason: null,
+                  dispatchStatus: 'PENDING',
+                }),
+          },
         });
       } catch (err: any) {
         if (err?.code === 'P2025') {
@@ -548,38 +859,38 @@ export class CorporateDispatchService {
         throw err;
       }
 
-      // Retrieve drivers who already rejected this route offer
+      // Retrieve drivers who already rejected this route offer in the current wave
       const rejectedDriverIds = (await client?.smembers(CorporateDispatchKeys.rejected(routeId))) || [];
 
-      // Phase 1: Search in primary 5 km radius
+      // Phase 1: Search in primary radius (up to 5 km, capped by tenant policy searchRadiusKm)
+      const primaryRadius = Math.min(this.PRIMARY_SEARCH_RADIUS_KM, policy.searchRadiusKm);
       let candidateDrivers = await this.findEligibleDrivers(
         originLat,
         originLng,
-        this.PRIMARY_SEARCH_RADIUS_KM,
+        primaryRadius,
         route.vehicleCategory,
         rejectedDriverIds,
         route,
       );
 
-      let currentRadius = this.PRIMARY_SEARCH_RADIUS_KM;
+      let currentRadius = primaryRadius;
       let busyCandidates = 0;
       const triedIds = new Set<string>();
 
-      // Exclusive driver hold: a driver may hold at most ONE live corporate offer at a time.
       let claim = await this.claimFirstFreeDriver(routeId, candidateDrivers, triedIds);
       busyCandidates += claim.busy;
       let selectedDriver = claim.driver;
 
-      // Phase 2: If no (free) drivers found within 5 km, expand to 10 km radius
-      if (!selectedDriver) {
+      // Phase 2: Expand up to policy max radius (default 10 km) if needed
+      if (!selectedDriver && policy.searchRadiusKm > primaryRadius) {
         this.logger.warn(
-          `No eligible drivers found within 5 km for route ${routeId}. Expanding search radius to 10 km...`,
+          `No eligible drivers found within ${primaryRadius} km for route ${routeId} (run ${waveNumber}/${policy.maxRuns}). Expanding search radius to ${policy.searchRadiusKm} km...`,
         );
-        currentRadius = this.EXPANDED_SEARCH_RADIUS_KM;
+        currentRadius = policy.searchRadiusKm;
         candidateDrivers = await this.findEligibleDrivers(
           originLat,
           originLng,
-          this.EXPANDED_SEARCH_RADIUS_KM,
+          currentRadius,
           route.vehicleCategory,
           rejectedDriverIds,
           route,
@@ -590,8 +901,6 @@ export class CorporateDispatchService {
       }
 
       if (!selectedDriver && busyCandidates > 0) {
-        // Supply exists but every candidate is mid-offer for another route. Retry shortly
-        // (the scheduler's recovery sweep re-dispatches once the defer marker expires).
         if (client) {
           await client.set(
             CorporateDispatchKeys.unserved(routeId),
@@ -607,7 +916,7 @@ export class CorporateDispatchService {
         });
         return {
           routeId,
-          waveNumber: 1,
+          waveNumber,
           searchRadiusKm: currentRadius,
           status: 'ALL_DRIVERS_BUSY',
           candidatesCount: busyCandidates,
@@ -615,31 +924,55 @@ export class CorporateDispatchService {
       }
 
       if (!selectedDriver) {
-        if (client) {
-          await client.set(
-            CorporateDispatchKeys.unserved(routeId),
-            'NO_SUPPLY',
-            'EX',
-            CORPORATE_DISPATCH_UNSERVED_RETRY_SECONDS,
-          );
-        }
-        this.logger.error(
-          `Autonomous dispatch exhausted: No available verified drivers found within 10 km for route ${routeId}`,
-        );
+        const retrySeconds = policy.retryIntervalMinutes * 60;
+        const hitExhaustion =
+          waveNumber >= policy.maxRuns ||
+          (!forceStart &&
+            nowMs - windowStartedDate.getTime() >= policy.dispatchWindowMinutes * 60_000 &&
+            nowMs >= approachCutoffMs &&
+            waveNumber >= 2);
 
-        // Alert Super Admin Operations
-        this.notifications.emitEvent('admin:operations', 'CORPORATE_DISPATCH_UNSERVED', {
-          routeId,
-          tenantName: route.tenant.name,
-          shiftDate: route.shiftDate,
-          shiftTime: route.shiftTime,
-          direction: route.direction,
-          reason: 'No drivers available in 10 km radius',
-        });
+        if (hitExhaustion) {
+          await this.markRouteDriversNotFound(route, client, {
+            attempts: waveNumber,
+            searchRadiusKm: policy.searchRadiusKm,
+            reason: `Drivers not found within ${policy.searchRadiusKm}km after ${policy.dispatchWindowMinutes}m dispatch window (${waveNumber} runs)`,
+            nowMs,
+          });
+        } else {
+          await Promise.resolve(
+            this.db.corporateRoute.update({
+              where: { id: routeId },
+              data: { dispatchStatus: 'PENDING' },
+            }),
+          ).catch(() => undefined);
+          if (client) {
+            await client.set(
+              CorporateDispatchKeys.unserved(routeId),
+              'NO_SUPPLY',
+              'EX',
+              retrySeconds,
+            );
+          }
+          this.logger.warn(
+            `Dispatch run ${waveNumber}/${policy.maxRuns} found no available drivers within ${policy.searchRadiusKm} km for route ${routeId}; scheduling next scan in ${policy.retryIntervalMinutes} min.`,
+          );
+          this.notifications.emitEvent('admin:operations', 'CORPORATE_DISPATCH_UNSERVED', {
+            routeId,
+            tenantId: route.tenantId,
+            tenantName: route.tenant?.name,
+            shiftDate: route.shiftDate,
+            shiftTime: route.shiftTime,
+            direction: route.direction,
+            waveNumber,
+            maxRuns: policy.maxRuns,
+            reason: `No drivers available in ${policy.searchRadiusKm} km radius (run ${waveNumber}/${policy.maxRuns})`,
+          });
+        }
 
         return {
           routeId,
-          waveNumber: 1,
+          waveNumber,
           searchRadiusKm: currentRadius,
           status: 'NO_DRIVERS_FOUND',
           candidatesCount: 0,
@@ -650,7 +983,7 @@ export class CorporateDispatchService {
       const pricing = await this.priceOffer(route);
       const farePaise = pricing.farePaise;
 
-      const offerExpiresAt = new Date(Date.now() + this.OFFER_TTL_SECONDS * 1000);
+      const offerExpiresAt = new Date(nowMs + this.OFFER_TTL_SECONDS * 1000);
 
       const offerData: CorporateRouteOfferData = {
         routeId: route.id,
@@ -672,6 +1005,12 @@ export class CorporateDispatchService {
       // Store atomic offer in Redis with 60s TTL, then the durable WS-A CorporateDriverOffer row
       await this.publishOffer(client, offerData);
       await this.persistOfferRow(route.tenantId, routeId, selectedDriver.id, farePaise, offerExpiresAt);
+      await Promise.resolve(
+        this.db.corporateRoute.update({
+          where: { id: routeId },
+          data: { dispatchStatus: 'OFFERED' },
+        }),
+      ).catch(() => undefined);
 
       // Send Realtime WebSocket Event + FCM Push to Driver
       this.notifications.emitEvent(`driver:${selectedDriver.id}`, 'CORPORATE_ROUTE_OFFER', offerData);
@@ -697,6 +1036,8 @@ export class CorporateDispatchService {
         metadata: {
           offeredToDriverId: selectedDriver.id,
           driverName: selectedDriver.fullName,
+          waveNumber,
+          maxRuns: policy.maxRuns,
           searchRadiusKm: currentRadius,
           farePaise,
           rateCardId: pricing.rateCardId ?? null,
@@ -708,7 +1049,7 @@ export class CorporateDispatchService {
       await this.tripEvents?.recordOfferSent({ tenantId: route.tenantId, routeId, driverId: selectedDriver.id, actorId: actorUserId, payload: { farePaise, searchRadiusKm: currentRadius, expiresAt: offerExpiresAt } });
       return {
         routeId,
-        waveNumber: 1,
+        waveNumber,
         searchRadiusKm: currentRadius,
         status: 'OFFERED',
         offeredToDriverId: selectedDriver.id,
@@ -1030,6 +1371,8 @@ export class CorporateDispatchService {
               driverId,
               vehicleId: vehicle ? vehicle.id : null,
               status: 'ASSIGNED',
+              dispatchStatus: 'DRIVER_ASSIGNED',
+              dispatchFailureReason: null,
             },
             include: {
               stops: { orderBy: { stopSequence: 'asc' } },
@@ -1079,11 +1422,21 @@ export class CorporateDispatchService {
 
       this.notifications.emitEvent('admin:operations', 'CORPORATE_ROUTE_ASSIGNED', {
         routeId,
+        tenantId: updatedRoute.tenantId,
         driverId,
         driverName: driver.fullName,
         driverPhone: driver.phone,
         status: 'ASSIGNED',
       });
+      if (updatedRoute.tenantId) {
+        this.notifications.emitEvent(`corporate:${updatedRoute.tenantId}`, 'CORPORATE_ROUTE_ASSIGNED', {
+          routeId,
+          driverId,
+          driverName: driver.fullName,
+          driverPhone: driver.phone,
+          status: 'ASSIGNED',
+        });
+      }
 
       // Employees: cab assigned with driver & vehicle details (never throws)
       if (this.riderNotifier) {
@@ -1165,8 +1518,8 @@ export class CorporateDispatchService {
       } catch {}
     }
     await this.tripEvents?.recordOfferDeclined(routeId, driverId, reason);
-    // Cascade to next driver
-    await this.dispatchRoute(routeId, false);
+    // Cascade to next driver within the same wave (do not increment attempt counter per driver)
+    await this.cascadeStorage.run(true, () => this.dispatchRoute(routeId, false));
   }
 
   /**

@@ -17,7 +17,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { VerificationItem, DriverKycDocument, DigioComplianceAlert } from '../../lib/api/types';
-import { adminApi, resolveDocumentUrl, OVERRIDE_REASON_MIN_LENGTH } from '../../lib/api/client';
+import { adminApi, resolveDocumentUrl } from '../../lib/api/client';
 import { DocumentPreviewModal } from './DocumentPreviewModal';
 import { DigioVerificationPanel } from './DigioVerificationPanel';
 
@@ -58,8 +58,7 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
     return [...byCode.values()];
   }, [panelAlerts, approvalBlockers]);
   const needsOverride = item?.entityType === 'DRIVER' && blockers.length > 0;
-  const overrideOk = overrideReason.trim().length >= OVERRIDE_REASON_MIN_LENGTH;
-  const approveDisabled = isProcessing || (needsOverride && !overrideOk);
+  const approveDisabled = isProcessing;
 
   const [activePreviewDoc, setActivePreviewDoc] = useState<DriverKycDocument | null>(null);
   const [isEditingContact, setIsEditingContact] = useState(false);
@@ -656,7 +655,7 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#f43f5e', fontWeight: 700, fontSize: '0.875rem' }}>
-                <AlertTriangle size={16} /> {blockers.length} compliance blocker{blockers.length === 1 ? '' : 's'}: approval needs an override reason
+                <AlertTriangle size={16} /> {blockers.length} compliance issue{blockers.length === 1 ? '' : 's'} detected (you can still approve)
               </div>
               <ul style={{ margin: '0.5rem 0 0.75rem', paddingLeft: '1.25rem', color: 'var(--text-primary)', fontSize: '0.8125rem', lineHeight: 1.5 }}>
                 {blockers.map((b) => (
@@ -667,14 +666,14 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
                 ))}
               </ul>
               <label htmlFor="override-reason" style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.375rem' }}>
-                Override reason (recorded in the audit log, min {OVERRIDE_REASON_MIN_LENGTH} characters)
+                Optional override note (recorded in the audit log)
               </label>
               <textarea
                 id="override-reason"
                 value={overrideReason}
                 onChange={(e) => setOverrideReason(e.target.value)}
                 rows={2}
-                placeholder="e.g. DL renewal receipt checked in person; RTO record updates within 7 days"
+                placeholder="Optional note (leave blank to approve immediately with default override audit entry)"
                 style={{
                   width: '100%',
                   boxSizing: 'border-box',
@@ -687,11 +686,6 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
                   resize: 'vertical',
                 }}
               />
-              {!overrideOk && overrideReason.length > 0 && (
-                <div style={{ fontSize: '0.75rem', color: '#f43f5e', marginTop: '0.25rem' }}>
-                  {OVERRIDE_REASON_MIN_LENGTH - overrideReason.trim().length} more character(s) needed
-                </div>
-              )}
             </div>
           )}
 
@@ -747,9 +741,8 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
               </button>
 
               <button
-                onClick={() => onApprove(item, needsOverride ? overrideReason.trim() : undefined)}
+                onClick={() => onApprove(item, needsOverride ? (overrideReason.trim() || 'Approved by admin override') : undefined)}
                 disabled={approveDisabled}
-                title={needsOverride && !overrideOk ? 'Add an override reason for the compliance blockers to approve' : undefined}
                 style={{
                   padding: '0.625rem 1.75rem',
                   borderRadius: '8px',

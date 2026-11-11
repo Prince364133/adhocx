@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import '../../theme/app_colors.dart';
+import '../config/feature_flags.dart';
 import '../networking/api_client.dart';
 import '../../services/digio_service.dart';
 
@@ -66,6 +67,10 @@ class AppToast {
     final lower = raw.toLowerCase();
 
     // 1. Balance and wallet issues
+    if (!FeatureFlags.isVendorWalletEnabled &&
+        FeatureFlags.isVendorSpecificWalletErrorMessage(lower)) {
+      return FeatureFlags.vendorPaymentGatewayPendingMessage;
+    }
     if (lower.contains('insufficient balance')) {
       return raw.isNotEmpty ? raw : 'Insufficient wallet balance for this withdrawal.';
     }

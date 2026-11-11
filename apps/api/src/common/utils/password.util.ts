@@ -30,3 +30,4 @@ export function needsPasswordRehash(storedHash: string): boolean {
   const iterations = Number(storedHash.split(':')[2] ?? LEGACY_PBKDF2_ITERATIONS);
   return iterations < PBKDF2_ITERATIONS;
 }
+

@@ -206,6 +206,7 @@ export interface CorporateRouteItem {
     id: string;
     code: string;
     name: string;
+    legalEntityName?: string | null;
   };
   stops?: RouteStop[];
   _count?: {

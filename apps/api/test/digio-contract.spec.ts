@@ -383,26 +383,28 @@ describe('Admin approval guard', () => {
     return { svc: new AdminService(t.db, audit as any, undefined, undefined, undefined, t.service), audit };
   }
 
-  it('blocks approval while blockers exist; an override reason (>= 10 chars) approves and is audited', async () => {
+  it('allows admin approval even when blockers exist and audits blockers with an override reason', async () => {
     const t = setup();
     t.replyFx('post_livenessCheck', '200 Failure');
     await t.service.checkLivenessBuffer(driver, { buffer: Buffer.from('x'), mimeType: 'image/jpeg', filename: 's.jpg' });
     const { svc, audit } = adminService(t);
 
-    const err: any = await svc.verifyDriver('drv-1', admin.id, {} as any).catch((e) => e);
-    expect(err).toBeInstanceOf(BadRequestException);
-    const resp = err.getResponse();
-    expect(resp.error).toBe('COMPLIANCE_BLOCKERS');
-    expect(resp.details.issues.map((i: any) => i.code)).toEqual(expect.arrayContaining(['LIVENESS_FAILED', 'DL_NOT_VERIFIED', 'RC_NOT_VERIFIED']));
-    expect(t.db.driverRow.verificationStatus).toBe('UNDER_REVIEW');
-
-    await expect(svc.verifyDriver('drv-1', admin.id, { overrideReason: 'too short' } as any)).rejects.toThrow(BadRequestException);
-
-    await svc.verifyDriver('drv-1', admin.id, { overrideReason: 'Verified DL and RC physically at hub; selfie retaken in person.' } as any);
+    // Direct approval with no overrideReason still succeeds and audits default override.
+    await svc.verifyDriver('drv-1', admin.id, {} as any);
     expect(t.db.driverRow.verificationStatus).toBe('VERIFIED');
-    const meta = (audit.log.mock.calls[0] as any)[0].metadata;
-    expect(meta.complianceOverride.reason).toMatch(/physically/);
-    expect(meta.complianceOverride.blockers.length).toBeGreaterThan(0);
+    const firstMeta = (audit.log.mock.calls[0] as any)[0].metadata;
+    expect(firstMeta.complianceOverride.reason).toBe('Approved by admin override');
+    expect(firstMeta.complianceOverride.blockers.map((i: any) => i.code)).toEqual(
+      expect.arrayContaining(['LIVENESS_FAILED', 'DL_NOT_VERIFIED', 'RC_NOT_VERIFIED']),
+    );
+
+    // Custom override reason (even short) is also recorded in audit metadata.
+    t.db.driverRow.verificationStatus = 'UNDER_REVIEW';
+    await svc.verifyDriver('drv-1', admin.id, { overrideReason: 'OK at hub' } as any);
+    expect(t.db.driverRow.verificationStatus).toBe('VERIFIED');
+    const secondMeta = (audit.log.mock.calls[1] as any)[0].metadata;
+    expect(secondMeta.complianceOverride.reason).toBe('OK at hub');
+    expect(secondMeta.complianceOverride.blockers.length).toBeGreaterThan(0);
   });
 });
 

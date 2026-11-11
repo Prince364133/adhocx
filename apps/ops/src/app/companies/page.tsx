@@ -21,7 +21,7 @@ import {
   UserPlus,
   Users,
 } from 'lucide-react';
-import { CorporateRole } from '@adhocx/contracts';
+import type { CorporateRole } from '@adhocx/contracts';
 import { opsApi } from '../../lib/api/opsClient';
 import { CorporateTenantOption, OnboardCorporateCompanyResponse } from '../../lib/api/opsTypes';
 import { Drawer } from '../../components/common/Drawer';
@@ -217,7 +217,7 @@ export default function CompaniesOnboardingPage() {
           email: form.adminEmail.trim().toLowerCase(),
           phone: form.adminPhone.trim(),
           password: form.adminPassword,
-          corporateRole: CorporateRole.CORP_SUPER_ADMIN,
+          corporateRole: 'CORP_SUPER_ADMIN' as CorporateRole.CORP_SUPER_ADMIN,
         },
         policy: {
           defaultVehicleCategory: form.defaultVehicleCategory,
@@ -1213,3 +1213,4 @@ const inputStyle: React.CSSProperties = {
   outline: 'none',
   boxSizing: 'border-box',
 };
+

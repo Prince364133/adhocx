@@ -221,14 +221,43 @@ export const schedulingApi = {
 
 export const routesApi = {
   list: (
-    tenantIdOrParams?: string | { shiftDate?: string; shiftTime?: string; direction?: Direction | ''; status?: string; limit?: number; offset?: number },
-    p?: { shiftDate?: string; shiftTime?: string; direction?: Direction | ''; status?: string; limit?: number; offset?: number },
+    tenantIdOrParams?:
+      | string
+      | {
+          shiftDate?: string;
+          shiftTime?: string;
+          direction?: Direction | '';
+          status?: string;
+          dispatchStatus?: string;
+          search?: string;
+          limit?: number;
+          offset?: number;
+          includeStops?: boolean;
+        },
+    p?: {
+      shiftDate?: string;
+      shiftTime?: string;
+      direction?: Direction | '';
+      status?: string;
+      dispatchStatus?: string;
+      search?: string;
+      limit?: number;
+      offset?: number;
+      includeStops?: boolean;
+    },
   ) => {
-    const tenantId = typeof tenantIdOrParams === 'string' ? tenantIdOrParams : '9d66820f-280c-400c-98dc-e021d0045b58';
+    const tenantId = typeof tenantIdOrParams === 'string' ? tenantIdOrParams : undefined;
     const params = typeof tenantIdOrParams === 'object' ? tenantIdOrParams : (p || {});
-    return apiRequest<RouteListItem[]>(`/corporate/routes${qs({ tenantId, ...params })}`);
+    return apiRequest<RouteListItem[]>(
+      `/corporate/routes/portal${qs({ tenantId, includeStops: true, ...params })}`,
+    );
   },
-  get: (routeId: string) => apiRequest<RouteDetail>(`/corporate/routes/${routeId}`),
+  get: (routeId: string) =>
+    apiRequest<RouteDetail>(`/corporate/routes/${encodeURIComponent(routeId)}?includeDirections=true`),
+  directions: (routeId: string, refresh = false) =>
+    apiRequest<import('./types').RouteDirectionsResult>(
+      `/corporate/routes/${encodeURIComponent(routeId)}/directions${refresh ? '?refresh=true' : ''}`,
+    ),
   tracking: (routeId: string) => apiRequest<RouteTracking>(`/corporate/trips/routes/${routeId}/tracking`),
   timeline: (routeId: string) => apiRequest<RouteTimeline>(`/corporate/trips/routes/${routeId}/timeline`),
 };

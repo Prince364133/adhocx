@@ -241,19 +241,24 @@ export class AdminService {
       VerificationStatus.VERIFIED,
     );
 
-    // Digio compliance gate: a driver with blockers (invalid/expired DL, bad RC, failed face match or
-    // liveness) can only be approved with a written override, audited together with the blockers.
-    const blockers = this.digio
-      ? (await this.digio.getDriverComplianceAlerts(id)).filter((a) => a.severity === 'BLOCKER')
-      : [];
-    const overrideReason = dto.overrideReason?.trim() || '';
-    if (blockers.length && overrideReason.length < 10) {
-      throw new BadRequestException({
-        message: `Driver has ${blockers.length} compliance blocker(s). Resolve them or approve with an override reason (at least 10 characters).`,
-        error: 'COMPLIANCE_BLOCKERS',
-        details: { issues: blockers },
-      });
+    // Record any Digio compliance blockers in the audit log, while allowing
+    // admins to approve the driver directly even when compliance issues exist.
+    let blockers: Array<{ severity: string; code: string; message: string }> = [];
+    if (this.digio) {
+      try {
+        blockers = (await this.digio.getDriverComplianceAlerts(id)).filter(
+          (a) => a.severity === 'BLOCKER',
+        );
+      } catch (err: any) {
+        this.logger.warn(
+          `Compliance alert lookup skipped during admin approval for driver ${id}: ${err?.message || err}`,
+        );
+      }
     }
+    const overrideReason =
+      dto.overrideReason?.trim() ||
+      dto.notes?.trim() ||
+      (blockers.length ? 'Approved by admin override' : '');
 
     const updated = await this.db.driver.update({
       where: { id },

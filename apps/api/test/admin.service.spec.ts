@@ -163,6 +163,30 @@ describe('AdminService Unit Tests', () => {
     ).rejects.toThrow(InvalidStateTransitionError);
   });
 
+  it('should still approve UNDER_REVIEW driver even if Digio compliance alert lookup throws', async () => {
+    const failingDigio = {
+      getDriverComplianceAlerts: jest.fn().mockRejectedValue(new Error('Digio lookup unavailable')),
+    };
+    const svcWithDigio = new AdminService(db, audit, undefined, undefined, redis, failingDigio as any);
+    db.driver.findUnique.mockResolvedValue({
+      id: 'drv-2',
+      verificationStatus: VerificationStatus.UNDER_REVIEW,
+    });
+    db.driver.update.mockResolvedValue({
+      id: 'drv-2',
+      verificationStatus: VerificationStatus.VERIFIED,
+    });
+
+    const result = await svcWithDigio.verifyDriver('drv-2', 'admin-1', {});
+    expect(result.verificationStatus).toBe(VerificationStatus.VERIFIED);
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'ADMIN_DRIVER_VERIFIED',
+        entityId: 'drv-2',
+      }),
+    );
+  });
+
   it('should suspend verified driver and revoke user sessions', async () => {
     db.driver.findUnique.mockResolvedValue({
       id: 'drv-1',

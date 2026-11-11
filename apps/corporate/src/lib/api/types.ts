@@ -334,6 +334,13 @@ export interface RouteListItem {
   estDistanceMeters: number;
   estDurationSeconds: number;
   status: string;
+  driverId?: string | null;
+  vehicleId?: string | null;
+  dispatchStatus?: string;
+  dispatchAttempts?: number;
+  dispatchWindowStartedAt?: string | null;
+  lastDispatchAttemptAt?: string | null;
+  dispatchFailureReason?: string | null;
   atRisk?: boolean;
   routeCode?: string;
   routeNumber?: string;
@@ -346,7 +353,8 @@ export interface RouteListItem {
   plannedStartTime?: string | null;
   plannedEndTime?: string | null;
   actualStartTime?: string | null;
-  office?: { id: string; code: string; name: string };
+  tenant?: { id: string; code: string; name: string; legalEntityName?: string };
+  office?: { id: string; code: string; name: string; addressText?: string; latitude?: number; longitude?: number };
   driver?: { id: string; fullName: string | null; name?: string | null; phone: string | null; rating?: number | null } | null;
   vehicle?: { id: string; registrationNumber: string; licensePlate?: string | null; model: string | null; vehicleType: string | null; capacity?: number | null } | null;
   stops?: RouteStop[];
@@ -357,11 +365,15 @@ export interface RouteListItem {
 export interface RouteStop extends StopSummary {
   stopType: string;
   plannedEta: string;
-  latitude: string;
-  longitude: string;
+  latitude: string | number;
+  longitude: string | number;
   sequence?: number;
   locationName?: string;
   address?: string;
+  addressText?: string | null;
+  employeeName?: string | null;
+  employeePhone?: string | null;
+  dwellBufferSeconds?: number | null;
   plannedTime?: string;
   employee?: {
     id: string;
@@ -374,9 +386,54 @@ export interface RouteStop extends StopSummary {
   transportRequest?: { id: string; status: string } | null;
 }
 
+export interface RouteDirectionLeg {
+  legIndex: number;
+  fromStopId: string;
+  fromSequence: number;
+  fromType: string;
+  fromLabel: string;
+  fromAddress: string;
+  fromLat: number;
+  fromLng: number;
+  fromPhone?: string | null;
+  toStopId: string;
+  toSequence: number;
+  toType: string;
+  toLabel: string;
+  toAddress: string;
+  toLat: number;
+  toLng: number;
+  toPhone?: string | null;
+  dwellBufferSeconds: number;
+  trafficDurationSeconds: number;
+  trafficDurationMinutes: number;
+  distanceMeters: number;
+  distanceKm: number;
+  plannedArrivalAtFrom?: string;
+  plannedDepartFrom?: string;
+  estimatedArrivalAtTo?: string;
+}
+
+export interface RouteDirectionsResult {
+  routeId: string;
+  trafficSource: 'GOOGLE_MAPS_LIVE_TRAFFIC' | 'ROAD_FACTOR_ESTIMATE';
+  isRealRoad: boolean;
+  totalDurationSeconds: number;
+  totalDurationMinutes: number;
+  totalDwellSeconds: number;
+  totalTravelWithWaitMinutes: number;
+  totalDistanceMeters: number;
+  totalDistanceKm: number;
+  encodedPolyline: string;
+  decodedPath: Array<{ lat: number; lng: number }>;
+  legs: RouteDirectionLeg[];
+  refreshedAt: string;
+}
+
 export interface RouteDetail extends RouteListItem {
-  office?: { id: string; code: string; name: string; addressText?: string };
+  office?: { id: string; code: string; name: string; addressText?: string; latitude?: number; longitude?: number };
   stops: RouteStop[];
+  directions?: RouteDirectionsResult;
 }
 
 export interface RouteTracking {

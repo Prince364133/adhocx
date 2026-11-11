@@ -89,6 +89,9 @@ interface RosterEmployeeRow {
   employeeCode?: string;
   email?: string;
   department?: string;
+  /** Optional pickup coordinates from the roster; when valid they replace geocoding. */
+  latitude?: number;
+  longitude?: number;
 }
 
 interface ParsedRoster {
@@ -912,6 +915,7 @@ export class CorporateRoutePlannerService {
   private findPickupAddressColumn(headers: string[]): number {
     const scores = headers.map((header) => {
       if (/(^|_)(office|destination|drop_off|dropoff|workplace|company)(_|$)/.test(header)) return 0;
+      if (/(^|_)(lat|latitude|lng|lon|long|longitude)$/.test(header)) return 0;
       if (['pickup', 'pickup_address', 'pickup_location', 'pickup_point', 'pick_up_address', 'pick_up_location'].includes(header)) return 100;
       if (header.startsWith('pickup_') || header.startsWith('pick_up_')) return 90;
       if (/(^|_)(home|residential|residence|employee|origin|source)(_|$)/.test(header) && /address|location|point/.test(header)) return 80;
@@ -978,9 +982,8 @@ export class CorporateRoutePlannerService {
       );
     }
 
+    const { latIdx, lngIdx } = this.findCoordinateColumns(headers);
     const results: RosterEmployeeRow[] = [];
-    const seenNames = new Map<string, string>();
-    const duplicateNames = new Map<string, string>();
 
     for (let i = 1; i < lines.length; i++) {
       // Split with quotes handling
@@ -995,14 +998,14 @@ export class CorporateRoutePlannerService {
       if (!name || !addr) {
         throw new BadRequestException(`Row ${i + 1} is missing employee_name or pickup_address`);
       }
-      const normalizedName = this.normalizeEmployeeName(name);
-      if (seenNames.has(normalizedName)) {
-        duplicateNames.set(normalizedName, seenNames.get(normalizedName) || name);
-      } else {
-        seenNames.set(normalizedName, name);
-      }
+      const coords = this.parseRowCoordinates(
+        latIdx !== -1 ? row[latIdx] : undefined,
+        lngIdx !== -1 ? row[lngIdx] : undefined,
+        `Row ${i + 1}`,
+      );
 
       results.push({
+        ...coords,
         employeeName: name,
         pickupAddress: addr,
         officeAddress: officeIdx !== -1 ? (row[officeIdx] || '').trim() : undefined,
@@ -1021,10 +1024,7 @@ export class CorporateRoutePlannerService {
       });
     }
 
-    return {
-      rows: results.filter((row) => !duplicateNames.has(this.normalizeEmployeeName(row.employeeName))),
-      duplicateEmployeeNames: Array.from(duplicateNames.values()),
-    };
+    return this.dedupeRoster(results);
   }
 
   private parseExcel(buffer: Buffer): ParsedRoster {
@@ -1040,8 +1040,6 @@ export class CorporateRoutePlannerService {
     }
 
     const results: RosterEmployeeRow[] = [];
-    const seenNames = new Map<string, string>();
-    const duplicateNames = new Map<string, string>();
     let rosterSheetCount = 0;
 
     for (const sheetName of workbook.SheetNames) {
@@ -1130,6 +1128,7 @@ export class CorporateRoutePlannerService {
       });
 
       rosterSheetCount++;
+      const { latIdx: latCol, lngIdx: lngCol } = this.findCoordinateColumns(headers);
 
       for (let r = headerRowIndex + 1; r < rows.length; r++) {
         const row = rows[r];
@@ -1142,14 +1141,14 @@ export class CorporateRoutePlannerService {
             `Worksheet "${sheetName}" row ${r + 1} requires both employee name and pickup address`,
           );
         }
-        const normalizedName = this.normalizeEmployeeName(name);
-        if (seenNames.has(normalizedName)) {
-          duplicateNames.set(normalizedName, seenNames.get(normalizedName) || name);
-        } else {
-          seenNames.set(normalizedName, name);
-        }
+        const coords = this.parseRowCoordinates(
+          latCol !== -1 ? valueAt(latCol) : undefined,
+          lngCol !== -1 ? valueAt(lngCol) : undefined,
+          `Worksheet "${sheetName}" row ${r + 1}`,
+        );
 
         results.push({
+          ...coords,
           employeeName: name,
           pickupAddress: addr,
           officeAddress: valueAt(officeCol),
@@ -1171,10 +1170,69 @@ export class CorporateRoutePlannerService {
         'At least one worksheet must contain employee name and pickup address columns',
       );
     }
-    return {
-      rows: results.filter((row) => !duplicateNames.has(this.normalizeEmployeeName(row.employeeName))),
-      duplicateEmployeeNames: Array.from(duplicateNames.values()),
+    return this.dedupeRoster(results);
+  }
+
+  /**
+   * Identity = employee code, else phone (last 10 digits), else normalized name. Rows sharing an
+   * identity are ambiguous (two addresses for one person) and are all excluded and reported.
+   * Two different people who merely share a common name are both kept.
+   */
+  private dedupeRoster(rows: RosterEmployeeRow[]): ParsedRoster {
+    const identityOf = (row: RosterEmployeeRow) => {
+      const code = (row.employeeCode || '').trim().toLowerCase();
+      if (code) return `code:${code}`;
+      const digits = (row.phoneNumber || '').replace(/\D/g, '');
+      if (digits.length >= 10) return `phone:${digits.slice(-10)}`;
+      return `name:${this.normalizeEmployeeName(row.employeeName)}`;
     };
+    const counts = new Map<string, number>();
+    for (const row of rows) counts.set(identityOf(row), (counts.get(identityOf(row)) ?? 0) + 1);
+    const duplicateNames = new Set<string>();
+    const kept = rows.filter((row) => {
+      if ((counts.get(identityOf(row)) ?? 0) > 1) {
+        duplicateNames.add(row.employeeName);
+        return false;
+      }
+      return true;
+    });
+    return { rows: kept, duplicateEmployeeNames: Array.from(duplicateNames) };
+  }
+
+  private findCoordinateColumns(headers: string[]): { latIdx: number; lngIdx: number } {
+    const latNames = ['latitude', 'lat', 'pickup_lat', 'pickup_latitude', 'home_lat', 'home_latitude'];
+    const lngNames = ['longitude', 'lng', 'lon', 'long', 'pickup_lng', 'pickup_lon', 'pickup_longitude', 'home_lng', 'home_longitude'];
+    return {
+      latIdx: headers.findIndex((h) => latNames.includes(h)),
+      lngIdx: headers.findIndex((h) => lngNames.includes(h)),
+    };
+  }
+
+  /** Both blank -> geocode the address. One blank, unparsable, out of range or (0,0) -> 400. */
+  private parseRowCoordinates(
+    rawLat: unknown,
+    rawLng: unknown,
+    rowLabel: string,
+  ): { latitude?: number; longitude?: number } {
+    const latText = String(rawLat ?? '').trim();
+    const lngText = String(rawLng ?? '').trim();
+    if (!latText && !lngText) return {};
+    const lat = Number(latText);
+    const lng = Number(lngText);
+    if (
+      !latText ||
+      !lngText ||
+      !Number.isFinite(lat) ||
+      !Number.isFinite(lng) ||
+      lat < -90 ||
+      lat > 90 ||
+      lng < -180 ||
+      lng > 180 ||
+      (lat === 0 && lng === 0)
+    ) {
+      throw new BadRequestException(`${rowLabel} has invalid latitude/longitude (${latText || '-'}, ${lngText || '-'})`);
+    }
+    return { latitude: lat, longitude: lng };
   }
 
   private combineArrivalDateAndTime(date: string, time: string): string | undefined {

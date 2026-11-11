@@ -22,3 +22,4 @@ ALTER TABLE "corporate_route_stops"
 
 CREATE INDEX IF NOT EXISTS "corporate_routes_dispatch_status_idx"
   ON "corporate_routes"("dispatch_status");
+

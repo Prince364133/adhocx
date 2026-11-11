@@ -495,12 +495,11 @@ export default function DriversPage() {
     setActionLoading(true);
     try {
       if (actionType === 'VERIFY') {
-        // The typed reason doubles as the override justification when Digio compliance blockers exist.
         const trimmed = reason.trim();
         await adminApi.verifyDriver(
           selectedDriver.id,
           trimmed || undefined,
-          trimmed.length >= OVERRIDE_REASON_MIN_LENGTH ? trimmed : undefined,
+          trimmed || 'Approved by admin override',
         );
       } else if (actionType === 'REJECT') {
         await adminApi.rejectDriver(selectedDriver.id, reason);
