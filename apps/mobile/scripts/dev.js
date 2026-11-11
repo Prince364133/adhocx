@@ -2,6 +2,7 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
+const { fileURLToPath } = require('url');
 
 console.log('⚡ Initializing AdhocX Mobile Driver & Vendor Application...');
 
@@ -53,6 +54,46 @@ function findFlutterExecutable() {
   return null;
 }
 
+function isPubGetCurrent(projectDir, currentPubCache) {
+  try {
+    const packageConfigPath = path.join(projectDir, '.dart_tool', 'package_config.json');
+    const pluginsDepsPath = path.join(projectDir, '.flutter-plugins-dependencies');
+    if (!fs.existsSync(packageConfigPath) || !fs.existsSync(pluginsDepsPath)) {
+      return false;
+    }
+
+    const configMtimeMs = fs.statSync(packageConfigPath).mtimeMs;
+    for (const manifestName of ['pubspec.yaml', 'pubspec.lock']) {
+      const manifestPath = path.join(projectDir, manifestName);
+      if (fs.existsSync(manifestPath) && fs.statSync(manifestPath).mtimeMs > configMtimeMs) {
+        return false;
+      }
+    }
+
+    const config = JSON.parse(fs.readFileSync(packageConfigPath, 'utf8'));
+    if (!Array.isArray(config.packages) || config.packages.length === 0) {
+      return false;
+    }
+
+    const normalizedCache = process.env.PUB_CACHE ? path.resolve(currentPubCache).toLowerCase() : null;
+    for (const pkg of config.packages) {
+      if (typeof pkg.rootUri === 'string' && pkg.rootUri.startsWith('file://')) {
+        const resolvedDir = fileURLToPath(pkg.rootUri);
+        if (!fs.existsSync(resolvedDir)) {
+          return false;
+        }
+        if (normalizedCache && pkg.rootUri.includes('/hosted/') && !path.resolve(resolvedDir).toLowerCase().startsWith(normalizedCache)) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 const flutterCmd = findFlutterExecutable();
 const mobileDir = path.resolve(__dirname, '..');
 const libDir = path.join(mobileDir, 'lib');
@@ -91,9 +132,19 @@ if (flutterCmd && (runOnAndroid || runInChrome)) {
 
   const isWindows = process.platform === 'win32';
   const execFile = isWindows ? 'cmd.exe' : flutterCmd;
-  const execArgs = isWindows
-    ? ['/c', flutterCmd, 'run', '-d', 'web-server', '--web-port', String(PORT), '--web-hostname', 'localhost', '--dart-define=API_URL=http://localhost:7001/api/v1', '--dart-define=API_BASE_URL=http://localhost:7001/api/v1']
-    : ['run', '-d', 'web-server', '--web-port', String(PORT), '--web-hostname', 'localhost', '--dart-define=API_URL=http://localhost:7001/api/v1', '--dart-define=API_BASE_URL=http://localhost:7001/api/v1'];
+  const flutterRunArgs = [
+    'run',
+    ...(isPubGetCurrent(mobileDir, pubCache) ? ['--no-pub'] : []),
+    '-d',
+    'web-server',
+    '--web-port',
+    String(PORT),
+    '--web-hostname',
+    'localhost',
+    '--dart-define=API_URL=http://localhost:7001/api/v1',
+    '--dart-define=API_BASE_URL=http://localhost:7001/api/v1',
+  ];
+  const execArgs = isWindows ? ['/c', flutterCmd, ...flutterRunArgs] : flutterRunArgs;
 
   console.log(`🌐 Starting Flutter Web on http://localhost:${PORT} ...`);
 

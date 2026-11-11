@@ -28,7 +28,9 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
-    "predev": "pnpm --filter @adhocx/contracts run build && pnpm --filter @adhocx/domain-core run build && pnpm --filter @adhocx/api exec prisma generate"
+    "predev": "node scripts/ensure-deps.js && pnpm --filter @adhocx/contracts run build && pnpm --filter @adhocx/domain-core run build && pnpm --filter @adhocx/api exec prisma generate",
+    "predev:all": "pnpm run predev",
+    "predev:api": "node scripts/ensure-deps.js && pnpm --filter @adhocx/contracts run build && pnpm --filter @adhocx/domain-core run build && pnpm --filter @adhocx/api exec prisma generate"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
