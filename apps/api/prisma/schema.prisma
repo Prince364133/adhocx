@@ -1270,10 +1270,15 @@ model CorporateRoute {
   targetOfficeArrivalTime DateTime                    @map("target_office_arrival_time")
   estDistanceMeters       Int                         @map("est_distance_meters")
   estDurationSeconds      Int                         @map("est_duration_seconds")
-  status                  CorporateRouteStatus        @default(PLANNED)
-  driverId                String?                     @map("driver_id") @db.Uuid
-  vehicleId               String?                     @map("vehicle_id") @db.Uuid
-  createdAt               DateTime                    @default(now()) @map("created_at")
+  status                    CorporateRouteStatus        @default(PLANNED)
+  driverId                  String?                     @map("driver_id") @db.Uuid
+  vehicleId                 String?                     @map("vehicle_id") @db.Uuid
+  dispatchStatus            String                      @default("PENDING") @map("dispatch_status") @db.VarChar(32)
+  dispatchAttempts          Int                         @default(0) @map("dispatch_attempts")
+  dispatchWindowStartedAt   DateTime?                   @map("dispatch_window_started_at")
+  lastDispatchAttemptAt     DateTime?                   @map("last_dispatch_attempt_at")
+  dispatchFailureReason     String?                     @map("dispatch_failure_reason") @db.VarChar(500)
+  createdAt                 DateTime                    @default(now()) @map("created_at")
   updatedAt               DateTime                    @default(now()) @updatedAt @map("updated_at")
 
   tenant         CorporateTenant          @relation(fields: [tenantId], references: [id])
@@ -1302,6 +1307,9 @@ model CorporateRouteStop {
   employeeId          String?             @map("employee_id") @db.Uuid
   latitude            Decimal             @db.Decimal(10, 7)
   longitude           Decimal             @db.Decimal(10, 7)
+  addressText         String?             @map("address_text")
+  employeeName        String?             @map("employee_name") @db.VarChar(150)
+  employeePhone       String?             @map("employee_phone") @db.VarChar(32)
   plannedEta          DateTime            @map("planned_eta")
   actualArrivalTime   DateTime?           @map("actual_arrival_time")
   actualDepartureTime DateTime?           @map("actual_departure_time")
@@ -1908,9 +1916,14 @@ model CorporateTenantPolicy {
   maxRideMinutes             Int      @default(120) @map("max_ride_minutes")
   defaultVehicleCategory     String   @default("SEDAN") @map("default_vehicle_category") @db.VarChar(32)
   defaultCapacity            Int      @default(4) @map("default_capacity")
-  escalationLeadMinutes      Int      @default(30) @map("escalation_lead_minutes")
-  officeArrivalBufferMinutes Int      @default(10) @map("office_arrival_buffer_minutes")
-  nightShiftStart            String   @default("20:00") @map("night_shift_start") @db.VarChar(5)
+  escalationLeadMinutes        Int      @default(30) @map("escalation_lead_minutes")
+  officeArrivalBufferMinutes   Int      @default(10) @map("office_arrival_buffer_minutes")
+  stopDwellMinutes             Int      @default(10) @map("stop_dwell_minutes")
+  approachLeadMinutes          Int      @default(30) @map("approach_lead_minutes")
+  dispatchWindowMinutes        Int      @default(30) @map("dispatch_window_minutes")
+  dispatchRetryIntervalMinutes Int      @default(5) @map("dispatch_retry_interval_minutes")
+  searchRadiusKm               Int      @default(10) @map("search_radius_km")
+  nightShiftStart              String   @default("20:00") @map("night_shift_start") @db.VarChar(5)
   nightShiftEnd              String   @default("06:00") @map("night_shift_end") @db.VarChar(5)
   createdById                String?  @map("created_by_id") @db.Uuid
   createdAt                  DateTime @default(now()) @map("created_at")

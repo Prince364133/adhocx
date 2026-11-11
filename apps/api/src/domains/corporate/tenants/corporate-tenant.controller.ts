@@ -13,8 +13,10 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { CorporateTenantService } from './corporate-tenant.service';
+import { CorporateOnboardingService } from './corporate-onboarding.service';
 import {
   CreateCorporateTenantDto,
+  OnboardCorporateCompanyDto,
   UpdateCorporateTenantDto,
   CreateCorporateOfficeDto,
   CreateCorporateEmployeeDto,
@@ -49,14 +51,25 @@ const scopeOf = (req: any): string[] | null => req?.corporateOfficeScope ?? null
 export class CorporateTenantController {
   constructor(
     private readonly tenantService: CorporateTenantService,
+    private readonly onboardingService: CorporateOnboardingService,
     private readonly policyService: CorporateTenantPolicyService,
     private readonly orgService: CorporateOrgStructureService,
     private readonly usersService: CorporateTenantUsersService,
   ) {}
 
   // ---------------------------------------------------------------------------
-  // TENANTS
+  // TENANTS & ATOMIC CLIENT ONBOARDING
   // ---------------------------------------------------------------------------
+
+  @Post('onboard')
+  @Roles(UserRole.ADMIN, UserRole.OPS)
+  @ApiOperation({
+    summary: 'Atomically onboard a corporate client (tenant, primary office, operational policy, optional shift, and Corporate Portal admin)',
+  })
+  @ApiResponse({ status: 201, description: 'Company onboarded with Corporate Portal credentials' })
+  public async onboardCompany(@Body() dto: OnboardCorporateCompanyDto, @Req() req: any) {
+    return this.onboardingService.onboardCompany(dto, req.user);
+  }
 
   @Post()
   @Roles(UserRole.ADMIN)
@@ -112,7 +125,7 @@ export class CorporateTenantController {
   // ---------------------------------------------------------------------------
 
   @Get(':id/users')
-  @Roles(...CORPORATE_PORTAL_ROLES)
+  @Roles(...CORPORATE_PORTAL_ROLES, UserRole.OPS)
   @CorporateResource('tenant', 'id')
   @CorporatePermission('users:read')
   @ApiOperation({ summary: 'List corporate portal users of a tenant with their role and office scope' })
@@ -121,12 +134,12 @@ export class CorporateTenantController {
   }
 
   @Post(':id/users')
-  @Roles(...CORPORATE_PORTAL_ROLES)
+  @Roles(...CORPORATE_PORTAL_ROLES, UserRole.OPS)
   @CorporateResource('tenant', 'id')
   @CorporatePermission('users:invite')
   @ApiOperation({
     summary: 'Invite a corporate user (CORP_SUPER_ADMIN, HR, TRANSPORT, FINANCE, SAFETY, READ_ONLY) with an office scope',
-    description: 'Creates the account; the user signs in with the existing OTP login. Empty officeIds = all offices.',
+    description: 'Creates the account; the user signs in with the existing OTP or password login. Empty officeIds = all offices.',
   })
   @ApiResponse({ status: 201, description: 'User invited' })
   public async inviteUser(@Param('id') tenantId: string, @Body() body: InviteCorporateUserInput, @Req() req: any) {
@@ -134,7 +147,7 @@ export class CorporateTenantController {
   }
 
   @Patch(':id/users/:userId')
-  @Roles(...CORPORATE_PORTAL_ROLES)
+  @Roles(...CORPORATE_PORTAL_ROLES, UserRole.OPS)
   @CorporateResource('tenant', 'id')
   @CorporatePermission('users:invite')
   @ApiOperation({ summary: 'Change the corporate role / office scope of a tenant user (effective on next token refresh)' })
@@ -192,7 +205,7 @@ export class CorporateTenantController {
   // ---------------------------------------------------------------------------
 
   @Get(':id/policy')
-  @Roles(...CORPORATE_PORTAL_ROLES)
+  @Roles(...CORPORATE_PORTAL_ROLES, UserRole.OPS)
   @CorporateResource('tenant', 'id')
   @CorporatePermission('policy:read')
   @ApiOperation({ summary: 'Effective tenant policy (cancel cutoff, max ride, vehicle, capacity, escalation lead) at ?at (default now)' })
@@ -203,7 +216,7 @@ export class CorporateTenantController {
   }
 
   @Get(':id/policy/versions')
-  @Roles(...CORPORATE_PORTAL_ROLES)
+  @Roles(...CORPORATE_PORTAL_ROLES, UserRole.OPS)
   @CorporateResource('tenant', 'id')
   @CorporatePermission('policy:read')
   @ApiOperation({ summary: 'All policy versions of a tenant, newest first' })
@@ -212,7 +225,7 @@ export class CorporateTenantController {
   }
 
   @Post(':id/policy')
-  @Roles(...CORPORATE_PORTAL_ROLES)
+  @Roles(...CORPORATE_PORTAL_ROLES, UserRole.OPS)
   @CorporateResource('tenant', 'id')
   @CorporatePermission('policy:write')
   @ApiOperation({ summary: 'Add a tenant policy version effective from effectiveFrom (default now); omitted fields inherit' })
@@ -225,7 +238,7 @@ export class CorporateTenantController {
   // ---------------------------------------------------------------------------
 
   @Post(':id/offices')
-  @Roles(...CORPORATE_PORTAL_ROLES)
+  @Roles(...CORPORATE_PORTAL_ROLES, UserRole.OPS)
   @CorporateResource('tenant', 'id')
   @CorporatePermission('offices:write')
   @ApiOperation({ summary: 'Create an office campus for a corporate tenant' })

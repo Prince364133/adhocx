@@ -1,5 +1,6 @@
 import * as crypto from 'crypto';
-import { HttpStatus, UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, HttpStatus, UnauthorizedException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { JwtAuthGuard } from '../src/common/guards/auth.guard';
 import { AuthService } from '../src/modules/auth/auth.service';
 
@@ -29,8 +30,10 @@ function fakeRedis() {
       counters.set(k, n);
       return { allowed: n <= limit, remaining: Math.max(0, limit - n), resetAfter: 600 };
     }),
-    blacklistToken: jest.fn(),
-    isTokenBlacklisted: jest.fn(async () => false),
+    blacklistToken: jest.fn(async (t: string) => {
+      kv.set(`blacklist:${t}`, '1');
+    }),
+    isTokenBlacklisted: jest.fn(async (t: string) => kv.has(`blacklist:${t}`)),
     revokeUserSessions: jest.fn(async (id: string) => {
       kv.set(`user_revoked:${id}`, '1');
     }),
@@ -334,5 +337,116 @@ describe('password setup & reset session handling', () => {
     await svc.logout('jwt-busy-1', 'u-busy-1');
     expect(driverUpdate).not.toHaveBeenCalled();
     expect(locations.removeDriverFromAvailable).not.toHaveBeenCalled();
+  });
+});
+
+describe('rejected KYC & same-second re-login session continuity', () => {
+  function makeRealJwtSetup(dbOverrides: any = {}) {
+    const kv = new Map<string, string>();
+    const redis: any = {
+      ...fakeRedis(),
+      kv,
+      blacklistToken: jest.fn(async (t: string) => {
+        kv.set(`blacklist:${t}`, '1');
+      }),
+      isTokenBlacklisted: jest.fn(async (t: string) => kv.has(`blacklist:${t}`)),
+      revokeUserSessions: jest.fn(async (id: string) => {
+        kv.set(`user_revoked:${id}`, '1');
+      }),
+      unrevokeUser: jest.fn(async (id: string) => {
+        kv.delete(`user_revoked:${id}`);
+      }),
+      isUserRevoked: jest.fn(async (id: string) => kv.get(`user_revoked:${id}`) === '1'),
+    };
+    const db: any = {
+      user: {
+        findFirst: jest.fn(async () => null),
+        findUnique: jest.fn(async () => null),
+        create: jest.fn(async ({ data }: any) => ({ id: 'new-user', ...data })),
+        update: jest.fn(async ({ data }: any) => ({ id: 'u1', ...data })),
+      },
+      ...dbOverrides,
+    };
+    const config: any = {
+      get: jest.fn((k: string) => {
+        if (k === 'auth.jwtAccessSecret') return 'test-access-secret-32-bytes-minimum!';
+        if (k === 'auth.jwtRefreshSecret') return 'test-refresh-secret-32-bytes-minimum!';
+        if (k === 'auth.jwtAccessExpiresIn') return '7d';
+        if (k === 'auth.jwtRefreshExpiresIn') return '90d';
+        if (k === 'app.nodeEnv') return 'test';
+        return null;
+      }),
+    };
+    const jwt = new JwtService({});
+    const svc = new AuthService(db, jwt, config, redis, { sendOtp: jest.fn() } as any);
+    const guard = new JwtAuthGuard(jwt, config, redis);
+    return { svc, guard, db, redis, jwt };
+  }
+
+  function mockCtx(token: string): any {
+    const req: any = { headers: { authorization: `Bearer ${token}` } };
+    return {
+      switchToHttp: () => ({ getRequest: () => req }),
+      getHandler: () => (() => undefined),
+      getClass: () => class DummyController {},
+    };
+  }
+
+  it('KYC-rejected driver/vendor clears stale user_revoked lock on login and passes JwtAuthGuard', async () => {
+    const { svc, guard, db, redis } = makeRealJwtSetup();
+    const pwHash = await (svc as any).hashPassword('secret-123');
+    const rejectedDriver = {
+      id: 'u-rej-1',
+      phone: '+919000000010',
+      role: 'DRIVER',
+      status: 'ACTIVE',
+      passwordHash: pwHash,
+      driver: { id: 'drv-rej-1', verificationStatus: 'REJECTED' },
+    };
+    db.user.findFirst.mockResolvedValue(rejectedDriver);
+    await redis.revokeUserSessions('u-rej-1');
+
+    const res = await svc.login({ identifier: '+919000000010', password: 'secret-123' } as any);
+    expect(res.accessToken).toBeTruthy();
+    expect(redis.unrevokeUser).toHaveBeenCalledWith('u-rej-1');
+    await expect(redis.isUserRevoked('u-rej-1')).resolves.toBe(false);
+    await expect(guard.canActivate(mockCtx(res.accessToken))).resolves.toBe(true);
+
+    // Suspended users must still be blocked
+    db.user.findFirst.mockResolvedValue({
+      ...rejectedDriver,
+      id: 'u-susp-1',
+      driver: { id: 'drv-susp-1', verificationStatus: 'SUSPENDED' },
+    });
+    await expect(svc.login({ identifier: '+919000000010', password: 'secret-123' } as any)).rejects.toThrow(
+      ForbiddenException,
+    );
+  });
+
+  it('same-second logout then login issues distinct jti JWTs so the new token is never blacklisted', async () => {
+    const { svc, guard, db, jwt } = makeRealJwtSetup();
+    const pwHash = await (svc as any).hashPassword('secret-123');
+    db.user.findFirst.mockResolvedValue({
+      id: 'u-relog-1',
+      phone: '+919000000020',
+      role: 'DRIVER',
+      status: 'ACTIVE',
+      passwordHash: pwHash,
+      driver: { id: 'drv-relog-1', verificationStatus: 'VERIFIED' },
+    });
+
+    const first = await svc.login({ identifier: '+919000000020', password: 'secret-123' } as any);
+    await svc.logout(first.accessToken, 'u-relog-1');
+    const second = await svc.login({ identifier: '+919000000020', password: 'secret-123' } as any);
+
+    const decoded1 = jwt.decode(first.accessToken) as any;
+    const decoded2 = jwt.decode(second.accessToken) as any;
+    expect(decoded1?.jti).toBeTruthy();
+    expect(decoded2?.jti).toBeTruthy();
+    expect(decoded2.jti).not.toBe(decoded1.jti);
+    expect(second.accessToken).not.toBe(first.accessToken);
+
+    await expect(guard.canActivate(mockCtx(first.accessToken))).rejects.toThrow(UnauthorizedException);
+    await expect(guard.canActivate(mockCtx(second.accessToken))).resolves.toBe(true);
   });
 });

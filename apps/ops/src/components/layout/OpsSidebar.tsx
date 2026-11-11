@@ -33,6 +33,13 @@ const NAV_ITEMS: NavItem[] = [
     icon: <Building2 size={18} />,
   },
   {
+    href: '/companies',
+    label: 'Client Onboarding',
+    icon: <Building2 size={18} />,
+    badge: 'NEW',
+    badgeColor: '#5728B2',
+  },
+  {
     href: '/board',
     label: 'Live Route Deck',
     icon: <Navigation size={18} />,

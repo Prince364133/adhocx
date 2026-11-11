@@ -38,6 +38,18 @@ class ApiClient {
 
   static const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
 
+  // In-memory mirror guarantees newly minted tokens remain immediately readable
+  // across rapid post-login calls even if OEM KeyStore / FlutterSecureStorage lags or throws.
+  String? _memoryAccessToken;
+  String? _memoryRefreshToken;
+  int _tokenGeneration = 0;
+
+  @visibleForTesting
+  void resetMemoryTokensForTesting() {
+    _memoryAccessToken = null;
+    _memoryRefreshToken = null;
+  }
+
   // In-memory short-lived response cache and concurrent in-flight request deduplication
   final Map<String, _ApiCacheEntry> _responseCache = {};
   final Map<String, Future<dynamic>> _inFlightGets = {};
@@ -101,9 +113,9 @@ class ApiClient {
     return 'https://api.adhocx.com/api/v1';
   }
 
-  Future<String?> getToken() async {
+  Future<String?> _readPersistedToken(String key) async {
     try {
-      final secureToken = await _secureStorage.read(key: _tokenKey);
+      final secureToken = await _secureStorage.read(key: key);
       if (secureToken != null && secureToken.isNotEmpty) {
         return secureToken;
       }
@@ -111,82 +123,104 @@ class ApiClient {
       AppLogger.warn('Secure storage read warning: $e', tag: 'AUTH');
     }
 
-    // Seamless migration from legacy SharedPreferences if present
-    final prefs = await SharedPreferences.getInstance();
-    final legacyToken = prefs.getString(_tokenKey);
-    if (legacyToken != null && legacyToken.isNotEmpty) {
-      try {
-        await _secureStorage.write(key: _tokenKey, value: legacyToken);
-        await prefs.remove(_tokenKey);
-      } catch (_) {}
-      return legacyToken;
-    }
-    return null;
-  }
-
-  Future<String?> getRefreshToken() async {
+    // Fallback or seamless migration from SharedPreferences if present
     try {
-      final secureRefresh = await _secureStorage.read(key: _refreshTokenKey);
-      if (secureRefresh != null && secureRefresh.isNotEmpty) {
-        return secureRefresh;
+      final prefs = await SharedPreferences.getInstance();
+      final fallbackToken = prefs.getString(key);
+      if (fallbackToken != null && fallbackToken.isNotEmpty) {
+        try {
+          await _secureStorage.write(key: key, value: fallbackToken);
+          final verified = await _secureStorage.read(key: key);
+          if (verified == fallbackToken) {
+            await prefs.remove(key);
+          }
+        } catch (_) {}
+        return fallbackToken;
       }
     } catch (e) {
-      AppLogger.warn('Secure storage read warning: $e', tag: 'AUTH');
-    }
-
-    // Seamless migration from legacy SharedPreferences if present
-    final prefs = await SharedPreferences.getInstance();
-    final legacyToken = prefs.getString(_refreshTokenKey);
-    if (legacyToken != null && legacyToken.isNotEmpty) {
-      try {
-        await _secureStorage.write(key: _refreshTokenKey, value: legacyToken);
-        await prefs.remove(_refreshTokenKey);
-      } catch (_) {}
-      return legacyToken;
+      AppLogger.warn('SharedPreferences token read warning: $e', tag: 'AUTH');
     }
     return null;
   }
 
-  Future<void> setToken(String token, {String? refreshToken}) async {
+  Future<void> _writePersistedToken(String key, String value) async {
+    var secureVerified = false;
     try {
-      await _secureStorage.write(key: _tokenKey, value: token);
-      if (refreshToken != null && refreshToken.isNotEmpty) {
-        await _secureStorage.write(key: _refreshTokenKey, value: refreshToken);
-      }
+      await _secureStorage.write(key: key, value: value);
+      final readBack = await _secureStorage.read(key: key);
+      secureVerified = readBack == value;
     } catch (e) {
       AppLogger.error('Failed to write to secure storage: $e', tag: 'AUTH');
     }
-    // Remove from unencrypted SharedPreferences if exists
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_tokenKey);
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (secureVerified) {
+        await prefs.remove(key);
+      } else {
+        // Retain encrypted/fallback token in SharedPreferences only if KeyStore persistence failed verification.
+        await prefs.setString(key, value);
+      }
+    } catch (e) {
+      AppLogger.warn('SharedPreferences token write warning: $e', tag: 'AUTH');
+    }
+  }
+
+  Future<String?> getToken() async {
+    if (_memoryAccessToken != null && _memoryAccessToken!.isNotEmpty) {
+      return _memoryAccessToken;
+    }
+    final persisted = await _readPersistedToken(_tokenKey);
+    if (persisted != null && persisted.isNotEmpty) {
+      _memoryAccessToken = persisted;
+    }
+    return persisted;
+  }
+
+  Future<String?> getRefreshToken() async {
+    if (_memoryRefreshToken != null && _memoryRefreshToken!.isNotEmpty) {
+      return _memoryRefreshToken;
+    }
+    final persisted = await _readPersistedToken(_refreshTokenKey);
+    if (persisted != null && persisted.isNotEmpty) {
+      _memoryRefreshToken = persisted;
+    }
+    return persisted;
+  }
+
+  Future<void> setToken(String token, {String? refreshToken}) async {
+    _tokenGeneration++;
+    _memoryAccessToken = token;
     if (refreshToken != null && refreshToken.isNotEmpty) {
-      await prefs.remove(_refreshTokenKey);
+      _memoryRefreshToken = refreshToken;
+    }
+    await _writePersistedToken(_tokenKey, token);
+    if (refreshToken != null && refreshToken.isNotEmpty) {
+      await _writePersistedToken(_refreshTokenKey, refreshToken);
     }
   }
 
   Future<void> setTokens({required String accessToken, required String refreshToken}) async {
-    try {
-      await _secureStorage.write(key: _tokenKey, value: accessToken);
-      await _secureStorage.write(key: _refreshTokenKey, value: refreshToken);
-    } catch (e) {
-      AppLogger.error('Failed to write tokens to secure storage: $e', tag: 'AUTH');
-    }
-    // Clean up cleartext SharedPreferences
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_tokenKey);
-    await prefs.remove(_refreshTokenKey);
+    await setToken(accessToken, refreshToken: refreshToken);
   }
 
   Future<void> clearToken() async {
+    _tokenGeneration++;
+    _memoryAccessToken = null;
+    _memoryRefreshToken = null;
     try {
       await _secureStorage.delete(key: _tokenKey);
       await _secureStorage.delete(key: _refreshTokenKey);
     } catch (e) {
       AppLogger.warn('Secure storage delete warning: $e', tag: 'AUTH');
     }
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_tokenKey);
-    await prefs.remove(_refreshTokenKey);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_tokenKey);
+      await prefs.remove(_refreshTokenKey);
+    } catch (e) {
+      AppLogger.warn('SharedPreferences token clear warning: $e', tag: 'AUTH');
+    }
     invalidateCache();
     AppLogger.info('Cleared authentication tokens from secure storage and cached sessions', tag: 'AUTH');
   }
@@ -224,7 +258,10 @@ class ApiClient {
         ep.startsWith('/auth/register');
   }
 
-  Future<bool> attemptTokenRefresh() async {
+  Future<bool> attemptTokenRefresh({int? expectedGeneration}) async {
+    if (expectedGeneration != null && expectedGeneration != _tokenGeneration) {
+      return false;
+    }
     if (_isRefreshing && _refreshFuture != null) {
       return await _refreshFuture!;
     }
@@ -239,10 +276,13 @@ class ApiClient {
   }
 
   Future<bool> _executeTokenRefresh() async {
+    final gen = _tokenGeneration;
     final refresh = await getRefreshToken();
     if (refresh == null || refresh.isEmpty) {
       AppLogger.warn('No refresh token found; clearing session', tag: 'AUTH');
-      await clearToken();
+      if (gen == _tokenGeneration) {
+        await clearToken();
+      }
       return false;
     }
 
@@ -258,6 +298,12 @@ class ApiClient {
       ).timeout(const Duration(seconds: 15));
       sw.stop();
       AppLogger.httpRes(res.statusCode, 'POST', uri.toString(), sw.elapsed, body: res.body);
+
+      if (gen != _tokenGeneration) {
+        // Session changed (newer login or explicit logout) while /auth/refresh was in flight;
+        // never overwrite or wipe newer credentials.
+        return false;
+      }
 
       if (res.statusCode >= 200 && res.statusCode < 300) {
         final decoded = jsonDecode(res.body);
@@ -362,6 +408,7 @@ class ApiClient {
     }
 
     final headers = await _getHeaders(endpoint: endpoint);
+    final requestGen = _tokenGeneration;
     final sw = Stopwatch()..start();
     AppLogger.httpReq('GET', uri.toString());
     final response = await http.get(uri, headers: headers).timeout(
@@ -371,7 +418,7 @@ class ApiClient {
     AppLogger.httpRes(response.statusCode, 'GET', uri.toString(), sw.elapsed, body: response.body);
 
     if (response.statusCode == 401 && !_isNonRefreshableEndpoint(endpoint)) {
-      final refreshed = await attemptTokenRefresh();
+      final refreshed = await attemptTokenRefresh(expectedGeneration: requestGen);
       if (refreshed) {
         final retryHeaders = await _getHeaders(endpoint: endpoint);
         final retrySw = Stopwatch()..start();
@@ -393,6 +440,7 @@ class ApiClient {
   }) async {
     final uri = Uri.parse('$baseUrl$endpoint');
     final headers = await _getHeaders(endpoint: endpoint);
+    final requestGen = _tokenGeneration;
     final sw = Stopwatch()..start();
     AppLogger.httpReq('POST', uri.toString(), body: body);
 
@@ -405,7 +453,7 @@ class ApiClient {
     AppLogger.httpRes(response.statusCode, 'POST', uri.toString(), sw.elapsed, body: response.body);
 
     if (response.statusCode == 401 && !_isNonRefreshableEndpoint(endpoint)) {
-      final refreshed = await attemptTokenRefresh();
+      final refreshed = await attemptTokenRefresh(expectedGeneration: requestGen);
       if (refreshed) {
         final retryHeaders = await _getHeaders(endpoint: endpoint);
         final retrySw = Stopwatch()..start();
@@ -431,6 +479,7 @@ class ApiClient {
   Future<dynamic> patch(String endpoint, {dynamic body}) async {
     final uri = Uri.parse('$baseUrl$endpoint');
     final headers = await _getHeaders(endpoint: endpoint);
+    final requestGen = _tokenGeneration;
     final sw = Stopwatch()..start();
     AppLogger.httpReq('PATCH', uri.toString(), body: body);
 
@@ -443,7 +492,7 @@ class ApiClient {
     AppLogger.httpRes(response.statusCode, 'PATCH', uri.toString(), sw.elapsed, body: response.body);
 
     if (response.statusCode == 401 && !_isNonRefreshableEndpoint(endpoint)) {
-      final refreshed = await attemptTokenRefresh();
+      final refreshed = await attemptTokenRefresh(expectedGeneration: requestGen);
       if (refreshed) {
         final retryHeaders = await _getHeaders(endpoint: endpoint);
         final retrySw = Stopwatch()..start();
@@ -469,6 +518,7 @@ class ApiClient {
   Future<dynamic> delete(String endpoint) async {
     final uri = Uri.parse('$baseUrl$endpoint');
     final headers = await _getHeaders(endpoint: endpoint);
+    final requestGen = _tokenGeneration;
     final sw = Stopwatch()..start();
     AppLogger.httpReq('DELETE', uri.toString());
 
@@ -479,7 +529,7 @@ class ApiClient {
     AppLogger.httpRes(response.statusCode, 'DELETE', uri.toString(), sw.elapsed, body: response.body);
 
     if (response.statusCode == 401 && !_isNonRefreshableEndpoint(endpoint)) {
-      final refreshed = await attemptTokenRefresh();
+      final refreshed = await attemptTokenRefresh(expectedGeneration: requestGen);
       if (refreshed) {
         final retryHeaders = await _getHeaders(endpoint: endpoint);
         final retrySw = Stopwatch()..start();
@@ -516,6 +566,7 @@ class ApiClient {
     final request = http.MultipartRequest('POST', uri);
 
     final token = await getToken();
+    final requestGen = _tokenGeneration;
     if (token != null && token.isNotEmpty) {
       request.headers['Authorization'] = 'Bearer $token';
     }
@@ -544,7 +595,7 @@ class ApiClient {
     AppLogger.httpRes(response.statusCode, 'MULTIPART POST', uri.toString(), sw.elapsed, body: response.body);
 
     if (response.statusCode == 401 && !_isNonRefreshableEndpoint(endpoint)) {
-      final refreshed = await attemptTokenRefresh();
+      final refreshed = await attemptTokenRefresh(expectedGeneration: requestGen);
       if (refreshed) {
         final retryRequest = http.MultipartRequest('POST', uri);
         final retryToken = await getToken();

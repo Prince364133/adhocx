@@ -11,6 +11,11 @@ export interface CorporateTenantPolicyValues {
   defaultCapacity: number;
   escalationLeadMinutes: number;
   officeArrivalBufferMinutes: number;
+  stopDwellMinutes: number;
+  approachLeadMinutes: number;
+  dispatchWindowMinutes: number;
+  dispatchRetryIntervalMinutes: number;
+  searchRadiusKm: number;
   nightShiftStart: string;
   nightShiftEnd: string;
 }
@@ -25,7 +30,7 @@ export interface EffectiveTenantPolicy extends CorporateTenantPolicyValues {
 
 export type CreateTenantPolicyInput = Partial<CorporateTenantPolicyValues> & { effectiveFrom?: string | Date };
 
-/** Platform defaults. They match the constants the planner and replanner used before WS-F. */
+/** Platform defaults. They match the constants the planner, replanner, and 30m+30m dispatch lifecycle use. */
 export const DEFAULT_TENANT_POLICY: Readonly<CorporateTenantPolicyValues> = Object.freeze({
   cancelCutoffHours: RESCHEDULE_CUTOFF_HOURS,
   maxRideMinutes: 120,
@@ -33,6 +38,11 @@ export const DEFAULT_TENANT_POLICY: Readonly<CorporateTenantPolicyValues> = Obje
   defaultCapacity: 4,
   escalationLeadMinutes: 30,
   officeArrivalBufferMinutes: 10,
+  stopDwellMinutes: 10,
+  approachLeadMinutes: 30,
+  dispatchWindowMinutes: 30,
+  dispatchRetryIntervalMinutes: 5,
+  searchRadiusKm: 10,
   nightShiftStart: '20:00',
   nightShiftEnd: '06:00',
 });
@@ -44,6 +54,11 @@ const INT_RANGES: Record<string, [number, number]> = {
   defaultCapacity: [1, 12],
   escalationLeadMinutes: [0, 240],
   officeArrivalBufferMinutes: [0, 120],
+  stopDwellMinutes: [1, 10],
+  approachLeadMinutes: [5, 120],
+  dispatchWindowMinutes: [5, 120],
+  dispatchRetryIntervalMinutes: [1, 30],
+  searchRadiusKm: [1, 25],
 };
 /** effectiveFrom may lag `now` by this much (clock skew between client and server). */
 const PAST_EFFECTIVE_TOLERANCE_MS = 5 * 60_000;
@@ -81,6 +96,11 @@ export class CorporateTenantPolicyService {
       defaultCapacity: row.defaultCapacity,
       escalationLeadMinutes: row.escalationLeadMinutes,
       officeArrivalBufferMinutes: row.officeArrivalBufferMinutes,
+      stopDwellMinutes: row.stopDwellMinutes ?? DEFAULT_TENANT_POLICY.stopDwellMinutes,
+      approachLeadMinutes: row.approachLeadMinutes ?? DEFAULT_TENANT_POLICY.approachLeadMinutes,
+      dispatchWindowMinutes: row.dispatchWindowMinutes ?? DEFAULT_TENANT_POLICY.dispatchWindowMinutes,
+      dispatchRetryIntervalMinutes: row.dispatchRetryIntervalMinutes ?? DEFAULT_TENANT_POLICY.dispatchRetryIntervalMinutes,
+      searchRadiusKm: row.searchRadiusKm ?? DEFAULT_TENANT_POLICY.searchRadiusKm,
       nightShiftStart: row.nightShiftStart,
       nightShiftEnd: row.nightShiftEnd,
     };

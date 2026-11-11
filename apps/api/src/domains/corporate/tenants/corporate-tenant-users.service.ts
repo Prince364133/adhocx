@@ -11,6 +11,7 @@ import { DatabaseService } from '../../../database/database.service';
 import { AuditService } from '../../../modules/audit/audit.service';
 import { assertPhoneAvailable } from '../../../common/utils/uniqueness.util';
 import { sanitizeRealName } from '../../../common/utils/name.util';
+import { hashPassword } from '../../../common/utils/password.util';
 import {
   CorporateRole,
   corporateOfficeScope,
@@ -23,6 +24,7 @@ export interface InviteCorporateUserInput {
   fullName: string;
   email?: string;
   phone?: string;
+  password?: string;
   corporateRole: CorporateRole | string;
   /** Office scope. Omitted / empty => all offices of the tenant. */
   officeIds?: string[];
@@ -104,6 +106,13 @@ export class CorporateTenantUsersService {
       if (taken) throw new ConflictException('This email address is already registered to another account');
     }
 
+    let passwordHash: string | undefined;
+    if (input?.password !== undefined && input.password !== null && String(input.password).length > 0) {
+      const rawPwd = String(input.password);
+      if (rawPwd.length < 6) throw new BadRequestException('password must be at least 6 characters');
+      passwordHash = await hashPassword(rawPwd);
+    }
+
     let user: any;
     try {
       user = await this.db.user.create({
@@ -111,6 +120,7 @@ export class CorporateTenantUsersService {
           fullName,
           email: email ?? undefined,
           phone: phone ?? undefined,
+          ...(passwordHash ? { passwordHash } : {}),
           role: userRoleForCorporateRole(corporateRole) as any,
           status: 'ACTIVE',
           corporateTenantId: tenantId,
@@ -220,7 +230,8 @@ export class CorporateTenantUsersService {
    * "all offices".
    */
   private assertActorMayGrant(actor: CorporateActor, _role: CorporateRole, officeIds: string[]): void {
-    if (String(actor.role).toUpperCase() === UserRole.ADMIN) return;
+    const actorRole = String(actor.role).toUpperCase();
+    if (actorRole === UserRole.ADMIN || actorRole === UserRole.OPS) return;
     const actorScope = corporateOfficeScope(actor);
     if (!actorScope) return;
     if (officeIds.length === 0 || officeIds.some((id) => !actorScope.includes(id))) {

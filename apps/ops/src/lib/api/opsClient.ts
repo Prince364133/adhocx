@@ -1,6 +1,7 @@
-import type { LiveVehicleTelemetryPayload } from '@adhocx/contracts';
+import type { LiveVehicleTelemetryPayload, OnboardCorporateCompanyDto } from '@adhocx/contracts';
 import {
   CorporateTenantOption,
+  OnboardCorporateCompanyResponse,
   CorporateRouteItem,
   OpsBoardResponse,
   RouteWaypointsResponse,
@@ -397,6 +398,21 @@ export const opsApi = {
   getTenant: (tenantId: string): Promise<CorporateTenantOption> =>
     request<CorporateTenantOption>(`/corporate/tenants/${encodeURIComponent(tenantId)}`),
 
+  onboardCompany: (payload: OnboardCorporateCompanyDto): Promise<OnboardCorporateCompanyResponse> =>
+    request<OnboardCorporateCompanyResponse>('/corporate/tenants/onboard', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  createOffice: (
+    tenantId: string,
+    payload: { code: string; name: string; addressText: string; latitude: number; longitude: number },
+  ) =>
+    request(`/corporate/tenants/${encodeURIComponent(tenantId)}/offices`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
   // ── Routes & Filtering ──
   getRoutes: async (params: {
     tenantId: string;
@@ -628,8 +644,9 @@ export const opsApi = {
     shiftTime: string;
     direction: 'LOGIN' | 'LOGOUT';
     vehicleCategory?: string;
+    stopDwellMinutes?: number;
     plan: RoutePlanningResult;
-  }): Promise<{ routesCreated: number; stopsCreated: number }> => {
+  }): Promise<{ routesCreated: number; stopsCreated: number; routeIds?: string[]; employeesLinked?: number }> => {
     return request(`/corporate/routes/commit-plan`, {
       method: 'POST',
       body: JSON.stringify(payload),

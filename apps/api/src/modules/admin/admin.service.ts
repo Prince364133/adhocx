@@ -362,11 +362,8 @@ export class AdminService {
         .catch((err) => this.logger.warn(`Driver KYC rejection notification notice: ${err.message}`));
     }
 
-    if (driver.userId && this.redis) {
-      await this.redis.revokeUserSessions(driver.userId).catch((err) =>
-        this.logger.warn(`Failed to revoke sessions for rejected driver ${id}: ${err.message}`),
-      );
-    }
+    // Keep KYC-rejected drivers signed in so they can view the rejection reason and re-apply.
+    // Session revocation is reserved for account suspensions.
 
     this.logger.log(`Driver ${id} rejected by admin ${adminId}: ${dto.reason}`);
     return updated;
@@ -1361,11 +1358,8 @@ export class AdminService {
         .catch((err) => this.logger.warn(`Vendor KYC rejection notification notice: ${err.message}`));
     }
 
-    if (vendor.userId && this.redis) {
-      await this.redis.revokeUserSessions(vendor.userId).catch((err) =>
-        this.logger.warn(`Failed to revoke sessions for rejected vendor ${id}: ${err.message}`),
-      );
-    }
+    // Keep KYC-rejected vendors signed in so they can view the rejection reason and re-apply.
+    // Session revocation is reserved for account suspensions.
 
     this.logger.log(`Vendor ${id} rejected by admin ${adminId}: ${dto.reason}`);
     return updated;

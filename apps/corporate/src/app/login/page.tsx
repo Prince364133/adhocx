@@ -26,8 +26,9 @@ function LoginContent() {
   const redirectUrl = searchParams.get('redirect') || '/dashboard';
 
   const [phone, setPhone] = useState('');
+  const [loginIdentifier, setLoginIdentifier] = useState('');
   const [password, setPassword] = useState('');
-  const [authMode, setAuthMode] = useState<'otp' | 'password'>('otp');
+  const [authMode, setAuthMode] = useState<'otp' | 'password'>('password');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -75,17 +76,26 @@ function LoginContent() {
   };
 
   /**
-   * Password Authentication Flow with Phone Number
+   * Password Authentication Flow (Email or +91 Mobile Number + Password)
    */
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const digits = cleanIndianDigits(phone);
-    if (!isValidIndianMobile(digits)) {
-      setErrorMessage('Please enter a valid 10-digit Indian mobile number.');
+    const rawId = (loginIdentifier || phone).trim();
+    if (!rawId) {
+      setErrorMessage('Please enter your corporate email address or 10-digit mobile number.');
       return;
     }
-    const phoneE164 = `+91${digits}`;
+
+    let resolvedIdentifier = rawId;
+    if (!rawId.includes('@')) {
+      const digits = cleanIndianDigits(rawId);
+      if (!isValidIndianMobile(digits)) {
+        setErrorMessage('Please enter a valid corporate email or 10-digit Indian mobile number.');
+        return;
+      }
+      resolvedIdentifier = `+91${digits}`;
+    }
 
     if (!password) {
       setErrorMessage('Please enter your password.');
@@ -96,7 +106,7 @@ function LoginContent() {
     setErrorMessage(null);
 
     try {
-      const res = await authApi.login(phoneE164, password);
+      const res = await authApi.login(resolvedIdentifier, password);
       if (res && res.accessToken) {
         applySessionAndRedirect(
           res.accessToken,
@@ -104,8 +114,8 @@ function LoginContent() {
             id: res.user?.id || '',
             role: res.user?.role || 'CORPORATE_ADMIN',
             fullName: res.user?.fullName || 'Corporate Administrator',
-            email: res.user?.email || '',
-            phone: res.user?.phone || phoneE164,
+            email: res.user?.email || (rawId.includes('@') ? rawId : ''),
+            phone: res.user?.phone || (rawId.includes('@') ? '' : resolvedIdentifier),
           },
           res.refreshToken,
         );
@@ -115,7 +125,7 @@ function LoginContent() {
     } catch (err: any) {
       const msg = err?.message || '';
       if (err?.status === 401) {
-        setErrorMessage('Invalid credentials. Please verify your mobile number and password.');
+        setErrorMessage('Invalid credentials. Please verify your email/mobile number and password.');
       } else {
         setErrorMessage(msg || 'Authentication failed. Please check your network connection.');
       }
@@ -610,10 +620,10 @@ function LoginContent() {
         {/* Credentials Form (Password Mode) */}
         {authMode === 'password' && (
           <form onSubmit={handlePasswordSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
-            {/* Phone Number Input */}
+            {/* Corporate Email or Mobile Input */}
             <div style={{ width: '100%', boxSizing: 'border-box' }}>
               <label
-                htmlFor="corporate-phone-password"
+                htmlFor="corporate-identifier-password"
                 style={{
                   display: 'block',
                   fontSize: '0.77rem',
@@ -622,53 +632,33 @@ function LoginContent() {
                   marginBottom: '0.35rem',
                 }}
               >
-                Indian Mobile Number (+91)
+                Corporate Email or Mobile Number
               </label>
-              <div style={{ position: 'relative', width: '100%', boxSizing: 'border-box' }}>
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: '0.75rem',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    fontSize: '0.8rem',
-                    fontWeight: 700,
-                    color: 'var(--text-primary, #0F172A)',
-                    pointerEvents: 'none',
-                  }}
-                >
-                  <span>🇮🇳</span>
-                  <span>+91</span>
-                  <span style={{ color: 'var(--border-strong, #CBD5E1)', marginLeft: '2px' }}>|</span>
-                </div>
-                <input
-                  id="corporate-phone-password"
-                  type="tel"
-                  autoComplete="tel"
-                  maxLength={10}
-                  value={phone}
-                  onChange={(e) => handlePhoneChange(e.target.value)}
-                  placeholder="98765 43210"
-                  required
-                  disabled={isLoading}
-                  style={{
-                    width: '100%',
-                    height: 38,
-                    padding: '0 0.85rem 0 3.8rem',
-                    borderRadius: '8px',
-                    border: '1.5px solid var(--border-strong, #CBD5E1)',
-                    backgroundColor: 'var(--bg-input, #FFFFFF)',
-                    color: 'var(--text-primary, #0F172A)',
-                    fontSize: '0.84rem',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    letterSpacing: '0.5px',
-                  }}
-                />
-              </div>
+              <input
+                id="corporate-identifier-password"
+                type="text"
+                autoComplete="username"
+                value={loginIdentifier}
+                onChange={(e) => {
+                  setLoginIdentifier(e.target.value);
+                  setErrorMessage(null);
+                }}
+                placeholder="admin@company.com or 9876543210"
+                required
+                disabled={isLoading}
+                style={{
+                  width: '100%',
+                  height: 38,
+                  padding: '0 0.85rem',
+                  borderRadius: '8px',
+                  border: '1.5px solid var(--border-strong, #CBD5E1)',
+                  backgroundColor: 'var(--bg-input, #FFFFFF)',
+                  color: 'var(--text-primary, #0F172A)',
+                  fontSize: '0.84rem',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
             </div>
 
             {/* Password with Eye Visibility Toggle */}

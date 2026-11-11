@@ -2,13 +2,45 @@ export interface CorporateTenantOption {
   id: string;
   code: string;
   name: string;
+  legalEntityName?: string;
+  gstin?: string | null;
   status: string;
+  createdAt?: string;
   activeShiftsCount?: number;
   activeCabsCount?: number;
   inTransitCount?: number;
   onTimePunctualityPct?: number;
   delayedCount?: number;
   unassignedCount?: number;
+  _count?: {
+    offices?: number;
+    employees?: number;
+    routes?: number;
+    rosters?: number;
+    invoices?: number;
+  };
+  policies?: {
+    id: string;
+    version: number;
+    defaultVehicleCategory: string;
+    defaultCapacity: number;
+    stopDwellMinutes?: number;
+    officeArrivalBufferMinutes: number;
+    approachLeadMinutes?: number;
+    dispatchWindowMinutes?: number;
+    dispatchRetryIntervalMinutes?: number;
+    searchRadiusKm?: number;
+    cancelCutoffHours: number;
+    maxRideMinutes: number;
+  }[];
+  users?: {
+    id: string;
+    fullName: string;
+    email?: string | null;
+    phone?: string | null;
+    corporateRole?: string | null;
+    status?: string;
+  }[];
   offices?: {
     id: string;
     code: string;
@@ -19,6 +51,35 @@ export interface CorporateTenantOption {
   }[];
 }
 
+export interface OnboardCorporateCompanyResponse {
+  tenant: CorporateTenantOption;
+  office: {
+    id: string;
+    code: string;
+    name: string;
+    addressText: string;
+    latitude: number;
+    longitude: number;
+  };
+  policy: any;
+  shiftTemplate?: any;
+  adminUser: {
+    id: string;
+    fullName: string;
+    email?: string | null;
+    phone?: string | null;
+    role: string;
+    corporateRole?: string | null;
+  };
+  portalAccess: {
+    loginPath: string;
+    email?: string | null;
+    phone?: string | null;
+    passwordConfigured: boolean;
+    corporateRole?: string | null;
+  };
+}
+
 export interface RouteStop {
   id: string;
   stopSequence: number;
@@ -26,6 +87,8 @@ export interface RouteStop {
   latitude: number;
   longitude: number;
   addressText: string;
+  employeeName?: string | null;
+  employeePhone?: string | null;
   plannedEta: string;
   actualArrivalTime?: string;
   actualDepartureTime?: string;
@@ -41,6 +104,55 @@ export interface RouteStop {
     phoneNumber: string;
     department?: string;
   };
+}
+
+export interface RouteDirectionLeg {
+  legIndex?: number;
+  fromStopId?: string;
+  fromSequence?: number;
+  fromType?: string;
+  fromLabel: string;
+  fromAddress?: string;
+  fromLat?: number;
+  fromLng?: number;
+  fromPhone?: string | null;
+  toStopId?: string;
+  toSequence?: number;
+  toType?: string;
+  toLabel: string;
+  toAddress?: string;
+  toLat?: number;
+  toLng?: number;
+  toPhone?: string | null;
+  dwellBufferSeconds?: number;
+  distanceMeters: number;
+  distanceKm?: number;
+  durationSeconds?: number;
+  trafficDurationSeconds?: number;
+  trafficDurationMinutes?: number;
+  dwellSeconds?: number;
+  plannedArrivalAtFrom?: string;
+  plannedDepartFrom?: string;
+  estimatedArrivalAtTo?: string;
+  etaAtTo?: string;
+  encodedPolyline?: string;
+}
+
+export interface RouteDirectionsResult {
+  routeId: string;
+  trafficSource: 'GOOGLE_MAPS_LIVE_TRAFFIC' | 'ROAD_FACTOR_ESTIMATE';
+  isRealRoad: boolean;
+  totalDurationSeconds: number;
+  totalDurationMinutes: number;
+  totalDwellSeconds: number;
+  totalTravelWithWaitMinutes: number;
+  totalDistanceMeters: number;
+  totalDistanceKm: number;
+  encodedPolyline: string;
+  decodedPath: Array<{ lat: number; lng: number }>;
+  pathTuples: Array<[number, number]>;
+  legs: RouteDirectionLeg[];
+  refreshedAt: string;
 }
 
 export interface CorporateRouteItem {
@@ -60,6 +172,16 @@ export interface CorporateRouteItem {
   estDistanceMeters?: number;
   estDurationSeconds?: number;
   status: 'PLANNED' | 'DISPATCHING' | 'ASSIGNED' | 'IN_TRANSIT' | 'COMPLETED' | 'CANCELLED';
+  dispatchStatus?: string;
+  dispatchAttempts?: number;
+  dispatchWindowStartedAt?: string | null;
+  lastDispatchAttemptAt?: string | null;
+  dispatchFailureReason?: string | null;
+  encodedPolyline?: string;
+  decodedPath?: [number, number][];
+  legs?: RouteDirectionLeg[];
+  directions?: RouteDirectionsResult;
+  isRealTraffic?: boolean;
   driverId?: string;
   vehicleId?: string;
   driver?: {

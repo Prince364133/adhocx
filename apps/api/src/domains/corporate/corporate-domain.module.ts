@@ -10,6 +10,7 @@ import { CorporateTrackingModule } from './tracking/corporate-tracking.module';
 
 // Tenants, Offices & Employees Sub-Module
 import { CorporateTenantService } from './tenants/corporate-tenant.service';
+import { CorporateOnboardingService } from './tenants/corporate-onboarding.service';
 import { CorporateTenantController } from './tenants/corporate-tenant.controller';
 // WS-F: corporate roles, policy, departments / cost centers
 import { CorporateTenantPolicyService } from './tenants/corporate-tenant-policy.service';
@@ -30,6 +31,7 @@ import { CorporateSchedulingController } from './scheduling/corporate-scheduling
 // Routing Sub-Module
 import { RouteSolverService } from './routing/route-solver.service';
 import { CorporateRoutePlannerService } from './routing/corporate-route-planner.service';
+import { CorporateRouteDirectionsService } from './routing/corporate-route-directions.service';
 import { GoogleGeocodingAdapter } from './routing/google-geocoding.adapter';
 import { GoogleRoutesV2Adapter } from './routing/google-routes-v2.adapter';
 import { CorporateRoutingController } from './routing/corporate-routing.controller';
@@ -106,6 +108,7 @@ import { CorporateRiderController } from './rider/corporate-rider.controller';
   providers: [
     DriverEligibilityService,
     CorporateTenantService,
+    CorporateOnboardingService,
     RosterTemplateService,
     RosterIngestionService,
     {
@@ -118,6 +121,7 @@ import { CorporateRiderController } from './rider/corporate-rider.controller';
     GoogleGeocodingAdapter,
     GoogleRoutesV2Adapter,
     CorporateRoutePlannerService,
+    CorporateRouteDirectionsService,
     GoogleTrafficEstimatorAdapter,
     { provide: TRAFFIC_ESTIMATOR_PORT, useExisting: GoogleTrafficEstimatorAdapter },
     CorporateDispatchService,
@@ -166,12 +170,14 @@ import { CorporateRiderController } from './rider/corporate-rider.controller';
   exports: [
     DriverEligibilityService,
     CorporateTenantService,
+    CorporateOnboardingService,
     RosterTemplateService,
     RosterIngestionService,
     RouteSolverService,
     GoogleGeocodingAdapter,
     GoogleRoutesV2Adapter,
     CorporateRoutePlannerService,
+    CorporateRouteDirectionsService,
     CorporateDispatchService,
     CorporateDispatchSchedulerService,
     CorporateTripExecutionService,

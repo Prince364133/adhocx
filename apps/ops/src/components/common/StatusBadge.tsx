@@ -18,6 +18,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
   const colorMap: Record<string, { bgLight: string; textLight: string; borderLight: string; bgDark: string; textDark: string; borderDark: string }> = {
     // Green (Success / On Time)
     COMPLETED: { bgLight: '#DCFCE7', textLight: '#15803D', borderLight: '#86EFAC', bgDark: 'rgba(34, 197, 94, 0.16)', textDark: '#4ADE80', borderDark: 'rgba(34, 197, 94, 0.35)' },
+    ACTIVE: { bgLight: '#DCFCE7', textLight: '#15803D', borderLight: '#86EFAC', bgDark: 'rgba(34, 197, 94, 0.16)', textDark: '#4ADE80', borderDark: 'rgba(34, 197, 94, 0.35)' },
     BOARDED: { bgLight: '#DCFCE7', textLight: '#15803D', borderLight: '#86EFAC', bgDark: 'rgba(34, 197, 94, 0.16)', textDark: '#4ADE80', borderDark: 'rgba(34, 197, 94, 0.35)' },
     ACCEPTED: { bgLight: '#DCFCE7', textLight: '#15803D', borderLight: '#86EFAC', bgDark: 'rgba(34, 197, 94, 0.16)', textDark: '#4ADE80', borderDark: 'rgba(34, 197, 94, 0.35)' },
     ON_TIME: { bgLight: '#DCFCE7', textLight: '#15803D', borderLight: '#86EFAC', bgDark: 'rgba(34, 197, 94, 0.16)', textDark: '#4ADE80', borderDark: 'rgba(34, 197, 94, 0.35)' },
@@ -40,6 +41,8 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
     DELAYED: { bgLight: '#FEE2E2', textLight: '#B91C1C', borderLight: '#FCA5A5', bgDark: 'rgba(239, 68, 68, 0.18)', textDark: '#F87171', borderDark: 'rgba(239, 68, 68, 0.4)' },
     CANCELLED: { bgLight: '#FEE2E2', textLight: '#B91C1C', borderLight: '#FCA5A5', bgDark: 'rgba(239, 68, 68, 0.16)', textDark: '#F87171', borderDark: 'rgba(239, 68, 68, 0.35)' },
     NO_SHOW: { bgLight: '#FEE2E2', textLight: '#B91C1C', borderLight: '#FCA5A5', bgDark: 'rgba(239, 68, 68, 0.16)', textDark: '#F87171', borderDark: 'rgba(239, 68, 68, 0.35)' },
+    NO_DRIVERS_FOUND: { bgLight: '#FEE2E2', textLight: '#B91C1C', borderLight: '#FCA5A5', bgDark: 'rgba(239, 68, 68, 0.22)', textDark: '#F87171', borderDark: 'rgba(239, 68, 68, 0.5)' },
+    DRIVERS_NOT_FOUND: { bgLight: '#FEE2E2', textLight: '#B91C1C', borderLight: '#FCA5A5', bgDark: 'rgba(239, 68, 68, 0.22)', textDark: '#F87171', borderDark: 'rgba(239, 68, 68, 0.5)' },
     NEW: { bgLight: '#FEE2E2', textLight: '#DC2626', borderLight: '#F87171', bgDark: 'rgba(220, 38, 38, 0.25)', textDark: '#EF4444', borderDark: 'rgba(220, 38, 38, 0.6)' },
     ESCALATED: { bgLight: '#FEE2E2', textLight: '#DC2626', borderLight: '#F87171', bgDark: 'rgba(220, 38, 38, 0.25)', textDark: '#EF4444', borderDark: 'rgba(220, 38, 38, 0.6)' },
     CRITICAL_P0: { bgLight: '#FEE2E2', textLight: '#DC2626', borderLight: '#EF4444', bgDark: 'rgba(220, 38, 38, 0.3)', textDark: '#FF4D4D', borderDark: 'rgba(220, 38, 38, 0.7)' },

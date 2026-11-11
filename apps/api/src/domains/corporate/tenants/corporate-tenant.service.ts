@@ -87,7 +87,7 @@ export class CorporateTenantService {
       ];
     }
 
-    const [total, items] = await Promise.all([
+    const [total, rawItems] = await Promise.all([
       this.db.corporateTenant.count({ where }),
       this.db.corporateTenant.findMany({
         where,
@@ -95,6 +95,35 @@ export class CorporateTenantService {
         take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
+          offices: {
+            orderBy: { createdAt: 'asc' },
+            take: 10,
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              addressText: true,
+              latitude: true,
+              longitude: true,
+            },
+          },
+          policies: {
+            orderBy: [{ effectiveFrom: 'desc' }, { version: 'desc' }],
+            take: 1,
+          },
+          users: {
+            where: { role: { in: ['CORPORATE_ADMIN', 'CORPORATE_MANAGER'] as any } },
+            orderBy: { createdAt: 'asc' },
+            take: 5,
+            select: {
+              id: true,
+              fullName: true,
+              email: true,
+              phone: true,
+              corporateRole: true,
+              status: true,
+            },
+          },
           _count: {
             select: {
               offices: true,
@@ -105,6 +134,15 @@ export class CorporateTenantService {
         },
       }),
     ]);
+
+    const items = rawItems.map((tenant: any) => ({
+      ...tenant,
+      offices: (tenant.offices ?? []).map((o: any) => ({
+        ...o,
+        latitude: Number(o.latitude),
+        longitude: Number(o.longitude),
+      })),
+    }));
 
     return {
       items,
@@ -118,10 +156,27 @@ export class CorporateTenantService {
   }
 
   async getTenantById(tenantId: string) {
-    const tenant = await this.db.corporateTenant.findUnique({
+    const tenant: any = await this.db.corporateTenant.findUnique({
       where: { id: tenantId },
       include: {
-        offices: true,
+        offices: { orderBy: { createdAt: 'asc' } },
+        policies: {
+          orderBy: [{ effectiveFrom: 'desc' }, { version: 'desc' }],
+          take: 1,
+        },
+        users: {
+          where: { role: { in: ['CORPORATE_ADMIN', 'CORPORATE_MANAGER'] as any } },
+          orderBy: { createdAt: 'asc' },
+          take: 10,
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            phone: true,
+            corporateRole: true,
+            status: true,
+          },
+        },
         _count: {
           select: {
             employees: true,
@@ -137,7 +192,14 @@ export class CorporateTenantService {
       throw new NotFoundException(`Corporate tenant ${tenantId} not found`);
     }
 
-    return tenant;
+    return {
+      ...tenant,
+      offices: (tenant.offices ?? []).map((o: any) => ({
+        ...o,
+        latitude: Number(o.latitude),
+        longitude: Number(o.longitude),
+      })),
+    };
   }
 
   async updateTenant(tenantId: string, dto: UpdateCorporateTenantDto, actorUserId?: string) {

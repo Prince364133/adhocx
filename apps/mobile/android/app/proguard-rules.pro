@@ -42,4 +42,12 @@
 -keep class androidx.camera.** { *; }
 -dontwarn androidx.camera.**
 
+# FlutterSecureStorage & Google Tink encryption (prevent R8 stripping in release builds)
+-keep class com.it_nomads.fluttersecurestorage.** { *; }
+-keep class com.google.crypto.tink.** { *; }
+-dontwarn com.google.crypto.tink.**
+-dontwarn org.conscrypt.**
+-dontwarn org.bouncycastle.**
+-dontwarn org.openjsse.**
+
 

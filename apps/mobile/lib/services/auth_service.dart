@@ -256,6 +256,15 @@ class AuthService {
 
   UserModel? get currentUser => _currentUser;
 
+  @visibleForTesting
+  void resetForTesting() {
+    _sessionEpoch = 0;
+    _inFlightUserFetch = null;
+    _lastUserFetchTime = null;
+    _currentUser = null;
+    authStateListenable.value = null;
+  }
+
   Future<String?> getToken() => _api.getToken();
 
   Future<void> _persistCurrentUser(UserModel? user) async {
@@ -295,11 +304,14 @@ class AuthService {
 
   Future<UserModel?> loadCachedUser() async {
     if (_currentUser != null) return _currentUser;
+    final epoch = _sessionEpoch;
     try {
       final prefs = await SharedPreferences.getInstance();
+      if (epoch != _sessionEpoch || _currentUser != null) return _currentUser;
       final userJson = prefs.getString(_userCacheKey);
       if (userJson != null && userJson.isNotEmpty) {
         final decoded = jsonDecode(userJson) as Map<String, dynamic>;
+        if (epoch != _sessionEpoch) return _currentUser;
         _currentUser = UserModel.fromJson(decoded);
         authStateListenable.value = _currentUser;
         return _currentUser;
@@ -672,8 +684,8 @@ class AuthService {
       return _currentUser;
     }
 
-    // 2. In-flight promise deduplication
-    if (_inFlightUserFetch != null) {
+    // 2. In-flight promise deduplication (skip stale in-flight fetches on explicit forceRefresh)
+    if (!forceRefresh && _inFlightUserFetch != null) {
       return await _inFlightUserFetch!;
     }
 
@@ -682,12 +694,14 @@ class AuthService {
       return null;
     }
 
-    _inFlightUserFetch = _executeFetchCurrentUser();
+    final fetchFuture = _executeFetchCurrentUser();
+    _inFlightUserFetch = fetchFuture;
     try {
-      final result = await _inFlightUserFetch;
-      return result;
+      return await fetchFuture;
     } finally {
-      _inFlightUserFetch = null;
+      if (identical(_inFlightUserFetch, fetchFuture)) {
+        _inFlightUserFetch = null;
+      }
     }
   }
 
@@ -699,15 +713,18 @@ class AuthService {
       if (response is Map<String, dynamic>) {
         final data = response['data'] is Map<String, dynamic> ? response['data'] as Map<String, dynamic> : response;
         final user = UserModel.fromJson(data);
+        if (epoch != _sessionEpoch) return null;
         _lastUserFetchTime = DateTime.now();
         await _persistCurrentUser(user);
         return user;
       }
     } catch (e) {
       debugPrint('fetchCurrentUser error: $e');
+      if (epoch != _sessionEpoch) return null;
       if (e is ApiException && e.statusCode == 401) {
         // Attempt token refresh once before clearing session
         final refreshed = await _api.attemptTokenRefresh();
+        if (epoch != _sessionEpoch) return null;
         if (refreshed) {
           try {
             final retryResponse = await _api.get('/auth/me');
@@ -715,6 +732,7 @@ class AuthService {
             if (retryResponse is Map<String, dynamic>) {
               final data = retryResponse['data'] is Map<String, dynamic> ? retryResponse['data'] as Map<String, dynamic> : retryResponse;
               final user = UserModel.fromJson(data);
+              if (epoch != _sessionEpoch) return null;
               _lastUserFetchTime = DateTime.now();
               await _persistCurrentUser(user);
               return user;
@@ -734,11 +752,15 @@ class AuthService {
   }
 
   Future<bool> checkAuthSession({String? defaultRole}) async {
+    final epoch = _sessionEpoch;
+
     // 1. Immediately hydrate cached user profile to prevent any UI flicker
     await loadCachedUser();
+    if (epoch != _sessionEpoch) return _currentUser != null;
 
     final token = await _api.getToken();
     final refreshToken = await _api.getRefreshToken();
+    if (epoch != _sessionEpoch) return _currentUser != null;
 
     // If both tokens are absent, user is definitely logged out
     if ((token == null || token.isEmpty) && (refreshToken == null || refreshToken.isEmpty)) {
@@ -749,6 +771,7 @@ class AuthService {
     // 2. Proactive refresh if access token is near expiry or missing
     if (token == null || token.isEmpty || ApiClient.isTokenExpiring(token)) {
       final refreshed = await _api.attemptTokenRefresh();
+      if (epoch != _sessionEpoch) return _currentUser != null;
       if (!refreshed && (token == null || token.isEmpty)) {
         await _api.clearToken();
         await _persistCurrentUser(null);
@@ -759,11 +782,13 @@ class AuthService {
     // 3. Sync latest user profile with backend
     try {
       final user = await fetchCurrentUser(forceRefresh: true);
+      if (epoch != _sessionEpoch) return _currentUser != null;
       if (user != null) {
         await _persistCurrentUser(user);
+        if (epoch != _sessionEpoch) return _currentUser != null;
         try {
           final activeToken = await _api.getToken();
-          if (activeToken != null) {
+          if (activeToken != null && epoch == _sessionEpoch) {
             FcmService.instance.registerTokenWithBackend(
               apiBaseUrl: _api.baseUrl,
               authToken: activeToken,
@@ -773,9 +798,11 @@ class AuthService {
         return true;
       }
     } catch (e) {
+      if (epoch != _sessionEpoch) return _currentUser != null;
       debugPrint('checkAuthSession fetch error: $e');
       if (e is ApiException && e.statusCode == 401) {
         final refreshed = await _api.attemptTokenRefresh();
+        if (epoch != _sessionEpoch) return _currentUser != null;
         if (!refreshed) {
           await _api.clearToken();
           await _persistCurrentUser(null);
@@ -783,6 +810,8 @@ class AuthService {
         }
       }
     }
+
+    if (epoch != _sessionEpoch) return _currentUser != null;
 
     // 4. Offline resilience: Retain session using cached profile
     if (_currentUser != null) {
@@ -930,6 +959,11 @@ class AuthService {
       final accessToken = payload['accessToken']?.toString() ?? payload['token']?.toString();
       final refreshToken = payload['refreshToken']?.toString();
       if (accessToken != null && accessToken.isNotEmpty) {
+        // Advance session epoch and invalidate any pre-login /auth/me fetch
+        // before persisting credentials so a stale startup check cannot wipe this session.
+        _sessionEpoch++;
+        _inFlightUserFetch = null;
+        _lastUserFetchTime = null;
         await _api.setToken(accessToken, refreshToken: refreshToken);
         // Ensure no stale overlay or cached driver state from a prior account survives login.
         unawaited(GlobalDispatchOverlayService.instance.closeOrphanedOverlayIfActive());

@@ -14,6 +14,9 @@ export interface EmployeeRecord {
   phoneNumber?: string;
   gender?: string;
   employeeId?: string;
+  employeeCode?: string;
+  email?: string;
+  department?: string;
   coord: RouteCoord;
   matchedAddress: string;
   officeDistanceKm: number;
@@ -25,7 +28,7 @@ export interface SolverConfig {
   loginTime: Date;
   logoutTime?: Date;
   bufferMinutes: number; // default 15
-  pickupWaitMinutes: number; // default 5
+  pickupWaitMinutes: number; // standard/max 10
   cabCapacity: number; // maximum passengers per cab, default 6
   officeRadiusKm: number; // default 50
   maxTripKm?: number; // default 50
@@ -40,10 +43,19 @@ export interface SolverPlannedStop {
   name: string;
   address: string;
   matchedAddress: string;
+  employeeId?: string;
+  employeeCode?: string;
+  phoneNumber?: string;
+  gender?: string;
+  email?: string;
+  department?: string;
   lat: number;
   lng: number;
   eta: string;
+  etaIso?: string;
   dwellUntil: string;
+  dwellUntilIso?: string;
+  dwellSeconds?: number;
   nextStop: string;
   travelToNextMinutes: number;
   distanceToNextKm: number;
@@ -68,6 +80,7 @@ export interface SolverCalculatedRoute {
   requiredArrival: string;
   requiredArrivalDateTime: string;
   departureDateTime: string;
+  dwellSeconds?: number;
   cabType?: string;
   driverPayout?: number;
   corporateRevenue?: number;
@@ -208,7 +221,9 @@ export async function solveCabRoute(
     options,
   );
 
-  const dwellSeconds = group.length * config.pickupWaitMinutes * 60;
+  const pickupWaitMinutes = Math.min(Math.max(Number(config.pickupWaitMinutes) || 10, 1), 10);
+  const stopDwellSeconds = Math.round(pickupWaitMinutes * 60);
+  const dwellSeconds = group.length * stopDwellSeconds;
   let departure = new Date(
     Math.max(targetArrival.getTime() - (route.durationSeconds + dwellSeconds) * 1000, earliestDeparture.getTime()),
   );
@@ -264,7 +279,7 @@ export async function solveCabRoute(
 
   for (let idx = 0; idx < people.length; idx++) {
     const person = people[idx];
-    const dwellUntil = new Date(currentTime.getTime() + config.pickupWaitMinutes * 60_000);
+    const dwellUntil = new Date(currentTime.getTime() + pickupWaitMinutes * 60_000);
     const nextName = idx + 1 < people.length ? people[idx + 1].employeeName : officeName;
     const legSec = legSeconds[idx] ?? Math.round((route.durationSeconds / people.length));
     const legDistanceMeters = legs[idx]?.distanceMeters ?? Math.round(route.distanceMeters / people.length);
@@ -275,10 +290,19 @@ export async function solveCabRoute(
       name: person.employeeName,
       address: person.pickupAddress,
       matchedAddress: person.matchedAddress,
+      employeeId: person.employeeId,
+      employeeCode: person.employeeCode,
+      phoneNumber: person.phoneNumber,
+      gender: person.gender,
+      email: person.email,
+      department: person.department,
       lat: person.coord.lat,
       lng: person.coord.lng,
       eta: formatClock(currentTime),
+      etaIso: currentTime.toISOString(),
       dwellUntil: formatClock(dwellUntil),
+      dwellUntilIso: dwellUntil.toISOString(),
+      dwellSeconds: stopDwellSeconds,
       nextStop: nextName,
       travelToNextMinutes: Number((legSec / 60).toFixed(1)),
       distanceToNextKm: Number((legDistanceMeters / 1000).toFixed(2)),
@@ -326,6 +350,7 @@ export async function solveCabRoute(
     requiredArrival: formatClock(config.loginTime),
     requiredArrivalDateTime: config.loginTime.toISOString(),
     departureDateTime: departure.toISOString(),
+    dwellSeconds: stopDwellSeconds,
     cabType: cabType?.name || 'sedan',
     driverPayout,
     corporateRevenue,

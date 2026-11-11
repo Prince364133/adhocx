@@ -104,9 +104,10 @@ describe('AdminService Unit Tests', () => {
     );
   });
 
-  it('should reject driver KYC with mandatory reason and emit audit log', async () => {
+  it('should reject driver KYC with mandatory reason and emit audit log without revoking sessions', async () => {
     db.driver.findUnique.mockResolvedValue({
       id: 'drv-1',
+      userId: 'user-drv-1',
       verificationStatus: VerificationStatus.UNDER_REVIEW,
     });
     db.driver.update.mockResolvedValue({
@@ -124,6 +125,31 @@ describe('AdminService Unit Tests', () => {
         action: 'ADMIN_DRIVER_REJECTED',
       }),
     );
+    expect(redis.revokeUserSessions).not.toHaveBeenCalled();
+  });
+
+  it('should reject vendor KYC without revoking user sessions', async () => {
+    db.vendor.findUnique.mockResolvedValue({
+      id: 'vnd-1',
+      userId: 'user-vnd-1',
+      verificationStatus: VerificationStatus.UNDER_REVIEW,
+    });
+    db.vendor.update.mockResolvedValue({
+      id: 'vnd-1',
+      verificationStatus: VerificationStatus.REJECTED,
+    });
+
+    const result = await service.rejectVendor('vnd-1', 'admin-1', {
+      reason: 'Incomplete GST certificate',
+    });
+
+    expect(result.verificationStatus).toBe(VerificationStatus.REJECTED);
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'ADMIN_VENDOR_REJECTED',
+      }),
+    );
+    expect(redis.revokeUserSessions).not.toHaveBeenCalled();
   });
 
   it('should reject invalid transition (e.g. PENDING -> VERIFIED)', async () => {

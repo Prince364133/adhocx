@@ -7,14 +7,6 @@ import { CorporateTenantOption, RoutePlanningResult } from '../../lib/api/opsTyp
 import { Button } from '../../components/common/Button';
 import { SpatialTopologyCanvas } from '../../components/operations/SpatialTopologyCanvas';
 import {
-  buildMockRoutePlan,
-  MOCK_ROUTE_COMPANIES,
-  parseEmployeeCsv,
-  savePlanToWorkspace,
-  toWorkspaceCompany,
-  RouteWorkspaceCompany,
-} from '../../lib/mockRouteWorkspace';
-import {
   Cpu,
   CheckCircle,
   AlertTriangle,
@@ -30,6 +22,7 @@ import {
   Radar,
   Map as MapIcon,
   Database,
+  Search,
 } from 'lucide-react';
 
 const ROUTE_COLORS = [
@@ -73,24 +66,25 @@ export default function RouteOptimizerPage() {
   const [activeTab, setActiveTab] = useState<'FILE_UPLOAD' | 'DB_SHIFT'>('FILE_UPLOAD');
 
   // File Upload Form State
-  const [officeAddress, setOfficeAddress] = useState('Mindspace IT Park, Hitec City, Hyderabad');
-  const [deadline] = useState(tomorrowMorningIst);
+  const [officeAddress, setOfficeAddress] = useState('');
+  const [deadline, setDeadline] = useState(tomorrowMorningIst);
   const [officeRadiusKm, setOfficeRadiusKm] = useState(50);
   const [maxTripKm, setMaxTripKm] = useState(50);
   const [excludedEmployees, setExcludedEmployees] = useState('');
   const [autoExcludedEmployees, setAutoExcludedEmployees] = useState<string[]>([]);
-  const [stopDwellMinutes, setStopDwellMinutes] = useState(5);
+  const [stopDwellMinutes, setStopDwellMinutes] = useState(10);
   const [bufferMinutes, setBufferMinutes] = useState(15);
   const cabCapacity = 6;
-  const [routingPreference, setRoutingPreference] = useState<RoutingPreference>('TRAFFIC_UNAWARE');
+  const [routingPreference, setRoutingPreference] = useState<RoutingPreference>('TRAFFIC_AWARE');
   const [avoidTolls, setAvoidTolls] = useState(true);
   const [avoidHighways] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   // DB Shift State
   const [tenants, setTenants] = useState<CorporateTenantOption[]>([]);
+  const [companySearch, setCompanySearch] = useState('');
   const [selectedTenantId, setSelectedTenantId] = useState<string>('');
-  const [selectedUploadTenantId, setSelectedUploadTenantId] = useState<string>(MOCK_ROUTE_COMPANIES[0].id);
+  const [selectedUploadTenantId, setSelectedUploadTenantId] = useState<string>('');
   const [selectedOfficeId, setSelectedOfficeId] = useState<string>('');
   const [uploadCompanyLoading, setUploadCompanyLoading] = useState(false);
   const [shiftDate, setShiftDate] = useState<string>(new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10));
@@ -109,9 +103,12 @@ export default function RouteOptimizerPage() {
   const [planResult, setPlanResult] = useState<RoutePlanningResult | null>(null);
   const [selectedCab, setSelectedCab] = useState<number | null>(null);
   const [expandedCabs, setExpandedCabs] = useState<Set<number>>(new Set());
-  const [committedSuccess, setCommittedSuccess] = useState<{ routesCreated: number; stopsCreated: number } | null>(null);
-  const [isMockPlan, setIsMockPlan] = useState(false);
-  const [mockSavedRoutesCount, setMockSavedRoutesCount] = useState(0);
+  const [selectedCabsForCommit, setSelectedCabsForCommit] = useState<Set<number>>(new Set());
+  const [committedSuccess, setCommittedSuccess] = useState<{
+    routesCreated: number;
+    stopsCreated: number;
+    routeIds?: string[];
+  } | null>(null);
   const [committing, setCommitting] = useState(false);
   const [dbOptimizing, setDbOptimizing] = useState(false);
   const [dbOptimizeResult, setDbOptimizeResult] = useState<any>(null);
@@ -141,12 +138,14 @@ export default function RouteOptimizerPage() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await opsApi.getTenants({ limit: 100 });
+        const res = await opsApi.getTenants({ search: companySearch.trim() || undefined, limit: 100 });
         const items = res?.items ?? [];
         if (cancelled) return;
         setTenants(items);
-        if (items.length > 0) {
-          let tenant = items[0];
+        if (items.length > 0 && !selectedUploadTenantId) {
+          const requestedTenantId =
+            typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tenantId') : null;
+          let tenant = (requestedTenantId && items.find((item) => item.id === requestedTenantId)) || items[0];
           setUploadCompanyLoading(true);
           setSelectedTenantId(tenant.id);
           setSelectedUploadTenantId(tenant.id);
@@ -158,6 +157,10 @@ export default function RouteOptimizerPage() {
           const office = tenant.offices?.[0];
           setSelectedOfficeId(office?.id ?? '');
           if (office?.addressText || office?.name) setOfficeAddress(office.addressText || office.name);
+          const policyDwell = tenant.policies?.[0]?.stopDwellMinutes;
+          if (typeof policyDwell === 'number') {
+            setStopDwellMinutes(Math.min(Math.max(policyDwell, 1), 10));
+          }
           setUploadCompanyLoading(false);
         }
       } catch (err) {
@@ -171,16 +174,10 @@ export default function RouteOptimizerPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [companySearch]);
 
-  const uploadCompanyOptions: RouteWorkspaceCompany[] = [
-    ...tenants.map(toWorkspaceCompany),
-    ...MOCK_ROUTE_COMPANIES.filter((company) => !tenants.some((tenant) => tenant.id === company.id)),
-  ];
-  const selectedUploadCompany =
-    uploadCompanyOptions.find((company) => company.id === selectedUploadTenantId) ?? MOCK_ROUTE_COMPANIES[0];
   const selectedUploadTenant = tenants.find((tenant) => tenant.id === selectedUploadTenantId);
-  const canCommitUploadPlan = Boolean(selectedUploadTenant && selectedOfficeId);
+  const canCommitUploadPlan = Boolean(selectedUploadTenant && selectedOfficeId && selectedCabsForCommit.size > 0);
 
   async function handleUploadCompanyChange(tenantId: string) {
     setSelectedUploadTenantId(tenantId);
@@ -190,9 +187,8 @@ export default function RouteOptimizerPage() {
 
     const tenant = tenants.find((item) => item.id === tenantId);
     if (!tenant) {
-      const demoCompany = MOCK_ROUTE_COMPANIES.find((company) => company.id === tenantId);
       setSelectedTenantId('');
-      if (demoCompany) setOfficeAddress(demoCompany.officeAddress);
+      setOfficeAddress('');
       return;
     }
 
@@ -203,6 +199,10 @@ export default function RouteOptimizerPage() {
       const office = details.offices?.[0];
       setSelectedOfficeId(office?.id ?? '');
       if (office?.addressText || office?.name) setOfficeAddress(office.addressText || office.name);
+      const policyDwell = details.policies?.[0]?.stopDwellMinutes;
+      if (typeof policyDwell === 'number') {
+        setStopDwellMinutes(Math.min(Math.max(policyDwell, 1), 10));
+      }
       if (!office) setErrorMsg(`${details.name} has no office hub configured. Add an office before committing routes.`);
     } catch (error) {
       setErrorMsg(`Could not load offices for ${tenant.name}: ${error instanceof Error ? error.message : String(error)}`);
@@ -502,120 +502,57 @@ export default function RouteOptimizerPage() {
   async function handleCalculateRoutes(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedFile) {
-      setErrorMsg('Please select a roster spreadsheet with employee, pickup, office, and login time columns.');
+      setErrorMsg('Please select a roster spreadsheet with employee, pickup, phone, office, and login time columns.');
       return;
     }
-    if (!selectedUploadTenantId) {
-      setErrorMsg('Please select a company before importing the roster.');
-      return;
-    }
-    if (!selectedFile.name.toLowerCase().endsWith('.csv') && !selectedUploadTenant) {
-      setErrorMsg('Excel route plans require a real company. Demo companies are available for CSV-only preview.');
+    if (!selectedUploadTenantId || !selectedUploadTenant) {
+      setErrorMsg('Please select an onboarded company before importing the roster.');
       return;
     }
 
     setCalculating(true);
     setProgressPct(0);
-    setProgressMsg('Uploading roster...');
+    setProgressMsg('Uploading roster to route optimizer...');
     setErrorMsg(null);
     setPlanResult(null);
     setCommittedSuccess(null);
-    setMockSavedRoutesCount(0);
 
     try {
-      if (selectedFile.name.toLowerCase().endsWith('.csv')) {
-        setIsMockPlan(true);
-        setProgressPct(35);
-        setProgressMsg('Reading CSV roster and preparing demo routes...');
-        const csvText = await selectedFile.text();
-        const employees = parseEmployeeCsv(csvText);
-        const officeLocations = [...new Set(employees.map((employee) => employee.officeAddress?.trim()).filter(Boolean))] as string[];
-        if (officeLocations.length > 1) {
-          throw new Error('This CSV has multiple Office Location values. Import one office per file.');
-        }
-        const loginTimes = [...new Set(employees.map((employee) => employee.loginTime).filter(Boolean))];
-        const logoutTimes = [...new Set(employees.map((employee) => employee.logoutTime).filter(Boolean))];
-        if (loginTimes.length > 1 || logoutTimes.length > 1) {
-          throw new Error('This CSV has multiple Login Time or Logout Time values. Import one shift time per file.');
-        }
-        const csvOfficeAddress = officeLocations[0] || officeAddress;
-        const loginShiftTime = employees.find((employee) => employee.loginTime)?.loginTime ?? deadline.slice(11, 16);
-        const logoutShiftTime = employees.find((employee) => employee.logoutTime)?.logoutTime;
-        const selectedOffice = selectedUploadTenant?.offices?.find((office) => office.id === selectedOfficeId)
-          ?? selectedUploadTenant?.offices?.[0];
-        const officeLatitude = selectedOffice?.latitude ?? selectedUploadCompany.latitude;
-        const officeLongitude = selectedOffice?.longitude ?? selectedUploadCompany.longitude;
-        if (typeof officeLatitude !== 'number' || typeof officeLongitude !== 'number') {
-          throw new Error('The selected company office needs map coordinates to generate CSV demo routes.');
-        }
-        const csvCompany = {
-          ...selectedUploadCompany,
-          officeAddress: csvOfficeAddress,
-          latitude: officeLatitude,
-          longitude: officeLongitude,
-        };
-        const buildOptions = {
-          company: csvCompany,
-          officeAddress: csvOfficeAddress,
-          shiftDate: deadline.slice(0, 10),
-          cabCapacity,
-          officeRadiusKm,
-          maxTripKm,
-          stopDwellMinutes,
-          bufferMinutes,
-          excludedEmployees,
-        };
-        const loginResult = buildMockRoutePlan(csvText, {
-          ...buildOptions,
-          arrivalDeadline: `${deadline.slice(0, 10)}T${loginShiftTime}`,
-          shiftTime: loginShiftTime,
-          direction: 'LOGIN',
-        });
-        const loginRouteCount = savePlanToWorkspace(loginResult.plan, csvCompany, {
-          shiftDate: deadline.slice(0, 10),
-          shiftTime: loginShiftTime,
-          direction: 'LOGIN',
-          cabCapacity,
-          officeAddress: csvOfficeAddress,
-        }, loginResult.employees);
-        let savedRoutes = loginRouteCount;
+      const selectedOffice =
+        selectedUploadTenant.offices?.find((item) => item.id === selectedOfficeId) ??
+        selectedUploadTenant.offices?.[0];
+      const normalizedOfficeText = officeAddress.trim();
+      const clampedDwell = Math.min(Math.max(Number(stopDwellMinutes) || 10, 1), 10);
 
-        if (logoutShiftTime) {
-          const logoutResult = buildMockRoutePlan(csvText, {
-            ...buildOptions,
-            arrivalDeadline: `${deadline.slice(0, 10)}T${logoutShiftTime}`,
-            shiftTime: logoutShiftTime,
-            direction: 'LOGOUT',
-          });
-          savedRoutes += savePlanToWorkspace(logoutResult.plan, csvCompany, {
-            shiftDate: deadline.slice(0, 10),
-            shiftTime: logoutShiftTime,
-            direction: 'LOGOUT',
-            cabCapacity,
-            officeAddress: csvOfficeAddress,
-          }, logoutResult.employees);
-        }
-
-        setOfficeAddress(csvOfficeAddress);
-        setPlanResult(loginResult.plan);
-        setMockSavedRoutesCount(savedRoutes);
-        setExpandedCabs(new Set([1]));
-        setProgressPct(100);
-        setProgressMsg(logoutShiftTime
-          ? 'Login and logout demo routes saved to Routes & Trips.'
-          : 'Login demo routes saved to Routes & Trips.');
-        return;
-      }
-
-      setIsMockPlan(false);
       const formData = new FormData();
       formData.append('file', selectedFile);
+      formData.append('tenantId', selectedUploadTenant.id);
+      if (selectedOfficeId) {
+        formData.append('officeId', selectedOfficeId);
+      }
+      if (normalizedOfficeText) {
+        formData.append('office', normalizedOfficeText);
+      }
+      if (
+        selectedOffice &&
+        typeof selectedOffice.latitude === 'number' &&
+        typeof selectedOffice.longitude === 'number' &&
+        (!normalizedOfficeText ||
+          normalizedOfficeText === (selectedOffice.addressText || selectedOffice.name || '').trim())
+      ) {
+        formData.append('officeLat', String(selectedOffice.latitude));
+        formData.append('officeLng', String(selectedOffice.longitude));
+      }
+      if (deadline) {
+        formData.append('loginTime', new Date(`${deadline}:00+05:30`).toISOString());
+      }
+      formData.append('direction', direction);
       formData.append('officeRadiusKm', String(officeRadiusKm));
       formData.append('maxTripKm', String(maxTripKm));
       if (excludedEmployees.trim()) {
         formData.append('excludedEmployees', excludedEmployees.trim());
       }
-      formData.append('stopDwellMinutes', String(stopDwellMinutes));
+      formData.append('pickupWaitMinutes', String(clampedDwell));
       formData.append('bufferMinutes', String(bufferMinutes));
       formData.append('cabCapacity', String(cabCapacity));
       formData.append('routingPreference', routingPreference);
@@ -643,9 +580,17 @@ export default function RouteOptimizerPage() {
         throw new Error('Heuristic solver returned 0 routes. Ensure address rows have valid coordinates.');
       }
 
-      setPlanResult(result);
-      // Auto expand first cab
-      setExpandedCabs(new Set([1]));
+      const sortedRoutes = [...result.routes].sort((a, b) => {
+        const tA = new Date(a.departureDateTime || 0).getTime();
+        const tB = new Date(b.departureDateTime || 0).getTime();
+        if (tA !== tB) return tA - tB;
+        return a.cab - b.cab;
+      });
+      const sortedPlan: RoutePlanningResult = { ...result, routes: sortedRoutes };
+
+      setPlanResult(sortedPlan);
+      setSelectedCabsForCommit(new Set(sortedRoutes.map((route) => route.cab)));
+      setExpandedCabs(new Set(sortedRoutes[0] ? [sortedRoutes[0].cab] : []));
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to solve CVRPTW routes.');
     } finally {
@@ -682,17 +627,29 @@ export default function RouteOptimizerPage() {
   }
 
   async function handleCommitToDatabase() {
-    if (!planResult || isMockPlan || isMultiOfficePlan) return;
+    if (!planResult || isMultiOfficePlan) return;
     if (!selectedUploadTenant || !selectedOfficeId) {
       setErrorMsg('Select a real company with an office hub before committing routes.');
       return;
     }
 
+    const routesToCommit = planResult.routes.filter((r) => selectedCabsForCommit.has(r.cab));
+    if (routesToCommit.length === 0) {
+      setErrorMsg('Select at least one optimized route to add to the Routes page.');
+      return;
+    }
+
+    const planSubset: any = {
+      ...planResult,
+      routes: routesToCommit,
+      cabCount: routesToCommit.length,
+    };
+
     setCommitting(true);
     setErrorMsg(null);
 
     try {
-      const firstRouteArrival = planResult.routes[0]?.requiredArrivalDateTime;
+      const firstRouteArrival = routesToCommit[0]?.requiredArrivalDateTime;
       const arrivalParts = firstRouteArrival
         ? Object.fromEntries(
             new Intl.DateTimeFormat('en-GB', {
@@ -711,12 +668,14 @@ export default function RouteOptimizerPage() {
       const res = await opsApi.commitRoutePlan({
         tenantId: selectedUploadTenant.id,
         officeId: selectedOfficeId,
-        plan: planResult,
+        plan: planSubset,
         shiftDate: arrivalParts
           ? `${arrivalParts.year}-${arrivalParts.month}-${arrivalParts.day}`
           : shiftDate,
         shiftTime: arrivalParts ? `${arrivalParts.hour}:${arrivalParts.minute}` : shiftTime,
-        direction: 'LOGIN',
+        direction,
+        stopDwellMinutes: Math.min(Math.max(Number(stopDwellMinutes) || 10, 1), 10),
+        ...({ includeMetadata: true } as any),
       });
       setCommittedSuccess(res);
     } catch (err: any) {
@@ -912,43 +871,33 @@ export default function RouteOptimizerPage() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '10px',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <CheckCircle size={16} />
             <span>
-              <strong>Success:</strong> Created {committedSuccess.routesCreated} active dispatch routes ({committedSuccess.stopsCreated} passenger stops) in operational database.
+              <strong>Added to Routes:</strong> Created {committedSuccess.routesCreated} active dispatch routes ({committedSuccess.stopsCreated} stops) for {selectedUploadTenant?.name}. Cron auto-dispatch will search 10km within the 30m window prior to approach.
             </span>
           </div>
-          <Link href="/board" style={{ textDecoration: 'none' }}>
-            <Button size="sm" variant="success" rightIcon={<ExternalLink size={12} />}>
-              Open Route Deck
-            </Button>
-          </Link>
-        </div>
-      )}
-      {isMockPlan && mockSavedRoutesCount > 0 && (
-        <div
-          style={{
-            padding: '12px 16px',
-            borderRadius: 'var(--radius-md, 8px)',
-            backgroundColor: 'var(--color-info-bg)',
-            border: '1px solid var(--color-info-border)',
-            color: 'var(--color-info)',
-            fontSize: '13px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '12px',
-            flexWrap: 'wrap',
-          }}
-        >
-          <span>
-            <strong>Demo routes saved:</strong> {mockSavedRoutesCount} login/logout route{mockSavedRoutesCount === 1 ? '' : 's'} for {selectedUploadCompany.name}. CSV data is stored in this browser only.
-          </span>
-          <Link href={`/routes?tenantId=${encodeURIComponent(selectedUploadCompany.id)}`} style={{ textDecoration: 'none' }}>
-            <Button size="sm" variant="primary" rightIcon={<ExternalLink size={12} />}>Open Routes & Trips</Button>
-          </Link>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {committedSuccess.routeIds?.[0] && (
+              <Link href={`/routes/${committedSuccess.routeIds[0]}`} style={{ textDecoration: 'none' }}>
+                <Button size="sm" variant="secondary" rightIcon={<ExternalLink size={12} />}>
+                  Inspect Route #1
+                </Button>
+              </Link>
+            )}
+            <Link
+              href={selectedUploadTenant ? `/routes?tenantId=${encodeURIComponent(selectedUploadTenant.id)}` : '/routes'}
+              style={{ textDecoration: 'none' }}
+            >
+              <Button size="sm" variant="success" rightIcon={<ExternalLink size={12} />}>
+                Open Routes Page
+              </Button>
+            </Link>
+          </div>
         </div>
       )}
 
@@ -1035,11 +984,45 @@ export default function RouteOptimizerPage() {
                 /* FILE UPLOADER & HEURISTIC SOLVER */
                 <form onSubmit={handleCalculateRoutes} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
                   <div style={{ padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px', flex: 1, minHeight: 0 }}>
-                    {/* Company & Office Selection */}
+                    {/* Company Search & Selection */}
                     <div>
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                        Company *
-                      </label>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                        <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                          Client Company *
+                        </label>
+                        <Link href="/companies" style={{ fontSize: '11px', fontWeight: 600, color: 'var(--brand-primary, #4F46E5)', textDecoration: 'none' }}>
+                          + Onboard Company
+                        </Link>
+                      </div>
+                      <div style={{ position: 'relative', marginBottom: '8px' }}>
+                        <Search
+                          size={14}
+                          style={{
+                            position: 'absolute',
+                            left: '10px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            color: 'var(--text-muted)',
+                            pointerEvents: 'none',
+                          }}
+                        />
+                        <input
+                          type="text"
+                          value={companySearch}
+                          onChange={(e) => setCompanySearch(e.target.value)}
+                          placeholder="Search onboarded companies by name or code..."
+                          style={{
+                            width: '100%',
+                            padding: '7px 12px 7px 32px',
+                            backgroundColor: 'var(--bg-input)',
+                            border: '1px solid var(--border-subtle)',
+                            borderRadius: '6px',
+                            color: 'var(--text-primary)',
+                            fontSize: '12px',
+                            outline: 'none',
+                          }}
+                        />
+                      </div>
                       <select
                         required
                         value={selectedUploadTenantId}
@@ -1056,19 +1039,20 @@ export default function RouteOptimizerPage() {
                           outline: 'none',
                         }}
                       >
-                        {uploadCompanyOptions.map((company) => (
+                        {tenants.length === 0 && <option value="">No matching onboarded companies</option>}
+                        {tenants.map((company) => (
                           <option key={company.id} value={company.id}>{company.name} ({company.code})</option>
                         ))}
                       </select>
                       <span style={{ display: 'block', marginTop: 4, color: 'var(--text-muted)', fontSize: 11 }}>
-                        CSV imports use demo routing and appear in Routes & Trips.
+                        Uses real Google Maps geocoding, CVRPTW solver &amp; traffic-aware route generation.
                       </span>
                     </div>
 
                     {selectedUploadTenant && (
                       <div>
                         <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                          Company Office for Commit *
+                          Company Office Hub *
                         </label>
                         <select
                           value={selectedOfficeId}
@@ -1096,6 +1080,75 @@ export default function RouteOptimizerPage() {
                         </select>
                       </div>
                     )}
+
+                    {/* Office Location Address & Default Shift Deadline */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                        Office Location Address *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Building 9, Mindspace IT Park, Madhapur, Hyderabad"
+                        value={officeAddress}
+                        onChange={(e) => setOfficeAddress(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          backgroundColor: 'var(--bg-input)',
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: '6px',
+                          color: 'var(--text-primary)',
+                          fontSize: '13px',
+                          outline: 'none',
+                        }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                          Shift Direction
+                        </label>
+                        <select
+                          value={direction}
+                          onChange={(e) => setDirection(e.target.value as 'LOGIN' | 'LOGOUT')}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            backgroundColor: 'var(--bg-input)',
+                            border: '1px solid var(--border-subtle)',
+                            borderRadius: '6px',
+                            color: 'var(--text-primary)',
+                            fontSize: '13px',
+                            outline: 'none',
+                          }}
+                        >
+                          <option value="LOGIN">LOGIN (Home → Office)</option>
+                          <option value="LOGOUT">LOGOUT (Office → Home)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                          Fallback Shift Time (IST)
+                        </label>
+                        <input
+                          type="datetime-local"
+                          value={deadline}
+                          onChange={(e) => setDeadline(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '7px 10px',
+                            backgroundColor: 'var(--bg-input)',
+                            border: '1px solid var(--border-subtle)',
+                            borderRadius: '6px',
+                            color: 'var(--text-primary)',
+                            fontSize: '12px',
+                            outline: 'none',
+                          }}
+                        />
+                      </div>
+                    </div>
 
                     {/* Excluded Employees */}
                     <div>
@@ -1196,14 +1249,14 @@ export default function RouteOptimizerPage() {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                       <div>
                         <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                          Dwell Buffer (min)
+                          Wait Time / Stop (max 10m)
                         </label>
                         <input
                           type="number"
-                          min={0}
-                          max={60}
+                          min={1}
+                          max={10}
                           value={stopDwellMinutes}
-                          onChange={(e) => setStopDwellMinutes(Number(e.target.value))}
+                          onChange={(e) => setStopDwellMinutes(Math.min(10, Math.max(1, Number(e.target.value) || 10)))}
                           style={{
                             width: '100%',
                             padding: '8px 12px',
@@ -1630,6 +1683,21 @@ export default function RouteOptimizerPage() {
                           }}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <input
+                              type="checkbox"
+                              checked={selectedCabsForCommit.has(route.cab)}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => {
+                                setSelectedCabsForCommit((prev) => {
+                                  const next = new Set(prev);
+                                  if (e.target.checked) next.add(route.cab);
+                                  else next.delete(route.cab);
+                                  return next;
+                                });
+                              }}
+                              aria-label={`Select Route ${route.cab}`}
+                              style={{ width: 15, height: 15, cursor: 'pointer' }}
+                            />
                             <div
                               style={{
                                 width: '12px',
@@ -1752,29 +1820,25 @@ export default function RouteOptimizerPage() {
               </div>
 
               {/* Action Buttons: Commit and Export */}
-              {!isMockPlan && isMultiOfficePlan && (
+              {isMultiOfficePlan && (
                 <div style={{ padding: '0 18px 10px', fontSize: '12px', color: 'var(--color-warning, #B45309)' }}>
                   This plan has multiple office destinations and cannot be committed as a single-office dispatch. Export it or plan each destination separately.
                 </div>
               )}
               <div style={{ padding: '14px 18px', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: '10px' }}>
-                {isMockPlan ? (
-                  <Link href={`/routes?tenantId=${encodeURIComponent(selectedUploadCompany.id)}`} style={{ flex: 1, textDecoration: 'none' }}>
-                    <Button variant="primary" style={{ width: '100%' }} rightIcon={<ExternalLink size={14} />}>
-                      View in Routes & Trips
-                    </Button>
-                  </Link>
-                ) : (
-                  <Button
-                    variant="primary"
-                    style={{ width: '100%' }}
-                    disabled={committing || !canCommitUploadPlan || uploadCompanyLoading || isMultiOfficePlan}
-                    onClick={handleCommitToDatabase}
-                    leftIcon={committing ? <RefreshCw className="spin" size={14} /> : <CheckCircle size={14} />}
-                  >
-                    {committing ? 'Committing...' : canCommitUploadPlan ? 'Commit & Dispatch Routes' : 'Select Company Office to Commit'}
-                  </Button>
-                )}
+                <Button
+                  variant="primary"
+                  style={{ width: '100%' }}
+                  disabled={committing || !canCommitUploadPlan || uploadCompanyLoading || isMultiOfficePlan}
+                  onClick={handleCommitToDatabase}
+                  leftIcon={committing ? <RefreshCw className="spin" size={14} /> : <CheckCircle size={14} />}
+                >
+                  {committing
+                    ? 'Adding Routes...'
+                    : canCommitUploadPlan
+                      ? `Add ${selectedCabsForCommit.size === planResult.routes.length ? 'All' : selectedCabsForCommit.size} Route${selectedCabsForCommit.size === 1 ? '' : 's'} to Routes Page`
+                      : 'Select Company & Office to Add Routes'}
+                </Button>
                 <Button variant="secondary" onClick={handleExportExcel} leftIcon={<FileSpreadsheet size={14} />}>
                   Export Excel
                 </Button>

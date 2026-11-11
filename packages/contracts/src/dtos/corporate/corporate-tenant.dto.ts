@@ -1,10 +1,62 @@
-import { CorporateTenantStatus, CorporateGender } from '../../enums';
+import { CorporateTenantStatus, CorporateGender, CorporateRole } from '../../enums';
 
 export interface CreateCorporateTenantDto {
   code: string;
   name: string;
   legalEntityName: string;
   gstin?: string;
+}
+
+export interface OnboardCorporateOfficeInputDto {
+  code: string;
+  name: string;
+  addressText: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+export interface OnboardCorporateAdminInputDto {
+  fullName: string;
+  email: string;
+  phone: string;
+  password?: string;
+  corporateRole?: CorporateRole;
+}
+
+export interface OnboardCorporatePolicyInputDto {
+  cancelCutoffHours?: number;
+  maxRideMinutes?: number;
+  defaultVehicleCategory?: 'SEDAN' | 'SUV';
+  defaultCapacity?: number;
+  escalationLeadMinutes?: number;
+  officeArrivalBufferMinutes?: number;
+  stopDwellMinutes?: number;
+  approachLeadMinutes?: number;
+  dispatchWindowMinutes?: number;
+  dispatchRetryIntervalMinutes?: number;
+  searchRadiusKm?: number;
+  nightShiftStart?: string;
+  nightShiftEnd?: string;
+}
+
+export interface OnboardCorporateShiftInputDto {
+  name: string;
+  loginTime: string;
+  logoutTime: string;
+  weekdays?: number[];
+  isOvernight?: boolean;
+}
+
+export interface OnboardCorporateCompanyDto {
+  code: string;
+  name: string;
+  legalEntityName: string;
+  gstin?: string;
+  status?: CorporateTenantStatus;
+  office: OnboardCorporateOfficeInputDto;
+  adminUser: OnboardCorporateAdminInputDto;
+  policy?: OnboardCorporatePolicyInputDto;
+  shiftTemplate?: OnboardCorporateShiftInputDto;
 }
 
 export interface UpdateCorporateTenantDto {

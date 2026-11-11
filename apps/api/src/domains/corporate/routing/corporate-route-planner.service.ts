@@ -1,6 +1,7 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
 import * as XLSX from '@e965/xlsx';
+import * as h3 from 'h3-js';
 import { DatabaseService } from '../../../database/database.service';
 import { GoogleGeocodingAdapter } from './google-geocoding.adapter';
 import { GoogleRoutesV2Adapter, RouteRequestOptions, haversineKm } from './google-routes-v2.adapter';
@@ -18,13 +19,18 @@ import {
 } from './cost-optimizer';
 
 export interface PlanRoutesFromFileOptions {
+  tenantId?: string;
+  officeId?: string;
   office?: string; // Legacy shared office; new rosters should provide office_address per row.
+  officeLat?: number;
+  officeLng?: number;
+  direction?: 'LOGIN' | 'LOGOUT';
   loginTime?: string | Date; // Legacy shared deadline; new rosters should provide arrival date/time per row.
   logoutTime?: string | Date;
   officeRadiusKm?: number; // default 50
   maxTripKm?: number; // default 50
   bufferMinutes?: number; // default 15
-  pickupWaitMinutes?: number; // default 5
+  pickupWaitMinutes?: number; // standard/max 10
   cabCapacity?: number; // maximum passengers per cab, default 6
   routingPreference?: RouteRequestOptions['routingPreference'];
   avoidTolls?: boolean;
@@ -66,6 +72,8 @@ export interface CommitPlanDto {
   shiftTime: string; // HH:mm
   direction: 'LOGIN' | 'LOGOUT';
   vehicleCategory?: 'SEDAN' | 'SUV';
+  stopDwellMinutes?: number;
+  includeMetadata?: boolean;
   plan: PlanRoutesResult;
 }
 
@@ -74,9 +82,13 @@ interface RosterEmployeeRow {
   pickupAddress: string;
   officeAddress?: string;
   arrivalDateTime?: string;
+  logoutTime?: string;
   phoneNumber?: string;
   gender?: string;
   employeeId?: string;
+  employeeCode?: string;
+  email?: string;
+  department?: string;
 }
 
 interface ParsedRoster {
@@ -166,11 +178,56 @@ export class CorporateRoutePlannerService {
       }
     }
 
-    const sharedOffice = options.office?.trim();
-    const sharedArrival = options.loginTime ? this.parseArrivalDateTime(options.loginTime) : undefined;
+    let policyDwellMinutes = 10;
+    let dbOfficeAddress: string | undefined;
+    let dbOfficeCoords: { lat: number; lng: number } | undefined;
+
+    if (options.tenantId && !options.pickupWaitMinutes && (this.db as any)?.corporateTenantPolicy?.findFirst) {
+      try {
+        const latestPolicy = await this.db.corporateTenantPolicy.findFirst({
+          where: { tenantId: options.tenantId },
+          orderBy: { version: 'desc' },
+          select: { stopDwellMinutes: true },
+        });
+        if (latestPolicy?.stopDwellMinutes) {
+          policyDwellMinutes = Math.min(Math.max(Number(latestPolicy.stopDwellMinutes), 1), 10);
+        }
+      } catch {
+        // Safe fallback to 10 min standard dwell
+      }
+    }
+
+    if (options.officeId && (this.db as any)?.corporateOffice?.findUnique) {
+      try {
+        const dbOffice = await this.db.corporateOffice.findUnique({
+          where: { id: options.officeId },
+          select: { name: true, addressText: true, latitude: true, longitude: true },
+        });
+        if (dbOffice) {
+          dbOfficeAddress = dbOffice.addressText || dbOffice.name;
+          if (dbOffice.latitude != null && dbOffice.longitude != null) {
+            dbOfficeCoords = { lat: Number(dbOffice.latitude), lng: Number(dbOffice.longitude) };
+          }
+        }
+      } catch {
+        // Fallback to request options/CSV office address
+      }
+    }
+
+    const sharedOffice = options.office?.trim() || dbOfficeAddress;
+    if (options.officeLat != null && options.officeLng != null) {
+      dbOfficeCoords = { lat: Number(options.officeLat), lng: Number(options.officeLng) };
+    }
+    const rawSharedArrival =
+      options.direction === 'LOGOUT'
+        ? options.logoutTime || options.loginTime
+        : options.loginTime || options.logoutTime;
+    const sharedArrival = rawSharedArrival ? this.parseArrivalDateTime(rawSharedArrival) : undefined;
     const rowsWithTargets = activeRows.map((row, index) => {
       const officeAddress = row.officeAddress?.trim() || sharedOffice;
-      const arrivalDateTime = row.arrivalDateTime || sharedArrival;
+      const arrivalDateTime =
+        (options.direction === 'LOGOUT' ? row.logoutTime || row.arrivalDateTime : row.arrivalDateTime) ||
+        sharedArrival;
       if (!officeAddress) {
         throw new BadRequestException(`Row ${index + 2} is missing office_address`);
       }
@@ -189,12 +246,17 @@ export class CorporateRoutePlannerService {
     const maxTripKm = Number(options.maxTripKm) || 50;
     const pricingConfig = options.pricingConfig || DEFAULT_PRICING_CONFIG;
 
+    const resolvedWaitMinutes = Math.min(
+      Math.max(Number(options.pickupWaitMinutes) || policyDwellMinutes || 10, 1),
+      10,
+    );
+
     const config: Omit<SolverConfig, 'loginTime'> = {
       logoutTime: options.logoutTime ? new Date(options.logoutTime) : undefined,
       officeRadiusKm: Number(options.officeRadiusKm) || 50,
       maxTripKm,
       bufferMinutes: Number(options.bufferMinutes) || 15,
-      pickupWaitMinutes: Number(options.pickupWaitMinutes) || 5,
+      pickupWaitMinutes: resolvedWaitMinutes,
       cabCapacity: Number(options.cabCapacity) || 6,
       routingPreference: options.routingPreference || 'TRAFFIC_UNAWARE',
       avoidTolls: options.avoidTolls !== false,
@@ -228,6 +290,16 @@ export class CorporateRoutePlannerService {
         }
       },
     );
+
+    if (dbOfficeCoords && sharedOffice) {
+      geocodeMap.set(sharedOffice.toLowerCase(), {
+        lat: dbOfficeCoords.lat,
+        lng: dbOfficeCoords.lng,
+        matchedAddress: sharedOffice,
+        partialMatch: false,
+        isRealGeocode: true,
+      });
+    }
 
     const offices = Array.from(officesByKey.values()).map((office) => {
       const geo = geocodeMap.get(office.name.toLowerCase());
@@ -267,6 +339,9 @@ export class CorporateRoutePlannerService {
         phoneNumber: row.phoneNumber,
         gender: row.gender,
         employeeId: row.employeeId,
+        employeeCode: row.employeeCode,
+        email: row.email,
+        department: row.department,
         coord: { lat: geo.lat, lng: geo.lng },
         matchedAddress: geo.matchedAddress,
         officeDistanceKm: distKm,
@@ -405,10 +480,61 @@ export class CorporateRoutePlannerService {
     return result;
   }
 
+  private resolvePlannedStopEta(
+    stop: { eta?: string; etaIso?: string; travelToNextMinutes?: number; dwellSeconds?: number },
+    routeShiftDate: string,
+    targetPickup1Time: Date,
+    fallbackEta: Date,
+  ): Date {
+    if (stop.etaIso) {
+      const parsedIso = new Date(stop.etaIso);
+      if (!Number.isNaN(parsedIso.getTime())) {
+        return parsedIso;
+      }
+    }
+    if (stop.eta) {
+      const match12h = stop.eta.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+      const match24h = stop.eta.trim().match(/^(\d{1,2}):(\d{2})$/);
+      let hours: number | null = null;
+      let minutes = 0;
+      if (match12h) {
+        hours = Number(match12h[1]) % 12;
+        if (match12h[3].toUpperCase() === 'PM') hours += 12;
+        minutes = Number(match12h[2]);
+      } else if (match24h) {
+        hours = Number(match24h[1]);
+        minutes = Number(match24h[2]);
+      }
+      if (hours !== null && hours >= 0 && hours < 24 && minutes >= 0 && minutes < 60) {
+        const hh = String(hours).padStart(2, '0');
+        const mm = String(minutes).padStart(2, '0');
+        const candidate = new Date(`${routeShiftDate}T${hh}:${mm}:00+05:30`);
+        if (!Number.isNaN(candidate.getTime())) {
+          if (targetPickup1Time.getTime() - candidate.getTime() > 12 * 3600_000) {
+            return new Date(candidate.getTime() + 24 * 3600_000);
+          }
+          return candidate;
+        }
+      }
+    }
+    return fallbackEta;
+  }
+
+  private normalizeCorporateGender(raw?: string): 'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_TO_SAY' {
+    const val = (raw || '').trim().toUpperCase();
+    if (val === 'F' || val === 'FEMALE') return 'FEMALE';
+    if (val === 'M' || val === 'MALE') return 'MALE';
+    if (val === 'OTHER') return 'OTHER';
+    if (val === 'PREFER_NOT_TO_SAY') return 'PREFER_NOT_TO_SAY';
+    return 'OTHER';
+  }
+
   /**
    * Commits calculated route plan directly into production database.
    */
-  async commitPlanToDatabase(dto: CommitPlanDto): Promise<{ routesCreated: number; stopsCreated: number }> {
+  async commitPlanToDatabase(
+    dto: CommitPlanDto,
+  ): Promise<{ routesCreated: number; stopsCreated: number; routeIds?: string[]; employeesLinked?: number }> {
     const { tenantId, officeId, shiftDate, shiftTime, direction, vehicleCategory = 'SEDAN', plan } = dto;
 
     if (!plan || !plan.routes || plan.routes.length === 0) {
@@ -425,16 +551,36 @@ export class CorporateRoutePlannerService {
     }
 
     let stopsCreated = 0;
+    let employeesLinked = 0;
+    const routeIds: string[] = [];
 
-    await this.db.$transaction(async (tx) => {
+    await this.db.$transaction(async (tx: any) => {
+      let defaultDwellSeconds =
+        dto.stopDwellMinutes != null
+          ? Math.min(Math.max(Math.round(Number(dto.stopDwellMinutes) * 60), 60), 600)
+          : 600;
+
+      if (dto.stopDwellMinutes == null && tx.corporateTenantPolicy?.findFirst) {
+        const policy = await tx.corporateTenantPolicy.findFirst({
+          where: { tenantId },
+          orderBy: { version: 'desc' },
+          select: { stopDwellMinutes: true },
+        });
+        if (policy?.stopDwellMinutes) {
+          defaultDwellSeconds = Math.min(Math.max(Number(policy.stopDwellMinutes) * 60, 60), 600);
+        }
+      }
+
       for (const route of plan.routes) {
         const firstStop = route.stops[0];
 
         const targetPickup1Time = route.departureDateTime
           ? new Date(route.departureDateTime)
-          : firstStop
-            ? new Date(`${shiftDate}T00:00:00Z`)
-            : new Date();
+          : firstStop?.etaIso
+            ? new Date(firstStop.etaIso)
+            : firstStop
+              ? new Date(`${shiftDate}T00:00:00Z`)
+              : new Date();
         const targetOfficeArrivalTime = route.requiredArrivalDateTime
           ? new Date(route.requiredArrivalDateTime)
           : new Date(`${shiftDate}T${shiftTime}:00Z`);
@@ -468,24 +614,105 @@ export class CorporateRoutePlannerService {
             maxCapacity: effectiveMaxCapacity,
             assignedPassengerCount: route.stops.length,
             status: 'PLANNED',
+            dispatchStatus: 'PENDING',
             targetPickup1Time,
             targetOfficeArrivalTime,
             estDistanceMeters: Math.round(route.distanceKm * 1000),
             estDurationSeconds: Math.round(route.driveMinutes * 60),
           },
         });
+        routeIds.push(createdRoute.id);
 
-        // Create stops
+        let runningFallbackEta = new Date(targetPickup1Time.getTime());
+
+        // Create Employee Pickup Stops
         for (const stop of route.stops) {
+          const stopDwellSeconds = Math.min(
+            Math.max(Number(stop.dwellSeconds ?? route.dwellSeconds ?? defaultDwellSeconds), 60),
+            600,
+          );
+          const stopPlannedEta = this.resolvePlannedStopEta(
+            stop,
+            routeShiftDate,
+            targetPickup1Time,
+            runningFallbackEta,
+          );
+          runningFallbackEta = new Date(
+            stopPlannedEta.getTime() + stopDwellSeconds * 1000 + Math.round((stop.travelToNextMinutes || 5) * 60_000),
+          );
+
+          let linkedEmployeeId: string | undefined = stop.employeeId;
+          if (!linkedEmployeeId && tx.corporateEmployee?.findFirst) {
+            const normalizedPhone = (stop.phoneNumber || '').trim();
+            const normalizedCode = (stop.employeeCode || '').trim();
+            const existingEmp = await tx.corporateEmployee.findFirst({
+              where: {
+                tenantId,
+                OR: [
+                  ...(normalizedCode ? [{ employeeCode: normalizedCode }] : []),
+                  ...(normalizedPhone ? [{ phoneNumber: normalizedPhone }] : []),
+                  { fullName: { equals: stop.name, mode: 'insensitive' } },
+                ],
+              },
+              select: { id: true },
+            });
+
+            if (existingEmp) {
+              linkedEmployeeId = existingEmp.id;
+            } else if (tx.corporateEmployee?.create) {
+              const generatedCode = (
+                normalizedCode ||
+                `EMP-${stop.name.replace(/[^A-Za-z0-9]/g, '').slice(0, 8).toUpperCase() || 'USR'}-${Math.random()
+                  .toString(36)
+                  .slice(2, 6)
+                  .toUpperCase()}`
+              ).slice(0, 64);
+              const createdEmp = await tx.corporateEmployee.create({
+                data: {
+                  tenantId,
+                  officeId,
+                  employeeCode: generatedCode,
+                  fullName: stop.name,
+                  email: stop.email || `${generatedCode.toLowerCase()}@roster.corporate.local`,
+                  phoneNumber: normalizedPhone || '0000000000',
+                  gender: this.normalizeCorporateGender(stop.gender),
+                  department: stop.department || null,
+                },
+                select: { id: true },
+              });
+              linkedEmployeeId = createdEmp.id;
+
+              if (tx.corporateEmployeeLocation?.create) {
+                await tx.corporateEmployeeLocation.create({
+                  data: {
+                    employeeId: createdEmp.id,
+                    addressText: stop.address || stop.matchedAddress || 'Pickup location',
+                    latitude: stop.lat,
+                    longitude: stop.lng,
+                    h3Res8Index: h3.latLngToCell(stop.lat, stop.lng, 8),
+                    isDefault: true,
+                  },
+                });
+              }
+            }
+          }
+          if (linkedEmployeeId) {
+            employeesLinked++;
+          }
+
           await tx.corporateRouteStop.create({
             data: {
               routeId: createdRoute.id,
+              employeeId: linkedEmployeeId || null,
               stopSequence: stop.sequence,
               stopType: 'PICKUP',
+              addressText: stop.address || stop.matchedAddress || 'Pickup location',
+              employeeName: stop.name,
+              employeePhone: stop.phoneNumber || null,
               latitude: stop.lat,
               longitude: stop.lng,
-              plannedEta: targetPickup1Time,
-              dwellBufferSeconds: 300,
+              plannedEta: stopPlannedEta,
+              dwellBufferSeconds: stopDwellSeconds,
               boardingOtp: stop.boardingOtp || '1234',
               status: 'PENDING',
             },
@@ -499,6 +726,7 @@ export class CorporateRoutePlannerService {
             routeId: createdRoute.id,
             stopSequence: route.stops.length + 1,
             stopType: 'DROPOFF',
+            addressText: route.office?.name || plan.office?.name || 'Corporate Office Hub',
             latitude: route.office?.lat ?? plan.office.lat,
             longitude: route.office?.lng ?? plan.office.lng,
             plannedEta: targetOfficeArrivalTime,
@@ -510,6 +738,15 @@ export class CorporateRoutePlannerService {
         stopsCreated++;
       }
     });
+
+    if (dto.includeMetadata) {
+      return {
+        routesCreated: plan.routes.length,
+        stopsCreated,
+        routeIds,
+        employeesLinked,
+      };
+    }
 
     return {
       routesCreated: plan.routes.length,
@@ -717,8 +954,23 @@ export class CorporateRoutePlannerService {
     const arrivalDateTimeIdx = headers.findIndex((h) =>
       ['required_arrival_datetime', 'arrival_datetime', 'login_datetime', 'shift_datetime'].some((alias) => h === alias || h.startsWith(`${alias}_`)),
     );
-    const phoneIdx = headers.findIndex((h) => h === 'phone_number' || h === 'phone' || h === 'mobile');
+    const phoneIdx = headers.findIndex(
+      (h) =>
+        ['phone_number', 'phone', 'mobile', 'mobile_number', 'contact', 'contact_number'].includes(h) ||
+        h.includes('phone') ||
+        h.includes('mobile'),
+    );
     const genderIdx = headers.findIndex((h) => h === 'gender' || h === 'sex');
+    const empCodeIdx = headers.findIndex((h) =>
+      ['employee_code', 'emp_code', 'emp_id', 'employee_id', 'staff_id', 'code'].includes(h),
+    );
+    const emailIdx = headers.findIndex((h) => ['email', 'email_address', 'work_email', 'corporate_email'].includes(h));
+    const deptIdx = headers.findIndex((h) => ['department', 'dept', 'team'].includes(h));
+    const logoutTimeIdx = headers.findIndex((h) =>
+      ['logout_time', 'required_logout_time', 'shift_end_time', 'departure_time'].some(
+        (alias) => h === alias || h.includes(alias),
+      ) || h === 'logout',
+    );
 
     if (nameIdx === -1 || addrIdx === -1) {
       throw new BadRequestException(
@@ -760,8 +1012,12 @@ export class CorporateRoutePlannerService {
             arrivalDateIdx !== -1 ? (row[arrivalDateIdx] || '').trim() : '',
             arrivalTimeIdx !== -1 ? (row[arrivalTimeIdx] || '').trim() : '',
           ),
+        logoutTime: logoutTimeIdx !== -1 ? (row[logoutTimeIdx] || '').trim() || undefined : undefined,
         phoneNumber: phoneIdx !== -1 ? (row[phoneIdx] || '').trim() : undefined,
         gender: genderIdx !== -1 ? (row[genderIdx] || '').trim().toUpperCase() : undefined,
+        employeeCode: empCodeIdx !== -1 ? (row[empCodeIdx] || '').trim() || undefined : undefined,
+        email: emailIdx !== -1 ? (row[emailIdx] || '').trim() || undefined : undefined,
+        department: deptIdx !== -1 ? (row[deptIdx] || '').trim() || undefined : undefined,
       });
     }
 
@@ -844,6 +1100,10 @@ export class CorporateRoutePlannerService {
       let arrivalDateTimeCol = -1;
       let phoneCol = -1;
       let genderCol = -1;
+      let empCodeCol = -1;
+      let emailCol = -1;
+      let deptCol = -1;
+      let logoutTimeCol = -1;
 
       headers.forEach((name, index) => {
         if (['office_address', 'office_destination', 'destination_address', 'destination', 'office'].some((alias) => name.startsWith(alias))) officeCol = index;
@@ -855,8 +1115,18 @@ export class CorporateRoutePlannerService {
           name.endsWith('_login')
         ) arrivalTimeCol = index;
         if (['required_arrival_datetime', 'arrival_datetime', 'login_datetime', 'shift_datetime'].some((alias) => name === alias || name.startsWith(`${alias}_`))) arrivalDateTimeCol = index;
-        if (name.includes('phone') || name.includes('mobile')) phoneCol = index;
-        if (name.includes('gender')) genderCol = index;
+        if (name.includes('phone') || name.includes('mobile') || name === 'contact' || name === 'contact_number') phoneCol = index;
+        if (name.includes('gender') || name === 'sex') genderCol = index;
+        if (['employee_code', 'emp_code', 'emp_id', 'employee_id', 'staff_id', 'code'].includes(name)) empCodeCol = index;
+        if (['email', 'email_address', 'work_email', 'corporate_email'].includes(name)) emailCol = index;
+        if (['department', 'dept', 'team'].includes(name)) deptCol = index;
+        if (
+          ['logout_time', 'required_logout_time', 'shift_end_time', 'departure_time'].some(
+            (alias) => name === alias || name.includes(alias),
+          ) ||
+          name === 'logout'
+        )
+          logoutTimeCol = index;
       });
 
       rosterSheetCount++;
@@ -886,8 +1156,12 @@ export class CorporateRoutePlannerService {
           arrivalDateTime:
             valueAt(arrivalDateTimeCol) ||
             this.combineArrivalDateAndTime(valueAt(arrivalDateCol), valueAt(arrivalTimeCol)),
+          logoutTime: valueAt(logoutTimeCol) || undefined,
           phoneNumber: valueAt(phoneCol) || undefined,
           gender: valueAt(genderCol).toUpperCase() || undefined,
+          employeeCode: valueAt(empCodeCol) || undefined,
+          email: valueAt(emailCol) || undefined,
+          department: valueAt(deptCol) || undefined,
         });
       }
     }

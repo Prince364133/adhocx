@@ -5,6 +5,8 @@ import {
   Param,
   Query,
   Body,
+  Req,
+  Optional,
   BadRequestException,
   NotFoundException,
   UseGuards,
@@ -19,6 +21,7 @@ import { Response } from 'express';
 import { UserRole } from '@adhocx/contracts';
 import { RouteSolverService } from './route-solver.service';
 import { CorporateRoutePlannerService, CommitPlanDto, PlanRoutesResult } from './corporate-route-planner.service';
+import { CorporateRouteDirectionsService } from './corporate-route-directions.service';
 import { generateSampleCsv, generateSampleExcelBuffer } from './sample-roster-generator';
 import { DatabaseService } from '../../../database/database.service';
 import { RouteOptimizationOptions } from './routing.types';
@@ -36,7 +39,8 @@ export class CorporateRoutingController {
   constructor(
     private readonly routeSolverService: RouteSolverService,
     private readonly db: DatabaseService,
-    private readonly routePlannerService?: CorporateRoutePlannerService,
+    @Optional() private readonly routePlannerService?: CorporateRoutePlannerService,
+    @Optional() private readonly directionsService?: CorporateRouteDirectionsService,
   ) {}
 
   @Post('plan-from-file')
@@ -72,13 +76,18 @@ export class CorporateRoutingController {
       file.buffer,
       file.originalname || 'employees.xlsx',
       {
+        tenantId: body.tenantId,
+        officeId: body.officeId,
         office: body.office || body.officeName,
+        officeLat: body.officeLat ? Number(body.officeLat) : undefined,
+        officeLng: body.officeLng ? Number(body.officeLng) : undefined,
+        direction: body.direction,
         loginTime: body.loginTime || body.deadline,
         logoutTime: body.logoutTime,
         officeRadiusKm: body.officeRadiusKm ? Number(body.officeRadiusKm) : 50,
         maxTripKm: body.maxTripKm ? Number(body.maxTripKm) : 50,
         bufferMinutes: body.bufferMinutes ? Number(body.bufferMinutes) : 15,
-        pickupWaitMinutes: body.pickupWaitMinutes ? Number(body.pickupWaitMinutes) : 5,
+        pickupWaitMinutes: body.pickupWaitMinutes ? Number(body.pickupWaitMinutes) : undefined,
         cabCapacity: body.cabCapacity ? Number(body.cabCapacity) : 6,
         routingPreference: body.routingPreference || 'TRAFFIC_UNAWARE',
         avoidTolls: body.avoidTolls === undefined ? true : body.avoidTolls === 'true' || body.avoidTolls === true,
@@ -155,13 +164,18 @@ export class CorporateRoutingController {
         file.buffer,
         file.originalname || 'employees.xlsx',
         {
+          tenantId: body.tenantId,
+          officeId: body.officeId,
           office: body.office || body.officeName,
+          officeLat: body.officeLat ? Number(body.officeLat) : undefined,
+          officeLng: body.officeLng ? Number(body.officeLng) : undefined,
+          direction: body.direction,
           loginTime: body.loginTime || body.deadline,
           logoutTime: body.logoutTime,
           officeRadiusKm: body.officeRadiusKm ? Number(body.officeRadiusKm) : 50,
           maxTripKm: body.maxTripKm ? Number(body.maxTripKm) : 50,
           bufferMinutes: body.bufferMinutes ? Number(body.bufferMinutes) : 15,
-          pickupWaitMinutes: body.pickupWaitMinutes ? Number(body.pickupWaitMinutes) : 5,
+          pickupWaitMinutes: body.pickupWaitMinutes ? Number(body.pickupWaitMinutes) : undefined,
           cabCapacity: body.cabCapacity ? Number(body.cabCapacity) : 6,
           routingPreference: body.routingPreference || 'TRAFFIC_UNAWARE',
           avoidTolls: body.avoidTolls === undefined ? true : body.avoidTolls === 'true' || body.avoidTolls === true,
@@ -286,7 +300,7 @@ export class CorporateRoutingController {
   @CorporateTenantScoped()
   @ApiOperation({ summary: 'List corporate routes with optional filters (paged: limit default 500, max 1000; offset)' })
   public async listRoutes(
-    @Query('tenantId') tenantId: string,
+    @Query('tenantId') tenantId?: string,
     @Query('shiftDate') shiftDate?: string,
     @Query('shiftTime') shiftTime?: string,
     @Query('direction') direction?: 'LOGIN' | 'LOGOUT',
@@ -295,14 +309,96 @@ export class CorporateRoutingController {
     @Query('offset') offset?: string,
     @Query('includeStops') includeStops?: string,
     @Query('includeAnalytics') includeAnalytics?: string,
+    @Query('dispatchStatus') dispatchStatus?: string,
+    @Query('search') search?: string,
+    @Req() req?: any,
   ) {
-    if (!tenantId) {
+    const role = req?.user?.role;
+    const isPlatformStaff = role === UserRole.ADMIN || role === UserRole.OPS;
+    if (!tenantId && !isPlatformStaff) {
       throw new BadRequestException('tenantId query parameter is required');
     }
+    return this.queryRoutes({
+      tenantId: tenantId || undefined,
+      shiftDate,
+      shiftTime,
+      direction,
+      status,
+      limit,
+      offset,
+      includeStops,
+      includeAnalytics,
+      dispatchStatus,
+      search,
+    });
+  }
+
+  @Get('portal')
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @CorporateTenantScoped()
+  @ApiOperation({ summary: 'List tenant-isolated routes, statuses, and stops for Corporate Portal & Ops monitoring' })
+  public async listPortalRoutes(
+    @Query('tenantId') tenantId?: string,
+    @Query('shiftDate') shiftDate?: string,
+    @Query('shiftTime') shiftTime?: string,
+    @Query('direction') direction?: 'LOGIN' | 'LOGOUT',
+    @Query('status') status?: any,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+    @Query('includeStops') includeStops?: string,
+    @Query('includeAnalytics') includeAnalytics?: string,
+    @Query('dispatchStatus') dispatchStatus?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.queryRoutes({
+      tenantId: tenantId || undefined,
+      shiftDate,
+      shiftTime,
+      direction,
+      status,
+      limit,
+      offset,
+      includeStops,
+      includeAnalytics,
+      dispatchStatus,
+      search,
+    });
+  }
+
+  private async queryRoutes(params: {
+    tenantId?: string;
+    shiftDate?: string;
+    shiftTime?: string;
+    direction?: 'LOGIN' | 'LOGOUT';
+    status?: any;
+    limit?: string;
+    offset?: string;
+    includeStops?: string;
+    includeAnalytics?: string;
+    dispatchStatus?: string;
+    search?: string;
+  }) {
+    const {
+      tenantId,
+      shiftDate,
+      shiftTime,
+      direction,
+      status,
+      limit,
+      offset,
+      includeStops,
+      includeAnalytics,
+      dispatchStatus,
+      search,
+    } = params;
+
     const take = Math.min(Math.max(Number.parseInt(limit ?? '', 10) || 500, 1), 1000);
     const skip = Math.max(Number.parseInt(offset ?? '', 10) || 0, 0);
 
-    const where: any = { tenantId };
+    const where: any = {};
+    if (tenantId) {
+      where.tenantId = tenantId;
+    }
     if (shiftDate) {
       where.shiftDate = new Date(shiftDate);
     }
@@ -315,10 +411,28 @@ export class CorporateRoutingController {
     if (status) {
       where.status = status;
     }
+    if (dispatchStatus) {
+      where.dispatchStatus = dispatchStatus;
+    }
+    const q = search?.trim();
+    if (q) {
+      where.OR = [
+        { tenant: { name: { contains: q, mode: 'insensitive' } } },
+        { tenant: { code: { contains: q, mode: 'insensitive' } } },
+        { office: { name: { contains: q, mode: 'insensitive' } } },
+        { driver: { fullName: { contains: q, mode: 'insensitive' } } },
+        { vehicle: { registrationNumber: { contains: q, mode: 'insensitive' } } },
+        { stops: { some: { employeeName: { contains: q, mode: 'insensitive' } } } },
+        { stops: { some: { employee: { fullName: { contains: q, mode: 'insensitive' } } } } },
+      ];
+    }
 
     const routes: any[] = await this.db.corporateRoute.findMany({
       where,
       include: {
+        tenant: {
+          select: { id: true, code: true, name: true },
+        },
         office: {
           select: { id: true, code: true, name: true, addressText: true, latitude: true, longitude: true },
         },
@@ -340,6 +454,9 @@ export class CorporateRoutingController {
                   stopSequence: true,
                   stopType: true,
                   status: true,
+                  addressText: true,
+                  employeeName: true,
+                  employeePhone: true,
                   latitude: true,
                   longitude: true,
                   plannedEta: true,
@@ -376,10 +493,16 @@ export class CorporateRoutingController {
       ? routes.map((route) => ({
           ...route,
           stops: route.stops?.map((stop: {
-            employee?: { locations: Array<{ addressText: string }> } | null;
+            addressText?: string | null;
+            employeeName?: string | null;
+            employeePhone?: string | null;
+            employee?: { fullName?: string; phoneNumber?: string; locations: Array<{ addressText: string }> } | null;
           }) => ({
             ...stop,
-            addressText: stop.employee?.locations[0]?.addressText
+            employeeName: stop.employeeName ?? stop.employee?.fullName ?? null,
+            employeePhone: stop.employeePhone ?? stop.employee?.phoneNumber ?? null,
+            addressText: stop.addressText
+              ?? stop.employee?.locations[0]?.addressText
               ?? (stop.employee ? 'Address unavailable' : route.office?.addressText ?? route.office?.name ?? 'Office destination'),
           })),
         }))
@@ -388,7 +511,7 @@ export class CorporateRoutingController {
     if (includeAnalytics !== 'true' || routesWithStopAddresses.length === 0) return routesWithStopAddresses;
     const events = await this.db.corporateTripEvent.findMany({
       where: {
-        tenantId,
+        ...(tenantId ? { tenantId } : {}),
         routeId: { in: routesWithStopAddresses.map((route) => route.id) },
         type: { in: ['ROUTE_STARTED', 'ROUTE_COMPLETED'] },
       },
@@ -409,14 +532,50 @@ export class CorporateRoutingController {
     }));
   }
 
+  @Get(':id/directions')
+  @Roles(
+    UserRole.ADMIN,
+    UserRole.OPS,
+    UserRole.DRIVER,
+    UserRole.CORPORATE_ADMIN,
+    UserRole.CORPORATE_MANAGER,
+  )
+  @CorporateResource('route', 'id')
+  @ApiOperation({ summary: 'Get real-time Google Maps traffic directions, per-leg ETAs, and polyline for a route' })
+  public async getRouteDirections(@Param('id') id: string, @Query('refresh') refresh?: string) {
+    if (!this.directionsService) {
+      throw new BadRequestException('Route directions service unavailable');
+    }
+    return this.directionsService.getDirectionsForRoute(id, refresh === 'true');
+  }
+
   @Get(':id')
-  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.DRIVER)
+  @Roles(
+    UserRole.ADMIN,
+    UserRole.OPS,
+    UserRole.DRIVER,
+    UserRole.CORPORATE_ADMIN,
+    UserRole.CORPORATE_MANAGER,
+  )
   @CorporateResource('route', 'id')
   @ApiOperation({ summary: 'Get full itinerary and ordered stops for a specific corporate route' })
-  public async getRouteById(@Param('id') id: string) {
-    const route = await this.db.corporateRoute.findUnique({
+  public async getRouteById(
+    @Param('id') id: string,
+    @Query('includeDirections') includeDirections?: string,
+  ) {
+    const route: any = await this.db.corporateRoute.findUnique({
       where: { id },
       include: {
+        tenant: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            legalEntityName: true,
+            gstin: true,
+            status: true,
+          },
+        },
         office: true,
         driver: {
           select: { id: true, fullName: true, phone: true },
@@ -435,6 +594,11 @@ export class CorporateRoutingController {
                 phoneNumber: true,
                 email: true,
                 department: true,
+                locations: {
+                  where: { isDefault: true },
+                  take: 1,
+                  select: { addressText: true },
+                },
               },
             },
             transportRequest: {
@@ -457,6 +621,27 @@ export class CorporateRoutingController {
       throw new NotFoundException(`Corporate route ${id} not found`);
     }
 
-    return route;
+    const enrichedStops = (route.stops ?? []).map((stop: any) => ({
+      ...stop,
+      employeeName: stop.employeeName ?? stop.employee?.fullName ?? null,
+      employeePhone: stop.employeePhone ?? stop.employee?.phoneNumber ?? null,
+      addressText:
+        stop.addressText ??
+        stop.employee?.locations?.[0]?.addressText ??
+        (stop.stopType === 'DROPOFF' && !stop.employee
+          ? route.office?.addressText ?? route.office?.name ?? 'Corporate Office Hub'
+          : 'Pickup address unavailable'),
+    }));
+
+    const enrichedRoute: any = {
+      ...route,
+      stops: enrichedStops,
+    };
+
+    if (includeDirections === 'true' && this.directionsService) {
+      enrichedRoute.directions = await this.directionsService.computeFromRouteRecord(enrichedRoute);
+    }
+
+    return enrichedRoute;
   }
 }

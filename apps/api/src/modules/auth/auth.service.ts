@@ -2,12 +2,11 @@ import { Injectable, UnauthorizedException, BadRequestException, NotFoundExcepti
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
-import { promisify } from 'util';
-
-const pbkdf2Async = promisify(crypto.pbkdf2);
-/** OWASP (2023) minimum for PBKDF2-HMAC-SHA512. Old hashes (no iteration suffix) used 10,000. */
-const PBKDF2_ITERATIONS = 210_000;
-const LEGACY_PBKDF2_ITERATIONS = 10_000;
+import {
+  hashPassword as hashPbkdf2Password,
+  verifyPassword as verifyPbkdf2Password,
+  needsPasswordRehash,
+} from '../../common/utils/password.util';
 import {
   RequestOtpDto,
   RequestOtpResponseDto,
@@ -107,26 +106,17 @@ export class AuthService implements OnModuleInit {
    */
   /** `salt:hash:iterations` (async, so a login never blocks the event loop for other requests). */
   private async hashPassword(password: string): Promise<string> {
-    const salt = crypto.randomBytes(16).toString('hex');
-    const hash = (await pbkdf2Async(password, salt, PBKDF2_ITERATIONS, 64, 'sha512')).toString('hex');
-    return `${salt}:${hash}:${PBKDF2_ITERATIONS}`;
+    return hashPbkdf2Password(password);
   }
 
   /** Accepts current `salt:hash:iterations` and legacy `salt:hash` (10,000 iterations). */
   private async verifyPassword(password: string, storedHash: string): Promise<boolean> {
-    if (!storedHash || !storedHash.includes(':')) return false;
-    const [salt, key, iterRaw] = storedHash.split(':');
-    const iterations = iterRaw ? Number(iterRaw) : LEGACY_PBKDF2_ITERATIONS;
-    if (!salt || !key || !Number.isInteger(iterations) || iterations < 1) return false;
-    const expected = Buffer.from(key, 'hex');
-    const actual = await pbkdf2Async(password, salt, iterations, 64, 'sha512');
-    return expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
+    return verifyPbkdf2Password(password, storedHash);
   }
 
   /** After a successful login, re-hash passwords still stored with the legacy iteration count. */
   private async upgradePasswordHashIfNeeded(userId: string, password: string, storedHash: string): Promise<void> {
-    const iterations = Number(storedHash.split(':')[2] ?? LEGACY_PBKDF2_ITERATIONS);
-    if (iterations >= PBKDF2_ITERATIONS) return;
+    if (!needsPasswordRehash(storedHash)) return;
     try {
       await this.db.user.update({ where: { id: userId }, data: { passwordHash: await this.hashPassword(password) } });
     } catch (err: any) {
@@ -825,10 +815,9 @@ export class AuthService implements OnModuleInit {
     if (isSuspended) {
       throw new ForbiddenException('Your account has been suspended. Please contact AdhocX support.');
     }
-    const isRejected =
-      user.driver?.verificationStatus === 'REJECTED' ||
-      user.vendor?.verificationStatus === 'REJECTED';
-    if (!isRejected && typeof this.redis?.unrevokeUser === 'function') {
+    // Clear any stale user_revoked key for active (non-suspended) accounts, including
+    // KYC-rejected drivers/vendors so they can log in, see rejection feedback, and re-apply.
+    if (typeof this.redis?.unrevokeUser === 'function') {
       await this.redis.unrevokeUser(user.id).catch(() => undefined);
     }
   }
@@ -1002,6 +991,7 @@ export class AuthService implements OnModuleInit {
 
   private async generateAuthResponse(user: any): Promise<AuthResponseDto> {
     const tokenPayload = {
+      jti: crypto.randomUUID(),
       id: user.id,
       phone: user.phone,
       email: user.email,
@@ -1273,6 +1263,7 @@ export class AuthService implements OnModuleInit {
     // Corporate claims are re-derived from the database on every refresh so a
     // tenant re-assignment / employee unlink takes effect without re-login.
     const tokenPayload = {
+      jti: crypto.randomUUID(),
       id: payload.id,
       phone: payload.phone,
       email: payload.email,
