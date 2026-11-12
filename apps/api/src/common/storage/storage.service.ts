@@ -44,6 +44,25 @@ export function verifyUploadSignature(
   return expected.length === given.length && crypto.timingSafeEqual(expected, given);
 }
 
+function signPrivateUploadPath(filename: string, provider: string, expiresAtSec: number, secret: string): string {
+  return crypto.createHmac('sha256', secret).update(`${provider}:${filename}:${expiresAtSec}`).digest('hex');
+}
+
+export function verifyPrivateUploadSignature(
+  filename: string,
+  provider: string | undefined,
+  exp: string | undefined,
+  sig: string | undefined,
+  nowSec: number = Math.floor(Date.now() / 1000),
+): boolean {
+  const secret = uploadSigningSecret();
+  const expNum = Number(exp);
+  if (!secret || !sig || !['r2', 'local'].includes(provider ?? '') || !Number.isInteger(expNum) || expNum < nowSec) return false;
+  const expected = Buffer.from(signPrivateUploadPath(filename, provider!, expNum, secret));
+  const given = Buffer.from(String(sig));
+  return expected.length === given.length && crypto.timingSafeEqual(expected, given);
+}
+
 export interface StoredFileResult {
   url: string;
   filename: string;
@@ -242,6 +261,7 @@ export class StorageService {
         this.logger.warn(`Presigning ${r2Key} failed: ${err instanceof Error ? err.message : String(err)}`);
         return '';
       }
+
     }
 
     const localFile = this.localUploadNameOf(value);
@@ -254,6 +274,31 @@ export class StorageService {
     }
 
     return this.getPublicUrl(value);
+  }
+
+  async getPrivateDocumentAccessUrl(stored?: string | null, ttlSeconds = DOCUMENT_LINK_TTL_SECONDS): Promise<string> {
+    if (!stored) return '';
+    const r2Key = this.r2KeyOf(stored);
+    const localName = this.localUploadNameOf(stored);
+    const provider = r2Key ? 'r2' : localName ? 'local' : null;
+    const filename = r2Key ? path.basename(r2Key) : localName;
+    const secret = uploadSigningSecret();
+    if (!provider || !filename || !secret) {
+      throw new Error('Private attachment links require managed storage and a configured upload signing secret');
+    }
+    const expiresAt = Math.floor(Date.now() / 1000) + ttlSeconds;
+    const signature = signPrivateUploadPath(filename, provider, expiresAt, secret);
+    const base = this.getPublicUrl(`/api/v1/private-uploads/${encodeURIComponent(filename)}`);
+    return `${base}?provider=${provider}&exp=${expiresAt}&sig=${signature}`;
+  }
+
+  async getPrivateFileBuffer(
+    filename: string,
+    provider: string,
+  ): Promise<{ buffer: Buffer; mimeType: string; filename: string } | null> {
+    const safeFilename = path.basename(filename);
+    if (!safeFilename || safeFilename !== filename || !['r2', 'local'].includes(provider)) return null;
+    return this.getFileBuffer(provider === 'r2' ? `documents/${safeFilename}` : `/uploads/${safeFilename}`);
   }
 
   /** `documents/<file>` key when the URL points into our R2 bucket (public or bare key form). */
@@ -385,6 +430,7 @@ export class StorageService {
         const msg = err instanceof Error ? err.message : String(err);
         this.logger.warn(`R2 delete error: ${msg}`);
       }
+
     }
 
     const filePath = path.join(this.uploadDir, safeFilename);
@@ -392,5 +438,15 @@ export class StorageService {
       await fs.promises.unlink(filePath);
       this.logger.log(`File deleted locally: ${safeFilename}`);
     }
+  }
+
+  async deleteStoredFile(storedReference: string): Promise<void> {
+    const localName = this.localUploadNameOf(storedReference);
+    const r2Key = this.r2KeyOf(storedReference);
+    const filename = localName ?? (r2Key ? path.basename(r2Key) : null);
+    if (!filename) {
+      throw new Error('Stored file reference is not managed by this storage service');
+    }
+    await this.deleteFile(filename);
   }
 }

@@ -924,7 +924,14 @@ export interface CorporateInvoiceDispute {
   creditNote?: CorporateCreditNote | null;
 }
 
-export type CorporateTicketStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
+export type CorporateTicketStatus =
+  | 'OPEN'
+  | 'ASSIGNED'
+  | 'IN_PROGRESS'
+  | 'WAITING_FOR_CORPORATE'
+  | 'RESOLVED'
+  | 'CLOSED'
+  | 'REOPENED';
 export type CorporateTicketPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
 export interface CorporateSupportTicket {
@@ -945,8 +952,15 @@ export interface CorporateSupportTicket {
   slaMinutes: number;
   resolvedAt: string | null;
   resolvedByUserId: string | null;
+  raisedByUserId?: string | null;
+  assignedTeam?: string | null;
   createdAt: string;
   updatedAt: string;
+  tenant?: { id: string; name: string } | null;
+  employee?: { id: string; fullName: string; email: string } | null;
+  comments?: Array<{ id: string; message: string; userId: string; visibility: 'PUBLIC' | 'INTERNAL'; createdAt: string }>;
+  activities?: Array<{ id: string; description: string; visibility: 'PUBLIC' | 'INTERNAL'; createdAt: string }>;
+  attachments?: Array<{ id: string; fileName: string; fileType: string; fileSize: number; url: string; createdAt: string }>;
 }
 
 export type CorporateSosStatus =

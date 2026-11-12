@@ -12,6 +12,8 @@ import {
   AssignmentItem,
   TripListItem,
   TripEvent,
+  OpsSupportTicket,
+  OpsSupportTicketStatus,
 } from './opsTypes';
 import {
   getStoredOpsToken,
@@ -700,6 +702,28 @@ export const opsApi = {
   getSosAlerts: async (): Promise<SosAlertItem[]> => {
     return request<SosAlertItem[]>(`/corporate/safety/alerts`);
   },
+
+  getSupportTickets: async (): Promise<OpsSupportTicket[]> =>
+    request<OpsSupportTicket[]>('/ops/support/tickets'),
+
+  getSupportTicket: async (ticketId: string): Promise<OpsSupportTicket> =>
+    request<OpsSupportTicket>(`/ops/support/tickets/${ticketId}`),
+
+  addSupportTicketUpdate: async (ticketId: string, message: string): Promise<OpsSupportTicket> =>
+    request<OpsSupportTicket>(`/ops/support/tickets/${ticketId}/updates`, {
+      method: 'POST',
+      body: JSON.stringify({ message }),
+    }),
+
+  updateSupportTicketStatus: async (
+    ticketId: string,
+    status: OpsSupportTicketStatus,
+    notes?: string,
+  ): Promise<OpsSupportTicket> =>
+    request<OpsSupportTicket>(`/ops/support/tickets/${ticketId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status, notes }),
+    }),
 
   acknowledgeSosAlert: async (alertId: string): Promise<any> => {
     return request(`/corporate/safety/alerts/${alertId}/acknowledge`, { method: 'POST', body: JSON.stringify({}) });

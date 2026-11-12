@@ -222,6 +222,31 @@ export interface SupportTicketResponse {
   resolutionNotes?: string | null;
   slaMinutes: number;
   resolvedAt?: Date | null;
+  tenantId?: string;
+  employeeId?: string;
+  assignedTeam?: string | null;
+  assignedToUserId?: string | null;
+  comments?: Array<{
+    id: string;
+    userId: string;
+    message: string;
+    visibility: 'PUBLIC' | 'INTERNAL';
+    createdAt: Date;
+  }>;
+  activities?: Array<{
+    id: string;
+    description: string;
+    visibility: 'PUBLIC' | 'INTERNAL';
+    createdAt: Date;
+  }>;
+  attachments?: Array<{
+    id: string;
+    fileName: string;
+    fileType: string;
+    fileSize: number;
+    url: string;
+    createdAt: Date;
+  }>;
   createdAt: Date;
   updatedAt: Date;
 }

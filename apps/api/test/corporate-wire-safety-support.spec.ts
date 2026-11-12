@@ -9,7 +9,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { GUARDS_METADATA } from '@nestjs/common/constants';
 import { DECORATORS } from '@nestjs/swagger/dist/constants';
-import { CorporateTicketCategory, CorporateTicketPriority, CorporateTicketStatus, UserRole } from '@adhocx/contracts';
+import { CorporateTicketCategory, CorporateTicketCommentVisibility, CorporateTicketPriority, CorporateTicketStatus, UserRole } from '@adhocx/contracts';
 import { CorporateSafetyController } from '../src/domains/corporate/safety/corporate-safety.controller';
 import { CorporateSafetyService } from '../src/domains/corporate/safety/corporate-safety.service';
 import {
@@ -75,6 +75,9 @@ const T2 = { id: 'tenant-2', code: 'T2', name: 'Globex', status: 'ACTIVE' };
 function makeDb() {
   const sos = new Map<string, any>();
   const tickets = new Map<string, any>();
+  const ticketComments = new Map<string, any[]>();
+  const ticketActivities = new Map<string, any[]>();
+  const ticketAttachments = new Map<string, any[]>();
   const employees = new Map<string, any>([
     ['emp-1', { id: 'emp-1', userId: 'user-emp-1', tenantId: T1.id, employeeCode: 'E1', fullName: 'Asha', isActive: true }],
     ['emp-2', { id: 'emp-2', userId: 'user-emp-2', tenantId: T1.id, employeeCode: 'E2', fullName: 'Ravi', isActive: true }],
@@ -86,6 +89,8 @@ function makeDb() {
   const db: any = {
     sos,
     tickets,
+    $transaction: jest.fn(async (operations: Promise<unknown>[] | ((tx: any) => Promise<unknown>)) =>
+      typeof operations === 'function' ? operations(db) : Promise.all(operations)),
     corporateTenant: {
       findUnique: jest.fn(async ({ where }: any) => [T1, T2].find((t) => t.id === where.id) ?? null),
     },
@@ -119,8 +124,16 @@ function makeDb() {
       findMany: jest.fn(async ({ where }: any) => [...tickets.values()].filter((t) => matches(t, where)).map(clone)),
       findUnique: jest.fn(async ({ where }: any) => {
         const t = tickets.get(where.id);
-        return t ? { ...t, tenant: [T1, T2].find((x) => x.id === t.tenantId) } : null;
+        const row = t ?? [...tickets.values()].find((item) => where.idempotencyKey && item.idempotencyKey === where.idempotencyKey);
+        return row ? {
+          ...row,
+          tenant: [T1, T2].find((x) => x.id === row.tenantId),
+          comments: ticketComments.get(row.id) ?? [],
+          activities: ticketActivities.get(row.id) ?? [],
+          attachments: ticketAttachments.get(row.id) ?? [],
+        } : null;
       }),
+      count: jest.fn(async ({ where }: any) => [...tickets.values()].filter((ticket) => matches(ticket, where)).length),
       updateMany: jest.fn(async ({ where, data }: any) => {
         await tick();
         const t = tickets.get(where.id);
@@ -128,9 +141,53 @@ function makeDb() {
         applyData(t, data);
         return { count: 1 };
       }),
+      update: jest.fn(async ({ where, data }: any) => {
+        const t = tickets.get(where.id);
+        if (!t) throw new Error('Ticket not found');
+        applyData(t, data);
+        return clone(t);
+      }),
     },
     corporateEmployee: {
-      findUnique: jest.fn(async ({ where }: any) => clone(employees.get(where.id)) ?? null),
+      findUnique: jest.fn(async ({ where }: any) => {
+        const employee = where.id
+          ? employees.get(where.id)
+          : [...employees.values()].find((item) => item.userId === where.userId);
+        return clone(employee) ?? null;
+      }),
+    },
+    corporateSupportTicketActivity: {
+      create: jest.fn(async ({ data }: any) => {
+        const rows = ticketActivities.get(data.ticketId) ?? [];
+        const activity = { id: `act-${rows.length + 1}`, createdAt: new Date(), ...data };
+        ticketActivities.set(data.ticketId, [...rows, activity]);
+        return clone(activity);
+      }),
+    },
+    corporateSupportTicketComment: {
+      create: jest.fn(async ({ data }: any) => {
+        const rows = ticketComments.get(data.ticketId) ?? [];
+        const comment = { id: `comment-${rows.length + 1}`, createdAt: new Date(), ...data };
+        ticketComments.set(data.ticketId, [...rows, comment]);
+        return clone(comment);
+      }),
+    },
+    corporateSupportTicketAttachment: {
+      createMany: jest.fn(async ({ data }: any) => {
+        for (const attachment of data) {
+          const rows = ticketAttachments.get(attachment.ticketId) ?? [];
+          ticketAttachments.set(attachment.ticketId, [...rows, { id: `attachment-${rows.length + 1}`, createdAt: new Date(), ...attachment }]);
+        }
+        return { count: data.length };
+      }),
+    },
+    user: {
+      findUnique: jest.fn(async ({ where }: any) =>
+        where.id === 'ops-user'
+          ? { id: 'ops-user', role: UserRole.OPS }
+          : where.id === 'admin-1'
+            ? { id: 'admin-1', role: UserRole.ADMIN }
+            : null),
     },
   };
   return db;
@@ -544,7 +601,7 @@ describe('wire/safety-support: SOS lifecycle, escalation scheduler, support tick
       const move = (status: any, notes?: string) => controller.updateStatus(t.id, { status, notes }, req(ADMIN));
 
       await expect(move(CorporateTicketStatus.RESOLVED)).rejects.toThrow(ConflictException); // skip
-      await expect(move('REOPENED')).rejects.toThrow(BadRequestException);
+      await expect(move('REOPENED')).rejects.toThrow(ConflictException);
 
       expect((await move(CorporateTicketStatus.IN_PROGRESS, 'Calling vendor')).status).toBe('IN_PROGRESS');
       expect(db.tickets.get(t.id)).toEqual(expect.objectContaining({ assignedToUserId: 'admin-1', adminNotes: 'Calling vendor' }));
@@ -570,6 +627,40 @@ describe('wire/safety-support: SOS lifecycle, escalation scheduler, support tick
       ]);
       expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
       expect((results.find((r) => r.status === 'rejected') as PromiseRejectedResult).reason).toBeInstanceOf(ConflictException);
+    });
+
+    it('never exposes internal notes or legacy admin notes to corporate users', async () => {
+      const ticket = await seed('emp-1', T1.id);
+      db.tickets.get(ticket.id).adminNotes = 'legacy private note';
+      await tickets.addComment(
+        ticket.id,
+        'Internal operations note',
+        { userId: 'admin-1', role: 'ADMIN' },
+        CorporateTicketCommentVisibility.INTERNAL,
+      );
+      await tickets.addComment(
+        ticket.id,
+        'Public response',
+        { userId: 'admin-1', role: 'ADMIN' },
+        CorporateTicketCommentVisibility.PUBLIC,
+      );
+
+      const corporate = await tickets.getTicket(ticket.id, { userId: 'corp-1', role: 'CORPORATE_ADMIN' });
+      expect(corporate.adminNotes).toBeUndefined();
+      expect(corporate.comments?.map((comment) => comment.message)).toEqual(['Public response']);
+      expect(corporate.activities?.some((activity) => activity.visibility === CorporateTicketCommentVisibility.INTERNAL)).toBe(false);
+      const admin = await tickets.getTicket(ticket.id, { userId: 'admin-1', role: 'ADMIN' });
+      expect(admin.comments?.map((comment) => comment.message)).toContain('Internal operations note');
+    });
+
+    it('limits OPS access to the OPS queue or directly assigned user', async () => {
+      const ticket = await seed('emp-1', T1.id);
+      await tickets.assignTicket(ticket.id, 'OPS', 'ops-user', { userId: 'admin-1', role: 'ADMIN' });
+
+      expect((await tickets.listOpsTickets({ userId: 'ops-user', role: 'OPS' })).map((row) => row.id)).toContain(ticket.id);
+      const privateTicket = await seed('emp-2', T1.id);
+      await tickets.assignTicket(privateTicket.id, 'SUPPORT', 'admin-1', { userId: 'admin-1', role: 'ADMIN' });
+      await expect(tickets.assertOpsTicket(privateTicket.id, { userId: 'other-ops', role: 'OPS' })).rejects.toThrow(ForbiddenException);
     });
 
     it('rider /corporate/me/tickets reuses the shared ticket service (same rows the support desk sees)', async () => {

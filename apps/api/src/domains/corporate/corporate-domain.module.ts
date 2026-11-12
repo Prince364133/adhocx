@@ -63,7 +63,7 @@ import { CorporateSafetyService } from './safety/corporate-safety.service';
 import { CorporateSafetyController } from './safety/corporate-safety.controller';
 import { CorporateSosEscalationScheduler } from './safety/corporate-sos-escalation.scheduler';
 import { CorporateSupportTicketService } from './safety/corporate-support-ticket.service';
-import { CorporateSupportTicketController } from './safety/corporate-support-ticket.controller';
+import { CorporateSupportTicketController, OpsSupportTicketController } from './safety/corporate-support-ticket.controller';
 
 // Dual Financial Ledgers, Invoicing & Driver Settlements Sub-Module
 import { CorporateBillingService } from './billing/corporate-billing.service';
@@ -158,6 +158,7 @@ import { CorporateRiderController } from './rider/corporate-rider.controller';
     CorporateTripExecutionController,
     CorporateSafetyController,
     CorporateSupportTicketController,
+    OpsSupportTicketController,
     CorporateBillingController,
     CorporateRateCardController, // wire/billing-payouts
     CorporatePayoutWebhookController, // wire/billing-payouts (HMAC-signed, no JWT)

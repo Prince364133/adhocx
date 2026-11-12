@@ -312,6 +312,13 @@ export enum CorporateSosStatus {
 }
 
 export enum CorporateTicketCategory {
+  TECHNICAL_ISSUE = 'TECHNICAL_ISSUE',
+  EMPLOYEE_MANAGEMENT = 'EMPLOYEE_MANAGEMENT',
+  ROUTE_MANAGEMENT = 'ROUTE_MANAGEMENT',
+  TRANSPORT_OPERATIONS = 'TRANSPORT_OPERATIONS',
+  BILLING_PAYMENTS = 'BILLING_PAYMENTS',
+  ACCOUNT_ACCESS = 'ACCOUNT_ACCESS',
+  GENERAL_SUPPORT = 'GENERAL_SUPPORT',
   CAB_DELAY = 'CAB_DELAY',
   DRIVER_BEHAVIOR = 'DRIVER_BEHAVIOR',
   ROUTE_ISSUE = 'ROUTE_ISSUE',
@@ -331,9 +338,17 @@ export enum CorporateTicketPriority {
 
 export enum CorporateTicketStatus {
   OPEN = 'OPEN',
+  ASSIGNED = 'ASSIGNED',
   IN_PROGRESS = 'IN_PROGRESS',
+  WAITING_FOR_CORPORATE = 'WAITING_FOR_CORPORATE',
   RESOLVED = 'RESOLVED',
   CLOSED = 'CLOSED',
+  REOPENED = 'REOPENED',
+}
+
+export enum CorporateTicketCommentVisibility {
+  PUBLIC = 'PUBLIC',
+  INTERNAL = 'INTERNAL',
 }
 
 export enum CorporatePayoutBatchStatus {

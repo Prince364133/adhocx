@@ -478,3 +478,33 @@ export interface RoutePlanningResult {
   expectedCorporateRevenue?: number;
   projectedMargin?: number;
 }
+export type OpsSupportTicketStatus =
+  | 'OPEN'
+  | 'ASSIGNED'
+  | 'IN_PROGRESS'
+  | 'WAITING_FOR_CORPORATE'
+  | 'RESOLVED'
+  | 'CLOSED'
+  | 'REOPENED';
+
+export interface OpsSupportTicket {
+  id: string;
+  ticketNumber: string;
+  tenantId: string;
+  employeeId: string;
+  category: string;
+  priority: string;
+  status: OpsSupportTicketStatus;
+  subject: string;
+  description: string;
+  assignedTeam: string | null;
+  assignedToUserId: string | null;
+  resolutionNotes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  tenant?: { id: string; name: string } | null;
+  employee?: { id: string; fullName: string; email: string } | null;
+  comments?: Array<{ id: string; message: string; userId: string; visibility: 'PUBLIC' | 'INTERNAL'; createdAt: string }>;
+  activities?: Array<{ id: string; description: string; visibility: 'PUBLIC' | 'INTERNAL'; createdAt: string }>;
+  attachments?: Array<{ id: string; fileName: string; fileType: string; fileSize: number; url: string; createdAt: string }>;
+}

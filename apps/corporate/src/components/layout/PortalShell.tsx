@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
   Users,
-  CalendarX,
+  Route,
   LifeBuoy,
   Receipt,
   BarChart3,
@@ -34,10 +34,9 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/dashboard', label: 'Overview', icon: <LayoutDashboard size={18} /> },
   { href: '/routes', label: 'Routes & Dispatch', icon: <Navigation size={18} /> },
   { href: '/employees', label: 'Employees', icon: <Users size={18} /> },
-  { href: '/cancellations', label: 'Cancellation Requests', icon: <CalendarX size={18} /> },
-  { href: '/support', label: 'Support & SLA', icon: <LifeBuoy size={18} /> },
+  { href: '/routes-list', label: 'Routes', icon: <Route size={18} /> },
+  { href: '/support', label: 'Support', icon: <LifeBuoy size={18} /> },
   { href: '/billing', label: 'Billing & Invoices', icon: <Receipt size={18} /> },
-  { href: '/reports', label: 'Reports & Analytics', icon: <BarChart3 size={18} /> },
   { href: '/dashboard/analytics', label: 'Transport Analytics', icon: <BarChart3 size={15} /> },
   { href: '/settings', label: 'Organization Settings', icon: <Settings size={18} /> },
 ];
