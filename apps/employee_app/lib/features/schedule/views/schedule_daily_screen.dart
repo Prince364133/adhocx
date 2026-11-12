@@ -7,6 +7,7 @@ import 'package:adhocx_employee/widgets/employee_app_bar.dart';
 import 'package:adhocx_employee/widgets/employee_secondary_button.dart';
 import 'package:adhocx_employee/widgets/schedule_tab_bar.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
+import 'package:adhocx_employee/shared/components/feedback/employee_entrance.dart';
 
 class ScheduleDailyScreen extends StatefulWidget {
   const ScheduleDailyScreen({super.key});
@@ -122,27 +123,32 @@ class _ScheduleDailyScreenState extends State<ScheduleDailyScreen> {
               const SizedBox(height: 20),
 
               // Shift 1 Card: Login (Pickup)
-              _buildShiftCard(
-                icon: Icons.directions_car_filled_rounded,
-                iconBg: AppColors.successLight,
-                iconColor: AppColors.success,
-                title: 'Login (Pickup)',
-                time: pickupTime,
-                route: pickupRoute,
-                onTap: () => context.push(AppRoutes.shiftDetailsLogin),
+              EmployeeEntrance(
+                child: _buildShiftCard(
+                  icon: Icons.directions_car_filled_rounded,
+                  iconBg: AppColors.successLight,
+                  iconColor: AppColors.success,
+                  title: 'Login (Pickup)',
+                  time: pickupTime,
+                  route: pickupRoute,
+                  onTap: () => context.push(AppRoutes.shiftDetailsLogin),
+                ),
               ),
 
               const SizedBox(height: 14),
 
               // Shift 2 Card: Logout (Drop)
-              _buildShiftCard(
-                icon: Icons.apartment_rounded,
-                iconBg: const Color(0xFFFEF3C7),
-                iconColor: const Color(0xFFD97706),
-                title: 'Logout - Drop',
-                time: dropTime,
-                route: dropRoute,
-                onTap: () => context.push(AppRoutes.shiftDetailsOvernight),
+              EmployeeEntrance(
+                delay: const Duration(milliseconds: 90),
+                child: _buildShiftCard(
+                  icon: Icons.apartment_rounded,
+                  iconBg: const Color(0xFFFEF3C7),
+                  iconColor: const Color(0xFFD97706),
+                  title: 'Logout - Drop',
+                  time: dropTime,
+                  route: dropRoute,
+                  onTap: () => context.push(AppRoutes.shiftDetailsOvernight),
+                ),
               ),
 
               const SizedBox(height: 32),

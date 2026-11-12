@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../theme/app_colors.dart';
+import '../feedback/employee_press_scale.dart';
 
 /// Primary Brand Action Button for AdhocX.
 /// Uses the canonical AdhocX rounded-pill design with optional icon and loading spinner.
@@ -34,75 +35,79 @@ class EmployeePrimaryButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final effectiveBg = backgroundColor ?? AppColors.primaryBlue;
     final effectiveFg = foregroundColor ?? AppColors.textLight;
+    final isEnabled = onPressed != null && !isLoading;
 
     return SizedBox(
       width: width ?? double.infinity,
       height: height,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: (gradient != null && onPressed != null && !isLoading)
-              ? gradient
-              : null,
-          borderRadius: BorderRadius.circular(borderRadius),
-          boxShadow: (onPressed != null && !isLoading)
-              ? [
-                  BoxShadow(
-                    color: effectiveBg.withValues(alpha: 0.22),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
-              : null,
-        ),
-        child: ElevatedButton(
-          onPressed: isLoading ? null : onPressed,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: gradient != null ? Colors.transparent : effectiveBg,
-            foregroundColor: effectiveFg,
-            disabledBackgroundColor: effectiveBg.withValues(alpha: 0.55),
-            disabledForegroundColor: effectiveFg.withValues(alpha: 0.75),
-            elevation: 0,
-            shadowColor: Colors.transparent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(borderRadius),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: EmployeePressScale(
+        enabled: isEnabled,
+        borderRadius: borderRadius,
+        shadowColor: effectiveBg,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: (gradient != null && isEnabled) ? gradient : null,
+            borderRadius: BorderRadius.circular(borderRadius),
+            boxShadow: isEnabled
+                ? [
+                    BoxShadow(
+                      color: effectiveBg.withValues(alpha: 0.22),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : null,
           ),
-          child: isLoading
-              ? SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    valueColor: AlwaysStoppedAnimation<Color>(effectiveFg),
-                  ),
-                )
-              : Row(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (icon != null) ...[
-                      Icon(icon, size: 20, color: effectiveFg),
-                      const SizedBox(width: 8),
-                    ],
-                    Flexible(
-                      child: Text(
-                        label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: effectiveFg,
-                          letterSpacing: 0.1,
+          child: ElevatedButton(
+            onPressed: isLoading ? null : onPressed,
+            style: ElevatedButton.styleFrom(
+              backgroundColor:
+                  gradient != null ? Colors.transparent : effectiveBg,
+              foregroundColor: effectiveFg,
+              disabledBackgroundColor: effectiveBg.withValues(alpha: 0.55),
+              disabledForegroundColor: effectiveFg.withValues(alpha: 0.75),
+              elevation: 0,
+              shadowColor: Colors.transparent,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(borderRadius),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+            ),
+            child: isLoading
+                ? SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      valueColor: AlwaysStoppedAnimation<Color>(effectiveFg),
+                    ),
+                  )
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (icon != null) ...[
+                        Icon(icon, size: 20, color: effectiveFg),
+                        const SizedBox(width: 8),
+                      ],
+                      Flexible(
+                        child: Text(
+                          label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: effectiveFg,
+                            letterSpacing: 0.1,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+          ),
         ),
       ),
     );
   }
 }
-

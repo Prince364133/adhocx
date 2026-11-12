@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../theme/app_colors.dart';
+import '../feedback/employee_entrance.dart';
 
 enum BadgeVariant {
   upcoming,
@@ -46,18 +47,27 @@ class EmployeeStatusBadge extends StatelessWidget {
     final s = (status ?? '').toLowerCase().trim();
     BadgeVariant variant = BadgeVariant.neutral;
 
-    if (s.contains('completed') || s.contains('resolved') || s.contains('successful')) {
+    if (s.contains('completed') ||
+        s.contains('resolved') ||
+        s.contains('successful')) {
       variant = BadgeVariant.completed;
     } else if (s.contains('approaching') || s.contains('arrived')) {
-      variant = s.contains('arrived') ? BadgeVariant.arrived : BadgeVariant.approaching;
-    } else if (s.contains('boarded') || s.contains('progress') || s.contains('active')) {
+      variant = s.contains('arrived')
+          ? BadgeVariant.arrived
+          : BadgeVariant.approaching;
+    } else if (s.contains('boarded') ||
+        s.contains('progress') ||
+        s.contains('active')) {
       variant = BadgeVariant.inProgress;
-    } else if (s.contains('cancel') || s.contains('reject') || s.contains('error')) {
+    } else if (s.contains('cancel') ||
+        s.contains('reject') ||
+        s.contains('error')) {
       variant = BadgeVariant.cancelled;
     } else if (s.contains('delay') || s.contains('late')) {
       variant = BadgeVariant.delayed;
     } else if (s.contains('pending') || s.contains('assigned')) {
-      variant = s.contains('pending') ? BadgeVariant.pending : BadgeVariant.assigned;
+      variant =
+          s.contains('pending') ? BadgeVariant.pending : BadgeVariant.assigned;
     } else if (s.contains('approved')) {
       variant = BadgeVariant.approved;
     } else if (s.contains('upcoming') || s.contains('scheduled')) {
@@ -77,42 +87,55 @@ class EmployeeStatusBadge extends StatelessWidget {
     final config = _getStyleConfig();
     final displayText = label ?? _getDefaultLabel();
 
-    return Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: config.backgroundColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: config.borderColor, width: 1.0),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          if (showDot) ...[
-            Container(
-              width: 6,
-              height: 6,
-              decoration: BoxDecoration(
-                color: config.textColor,
-                shape: BoxShape.circle,
+    return EmployeeEntrance(
+      duration: const Duration(milliseconds: 280),
+      beginOffset: const Offset(0, 0.02),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        padding: padding,
+        decoration: BoxDecoration(
+          color: config.backgroundColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: config.borderColor, width: 1.0),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            if (showDot) ...[
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: config.textColor,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 6),
+            ],
+            if (icon != null) ...[
+              Icon(icon, size: 12, color: config.textColor),
+              const SizedBox(width: 4),
+            ],
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 180),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              child: Text(
+                displayText,
+                key: ValueKey(displayText),
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: config.textColor,
+                  letterSpacing: 0.2,
+                ),
               ),
             ),
-            const SizedBox(width: 6),
           ],
-          if (icon != null) ...[
-            Icon(icon, size: 12, color: config.textColor),
-            const SizedBox(width: 4),
-          ],
-          Text(
-            displayText,
-            style: GoogleFonts.inter(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: config.textColor,
-              letterSpacing: 0.2,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -206,4 +229,3 @@ class _BadgeStyle {
     required this.borderColor,
   });
 }
-

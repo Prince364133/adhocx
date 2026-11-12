@@ -190,12 +190,12 @@ class _MyRequestsTicketsScreenState extends State<MyRequestsTicketsScreen> {
               ),
             ),
       bottomNavigationBar: EmployeeBottomNavBar(
-        currentIndex: 3,
+        currentIndex: -1,
         onTap: (index) {
           if (index == 0) context.push(AppRoutes.homeUpcomingPickup);
           if (index == 1) context.push(AppRoutes.scheduleToday);
           if (index == 2) context.push(AppRoutes.tripHistoryOverview);
-          if (index == 4) context.push(AppRoutes.profileDetails);
+          if (index == 3) context.push(AppRoutes.profileDetails);
         },
       ),
     );

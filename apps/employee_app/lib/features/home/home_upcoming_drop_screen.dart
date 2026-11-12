@@ -150,7 +150,7 @@ class _HomeUpcomingDropScreenState extends State<HomeUpcomingDropScreen> {
         onTap: (index) {
           if (index == 1) context.go(AppRoutes.scheduleToday);
           if (index == 2) context.go(AppRoutes.historyOverview);
-          if (index == 4) context.go(AppRoutes.profileDetails);
+          if (index == 3) context.go(AppRoutes.profileDetails);
         },
       ),
     );

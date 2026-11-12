@@ -28,6 +28,9 @@ export 'navigation/employee_bottom_nav_bar.dart';
 
 // Feedback
 export 'feedback/employee_empty_state.dart';
+export 'feedback/employee_entrance.dart';
+export 'feedback/employee_page_transition.dart';
+export 'feedback/employee_press_scale.dart';
 export 'feedback/employee_step_tracker.dart';
 
 // Inputs

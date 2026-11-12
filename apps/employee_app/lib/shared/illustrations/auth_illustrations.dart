@@ -252,7 +252,8 @@ class VerifiedAccountBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final badge = Container(
       width: 80,
       height: 80,
       decoration: BoxDecoration(
@@ -267,12 +268,81 @@ class VerifiedAccountBadge extends StatelessWidget {
           ),
         ],
       ),
-      child: const Center(
-        child: Icon(
-          Icons.check_rounded,
-          size: 42,
-          color: AppColors.success,
+    );
+
+    if (reduceMotion) {
+      return SizedBox(
+        width: 80,
+        height: 80,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            badge,
+            const Icon(
+              Icons.check_rounded,
+              size: 42,
+              color: AppColors.success,
+            ),
+          ],
         ),
+      );
+    }
+
+    return SizedBox(
+      width: 80,
+      height: 80,
+      child: Stack(
+        alignment: Alignment.center,
+        clipBehavior: Clip.none,
+        children: [
+          TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 0, end: 1),
+            duration: const Duration(milliseconds: 620),
+            curve: Curves.easeOutCubic,
+            builder: (context, value, child) => Opacity(
+              opacity: 0.3 * (1 - value),
+              child: Transform.scale(
+                scale: 0.7 + (0.8 * value),
+                child: child,
+              ),
+            ),
+            child: Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppColors.success.withValues(alpha: 0.45),
+                  width: 2,
+                ),
+              ),
+            ),
+          ),
+          TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 0.78, end: 1),
+            duration: const Duration(milliseconds: 420),
+            curve: Curves.easeOutBack,
+            builder: (context, scale, child) => Transform.scale(
+              scale: scale,
+              child: child,
+            ),
+            child: badge,
+          ),
+          TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 0.2, end: 1),
+            duration: const Duration(milliseconds: 320),
+            curve: Curves.easeOutBack,
+            builder: (context, scale, child) => Opacity(
+              opacity: scale.clamp(0, 1),
+              child: Transform.scale(scale: scale, child: child),
+            ),
+            child: const Icon(
+              Icons.check_rounded,
+              size: 42,
+              color: AppColors.success,
+            ),
+          ),
+        ],
       ),
     );
   }

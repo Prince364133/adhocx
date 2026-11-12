@@ -6,6 +6,7 @@ import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/widgets/employee_app_bar.dart';
 import 'package:adhocx_employee/widgets/employee_primary_button.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
+import 'package:adhocx_employee/shared/components/feedback/employee_entrance.dart';
 
 class ChangeRequestDetailsScreen extends StatefulWidget {
   const ChangeRequestDetailsScreen({super.key});
@@ -20,6 +21,7 @@ class _ChangeRequestDetailsScreenState
   final TextEditingController _reasonController = TextEditingController(
     text: 'Temporary change due to home renovation',
   );
+  final FocusNode _reasonFocusNode = FocusNode();
   String _address = 'Flat 402, Green Meadows, Kondapur, Hyderabad';
   bool _isLoading = true;
 
@@ -43,6 +45,7 @@ class _ChangeRequestDetailsScreenState
   @override
   void dispose() {
     _reasonController.dispose();
+    _reasonFocusNode.dispose();
     super.dispose();
   }
 
@@ -89,40 +92,42 @@ class _ChangeRequestDetailsScreenState
               const SizedBox(height: 10),
 
               // Location Selector Card
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.border, width: 1.5),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.location_on_rounded,
-                        color: AppColors.primaryBlue, size: 22),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        _address,
-                        style: GoogleFonts.inter(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                          height: 1.4,
+              EmployeeEntrance(
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppColors.border, width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.location_on_rounded,
+                          color: AppColors.primaryBlue, size: 22),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _address,
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                            height: 1.4,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    const Icon(Icons.chevron_right_rounded,
-                        color: AppColors.textMuted, size: 22),
-                  ],
+                      const SizedBox(width: 8),
+                      const Icon(Icons.chevron_right_rounded,
+                          color: AppColors.textMuted, size: 22),
+                    ],
+                  ),
                 ),
               ),
 
@@ -140,30 +145,52 @@ class _ChangeRequestDetailsScreenState
               const SizedBox(height: 10),
 
               // Reason Textarea
-              TextField(
-                controller: _reasonController,
-                maxLines: 4,
-                maxLength: 200,
-                style: GoogleFonts.inter(
-                    fontSize: 14, color: AppColors.textPrimary),
-                decoration: InputDecoration(
-                  hintText: 'Enter reason for change...',
-                  counterStyle: GoogleFonts.inter(
-                      fontSize: 11, color: AppColors.textMuted),
-                  filled: true,
-                  fillColor: AppColors.surfaceMuted,
-                  border: OutlineInputBorder(
+              AnimatedBuilder(
+                animation: _reasonFocusNode,
+                builder: (context, child) => AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOutCubic,
+                  decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppColors.border),
+                    boxShadow: _reasonFocusNode.hasFocus
+                        ? [
+                            BoxShadow(
+                              color:
+                                  AppColors.primaryBlue.withValues(alpha: 0.1),
+                              blurRadius: 10,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppColors.border),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(
-                        color: AppColors.primaryBlue, width: 1.5),
+                  child: child,
+                ),
+                child: TextField(
+                  controller: _reasonController,
+                  focusNode: _reasonFocusNode,
+                  maxLines: 4,
+                  maxLength: 200,
+                  style: GoogleFonts.inter(
+                      fontSize: 14, color: AppColors.textPrimary),
+                  decoration: InputDecoration(
+                    hintText: 'Enter reason for change...',
+                    counterStyle: GoogleFonts.inter(
+                        fontSize: 11, color: AppColors.textMuted),
+                    filled: true,
+                    fillColor: AppColors.surfaceMuted,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(color: AppColors.border),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(color: AppColors.border),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(
+                          color: AppColors.primaryBlue, width: 1.5),
+                    ),
                   ),
                 ),
               ),
@@ -171,9 +198,12 @@ class _ChangeRequestDetailsScreenState
               const SizedBox(height: 36),
 
               // Submit Request Button
-              EmployeePrimaryButton(
-                label: 'Submit Request',
-                onPressed: () => context.push(AppRoutes.changeSubmitted),
+              EmployeeEntrance(
+                delay: const Duration(milliseconds: 120),
+                child: EmployeePrimaryButton(
+                  label: 'Submit Request',
+                  onPressed: () => context.push(AppRoutes.changeSubmitted),
+                ),
               ),
 
               const SizedBox(height: 24),

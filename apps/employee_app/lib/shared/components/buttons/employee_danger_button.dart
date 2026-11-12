@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../theme/app_colors.dart';
+import '../feedback/employee_press_scale.dart';
 
 /// Destructive / Danger Action Button (for SOS, Cancel Trip, Logout, Delete Account).
 class EmployeeDangerButton extends StatelessWidget {
@@ -29,17 +30,22 @@ class EmployeeDangerButton extends StatelessWidget {
       return SizedBox(
         width: width ?? double.infinity,
         height: height,
-        child: OutlinedButton(
-          onPressed: isLoading ? null : onPressed,
-          style: OutlinedButton.styleFrom(
-            foregroundColor: AppColors.error,
-            side: const BorderSide(color: AppColors.errorBorder, width: 1.5),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(height / 2),
+        child: EmployeePressScale(
+          enabled: onPressed != null && !isLoading,
+          borderRadius: height / 2,
+          shadowColor: AppColors.error,
+          child: OutlinedButton(
+            onPressed: isLoading ? null : onPressed,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.error,
+              side: const BorderSide(color: AppColors.errorBorder, width: 1.5),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(height / 2),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: _buildChild(AppColors.error),
           ),
-          child: _buildChild(AppColors.error),
         ),
       );
     }
@@ -47,19 +53,24 @@ class EmployeeDangerButton extends StatelessWidget {
     return SizedBox(
       width: width ?? double.infinity,
       height: height,
-      child: ElevatedButton(
-        onPressed: isLoading ? null : onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.error,
-          foregroundColor: Colors.white,
-          disabledBackgroundColor: AppColors.error.withValues(alpha: 0.5),
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(height / 2),
+      child: EmployeePressScale(
+        enabled: onPressed != null && !isLoading,
+        borderRadius: height / 2,
+        shadowColor: AppColors.error,
+        child: ElevatedButton(
+          onPressed: isLoading ? null : onPressed,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.error,
+            foregroundColor: Colors.white,
+            disabledBackgroundColor: AppColors.error.withValues(alpha: 0.5),
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(height / 2),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 24),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: _buildChild(Colors.white),
         ),
-        child: _buildChild(Colors.white),
       ),
     );
   }
@@ -96,4 +107,3 @@ class EmployeeDangerButton extends StatelessWidget {
     );
   }
 }
-
