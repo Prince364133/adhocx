@@ -1,1788 +1,358 @@
-﻿# AdhocX — Product Requirements Document
+# AdhocX — Comprehensive Product Requirements Document (PRD)
 
-**Document:** `01_PRD.md`
-**Product:** AdhocX
-**Document Version:** 1.0
-**Status:** Product Source of Truth
-**Confidentiality:** Confidential
-**Last Updated:** September 2026
-
----
-
-# 1. Document Purpose
-
-This document defines the product requirements for AdhocX V1.
-
-It is the primary source of truth for:
-
-* Product scope
-* Product objectives
-* Users
-* Business workflows
-* Functional requirements
-* Non-functional product requirements
-* User journeys
-* Business rules
-* MVP boundaries
-* Success metrics
-* Product acceptance criteria
-
-Engineering, design, QA, and AI development agents must use this document as the authoritative product reference.
-
-If another project document conflicts with this PRD, the conflict must be identified and resolved rather than silently choosing one interpretation.
-
-Technical implementation details belong primarily in:
-
-* `07_ARCHITECTURE.md`
-* `09_DATABASE.md`
-* `10_API_SPECIFICATION.md`
-* `11_DISPATCH_ENGINE.md`
-* `12_STATE_MACHINES.md`
-
-Visual implementation details belong primarily in:
-
-* `04_DESIGN_SYSTEM.md`
-* `05_UI_UX_GUIDELINES.md`
-* `06_SCREEN_SPECIFICATIONS.md`
+> **Document Version:** 2.5 (Consolidated Master PRD)  
+> **Prepared:** 12 November 2026  
+> **Organization:** Estemporaneo Technologies Private Limited  
+> **Status:** Production Product Requirements Document & Implementation Specification  
+> **Scope:** Complete Multi-Application Ecosystem — Direct Corporate ETS & On-Demand Marketplace  
 
 ---
 
-# 2. Product Overview
+## 1. Document Purpose, Scope & Product Framing
 
-AdhocX is a B2B transportation fulfillment marketplace that helps corporate transport users source verified commercial cabs and drivers for adhoc transportation requirements.
+This Product Requirements Document (PRD) serves as the definitive functional, architectural, and operational specification for **AdhocX**. It consolidates all requirements from the core marketplace foundation, the Hyderabad enterprise Employee Transportation System (ETS) pilot specifications, and all five application surfaces.
 
-The current problem is that users frequently depend on Telegram and WhatsApp groups to locate additional vehicles when their existing fleet cannot satisfy a corporate requirement.
+### 1.1 Dual Business Model
 
-This creates:
+AdhocX operates two complementary, logically decoupled mobility models on a unified technological core:
 
-* Slow vehicle allocation
-* Excessive calls and messages
-* Poor visibility
-* Unclear availability
-* Manual coordination
-* Trust problems
-* Difficult tracking
-* Operational inefficiency
+1. **Direct Corporate Managed Transportation (B2B Enterprise ETS):**
+   - Direct enterprise contracts between corporate clients and AdhocX.
+   - Scheduled employee commute operations: shift roster ingestion, route clustering, vehicle capacity solver (CVRPTW), autonomous driver allocation, live trip execution with boarding verification, 24×7 command centre supervision, and dual financial settlement.
+   - **Zero Vendor Intermediary:** In enterprise ETS, AdhocX contracts directly with independent commercial cab drivers.
+2. **On-Demand Vendor-to-Driver Marketplace:**
+   - Ad-hoc commercial requirement fulfillment where transport vendors post bulk or ad-hoc vehicle requirements, and verified drivers accept and fulfill trips with digital escrow payment.
 
-The supplied founder PRD describes AdhocX as a platform intended to replace this manual sourcing workflow with an automated marketplace and matching system.
-
----
-
-# 3. Product Vision
-
-## Vision
-
-Build a fast, reliable and operationally transparent platform for adhoc corporate cab fulfillment.
-
-The long-term product vision is to become infrastructure connecting:
-
-* Corporate transport demand
-* Transport users
-* Verified commercial drivers
-* Available vehicle supply
-
-The V1 product will focus specifically on the user-to-driver fulfillment workflow.
+### 1.2 Pilot Scope & 90-Day MVP Objectives
+- **Pilot Location:** Hyderabad Metropolitan Region.
+- **Initial Target:** 90-day production pilot with select corporate enterprise clients and verified commercial fleet supply.
+- **Core Product Outcomes:**
+  - 100% automated roster-to-route generation with manual dispatcher override capability.
+  - Zero-touch boarding verification using expiring OTP / dynamic QR.
+  - Sub-60-second real-time GPS telemetry and corridor deviation alerts.
+  - Independent, tamper-evident dual financial ledgers (Corporate Invoicing vs Driver Earnings).
+  - Multi-tenant data isolation and role-based security.
 
 ---
 
-# 4. Product Mission
+## 2. Application Ecosystem & Responsibility Boundaries
 
-AdhocX should allow a transport user to transform:
+The AdhocX platform consists of five primary user surfaces, backed by a unified NestJS API, PostgreSQL/PostGIS database, and Redis cache:
 
-> "I need additional vehicles."
-
-into:
-
-> "My required vehicles have been automatically sourced, assigned and tracked."
-
-without requiring Telegram groups, WhatsApp groups, repeated phone calls or manual driver allocation.
-
----
-
-# 5. Business Model
-
-## 5.1 Current Business Model
-
-The initial marketplace serves transport users.
-
-Example:
-
-A user has a corporate transportation contract requiring 50 vehicles.
-
-The user has only 40 suitable vehicles available.
-
-The user needs an additional 10 vehicles.
-
-Today, the user may search Telegram/WhatsApp groups for drivers or vehicle owners.
-
-AdhocX digitizes that process.
-
-### Current flow
-
-User:
-
-1. Creates a requirement.
-2. Specifies vehicle type.
-3. Specifies quantity.
-4. Specifies location.
-5. Specifies date and time.
-6. Submits the requirement.
-7. AdhocX identifies eligible drivers.
-8. Eligible drivers receive offers.
-9. Drivers accept.
-10. AdhocX assigns the required number of drivers.
-11. Drivers perform the work.
-12. Trip is completed.
-13. Earnings and settlement are processed.
-
----
-
-# 6. Long-Term Business Direction
-
-The long-term business may expand beyond users and allow corporate organizations to submit transportation requirements directly.
-
-Potential future flow:
-
-Corporate → AdhocX → Verified Supply
-
-The architecture should therefore avoid unnecessarily coupling the demand model to the User entity.
-
-However:
-
-## Direct corporate transportation procurement is NOT part of V1.
-
-The V1 product is focused on user-driven adhoc fulfillment.
-
----
-
-# 7. Target Users
-
-## 7.1 User
-
-A transport company or transport operator responsible for fulfilling corporate transportation requirements.
-
-Primary responsibilities:
-
-* Create vehicle requirements
-* Monitor fulfillment
-* View assigned drivers
-* Monitor active trips
-* Review trip history
-* Manage payments
-* Manage account information
-
----
-
-## 7.2 Driver
-
-A verified commercial driver or vehicle owner who wants to receive adhoc transportation work.
-
-Primary responsibilities:
-
-* Register
-* Complete KYC
-* Register vehicle information
-* Go online/offline
-* Receive trip opportunities
-* Accept/decline trips
-* Navigate to pickup
-* Start trips using OTP
-* Complete trips
-* View earnings
-* Request withdrawals
-
-The founder PRD explicitly identifies these driver functions.
-
----
-
-## 7.3 Administrator
-
-An internal AdhocX operations/admin user responsible for managing the marketplace.
-
-Primary responsibilities:
-
-* Monitor operations
-* Verify drivers
-* Approve users
-* Manage pricing
-* Manage settlements
-* Review reports
-* Handle support
-* Review audit logs
-
-These responsibilities are included in the supplied PRD.
-
----
-
-# 8. V1 Product Surfaces
-
-V1 consists of two applications.
-
-## Application 1 — AdhocX Mobile
-
-Technology is defined separately by the architecture documentation.
-
-The mobile application contains two role experiences:
-
-### User
-
-### Driver
-
-The same mobile application may expose different navigation, functionality and permissions depending on the authenticated user's role.
-
----
-
-## Application 2 — AdhocX Admin
-
-A separate web-based administration console.
-
-The Admin application is intended primarily for desktop/tablet operational use.
-
----
-
-# 9. Product Principles
-
-AdhocX V1 must follow these principles.
-
-## 9.1 Reliability over feature quantity
-
-A small number of reliable workflows are more valuable than a large number of partially working features.
-
----
-
-## 9.2 Operational clarity
-
-Users must be able to understand the current state of a requirement or trip quickly.
-
----
-
-## 9.3 Automation over manual coordination
-
-The system should automate driver discovery, dispatch and status updates wherever practical.
-
----
-
-## 9.4 Human intervention remains possible
-
-Automation must not prevent internal operators from resolving exceptional situations.
-
-Admin functionality must eventually provide visibility into operational failures.
-
----
-
-## 9.5 Trust
-
-Drivers and users must be verified before participating in the marketplace.
-
----
-
-## 9.6 Explicit state
-
-Trip, requirement, offer and assignment states must be explicit and controlled.
-
----
-
-## 9.7 Financial traceability
-
-Payments, earnings and settlements must be traceable.
-
----
-
-# 10. V1 Objective
-
-The primary V1 objective is:
-
-> Enable a verified transport user to submit an adhoc vehicle requirement and reliably obtain verified driver/vehicle assignments through automated marketplace dispatch.
-
-The system must demonstrate that the manual Telegram/WhatsApp sourcing process can be replaced by a structured digital workflow.
-
----
-
-# 11. V1 Success Criteria
-
-The V1 should demonstrate:
-
-1. Users can successfully onboard.
-2. Drivers can successfully onboard.
-3. Drivers can complete verification.
-4. Users can create requirements.
-5. The system can identify eligible drivers.
-6. Drivers receive trip offers.
-7. Drivers can accept or decline.
-8. The system can prevent over-assignment.
-9. Users can see assignments in real time.
-10. Drivers can execute the trip lifecycle.
-11. Trips can be completed.
-12. Driver earnings can be calculated.
-13. Settlements can be recorded.
-14. Admin users can monitor and intervene in operations.
-
----
-
-# 12. Core Marketplace Workflow
-
-The primary workflow is:
-
-```text
-User
-   ↓
-Create Requirement
-   ↓
-Requirement Validated
-   ↓
-Dispatch Engine
-   ↓
-Eligible Drivers Identified
-   ↓
-Driver Offers Sent
-   ↓
-Drivers Accept / Decline
-   ↓
-Assignments Created
-   ↓
-Requirement Fulfilled
-   ↓
-Driver Travels to Pickup
-   ↓
-Driver Arrives
-   ↓
-OTP Verification
-   ↓
-Trip Starts
-   ↓
-Trip Completes
-   ↓
-Earnings Created
-   ↓
-Settlement
 ```
-
-The supplied PRD defines the core workflow as user posting → nearby driver notification → driver acceptance → user confirmation → pickup → OTP → completion → settlement.
-
----
-
-# 13. User Requirements
-
-A user must be able to create a transportation requirement.
-
-A requirement should contain, at minimum:
-
-* Vehicle type
-* Number of vehicles
-* Pickup location
-* Date
-* Pickup time
-* Relevant trip requirements
-* Applicable pricing/payment information
-
-Exact fields are subject to the detailed feature and screen specifications.
-
----
-
-# 14. Requirement Quantity
-
-A requirement may request multiple vehicles.
-
-Example:
-
-```text
-Requirement:
-50 Sedans
-
-Fulfilled:
-38
-
-Remaining:
-12
-```
-
-The platform must distinguish:
-
-* Requested quantity
-* Offered quantity
-* Accepted quantity
-* Reserved quantity
-* Assigned quantity
-* Completed quantity
-* Cancelled quantity
-
-These quantities must not be inferred solely from frontend state.
-
----
-
-# 15. Driver Eligibility
-
-The system must only consider eligible drivers.
-
-The initial eligibility criteria include:
-
-* Driver is verified
-* Driver is active
-* Driver is online
-* Driver is available
-* Driver has an eligible vehicle
-* Vehicle type matches requirement
-* Vehicle documentation is valid
-* Driver is within the applicable geographic search area
-* Driver is not already committed to an incompatible assignment
-
-The supplied PRD specifically identifies vehicle type, verification, online status and distance as matching filters.
-
----
-
-# 16. Geographic Matching
-
-The platform must use geographic location to identify nearby eligible drivers.
-
-The initial concept is to:
-
-1. Identify drivers within an initial radius.
-2. Filter eligible drivers.
-3. Dispatch offers.
-4. Monitor acceptance.
-5. Expand the search radius when required supply cannot be fulfilled.
-
-The exact initial radius, maximum radius, expansion intervals and geographic rules are:
-
-**TBD — Product/business decision.**
-
-They must not be invented by an implementation agent.
-
----
-
-# 17. Dispatch Model
-
-The platform will use an automated dispatch system.
-
-The dispatch system must:
-
-1. Receive a valid requirement.
-2. Identify eligible drivers.
-3. Rank eligible candidates.
-4. Send offers.
-5. Accept driver responses.
-6. Reserve/assign available capacity.
-7. Continue dispatching if demand remains unfulfilled.
-8. Expand the geographic search when appropriate.
-9. Stop when the requirement is fulfilled or the system determines that fulfillment is unavailable.
-
-Detailed dispatch behavior belongs in `11_DISPATCH_ENGINE.md`.
-
----
-
-# 18. Driver Offer
-
-A driver may receive an offer for an eligible requirement.
-
-The offer should contain sufficient information for the driver to make an informed decision.
-
-At minimum:
-
-* Pickup location
-* Date
-* Time
-* Vehicle requirement
-* Estimated earning/payment information where available
-* Offer expiration
-
-The driver can:
-
-* Accept
-* Decline
-* Allow offer to expire
-
----
-
-# 19. Assignment Integrity
-
-The system must never assign more drivers than the requested quantity.
-
-Example:
-
-```text
-Requested = 20
-Maximum assigned = 20
-```
-
-If multiple drivers attempt to accept simultaneously, backend transactional logic must determine the winning assignments.
-
-Frontend behavior must never be trusted to enforce assignment limits.
-
----
-
-# 20. Requirement States
-
-The detailed state machine will be defined in `12_STATE_MACHINES.md`.
-
-Initial conceptual states:
-
-```text
-DRAFT
-POSTED
-SEARCHING
-PARTIALLY_ASSIGNED
-ASSIGNED
-COMPLETED
-CANCELLED
-UNFULFILLED
-```
-
-Exact state definitions and legal transitions must be documented separately.
-
----
-
-# 21. Driver Trip Lifecycle
-
-A driver must be able to:
-
-1. Receive assignment.
-2. View trip.
-3. Navigate to pickup.
-4. Mark/communicate arrival.
-5. Verify trip start through OTP.
-6. Start trip.
-7. Complete trip.
-8. Receive earning information.
-
-The PRD explicitly identifies navigation, OTP trip start, trip completion, earnings and withdrawals as driver functionality.
-
----
-
-# 22. OTP Trip Start
-
-Trip commencement must require OTP verification where configured for the trip.
-
-The system must:
-
-* Generate/obtain a valid OTP.
-* Validate the OTP server-side.
-* Prevent unauthorized trip start.
-* Record the successful verification event.
-* Associate the verification with the relevant assignment/trip.
-
-The OTP mechanism must be designed to handle:
-
-* Incorrect OTP
-* Expired OTP
-* Repeated attempts
-* Network failure
-* Duplicate requests
-
----
-
-# 23. Trip Completion
-
-A driver can complete a trip only when the required completion conditions have been satisfied.
-
-Completion must trigger the appropriate downstream processes, including:
-
-* Trip state update
-* Earnings calculation
-* User status update
-* Driver notification
-* Settlement/accounting workflow
-* Audit/event record
-
-Exact settlement behavior will be defined in `15_PAYMENTS_AND_LEDGER.md`.
-
----
-
-# 24. Driver Earnings
-
-Drivers must be able to view:
-
-* Trip earnings
-* Total earnings
-* Available balance
-* Withdrawal history
-
-The underlying financial model must use a traceable ledger rather than relying on a manually mutated balance field.
-
-Exact financial rules are TBD until the commercial model is finalized.
-
----
-
-# 25. Withdrawals
-
-Drivers should be able to request withdrawals subject to:
-
-* Account eligibility
-* Available balance
-* Minimum withdrawal amount, if applicable
-* Verification requirements
-* Payment provider rules
-
-The exact rules are:
-
-**TBD — Business decision.**
-
----
-
-# 26. User Payments
-
-The user must be able to view relevant payment information.
-
-The final commercial model must define:
-
-* When the user is charged
-* Whether payment occurs before dispatch
-* Whether payment is authorized before dispatch and captured after completion
-* Cancellation charges
-* Refunds
-* Platform fees
-* Driver earnings
-* User settlement
-
-These rules must be finalized before production payment implementation.
-
----
-
-# 27. Admin Operations
-
-The Admin application must provide operational visibility.
-
-Initial capabilities:
-
-### Dashboard
-
-* Active requirements
-* Searching requirements
-* Assigned requirements
-* Active trips
-* Fulfillment metrics
-* Operational exceptions
-
-### Drivers
-
-* Driver list
-* Driver verification
-* Documents
-* Status
-* Suspension
-* Driver details
-
-### Users
-
-* User applications
-* User approval
-* User status
-* User details
-
-### Trips
-
-* Active trips
-* Completed trips
-* Cancelled trips
-* Assignment details
-* Operational investigation
-
-### Pricing
-
-* Pricing configuration
-
-### Settlements
-
-* Settlement management
-* Settlement status
-* Reconciliation
-
-### Reports
-
-* Operational reporting
-
-### Support
-
-* Operational support workflows
-
-### Audit Logs
-
-* Administrative and important system actions
-
-The supplied PRD explicitly includes these admin capabilities.
-
----
-
-# 28. Driver Onboarding
-
-Driver onboarding must support:
-
-* OTP authentication
-* Personal information
-* KYC information
-* Required document submission
-* Vehicle information
-* Verification status
-
-A driver must not receive production trip offers until required verification conditions have been satisfied.
-
----
-
-# 29. User Onboarding
-
-User onboarding must support:
-
-* OTP authentication
-* User information
-* Required business information
-* Verification/approval workflow
-
-Unapproved users must not access restricted marketplace functionality.
-
----
-
-# 30. Authentication
-
-The V1 authentication model uses OTP-based authentication.
-
-The PRD explicitly identifies OTP authentication as part of security and onboarding.
-
-Authentication implementation details belong in the architecture and security documentation.
-
----
-
-# 31. Authorization
-
-Every protected operation must be authorized according to:
-
-* User identity
-* Role
-* Resource ownership
-* Resource state
-* Administrative permissions
-
-Authentication alone is not sufficient.
-
-Example:
-
-A user may access its own requirements.
-
-It must not automatically access another user's requirements simply because the user is authenticated.
-
----
-
-# 32. Notifications
-
-The system must provide notifications for important events throughout the trip lifecycle.
-
-Potential notification events include:
-
-* New trip offer
-* Offer expiration
-* Assignment
-* Driver cancellation
-* Requirement partially fulfilled
-* Requirement fully fulfilled
-* Driver arrival
-* Trip start
-* Trip completion
-* Payment status
-* Settlement status
-
-The PRD requires real-time updates for users and drivers throughout the trip lifecycle.
-
----
-
-# 33. Real-Time Experience
-
-The system should provide real-time operational updates where appropriate.
-
-User example:
-
-```text
-Requirement
-20 vehicles requested
-
-Assigned: 12
-Searching: 8
-```
-
-When a driver accepts:
-
-```text
-Assigned: 13
-Searching: 7
-```
-
-The interface should update without requiring manual refresh where practical.
-
----
-
-# 34. Location
-
-The platform requires geographic functionality for:
-
-* Driver location
-* Driver proximity
-* Pickup location
-* Map display
-* Navigation
-* Dispatch matching
-
-The exact location update frequency, background tracking requirements and retention policies will be specified in architecture and realtime documentation.
-
----
-
-# 35. Maps
-
-The product requires map functionality for relevant driver/user workflows.
-
-Maps must be used to support operational tasks rather than as decorative UI.
-
-Primary use cases:
-
-* Pickup location
-* Driver location
-* Navigation
-* Nearby driver visualization
-* Trip monitoring
-
----
-
-# 36. Edge Cases
-
-V1 must explicitly handle:
-
-* Driver cancellation
-* User cancellation
-* No driver available
-* Passenger no-show
-* Network loss
-* Payment failure
-
-These edge cases are explicitly listed in the supplied PRD.
-
-Additional edge cases must be identified during feature specification and state-machine design.
-
----
-
-# 37. Network Failure
-
-The mobile application must assume that network connectivity can fail.
-
-The application should:
-
-* Detect connectivity loss
-* Display appropriate state
-* Preserve relevant locally available information
-* Retry safe operations where appropriate
-* Avoid falsely confirming server-side actions
-* Reconcile state after reconnection
-
-The backend remains authoritative.
-
----
-
-# 38. Duplicate Requests
-
-Critical operations must be protected against duplicate submissions.
-
-Examples:
-
-* Accept trip
-* Start trip
-* Complete trip
-* Payment
-* Withdrawal
-* Cancellation
-
-The system must use appropriate idempotency/concurrency mechanisms.
-
----
-
-# 39. Security Requirements
-
-V1 security requirements include:
-
-* OTP authentication
-* Secure document storage
-* Role-based access
-* Secure payment integration
-
-These requirements are explicitly identified in the supplied PRD.
-
-Additional technical security standards will be defined in `13_SECURITY.md`.
-
----
-
-# 40. Data Domains
-
-The initial product domain includes:
-
-```text
-Users
-Drivers
-Vehicles
-Users
-Requirements
-Trips
-Offers
-Assignments
-Locations
-Payments
-Settlements
-Notifications
-Audit Logs
-```
-
-The supplied PRD identifies Users, Drivers, Users, Trips and Payments as core database entities.
-
-The final database model is defined in `09_DATABASE.md`.
-
----
-
-# 41. User Features — V1
-
-## Authentication
-
-* OTP login
-* Session management
-* Logout
-
-## Dashboard
-
-* Requirement overview
-* Fulfillment status
-* Active trips
-* Operational alerts
-
-## Requirement Management
-
-* Create requirement
-* View requirements
-* View requirement details
-* Bulk posting
-* Track fulfillment
-* Cancel requirement where permitted
-
-## Driver Information
-
-* View assigned driver
-* View vehicle information
-* View relevant trip information
-
-## Live Status
-
-* Assignment updates
-* Driver/trip status
-* Relevant location information
-
-## Payments
-
-* Payment information
-* Transaction history
-* Settlement information where applicable
-
-## History
-
-* Completed requirements
-* Cancelled requirements
-* Trip history
-
-## Profile
-
-* User information
-* Account settings
-
-The core user capabilities are consistent with the supplied PRD.
-
----
-
-# 42. Driver Features — V1
-
-## Authentication
-
-* OTP login
-* Logout
-
-## Onboarding
-
-* Personal information
-* KYC
-* Document submission
-* Vehicle information
-
-## Availability
-
-* Online
-* Offline
-
-## Trip Discovery
-
-* Nearby opportunities
-* Eligible offers
-
-## Trip Offers
-
-* View offer
-* Accept
-* Decline
-* Expiration
-
-## Trip Execution
-
-* Trip details
-* Navigation
-* Arrival
-* OTP start
-* Trip execution
-* Completion
-
-## Earnings
-
-* Trip earnings
-* Earnings history
-* Available balance
-
-## Withdrawals
-
-* Withdrawal request
-* Withdrawal history
-
-These features align with the supplied driver scope.
-
----
-
-# 43. Admin Features — V1
-
-## Dashboard
-
-* Operational overview
-* Live requirements
-* Active trips
-* Fulfillment visibility
-
-## Driver Management
-
-* Driver verification
-* KYC/document review
-* Driver status
-* Suspension/activation
-
-## User Management
-
-* User approval
-* User status
-* User information
-
-## Trip Management
-
-* Trip monitoring
-* Assignment visibility
-* Operational intervention
-
-## Pricing
-
-* Pricing configuration
-
-## Settlements
-
-* Settlement management
-
-## Reports
-
-* Operational reports
-
-## Support
-
-* Support workflows
-
-## Audit
-
-* Audit logs
-
-These capabilities align with the supplied admin scope.
-
----
-
-# 44. MVP Scope
-
-The V1 MVP includes:
-
-```text
-User onboarding
-Driver onboarding
-Driver KYC
-Vehicle registration
-User requirement creation
-Bulk posting
-Driver availability
-Geospatial matching
-Automated dispatch
-Driver accept/decline
-Assignment
-Live trip status
-Navigation
-OTP trip start
-Trip completion
-Driver earnings
-Withdrawals
-Payments
-Settlement
-Admin operations
-Notifications
-Audit logging
+┌────────────────────────────────────────────────────────────────────────┐
+│                        SUPER ADMIN PANEL                               │
+│              Platform Governance, Compliance & Finance                 │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │
+       ┌────────────────────────────┼────────────────────────────┐
+       ▼                            ▼                            ▼
+┌──────────────┐           ┌─────────────────┐          ┌─────────────────┐
+│  OPERATIONS  │           │ CORPORATE PORTAL│          │  EMPLOYEE APP   │
+│COMMAND CENTRE│           │  HR & Transport │          │ Commuter Portal │
+│  (apps/ops)  │           │(apps/corporate) │          │(apps/employee)  │
+└──────┬───────┘           └────────┬────────┘          └────────┬────────┘
+       │                            │                            │
+       └────────────────────────────┼────────────────────────────┘
+                                    ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                          DRIVER MOBILE APP                             │
+│                  Direct Onboarding & Route Execution                   │
+│                            (apps/mobile)                               │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                         CORE API & PLATFORM                            │
+│           NestJS · PostgreSQL + PostGIS · Redis · H3 Solver            │
+│                            (apps/api)                                  │
+└────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-# 45. Explicit MVP Exclusions
+## 3. User Roles, Personas & RBAC Matrix
 
-The following are intentionally excluded from V1:
-
-* Employee transportation planning
-* AI route optimization
-
-These exclusions are explicitly stated in the supplied PRD.
-
-Additional exclusions:
-
-* Consumer ride-hailing
-* Public passenger marketplace
-* Consumer driver onboarding
-* Advanced AI dispatch
-* Complex corporate HR integrations
-* Multi-country operational rollout
-* Multi-currency financial infrastructure
-* Advanced predictive analytics
-
-These additional exclusions are product recommendations and should be revisited only through an explicit scope decision.
+| Role Code | Role Name | Primary Interface | Scope & Permissions |
+| --- | --- | --- | --- |
+| `PLATFORM_SUPER_ADMIN` | Platform Super Admin | Admin Panel | Unrestricted platform access, system configuration, role assignment, break-glass protocol. |
+| `TENANT_ADMIN` | Tenant / Contract Admin | Admin Panel | Corporate tenant lifecycle, contract dates, offices, policy versioning, and rate cards. |
+| `COMPLIANCE_REVIEWER` | Compliance Reviewer | Admin Panel | Driver KYC, licence, background check, vehicle RC, insurance, and permit verification. |
+| `FINANCE_APPROVER` | Finance Manager | Admin Panel | Corporate invoice approval, credit note issuance, driver payout batch approval, reconciliation. |
+| `OPS_SUPERVISOR` | Operations Supervisor | Ops Command Centre | Live map, dispatch board, manual driver assignment, route modifications, exception resolution. |
+| `SAFETY_OFFICER` | Safety / SOS Responder | Ops / Corporate | SOS intake, emergency coordination, incident escalation, and safety auditing. |
+| `CORP_SUPER_ADMIN` | Corporate Super Admin | Corporate Portal | Tenant-wide settings, user management, policy rules, and corporate dashboard. |
+| `CORP_TRANSPORT_MGR` | Corporate Transport Mgr | Corporate Portal | Shift roster upload, route visibility, commuter approvals, transport dispute tracking. |
+| `CORP_HR_MGR` | Corporate HR Manager | Corporate Portal | Employee master directory management, department assignments, shift allocation. |
+| `EMPLOYEE` | Corporate Commuter | Employee Mobile App | View assigned rides, track cab, OTP/QR boarding, SOS, support tickets, rating. |
+| `DRIVER` | Independent Cab Driver | Driver Mobile App | KYC onboarding, duty toggle, route offers, navigation, boarding verification, earnings. |
+| `VENDOR` | Marketplace Vendor | Mobile (User Mode) | Create ad-hoc requirements, inspect matching drivers, fund escrow, review trip completion. |
 
 ---
 
-# 46. Non-Goals
+## 4. Super Admin Panel (`apps/admin`) — Functional Specification
 
-AdhocX V1 is not intended to:
+### ADH-01: Tenant Contracts & Organizations
+- **Requirements:**
+  - Create, view, edit, and suspend corporate tenants with legal name, tenant code, billing address, tax ID (GSTIN), and designated primary administrators.
+  - Multi-office management: specify office addresses, entry geofences, and permitted operational zones.
+  - Contract lifecycle: start/end effective dates, SLA parameters (pickup window, maximum travel time, buffer times), and shift cutoff timings.
+  - Policy versioning: all policy updates are effective-dated and immutable; historical trips maintain their creation-time contract terms.
 
-1. Replace a full corporate transportation management system.
-2. Manage employee rosters.
-3. Optimize employee routes using AI.
-4. Operate as a consumer taxi marketplace.
-5. Become a general-purpose logistics marketplace.
-6. Build a social network for drivers.
-7. Replace every function of a transport user's existing operational system.
+### ADH-02: Driver & Vehicle Compliance (Verification Centre)
+- **Requirements:**
+  - Independent dual verification: drivers and vehicles are verified, approved, or suspended as separate entities.
+  - Driver credential checks: DigiLocker integration for Aadhaar/PAN, commercial driving licence verification, bank account penny-drop, and police clearance certificate.
+  - Vehicle compliance checks: Parivahan RC lookup, commercial passenger permit, vehicle fitness certificate, commercial comprehensive insurance, emission certificate, and seating capacity.
+  - Compliance Blocker Handling: automated detection of expired or missing documents. Admin approval override permitted only with mandatory, audit-logged justification (minimum character length enforced).
 
----
+### ADH-03: Supply Planning & Dispatch Configuration
+- **Requirements:**
+  - Define operating city polygons, sub-zones, and vehicle class categories (Hatchback, Sedan, SUV, TT/Van).
+  - Configure route optimization weights: maximum travel time, maximum route distance, detour factor limit, and gender safety constraints (e.g., female first pickup / last drop safety policies).
+  - Allocation rules: driver offer timeout (e.g., 45 seconds), maximum retry attempts, offer broadcast vs sequential waterfall, and escalation thresholds.
 
-# 47. Product-Level Non-Functional Requirements
+### ADH-04: Supervision & Exception Approvals
+- **Requirements:**
+  - Real-time cross-tenant operations health overview: active routes, delay metrics, unassigned route alerts, and driver shortfall forecasts.
+  - Controlled dispatcher override approvals: audit-logged manual assignments bypassing algorithmic allocation.
 
-The product must prioritize:
+### ADH-05: Corporate Pricing & Invoicing
+- **Requirements:**
+  - Versioned corporate rate cards: pricing rules by base fare, per-km charge, per-minute charge, vehicle class multiplier, shift timing premium (night shifts), and toll/parking handling.
+  - Invoice generation: automated monthly/bi-weekly invoice draft creation from completed route billables.
+  - Invoicing workflows: finance approval, invoice PDF rendering with GST compliance, dispute adjustments, debit/credit notes, and settlement reconciliation.
 
-## Reliability
+### ADH-06: Driver Earnings & Payouts
+- **Requirements:**
+  - Independent driver payout rate cards completely decoupled from corporate customer billing.
+  - Automated driver wallet credit upon verified trip completion.
+  - Maker-checker payout batch approval: automated payout batch creation, finance officer approval, automated payout processing via banking partner APIs, idempotency protection, and reversal reconciliation.
 
-Critical marketplace operations must be dependable.
+### ADH-07: Platform Security & Governance
+- **Requirements:**
+  - Role-Based Access Control (RBAC) enforced on all API routes.
+  - Session revocation: instantaneous token invalidation via Redis-backed `jti` blocklists upon user suspension or credential change.
+  - Immutable audit logs capturing actor, action, IP, timestamp, previous state, and new state.
 
-## Responsiveness
-
-Operational screens should provide immediate feedback.
-
-## Transparency
-
-Users should understand current status and next action.
-
-## Security
-
-Sensitive user, KYC and payment information must be protected.
-
-## Scalability
-
-The architecture must allow increasing:
-
-* Drivers
-* Users
-* Requirements
-* Offers
-* Assignments
-* Trips
-
-without requiring a fundamental product rewrite.
-
-## Auditability
-
-Important operational and financial actions must be traceable.
-
----
-
-# 48. Marketplace Reliability Requirements
-
-The platform should measure:
-
-* Requirement fulfillment rate
-* Driver acceptance rate
-* Driver cancellation rate
-* Assignment time
-* Offer response time
-* No-driver rate
-* No-show rate
-* Trip completion rate
-
-These measurements are required to understand whether AdhocX is actually improving the existing workflow.
+### ADH-08: Business Intelligence & Reports
+- **Requirements:**
+  - Executive KPI dashboards: on-time arrival rate, vehicle seat utilization, cost-per-commuter-km, driver acceptance rate, and safety incident frequency.
+  - Export engine: audited CSV/XLSX/PDF generation with filter preservation and access logging.
 
 ---
 
-# 49. Primary Success Metrics
+## 5. Operations Panel / Command Centre (`apps/ops`) — Functional Specification
 
-The supplied PRD identifies:
+### 5.1 Real-Time Operations Deck & Dispatch Board
+- **Live Route Deck (`/board`):** Real-time lane view displaying routes partitioned by state:
+  1. *Pending Dispatch* (Awaiting solver / driver offer)
+  2. *Offered* (Active countdown timer for driver acceptance)
+  3. *Assigned* (Driver confirmed, approaching first stop)
+  4. *Active / In-Transit* (Commuters onboard, executing route)
+  5. *At-Risk / Delayed* (Telemetry shows ETA breach > 10 minutes)
+- **Fleet Live Map (`/map`):** Interactive map displaying cab markers, vehicle heading, live polyline, pickup sequence pins, and telemetry latency badges (Green <30s, Amber 30-60s, Red >60s / Stale).
 
-* Assignment time
-* Fulfillment rate
-* Cancellation rate
-* User retention
-* Trips per day
+### 5.2 Manual Driver Assignment & Reassignment
+- Emergency assignment tool for dispatchers to manually allocate a driver to an unassigned or broken-down route.
+- Hard server-side validation: instantly blocks drivers who are non-compliant, off-duty, booked on overlapping shifts, or exceeding statutory driving hours.
+- Reassignment workflow: automated notification dispatched to reassigned driver and affected commuters; full audit entry created in the **Assignment Activity List**.
 
-as core success metrics.
+### 5.3 Driver Management & Lifetime Operational Profile (`/drivers`)
+- Directory of all drivers operating across tenants.
+- Detailed driver drawer: lifetime trip counts, acceptance rate, cancellation rate, safety rating, vehicle details, document expiry calendar, and duty history.
+- Operations actions: soft-deactivate driver, suspend with reason, or reactivate.
 
-V1 should additionally measure:
+### 5.4 Safety, SOS & Incident Response (`/safety`)
+- Instant notification and audio-visual alert upon SOS trigger from any commuter or driver.
+- Automated 120-second escalation timer: if unacknowledged by a dispatcher within 120s, alert escalates to senior management and emergency SMS/call cascades are triggered.
+- Incident lifecycle: `NEW` ──> `ACKNOWLEDGED` ──> `INVESTIGATING` ──> `ESCALATED` ──> `RESOLVED` / `FALSE_ALARM`.
 
-* Driver acceptance rate
-* Average dispatch attempts
-* Average dispatch radius
-* Driver response time
-* Requirement failure rate
-* Payment success rate
-* Settlement accuracy
-* Repeat user usage
+### 5.5 Shared Support Desk (`/support`)
+- Shared support ticket inbox unified across Corporate, Employee, and Operations applications.
+- Ticket management: team assignment (Ops, Billing, Tech, Transport), assignee user, status transitions (`OPEN`, `ASSIGNED`, `IN_PROGRESS`, `WAITING_FOR_CORPORATE`, `RESOLVED`, `CLOSED`), public responses (visible to employee/corporate), and internal notes (restricted to staff).
 
 ---
 
-# 50. Product Health Metrics
+## 6. Corporate Client Portal (`apps/corporate`) — Functional Specification
 
-## Fulfillment
+### 6.1 Preserved Six-Page Visual Shell
+1. **Executive Dashboard (`/`):** Faithful reproduction of the approved corporate layout:
+   - Summary Metric Cards: Daily Shifts, Live Commutes, On-Time Arrival %, Total Spend to Date.
+   - Active Routes Table: Route number, shift, vehicle type, driver name, passenger count, live status.
+   - Quick Links: Import Roster, Download Invoice, Raise Ticket.
+2. **Routes & Commutes (`/routes`, `/routes/[id]`):** Searchable route directory, stop sequences, employee manifest, driver details, live map tracking, and trip completion history.
+3. **Financial Analytics (`/analytics`):** Monthly and shift-wise spend analytics, cost per employee, department budget utilization.
+4. **Billing & Invoices (`/billing`):** Invoices list, PDF download, line-item trip audit trail, dispute submission.
+5. **Support & Service Desk (`/support`):** Corporate support ticket submission, SLA compliance tracker, and inquiry history.
+6. **Company Profile & Configuration (`/settings`):** Office locations, pickup zones, department rosters, shift cutoff configurations.
 
-```text
-Fulfillment Rate =
-Fulfilled Requirements / Total Requirements
+### 6.2 Commuter Management & Roster Ingestion
+- **Employee Directory (`/employees`):** Commuter master data management: employee ID, name, email, phone, home coordinates, shift schedule, department, and transport eligibility.
+- **Roster Ingestion Engine:** Bulk CSV/XLSX import supporting flexible column mapping, coordinate geocoding verification, and duplicate shift validation.
+- **Cancellation Policy Enforcement:**
+  - Commuter cancellation >= 12 hours before shift pickup: Automatically processed and confirmed without penalty.
+  - Commuter cancellation < 12 hours before shift pickup: Flagged as a corporate policy violation; documented in commuter attendance reports.
+
+---
+
+## 7. Employee Mobile App (`apps/employee_app`) — Functional Specification
+
+*Implementation Target: `apps/employee_app` (Flutter / Dart).*
+
+### 7.1 Authentication & Profile (EMP-AUTH)
+- Corporate SSO (SAML / OAuth2) or mobile OTP verification.
+- Enforces mapping to an active, verified `CorporateEmployee` record under an active tenant contract.
+- Profile overview: organization name, employee ID, assigned office, and contact details.
+
+### 7.2 Commute Schedule & Home Deck (EMP-HOME / EMP-SCHED)
+- Next Trip Card: shift date, pickup point, scheduled pickup time, cab plate number, driver name, and live trip status.
+- Daily / Weekly shift calendar showing upcoming logins and logouts.
+- Permitted cancellation and change requests subject to corporate policy cutoffs.
+
+### 7.3 Live Tracking & Boarding (EMP-TRACK / EMP-BOARD)
+- Real-time map displaying cab position, approaching ETA, pickup point marker, and route polyline.
+- Connection quality indicator: displays last-seen timestamp when telemetry is delayed.
+- Boarding verification: dynamic, expiring 4-digit boarding OTP and QR code displayed on screen; confirmed once upon driver entry.
+
+### 7.4 In-Journey Safety & SOS (EMP-SAFE)
+- Prominent one-tap SOS button visible throughout the journey.
+- On activation: transmits live GPS coordinates, vehicle ID, route ID, and timestamp to the 24×7 Operations Command Centre.
+- Fallback display: immediate access to police emergency numbers and local corporate transport helpdesk contacts if network connectivity is compromised.
+
+### 7.5 Support Ticketing & Rating (EMP-SUPPORT / EMP-FEEDBACK)
+- Ticket submission categories: Cab Delay, Rash Driving, AC / Vehicle Cleanliness, Driver Behavior, Lost Item.
+- Real-time ticket status tracking and bidirectional conversation with the operations desk.
+- Post-trip feedback: 5-star rating with optional structured tags.
+
+---
+
+## 8. Driver Mobile App (`apps/mobile`) — Functional Specification
+
+*Implementation Target: `apps/mobile` (Flutter / Dart).*
+
+### 8.1 Onboarding & Digital Verification
+- KYC document submission: Aadhaar, PAN, Commercial Driving Licence.
+- Vehicle registration: RC, Commercial Insurance, Permit, Fitness Certificate.
+- Direct-to-driver agreement acceptance and bank account payout verification.
+
+### 8.2 Shift Duty & Route Allocation
+- Duty status toggle: Online / Offline with GPS geohash reporting.
+- Route Offer Card: displays shift timing, route number, total passenger count, total distance, guaranteed earnings, and interactive acceptance countdown timer (45 seconds).
+- Atomic acceptance: Redis-guaranteed single winner for route allocation.
+
+### 8.3 Route Execution & Stop Verification
+- Ordered pickup stop navigation with turn-by-turn routing.
+- Waypoint arrival detection: automated proximity geofencing.
+- Boarding verification: input commuter OTP or scan QR code.
+- Automated 5-minute waiting countdown timer before allowing a passenger NO-SHOW mark.
+
+### 8.4 Driver Earnings & Payout Ledger
+- Daily and weekly earnings summary with trip-by-trip audit breakdown.
+- Payout transaction history showing processing, paid, and bank reference numbers.
+- Emergency SOS button triggering high-priority command centre alerts.
+
+---
+
+## 9. Marketplace Vendor Module (`apps/mobile` — User Mode)
+
+- Requirement Posting: vendors post vehicle requirements specifying vehicle class, pickup location, drop location, passenger/cargo count, and offer price.
+- Digital Escrow: automated fare calculation with upfront escrow hold.
+- Driver Matching: nearby compliant drivers receive marketplace offers.
+- Fulfillment & Settlement: OTP verification on completion releases funds from escrow to driver wallet with platform commission deduction.
+
+---
+
+## 10. Cross-Application Workflows & State Machines
+
+### 10.1 End-to-End Enterprise Commute Lifecycle
+
 ```
-
-## Assignment Time
-
-Time from requirement posting to required assignment fulfillment.
-
-## Cancellation Rate
-
-```text
-Cancelled Assignments / Total Assignments
-```
-
-## Driver Acceptance Rate
-
-```text
-Accepted Offers / Offers Sent
-```
-
-## User Retention
-
-Percentage of users returning to use the marketplace over a defined period.
-
-Exact reporting periods are TBD.
-
----
-
-# 51. Operational SLA Definitions
-
-The business must eventually define target values for:
-
-* Maximum acceptable assignment time
-* Minimum fulfillment rate
-* Maximum cancellation rate
-* Maximum driver response time
-* Payment processing SLA
-* Settlement SLA
-
-These values are:
-
-**TBD — Business/Operations decision.**
-
-The engineering team must not invent contractual SLAs.
-
----
-
-# 52. Roles and Permissions
-
-The initial roles are:
-
-```text
-ADMIN
-USER
-DRIVER
-```
-
-Detailed permissions belong in:
-
-`03_USER_ROLES_AND_PERMISSIONS.md`
-
----
-
-# 53. Product Navigation
-
-The mobile application must adapt to role.
-
-## User
-
-Primary navigation:
-
-```text
-Home
-Requirements
-Payments
-Profile
-```
-
-## Driver
-
-Primary navigation:
-
-```text
-Home
-Trips
-Earnings
-Profile
-```
-
-Exact navigation can be refined during UX specification.
-
----
-
-# 54. Admin Navigation
-
-The Admin application is web-first.
-
-Primary navigation:
-
-```text
-Dashboard
-Trips
-Drivers
-Users
-Payments
-Settlements
-Pricing
-Reports
-Support
-Audit Logs
-Settings
+[Corporate HR] ──> Uploads / Syncs Shift Roster (CSV / API)
+       │
+       ▼
+[Backend API]  ──> Validates coordinates, shift cutoffs, and policies
+       │
+       ▼
+[CVRPTW Engine] ──> Clusters pickups by proximity and vehicle capacity into routes
+       │
+       ▼
+[Dispatch Engine] ──> Dispatches route offers to nearby compliant drivers via Redis
+       │
+       ▼
+[Driver App]   ──> Driver accepts offer atomically (Route state: ASSIGNED)
+       │
+       ▼
+[Employee App] ──> Commuter receives cab & driver notification with live ETA
+       │
+       ▼
+[Driver App]   ──> Navigates to stops, validates boarding OTP / QR at each pickup
+       │
+       ▼
+[Ops Centre]   ──> Monitors real-time GPS progress, exceptions, and delays
+       │
+       ▼
+[Destination]  ──> Final drop completed (Route state: COMPLETED)
+       │
+       ├─────────────────────────────────┐
+       ▼                                 ▼
+[Corporate Billing Ledger]      [Driver Earnings Ledger]
+Calculates billable route fare  Credits driver earnings
+Generates invoice draft         Prepares payout batch
 ```
 
 ---
 
-# 55. UX Requirements
+## 11. Dual Financial Ledgers & Settlement Engine
 
-The application must prioritize:
-
-* Clear status
-* Fast primary actions
-* Low cognitive load
-* Large mobile touch targets
-* Strong confirmation feedback
-* Clear error handling
-* Clear offline state
-* Minimal unnecessary navigation
-* Consistent design system
-
-Detailed UI/UX rules belong in:
-
-`04_DESIGN_SYSTEM.md`
-
-`05_UI_UX_GUIDELINES.md`
+1. **Corporate Accounts Receivable (AR) Ledger:**
+   - Contract-driven pricing: Base fare + distance fare + duration fare + night shift surcharges.
+   - GST compliance: SAC code 996412 (passenger transport), CGST/SGST/IGST computation.
+   - Monthly consolidated invoicing with immutable billing line items.
+2. **Driver Accounts Payable (AP) Ledger:**
+   - Independent driver payout rate card (per route or per km/hour).
+   - Instant wallet ledger entry created upon route completion.
+   - Bank payout batch generation with maker-checker authorization and idempotency keys to prevent duplicate bank transfers.
 
 ---
 
-# 56. Driver UX Priority
+## 12. Non-Functional Requirements (NFRs)
 
-The driver experience is time-sensitive and operational.
-
-The interface must make the following actions extremely easy:
-
-```text
-Go Online
-View Offer
-Accept
-Navigate
-Arrive
-Start
-Complete
-View Earnings
-```
-
-The driver must not need to navigate through unnecessary screens to perform core trip operations.
+- **Performance & Latency:**
+  - API response time: P95 < 200ms for read requests, P99 < 500ms for write requests.
+  - Telemetry ingestion: Sub-1-second processing of driver GPS pings.
+  - Dispatch offer delivery: < 3 seconds from trigger to mobile device push.
+- **Availability & Scalability:**
+  - 99.9% uptime for core API and database infrastructure.
+  - Capacity to handle 5,000 concurrent active vehicles and 50,000 daily commuters.
+- **Security & Data Privacy:**
+  - TLS 1.3 for all data in transit; AES-256 for sensitive data at rest.
+  - Phone number masking between drivers and commuters.
+  - Strict multi-tenant row-level data isolation: corporate clients can never view data of other tenants.
+- **Auditability:**
+  - Append-only audit logs for all administrative actions, overrides, and financial transitions.
 
 ---
 
-# 57. User UX Priority
+## 13. Quality Gates, Testing & Acceptance Criteria
 
-The user experience should optimize:
-
-```text
-Create Requirement
-Monitor Fulfillment
-Understand Exceptions
-View Assignments
-Track Trips
-Review Payments
-```
-
-The user must quickly understand:
-
-```text
-Requested
-Assigned
-Remaining
-Searching
-Completed
-```
+- **Automated Test Matrix:**
+  - Unit Tests: 100% pass on all service-level business logic.
+  - Integration Tests: Real PostgreSQL + Redis end-to-end integration tests in CI.
+  - Dispatch Simulations: 50-ride and 100-ride concurrency simulations verifying zero double-assignment.
+- **Code Quality:**
+  - 0 ESLint errors across all packages (`turbo run lint`).
+  - 0 TypeScript type errors across all packages (`turbo run typecheck`).
+  - All database schema updates managed via Prisma migrations.
 
 ---
 
-# 58. Admin UX Priority
-
-The Admin experience should optimize:
-
-```text
-Observe
-Investigate
-Intervene
-Resolve
-Audit
-```
-
-Admin should have significantly greater information density than the mobile applications.
-
----
-
-# 59. Business Rules Requiring Finalization
-
-The following business decisions must be finalized before the relevant production implementation:
-
-### Pricing
-
-* Per-trip pricing model
-* Vehicle-specific pricing
-* User pricing
-* Platform commission
-* Driver payout
-
-### Payment
-
-* When user pays
-* Authorization vs capture
-* Refund rules
-* Cancellation fees
-
-### Dispatch
-
-* Initial radius
-* Maximum radius
-* Wave size
-* Offer duration
-* Ranking weights
-* Expansion strategy
-
-### Driver
-
-* Verification requirements
-* Required documents
-* Driver eligibility
-* Availability rules
-
-### Cancellation
-
-* User cancellation policy
-* Driver cancellation policy
-* Penalties
-* Reassignment behavior
-
-### Settlement
-
-* Settlement timing
-* Payout cycle
-* Minimum withdrawal
-* Reconciliation process
-
-These are deliberately not invented in this PRD.
-
----
-
-# 60. V1 Acceptance Criteria
-
-V1 is product-ready only when the following end-to-end workflow works reliably:
-
-```text
-User registers
-        ↓
-User approved
-        ↓
-Driver registers
-        ↓
-Driver verified
-        ↓
-Driver adds eligible vehicle
-        ↓
-Driver goes online
-        ↓
-User creates requirement
-        ↓
-System finds eligible driver supply
-        ↓
-Offers dispatched
-        ↓
-Drivers accept
-        ↓
-Required number assigned
-        ↓
-User sees assignments
-        ↓
-Driver navigates to pickup
-        ↓
-Driver arrives
-        ↓
-OTP verified
-        ↓
-Trip starts
-        ↓
-Trip completes
-        ↓
-Driver earnings recorded
-        ↓
-Settlement recorded
-        ↓
-Admin can audit entire process
-```
-
----
-
-# 61. Failure Acceptance Criteria
-
-The system must also correctly handle:
-
-```text
-Driver declines
-Driver offer expires
-Driver cancels
-User cancels
-Insufficient driver supply
-Network interruption
-Duplicate accept request
-Duplicate completion request
-Payment failure
-No-show
-```
-
-No critical failure may leave the requirement, assignment, payment or earning in an ambiguous state.
-
----
-
-# 62. Data Ownership Principle
-
-Every important piece of state must have a single authoritative owner.
-
-Examples:
-
-```text
-Trip state
-→ Backend database
-
-Assignment state
-→ Backend database
-
-Financial state
-→ Ledger/payment system
-
-Realtime display
-→ Derived from authoritative backend state
-
-Mobile local state
-→ Temporary/cache only
-```
-
-Client applications must never be treated as authoritative sources of business state.
-
----
-
-# 63. Product Architecture Principle
-
-The V1 product must be designed so that:
-
-```text
-User Demand
-      ↓
-Requirement
-      ↓
-Dispatch Engine
-      ↓
-Supply
-```
-
-is independent from the specific identity of the demand creator wherever practical.
-
-This allows a future:
-
-```text
-Corporate
-    ↓
-Requirement
-```
-
-workflow without redesigning the entire dispatch engine.
-
-This is a future-readiness principle, not a V1 feature.
-
----
-
-# 64. Future Product Direction
-
-After successful validation of the V1 user marketplace, potential future capabilities include:
-
-* Direct corporate onboarding
-* Corporate transportation requirements
-* Employee transportation planning
-* Recurring transportation
-* Route optimization
-* Advanced scheduling
-* Corporate dashboards
-* Enterprise integrations
-* Advanced analytics
-* Multi-region operations
-* Multi-currency payments
-* Automated pricing
-* Intelligent dispatch
-
-These features must not enter V1 unless explicitly approved through a scope change.
-
----
-
-# 65. Product Change Control
-
-No developer, designer or AI agent may expand product scope independently.
-
-A new feature must have:
-
-1. Business justification
-2. Product decision
-3. Updated requirements
-4. UX impact assessment
-5. Architecture impact assessment
-6. Database/API impact assessment
-7. Testing impact assessment
-
-Scope changes must be explicitly documented.
-
----
-
-# 66. Source of Truth Rules
-
-The following hierarchy applies:
-
-```text
-Business/product decision
-        ↓
-01_PRD.md
-        ↓
-02_FEATURES.md
-        ↓
-03_USER_ROLES_AND_PERMISSIONS.md
-        ↓
-UX/design specifications
-        ↓
-Architecture
-        ↓
-Implementation
-```
-
-Implementation must never silently redefine product behavior.
-
-If implementation discovers that a requirement is technically impossible, ambiguous or contradictory, the ambiguity must be raised before implementation proceeds.
-
----
-
-# 67. Definition of Done — Product
-
-A V1 feature is considered complete only when:
-
-* User flow is defined
-* Business rules are defined
-* Permissions are defined
-* UI states are defined
-* API behavior is defined
-* Database implications are defined
-* Error cases are defined
-* Loading states are defined
-* Offline behavior is considered where applicable
-* Tests exist
-* Acceptance criteria pass
-* Documentation is updated
-
----
-
-# 68. AI Development Rule
-
-AI development agents must not interpret missing information as permission to invent product requirements.
-
-When a requirement is marked:
-
-```text
-TBD
-```
-
-the agent must:
-
-1. Identify the missing decision.
-2. Explain why it matters.
-3. Stop the dependent implementation if the decision materially affects correctness.
-
-The agent may make implementation-level decisions only when they do not alter product behavior or architectural constraints.
-
----
-
-# 69. V1 Product Definition
-
-The essence of AdhocX V1 can be summarized as:
-
-```text
-                    ADHOCX V1
-
-              Corporate Demand
-                     │
-                  User
-                     │
-                     ▼
-              Vehicle Requirement
-                     │
-                     ▼
-              Matching Engine
-                     │
-                     ▼
-              Verified Supply
-                     │
-                     ▼
-               Driver Offers
-                     │
-                     ▼
-                 Assignment
-                     │
-                     ▼
-               Trip Execution
-                     │
-                     ▼
-                 Completion
-                     │
-                     ▼
-                 Earnings
-                     │
-                     ▼
-                 Settlement
-```
-
-The product succeeds when this process becomes substantially faster, more reliable and more transparent than the user's existing Telegram/WhatsApp workflow.
-
----
-
-# 70. Final V1 Product Statement
-
-> **AdhocX is a B2B transportation fulfillment marketplace that enables verified transport users to rapidly source, assign and manage additional commercial vehicles and drivers through automated geographic matching and dispatch, replacing fragmented manual sourcing workflows with a reliable digital operational system.**
-
-The V1 is intentionally narrow.
-
-It focuses on:
-
-**Demand → Matching → Dispatch → Assignment → Trip → Completion → Settlement.**
-
-Everything else is secondary until this core loop is proven.
+## 14. Implementation Roadmap & Release Phases
+
+- **Phase 1: Foundation & Compliance (Completed)**
+  - Monorepo setup, Prisma schemas, multi-tenant authentication, driver KYC verification.
+- **Phase 2: Dispatch & Core Operations (Completed)**
+  - CVRPTW route planning, Redis-backed dispatch, live operations map, driver assignment deck, and shared support ticket system.
+- **Phase 3: Client Experience & Commuter Services (Current)**
+  - Corporate Portal 6-page visual shell, Employee App Flutter client (`apps/employee_app`) integration with auth and support.
+- **Phase 4: Financial Automation & Pilot Launch (Next)**
+  - Automated payout batch submission, corporate invoice dispute workflows, and Hyderabad pilot deployment.
