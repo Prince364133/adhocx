@@ -3,8 +3,7 @@ import type { NextRequest } from 'next/server';
 
 /**
  * Operations Room SSR Edge Authentication Guard.
- * Protects control room views (/board, /planner, /map, /safety, /deviations, /)
- * using the secure adhocx_ops_token cookie.
+ * Protects Operations views using the secure adhocx_ops_token cookie.
  */
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

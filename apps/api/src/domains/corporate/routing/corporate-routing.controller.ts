@@ -25,6 +25,8 @@ import {
   CommitPlanDto,
   PlanRoutesFromFileOptions,
   PlanRoutesResult,
+  PlannerVehicleCategory,
+  validatePlanRouteConstraints,
 } from './corporate-route-planner.service';
 import { CorporateRouteDirectionsService } from './corporate-route-directions.service';
 import { generateSampleCsv, generateSampleExcelBuffer } from './sample-roster-generator';
@@ -87,6 +89,28 @@ export class CorporateRoutingController {
     if (!file || !file.buffer) {
       throw new BadRequestException('A valid employee route CSV file must be uploaded');
     }
+    const requestedDirection = String(body.direction ?? 'LOGIN').toUpperCase();
+    if (!['LOGIN', 'LOGOUT', 'BOTH'].includes(requestedDirection)) {
+      throw new BadRequestException('Roster planning direction must be LOGIN, LOGOUT, or BOTH');
+    }
+    const rosterLoginTime = body.loginTime || body.deadline;
+    if (
+      (requestedDirection === 'LOGIN' || requestedDirection === 'BOTH') &&
+      !this.isRosterDeadline(rosterLoginTime)
+    ) {
+      throw new BadRequestException('LOGIN roster planning requires a valid loginTime date and time');
+    }
+    if (requestedDirection === 'LOGOUT' || requestedDirection === 'BOTH') {
+      if (!this.isRosterDeadline(body.logoutTime)) {
+        throw new BadRequestException('LOGOUT roster planning requires a valid logoutTime date and time');
+      }
+    }
+    const batchDirections = requestedDirection === 'BOTH';
+    const planOptions = this.buildPlanOptions({
+      ...body,
+      direction: batchDirections ? 'LOGIN' : requestedDirection,
+    });
+    validatePlanRouteConstraints(planOptions);
 
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -120,17 +144,37 @@ export class CorporateRoutingController {
         });
       }, 15_000);
 
-      const plan = await this.routePlannerService!.planFromFile(
-        file.buffer,
-        file.originalname || 'employees.xlsx',
-        this.buildPlanOptions(body),
-        (type, percent, message, data) => {
-          latestPercent = percent;
-          sendSse('progress', { stage: type, percent, message, data });
-        },
-      );
-
-      sendSse('complete', { stage: 'COMPLETED', percent: 100, message: 'Route calculation completed successfully!', plan });
+      const onProgress = (type: string, percent: number, message: string, data?: any) => {
+        latestPercent = percent;
+        sendSse('progress', { stage: type, percent, message, data });
+      };
+      if (batchDirections) {
+        const { direction: _direction, ...batchOptions } = planOptions;
+        const batch = await this.routePlannerService!.planBatchFromFile(
+          file.buffer,
+          file.originalname || 'employees.xlsx',
+          {
+            ...batchOptions,
+            loginTime: body.loginTime,
+            logoutTime: body.logoutTime,
+          },
+          onProgress,
+        );
+        sendSse('complete', {
+          stage: 'COMPLETED',
+          percent: 100,
+          message: 'Both direction plans completed with explicit per-direction outcomes.',
+          batch,
+        });
+      } else {
+        const plan = await this.routePlannerService!.planFromFile(
+          file.buffer,
+          file.originalname || 'employees.xlsx',
+          planOptions,
+          onProgress,
+        );
+        sendSse('complete', { stage: 'COMPLETED', percent: 100, message: 'Route calculation completed successfully!', plan });
+      }
       stopHeartbeat();
       res.end();
     } catch (err: any) {
@@ -161,46 +205,59 @@ export class CorporateRoutingController {
 
   /** Multipart form fields -> planner options. Absent numeric fields fall back to the company policy. */
   private buildPlanOptions(body: any): PlanRoutesFromFileOptions {
-    const num = (v: unknown): number | undefined => {
-      if (v === undefined || v === null || v === '') return undefined;
+    const num = (field: string, v: unknown): number | undefined => {
+      if (v === undefined || v === null) return undefined;
+      if (v === '') throw new BadRequestException(`${field} must be a number`);
       const n = Number(v);
-      return Number.isFinite(n) ? n : undefined;
+      if (!Number.isFinite(n)) throw new BadRequestException(`${field} must be a number`);
+      return n;
     };
-    const excluded = body.excludedEmployees
-      ? typeof body.excludedEmployees === 'string'
-        ? body.excludedEmployees.split(',').map((s: string) => s.trim())
-        : body.excludedEmployees
-      : undefined;
+    const bool = (field: string, v: unknown, fallback: boolean): boolean => {
+      if (v === undefined || v === null) return fallback;
+      if (v === true || v === 'true') return true;
+      if (v === false || v === 'false') return false;
+      throw new BadRequestException(`${field} must be true or false`);
+    };
     let pricingConfig = undefined;
     if (body.pricingConfig) {
       try {
         pricingConfig = typeof body.pricingConfig === 'string' ? JSON.parse(body.pricingConfig) : body.pricingConfig;
-      } catch {
-        // ignore parse error and fall back to default pricing
+      } catch (_error) {
+        throw new BadRequestException('pricingConfig must contain valid JSON');
       }
     }
     const direction = String(body.direction ?? 'LOGIN').toUpperCase();
     if (direction !== 'LOGIN' && direction !== 'LOGOUT') {
-      throw new BadRequestException('direction must be LOGIN or LOGOUT');
+      throw new BadRequestException('Roster planning requires one direction: LOGIN or LOGOUT');
+    }
+    const vehicleCategory = String(body.vehicleCategory ?? 'BOTH').toUpperCase();
+    if (!['SEDAN', 'SUV', 'BOTH'].includes(vehicleCategory)) {
+      throw new BadRequestException('vehicleCategory must be SEDAN, SUV, or BOTH');
+    }
+    const routingPreference = body.routingPreference ?? 'TRAFFIC_UNAWARE';
+    if (!['TRAFFIC_UNAWARE', 'TRAFFIC_AWARE', 'TRAFFIC_AWARE_OPTIMAL'].includes(routingPreference)) {
+      throw new BadRequestException('routingPreference is not supported');
     }
     return {
       tenantId: body.tenantId,
       officeId: body.officeId,
       office: body.office || body.officeName,
-      officeLat: num(body.officeLat),
-      officeLng: num(body.officeLng),
+      officeLat: num('officeLat', body.officeLat),
+      officeLng: num('officeLng', body.officeLng),
       direction,
       loginTime: body.loginTime || body.deadline,
       logoutTime: body.logoutTime,
-      officeRadiusKm: num(body.officeRadiusKm) ?? 50,
-      maxTripKm: num(body.maxTripKm) ?? 50,
-      bufferMinutes: num(body.bufferMinutes),
-      pickupWaitMinutes: num(body.pickupWaitMinutes),
-      cabCapacity: num(body.cabCapacity),
-      routingPreference: body.routingPreference || 'TRAFFIC_UNAWARE',
-      avoidTolls: body.avoidTolls === undefined ? true : body.avoidTolls === 'true' || body.avoidTolls === true,
-      avoidHighways: body.avoidHighways === 'true' || body.avoidHighways === true,
-      excludedEmployees: excluded,
+      officeRadiusKm: num('officeRadiusKm', body.officeRadiusKm) ?? 50,
+      maxTripKm: num('maxTripKm', body.maxTripKm) ?? 50,
+      bufferMinutes: num('bufferMinutes', body.bufferMinutes),
+      pickupWaitMinutes: num('pickupWaitMinutes', body.pickupWaitMinutes),
+      cabCapacity: num('cabCapacity', body.cabCapacity),
+      vehicleCategory: vehicleCategory as PlannerVehicleCategory,
+      sedanCapacity: num('sedanCapacity', body.sedanCapacity),
+      suvCapacity: num('suvCapacity', body.suvCapacity),
+      routingPreference,
+      avoidTolls: bool('avoidTolls', body.avoidTolls, true),
+      avoidHighways: bool('avoidHighways', body.avoidHighways, false),
       pricingConfig,
     };
   }
@@ -261,25 +318,94 @@ export class CorporateRoutingController {
         tenantId: { type: 'string' },
         officeId: { type: 'string' },
         shiftDate: { type: 'string', example: '2026-11-10' },
-        shiftTime: { type: 'string', example: '08:00' },
-        direction: { type: 'string', enum: ['LOGIN', 'LOGOUT'] },
-        vehicleCategory: { type: 'string', enum: ['SEDAN', 'SUV'], default: 'SEDAN' },
-        maxCapacity: { type: 'number', example: 4 },
+        direction: { type: 'string', enum: ['LOGIN', 'LOGOUT', 'BOTH'] },
+        loginTime: { type: 'string', example: '08:00' },
+        logoutTime: { type: 'string', example: '17:00' },
+        vehicleCategory: { type: 'string', enum: ['SEDAN', 'SUV', 'BOTH'], default: 'SEDAN' },
+        maxCapacity: { type: 'number', example: 3 },
+        sedanCapacity: { type: 'number', example: 3 },
+        suvCapacity: { type: 'number', example: 6 },
         officeBufferMinutes: { type: 'number', default: 10 },
         maxRideTimeMinutes: { type: 'number', default: 120 },
         logoutReportingBufferMinutes: { type: 'number', default: 15 },
+        stopDwellMinutes: { type: 'integer', minimum: 1, maximum: 10, default: 5 },
+        routingPreference: {
+          type: 'string',
+          enum: ['TRAFFIC_UNAWARE', 'TRAFFIC_AWARE', 'TRAFFIC_AWARE_OPTIMAL'],
+        },
+        avoidTolls: { type: 'boolean' },
+        avoidHighways: { type: 'boolean' },
       },
-      required: ['tenantId', 'officeId', 'shiftDate', 'shiftTime', 'direction'],
+      required: ['tenantId', 'officeId', 'shiftDate', 'direction'],
     },
   })
   public async optimizeRoutes(@Body() body: RouteOptimizationOptions) {
-    if (!body.tenantId || !body.officeId || !body.shiftDate || !body.shiftTime || !body.direction) {
-      throw new BadRequestException(
-        'Missing required parameters: tenantId, officeId, shiftDate, shiftTime, direction',
-      );
+    if (!body.tenantId || !body.officeId || !body.shiftDate || !body.direction) {
+      throw new BadRequestException('Missing required parameters: tenantId, officeId, shiftDate, direction');
+    }
+    if (!['LOGIN', 'LOGOUT', 'BOTH'].includes(body.direction)) {
+      throw new BadRequestException('direction must be LOGIN, LOGOUT, or BOTH');
+    }
+    if (!this.isCalendarDate(body.shiftDate)) {
+      throw new BadRequestException('shiftDate must be a valid calendar date in YYYY-MM-DD format');
+    }
+    if ((body.direction === 'LOGIN' || body.direction === 'BOTH') && !this.isShiftTime(body.loginTime)) {
+      throw new BadRequestException('LOGIN optimization requires a valid loginTime value (HH:mm)');
+    }
+    if ((body.direction === 'LOGOUT' || body.direction === 'BOTH') && !this.isShiftTime(body.logoutTime)) {
+      throw new BadRequestException('LOGOUT optimization requires a valid logoutTime value (HH:mm)');
+    }
+    for (const [field, value, min, max] of [
+      ['sedanCapacity', body.sedanCapacity, 1, 3],
+      ['suvCapacity', body.suvCapacity, 1, 6],
+      ['maxCapacity', body.maxCapacity, 1, 6],
+      ['stopDwellMinutes', body.stopDwellMinutes, 1, 10],
+    ] as const) {
+      if (value !== undefined && (!Number.isInteger(value) || value < min || value > max)) {
+        throw new BadRequestException(`${field} must be an integer between ${min} and ${max}`);
+      }
+    }
+    if (body.vehicleCategory && !['SEDAN', 'SUV', 'BOTH'].includes(body.vehicleCategory)) {
+      throw new BadRequestException('vehicleCategory must be SEDAN, SUV, or BOTH');
+    }
+    if (
+      body.routingPreference !== undefined &&
+      !['TRAFFIC_UNAWARE', 'TRAFFIC_AWARE', 'TRAFFIC_AWARE_OPTIMAL'].includes(body.routingPreference)
+    ) {
+      throw new BadRequestException('routingPreference is not supported');
+    }
+    if (body.maxCapacity !== undefined) {
+      const maxSelectedCapacity =
+        body.vehicleCategory === 'SUV'
+          ? body.suvCapacity ?? 6
+          : body.vehicleCategory === 'SEDAN'
+            ? body.sedanCapacity ?? 3
+            : Math.max(body.sedanCapacity ?? 3, body.suvCapacity ?? 6);
+      if (body.maxCapacity > maxSelectedCapacity) {
+        throw new BadRequestException('maxCapacity cannot exceed the selected vehicle category capacity');
+      }
     }
 
     return this.routeSolverService.optimizeAndCreateRoutes(body);
+  }
+
+  private isCalendarDate(value: string): boolean {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+    const date = new Date(`${value}T00:00:00.000Z`);
+    return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+  }
+
+  private isShiftTime(value?: string): boolean {
+    return typeof value === 'string' && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value);
+  }
+
+  private isRosterDeadline(value?: string | Date): boolean {
+    if (value instanceof Date) return Number.isFinite(value.getTime());
+    if (typeof value !== 'string') return false;
+    const match = /^(\d{4}-\d{2}-\d{2})[T ]((?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d{1,3})?)?)(?:Z|[+-](?:0\d|1[0-4]):[0-5]\d)?$/i.exec(
+      value,
+    );
+    return Boolean(match && this.isCalendarDate(match[1]) && Number.isFinite(new Date(value).getTime()));
   }
 
   @Get()

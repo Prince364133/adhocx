@@ -2,8 +2,13 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { opsApi } from '../../lib/api/opsClient';
-import { CorporateTenantOption, RoutePlanningResult } from '../../lib/api/opsTypes';
+import { opsApi, ShiftOptimizationResponse } from '../../lib/api/opsClient';
+import {
+  CorporateTenantOption,
+  RoutePlanningResult,
+  RoutePlanningDirectionOutcome,
+  RoutePlanningResponse,
+} from '../../lib/api/opsTypes';
 import { Button } from '../../components/common/Button';
 import { SpatialTopologyCanvas } from '../../components/operations/SpatialTopologyCanvas';
 import {
@@ -22,7 +27,6 @@ import {
   Radar,
   Map as MapIcon,
   Database,
-  Search,
 } from 'lucide-react';
 
 const ROUTE_COLORS = [
@@ -45,9 +49,31 @@ function isSupportedRosterFile(file: File): boolean {
   return Boolean(extension && ROSTER_FILE_EXTENSIONS.includes(extension));
 }
 
-function tomorrowMorningIst(): string {
+function isRoutePlanningBatchResult(result: RoutePlanningResponse): result is Extract<RoutePlanningResponse, { direction: 'BOTH' }> {
+  return 'direction' in result && result.direction === 'BOTH' && Array.isArray(result.plans);
+}
+
+function tomorrowIst(hhmm: string): string {
   const d = new Date(Date.now() + 24 * 3600_000 + 330 * 60_000);
-  return `${d.toISOString().slice(0, 10)}T08:00`;
+  return `${d.toISOString().slice(0, 10)}T${hhmm}`;
+}
+
+const tomorrowMorningIst = () => tomorrowIst('08:00');
+const tomorrowEveningIst = () => tomorrowIst('17:00');
+
+/** `YYYY-MM-DDTHH:mm` from a datetime-local input, interpreted as IST; undefined when blank/invalid. */
+function istLocalToIso(value: string): string | undefined {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return undefined;
+  const parsed = new Date(`${value}:00+05:30`);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString();
+}
+
+/** Settings a roster plan was calculated with; commit reuses them so persisted routes match the plan. */
+interface RosterPlanSettings {
+  vehicleCategory: 'SEDAN' | 'SUV' | 'BOTH';
+  sedanCapacity: number;
+  suvCapacity: number;
+  stopDwellMinutes: number;
 }
 
 function getLocationShortcut(address: string, fallback: string): string {
@@ -67,29 +93,31 @@ export default function RouteOptimizerPage() {
 
   // File Upload Form State
   const [officeAddress, setOfficeAddress] = useState('');
-  const [deadline, setDeadline] = useState(tomorrowMorningIst);
+  const [loginDeadline, setLoginDeadline] = useState(tomorrowMorningIst);
+  const [logoutDeadline, setLogoutDeadline] = useState(tomorrowEveningIst);
   const [officeRadiusKm, setOfficeRadiusKm] = useState(50);
   const [maxTripKm, setMaxTripKm] = useState(50);
-  const [excludedEmployees, setExcludedEmployees] = useState('');
-  const [autoExcludedEmployees, setAutoExcludedEmployees] = useState<string[]>([]);
+  const [uploadVehicleCategory, setUploadVehicleCategory] = useState<'SEDAN' | 'SUV' | 'BOTH'>('BOTH');
+  const [sedanCapacity, setSedanCapacity] = useState(3);
+  const [suvCapacity, setSuvCapacity] = useState(6);
   const [stopDwellMinutes, setStopDwellMinutes] = useState(10);
   const [bufferMinutes, setBufferMinutes] = useState(15);
   const [routingPreference, setRoutingPreference] = useState<RoutingPreference>('TRAFFIC_AWARE');
   const [avoidTolls, setAvoidTolls] = useState(true);
-  const [avoidHighways] = useState(false);
+  const [avoidHighways, setAvoidHighways] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   // DB Shift State
   const [tenants, setTenants] = useState<CorporateTenantOption[]>([]);
-  const [companySearch, setCompanySearch] = useState('');
   const [selectedTenantId, setSelectedTenantId] = useState<string>('');
   const [selectedUploadTenantId, setSelectedUploadTenantId] = useState<string>('');
   const [selectedOfficeId, setSelectedOfficeId] = useState<string>('');
   const [uploadCompanyLoading, setUploadCompanyLoading] = useState(false);
   const [shiftDate, setShiftDate] = useState<string>(new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10));
-  const [shiftTime, setShiftTime] = useState<string>('08:00');
-  const [direction, setDirection] = useState<'LOGIN' | 'LOGOUT'>('LOGIN');
-  const [dbVehicleCategory, setDbVehicleCategory] = useState<'SEDAN' | 'SUV'>('SEDAN');
+  const [loginShiftTime, setLoginShiftTime] = useState<string>('08:00');
+  const [logoutShiftTime, setLogoutShiftTime] = useState<string>('17:00');
+  const [direction, setDirection] = useState<'LOGIN' | 'LOGOUT' | 'BOTH'>('LOGIN');
+  const [dbVehicleCategory, setDbVehicleCategory] = useState<'SEDAN' | 'SUV' | 'BOTH'>('SEDAN');
 
   // Solver & UI State
   const [viewMode, setViewMode] = useState<'MAP' | 'TOPOLOGY'>('MAP');
@@ -103,6 +131,8 @@ export default function RouteOptimizerPage() {
   const [selectedCab, setSelectedCab] = useState<number | null>(null);
   const [expandedCabs, setExpandedCabs] = useState<Set<number>>(new Set());
   const [selectedCabsForCommit, setSelectedCabsForCommit] = useState<Set<number>>(new Set());
+  const [committedRouteCabs, setCommittedRouteCabs] = useState<Set<number>>(new Set());
+  const [commitFailures, setCommitFailures] = useState<Array<{ direction: 'LOGIN' | 'LOGOUT'; error: string }>>([]);
   const [committedSuccess, setCommittedSuccess] = useState<{
     routesCreated: number;
     stopsCreated: number;
@@ -110,7 +140,9 @@ export default function RouteOptimizerPage() {
   } | null>(null);
   const [committing, setCommitting] = useState(false);
   const [dbOptimizing, setDbOptimizing] = useState(false);
-  const [dbOptimizeResult, setDbOptimizeResult] = useState<any>(null);
+  const [dbOptimizeResult, setDbOptimizeResult] = useState<ShiftOptimizationResponse | null>(null);
+  const [rosterDirectionResults, setRosterDirectionResults] = useState<Array<RoutePlanningDirectionOutcome>>([]);
+  const [planSettings, setPlanSettings] = useState<RosterPlanSettings | null>(null);
 
   // Map Refs
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -132,16 +164,18 @@ export default function RouteOptimizerPage() {
         }),
       ).size > 1,
   );
+  const dbDirectionResults =
+    dbOptimizeResult && 'plans' in dbOptimizeResult ? dbOptimizeResult.plans : [];
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const res = await opsApi.getTenants({ search: companySearch.trim() || undefined, limit: 100 });
+        const res = await opsApi.getTenants({ limit: 100 });
         const items = res?.items ?? [];
         if (cancelled) return;
         setTenants(items);
-        if (items.length > 0 && !selectedUploadTenantId) {
+        if (items.length > 0) {
           const requestedTenantId =
             typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tenantId') : null;
           let tenant = (requestedTenantId && items.find((item) => item.id === requestedTenantId)) || items[0];
@@ -173,47 +207,15 @@ export default function RouteOptimizerPage() {
     return () => {
       cancelled = true;
     };
-  }, [companySearch]);
+  }, []);
 
   const selectedUploadTenant = tenants.find((tenant) => tenant.id === selectedUploadTenantId);
-  // Seats per cab come from the company policy (SEDAN 4 / SUV 6), never a hard-coded 6.
-  const cabCapacity = Math.min(Math.max(Number(selectedUploadTenant?.policies?.[0]?.defaultCapacity) || 4, 1), 12);
-  // A committed plan cannot be committed again (the API also rejects employees already on a live route).
+  const uncommittedSelectedRoutes = planResult?.routes.filter(
+    (route) => selectedCabsForCommit.has(route.cab) && !committedRouteCabs.has(route.cab),
+  ) ?? [];
   const canCommitUploadPlan = Boolean(
-    selectedUploadTenant && selectedOfficeId && selectedCabsForCommit.size > 0 && !committedSuccess,
+    selectedUploadTenant && selectedOfficeId && uncommittedSelectedRoutes.length > 0,
   );
-
-  async function handleUploadCompanyChange(tenantId: string) {
-    setSelectedUploadTenantId(tenantId);
-    setSelectedTenantId(tenantId);
-    setSelectedOfficeId('');
-    setErrorMsg(null);
-
-    const tenant = tenants.find((item) => item.id === tenantId);
-    if (!tenant) {
-      setSelectedTenantId('');
-      setOfficeAddress('');
-      return;
-    }
-
-    setUploadCompanyLoading(true);
-    try {
-      const details = tenant.offices?.length ? tenant : await opsApi.getTenant(tenantId);
-      setTenants((current) => current.map((item) => item.id === tenantId ? details : item));
-      const office = details.offices?.[0];
-      setSelectedOfficeId(office?.id ?? '');
-      if (office?.addressText || office?.name) setOfficeAddress(office.addressText || office.name);
-      const policyDwell = details.policies?.[0]?.stopDwellMinutes;
-      if (typeof policyDwell === 'number') {
-        setStopDwellMinutes(Math.min(Math.max(policyDwell, 1), 10));
-      }
-      if (!office) setErrorMsg(`${details.name} has no office hub configured. Add an office before committing routes.`);
-    } catch (error) {
-      setErrorMsg(`Could not load offices for ${tenant.name}: ${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-      setUploadCompanyLoading(false);
-    }
-  }
 
   // Initialize or update Google Map when planResult changes
   useEffect(() => {
@@ -487,19 +489,11 @@ export default function RouteOptimizerPage() {
       setErrorMsg('Upload a CSV, Excel workbook/template (.xls, .xlsx, .xlsm, .xlsb), or OpenDocument (.ods) file.');
       return;
     }
-    if (autoExcludedEmployees.length > 0) {
-      const previousAutoExcluded = new Set(autoExcludedEmployees.map((name) => name.trim().toLowerCase()));
-      setExcludedEmployees((current) =>
-        current
-          .split(',')
-          .map((name) => name.trim())
-          .filter((name) => name && !previousAutoExcluded.has(name.toLowerCase()))
-          .join(', '),
-      );
-    }
-    setAutoExcludedEmployees([]);
     setSelectedFile(file);
     setPlanResult(null);
+    setCommittedSuccess(null);
+    setCommittedRouteCabs(new Set());
+    setCommitFailures([]);
     setErrorMsg(null);
   }
 
@@ -514,29 +508,49 @@ export default function RouteOptimizerPage() {
       return;
     }
 
+    const loginIso = direction === 'LOGIN' || direction === 'BOTH' ? istLocalToIso(loginDeadline) : undefined;
+    const logoutIso = direction === 'LOGOUT' || direction === 'BOTH' ? istLocalToIso(logoutDeadline) : undefined;
+    if ((direction === 'LOGIN' || direction === 'BOTH') && !loginIso) {
+      setErrorMsg('Enter a valid Login shift date and time.');
+      return;
+    }
+    if ((direction === 'LOGOUT' || direction === 'BOTH') && !logoutIso) {
+      setErrorMsg('Enter a valid Logout shift date and time.');
+      return;
+    }
+    const dwell = Number(stopDwellMinutes);
+    if (!Number.isInteger(dwell) || dwell < 1 || dwell > 10) {
+      setErrorMsg('Wait per stop must be a whole number of minutes between 1 and 10.');
+      return;
+    }
+    const settingsForPlan: RosterPlanSettings = {
+      vehicleCategory: uploadVehicleCategory,
+      sedanCapacity,
+      suvCapacity,
+      stopDwellMinutes: dwell,
+    };
+
     setCalculating(true);
     setProgressPct(0);
     setProgressMsg('Uploading roster to route optimizer...');
     setErrorMsg(null);
     setPlanResult(null);
+    setPlanSettings(null);
+    setRosterDirectionResults([]);
     setCommittedSuccess(null);
+    setCommittedRouteCabs(new Set());
+    setCommitFailures([]);
 
     try {
       const selectedOffice =
         selectedUploadTenant.offices?.find((item) => item.id === selectedOfficeId) ??
         selectedUploadTenant.offices?.[0];
       const normalizedOfficeText = officeAddress.trim();
-      const clampedDwell = Math.min(Math.max(Number(stopDwellMinutes) || 10, 1), 10);
-
       const formData = new FormData();
       formData.append('file', selectedFile);
       formData.append('tenantId', selectedUploadTenant.id);
-      if (selectedOfficeId) {
-        formData.append('officeId', selectedOfficeId);
-      }
-      if (normalizedOfficeText) {
-        formData.append('office', normalizedOfficeText);
-      }
+      if (selectedOfficeId) formData.append('officeId', selectedOfficeId);
+      if (normalizedOfficeText) formData.append('office', normalizedOfficeText);
       if (
         selectedOffice &&
         typeof selectedOffice.latitude === 'number' &&
@@ -547,54 +561,112 @@ export default function RouteOptimizerPage() {
         formData.append('officeLat', String(selectedOffice.latitude));
         formData.append('officeLng', String(selectedOffice.longitude));
       }
-      if (deadline) {
-        formData.append('loginTime', new Date(`${deadline}:00+05:30`).toISOString());
-      }
+      if (loginIso) formData.append('loginTime', loginIso);
+      if (logoutIso) formData.append('logoutTime', logoutIso);
       formData.append('direction', direction);
       formData.append('officeRadiusKm', String(officeRadiusKm));
       formData.append('maxTripKm', String(maxTripKm));
-      if (excludedEmployees.trim()) {
-        formData.append('excludedEmployees', excludedEmployees.trim());
-      }
-      formData.append('pickupWaitMinutes', String(clampedDwell));
+      formData.append('pickupWaitMinutes', String(dwell));
       formData.append('bufferMinutes', String(bufferMinutes));
-      formData.append('cabCapacity', String(cabCapacity));
+      formData.append('vehicleCategory', uploadVehicleCategory);
+      formData.append('sedanCapacity', String(sedanCapacity));
+      formData.append('suvCapacity', String(suvCapacity));
       formData.append('routingPreference', routingPreference);
       formData.append('avoidTolls', String(avoidTolls));
       formData.append('avoidHighways', String(avoidHighways));
 
-      const result = await opsApi.planRoutesStream(formData, (update: any) => {
-        setProgressPct(update.percent || update.pct || 0);
-        setProgressMsg(update.message || 'Processing...');
-        const duplicateNames = update.data?.duplicateEmployeeNames;
-        if (Array.isArray(duplicateNames) && duplicateNames.length > 0) {
-          setAutoExcludedEmployees((current) => Array.from(new Set([...current, ...duplicateNames])));
-          setExcludedEmployees((current) => {
-            const existing = current
-              .split(',')
-              .map((name) => name.trim())
-              .filter(Boolean);
-            const existingNames = new Set(existing.map((name) => name.toLowerCase()));
-            return [...existing, ...duplicateNames.filter((name: string) => !existingNames.has(name.toLowerCase()))].join(', ');
-          });
-        }
+      const result = await opsApi.planRoutesStream(formData, (update) => {
+        setProgressPct(update.percent || 0);
+        setProgressMsg(update.message || 'Processing roster...');
       });
-
-      if (!result.routes || result.routes.length === 0) {
-        throw new Error('Heuristic solver returned 0 routes. Ensure address rows have valid coordinates.');
+      const collectedPlans: Array<{ direction: 'LOGIN' | 'LOGOUT'; plan: RoutePlanningResult }> = [];
+      const directionFailures: Array<{ direction: 'LOGIN' | 'LOGOUT'; error: string }> = [];
+      if (isRoutePlanningBatchResult(result)) {
+        for (const outcome of result.plans) {
+          if (outcome.success && outcome.plan) {
+            collectedPlans.push({ direction: outcome.direction, plan: outcome.plan });
+          } else {
+            directionFailures.push({
+              direction: outcome.direction,
+              error: outcome.error || 'Planning failed without an error message.',
+            });
+          }
+        }
+      } else {
+        collectedPlans.push({ direction: direction as 'LOGIN' | 'LOGOUT', plan: result });
       }
 
-      const sortedRoutes = [...result.routes].sort((a, b) => {
+      if (collectedPlans.length === 0) {
+        throw new Error(
+          directionFailures.map(({ direction: failedDirection, error }) => `${failedDirection}: ${error}`).join('; ') ||
+            'No route plans were returned.',
+        );
+      }
+
+      let nextCabNumber = 1;
+      const mergedPlan: RoutePlanningResult = {
+        ...collectedPlans[0].plan,
+        employeeCount: collectedPlans.reduce((sum, entry) => sum + (entry.plan.employeeCount || 0), 0),
+        cabCount: collectedPlans.reduce((sum, entry) => sum + (entry.plan.cabCount || 0), 0),
+        sedanRouteCount: collectedPlans.reduce((sum, entry) => sum + (entry.plan.sedanRouteCount || 0), 0),
+        suvRouteCount: collectedPlans.reduce((sum, entry) => sum + (entry.plan.suvRouteCount || 0), 0),
+        outOfRadiusCount: collectedPlans.reduce((sum, entry) => sum + (entry.plan.outOfRadiusCount || 0), 0),
+        excludedByDistanceCount: collectedPlans.reduce(
+          (sum, entry) => sum + (entry.plan.excludedByDistanceCount || 0),
+          0,
+        ),
+        excludedByDistance: collectedPlans.flatMap((entry) =>
+          (entry.plan.excludedByDistance || []).map((exclusion) => ({ ...exclusion, direction: entry.direction })),
+        ),
+        autoExcludedEmployees: Array.from(
+          new Set(collectedPlans.flatMap((entry) => entry.plan.autoExcludedEmployees || [])),
+        ),
+        // LOGIN and LOGOUT plans share offices; dedupe so each hub is drawn once.
+        offices: Array.from(
+          new Map(
+            collectedPlans
+              .flatMap((entry) => entry.plan.offices || [entry.plan.office])
+              .map((office) => [`${office.name.trim().toLowerCase()}|${office.lat}|${office.lng}`, office] as const),
+          ).values(),
+        ),
+        routes: collectedPlans.flatMap(({ direction: routeDirection, plan }) =>
+          plan.routes.map((route) => ({ ...route, direction: routeDirection, cab: nextCabNumber++ })),
+        ),
+        totalKm: Number(collectedPlans.reduce((sum, entry) => sum + (entry.plan.totalKm || 0), 0).toFixed(2)),
+        totalDriverPayout: Number(
+          collectedPlans.reduce((sum, entry) => sum + (entry.plan.totalDriverPayout || 0), 0).toFixed(2),
+        ),
+        expectedCorporateRevenue: Number(
+          collectedPlans.reduce((sum, entry) => sum + (entry.plan.expectedCorporateRevenue || 0), 0).toFixed(2),
+        ),
+        projectedMargin: Number(
+          collectedPlans.reduce((sum, entry) => sum + (entry.plan.projectedMargin || 0), 0).toFixed(2),
+        ),
+      };
+      const finalRoutes = [...mergedPlan.routes].sort((a, b) => {
         const tA = new Date(a.departureDateTime || 0).getTime();
         const tB = new Date(b.departureDateTime || 0).getTime();
         if (tA !== tB) return tA - tB;
         return a.cab - b.cab;
       });
-      const sortedPlan: RoutePlanningResult = { ...result, routes: sortedRoutes };
+      const sortedPlan: RoutePlanningResult = { ...mergedPlan, routes: finalRoutes };
 
       setPlanResult(sortedPlan);
-      setSelectedCabsForCommit(new Set(sortedRoutes.map((route) => route.cab)));
-      setExpandedCabs(new Set(sortedRoutes[0] ? [sortedRoutes[0].cab] : []));
+      setPlanSettings(settingsForPlan);
+      setRosterDirectionResults(
+        isRoutePlanningBatchResult(result)
+          ? result.plans
+          : [{ direction: direction as 'LOGIN' | 'LOGOUT', success: true, plan: result }],
+      );
+      setSelectedCabsForCommit(new Set(finalRoutes.map((route) => route.cab)));
+      setExpandedCabs(new Set(finalRoutes[0] ? [finalRoutes[0].cab] : []));
+      if (directionFailures.length > 0) {
+        setErrorMsg(
+          `Partial planning result: ${directionFailures
+            .map(({ direction: failedDirection, error }) => `${failedDirection} failed: ${error}`)
+            .join('; ')}`,
+        );
+      }
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to solve CVRPTW routes.');
     } finally {
@@ -609,20 +681,51 @@ export default function RouteOptimizerPage() {
       return;
     }
 
+    const liveDwell = Number(stopDwellMinutes);
+    if (!Number.isInteger(liveDwell) || liveDwell < 1 || liveDwell > 10) {
+      setErrorMsg('Wait per stop must be a whole number of minutes between 1 and 10.');
+      return;
+    }
+    if ((direction === 'LOGIN' || direction === 'BOTH') && !/^\d{2}:\d{2}$/.test(loginShiftTime)) {
+      setErrorMsg('Enter a valid Login shift time.');
+      return;
+    }
+    if ((direction === 'LOGOUT' || direction === 'BOTH') && !/^\d{2}:\d{2}$/.test(logoutShiftTime)) {
+      setErrorMsg('Enter a valid Logout shift time.');
+      return;
+    }
+
     setDbOptimizing(true);
     setErrorMsg(null);
     setDbOptimizeResult(null);
 
     try {
-      const res = await opsApi.optimizeShiftRoutes({
+      const result = await opsApi.optimizeShiftRoutes({
         tenantId: selectedTenantId,
         officeId: selectedOfficeId,
         shiftDate,
-        shiftTime,
+        ...(direction === 'LOGIN' || direction === 'BOTH' ? { loginTime: loginShiftTime } : {}),
+        ...(direction === 'LOGOUT' || direction === 'BOTH' ? { logoutTime: logoutShiftTime } : {}),
         direction,
         vehicleCategory: dbVehicleCategory,
+        sedanCapacity,
+        suvCapacity,
+        stopDwellMinutes: liveDwell,
+        routingPreference,
+        avoidTolls,
+        avoidHighways,
       });
-      setDbOptimizeResult(res);
+      setDbOptimizeResult(result);
+      if ('plans' in result) {
+        const failures = result.plans.filter((plan) => !plan.success);
+        if (failures.length > 0) {
+          setErrorMsg(
+            `Partial optimization result: ${failures
+              .map((plan) => `${plan.direction} (${plan.shiftTime}) failed: ${plan.error}`)
+              .join('; ')}`,
+          );
+        }
+      }
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to auto-optimize database shift.');
     } finally {
@@ -631,57 +734,120 @@ export default function RouteOptimizerPage() {
   }
 
   async function handleCommitToDatabase() {
-    if (!planResult || isMultiOfficePlan) return;
+    if (!planResult || !planSettings || isMultiOfficePlan) return;
     if (!selectedUploadTenant || !selectedOfficeId) {
       setErrorMsg('Select a real company with an office hub before committing routes.');
       return;
     }
 
-    const routesToCommit = planResult.routes.filter((r) => selectedCabsForCommit.has(r.cab));
+    const routesToCommit = uncommittedSelectedRoutes;
     if (routesToCommit.length === 0) {
-      setErrorMsg('Select at least one optimized route to add to the Routes page.');
+      setErrorMsg('Select at least one uncommitted optimized route to add to the Routes page.');
       return;
     }
 
-    const planSubset: any = {
-      ...planResult,
-      routes: routesToCommit,
-      cabCount: routesToCommit.length,
-    };
+    const directionByRoute = routesToCommit.map((route) => ({
+      route,
+      direction: route.direction ?? (direction === 'LOGIN' || direction === 'LOGOUT' ? direction : undefined),
+    }));
+    if (directionByRoute.some(({ direction: routeDirection }) => !routeDirection)) {
+      setErrorMsg('A route is missing its LOGIN/LOGOUT direction; calculate the plan again before committing.');
+      return;
+    }
 
     setCommitting(true);
     setErrorMsg(null);
+    setCommitFailures([]);
 
     try {
-      const firstRouteArrival = routesToCommit[0]?.requiredArrivalDateTime;
-      const arrivalParts = firstRouteArrival
-        ? Object.fromEntries(
-            new Intl.DateTimeFormat('en-GB', {
-              timeZone: 'Asia/Kolkata',
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit',
-              hourCycle: 'h23',
-            })
-              .formatToParts(new Date(firstRouteArrival))
-              .map(({ type, value }) => [type, value]),
-          )
-        : null;
-      const res = await opsApi.commitRoutePlan({
-        tenantId: selectedUploadTenant.id,
-        officeId: selectedOfficeId,
-        plan: planSubset,
-        shiftDate: arrivalParts
-          ? `${arrivalParts.year}-${arrivalParts.month}-${arrivalParts.day}`
-          : shiftDate,
-        shiftTime: arrivalParts ? `${arrivalParts.hour}:${arrivalParts.minute}` : shiftTime,
-        direction,
-        stopDwellMinutes: Math.min(Math.max(Number(stopDwellMinutes) || 10, 1), 10),
-        ...({ includeMetadata: true } as any),
-      });
-      setCommittedSuccess(res);
+      const failures: Array<{ direction: 'LOGIN' | 'LOGOUT'; error: string }> = [];
+      const successes: Array<{
+        direction: 'LOGIN' | 'LOGOUT';
+        result: { routesCreated: number; stopsCreated: number; routeIds?: string[] };
+      }> = [];
+      const selectedDirections = Array.from(
+        new Set(directionByRoute.map(({ direction: routeDirection }) => routeDirection as 'LOGIN' | 'LOGOUT')),
+      );
+
+      for (const routeDirection of selectedDirections) {
+        const directionRoutes = directionByRoute
+          .filter(({ direction: itemDirection }) => itemDirection === routeDirection)
+          .map(({ route }) => route);
+        if (directionRoutes.length === 0) continue;
+
+        try {
+          const directionPlan: RoutePlanningResult = {
+            ...planResult,
+            routes: directionRoutes,
+            cabCount: directionRoutes.length,
+            employeeCount: directionRoutes.reduce((sum, route) => sum + route.stops.length, 0),
+          };
+          const firstRouteArrival = directionRoutes[0]?.requiredArrivalDateTime;
+          const arrivalParts = firstRouteArrival
+            ? Object.fromEntries(
+                new Intl.DateTimeFormat('en-GB', {
+                  timeZone: 'Asia/Kolkata',
+                  year: 'numeric',
+                  month: '2-digit',
+                  day: '2-digit',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hourCycle: 'h23',
+                })
+                  .formatToParts(new Date(firstRouteArrival))
+                  .map(({ type, value }) => [type, value]),
+              )
+            : null;
+          const result = await opsApi.commitRoutePlan({
+            tenantId: selectedUploadTenant.id,
+            officeId: selectedOfficeId,
+            plan: directionPlan,
+            shiftDate: arrivalParts
+              ? `${arrivalParts.year}-${arrivalParts.month}-${arrivalParts.day}`
+              : shiftDate,
+            shiftTime: arrivalParts
+              ? `${arrivalParts.hour}:${arrivalParts.minute}`
+              : routeDirection === 'LOGIN'
+                ? loginShiftTime
+                : logoutShiftTime,
+            direction: routeDirection,
+            // Commit with the settings the plan was calculated with, not later form edits.
+            vehicleCategory: planSettings.vehicleCategory,
+            sedanCapacity: planSettings.sedanCapacity,
+            suvCapacity: planSettings.suvCapacity,
+            stopDwellMinutes: planSettings.stopDwellMinutes,
+            ...({ includeMetadata: true } as any),
+          });
+          successes.push({ direction: routeDirection, result });
+        } catch (error) {
+          failures.push({
+            direction: routeDirection,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+
+      if (successes.length > 0) {
+        const successfulDirections = new Set(successes.map(({ direction: d }) => d));
+        const nextCommittedRouteCabs = new Set([
+          ...committedRouteCabs,
+          ...directionByRoute
+            .filter(({ direction: routeDirection }) => successfulDirections.has(routeDirection as 'LOGIN' | 'LOGOUT'))
+            .map(({ route }) => route.cab),
+        ]);
+        setCommittedRouteCabs(nextCommittedRouteCabs);
+        setCommittedSuccess((current) => ({
+          routesCreated: (current?.routesCreated ?? 0) + successes.reduce((sum, item) => sum + item.result.routesCreated, 0),
+          stopsCreated: (current?.stopsCreated ?? 0) + successes.reduce((sum, item) => sum + item.result.stopsCreated, 0),
+          routeIds: [...(current?.routeIds ?? []), ...successes.flatMap((item) => item.result.routeIds ?? [])],
+        }));
+      }
+      setCommitFailures(failures);
+      if (failures.length > 0) {
+        setErrorMsg(
+          `Partial commit: ${failures.map(({ direction: failedDirection, error }) => `${failedDirection} failed: ${error}`).join('; ')}. Successful directions remain committed; retry the failed direction.`,
+        );
+      }
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to commit routes to live operational database.');
     } finally {
@@ -835,7 +1001,7 @@ export default function RouteOptimizerPage() {
             <div>
               <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Distance Excluded</div>
               <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--color-danger, #DC2626)', marginTop: '2px' }}>
-                {planResult.excludedByDistanceCount} Beyond {planResult.maxTripKm || 50}km
+                {planResult.excludedByDistanceCount} Outside catchment / max trip
               </div>
             </div>
           )}
@@ -882,7 +1048,7 @@ export default function RouteOptimizerPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <CheckCircle size={16} />
             <span>
-              <strong>Added to Routes:</strong> Created {committedSuccess.routesCreated} active dispatch routes ({committedSuccess.stopsCreated} stops) for {selectedUploadTenant?.name}. Cron auto-dispatch will search 10km within the 30m window prior to approach.
+              <strong>{commitFailures.length > 0 ? 'Partial commit:' : 'Added to Routes:'}</strong> Created {committedSuccess.routesCreated} active dispatch routes ({committedSuccess.stopsCreated} stops) for {selectedUploadTenant?.name}. {commitFailures.length > 0 ? 'Retry the failed direction after resolving the error.' : 'Cron auto-dispatch will search 10km within the 30m window prior to approach.'}
             </span>
           </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -988,71 +1154,6 @@ export default function RouteOptimizerPage() {
                 /* FILE UPLOADER & HEURISTIC SOLVER */
                 <form onSubmit={handleCalculateRoutes} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
                   <div style={{ padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px', flex: 1, minHeight: 0 }}>
-                    {/* Company Search & Selection */}
-                    <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                        <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                          Client Company *
-                        </label>
-                        <Link href="/companies" style={{ fontSize: '11px', fontWeight: 600, color: 'var(--brand-primary, #4F46E5)', textDecoration: 'none' }}>
-                          + Onboard Company
-                        </Link>
-                      </div>
-                      <div style={{ position: 'relative', marginBottom: '8px' }}>
-                        <Search
-                          size={14}
-                          style={{
-                            position: 'absolute',
-                            left: '10px',
-                            top: '50%',
-                            transform: 'translateY(-50%)',
-                            color: 'var(--text-muted)',
-                            pointerEvents: 'none',
-                          }}
-                        />
-                        <input
-                          type="text"
-                          value={companySearch}
-                          onChange={(e) => setCompanySearch(e.target.value)}
-                          placeholder="Search onboarded companies by name or code..."
-                          style={{
-                            width: '100%',
-                            padding: '7px 12px 7px 32px',
-                            backgroundColor: 'var(--bg-input)',
-                            border: '1px solid var(--border-subtle)',
-                            borderRadius: '6px',
-                            color: 'var(--text-primary)',
-                            fontSize: '12px',
-                            outline: 'none',
-                          }}
-                        />
-                      </div>
-                      <select
-                        required
-                        value={selectedUploadTenantId}
-                        disabled={uploadCompanyLoading}
-                        onChange={(e) => void handleUploadCompanyChange(e.target.value)}
-                        style={{
-                          width: '100%',
-                          padding: '8px 12px',
-                          backgroundColor: 'var(--bg-input)',
-                          border: '1px solid var(--border-subtle)',
-                          borderRadius: '6px',
-                          color: 'var(--text-primary)',
-                          fontSize: '13px',
-                          outline: 'none',
-                        }}
-                      >
-                        {tenants.length === 0 && <option value="">No matching onboarded companies</option>}
-                        {tenants.map((company) => (
-                          <option key={company.id} value={company.id}>{company.name} ({company.code})</option>
-                        ))}
-                      </select>
-                      <span style={{ display: 'block', marginTop: 4, color: 'var(--text-muted)', fontSize: 11 }}>
-                        Uses real Google Maps geocoding, CVRPTW solver &amp; traffic-aware route generation.
-                      </span>
-                    </div>
-
                     {selectedUploadTenant && (
                       <div>
                         <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
@@ -1116,7 +1217,7 @@ export default function RouteOptimizerPage() {
                         </label>
                         <select
                           value={direction}
-                          onChange={(e) => setDirection(e.target.value as 'LOGIN' | 'LOGOUT')}
+                          onChange={(e) => setDirection(e.target.value as 'LOGIN' | 'LOGOUT' | 'BOTH')}
                           style={{
                             width: '100%',
                             padding: '8px 12px',
@@ -1130,55 +1231,54 @@ export default function RouteOptimizerPage() {
                         >
                           <option value="LOGIN">LOGIN (Home → Office)</option>
                           <option value="LOGOUT">LOGOUT (Office → Home)</option>
+                          <option value="BOTH">BOTH (Login + Logout)</option>
                         </select>
                       </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                          Fallback Shift Time (IST)
-                        </label>
-                        <input
-                          type="datetime-local"
-                          value={deadline}
-                          onChange={(e) => setDeadline(e.target.value)}
-                          style={{
-                            width: '100%',
-                            padding: '7px 10px',
-                            backgroundColor: 'var(--bg-input)',
-                            border: '1px solid var(--border-subtle)',
-                            borderRadius: '6px',
-                            color: 'var(--text-primary)',
-                            fontSize: '12px',
-                            outline: 'none',
-                          }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Excluded Employees */}
-                    <div>
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                        Exclude Employees (optional comma-separated names)
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="e.g. John Doe, Sarah Smith"
-                        value={excludedEmployees}
-                        onChange={(e) => setExcludedEmployees(e.target.value)}
-                        style={{
-                          width: '100%',
-                          padding: '8px 12px',
-                          backgroundColor: 'var(--bg-input)',
-                          border: '1px solid var(--border-subtle)',
-                          borderRadius: '6px',
-                          color: 'var(--text-primary)',
-                          fontSize: '13px',
-                          outline: 'none',
-                        }}
-                      />
-                      {autoExcludedEmployees.length > 0 && (
-                        <p style={{ margin: '6px 0 0', fontSize: '11px', color: 'var(--color-warning, #B45309)' }}>
-                          Duplicate names were excluded automatically: {autoExcludedEmployees.join(', ')}
-                        </p>
+                      {(direction === 'LOGIN' || direction === 'BOTH') && (
+                        <div>
+                          <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                            Login Shift Time (IST)
+                          </label>
+                          <input
+                            type="datetime-local"
+                            required
+                            value={loginDeadline}
+                            onChange={(e) => setLoginDeadline(e.target.value)}
+                            style={{
+                              width: '100%',
+                              padding: '7px 10px',
+                              backgroundColor: 'var(--bg-input)',
+                              border: '1px solid var(--border-subtle)',
+                              borderRadius: '6px',
+                              color: 'var(--text-primary)',
+                              fontSize: '12px',
+                              outline: 'none',
+                            }}
+                          />
+                        </div>
+                      )}
+                      {(direction === 'LOGOUT' || direction === 'BOTH') && (
+                        <div>
+                          <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                            Logout Shift Time (IST)
+                          </label>
+                          <input
+                            type="datetime-local"
+                            required
+                            value={logoutDeadline}
+                            onChange={(e) => setLogoutDeadline(e.target.value)}
+                            style={{
+                              width: '100%',
+                              padding: '7px 10px',
+                              backgroundColor: 'var(--bg-input)',
+                              border: '1px solid var(--border-subtle)',
+                              borderRadius: '6px',
+                              color: 'var(--text-primary)',
+                              fontSize: '12px',
+                              outline: 'none',
+                            }}
+                          />
+                        </div>
                       )}
                     </div>
 
@@ -1186,14 +1286,14 @@ export default function RouteOptimizerPage() {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
                       <div>
                         <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                          Catchment (km)
+                          Catchment Radius (max 50 km)
                         </label>
                         <input
                           type="number"
                           min={1}
-                          max={500}
+                          max={50}
                           value={officeRadiusKm}
-                          onChange={(e) => setOfficeRadiusKm(Number(e.target.value))}
+                          onChange={(e) => setOfficeRadiusKm(Math.min(50, Math.max(1, Number(e.target.value) || 50)))}
                           style={{
                             width: '100%',
                             padding: '8px 12px',
@@ -1208,14 +1308,14 @@ export default function RouteOptimizerPage() {
                       </div>
                       <div>
                         <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                          Max Trip (km)
+                          Max Trip Distance (max 50 km)
                         </label>
                         <input
                           type="number"
                           min={1}
-                          max={500}
+                          max={50}
                           value={maxTripKm}
-                          onChange={(e) => setMaxTripKm(Number(e.target.value))}
+                          onChange={(e) => setMaxTripKm(Math.min(50, Math.max(1, Number(e.target.value) || 50)))}
                           style={{
                             width: '100%',
                             padding: '8px 12px',
@@ -1232,21 +1332,76 @@ export default function RouteOptimizerPage() {
                         <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
                           Automatic Cab Assignment
                         </label>
-                        <div
+                        <select
+                          value={uploadVehicleCategory}
+                          onChange={(e) => setUploadVehicleCategory(e.target.value as 'SEDAN' | 'SUV' | 'BOTH')}
                           style={{
                             width: '100%',
-                            minHeight: '36px',
-                            padding: '8px 10px',
+                            padding: '8px 12px',
                             backgroundColor: 'var(--bg-input)',
                             border: '1px solid var(--border-subtle)',
                             borderRadius: '6px',
                             color: 'var(--text-primary)',
-                            fontSize: '12px',
+                            fontSize: '13px',
+                            outline: 'none',
                           }}
                         >
-                          Sedan: 1–3 riders · SUV: 4–6 riders
-                        </div>
+                          <option value="SEDAN">Sedan only</option>
+                          <option value="SUV">SUV only</option>
+                          <option value="BOTH">Both (automatic mixed allocation)</option>
+                        </select>
                       </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      {(uploadVehicleCategory === 'SEDAN' || uploadVehicleCategory === 'BOTH') && (
+                        <div>
+                          <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                            Sedan Capacity (max 3)
+                          </label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={3}
+                            value={sedanCapacity}
+                            onChange={(e) => setSedanCapacity(Math.min(3, Math.max(1, Number(e.target.value) || 3)))}
+                            style={{
+                              width: '100%',
+                              padding: '8px 12px',
+                              backgroundColor: 'var(--bg-input)',
+                              border: '1px solid var(--border-subtle)',
+                              borderRadius: '6px',
+                              color: 'var(--text-primary)',
+                              fontSize: '13px',
+                              outline: 'none',
+                            }}
+                          />
+                        </div>
+                      )}
+                      {(uploadVehicleCategory === 'SUV' || uploadVehicleCategory === 'BOTH') && (
+                        <div>
+                          <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                            SUV Capacity (max 6)
+                          </label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={6}
+                            value={suvCapacity}
+                            onChange={(e) => setSuvCapacity(Math.min(6, Math.max(1, Number(e.target.value) || 6)))}
+                            style={{
+                              width: '100%',
+                              padding: '8px 12px',
+                              backgroundColor: 'var(--bg-input)',
+                              border: '1px solid var(--border-subtle)',
+                              borderRadius: '6px',
+                              color: 'var(--text-primary)',
+                              fontSize: '13px',
+                              outline: 'none',
+                            }}
+                          />
+                        </div>
+                      )}
                     </div>
 
                     {/* Dwell and Buffer */}
@@ -1280,9 +1435,9 @@ export default function RouteOptimizerPage() {
                         <input
                           type="number"
                           min={0}
-                          max={180}
+                            max={30}
                           value={bufferMinutes}
-                          onChange={(e) => setBufferMinutes(Number(e.target.value))}
+                            onChange={(e) => setBufferMinutes(Math.min(30, Math.max(0, Number(e.target.value) || 0)))}
                           style={{
                             width: '100%',
                             padding: '8px 12px',
@@ -1337,41 +1492,64 @@ export default function RouteOptimizerPage() {
                         />
                       </label>
                       <p style={{ margin: '6px 0 0', fontSize: '11px', color: 'var(--text-muted)' }}>
-                        CSV, Excel workbooks/templates, and ODS supported. Provide each employee&apos;s login time; pickup ETAs are calculated automatically. Without a date, the next future occurrence of that time in IST is used.
+                        CSV, Excel workbooks/templates, and ODS supported. Row-level times are used on the selected shift date; the selected direction time fills missing row times.
                       </p>
                     </div>
 
-                    {/* Routing preference */}
-                    <div>
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                        Routing Quality
-                      </label>
-                      <select
-                        value={routingPreference}
-                        onChange={(e) => setRoutingPreference(e.target.value as RoutingPreference)}
-                        style={{
-                          width: '100%',
-                          padding: '8px 12px',
-                          backgroundColor: 'var(--bg-input)',
-                          border: '1px solid var(--border-subtle)',
-                          borderRadius: '6px',
-                          color: 'var(--text-primary)',
-                          fontSize: '13px',
-                          outline: 'none',
-                        }}
-                      >
-                        <option value="TRAFFIC_UNAWARE">Shortest-distance preference</option>
-                        <option value="TRAFFIC_AWARE">Traffic-aware</option>
-                        <option value="TRAFFIC_AWARE_OPTIMAL">Traffic-aware optimal</option>
-                      </select>
-                    </div>
+                    <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
+                      <legend style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                        Routing strategy (choose one)
+                      </legend>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
+                        {([
+                          ['TRAFFIC_UNAWARE', 'Traffic-unaware'],
+                          ['TRAFFIC_AWARE', 'Traffic-aware'],
+                          ['TRAFFIC_AWARE_OPTIMAL', 'Traffic-aware optimal'],
+                        ] as const).map(([value, label]) => (
+                          <label
+                            key={value}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              border: `1px solid ${routingPreference === value ? 'var(--brand-blue-500, #5728B2)' : 'var(--border-subtle)'}`,
+                              borderRadius: '6px',
+                              padding: '8px',
+                              fontSize: '11px',
+                              color: 'var(--text-secondary)',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <input
+                              type="radio"
+                              name="roster-routing-strategy"
+                              value={value}
+                              checked={routingPreference === value}
+                              onChange={() => setRoutingPreference(value)}
+                            />
+                            {label}
+                          </label>
+                        ))}
+                      </div>
+                      <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                        Traffic-unaware is not a guarantee of the shortest route.
+                      </div>
+                    </fieldset>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-secondary)', marginTop: '10px' }}>
                       <input
                         type="checkbox"
                         checked={avoidTolls}
                         onChange={(e) => setAvoidTolls(e.target.checked)}
                       />
-                      Avoid toll roads (Google best-effort)
+                      Avoid toll roads
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                      <input
+                        type="checkbox"
+                        checked={avoidHighways}
+                        onChange={(e) => setAvoidHighways(e.target.checked)}
+                      />
+                      Avoid highways
                     </label>
                   </div>
 
@@ -1467,8 +1645,8 @@ export default function RouteOptimizerPage() {
                       </select>
                     </div>
 
-                    {/* Shift Date & Time */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    {/* Shift date */}
+                    <div>
                       <div>
                         <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
                           Shift Date *
@@ -1490,15 +1668,20 @@ export default function RouteOptimizerPage() {
                           }}
                         />
                       </div>
-                      <div>
+                    </div>
+
+                    {/* Direction-specific shift times */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      {(direction === 'LOGIN' || direction === 'BOTH') && (
+                        <div>
                         <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                          Shift Time *
+                          Login Time *
                         </label>
                         <input
                           type="time"
                           required
-                          value={shiftTime}
-                          onChange={(e) => setShiftTime(e.target.value)}
+                          value={loginShiftTime}
+                          onChange={(e) => setLoginShiftTime(e.target.value)}
                           style={{
                             width: '100%',
                             padding: '8px 12px',
@@ -1510,7 +1693,31 @@ export default function RouteOptimizerPage() {
                             outline: 'none',
                           }}
                         />
-                      </div>
+                        </div>
+                      )}
+                      {(direction === 'LOGOUT' || direction === 'BOTH') && (
+                        <div>
+                          <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                            Logout Time *
+                          </label>
+                          <input
+                            type="time"
+                            required
+                            value={logoutShiftTime}
+                            onChange={(e) => setLogoutShiftTime(e.target.value)}
+                            style={{
+                              width: '100%',
+                              padding: '8px 12px',
+                              backgroundColor: 'var(--bg-input)',
+                              border: '1px solid var(--border-subtle)',
+                              borderRadius: '6px',
+                              color: 'var(--text-primary)',
+                              fontSize: '13px',
+                              outline: 'none',
+                            }}
+                          />
+                        </div>
+                      )}
                     </div>
 
                     {/* Direction & Vehicle Category */}
@@ -1521,7 +1728,7 @@ export default function RouteOptimizerPage() {
                         </label>
                         <select
                           value={direction}
-                          onChange={(e: any) => setDirection(e.target.value)}
+                          onChange={(e) => setDirection(e.target.value as 'LOGIN' | 'LOGOUT' | 'BOTH')}
                           style={{
                             width: '100%',
                             padding: '8px 12px',
@@ -1535,6 +1742,7 @@ export default function RouteOptimizerPage() {
                         >
                           <option value="LOGIN">LOGIN (Pickup to Office)</option>
                           <option value="LOGOUT">LOGOUT (Office to Drop)</option>
+                          <option value="BOTH">BOTH (Login + Logout)</option>
                         </select>
                       </div>
                       <div>
@@ -1543,7 +1751,7 @@ export default function RouteOptimizerPage() {
                         </label>
                         <select
                           value={dbVehicleCategory}
-                          onChange={(e) => setDbVehicleCategory(e.target.value as 'SEDAN' | 'SUV')}
+                          onChange={(e) => setDbVehicleCategory(e.target.value as 'SEDAN' | 'SUV' | 'BOTH')}
                           style={{
                             width: '100%',
                             padding: '8px 12px',
@@ -1557,9 +1765,109 @@ export default function RouteOptimizerPage() {
                         >
                           <option value="SEDAN">Sedan (up to 3 riders)</option>
                           <option value="SUV">SUV (up to 6 riders)</option>
+                          <option value="BOTH">Both (auto-balance vehicles)</option>
                         </select>
                       </div>
                     </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      {(dbVehicleCategory === 'SEDAN' || dbVehicleCategory === 'BOTH') && (
+                        <div>
+                          <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                            Sedan Capacity (max 3)
+                          </label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={3}
+                            value={sedanCapacity}
+                            onChange={(e) => setSedanCapacity(Math.min(3, Math.max(1, Number(e.target.value) || 3)))}
+                            style={{
+                              width: '100%',
+                              padding: '8px 12px',
+                              backgroundColor: 'var(--bg-input)',
+                              border: '1px solid var(--border-subtle)',
+                              borderRadius: '6px',
+                              color: 'var(--text-primary)',
+                              fontSize: '13px',
+                              outline: 'none',
+                            }}
+                          />
+                        </div>
+                      )}
+                      {(dbVehicleCategory === 'SUV' || dbVehicleCategory === 'BOTH') && (
+                        <div>
+                          <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                            SUV Capacity (max 6)
+                          </label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={6}
+                            value={suvCapacity}
+                            onChange={(e) => setSuvCapacity(Math.min(6, Math.max(1, Number(e.target.value) || 6)))}
+                            style={{
+                              width: '100%',
+                              padding: '8px 12px',
+                              backgroundColor: 'var(--bg-input)',
+                              border: '1px solid var(--border-subtle)',
+                              borderRadius: '6px',
+                              color: 'var(--text-primary)',
+                              fontSize: '13px',
+                              outline: 'none',
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
+                      <legend style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                        Routing strategy (choose one)
+                      </legend>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
+                        {([
+                          ['TRAFFIC_UNAWARE', 'Traffic-unaware'],
+                          ['TRAFFIC_AWARE', 'Traffic-aware'],
+                          ['TRAFFIC_AWARE_OPTIMAL', 'Traffic-aware optimal'],
+                        ] as const).map(([value, label]) => (
+                          <label
+                            key={`live-${value}`}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              border: `1px solid ${routingPreference === value ? 'var(--brand-blue-500, #5728B2)' : 'var(--border-subtle)'}`,
+                              borderRadius: '6px',
+                              padding: '8px',
+                              fontSize: '11px',
+                              color: 'var(--text-secondary)',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <input
+                              type="radio"
+                              name="live-routing-strategy"
+                              value={value}
+                              checked={routingPreference === value}
+                              onChange={() => setRoutingPreference(value)}
+                            />
+                            {label}
+                          </label>
+                        ))}
+                      </div>
+                      <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                        Traffic-unaware is not a guarantee of the shortest route.
+                      </div>
+                    </fieldset>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                      <input type="checkbox" checked={avoidTolls} onChange={(e) => setAvoidTolls(e.target.checked)} />
+                      Avoid toll roads
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                      <input type="checkbox" checked={avoidHighways} onChange={(e) => setAvoidHighways(e.target.checked)} />
+                      Avoid highways
+                    </label>
 
                     {/* DB Shift Optimization Summary if run */}
                     {dbOptimizeResult && (
@@ -1573,10 +1881,26 @@ export default function RouteOptimizerPage() {
                           color: 'var(--color-success)',
                         }}
                       >
-                        <strong>Optimization Success:</strong>
+                        <strong>{dbDirectionResults.some((plan) => !plan.success) ? 'Partial Optimization:' : 'Optimization Result:'}</strong>
                         <div style={{ marginTop: '4px', color: 'var(--text-primary)' }}>
-                          • Created {dbOptimizeResult.routesCreated ?? (Array.isArray(dbOptimizeResult) ? dbOptimizeResult.length : 0)} active routes<br />
+                          • Created {dbOptimizeResult.routesCreated ?? 0} active routes<br />
+                          • Sedan {dbOptimizeResult.sedanRoutesCreated ?? 0} / SUV {dbOptimizeResult.suvRoutesCreated ?? 0}<br />
                           • Assigned {dbOptimizeResult.passengersAssigned ?? 0} employee bookings<br />
+                          • Unassigned {dbOptimizeResult.unassignedRequests ?? 0} requests<br />
+                          {!('plans' in dbOptimizeResult) &&
+                            dbOptimizeResult.warnings?.map((warning) => (
+                              <span key={warning} style={{ color: 'var(--color-warning)' }}>• {warning}<br /></span>
+                            ))}
+                          {dbDirectionResults.map((plan) => (
+                            <span key={plan.direction} style={{ color: plan.success ? 'var(--text-secondary)' : 'var(--color-danger)' }}>
+                              • {plan.direction} ({plan.shiftTime}): {plan.success
+                                ? `${plan.summary?.routesCreated ?? 0} routes, ${plan.summary?.passengersAssigned ?? 0} assigned, ${plan.summary?.unassignedRequests ?? 0} unassigned`
+                                : `failed: ${plan.error}`}<br />
+                              {plan.summary?.warnings?.map((warning) => (
+                                <span key={warning} style={{ color: 'var(--color-warning)' }}>  • {warning}<br /></span>
+                              ))}
+                            </span>
+                          ))}
                           • Visible immediately on the Live Dispatch Board
                         </div>
                       </div>
@@ -1630,6 +1954,28 @@ export default function RouteOptimizerPage() {
               {/* Scrollable list of routes */}
               <div style={{ overflowY: 'auto', flex: 1, padding: '12px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {rosterDirectionResults.length > 0 && (
+                    <div
+                      style={{
+                        padding: '12px 14px',
+                        borderRadius: '8px',
+                        backgroundColor: 'var(--bg-surface-muted)',
+                        border: '1px solid var(--border-subtle)',
+                        fontSize: '12px',
+                        color: 'var(--text-primary)',
+                      }}
+                    >
+                      <strong>Direction plan outcomes</strong>
+                      {rosterDirectionResults.map((outcome) => (
+                        <div key={outcome.direction} style={{ marginTop: '6px' }}>
+                          <strong>{outcome.direction}:</strong>{' '}
+                          {outcome.success && outcome.plan
+                            ? `${outcome.plan.employeeCount} employees, ${outcome.plan.cabCount} routes (${outcome.plan.sedanRouteCount ?? 0} Sedan / ${outcome.plan.suvRouteCount ?? 0} SUV)`
+                            : `Failed — ${outcome.error || 'No plan returned.'}`}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   {planResult.excludedByDistance && planResult.excludedByDistance.length > 0 && (
                     <div
                       style={{
@@ -1643,12 +1989,18 @@ export default function RouteOptimizerPage() {
                     >
                       <strong style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <AlertTriangle size={14} />
-                        {planResult.excludedByDistance.length} Employee(s) Beyond {planResult.maxTripKm || 50} km Maximum Trip Limit
+                        {planResult.excludedByDistance.length} Employee(s) Excluded by Catchment / Max Trip
                       </strong>
                       <div style={{ marginTop: '6px', maxHeight: '100px', overflowY: 'auto' }}>
                         {planResult.excludedByDistance.map((exc, idx) => (
-                          <div key={idx} style={{ fontSize: '11px', marginTop: '2px', color: 'var(--text-secondary)' }}>
-                            • <strong>{exc.name}</strong> ({exc.officeDistanceKm} km) - {exc.matchedAddress || exc.address}
+                          <div key={`${exc.direction ?? ''}-${exc.name}-${idx}`} style={{ fontSize: '11px', marginTop: '2px', color: 'var(--text-secondary)' }}>
+                            • {exc.direction ? `[${exc.direction}] ` : ''}<strong>{exc.name}</strong> ({exc.officeDistanceKm.toFixed(2)} km) — {
+                              exc.reason === 'OUTSIDE_CATCHMENT'
+                                ? 'outside catchment'
+                                : exc.reason === 'EXCEEDS_MAX_TRIP'
+                                  ? 'exceeds max trip'
+                                  : 'outside catchment and exceeds max trip'
+                            } - {exc.matchedAddress || exc.address}
                           </div>
                         ))}
                       </div>

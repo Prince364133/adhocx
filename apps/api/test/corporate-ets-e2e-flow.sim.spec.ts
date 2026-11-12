@@ -362,6 +362,7 @@ describe('Full ETS End-to-End Stepped-Clock Simulation (Onboard -> Portal -> CSV
       tenantId: onboardRes.tenant.id,
       officeId: onboardRes.office.id,
       direction: 'LOGIN',
+      loginTime: new Date('2026-11-25T09:30:00+05:30'),
       cabCapacity: 1, // Force 2 separate cabs: Route A (accept) & Route B (exhaust)
       pickupWaitMinutes: 10,
       routingPreference: 'TRAFFIC_AWARE',

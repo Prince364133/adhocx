@@ -1,10 +1,10 @@
-import { Injectable, Logger, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, ConflictException, InternalServerErrorException } from '@nestjs/common';
 import { randomBytes, randomInt } from 'crypto';
 import * as ExcelJS from 'exceljs';
 import * as XLSX from '@e965/xlsx';
 import * as h3 from 'h3-js';
 import { DatabaseService } from '../../../database/database.service';
-import { GoogleGeocodingAdapter } from './google-geocoding.adapter';
+import { GeocodedAddressResult, GoogleGeocodingAdapter } from './google-geocoding.adapter';
 import { GoogleRoutesV2Adapter, RouteRequestOptions, haversineKm } from './google-routes-v2.adapter';
 import {
   clusterEmployees,
@@ -21,15 +21,85 @@ import {
 } from './cost-optimizer';
 import { getPhoneVariants, normalizeIndianPhone } from '../../../common/utils/uniqueness.util';
 import { istWallClockToUtc } from '../replanning/cutoff-policy';
+import { VEHICLE_CAPACITY } from './routing.types';
 
 /** A plan optimized to an office this far from the saved office is rejected at commit. */
 const OFFICE_PLAN_MAX_DRIFT_KM = 2;
-const SUV_CAPACITY = 6;
+const SUV_CAPACITY = VEHICLE_CAPACITY.SUV;
+const SEDAN_CAPACITY = VEHICLE_CAPACITY.SEDAN;
+const MAX_PLANNER_DISTANCE_KM = 50;
 const COMMIT_TX_TIMEOUT_MS = 120_000;
+const SUPPORTED_SPREADSHEET_EXTENSIONS = new Set([
+  'csv',
+  'xls',
+  'xlsx',
+  'xlsm',
+  'xlsb',
+  'xlt',
+  'xltx',
+  'xltm',
+  'xml',
+  'ods',
+]);
 
 /** 4-digit boarding OTP from a CSPRNG (never taken from the client payload). */
 export function generateBoardingOtp(): string {
   return String(randomInt(1000, 10000));
+}
+
+export type PlannerVehicleCategory = 'SEDAN' | 'SUV' | 'BOTH';
+export type DistanceExclusionReason =
+  | 'OUTSIDE_CATCHMENT'
+  | 'EXCEEDS_MAX_TRIP'
+  | 'OUTSIDE_CATCHMENT_AND_MAX_TRIP';
+
+export function getDistanceExclusionReason(
+  distanceKm: number,
+  officeRadiusKm: number,
+  maxTripKm: number,
+): DistanceExclusionReason | undefined {
+  const outsideCatchment = distanceKm > officeRadiusKm;
+  const exceedsMaxTrip = distanceKm > maxTripKm;
+  if (outsideCatchment && exceedsMaxTrip) return 'OUTSIDE_CATCHMENT_AND_MAX_TRIP';
+  if (outsideCatchment) return 'OUTSIDE_CATCHMENT';
+  if (exceedsMaxTrip) return 'EXCEEDS_MAX_TRIP';
+  return undefined;
+}
+
+export function validatePlanRouteConstraints(options: PlanRoutesFromFileOptions): void {
+  const validateRange = (name: string, value: number | undefined, min: number, max: number, integer = false) => {
+    if (value === undefined) return;
+    if (!Number.isFinite(value) || value < min || value > max || (integer && !Number.isInteger(value))) {
+      throw new BadRequestException(`${name} must be ${integer ? 'an integer ' : ''}between ${min} and ${max}`);
+    }
+  };
+  validateRange('officeRadiusKm', options.officeRadiusKm, 1, MAX_PLANNER_DISTANCE_KM);
+  validateRange('maxTripKm', options.maxTripKm, 1, MAX_PLANNER_DISTANCE_KM);
+  validateRange('pickupWaitMinutes', options.pickupWaitMinutes, 1, 10, true);
+  validateRange('bufferMinutes', options.bufferMinutes, 0, 30, true);
+  validateRange('sedanCapacity', options.sedanCapacity, 1, SEDAN_CAPACITY, true);
+  validateRange('suvCapacity', options.suvCapacity, 1, SUV_CAPACITY, true);
+  validateRange('cabCapacity', options.cabCapacity, 1, SUV_CAPACITY, true);
+  if (options.vehicleCategory && !['SEDAN', 'SUV', 'BOTH'].includes(options.vehicleCategory)) {
+    throw new BadRequestException('vehicleCategory must be SEDAN, SUV, or BOTH');
+  }
+  if (
+    options.routingPreference !== undefined &&
+    !['TRAFFIC_UNAWARE', 'TRAFFIC_AWARE', 'TRAFFIC_AWARE_OPTIMAL'].includes(options.routingPreference)
+  ) {
+    throw new BadRequestException('routingPreference is not supported');
+  }
+  if (options.cabCapacity !== undefined) {
+    const categoryCapacity =
+      options.vehicleCategory === 'SEDAN'
+        ? options.sedanCapacity ?? SEDAN_CAPACITY
+        : options.vehicleCategory === 'SUV'
+          ? options.suvCapacity ?? SUV_CAPACITY
+          : Math.max(options.sedanCapacity ?? SEDAN_CAPACITY, options.suvCapacity ?? SUV_CAPACITY);
+    if (options.cabCapacity > categoryCapacity) {
+      throw new BadRequestException('cabCapacity cannot exceed the selected vehicle category capacity');
+    }
+  }
 }
 
 /** IST wall clock (YYYY-MM-DD, HH:mm) -> instant; invalid input -> Invalid Date. */
@@ -73,16 +143,20 @@ export interface PlanRoutesFromFileOptions {
   bufferMinutes?: number; // default 15
   pickupWaitMinutes?: number; // standard/max 10
   cabCapacity?: number; // maximum passengers per cab, default 6
+  vehicleCategory?: PlannerVehicleCategory;
+  sedanCapacity?: number;
+  suvCapacity?: number;
   routingPreference?: RouteRequestOptions['routingPreference'];
   avoidTolls?: boolean;
   avoidHighways?: boolean;
-  excludedEmployees?: string[];
   pricingConfig?: PricingConfig;
 }
 
 export interface PlanRoutesResult {
   employeeCount: number;
   cabCount: number;
+  sedanRouteCount: number;
+  suvRouteCount: number;
   officeRadiusKm: number;
   maxTripKm: number;
   outOfRadiusCount: number;
@@ -94,6 +168,7 @@ export interface PlanRoutesResult {
     lat: number;
     lng: number;
     officeDistanceKm: number;
+    reason: DistanceExclusionReason;
   }>;
   autoExcludedEmployees: string[];
   bufferedDeadline: string;
@@ -106,13 +181,40 @@ export interface PlanRoutesResult {
   projectedMargin: number;
 }
 
+export interface PlanRoutesDirectionOutcome {
+  direction: 'LOGIN' | 'LOGOUT';
+  success: boolean;
+  plan?: PlanRoutesResult;
+  error?: string;
+}
+
+export interface PlanRoutesBatchResult {
+  direction: 'BOTH';
+  plans: PlanRoutesDirectionOutcome[];
+  employeeCount: number;
+  cabCount: number;
+  sedanRouteCount: number;
+  suvRouteCount: number;
+  totalKm: number;
+}
+
+interface SharedRosterPlanningContext {
+  parsedRoster: ParsedRoster;
+  geocodes: Map<string, GeocodedAddressResult>;
+  attemptedGeocodes: Set<string>;
+}
+
+export type PlanRoutesBatchOptions = Omit<PlanRoutesFromFileOptions, 'direction'>;
+
 export interface CommitPlanDto {
   tenantId: string;
   officeId: string;
   shiftDate: string; // YYYY-MM-DD
   shiftTime: string; // HH:mm
   direction: 'LOGIN' | 'LOGOUT';
-  vehicleCategory?: 'SEDAN' | 'SUV';
+  vehicleCategory?: PlannerVehicleCategory;
+  sedanCapacity?: number;
+  suvCapacity?: number;
   stopDwellMinutes?: number;
   includeMetadata?: boolean;
   plan: PlanRoutesResult;
@@ -158,30 +260,10 @@ export class CorporateRoutePlannerService {
     fileName: string,
     options: PlanRoutesFromFileOptions,
     onProgress?: (type: string, percent: number, message: string, data?: any) => void,
+    sharedContext?: SharedRosterPlanningContext,
   ): Promise<PlanRoutesResult> {
-    const extension = fileName.toLowerCase().split('.').pop() || '';
-    const supportedSpreadsheetExtensions = new Set([
-      'csv',
-      'xls',
-      'xlsx',
-      'xlsm',
-      'xlsb',
-      'xlt',
-      'xltx',
-      'xltm',
-      'xml',
-      'ods',
-    ]);
-    if (!supportedSpreadsheetExtensions.has(extension)) {
-      throw new BadRequestException(
-        'Unsupported roster file type. Upload CSV, Excel (.xls, .xlsx, .xlsm, .xlsb), Excel templates, or OpenDocument (.ods) files.',
-      );
-    }
-
-    const isCsv = extension === 'csv';
-    const parsedRoster = isCsv
-      ? this.parseCsv(fileBuffer)
-      : await this.parseExcel(fileBuffer);
+    validatePlanRouteConstraints(options);
+    const parsedRoster = sharedContext?.parsedRoster ?? await this.parseRosterFile(fileBuffer, fileName);
     const rawRows = parsedRoster.rows;
     const duplicateEmployeeNames = parsedRoster.duplicateEmployeeNames;
 
@@ -206,21 +288,7 @@ export class CorporateRoutePlannerService {
       throw new BadRequestException('Exceeded maximum of 1,000 employees per planning batch');
     }
 
-    // Excluded employee filtering
-    let activeRows = rawRows;
-    if (options.excludedEmployees && options.excludedEmployees.length > 0) {
-      const excludedSet = new Set(
-        options.excludedEmployees
-          .map((e) => this.normalizeEmployeeName(e || ''))
-          .filter(Boolean),
-      );
-      activeRows = rawRows.filter(
-        (r) => !excludedSet.has(this.normalizeEmployeeName(r.employeeName)),
-      );
-      if (activeRows.length === 0) {
-        throw new BadRequestException('No employees remain after exclusions');
-      }
-    }
+    const activeRows = rawRows;
 
     let policyDwellMinutes = 10;
     let policyCapacity: number | undefined;
@@ -233,17 +301,34 @@ export class CorporateRoutePlannerService {
         const latestPolicy: any = await this.db.corporateTenantPolicy.findFirst({
           where: { tenantId: options.tenantId },
           orderBy: { version: 'desc' },
-          select: { stopDwellMinutes: true, defaultCapacity: true, officeArrivalBufferMinutes: true },
+          select: {
+            stopDwellMinutes: true,
+            defaultCapacity: true,
+            defaultVehicleCategory: true,
+            officeArrivalBufferMinutes: true,
+          },
         });
-        if (latestPolicy?.stopDwellMinutes) {
-          policyDwellMinutes = Math.min(Math.max(Number(latestPolicy.stopDwellMinutes), 1), 10);
+        if (latestPolicy?.stopDwellMinutes != null) {
+          policyDwellMinutes = Number(latestPolicy.stopDwellMinutes);
+          // A stored policy is only a fallback; validate it only when the request does not override it.
+          if (options.pickupWaitMinutes == null) {
+            validatePlanRouteConstraints({ pickupWaitMinutes: policyDwellMinutes });
+          }
         }
-        if (Number(latestPolicy?.defaultCapacity) > 0) policyCapacity = Number(latestPolicy.defaultCapacity);
+        // Same rule as commit: only a SEDAN policy lowers the Sedan seat count.
+        if (
+          String(latestPolicy?.defaultVehicleCategory ?? 'SEDAN').toUpperCase() === 'SEDAN' &&
+          Number(latestPolicy?.defaultCapacity) > 0
+        ) {
+          policyCapacity = Number(latestPolicy.defaultCapacity);
+        }
         if (latestPolicy?.officeArrivalBufferMinutes != null) {
-          policyBufferMinutes = Number(latestPolicy.officeArrivalBufferMinutes);
+          // Tenant policy allows up to 120 min; the planner's safety buffer is capped at 30.
+          policyBufferMinutes = Math.min(Number(latestPolicy.officeArrivalBufferMinutes), 30);
         }
-      } catch {
-        // Safe fallback to 10 min standard dwell / request values
+      } catch (error) {
+        if (error instanceof BadRequestException) throw error;
+        throw new InternalServerErrorException('Unable to load tenant route policy for roster planning');
       }
     }
 
@@ -260,7 +345,7 @@ export class CorporateRoutePlannerService {
           }
         }
       } catch {
-        // Fallback to request options/CSV office address
+        throw new InternalServerErrorException('Unable to load the selected office for roster planning');
       }
     }
 
@@ -268,52 +353,76 @@ export class CorporateRoutePlannerService {
     if (options.officeLat != null && options.officeLng != null) {
       dbOfficeCoords = { lat: Number(options.officeLat), lng: Number(options.officeLng) };
     }
-    const rawSharedArrival =
-      options.direction === 'LOGOUT'
-        ? options.logoutTime || options.loginTime
-        : options.loginTime || options.logoutTime;
-    const sharedArrival = rawSharedArrival ? this.parseArrivalDateTime(rawSharedArrival) : undefined;
+    const isLogout = options.direction === 'LOGOUT';
+    const sharedDirectionTime = isLogout ? options.logoutTime : options.loginTime;
+    const sharedArrival = sharedDirectionTime ? this.parseArrivalDateTime(sharedDirectionTime) : undefined;
     const rowsWithTargets = activeRows.map((row, index) => {
       const officeAddress = row.officeAddress?.trim() || sharedOffice;
-      const arrivalDateTime =
-        (options.direction === 'LOGOUT' ? row.logoutTime || row.arrivalDateTime : row.arrivalDateTime) ||
-        sharedArrival;
+      const rowDirectionTime = isLogout ? row.logoutTime : row.arrivalDateTime;
       if (!officeAddress) {
         throw new BadRequestException(`Row ${index + 2} is missing office_address`);
       }
-      if (!arrivalDateTime) {
+      if (!rowDirectionTime && !sharedArrival) {
         throw new BadRequestException(
           `Row ${index + 2} is missing login_time (or required_arrival_date and required_arrival_time)`,
         );
       }
-      const loginTime = this.parseArrivalDateTime(arrivalDateTime);
+      const loginTime = rowDirectionTime
+        ? this.parseArrivalDateTime(rowDirectionTime, sharedArrival)
+        : sharedArrival;
       if (!loginTime) {
         throw new BadRequestException(`Row ${index + 2} has an invalid required arrival date/time`);
       }
       return { ...row, officeAddress, loginTime };
     });
 
-    const isLogout = options.direction === 'LOGOUT';
-    const maxTripKm = Number(options.maxTripKm) || 50;
-    const pricingConfig = options.pricingConfig || DEFAULT_PRICING_CONFIG;
+    const officeRadiusKm = options.officeRadiusKm ?? 50;
+    const maxTripKm = options.maxTripKm ?? 50;
+    const vehicleCategory = options.vehicleCategory ?? 'BOTH';
+    const sedanCapacity = options.sedanCapacity ?? Math.min(policyCapacity ?? SEDAN_CAPACITY, SEDAN_CAPACITY);
+    const suvCapacity = options.suvCapacity ?? SUV_CAPACITY;
+    const maxCategoryCapacity =
+      vehicleCategory === 'SEDAN'
+        ? sedanCapacity
+        : vehicleCategory === 'SUV'
+          ? suvCapacity
+          : Math.max(sedanCapacity, suvCapacity);
+    const cabCapacity = options.cabCapacity == null ? maxCategoryCapacity : Math.min(options.cabCapacity, maxCategoryCapacity);
+    const configuredBufferMinutes = options.bufferMinutes ?? policyBufferMinutes ?? 15;
+    validatePlanRouteConstraints({
+      ...options,
+      officeRadiusKm,
+      maxTripKm,
+      bufferMinutes: configuredBufferMinutes,
+      sedanCapacity,
+      suvCapacity,
+      cabCapacity,
+    });
+    const basePricingConfig = options.pricingConfig || DEFAULT_PRICING_CONFIG;
+    const pricingConfig: PricingConfig = {
+      ...basePricingConfig,
+      cabTypes: basePricingConfig.cabTypes
+        .filter((cab) => vehicleCategory === 'BOTH' || cab.name.toUpperCase() === vehicleCategory)
+        .map((cab) => ({
+          ...cab,
+          capacity: cab.name.toLowerCase() === 'sedan' ? sedanCapacity : suvCapacity,
+        })),
+    };
 
     const resolvedWaitMinutes = Math.min(
-      Math.max(Number(options.pickupWaitMinutes) || policyDwellMinutes || 10, 1),
+      options.pickupWaitMinutes ?? policyDwellMinutes,
       10,
     );
+    validatePlanRouteConstraints({ ...options, pickupWaitMinutes: resolvedWaitMinutes });
 
     const config: Omit<SolverConfig, 'loginTime'> = {
-      logoutTime: options.logoutTime ? new Date(options.logoutTime) : undefined,
-      officeRadiusKm: Number(options.officeRadiusKm) || 50,
+      logoutTime: options.logoutTime ? this.parseArrivalDateTime(options.logoutTime) : undefined,
+      officeRadiusKm,
       maxTripKm,
       // Explicit request value, else the company's office-arrival buffer, else 15 min.
-      bufferMinutes:
-        options.bufferMinutes != null && Number.isFinite(Number(options.bufferMinutes))
-          ? Math.max(0, Number(options.bufferMinutes))
-          : policyBufferMinutes ?? 15,
+      bufferMinutes: configuredBufferMinutes,
       pickupWaitMinutes: resolvedWaitMinutes,
-      // Explicit request value, else the company's policy capacity (SEDAN 4 / SUV 6), else 4.
-      cabCapacity: Math.min(Math.max(Math.round(Number(options.cabCapacity) || policyCapacity || 4), 1), 12),
+      cabCapacity,
       routingPreference: options.routingPreference || 'TRAFFIC_UNAWARE',
       avoidTolls: options.avoidTolls !== false,
       avoidHighways: Boolean(options.avoidHighways),
@@ -336,20 +445,29 @@ export class CorporateRoutePlannerService {
         ...Array.from(officesByKey.values(), (office) => office.name),
       ]),
     );
-    const geocodeMap = await this.geocodingAdapter.batchGeocode(
-      uniqueAddresses,
-      6,
-      (completed, total, addr) => {
-        if (onProgress) {
-          const pct = 10 + Math.round((completed / total) * 40);
-          onProgress('geocoded', pct, `Geocoding addresses: ${completed}/${total}`, {
-            completed,
-            total,
-            address: addr,
-          });
-        }
-      },
+    const geocodeMap = sharedContext?.geocodes ?? new Map<string, GeocodedAddressResult>();
+    const attemptedGeocodes = sharedContext?.attemptedGeocodes ?? new Set<string>();
+    const missingAddresses = uniqueAddresses.filter(
+      (address) => !geocodeMap.has(address.toLowerCase()) && !attemptedGeocodes.has(address.toLowerCase()),
     );
+    if (missingAddresses.length > 0) {
+      missingAddresses.forEach((address) => attemptedGeocodes.add(address.toLowerCase()));
+      const newGeocodes = await this.geocodingAdapter.batchGeocode(
+        missingAddresses,
+        6,
+        (completed, total, addr) => {
+          if (onProgress) {
+            const pct = 10 + Math.round((completed / total) * 40);
+            onProgress('geocoded', pct, `Geocoding addresses: ${completed}/${total}`, {
+              completed,
+              total,
+              address: addr,
+            });
+          }
+        },
+      );
+      for (const [key, result] of newGeocodes) geocodeMap.set(key, result);
+    }
 
     if (dbOfficeCoords && sharedOffice) {
       geocodeMap.set(sharedOffice.toLowerCase(), {
@@ -366,12 +484,6 @@ export class CorporateRoutePlannerService {
       if (!geo) throw new BadRequestException(`Could not geocode office_address "${office.name}"`);
       return { ...office, coordinates: geo };
     });
-    const officeByGroupKey = new Map(
-      offices.map((office) => [
-        `${office.name.toLowerCase()}|${office.loginTime.toISOString()}`,
-        { name: office.name, lat: office.coordinates.lat, lng: office.coordinates.lng },
-      ]),
-    );
     const officeResults: Array<{ name: string; lat: number; lng: number }> = [];
     const employeeGroups = new Map<string, EmployeeRecord[]>();
     const excludedByDistance: Array<{
@@ -381,7 +493,15 @@ export class CorporateRoutePlannerService {
       lat: number;
       lng: number;
       officeDistanceKm: number;
+      reason: DistanceExclusionReason;
     }> = [];
+    officeResults.push(
+      ...offices.map((office) => ({
+        name: office.name,
+        lat: office.coordinates.lat,
+        lng: office.coordinates.lng,
+      })),
+    );
 
     for (const row of rowsWithTargets) {
       const geo =
@@ -395,7 +515,7 @@ export class CorporateRoutePlannerService {
       if (!officeGeo) throw new BadRequestException(`Could not geocode office_address "${office.name}"`);
       const groupKey = `${office.name.toLowerCase()}|${row.loginTime.toISOString()}`;
 
-      const distKm = Number(haversineKm(geo, officeGeo).toFixed(2));
+      const distKm = haversineKm(geo, officeGeo);
       const record: EmployeeRecord = {
         employeeName: row.employeeName,
         pickupAddress: row.pickupAddress,
@@ -411,7 +531,8 @@ export class CorporateRoutePlannerService {
         outOfRadius: distKm > config.officeRadiusKm,
       };
 
-      if (distKm > maxTripKm) {
+      const reason = getDistanceExclusionReason(distKm, config.officeRadiusKm, maxTripKm);
+      if (reason) {
         excludedByDistance.push({
           name: record.employeeName,
           address: record.pickupAddress,
@@ -419,6 +540,7 @@ export class CorporateRoutePlannerService {
           lat: record.coord.lat,
           lng: record.coord.lng,
           officeDistanceKm: distKm,
+          reason,
         });
       } else {
         const group = employeeGroups.get(groupKey) ?? [];
@@ -428,17 +550,11 @@ export class CorporateRoutePlannerService {
     }
 
     const employeeCount = Array.from(employeeGroups.values()).reduce((count, group) => count + group.length, 0);
-    if (employeeCount === 0) {
-      throw new BadRequestException(
-        `No employees are within the ${maxTripKm} km cab distance limit (${excludedByDistance.length} excluded)`,
-      );
-    }
-
     if (onProgress) {
       onProgress(
         'clustering',
         52,
-        `Clustering ${employeeCount} employees by office and arrival time (max ${config.cabCapacity} per cab, max trip ${maxTripKm} km)`,
+        `Clustering ${employeeCount} eligible employees by office and arrival time (max ${config.cabCapacity} per cab)`,
       );
     }
 
@@ -448,7 +564,6 @@ export class CorporateRoutePlannerService {
       const office = offices.find((item) => `${item.name.toLowerCase()}|${item.loginTime.toISOString()}` === groupKey);
       if (!office) continue;
       const officeCoord = { lat: office.coordinates.lat, lng: office.coordinates.lng };
-      officeResults.push(officeByGroupKey.get(groupKey)!);
       for (const employeesForCab of clusterEmployees(employees, config.cabCapacity, officeCoord, pricingConfig, maxTripKm)) {
         routeGroups.push({
           officeName: office.name,
@@ -499,7 +614,9 @@ export class CorporateRoutePlannerService {
       delete r._departureSort;
     });
 
-    const outOfRadiusCount = Array.from(employeeGroups.values()).flat().filter((e) => e.outOfRadius).length;
+    const outOfRadiusCount = excludedByDistance.filter(
+      ({ reason }) => reason === 'OUTSIDE_CATCHMENT' || reason === 'OUTSIDE_CATCHMENT_AND_MAX_TRIP',
+    ).length;
     const deadlines = Array.from(new Set(routeGroups.map(({ loginTime }) => loginTime.getTime())));
     const bufferedDeadlines = deadlines.map((deadline) => formatClock(new Date(deadline - config.bufferMinutes * 60_000)));
 
@@ -511,6 +628,8 @@ export class CorporateRoutePlannerService {
     const result: PlanRoutesResult = {
       employeeCount,
       cabCount: routes.length,
+      sedanRouteCount: routes.filter((route) => route.cabType?.toUpperCase() === 'SEDAN').length,
+      suvRouteCount: routes.filter((route) => route.cabType?.toUpperCase() === 'SUV').length,
       officeRadiusKm: config.officeRadiusKm,
       maxTripKm,
       outOfRadiusCount,
@@ -541,6 +660,78 @@ export class CorporateRoutePlannerService {
     }
 
     return result;
+  }
+
+  async planBatchFromFile(
+    fileBuffer: Buffer,
+    fileName: string,
+    options: PlanRoutesBatchOptions,
+    onProgress?: (type: string, percent: number, message: string, data?: any) => void,
+  ): Promise<PlanRoutesBatchResult> {
+    if (!options.loginTime || !this.parseArrivalDateTime(options.loginTime)) {
+      throw new BadRequestException('BOTH roster planning requires a valid loginTime date and time');
+    }
+    if (!options.logoutTime || !this.parseArrivalDateTime(options.logoutTime)) {
+      throw new BadRequestException('BOTH roster planning requires a valid logoutTime date and time');
+    }
+    const parsedRoster = await this.parseRosterFile(fileBuffer, fileName);
+    const sharedContext: SharedRosterPlanningContext = {
+      parsedRoster,
+      geocodes: new Map<string, GeocodedAddressResult>(),
+      attemptedGeocodes: new Set<string>(),
+    };
+    const directions = ['LOGIN', 'LOGOUT'] as const;
+    const outcomes: PlanRoutesDirectionOutcome[] = [];
+
+    for (const [index, direction] of directions.entries()) {
+      try {
+        const plan = await this.planFromFile(
+          fileBuffer,
+          fileName,
+          { ...options, direction },
+          (type, percent, message, data) => {
+            const overallPercent = Math.round((index * 100 + percent) / directions.length);
+            onProgress?.(type, overallPercent, `${direction}: ${message}`, { direction, ...data });
+          },
+          sharedContext,
+        );
+        outcomes.push({ direction, success: true, plan });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        outcomes.push({ direction, success: false, error: message });
+        onProgress?.('direction_failed', Math.round(((index + 1) * 100) / directions.length), `${direction} failed: ${message}`, {
+          direction,
+          error: message,
+        });
+      }
+    }
+
+    const successfulPlans = outcomes.flatMap((outcome) => outcome.plan ? [outcome.plan] : []);
+    if (successfulPlans.length === 0) {
+      throw new BadRequestException(
+        `Both direction plans failed: ${outcomes.map(({ direction, error }) => `${direction}: ${error}`).join('; ')}`,
+      );
+    }
+
+    return {
+      direction: 'BOTH',
+      plans: outcomes,
+      employeeCount: successfulPlans.reduce((sum, plan) => sum + plan.employeeCount, 0),
+      cabCount: successfulPlans.reduce((sum, plan) => sum + plan.cabCount, 0),
+      sedanRouteCount: successfulPlans.reduce((sum, plan) => sum + plan.sedanRouteCount, 0),
+      suvRouteCount: successfulPlans.reduce((sum, plan) => sum + plan.suvRouteCount, 0),
+      totalKm: Number(successfulPlans.reduce((sum, plan) => sum + plan.totalKm, 0).toFixed(2)),
+    };
+  }
+
+  private async parseRosterFile(fileBuffer: Buffer, fileName: string): Promise<ParsedRoster> {
+    const extension = fileName.toLowerCase().split('.').pop() || '';
+    if (!SUPPORTED_SPREADSHEET_EXTENSIONS.has(extension)) {
+      throw new BadRequestException(
+        'Unsupported roster file type. Upload CSV, Excel (.xls, .xlsx, .xlsm, .xlsb), Excel templates, or OpenDocument (.ods) files.',
+      );
+    }
+    return extension === 'csv' ? this.parseCsv(fileBuffer) : this.parseExcel(fileBuffer);
   }
 
   private resolvePlannedStopEta(
@@ -607,10 +798,33 @@ export class CorporateRoutePlannerService {
   async commitPlanToDatabase(
     dto: CommitPlanDto,
   ): Promise<{ routesCreated: number; stopsCreated: number; routeIds?: string[]; employeesLinked?: number }> {
-    const { tenantId, officeId, shiftDate, shiftTime, vehicleCategory = 'SEDAN', plan } = dto;
+    const {
+      tenantId,
+      officeId,
+      shiftDate,
+      shiftTime,
+      vehicleCategory = 'BOTH',
+      suvCapacity = SUV_CAPACITY,
+      plan,
+    } = dto;
+    const requestedSedanCapacity = dto.sedanCapacity;
+    const sedanCapacity = requestedSedanCapacity ?? SEDAN_CAPACITY;
     const direction = String(dto.direction ?? 'LOGIN').toUpperCase() as 'LOGIN' | 'LOGOUT';
     const isLogout = direction === 'LOGOUT';
 
+    validatePlanRouteConstraints({
+      vehicleCategory,
+      sedanCapacity,
+      suvCapacity,
+      pickupWaitMinutes: dto.stopDwellMinutes,
+    });
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(shiftDate) || !Number.isFinite(new Date(`${shiftDate}T00:00:00Z`).getTime()) ||
+      new Date(`${shiftDate}T00:00:00Z`).toISOString().slice(0, 10) !== shiftDate) {
+      throw new BadRequestException('shiftDate must be a valid calendar date in YYYY-MM-DD format');
+    }
+    if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(shiftTime)) {
+      throw new BadRequestException('shiftTime must be a valid HH:mm time');
+    }
     if (!plan || !plan.routes || plan.routes.length === 0) {
       throw new BadRequestException('No routes present in the plan to commit');
     }
@@ -668,22 +882,28 @@ export class CorporateRoutePlannerService {
     }
 
     // Policy: dwell + sedan capacity
-    let defaultDwellSeconds =
-      dto.stopDwellMinutes != null
-        ? Math.min(Math.max(Math.round(Number(dto.stopDwellMinutes) * 60), 60), 600)
-        : 600;
-    let sedanCapacity = 4;
+    let defaultDwellSeconds = (dto.stopDwellMinutes ?? 10) * 60;
+    let effectiveSedanCapacity = sedanCapacity;
     if (typeof (this.db as any)?.corporateTenantPolicy?.findFirst === 'function') {
       const policy: any = await this.db.corporateTenantPolicy.findFirst({
         where: { tenantId },
         orderBy: { version: 'desc' },
         select: { stopDwellMinutes: true, defaultCapacity: true, defaultVehicleCategory: true },
       } as any);
-      if (dto.stopDwellMinutes == null && policy?.stopDwellMinutes) {
-        defaultDwellSeconds = Math.min(Math.max(Number(policy.stopDwellMinutes) * 60, 60), 600);
+      if (dto.stopDwellMinutes == null && policy?.stopDwellMinutes != null) {
+        const policyDwell = Number(policy.stopDwellMinutes);
+        if (!Number.isInteger(policyDwell) || policyDwell < 1 || policyDwell > 10) {
+          throw new BadRequestException('Tenant stopDwellMinutes policy must be an integer between 1 and 10');
+        }
+        defaultDwellSeconds = policyDwell * 60;
       }
-      if (String(policy?.defaultVehicleCategory ?? 'SEDAN').toUpperCase() === 'SEDAN' && Number(policy?.defaultCapacity) > 0) {
-        sedanCapacity = Math.min(Number(policy.defaultCapacity), 4);
+      // Mirror planning: an explicit request capacity wins; otherwise a SEDAN policy may lower the seat count.
+      if (
+        requestedSedanCapacity == null &&
+        String(policy?.defaultVehicleCategory ?? 'SEDAN').toUpperCase() === 'SEDAN' &&
+        Number(policy?.defaultCapacity) > 0
+      ) {
+        effectiveSedanCapacity = Math.min(sedanCapacity, Number(policy.defaultCapacity));
       }
     }
 
@@ -735,17 +955,18 @@ export class CorporateRoutePlannerService {
           const { date: routeShiftDate, time: routeShiftTime } = istParts(isLogout ? departure : officeArrival);
 
           let effectiveCategory: 'SEDAN' | 'SUV' =
-            route.cabType?.toUpperCase() === 'SUV' || vehicleCategory === 'SUV' ? 'SUV' : 'SEDAN';
-          if (effectiveCategory === 'SEDAN' && route.stops.length > sedanCapacity) effectiveCategory = 'SUV';
-          const effectiveMaxCapacity = effectiveCategory === 'SUV' ? SUV_CAPACITY : sedanCapacity;
+            vehicleCategory === 'SUV' || (vehicleCategory === 'BOTH' && route.stops.length > effectiveSedanCapacity)
+              ? 'SUV'
+              : 'SEDAN';
+          if (vehicleCategory === 'BOTH' && route.cabType?.toUpperCase() === 'SUV') effectiveCategory = 'SUV';
+          const effectiveMaxCapacity = effectiveCategory === 'SUV' ? suvCapacity : effectiveSedanCapacity;
           if (route.stops.length > effectiveMaxCapacity) {
             throw new BadRequestException(
               `Route ${route.cab} has ${route.stops.length} employees; a ${effectiveCategory} seats ${effectiveMaxCapacity}`,
             );
           }
 
-          const stopDwell = (stop: any) =>
-            Math.min(Math.max(Number(stop.dwellSeconds ?? route.dwellSeconds ?? defaultDwellSeconds), 60), 600);
+          const stopDwell = (_stop: any) => defaultDwellSeconds;
           const totalDwellSeconds = route.stops.reduce((sum, stop) => sum + stopDwell(stop), 0);
 
           const createdRoute = await tx.corporateRoute.create({
@@ -1432,7 +1653,7 @@ export class CorporateRoutePlannerService {
     return String(value).trim();
   }
 
-  private parseArrivalDateTime(value: string | Date): Date | undefined {
+  private parseArrivalDateTime(value: string | Date, fallbackDate?: Date): Date | undefined {
     if (value instanceof Date) {
       return Number.isNaN(value.getTime()) ? undefined : value;
     }
@@ -1453,30 +1674,8 @@ export class CorporateRoutePlannerService {
         if (meridiem.toUpperCase() === 'PM') hours += 12;
       }
 
-      const now = new Date();
-      const localParts = Object.fromEntries(
-        new Intl.DateTimeFormat('en-GB', {
-          timeZone: 'Asia/Kolkata',
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          hourCycle: 'h23',
-        })
-          .formatToParts(now)
-          .map(({ type, value }) => [type, value]),
-      );
-      let localDate = `${localParts.year}-${localParts.month}-${localParts.day}`;
-      const requestedSeconds = hours * 3600 + minuteValue * 60 + secondValue;
-      const currentSeconds =
-        Number(localParts.hour) * 3600 + Number(localParts.minute) * 60 + Number(localParts.second);
-      if (requestedSeconds <= currentSeconds) {
-        const nextDay = new Date(`${localDate}T00:00:00Z`);
-        nextDay.setUTCDate(nextDay.getUTCDate() + 1);
-        localDate = nextDay.toISOString().slice(0, 10);
-      }
+      if (!fallbackDate || Number.isNaN(fallbackDate.getTime())) return undefined;
+      const localDate = istParts(fallbackDate).date;
       const time = `${String(hours).padStart(2, '0')}:${String(minuteValue).padStart(2, '0')}:${String(secondValue).padStart(2, '0')}`;
       const parsed = new Date(`${localDate}T${time}+05:30`);
       return Number.isNaN(parsed.getTime()) ? undefined : parsed;

@@ -303,47 +303,6 @@ export interface LiveOperationsResponse {
   }[];
 }
 
-export interface RequirementListItem {
-  id: string;
-  vendorName: string;
-  fulfillmentMode?: 'DIRECT_DISPATCH';
-  vehicleType: string;
-  quantity: number;
-  assignedQuantity: number;
-  pickupAddress: string;
-  dropAddress: string;
-  reportingTime: string;
-  status: string;
-  vendorRate?: number;
-  ratePerVehicle?: number;
-  suggestedBudget?: number;
-  createdAt: string;
-  pricing?: RequirementPricingSnapshot;
-  zonalQuote?: {
-    locality?: { name?: string; zoneLabel?: string } | null;
-    officeHub?: { displayName?: string };
-    vehicleType?: string;
-    rateVersion?: string;
-    direction?: string;
-    totalAmount?: number;
-    internal?: {
-      driverRateVersion?: string;
-      driverEarning?: number;
-      platformSpread?: number;
-      escortPayable?: number;
-    };
-  };
-}
-
-export interface RequirementPricingSnapshot {
-  planVersion: string;
-  distanceM: number;
-  vendorPricePaise: number;
-  driverPayoutPaise: number;
-  grossSpreadPaise: number;
-  quotedAt: string;
-}
-
 export interface AssignmentItem {
   id: string;
   requirementId: string;
@@ -361,35 +320,6 @@ export interface AssignmentItem {
   reportingTime?: string;
   assignedAt?: string;
   offeredAt?: string;
-  createdAt: string;
-}
-
-export interface TripListItem {
-  id: string;
-  requirementId: string;
-  driverName?: string;
-  driverPhone?: string;
-  vehiclePlate?: string;
-  pickupAddress: string;
-  dropAddress: string;
-  status: string;
-  driverRate: number;
-  tollCharges?: number;
-  parkingCharges?: number;
-  totalDriverEarnings?: number;
-  reportingTime: string;
-  startedAt?: string;
-  completedAt?: string;
-  createdAt: string;
-}
-
-export interface TripEvent {
-  id: string;
-  tripId: string;
-  eventType: string;
-  latitude: number;
-  longitude: number;
-  metadata?: { description?: string; [key: string]: unknown };
   createdAt: string;
 }
 
@@ -569,6 +499,7 @@ export interface PlannedRouteSegment {
 
 export interface CalculatedRoute {
   cab: number;
+  direction?: 'LOGIN' | 'LOGOUT';
   office?: { name: string; lat: number; lng: number };
   requiredArrival?: string;
   requiredArrivalDateTime?: string;
@@ -594,6 +525,8 @@ export interface CalculatedRoute {
 export interface RoutePlanningResult {
   employeeCount: number;
   cabCount: number;
+  sedanRouteCount?: number;
+  suvRouteCount?: number;
   officeRadiusKm: number;
   maxTripKm?: number;
   outOfRadiusCount: number;
@@ -605,7 +538,11 @@ export interface RoutePlanningResult {
     lat: number;
     lng: number;
     officeDistanceKm: number;
+    reason: 'OUTSIDE_CATCHMENT' | 'EXCEEDS_MAX_TRIP' | 'OUTSIDE_CATCHMENT_AND_MAX_TRIP';
+    /** Set by the Ops client when LOGIN and LOGOUT plans are merged for display. */
+    direction?: 'LOGIN' | 'LOGOUT';
   }>;
+  autoExcludedEmployees?: string[];
   bufferedDeadline: string;
   office: { name: string; lat: number; lng: number };
   offices?: Array<{ name: string; lat: number; lng: number }>;
@@ -615,6 +552,26 @@ export interface RoutePlanningResult {
   expectedCorporateRevenue?: number;
   projectedMargin?: number;
 }
+
+export interface RoutePlanningDirectionOutcome {
+  direction: 'LOGIN' | 'LOGOUT';
+  success: boolean;
+  plan?: RoutePlanningResult;
+  error?: string;
+}
+
+export interface RoutePlanningBatchResult {
+  direction: 'BOTH';
+  plans: RoutePlanningDirectionOutcome[];
+  employeeCount: number;
+  cabCount: number;
+  sedanRouteCount: number;
+  suvRouteCount: number;
+  totalKm: number;
+}
+
+export type RoutePlanningResponse = RoutePlanningResult | RoutePlanningBatchResult;
+
 export type OpsSupportTicketStatus =
   | 'OPEN'
   | 'ASSIGNED'

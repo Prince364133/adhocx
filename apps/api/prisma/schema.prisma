@@ -1982,7 +1982,7 @@ model CorporateTenantPolicy {
   cancelCutoffHours          Int      @default(9) @map("cancel_cutoff_hours")
   maxRideMinutes             Int      @default(120) @map("max_ride_minutes")
   defaultVehicleCategory     String   @default("SEDAN") @map("default_vehicle_category") @db.VarChar(32)
-  defaultCapacity            Int      @default(4) @map("default_capacity")
+  defaultCapacity            Int      @default(3) @map("default_capacity")
   escalationLeadMinutes        Int      @default(30) @map("escalation_lead_minutes")
   officeArrivalBufferMinutes   Int      @default(10) @map("office_arrival_buffer_minutes")
   stopDwellMinutes             Int      @default(10) @map("stop_dwell_minutes")

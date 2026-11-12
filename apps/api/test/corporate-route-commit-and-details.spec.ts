@@ -196,7 +196,51 @@ describe('Corporate Route CSV -> Commit -> Portal List & Google Maps Directions 
     controller = new CorporateRoutingController({} as any, db, planner, directionsService);
   });
 
-  it('parses employee CSV with phone/code/department, clamps wait time <=10m, commits to DB, and serves split live-traffic directions', async () => {
+  it('rejects wait values above the server-side 10 minute limit', async () => {
+    await expect(
+      planner.planFromFile(Buffer.from(''), 'roster.csv', { pickupWaitMinutes: 11 }),
+    ).rejects.toThrow('pickupWaitMinutes must be an integer between 1 and 10');
+  });
+
+  it('commits with the explicit request Sedan capacity even when a SEDAN policy seats fewer', async () => {
+    const csv = [
+      'Employee Name,Employee Code,Phone Number,Department,Pickup Address,Office Address,Arrival Time,Logout Time,Gender',
+      'Priya Nair,EMP101,+919800011101,Engineering,"KPHB Phase 1, Hyderabad","Madhapur Mindspace, Hyderabad",09:30,18:30,FEMALE',
+      'Rohan Verma,EMP102,+919800011102,Operations,"Ameerpet X Roads, Hyderabad","Madhapur Mindspace, Hyderabad",09:30,18:30,MALE',
+      'Meera Joshi,EMP103,+919800011103,Product,"Jubilee Hills Checkpost, Hyderabad","Madhapur Mindspace, Hyderabad",09:30,18:30,FEMALE',
+    ].join('\n');
+    const policy = { version: 2, stopDwellMinutes: 10, defaultCapacity: 1, defaultVehicleCategory: 'SEDAN' };
+    db.corporateTenantPolicy.findFirst.mockImplementation(async () => policy);
+
+    const plan = await planner.planFromFile(Buffer.from(csv, 'utf8'), 'roster.csv', {
+      tenantId: 'tenant-1',
+      officeId: 'office-hyd',
+      direction: 'LOGIN',
+      loginTime: new Date('2026-11-10T09:30:00+05:30'),
+      vehicleCategory: 'SEDAN',
+      sedanCapacity: 3,
+      pickupWaitMinutes: 10,
+    });
+    const sharedRoute = plan.routes.find((route) => route.stops.length > 1);
+    expect(sharedRoute).toBeDefined();
+    const commitDto = {
+      tenantId: 'tenant-1',
+      officeId: 'office-hyd',
+      shiftDate: '2026-11-15',
+      shiftTime: '09:30',
+      direction: 'LOGIN' as const,
+      vehicleCategory: 'SEDAN' as const,
+      stopDwellMinutes: 10,
+      plan: { ...plan, routes: [sharedRoute!] },
+    };
+
+    // Without an explicit capacity the SEDAN policy (1 seat) applies, as it does during planning.
+    await expect(planner.commitPlanToDatabase(commitDto)).rejects.toThrow(/a SEDAN seats 1/);
+    const result = await planner.commitPlanToDatabase({ ...commitDto, sedanCapacity: 3 });
+    expect(result.routesCreated).toBe(1);
+  });
+
+  it('parses employee CSV with phone/code/department, applies 10m wait, commits to DB, and serves split live-traffic directions', async () => {
     const csv = [
       'Employee Name,Employee Code,Phone Number,Department,Pickup Address,Office Address,Arrival Time,Logout Time,Gender',
       'Priya Nair,EMP101,+919800011101,Engineering,"KPHB Phase 1, Hyderabad","Madhapur Mindspace, Hyderabad",09:30,18:30,FEMALE',
@@ -208,8 +252,9 @@ describe('Corporate Route CSV -> Commit -> Portal List & Google Maps Directions 
       tenantId: 'tenant-1',
       officeId: 'office-hyd',
       direction: 'LOGIN',
+      loginTime: new Date('2026-11-10T09:30:00+05:30'),
       cabCapacity: 4,
-      pickupWaitMinutes: 25, // intentionally > 10m to prove 10m cap is enforced
+      pickupWaitMinutes: 10,
       routingPreference: 'TRAFFIC_AWARE',
     });
 
@@ -217,7 +262,7 @@ describe('Corporate Route CSV -> Commit -> Portal List & Google Maps Directions 
     const plannedStops = plan.routes.flatMap((r) => r.stops);
     expect(plannedStops).toHaveLength(3);
     for (const s of plannedStops) {
-      expect(s.dwellSeconds).toBeLessThanOrEqual(600);
+      expect(s.dwellSeconds).toBe(600);
       expect(s.phoneNumber).toMatch(/^\+91980001110/);
     }
 

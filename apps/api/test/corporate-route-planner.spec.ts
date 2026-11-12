@@ -7,6 +7,8 @@ import * as XLSX from '@e965/xlsx';
 import {
   CorporateRoutePlannerService,
   PlanRoutesFromFileOptions,
+  getDistanceExclusionReason,
+  validatePlanRouteConstraints,
 } from '../src/domains/corporate/routing/corporate-route-planner.service';
 import {
   clusterEmployees,
@@ -27,6 +29,7 @@ describe('Corporate ETS - Route Planner Engine & Spatial Clustering Suite', () =
   let geocodingAdapter: GoogleGeocodingAdapter;
 
   const redisStore = new Map<string, string>();
+  const createdRouteRecords: any[] = [];
   const mockRedisService = {
     get: jest.fn().mockImplementation(async (key: string) => redisStore.get(key) || null),
     set: jest.fn().mockImplementation(async (key: string, val: string) => {
@@ -39,10 +42,13 @@ describe('Corporate ETS - Route Planner Engine & Spatial Clustering Suite', () =
     $transaction: jest.fn().mockImplementation(async (cb: (tx: any) => Promise<any>) => {
       const mockTx = {
         corporateRoute: {
-          create: jest.fn().mockImplementation(async ({ data }: any) => ({
-            id: 'mock-route-id-' + Math.random().toString(36).substring(2, 7),
-            ...data,
-          })),
+          create: jest.fn().mockImplementation(async ({ data }: any) => {
+            createdRouteRecords.push(data);
+            return {
+              id: 'mock-route-id-' + Math.random().toString(36).substring(2, 7),
+              ...data,
+            };
+          }),
         },
         corporateRouteStop: {
           create: jest.fn().mockImplementation(async ({ data }: any) => ({
@@ -68,6 +74,125 @@ describe('Corporate ETS - Route Planner Engine & Spatial Clustering Suite', () =
 
     service = module.get<CorporateRoutePlannerService>(CorporateRoutePlannerService);
     geocodingAdapter = module.get<GoogleGeocodingAdapter>(GoogleGeocodingAdapter);
+  });
+
+  describe('Distance and request constraints', () => {
+    it('includes exact catchment and max-trip boundaries and excludes distances just beyond them', () => {
+      expect(getDistanceExclusionReason(10, 10, 10)).toBeUndefined();
+      expect(getDistanceExclusionReason(10 + 1e-9, 10, 20)).toBe('OUTSIDE_CATCHMENT');
+      expect(getDistanceExclusionReason(10 + 1e-9, 20, 10)).toBe('EXCEEDS_MAX_TRIP');
+      expect(getDistanceExclusionReason(10 + 1e-9, 10, 10)).toBe(
+        'OUTSIDE_CATCHMENT_AND_MAX_TRIP',
+      );
+    });
+
+    it.each([
+      [{ officeRadiusKm: 1 }, true],
+      [{ officeRadiusKm: 50 }, true],
+      [{ officeRadiusKm: 0 }, false],
+      [{ officeRadiusKm: 51 }, false],
+      [{ maxTripKm: 1 }, true],
+      [{ maxTripKm: 50 }, true],
+      [{ maxTripKm: 0 }, false],
+      [{ maxTripKm: 51 }, false],
+      [{ pickupWaitMinutes: 1 }, true],
+      [{ pickupWaitMinutes: 10 }, true],
+      [{ pickupWaitMinutes: 0 }, false],
+      [{ pickupWaitMinutes: 11 }, false],
+      [{ bufferMinutes: 0 }, true],
+      [{ bufferMinutes: 30 }, true],
+      [{ bufferMinutes: -1 }, false],
+      [{ bufferMinutes: 31 }, false],
+    ])('validates planner limits %#', (options, valid) => {
+      if (valid) {
+        expect(() => validatePlanRouteConstraints(options)).not.toThrow();
+      } else {
+        expect(() => validatePlanRouteConstraints(options)).toThrow();
+      }
+    });
+  });
+
+  describe('Both-direction roster batches', () => {
+    it('parses and geocodes unique addresses once for the real LOGIN and LOGOUT plans', async () => {
+      const csv = [
+        'employee_name,pickup_address,office_address,required_arrival_date,required_arrival_time,logout_time',
+        '"Employee One","Shared Home","Office HQ","2099-01-02","08:00","17:00"',
+        '"Employee Two","Shared Home","Office HQ","2099-01-02","08:00","17:00"',
+      ].join('\n');
+      const fileBuffer = Buffer.from(csv);
+      const parsedRoster = (service as any).parseCsv(fileBuffer);
+      const parseFile = jest.spyOn(service as any, 'parseRosterFile').mockResolvedValue(parsedRoster);
+      const geocode = jest.spyOn(geocodingAdapter, 'batchGeocode').mockResolvedValue(
+        new Map([
+          ['shared home', { lat: 17.45, lng: 78.39, matchedAddress: 'Shared Home', partialMatch: false, isRealGeocode: true }],
+          ['office hq', { lat: 17.44, lng: 78.38, matchedAddress: 'Office HQ', partialMatch: false, isRealGeocode: true }],
+        ]),
+      );
+
+      const result = await service.planBatchFromFile(fileBuffer, 'employees.csv', {
+        loginTime: '2099-01-02T08:00',
+        logoutTime: '2099-01-02T17:00',
+        officeRadiusKm: 50,
+        maxTripKm: 50,
+        pickupWaitMinutes: 1,
+        bufferMinutes: 0,
+      });
+
+      expect(parseFile).toHaveBeenCalledTimes(1);
+      expect(geocode).toHaveBeenCalledTimes(1);
+      expect(geocode.mock.calls[0][0].sort()).toEqual(['Office HQ', 'Shared Home']);
+      expect(result.plans).toMatchObject([
+        { direction: 'LOGIN', success: true, plan: { employeeCount: 2 } },
+        { direction: 'LOGOUT', success: true, plan: { employeeCount: 2 } },
+      ]);
+      expect(result.plans[0].plan?.routes[0].requiredArrivalDateTime).not.toBe(
+        result.plans[1].plan?.routes[0].requiredArrivalDateTime,
+      );
+
+      parseFile.mockRestore();
+      geocode.mockRestore();
+    });
+
+    it('parses once, shares geocode state, and reports a direction failure alongside the successful plan', async () => {
+      const parsedRoster = { rows: [{ employeeName: 'Employee' }] };
+      const parsedFile = jest.spyOn(service as any, 'parseRosterFile').mockResolvedValue(parsedRoster);
+      const successfulPlan = {
+        employeeCount: 1,
+        cabCount: 1,
+        sedanRouteCount: 1,
+        suvRouteCount: 0,
+        totalKm: 8,
+      };
+      const planDirection = jest
+        .spyOn(service, 'planFromFile')
+        .mockImplementation(async (_buffer, _name, options, _onProgress, _sharedContext) => {
+          if (options.direction === 'LOGOUT') throw new Error('LOGOUT plan failed');
+          return successfulPlan as any;
+        });
+
+      const result = await service.planBatchFromFile(
+        Buffer.from('unused'),
+        'employees.csv',
+        { loginTime: '2099-01-02T08:00', logoutTime: '2099-01-02T17:00' },
+      );
+
+      expect(parsedFile).toHaveBeenCalledTimes(1);
+      expect(planDirection).toHaveBeenCalledTimes(2);
+      expect(planDirection.mock.calls[0][2]).toMatchObject({ direction: 'LOGIN', loginTime: '2099-01-02T08:00' });
+      expect(planDirection.mock.calls[1][2]).toMatchObject({ direction: 'LOGOUT', logoutTime: '2099-01-02T17:00' });
+      expect(planDirection.mock.calls[0][4]).toBe(planDirection.mock.calls[1][4]);
+      expect(result).toMatchObject({
+        direction: 'BOTH',
+        employeeCount: 1,
+        plans: [
+          { direction: 'LOGIN', success: true, plan: successfulPlan },
+          { direction: 'LOGOUT', success: false, error: 'LOGOUT plan failed' },
+        ],
+      });
+
+      parsedFile.mockRestore();
+      planDirection.mockRestore();
+    });
   });
 
   describe('Automatic vehicle assignment', () => {
@@ -156,7 +281,7 @@ describe('Corporate ETS - Route Planner Engine & Spatial Clustering Suite', () =
         });
       });
 
-      it('accepts an employee login time without an arrival date', () => {
+      it('combines a roster time-only value with the explicitly selected shift date', () => {
         const csv = [
           'employee_name,pickup_address,office_address,employee_login_time',
           '"Login Time Employee","Kondapur, Hyderabad","Mindspace IT Park, Hyderabad","08:30 AM"',
@@ -164,10 +289,17 @@ describe('Corporate ETS - Route Planner Engine & Spatial Clustering Suite', () =
         const parsedRoster = (service as any).parseCsv(Buffer.from(csv));
 
         expect(parsedRoster.rows[0].arrivalDateTime).toBe('08:30 AM');
-        const loginDateTime = (service as any).parseArrivalDateTime(parsedRoster.rows[0].arrivalDateTime) as Date;
+        const selectedShiftDate = new Date('2099-01-02T03:00:00.000Z');
+        const loginDateTime = (service as any).parseArrivalDateTime(
+          parsedRoster.rows[0].arrivalDateTime,
+          selectedShiftDate,
+        ) as Date;
         const parts = Object.fromEntries(
           new Intl.DateTimeFormat('en-GB', {
             timeZone: 'Asia/Kolkata',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
             hour: '2-digit',
             minute: '2-digit',
             hourCycle: 'h23',
@@ -176,7 +308,10 @@ describe('Corporate ETS - Route Planner Engine & Spatial Clustering Suite', () =
             .map(({ type, value }) => [type, value]),
         );
 
-        expect(loginDateTime.getTime()).toBeGreaterThan(Date.now());
+        expect((service as any).parseArrivalDateTime(parsedRoster.rows[0].arrivalDateTime)).toBeUndefined();
+        expect(parts.year).toBe('2099');
+        expect(parts.month).toBe('01');
+        expect(parts.day).toBe('02');
         expect(parts.hour).toBe('08');
         expect(parts.minute).toBe('30');
       });
@@ -401,7 +536,7 @@ describe('Corporate ETS - Route Planner Engine & Spatial Clustering Suite', () =
 
       const result = await service.planFromFile(Buffer.from(csv), 'employee-routes.csv', {
         cabCapacity: 4,
-        maxTripKm: 500,
+        maxTripKm: 50,
       });
 
       expect(result.employeeCount).toBe(2);
@@ -460,7 +595,7 @@ describe('Corporate ETS - Route Planner Engine & Spatial Clustering Suite', () =
       }
     });
 
-    it('should flag employees outside office catchment radius with alert', async () => {
+    it('excludes employees outside office catchment from planned routes with a reason', async () => {
       const csv = `employee_name,pickup_address\n"Local Employee","Hitec City, Hyderabad"\n"Far Employee","Shamshabad Airport, Hyderabad"`;
       const csvBuffer = Buffer.from(csv, 'utf-8');
 
@@ -474,12 +609,19 @@ describe('Corporate ETS - Route Planner Engine & Spatial Clustering Suite', () =
       };
 
       const result = await service.planFromFile(csvBuffer, 'employees.csv', options);
-      expect(result.employeeCount).toBe(2);
+      expect(result.employeeCount).toBe(1);
       expect(result.outOfRadiusCount).toBeGreaterThanOrEqual(1);
+      expect(result.excludedByDistance).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            name: 'Far Employee',
+            reason: 'OUTSIDE_CATCHMENT',
+          }),
+        ]),
+      );
 
       const farStop = result.routes.flatMap((r) => r.stops).find((s) => s.name === 'Far Employee');
-      expect(farStop).toBeDefined();
-      expect(farStop?.outOfRadius).toBe(true);
+      expect(farStop).toBeUndefined();
     });
   });
 
@@ -505,6 +647,78 @@ describe('Corporate ETS - Route Planner Engine & Spatial Clustering Suite', () =
       expect(commitResult.routesCreated).toBe(plan.cabCount);
       expect(commitResult.stopsCreated).toBe(plan.employeeCount + plan.cabCount);
       expect(mockDbService.$transaction).toHaveBeenCalled();
+    });
+
+    it('commits BOTH plans with their actual persisted directions', async () => {
+      const createDirectionPlan = (direction: 'LOGIN' | 'LOGOUT', cab: number, employeeCode: string) => ({
+        office: { name: 'Office A', lat: 17.44, lng: 78.38 },
+        routes: [{
+          cab,
+          direction,
+          cabType: 'SEDAN',
+          distanceKm: 4,
+          driveMinutes: 20,
+          requiredArrivalDateTime: direction === 'LOGIN' ? '2026-11-10T02:30:00.000Z' : '2026-11-10T11:30:00.000Z',
+          departureDateTime: direction === 'LOGIN' ? '2026-11-10T02:00:00.000Z' : '2026-11-10T11:30:00.000Z',
+          office: { name: 'Office A', lat: 17.44, lng: 78.38 },
+          stops: [{
+            name: `Employee ${employeeCode}`,
+            employeeCode,
+            lat: 17.45,
+            lng: 78.39,
+            etaIso: direction === 'LOGIN' ? '2026-11-10T02:00:00.000Z' : '2026-11-10T11:40:00.000Z',
+            travelToNextMinutes: 5,
+          }],
+        }],
+      });
+      const before = createdRouteRecords.length;
+
+      for (const [direction, cab, code] of [
+        ['LOGIN', 1, 'login-employee'],
+        ['LOGOUT', 1, 'logout-employee'],
+      ] as const) {
+        await service.commitPlanToDatabase({
+          tenantId: '00000000-0000-4000-8000-000000000001',
+          officeId: '00000000-0000-4000-8000-000000000002',
+          shiftDate: '2026-11-10',
+          shiftTime: direction === 'LOGIN' ? '08:00' : '17:00',
+          direction,
+          vehicleCategory: 'SEDAN',
+          plan: createDirectionPlan(direction, cab, code) as any,
+        });
+      }
+
+      expect(createdRouteRecords.slice(before).map(({ direction }) => direction)).toEqual(['LOGIN', 'LOGOUT']);
+    });
+
+    it('rejects duplicate employee assignments before opening a commit transaction', async () => {
+      const transactionCount = mockDbService.$transaction.mock.calls.length;
+      const duplicatePlan = {
+        office: { name: 'Office A', lat: 17.44, lng: 78.38 },
+        routes: [1, 2].map((cab) => ({
+          cab,
+          direction: 'LOGIN',
+          office: { name: 'Office A', lat: 17.44, lng: 78.38 },
+          stops: [{
+            name: 'Duplicate Employee',
+            employeeCode: 'employee-1',
+            lat: 17.45,
+            lng: 78.39,
+          }],
+        })),
+      };
+
+      await expect(
+        service.commitPlanToDatabase({
+          tenantId: '00000000-0000-4000-8000-000000000001',
+          officeId: '00000000-0000-4000-8000-000000000002',
+          shiftDate: '2026-11-10',
+          shiftTime: '08:00',
+          direction: 'LOGIN',
+          plan: duplicatePlan as any,
+        }),
+      ).rejects.toThrow('appears in more than one route');
+      expect(mockDbService.$transaction).toHaveBeenCalledTimes(transactionCount);
     });
 
     it('should reject committing a plan with multiple office destinations', async () => {

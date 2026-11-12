@@ -35,4 +35,5 @@
 | **13** | [13_DUAL_FINANCIAL_LEDGERS_BILLING_AND_PAYOUTS.md](file:///c:/Users/saavi/Desktop/adhocx/docs/corporate-ets/13_DUAL_FINANCIAL_LEDGERS_BILLING_AND_PAYOUTS.md) | Dual ledger isolation (Corporate Receivables vs Driver Payables), integer paise math, rate cards, payout batches, and bank reconciliation. |
 | **14** | [14_DATABASE_SCHEMA_POSTGIS_AND_DATA_CONTRACTS.md](file:///c:/Users/saavi/Desktop/adhocx/docs/corporate-ets/14_DATABASE_SCHEMA_POSTGIS_AND_DATA_CONTRACTS.md) | PostgreSQL 16 + PostGIS DDL, spatial indexes, partitioned tracking tables, and multi-tenant Row-Level Security (RLS) policies. |
 | **15** | [15_API_INVENTORY_EVENT_CONTRACTS_AND_STATE_MACHINES.md](file:///c:/Users/saavi/Desktop/adhocx/docs/corporate-ets/15_API_INVENTORY_EVENT_CONTRACTS_AND_STATE_MACHINES.md) | Exhaustive REST API endpoints (v1), WebSocket message schemas, and finite state machines for requests, offers, trips, and stops. |
+| **22** | [22_ROUTE_OPTIMIZER_PRODUCTION_COMPLETION_PLAN_V2.md](./22_ROUTE_OPTIMIZER_PRODUCTION_COMPLETION_PLAN_V2.md) | Production-completion plan for the remaining partial Route Optimizer items identified in the 2026-11-12 verification. |
 

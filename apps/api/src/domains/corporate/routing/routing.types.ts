@@ -1,16 +1,27 @@
-export type VehicleCategory = 'SEDAN' | 'SUV';
+export const VEHICLE_CAPACITY = Object.freeze({ SEDAN: 3, SUV: 6 });
+
+export type VehicleCategory = 'SEDAN' | 'SUV' | 'BOTH';
 
 export interface RouteOptimizationOptions {
   tenantId: string;
   officeId: string;
   shiftDate: string; // YYYY-MM-DD
-  shiftTime: string; // HH:mm (e.g. '08:00', '09:00', '17:00', '18:00')
-  direction: 'LOGIN' | 'LOGOUT';
-  vehicleCategory?: VehicleCategory; // defaults to 'SEDAN' (4 pax)
-  maxCapacity?: number; // 4 for SEDAN, 6 for SUV
+  /** @deprecated Send the direction-specific loginTime or logoutTime instead. */
+  shiftTime?: string;
+  loginTime?: string;
+  logoutTime?: string;
+  direction: 'LOGIN' | 'LOGOUT' | 'BOTH';
+  vehicleCategory?: VehicleCategory;
+  maxCapacity?: number;
+  sedanCapacity?: number;
+  suvCapacity?: number;
   officeBufferMinutes?: number; // defaults to 10 minutes prior to shift login
   maxRideTimeMinutes?: number; // max in-cab time per employee, defaults to 120
   logoutReportingBufferMinutes?: number; // LOGOUT: cab at office this long before logout, defaults to 15
+  stopDwellMinutes?: number; // employee pickup/drop dwell, 1-10 minutes
+  routingPreference?: 'TRAFFIC_UNAWARE' | 'TRAFFIC_AWARE' | 'TRAFFIC_AWARE_OPTIMAL';
+  avoidTolls?: boolean;
+  avoidHighways?: boolean;
 }
 
 export interface OptimizedStopResult {
@@ -27,12 +38,12 @@ export interface OptimizedStopResult {
   addressText: string;
   plannedEta: Date;
   boardingOtp: string;
-  dwellBufferSeconds: number; // 300s
+  dwellBufferSeconds: number;
 }
 
 export interface OptimizedRouteResult {
   routeIndex: number;
-  vehicleCategory: VehicleCategory;
+  vehicleCategory: Exclude<VehicleCategory, 'BOTH'>;
   maxCapacity: number;
   passengerCount: number;
   targetPickup1Time: Date;
@@ -50,6 +61,8 @@ export interface RouteOptimizationSummary {
   direction: 'LOGIN' | 'LOGOUT';
   totalRequestsEvaluated: number;
   routesCreated: number;
+  sedanRoutesCreated: number;
+  suvRoutesCreated: number;
   passengersAssigned: number;
   unassignedRequests: number;
   averagePassengersPerRoute: number;
@@ -69,5 +82,24 @@ export interface RouteOptimizationSummary {
     distanceMeters: number;
     durationSeconds: number;
   }[];
+}
+
+export interface RouteOptimizationDirectionOutcome {
+  direction: 'LOGIN' | 'LOGOUT';
+  shiftTime: string;
+  success: boolean;
+  summary?: RouteOptimizationSummary;
+  error?: string;
+}
+
+export interface RouteOptimizationBatchSummary {
+  direction: 'BOTH';
+  plans: RouteOptimizationDirectionOutcome[];
+  totalRequestsEvaluated: number;
+  routesCreated: number;
+  sedanRoutesCreated: number;
+  suvRoutesCreated: number;
+  passengersAssigned: number;
+  unassignedRequests: number;
 }
 

@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   AlertTriangle,
+  ArrowLeft,
   ArrowRight,
   Building2,
   Calendar,
@@ -24,6 +25,8 @@ import { opsApi } from '../../lib/api/opsClient';
 import { CorporateRouteItem, CorporateTenantOption } from '../../lib/api/opsTypes';
 import { Button } from '../../components/common/Button';
 import { StatusBadge } from '../../components/common/StatusBadge';
+
+const COMPANY_STORAGE_KEY = 'adhocx_ops_selected_tenant';
 
 function formatIstTime(iso?: string | null): string {
   if (!iso) return '—';
@@ -45,12 +48,14 @@ function getEffectiveDispatchStatus(route: CorporateRouteItem): string {
   return route.status === 'DISPATCHING' ? 'OFFERED' : 'PENDING';
 }
 
-export default function OpsRoutesPage() {
+function OpsRoutesContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const urlTenantId = searchParams.get('tenantId')?.trim() || '';
 
-  const [companies, setCompanies] = useState<CorporateTenantOption[]>([]);
-  const [companySearch, setCompanySearch] = useState('');
-  const [selectedTenantId, setSelectedTenantId] = useState<string>('ALL');
+  const [selectedTenantId, setSelectedTenantId] = useState<string>(urlTenantId);
+  const [tenantResolved, setTenantResolved] = useState<boolean>(Boolean(urlTenantId));
+  const [company, setCompany] = useState<CorporateTenantOption | null>(null);
 
   const [routes, setRoutes] = useState<CorporateRouteItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,45 +64,73 @@ export default function OpsRoutesPage() {
   const [retryingRouteId, setRetryingRouteId] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [shiftDate, setShiftDate] = useState('');
+  const [shiftDate, setShiftDate] = useState(() => searchParams.get('shiftDate') || '');
   const [direction, setDirection] = useState<'ALL' | 'LOGIN' | 'LOGOUT'>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
-  const [dispatchFilter, setDispatchFilter] = useState<string>('ALL');
+  const [dispatchFilter, setDispatchFilter] = useState<string>(() => searchParams.get('dispatchStatus') || 'ALL');
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const qs = new URLSearchParams(window.location.search);
-      const qTenantId = qs.get('tenantId');
-      if (qTenantId) setSelectedTenantId(qTenantId);
-      const qDate = qs.get('shiftDate');
-      if (qDate) setShiftDate(qDate);
-      const qDispatch = qs.get('dispatchStatus');
-      if (qDispatch) setDispatchFilter(qDispatch);
+    if (urlTenantId) {
+      setSelectedTenantId(urlTenantId);
+      setTenantResolved(true);
+      try {
+        localStorage.setItem(COMPANY_STORAGE_KEY, urlTenantId);
+        window.dispatchEvent(new Event('adhocx:ops-tenant-changed'));
+      } catch {}
+      return;
     }
-  }, []);
 
-  const loadCompanies = useCallback(async (search?: string) => {
+    let remembered = '';
     try {
-      const res = await opsApi.getTenants({ search: search?.trim() || undefined, page: 1, limit: 100 });
-      setCompanies(Array.isArray(res.items) ? res.items : []);
-    } catch {
-      // Keep page functional even if directory fetch fails briefly
+      remembered = localStorage.getItem(COMPANY_STORAGE_KEY)?.trim() || '';
+    } catch {}
+
+    if (remembered) {
+      setSelectedTenantId(remembered);
+      setTenantResolved(true);
+      router.replace(`/routes?tenantId=${encodeURIComponent(remembered)}`);
+      return;
     }
-  }, []);
+
+    setSelectedTenantId('');
+    setTenantResolved(true);
+    setLoading(false);
+  }, [urlTenantId, router]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      void loadCompanies(companySearch);
-    }, 200);
-    return () => clearTimeout(timer);
-  }, [companySearch, loadCompanies]);
+    if (!selectedTenantId) {
+      setCompany(null);
+      return;
+    }
+
+    let cancelled = false;
+    void opsApi
+      .getTenant(selectedTenantId)
+      .then((res) => {
+        if (!cancelled) setCompany(res);
+      })
+      .catch(() => {
+        if (!cancelled) setCompany(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedTenantId]);
 
   const loadRoutes = useCallback(async () => {
+    if (!tenantResolved) return;
+    if (!selectedTenantId) {
+      setRoutes([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setErrorMsg(null);
     try {
       const data = await opsApi.getRoutes({
-        tenantId: selectedTenantId !== 'ALL' ? selectedTenantId : undefined,
+        tenantId: selectedTenantId,
         shiftDate: shiftDate || undefined,
         direction: direction !== 'ALL' ? direction : undefined,
         status: statusFilter !== 'ALL' ? statusFilter : undefined,
@@ -106,20 +139,24 @@ export default function OpsRoutesPage() {
         includeStops: true,
         limit: 200,
       });
-      setRoutes(Array.isArray(data) ? data : []);
+      const scopedRoutes = (Array.isArray(data) ? data : []).filter(
+        (route) => !route.tenantId || route.tenantId === selectedTenantId,
+      );
+      setRoutes(scopedRoutes);
     } catch (err: any) {
       setErrorMsg(err?.message || 'Failed to load corporate routes.');
     } finally {
       setLoading(false);
     }
-  }, [selectedTenantId, shiftDate, direction, statusFilter, dispatchFilter, searchQuery]);
+  }, [tenantResolved, selectedTenantId, shiftDate, direction, statusFilter, dispatchFilter, searchQuery]);
 
   useEffect(() => {
+    if (!tenantResolved) return;
     const timer = setTimeout(() => {
       void loadRoutes();
     }, 180);
     return () => clearTimeout(timer);
-  }, [loadRoutes]);
+  }, [tenantResolved, loadRoutes]);
 
   async function handleRetryDispatch(e: React.MouseEvent, routeId: string) {
     e.stopPropagation();
@@ -153,6 +190,38 @@ export default function OpsRoutesPage() {
     return { total, assigned, noDrivers, pendingOrOffering: Math.max(0, pendingOrOffering), totalPassengers };
   }, [routes]);
 
+  const companyDisplayName = company?.name || routes[0]?.tenant?.name || 'Selected Company';
+  const companyDisplayCode = company?.code || routes[0]?.tenant?.code || '';
+
+  if (tenantResolved && !selectedTenantId) {
+    return (
+      <div style={{ maxWidth: 720, margin: '40px auto' }}>
+        <div
+          style={{
+            padding: 40,
+            textAlign: 'center',
+            backgroundColor: 'var(--bg-surface)',
+            borderRadius: 12,
+            border: '1px solid var(--border-subtle)',
+          }}
+        >
+          <Building2 size={38} style={{ color: 'var(--brand-primary, #5728B2)', marginBottom: 12 }} />
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+            Select a Company from Company Hub
+          </h1>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '8px 0 20px' }}>
+            Routes &amp; Trips are scoped per corporate client. Choose a company card from the hub to view its routes and trips.
+          </p>
+          <Link href="/" style={{ textDecoration: 'none' }}>
+            <Button variant="primary" leftIcon={<ArrowLeft size={15} />}>
+              Go to Company Hub
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: 1440, margin: '0 auto' }}>
       {/* Header */}
@@ -185,16 +254,26 @@ export default function OpsRoutesPage() {
             <RouteIcon size={20} />
           </div>
           <div>
-            <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
-              Corporate Routes & Live Dispatch
-            </h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                {companyDisplayName} · Routes &amp; Trips
+              </h1>
+              {companyDisplayCode && (
+                <span className="code-tag">{companyDisplayCode}</span>
+              )}
+            </div>
             <p style={{ margin: '2px 0 0 0', fontSize: 13, color: 'var(--text-secondary)' }}>
-              Monitor generated employee cab routes, pickup manifests, Google Maps live traffic ETAs, and autonomous 10km driver dispatch.
+              Scoped routes, trips, pickup manifests, live traffic ETAs, and autonomous 10km driver dispatch for this company.
             </p>
           </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <Link href="/" style={{ textDecoration: 'none' }}>
+            <Button variant="outline" leftIcon={<ArrowLeft size={15} />}>
+              Company Hub
+            </Button>
+          </Link>
           <Button
             variant="secondary"
             leftIcon={<RefreshCw size={15} />}
@@ -204,7 +283,15 @@ export default function OpsRoutesPage() {
             Refresh
           </Button>
           <Link
-            href={`/planner${selectedTenantId !== 'ALL' ? `?tenantId=${encodeURIComponent(selectedTenantId)}` : ''}`}
+            href={`/map?tenantId=${encodeURIComponent(selectedTenantId)}`}
+            style={{ textDecoration: 'none' }}
+          >
+            <Button variant="outline" leftIcon={<MapPin size={15} />}>
+              Fleet Live Map
+            </Button>
+          </Link>
+          <Link
+            href={`/planner?tenantId=${encodeURIComponent(selectedTenantId)}`}
             style={{ textDecoration: 'none' }}
           >
             <Button variant="primary" leftIcon={<Sparkles size={15} />}>
@@ -324,61 +411,6 @@ export default function OpsRoutesPage() {
           border: '1px solid var(--border-subtle)',
         }}
       >
-        <div>
-          <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 5 }}>
-            Search Company Directory
-          </label>
-          <div style={{ position: 'relative' }}>
-            <Building2
-              size={14}
-              style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }}
-            />
-            <input
-              type="text"
-              value={companySearch}
-              onChange={(e) => setCompanySearch(e.target.value)}
-              placeholder="Filter companies..."
-              style={{
-                width: '100%',
-                height: 36,
-                padding: '0 10px 0 32px',
-                borderRadius: 8,
-                border: '1px solid var(--border-subtle)',
-                backgroundColor: 'var(--bg-surface-muted)',
-                color: 'var(--text-primary)',
-                fontSize: 12,
-              }}
-            />
-          </div>
-        </div>
-
-        <div>
-          <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 5 }}>
-            Company
-          </label>
-          <select
-            value={selectedTenantId}
-            onChange={(e) => setSelectedTenantId(e.target.value)}
-            style={{
-              width: '100%',
-              height: 36,
-              padding: '0 10px',
-              borderRadius: 8,
-              border: '1px solid var(--border-subtle)',
-              backgroundColor: 'var(--bg-surface-muted)',
-              color: 'var(--text-primary)',
-              fontSize: 12,
-            }}
-          >
-            <option value="ALL">All Onboarded Companies ({companies.length})</option>
-            {companies.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} ({c.code})
-              </option>
-            ))}
-          </select>
-        </div>
-
         <div>
           <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 5 }}>
             Search Route / Employee / Driver
@@ -577,9 +609,9 @@ export default function OpsRoutesPage() {
             No matching corporate routes found
           </div>
           <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '6px 0 18px' }}>
-            Upload an employee roster CSV/Excel in the Route Optimizer to generate sorted cab routes and save them here.
+            Upload an employee roster CSV/Excel in the Route Optimizer to generate sorted cab routes for {companyDisplayName} and save them here.
           </p>
-          <Link href="/planner" style={{ textDecoration: 'none' }}>
+          <Link href={`/planner?tenantId=${encodeURIComponent(selectedTenantId)}`} style={{ textDecoration: 'none' }}>
             <Button variant="primary" leftIcon={<Sparkles size={15} />}>
               Go to Route Optimizer
             </Button>
@@ -758,5 +790,30 @@ export default function OpsRoutesPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function OpsRoutesPage() {
+  return (
+    <Suspense
+      fallback={
+        <div
+          style={{
+            padding: 48,
+            textAlign: 'center',
+            backgroundColor: 'var(--bg-surface)',
+            borderRadius: 12,
+            border: '1px solid var(--border-subtle)',
+            color: 'var(--text-secondary)',
+            maxWidth: 1440,
+            margin: '0 auto',
+          }}
+        >
+          Loading company routes...
+        </div>
+      }
+    >
+      <OpsRoutesContent />
+    </Suspense>
   );
 }

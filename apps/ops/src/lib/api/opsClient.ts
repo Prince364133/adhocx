@@ -7,11 +7,10 @@ import {
   RouteWaypointsResponse,
   SosAlertItem,
   RoutePlanningResult,
+  RoutePlanningBatchResult,
+  RoutePlanningResponse,
   RouteDirectionsResult,
-  RequirementListItem,
   AssignmentItem,
-  TripListItem,
-  TripEvent,
   OpsSupportTicket,
   OpsSupportTicketStatus,
   OpsDriverDetail,
@@ -37,6 +36,44 @@ export {
   getStoredOpsUser,
 };
 export type { OpsUser };
+
+export interface ShiftOptimizationSummary {
+  tenantId: string;
+  officeId: string;
+  shiftDate: string;
+  shiftTime?: string;
+  direction: 'LOGIN' | 'LOGOUT';
+  totalRequestsEvaluated: number;
+  routesCreated: number;
+  sedanRoutesCreated: number;
+  suvRoutesCreated: number;
+  passengersAssigned: number;
+  unassignedRequests: number;
+  averagePassengersPerRoute: number;
+  estimatedTotalDistanceMeters: number;
+  warnings?: string[];
+}
+
+export interface ShiftOptimizationDirectionOutcome {
+  direction: 'LOGIN' | 'LOGOUT';
+  shiftTime?: string;
+  success: boolean;
+  summary?: ShiftOptimizationSummary;
+  error?: string;
+}
+
+export interface ShiftOptimizationBatchSummary {
+  direction: 'BOTH';
+  plans: ShiftOptimizationDirectionOutcome[];
+  totalRequestsEvaluated: number;
+  routesCreated: number;
+  sedanRoutesCreated: number;
+  suvRoutesCreated: number;
+  passengersAssigned: number;
+  unassignedRequests: number;
+}
+
+export type ShiftOptimizationResponse = ShiftOptimizationSummary | ShiftOptimizationBatchSummary;
 
 export function getApiBaseUrl(): string {
   if (typeof window !== 'undefined') {
@@ -114,27 +151,6 @@ type RequestOptions = RequestInit & {
 };
 
 type ApiList<T> = T[] | { items?: T[] };
-
-type RequirementApiItem = {
-  id: string;
-  vendorName?: string;
-  vendor?: { organizationName?: string };
-  fulfillmentMode?: 'DIRECT_DISPATCH';
-  vehicleType: string;
-  quantity: number;
-  assignedQuantity?: number;
-  pickupAddress?: string;
-  pickupLocation?: { address?: string };
-  dropAddress?: string;
-  dropLocation?: { address?: string };
-  reportingTime: string;
-  status: string;
-  ratePerVehicle?: number;
-  vendorRate?: number;
-  suggestedBudget?: number;
-  zonalQuote?: RequirementListItem['zonalQuote'];
-  createdAt: string;
-};
 
 async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
   const baseUrl = getApiBaseUrl();
@@ -347,31 +363,6 @@ export const opsApi = {
     return request<RouteWaypointsResponse>(`/corporate/trips/routes/${routeId}/waypoints`);
   },
 
-  getRequirements: async (status?: string): Promise<RequirementListItem[]> => {
-    const query = status && status !== 'ALL' ? `?status=${encodeURIComponent(status)}` : '';
-    const response = await request<ApiList<RequirementApiItem>>(`/requirements${query}`);
-    const items = Array.isArray(response) ? response : response?.items;
-    if (!Array.isArray(items)) return [];
-
-    return items.map((requirement) => ({
-      id: requirement.id,
-      vendorName: requirement.vendorName || requirement.vendor?.organizationName || 'Corporate Client',
-      fulfillmentMode: requirement.fulfillmentMode,
-      vehicleType: requirement.vehicleType,
-      quantity: requirement.quantity,
-      assignedQuantity: requirement.assignedQuantity ?? 0,
-      pickupAddress: requirement.pickupAddress || requirement.pickupLocation?.address || 'Pickup Location',
-      dropAddress: requirement.dropAddress || requirement.dropLocation?.address || 'Drop Location',
-      reportingTime: requirement.reportingTime,
-      status: requirement.status,
-      vendorRate: requirement.ratePerVehicle ?? requirement.vendorRate ?? requirement.suggestedBudget ?? 0,
-      ratePerVehicle: requirement.ratePerVehicle ?? requirement.vendorRate ?? requirement.suggestedBudget ?? 0,
-      suggestedBudget: requirement.suggestedBudget,
-      zonalQuote: requirement.zonalQuote,
-      createdAt: requirement.createdAt,
-    }));
-  },
-
   getAssignments: async (params: { status?: string; search?: string; limit?: number; page?: number } = {}): Promise<AssignmentItem[]> => {
     const query = new URLSearchParams();
     if (params.status && params.status !== 'ALL') query.set('status', params.status);
@@ -383,16 +374,6 @@ export const opsApi = {
     if (Array.isArray(response)) return response;
     return Array.isArray(response?.items) ? response.items : [];
   },
-
-  getTrips: async (status?: string): Promise<TripListItem[]> => {
-    const query = status && status !== 'ALL' ? `?status=${encodeURIComponent(status)}` : '';
-    const response = await request<ApiList<TripListItem>>(`/trips${query}`);
-    if (Array.isArray(response)) return response;
-    return Array.isArray(response?.items) ? response.items : [];
-  },
-
-  getTripEvents: (tripId: string): Promise<TripEvent[]> =>
-    request<TripEvent[]>(`/trips/${encodeURIComponent(tripId)}/events`),
 
   // ── Driver directory ──
   getDrivers: (params: {
@@ -584,14 +565,22 @@ export const opsApi = {
     tenantId: string;
     officeId: string;
     shiftDate: string;
-    shiftTime: string;
-    direction: 'LOGIN' | 'LOGOUT';
-    vehicleCategory?: string;
+    shiftTime?: string;
+    direction: 'LOGIN' | 'LOGOUT' | 'BOTH';
+    loginTime?: string;
+    logoutTime?: string;
+    vehicleCategory?: 'SEDAN' | 'SUV' | 'BOTH';
     maxCapacity?: number;
+    sedanCapacity?: number;
+    suvCapacity?: number;
     officeBufferMinutes?: number;
     maxRideTimeMinutes?: number;
-  }): Promise<{ createdRoutesCount: number; assignedPassengers: number; unassignedCount: number }> => {
-    return request(`/corporate/routes/optimize`, {
+    stopDwellMinutes?: number;
+    routingPreference?: 'TRAFFIC_UNAWARE' | 'TRAFFIC_AWARE' | 'TRAFFIC_AWARE_OPTIMAL';
+    avoidTolls?: boolean;
+    avoidHighways?: boolean;
+  }): Promise<ShiftOptimizationResponse> => {
+    return request<ShiftOptimizationResponse>(`/corporate/routes/optimize`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
@@ -606,8 +595,8 @@ export const opsApi = {
 
   planRoutesStream: async (
     formData: FormData,
-    onProgress: (evt: { stage: string; percent: number; message: string; plan?: RoutePlanningResult }) => void,
-  ): Promise<RoutePlanningResult> => {
+    onProgress: (evt: { stage: string; percent: number; message: string; direction?: 'LOGIN' | 'LOGOUT' }) => void,
+  ): Promise<RoutePlanningResponse> => {
     const baseUrl = getApiBaseUrl();
     const token = getStoredOpsToken();
     const controller = new AbortController();
@@ -675,7 +664,7 @@ export const opsApi = {
     const reader = res.body.getReader();
     const decoder = new TextDecoder('utf-8');
     let buffer = '';
-    let finalPlan: RoutePlanningResult | null = null;
+    let finalPlan: RoutePlanningResponse | null = null;
 
     while (true) {
       const { done, value } = await awaitWithTimeout(
@@ -699,6 +688,9 @@ export const opsApi = {
             onProgress(data);
             if (data.plan) {
               finalPlan = data.plan;
+            }
+            if (data.batch) {
+              finalPlan = data.batch as RoutePlanningBatchResult;
             }
             if (eventType === 'error') {
               throw new Error(data.message || 'Stream processing error');
@@ -724,7 +716,9 @@ export const opsApi = {
     shiftDate: string;
     shiftTime: string;
     direction: 'LOGIN' | 'LOGOUT';
-    vehicleCategory?: string;
+    vehicleCategory?: 'SEDAN' | 'SUV' | 'BOTH';
+    sedanCapacity?: number;
+    suvCapacity?: number;
     stopDwellMinutes?: number;
     plan: RoutePlanningResult;
   }): Promise<{ routesCreated: number; stopsCreated: number; routeIds?: string[]; employeesLinked?: number }> => {

@@ -3,6 +3,7 @@ import {
   ITravelTimeMatrixPort,
   MatrixPoint,
   TravelTimeSource,
+  TravelTimeMatrixOptions,
   combineSources,
 } from './travel-time-matrix.port';
 import { HaversineTravelTimeMatrix } from './haversine-travel-time-matrix';
@@ -58,6 +59,8 @@ export interface PlannerInput {
   nightShift?: boolean;
   /** Local-search passes. Default 3. */
   maxImprovementPasses?: number;
+  /** Routing controls applied by matrix providers that support them. */
+  routingOptions?: TravelTimeMatrixOptions;
 }
 
 export interface PlannedRoute {
@@ -195,9 +198,18 @@ class PlanRun {
         );
       }
     }
+    const travelTimeSource = combineSources(this.sources);
+    if (
+      this.input.routingOptions &&
+      (travelTimeSource === 'HAVERSINE' || travelTimeSource === 'MIXED')
+    ) {
+      this.warnings.push(
+        'Some route legs used haversine fallback; traffic and avoid-road routing modifiers were not applied to those legs.',
+      );
+    }
     return {
       routes,
-      travelTimeSource: combineSources(this.sources),
+      travelTimeSource,
       matrixElementsRequested: this.elements,
       warnings: this.warnings,
     };
@@ -622,6 +634,7 @@ class PlanRun {
             o.map((i) => this.pts[i]),
             d.map((j) => this.pts[j]),
             this.departure,
+            this.input.routingOptions,
           );
           this.sources.push(res.source);
           o.forEach((oi, a) =>
@@ -636,6 +649,7 @@ class PlanRun {
           );
         } catch (err: any) {
           this.sources.push('HAVERSINE');
+          this.warnings.push(`Travel-time matrix request failed; haversine estimates were used (${err.message})`);
           this.logger.warn(`Travel-time matrix port failed (${err.message}); using haversine estimates`);
         }
       }

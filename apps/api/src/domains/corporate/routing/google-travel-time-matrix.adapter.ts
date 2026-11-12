@@ -5,17 +5,22 @@ import {
   MatrixPoint,
   TravelTimeMatrix,
   TravelTimeSource,
+  TravelTimeMatrixOptions,
   combineSources,
 } from './travel-time-matrix.port';
 import { HaversineTravelTimeMatrix } from './haversine-travel-time-matrix';
 
 /** Subset of GoogleMapsService used by the adapter (kept narrow for testing). */
+/** Google Routes API element limit for TRAFFIC_AWARE_OPTIMAL computeRouteMatrix requests. */
+export const OPTIMAL_MAX_ELEMENTS_PER_REQUEST = 100;
+
 export interface RouteMatrixClient {
   isRouteMatrixAvailable(): boolean;
   computeRouteMatrixElements(
     origins: MatrixPoint[],
     destinations: MatrixPoint[],
     departureTime?: Date,
+    options?: TravelTimeMatrixOptions,
   ): Promise<
     { originIndex?: number; destinationIndex?: number; duration?: string; distanceMeters?: number; condition?: string }[]
   >;
@@ -157,8 +162,8 @@ export class GoogleTravelTimeMatrixAdapter implements ITravelTimeMatrixPort {
     return `${dayType}${String(Math.floor(b / 60)).padStart(2, '0')}${String(b % 60).padStart(2, '0')}`;
   }
 
-  cacheKey(oCell: string, dCell: string, bucket: string): string {
-    return `corp:ttm:v1:r${this.res}:${bucket}:${oCell}:${dCell}`;
+  cacheKey(oCell: string, dCell: string, bucket: string, optionsKey = 'TRAFFIC_AWARE:t0:h0'): string {
+    return `corp:ttm:v2:r${this.res}:${bucket}:${optionsKey}:${oCell}:${dCell}`;
   }
 
   /**
@@ -177,8 +182,15 @@ export class GoogleTravelTimeMatrixAdapter implements ITravelTimeMatrixPort {
     origins: MatrixPoint[],
     destinations: MatrixPoint[],
     departureTime: Date,
+    options: TravelTimeMatrixOptions = {},
   ): Promise<TravelTimeMatrix> {
+    const routingOptions: Required<TravelTimeMatrixOptions> = {
+      routingPreference: options.routingPreference ?? 'TRAFFIC_AWARE',
+      avoidTolls: options.avoidTolls ?? false,
+      avoidHighways: options.avoidHighways ?? false,
+    };
     const bucket = this.timeBucket(departureTime);
+    const optionsKey = `${routingOptions.routingPreference}:t${Number(routingOptions.avoidTolls)}:h${Number(routingOptions.avoidHighways)}`;
     const oCells = origins.map((p) => h3.latLngToCell(Number(p.latitude), Number(p.longitude), this.res));
     const dCells = destinations.map((p) => h3.latLngToCell(Number(p.latitude), Number(p.longitude), this.res));
 
@@ -204,7 +216,7 @@ export class GoogleTravelTimeMatrixAdapter implements ITravelTimeMatrixPort {
         cached = await this.cache.mget(
           pairKeys.map((k) => {
             const [oc, dc] = k.split('|');
-            return this.cacheKey(oc, dc, bucket);
+            return this.cacheKey(oc, dc, bucket, optionsKey);
           }),
         );
       } catch (err: any) {
@@ -225,12 +237,12 @@ export class GoogleTravelTimeMatrixAdapter implements ITravelTimeMatrixPort {
 
     // 2. Fetch misses from Google in chunked rectangles
     if (misses.length > 0 && this.client.isRouteMatrixAvailable()) {
-      const fetched = await this.fetchFromGoogle(misses, this.effectiveDeparture(departureTime));
+      const fetched = await this.fetchFromGoogle(misses, this.effectiveDeparture(departureTime), routingOptions);
       const toCache: [string, string][] = [];
       for (const [k, v] of fetched) {
         pairValues.set(k, v);
         const [oc, dc] = k.split('|');
-        toCache.push([this.cacheKey(oc, dc, bucket), `${v.durationSec},${v.distanceMeters}`]);
+        toCache.push([this.cacheKey(oc, dc, bucket, optionsKey), `${v.durationSec},${v.distanceMeters}`]);
       }
       if (this.cache && toCache.length > 0) {
         try {
@@ -271,14 +283,25 @@ export class GoogleTravelTimeMatrixAdapter implements ITravelTimeMatrixPort {
     return { durationSec, distanceMeters, source: combineSources(sources) };
   }
 
-  private async fetchFromGoogle(missKeys: string[], departure: Date): Promise<Map<string, CellValue>> {
+  private async fetchFromGoogle(
+    missKeys: string[],
+    departure: Date,
+    options: TravelTimeMatrixOptions,
+  ): Promise<Map<string, CellValue>> {
     const out = new Map<string, CellValue>();
     const missSet = new Set(missKeys);
     const oUnique = [...new Set(missKeys.map((k) => k.split('|')[0]))].sort();
     const dUnique = [...new Set(missKeys.map((k) => k.split('|')[1]))].sort();
 
-    const oChunk = Math.max(1, Math.min(this.maxO, this.maxEl));
-    const dChunk = Math.max(1, Math.min(this.maxD, Math.floor(this.maxEl / oChunk)));
+    // Google caps TRAFFIC_AWARE_OPTIMAL route matrices at 100 elements per request (625 otherwise);
+    // larger chunks are rejected and would silently degrade every leg to haversine.
+    const isOptimal = options.routingPreference === 'TRAFFIC_AWARE_OPTIMAL';
+    const maxElements = isOptimal ? Math.min(this.maxEl, OPTIMAL_MAX_ELEMENTS_PER_REQUEST) : this.maxEl;
+    const oChunk = Math.max(
+      1,
+      Math.min(this.maxO, maxElements, isOptimal ? Math.floor(Math.sqrt(maxElements)) : Number.POSITIVE_INFINITY),
+    );
+    const dChunk = Math.max(1, Math.min(this.maxD, Math.floor(maxElements / oChunk)));
 
     const tasks: { oc: string[]; dc: string[] }[] = [];
     for (let i = 0; i < oUnique.length; i += oChunk) {
@@ -307,6 +330,7 @@ export class GoogleTravelTimeMatrixAdapter implements ITravelTimeMatrixPort {
             task.oc.map(centroid),
             task.dc.map(centroid),
             departure,
+            options,
           );
           for (const el of elements) {
             if (el?.condition && el.condition !== 'ROUTE_EXISTS') continue;
