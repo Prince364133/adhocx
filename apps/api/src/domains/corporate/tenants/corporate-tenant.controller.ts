@@ -16,6 +16,7 @@ import { CorporateTenantService } from './corporate-tenant.service';
 import {
   CreateCorporateTenantDto,
   UpdateCorporateTenantDto,
+  UpdateCorporateTenantProfileDto,
   CreateCorporateOfficeDto,
   CreateCorporateEmployeeDto,
   UpdateCorporateEmployeeDto,
@@ -105,6 +106,20 @@ export class CorporateTenantController {
     @Req() req: any,
   ) {
     return this.tenantService.updateTenant(id, dto, req.user?.id);
+  }
+
+  @Patch(':id/profile')
+  @Roles(...CORPORATE_PORTAL_ROLES)
+  @CorporateResource('tenant', 'id')
+  @CorporatePermission('tenant:write')
+  @ApiOperation({ summary: 'Update the current corporate tenant profile' })
+  @ApiResponse({ status: 200, description: 'Corporate profile updated successfully' })
+  public async updateTenantProfile(
+    @Param('id') id: string,
+    @Body() dto: UpdateCorporateTenantProfileDto,
+    @Req() req: any,
+  ) {
+    return this.tenantService.updateTenantProfile(id, dto, req.user?.id);
   }
 
   // ---------------------------------------------------------------------------

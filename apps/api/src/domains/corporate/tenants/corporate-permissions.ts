@@ -30,6 +30,7 @@ export function userRoleForCorporateRole(role: CorporateRole): UserRole {
 
 export const CORPORATE_PERMISSIONS = [
   'tenant:read',
+  'tenant:write',
   'offices:read',
   'offices:write',
   'employees:read',

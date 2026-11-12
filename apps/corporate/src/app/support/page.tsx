@@ -17,6 +17,7 @@ import {
 import { employeeApi, supportApi } from '../../lib/api/corporate';
 import type { Employee, SupportTicket } from '../../lib/api/types';
 import { useSession } from '../../lib/auth/SessionContext';
+import styles from './SupportTicketModal.module.css';
 
 const CATEGORIES = [
   ['TECHNICAL_ISSUE', 'Technical Issue'],
@@ -103,6 +104,7 @@ export default function SupportOverviewPage() {
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<SupportTicket | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [createClosing, setCreateClosing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -154,6 +156,20 @@ export default function SupportOverviewPage() {
     setPreviews(urls);
     return () => urls.forEach((url) => URL.revokeObjectURL(url));
   }, [files]);
+
+  useEffect(() => {
+    if (!showCreate) return;
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !saving) setCreateClosing(true);
+    };
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showCreate, saving]);
 
   const counts = useMemo(() => ({
     total: summary?.total ?? tickets.length,
@@ -213,6 +229,10 @@ export default function SupportOverviewPage() {
     }
   };
 
+  const closeCreateTicket = () => {
+    if (!saving) setCreateClosing(true);
+  };
+
   const submitTicket = async (event: React.FormEvent) => {
     event.preventDefault();
     if (title.trim().length === 0 || description.trim().length === 0) return;
@@ -234,7 +254,7 @@ export default function SupportOverviewPage() {
         description: description.trim(),
       }, files);
       setNotice({ kind: 'success', message: 'Your support ticket was created.' });
-      setShowCreate(false);
+      setCreateClosing(true);
       setTitle('');
       setDescription('');
       setFiles([]);
@@ -293,7 +313,7 @@ export default function SupportOverviewPage() {
           <h1 style={{ margin: 0, fontSize: 25, letterSpacing: '-0.03em', color: 'var(--text-primary)', fontWeight: 700 }}>Support</h1>
           <p style={{ margin: '6px 0 0', color: 'var(--text-muted)', fontSize: 13 }}>Raise a request and track updates from your support team.</p>
         </div>
-        <button type="button" onClick={() => setShowCreate(true)} style={{
+        <button type="button" onClick={() => { setCreateClosing(false); setShowCreate(true); }} style={{
           display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: 40, padding: '0 15px',
           border: 0, borderRadius: 8, background: '#5d3ab6', color: '#fff', fontSize: 13, fontWeight: 650, cursor: 'pointer',
         }}>
@@ -388,29 +408,53 @@ export default function SupportOverviewPage() {
       </section>
 
       {showCreate && (
-        <div role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) setShowCreate(false); }} style={overlayStyle}>
-          <section role="dialog" aria-modal="true" aria-labelledby="create-ticket-title" style={drawerStyle}>
-            <div style={drawerHeaderStyle}><div><div style={eyebrowStyle}>SUPPORT REQUEST</div><h2 id="create-ticket-title" style={drawerTitleStyle}>Raise a Ticket</h2><p style={drawerSubtitleStyle}>Tell us what you need help with.</p></div><button type="button" aria-label="Close" disabled={saving} onClick={() => setShowCreate(false)} style={iconButton}><X size={18} /></button></div>
-            <form onSubmit={submitTicket} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-              <div style={{ padding: 22, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
-                {!isEmployee && <label><span style={labelStyle}>Employee <b style={{ color: '#b5473c' }}>*</b></span><select required value={employeeId} onChange={(event) => setEmployeeId(event.target.value)} style={controlStyle}><option value="">Select an employee</option>{employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.fullName} · {employee.employeeCode}</option>)}</select>{employeeLoadError && <p role="alert" style={validationStyle}>{employeeLoadError}</p>}</label>}
-                <label><span style={labelStyle}>Ticket title <b style={{ color: '#b5473c' }}>*</b></span><input required maxLength={200} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Briefly describe the issue" style={controlStyle} /><span style={counterStyle}>{title.length}/200</span></label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                  <label><span style={labelStyle}>Category</span><select value={category} onChange={(event) => setCategory(event.target.value)} style={controlStyle}>{CATEGORIES.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</select></label>
-                  <label><span style={labelStyle}>Priority</span><select value={priority} onChange={(event) => setPriority(event.target.value)} style={controlStyle}>{PRIORITIES.map((value) => <option key={value} value={value}>{pretty(value)}</option>)}</select></label>
+        <div role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeCreateTicket(); }} className={`${styles.overlay} ${createClosing ? styles.overlayClosing : ''}`}>
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-ticket-title"
+            className={`${styles.drawer} ${createClosing ? styles.drawerClosing : ''}`}
+            onAnimationEnd={(event) => {
+              if (event.target === event.currentTarget && createClosing) {
+                setShowCreate(false);
+                setCreateClosing(false);
+              }
+            }}
+          >
+            <header className={styles.header}>
+              <div>
+                <div className={styles.eyebrow}>SUPPORT REQUEST</div>
+                <h2 id="create-ticket-title" className={styles.title}>Raise a Ticket</h2>
+                <p className={styles.subtitle}>Tell us what you need help with.</p>
+              </div>
+              <button type="button" aria-label="Close" disabled={saving} onClick={closeCreateTicket} className={styles.closeButton}><X size={20} /></button>
+            </header>
+            <form onSubmit={submitTicket} className={styles.form}>
+              <div className={styles.formBody}>
+                {!isEmployee && <label className={styles.field}><span style={labelStyle}>Employee <b className={styles.required}>*</b></span><select required value={employeeId} onChange={(event) => setEmployeeId(event.target.value)} className={styles.control}><option value="">Select an employee</option>{employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.fullName} · {employee.employeeCode}</option>)}</select>{employeeLoadError && <p role="alert" className={styles.validation}>{employeeLoadError}</p>}</label>}
+                <label className={styles.field}><span style={labelStyle}>Ticket title <b className={styles.required}>*</b></span><input required maxLength={200} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Briefly describe the issue" className={styles.control} /><span className={styles.counter}>{title.length}/200</span></label>
+                <div className={styles.fieldGrid}>
+                  <label className={styles.field}><span style={labelStyle}>Category</span><select value={category} onChange={(event) => setCategory(event.target.value)} className={styles.control}>{CATEGORIES.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</select></label>
+                  <label className={styles.field}><span style={labelStyle}>Priority</span><select value={priority} onChange={(event) => setPriority(event.target.value)} className={styles.control}>{PRIORITIES.map((value) => <option key={value} value={value}>{pretty(value)}</option>)}</select></label>
                 </div>
-                <label><span style={labelStyle}>Description <b style={{ color: '#b5473c' }}>*</b></span><textarea required maxLength={10000} rows={6} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Add relevant details so our team can help you faster." style={{ ...controlStyle, resize: 'vertical', minHeight: 130 }} /><span style={counterStyle}>{description.length}/10,000</span></label>
-                <div>
+                <label className={styles.field}><span style={labelStyle}>Description <b className={styles.required}>*</b></span><textarea required maxLength={10000} rows={6} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Add relevant details so our team can help you faster." className={`${styles.control} ${styles.description}`} /><span className={styles.counter}>{description.length}/10,000</span></label>
+                <div className={styles.attachments}>
                   <span style={labelStyle}>Images or screenshots <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(up to 5, 5 MB each)</span></span>
-                  <label onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); acceptFiles(event.dataTransfer.files, 'create'); }} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, minHeight: 78, border: '1px dashed #b6aec9', borderRadius: 8, color: '#6041a8', background: 'rgba(95, 62, 177, .03)', cursor: 'pointer', fontSize: 12 }}>
+                  <input id="create-ticket-images" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" multiple className={styles.fileInput} onChange={(event) => { acceptFiles(event.target.files, 'create'); event.target.value = ''; }} />
+                  <label htmlFor="create-ticket-images" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); acceptFiles(event.dataTransfer.files, 'create'); }} className={styles.dropzone}>
                     <Paperclip size={16} /> Choose or drop images
-                    <input type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" multiple hidden onChange={(event) => { acceptFiles(event.target.files, 'create'); event.target.value = ''; }} />
                   </label>
-                  {fileError && <p role="alert" style={validationStyle}>{fileError}</p>}
-                  {!!files.length && <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>{files.map((file, index) => <div key={`${file.name}-${index}`} style={{ position: 'relative' }}><img src={previews[index]} alt={file.name} style={{ width: 68, height: 58, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--border-color)' }} /><button type="button" aria-label={`Remove ${file.name}`} onClick={() => setFiles((items) => items.filter((_, itemIndex) => itemIndex !== index))} style={{ ...iconButton, position: 'absolute', top: -7, right: -7, width: 22, height: 22, background: '#fff' }}><X size={12} /></button></div>)}</div>}
+                  {fileError && <p role="alert" className={styles.validation}>{fileError}</p>}
+                  <div className={styles.previewRow}>
+                    {files.map((file, index) => <div key={`${file.name}-${index}`} className={styles.previewItem}>
+                      <div className={styles.previewImageWrap}><img src={previews[index]} alt={file.name} className={styles.previewImage} /><button type="button" aria-label={`Remove ${file.name}`} onClick={() => setFiles((items) => items.filter((_, itemIndex) => itemIndex !== index))} className={styles.removeFile}><X size={12} /></button></div>
+                      <span className={styles.fileName} title={file.name}>{file.name}</span>
+                    </div>)}
+                    {files.length < 5 && <label htmlFor="create-ticket-images" className={styles.addImage} aria-label="Add another image"><Plus size={18} /></label>}
+                  </div>
                 </div>
               </div>
-              <div style={drawerFooterStyle}><button type="button" disabled={saving} onClick={() => setShowCreate(false)} style={secondaryButton}>Cancel</button><button type="submit" disabled={saving || !!fileError} style={primaryButton}>{saving ? 'Submitting…' : 'Submit Ticket'}</button></div>
+              <footer className={styles.footer}><button type="button" disabled={saving} onClick={closeCreateTicket} className={styles.cancelButton}>Cancel</button><button type="submit" disabled={saving || !!fileError} className={styles.submitButton}>{saving ? 'Submitting…' : 'Submit Ticket'}</button></footer>
             </form>
           </section>
         </div>
@@ -461,12 +505,9 @@ const overlayStyle: React.CSSProperties = { position: 'fixed', inset: 0, zIndex:
 const drawerStyle: React.CSSProperties = { width: 'min(560px, 100vw)', height: '100%', background: 'var(--bg-surface)', boxShadow: '-12px 0 32px rgba(20, 24, 40, .12)', display: 'flex', flexDirection: 'column' };
 const drawerHeaderStyle: React.CSSProperties = { padding: '22px 22px 18px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', gap: 16, flexShrink: 0 };
 const drawerTitleStyle: React.CSSProperties = { margin: '4px 0 0', color: 'var(--text-primary)', fontSize: 20, fontWeight: 700 };
-const drawerSubtitleStyle: React.CSSProperties = { margin: '5px 0 0', color: 'var(--text-muted)', fontSize: 12 };
-const drawerFooterStyle: React.CSSProperties = { padding: '14px 22px', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', gap: 9, flexShrink: 0 };
 const eyebrowStyle: React.CSSProperties = { color: '#6242ae', fontWeight: 700, fontSize: 10, letterSpacing: '.08em' };
 const iconButton: React.CSSProperties = { display: 'inline-flex', justifyContent: 'center', alignItems: 'center', width: 32, height: 32, padding: 0, border: '1px solid var(--border-color)', borderRadius: 7, background: 'var(--bg-surface)', color: 'var(--text-secondary)', cursor: 'pointer' };
 const secondaryButton: React.CSSProperties = { minHeight: 36, padding: '0 12px', border: '1px solid var(--border-color)', borderRadius: 7, background: 'var(--bg-surface)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600, cursor: 'pointer' };
 const primaryButton: React.CSSProperties = { minHeight: 36, padding: '0 13px', border: 0, borderRadius: 7, background: '#5d3ab6', color: '#fff', fontSize: 12, fontWeight: 650, cursor: 'pointer' };
-const counterStyle: React.CSSProperties = { display: 'block', textAlign: 'right', color: 'var(--text-muted)', fontSize: 10, marginTop: 4 };
 const validationStyle: React.CSSProperties = { color: '#a0342b', fontSize: 11, margin: '6px 0 0' };
 const sectionTitleStyle: React.CSSProperties = { margin: '0 0 10px', color: 'var(--text-primary)', fontSize: 13, fontWeight: 700 };

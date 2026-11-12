@@ -9,7 +9,12 @@ export type GpsState = 'LIVE' | 'STALE' | 'OFFLINE';
 
 export interface Paginated<T> {
   items: T[];
-  pagination: { total: number; page: number; limit: number; totalPages: number };
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
 }
 
 export interface AuthUser {
@@ -58,9 +63,29 @@ export interface Tenant {
   name: string;
   legalEntityName?: string;
   gstin?: string | null;
+  industry?: string | null;
+  website?: string | null;
+  logoUrl?: string | null;
+  registeredAddress?: string | null;
+  city?: string | null;
+  state?: string | null;
+  pinCode?: string | null;
+  country?: string | null;
+  primaryContactName?: string | null;
+  primaryContactEmail?: string | null;
+  primaryContactPhone?: string | null;
+  cin?: string | null;
+  registeredBusinessAddress?: string | null;
+  billingAddress?: string | null;
+  billingSameAsRegistered?: boolean;
   status: string;
   offices?: Office[];
-  _count?: { employees: number; routes: number; rosters: number; invoices: number };
+  _count?: {
+    employees: number;
+    routes: number;
+    rosters: number;
+    invoices: number;
+  };
 }
 
 // ── Analytics ──────────────────────────────────────────────────────────────
@@ -80,7 +105,13 @@ export interface Dashboard {
   filter: AnalyticsFilterEcho;
   trips: { total: number; byStatus: Record<string, number> };
   employeesServed: number;
-  requests: { total: number; byStatus: Record<string, number>; cancelled: number; noShows: number; unserved: number };
+  requests: {
+    total: number;
+    byStatus: Record<string, number>;
+    cancelled: number;
+    noShows: number;
+    unserved: number;
+  };
   punctuality: {
     graceMinutes: number;
     boardedStops: number;
@@ -91,7 +122,12 @@ export interface Dashboard {
     onTimePct: number | null;
     avgDelayMinutes: number | null;
   };
-  seatUtilisation: { completedRoutes: number; assignedSeats: number; capacitySeats: number; pct: number | null };
+  seatUtilisation: {
+    completedRoutes: number;
+    assignedSeats: number;
+    capacitySeats: number;
+    pct: number | null;
+  };
   safety: { sosAlerts: number; byStatus: Record<string, number> };
 }
 
@@ -195,9 +231,12 @@ export interface CostCenter {
 }
 
 export interface Department {
-  id?: string;
-  code?: string;
+  id: string;
+  tenantId: string;
+  code: string;
   name: string;
+  isActive: boolean;
+  _count?: { employees: number };
 }
 
 export interface SafetyIncident {
@@ -347,8 +386,21 @@ export interface RouteListItem {
   plannedEndTime?: string | null;
   actualStartTime?: string | null;
   office?: { id: string; code: string; name: string };
-  driver?: { id: string; fullName: string | null; name?: string | null; phone: string | null; rating?: number | null } | null;
-  vehicle?: { id: string; registrationNumber: string; licensePlate?: string | null; model: string | null; vehicleType: string | null; capacity?: number | null } | null;
+  driver?: {
+    id: string;
+    fullName: string | null;
+    name?: string | null;
+    phone: string | null;
+    rating?: number | null;
+  } | null;
+  vehicle?: {
+    id: string;
+    registrationNumber: string;
+    licensePlate?: string | null;
+    model: string | null;
+    vehicleType: string | null;
+    capacity?: number | null;
+  } | null;
   stops?: RouteStop[];
   totalDistanceMeters?: number;
   _count?: { stops: number };
@@ -435,7 +487,11 @@ export interface SosAlert {
     direction: Direction;
     shiftDate: string;
     shiftTime: string;
-    driver?: { id: string; fullName: string | null; phone: string | null } | null;
+    driver?: {
+      id: string;
+      fullName: string | null;
+      phone: string | null;
+    } | null;
     office?: { id: string; name: string } | null;
   } | null;
 }
@@ -456,9 +512,27 @@ export interface SupportTicket {
   raisedByUserId?: string | null;
   employee?: { id: string; fullName: string; email: string } | null;
   tenant?: { id: string; name: string } | null;
-  comments?: Array<{ id: string; message: string; userId: string; visibility: 'PUBLIC' | 'INTERNAL'; createdAt: string }>;
-  activities?: Array<{ id: string; description: string; visibility: 'PUBLIC' | 'INTERNAL'; createdAt: string }>;
-  attachments?: Array<{ id: string; fileName: string; fileType: string; fileSize: number; url: string; createdAt: string }>;
+  comments?: Array<{
+    id: string;
+    message: string;
+    userId: string;
+    visibility: 'PUBLIC' | 'INTERNAL';
+    createdAt: string;
+  }>;
+  activities?: Array<{
+    id: string;
+    description: string;
+    visibility: 'PUBLIC' | 'INTERNAL';
+    createdAt: string;
+  }>;
+  attachments?: Array<{
+    id: string;
+    fileName: string;
+    fileType: string;
+    fileSize: number;
+    url: string;
+    createdAt: string;
+  }>;
   resolutionNotes: string | null;
   slaMinutes: number;
   resolvedAt: string | null;
