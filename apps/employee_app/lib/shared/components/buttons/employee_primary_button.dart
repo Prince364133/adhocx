@@ -4,7 +4,7 @@ import '../../../theme/app_colors.dart';
 import '../feedback/employee_press_scale.dart';
 
 /// Primary Brand Action Button for AdhocX.
-/// Uses the canonical AdhocX rounded-pill design with optional icon and loading spinner.
+/// Uses the AdhocX brand color with a compact corporate shape and loading state.
 class EmployeePrimaryButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
@@ -22,13 +22,13 @@ class EmployeePrimaryButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.isLoading = false,
-    this.height = 52,
+    this.height = 48,
     this.width,
     this.icon,
     this.backgroundColor,
     this.foregroundColor,
     this.gradient,
-    this.borderRadius = 26,
+    this.borderRadius = 12,
   });
 
   @override
@@ -43,20 +43,11 @@ class EmployeePrimaryButton extends StatelessWidget {
       child: EmployeePressScale(
         enabled: isEnabled,
         borderRadius: borderRadius,
-        shadowColor: effectiveBg,
+        shadowColor: Colors.transparent,
         child: DecoratedBox(
           decoration: BoxDecoration(
             gradient: (gradient != null && isEnabled) ? gradient : null,
             borderRadius: BorderRadius.circular(borderRadius),
-            boxShadow: isEnabled
-                ? [
-                    BoxShadow(
-                      color: effectiveBg.withValues(alpha: 0.22),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ]
-                : null,
           ),
           child: ElevatedButton(
             onPressed: isLoading ? null : onPressed,

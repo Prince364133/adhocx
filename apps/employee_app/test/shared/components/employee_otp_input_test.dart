@@ -54,6 +54,29 @@ void main() {
     }
   });
 
+  testWidgets('OTP cells fit within a compact mobile viewport', (tester) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: EmployeeOtpInput(onCompleted: _ignoreOtp),
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    final inputBounds = tester.getRect(find.byType(EmployeeOtpInput));
+    expect(inputBounds.left, greaterThanOrEqualTo(0));
+    expect(inputBounds.right, lessThanOrEqualTo(320));
+  });
+
   testWidgets('reduced motion disables the staggered entrance animation',
       (tester) async {
     await tester.pumpWidget(

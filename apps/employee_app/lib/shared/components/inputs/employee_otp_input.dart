@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -150,161 +151,171 @@ class _EmployeeOtpInputState extends State<EmployeeOtpInput> {
   Widget build(BuildContext context) {
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(widget.length, (index) {
-        final isFocused = _focusNodes[index].hasFocus;
-        final hasValue = _controllers[index].text.isNotEmpty;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final gap = math.min(
+          8.0,
+          math.max(
+            0.0,
+            (constraints.maxWidth - widget.length * 24) /
+                math.max(1, widget.length - 1),
+          ),
+        );
+        final cellSize = math.min(
+          widget.boxSize,
+          (constraints.maxWidth - gap * (widget.length - 1)) / widget.length,
+        );
 
-        Color borderColor = AppColors.border;
-        if (widget.hasError) {
-          borderColor = AppColors.error;
-        } else if (isFocused) {
-          borderColor = AppColors.primaryBlue;
-        } else if (hasValue) {
-          borderColor = AppColors.primaryBlueLight;
-        }
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: List.generate(widget.length, (index) {
+            final isFocused = _focusNodes[index].hasFocus;
+            final hasValue = _controllers[index].text.isNotEmpty;
 
-        final cell = SizedBox(
-          width: widget.boxSize,
-          height: widget.boxSize + 8,
-          child: KeyboardListener(
-            focusNode: _keyboardFocusNodes[index],
-            onKeyEvent: (event) {
-              if (event is KeyDownEvent &&
-                  event.logicalKey == LogicalKeyboardKey.backspace &&
-                  _controllers[index].text.isEmpty &&
-                  index > 0) {
-                _focusNodes[index - 1].requestFocus();
-                _controllers[index - 1].clear();
-              }
-            },
-            child: AnimatedContainer(
-              duration: reduceMotion
-                  ? Duration.zero
-                  : const Duration(milliseconds: 180),
-              curve: Curves.easeOutCubic,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: isFocused
-                    ? [
-                        BoxShadow(
-                          color: AppColors.primaryBlue.withValues(alpha: 0.1),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ]
-                    : null,
-              ),
-              child: Stack(
-                alignment: Alignment.center,
-                clipBehavior: Clip.none,
-                children: [
-                  if (_digitRippleVersions[index] > 0 && !reduceMotion)
-                    TweenAnimationBuilder<double>(
-                      key: ValueKey(
-                          'otp-ripple-$index-${_digitRippleVersions[index]}'),
-                      tween: Tween<double>(begin: 0, end: 1),
-                      duration: const Duration(milliseconds: 260),
-                      curve: Curves.easeOutCubic,
-                      builder: (context, value, child) => Opacity(
-                        opacity: (1 - value) * 0.32,
-                        child: Transform.scale(
-                          scale: 0.72 + (0.78 * value),
-                          child: child,
-                        ),
-                      ),
-                      child: Container(
-                        width: widget.boxSize,
-                        height: widget.boxSize,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: AppColors.primaryBlue,
-                            width: 1.2,
+            Color borderColor = AppColors.border;
+            if (widget.hasError) {
+              borderColor = AppColors.error;
+            } else if (isFocused) {
+              borderColor = AppColors.primaryBlue;
+            } else if (hasValue) {
+              borderColor = AppColors.primaryBlueLight;
+            }
+
+            final cell = SizedBox(
+              width: cellSize,
+              height: cellSize + 8,
+              child: KeyboardListener(
+                focusNode: _keyboardFocusNodes[index],
+                onKeyEvent: (event) {
+                  if (event is KeyDownEvent &&
+                      event.logicalKey == LogicalKeyboardKey.backspace &&
+                      _controllers[index].text.isEmpty &&
+                      index > 0) {
+                    _focusNodes[index - 1].requestFocus();
+                    _controllers[index - 1].clear();
+                  }
+                },
+                child: AnimatedContainer(
+                  duration: reduceMotion
+                      ? Duration.zero
+                      : const Duration(milliseconds: 180),
+                  curve: Curves.easeOutCubic,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: isFocused
+                        ? [
+                            BoxShadow(
+                              color:
+                                  AppColors.primaryBlue.withValues(alpha: 0.1),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    clipBehavior: Clip.none,
+                    children: [
+                      if (_digitRippleVersions[index] > 0 && !reduceMotion)
+                        TweenAnimationBuilder<double>(
+                          key: ValueKey(
+                              'otp-ripple-$index-${_digitRippleVersions[index]}'),
+                          tween: Tween<double>(begin: 0, end: 1),
+                          duration: const Duration(milliseconds: 260),
+                          curve: Curves.easeOutCubic,
+                          builder: (context, value, child) => Opacity(
+                            opacity: (1 - value) * 0.32,
+                            child: Transform.scale(
+                              scale: 0.72 + (0.78 * value),
+                              child: child,
+                            ),
+                          ),
+                          child: Container(
+                            width: cellSize,
+                            height: cellSize,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: AppColors.primaryBlue,
+                                width: 1.2,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                  AnimatedScale(
-                    scale: _digitScales[index],
-                    duration: reduceMotion
-                        ? Duration.zero
-                        : const Duration(milliseconds: 145),
-                    curve: Curves.easeOutBack,
-                    child: TextField(
-                      controller: _controllers[index],
-                      focusNode: _focusNodes[index],
-                      keyboardType: TextInputType.number,
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.inter(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: widget.hasError
-                            ? AppColors.error
-                            : AppColors.textPrimary,
-                      ),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                      ],
-                      decoration: InputDecoration(
-                        counterText: '',
-                        contentPadding: EdgeInsets.zero,
-                        filled: true,
-                        fillColor: isFocused
-                            ? AppColors.primaryBlueSoft
-                            : (widget.hasError
-                                ? AppColors.errorLight
-                                : Colors.white),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide:
-                              BorderSide(color: borderColor, width: 1.5),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
+                      AnimatedScale(
+                        scale: _digitScales[index],
+                        duration: reduceMotion
+                            ? Duration.zero
+                            : const Duration(milliseconds: 145),
+                        curve: Curves.easeOutBack,
+                        child: TextField(
+                          controller: _controllers[index],
+                          focusNode: _focusNodes[index],
+                          keyboardType: TextInputType.number,
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.inter(
+                            fontSize: math.min(20, cellSize * 0.52),
+                            fontWeight: FontWeight.w700,
                             color: widget.hasError
                                 ? AppColors.error
-                                : AppColors.primaryBlue,
-                            width: 2,
+                                : AppColors.textPrimary,
                           ),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
+                          decoration: InputDecoration(
+                            counterText: '',
+                            contentPadding: EdgeInsets.zero,
+                            filled: true,
+                            fillColor: isFocused
+                                ? AppColors.primaryBlueSoft
+                                : (widget.hasError
+                                    ? AppColors.errorLight
+                                    : Colors.white),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide:
+                                  BorderSide(color: borderColor, width: 1.5),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: widget.hasError
+                                    ? AppColors.error
+                                    : AppColors.primaryBlue,
+                                width: 2,
+                              ),
+                            ),
+                          ),
+                          onChanged: (val) => _onChanged(val, index),
                         ),
                       ),
-                      onChanged: (val) => _onChanged(val, index),
-                    ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
-        );
+            );
 
-        if (reduceMotion) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: cell,
-          );
-        }
+            if (reduceMotion) return cell;
 
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: TweenAnimationBuilder<double>(
-            key: ValueKey('otp-cell-$index'),
-            tween: Tween(begin: 0, end: 1),
-            duration: Duration(milliseconds: 280 + index * 45),
-            curve: Curves.easeOutCubic,
-            builder: (context, value, child) => Opacity(
-              opacity: value,
-              child: Transform.translate(
-                offset: Offset(0, 8 * (1 - value)),
-                child: child,
+            return TweenAnimationBuilder<double>(
+              key: ValueKey('otp-cell-$index'),
+              tween: Tween(begin: 0, end: 1),
+              duration: Duration(milliseconds: 280 + index * 45),
+              curve: Curves.easeOutCubic,
+              builder: (context, value, child) => Opacity(
+                opacity: value,
+                child: Transform.translate(
+                  offset: Offset(0, 8 * (1 - value)),
+                  child: child,
+                ),
               ),
-            ),
-            child: cell,
-          ),
+              child: cell,
+            );
+          }),
         );
-      }),
+      },
     );
   }
 }

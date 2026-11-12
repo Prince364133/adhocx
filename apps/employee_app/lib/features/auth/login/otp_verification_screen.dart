@@ -123,156 +123,182 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       backgroundColor: AppColors.surface,
       appBar: const EmployeeAppBar(),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Verify OTP',
-                style: GoogleFonts.inter(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                  letterSpacing: -0.4,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Enter the 6-digit code sent to\n$phone',
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w400,
-                  color: AppColors.textSecondary,
-                  height: 1.45,
-                ),
-              ),
-              const SizedBox(height: 36),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxHeight < 600;
+            final horizontalPadding = constraints.maxWidth > 528
+                ? (constraints.maxWidth - 480) / 2
+                : constraints.maxWidth < 360
+                    ? 16.0
+                    : 24.0;
 
-              // 6-digit OTP boxes
-              EmployeeOtpInput(
-                length: 6,
-                hasError: _hasError,
-                onChanged: (val) {
-                  setState(() {
-                    _otpCode = val;
-                    if (_hasError) {
-                      _hasError = false;
-                      _errorMessage = null;
-                    }
-                  });
-                },
-                onCompleted: (val) {
-                  _otpCode = val;
-                  _handleVerify();
-                },
+            return ListView(
+              padding: EdgeInsets.fromLTRB(
+                horizontalPadding,
+                compact ? 8 : 20,
+                horizontalPadding,
+                16,
               ),
+              children: [
+                Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 480),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Verify OTP',
+                          style: GoogleFonts.inter(
+                            fontSize: compact ? 22 : 24,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textPrimary,
+                            letterSpacing: -0.4,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Enter the 6-digit code sent to\n$phone',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                            color: AppColors.textSecondary,
+                            height: 1.45,
+                          ),
+                        ),
+                        SizedBox(height: compact ? 24 : 36),
 
-              const SizedBox(height: 16),
+                        // 6-digit OTP boxes
+                        EmployeeOtpInput(
+                          length: 6,
+                          hasError: _hasError,
+                          onChanged: (val) {
+                            setState(() {
+                              _otpCode = val;
+                              if (_hasError) {
+                                _hasError = false;
+                                _errorMessage = null;
+                              }
+                            });
+                          },
+                          onCompleted: (val) {
+                            _otpCode = val;
+                            _handleVerify();
+                          },
+                        ),
 
-              // Error banner if invalid (Screen 14)
-              AnimatedSize(
-                duration: reduceMotion
-                    ? Duration.zero
-                    : const Duration(milliseconds: 200),
-                curve: Curves.easeOutCubic,
-                child: AnimatedSwitcher(
-                  duration: reduceMotion
-                      ? Duration.zero
-                      : const Duration(milliseconds: 180),
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
-                  transitionBuilder: (child, animation) => FadeTransition(
-                    opacity: animation,
-                    child: SlideTransition(
-                      position: Tween<Offset>(
-                        begin: const Offset(0, -0.08),
-                        end: Offset.zero,
-                      ).animate(animation),
-                      child: child,
+                        const SizedBox(height: 16),
+
+                        // Error banner if invalid (Screen 14)
+                        AnimatedSize(
+                          duration: reduceMotion
+                              ? Duration.zero
+                              : const Duration(milliseconds: 200),
+                          curve: Curves.easeOutCubic,
+                          child: AnimatedSwitcher(
+                            duration: reduceMotion
+                                ? Duration.zero
+                                : const Duration(milliseconds: 180),
+                            switchInCurve: Curves.easeOutCubic,
+                            switchOutCurve: Curves.easeInCubic,
+                            transitionBuilder: (child, animation) =>
+                                FadeTransition(
+                              opacity: animation,
+                              child: SlideTransition(
+                                position: Tween<Offset>(
+                                  begin: const Offset(0, -0.08),
+                                  end: Offset.zero,
+                                ).animate(animation),
+                                child: child,
+                              ),
+                            ),
+                            child: _hasError && _errorMessage != null
+                                ? Padding(
+                                    key: ValueKey(_errorMessage),
+                                    padding: const EdgeInsets.only(bottom: 16),
+                                    child: Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.error_outline_rounded,
+                                          color: AppColors.error,
+                                          size: 16,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(
+                                            _errorMessage!,
+                                            style: GoogleFonts.inter(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w500,
+                                              color: AppColors.error,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                : const SizedBox.shrink(
+                                    key: ValueKey('otp-error-hidden'),
+                                  ),
+                          ),
+                        ),
+
+                        // Resend countdown or action link
+                        Center(
+                          child: AnimatedSwitcher(
+                            duration: reduceMotion
+                                ? Duration.zero
+                                : const Duration(milliseconds: 180),
+                            switchInCurve: Curves.easeOutCubic,
+                            switchOutCurve: Curves.easeInCubic,
+                            child: countdown > 0
+                                ? Text(
+                                    'Resend OTP in $countdownFormatted',
+                                    key: const ValueKey('otp-countdown'),
+                                    style: GoogleFonts.inter(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.primaryBlue,
+                                    ),
+                                  )
+                                : TextButton(
+                                    key: const ValueKey('otp-resend'),
+                                    onPressed:
+                                        authProvider.isLoading || _isResending
+                                            ? null
+                                            : _handleResend,
+                                    style: TextButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 8),
+                                    ),
+                                    child: Text(
+                                      'Resend OTP',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.primaryBlue,
+                                      ),
+                                    ),
+                                  ),
+                          ),
+                        ),
+
+                        SizedBox(height: compact ? 24 : 48),
+                        // "Verify & Continue" Pill Button
+                        EmployeePrimaryButton(
+                          label: 'Verify & Continue',
+                          isLoading: authProvider.isLoading,
+                          onPressed:
+                              _otpCode.length == 6 ? _handleVerify : null,
+                        ),
+
+                        const SizedBox(height: 16),
+                      ],
                     ),
                   ),
-                  child: _hasError && _errorMessage != null
-                      ? Padding(
-                          key: ValueKey(_errorMessage),
-                          padding: const EdgeInsets.only(bottom: 16),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.error_outline_rounded,
-                                color: AppColors.error,
-                                size: 16,
-                              ),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  _errorMessage!,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppColors.error,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                      : const SizedBox.shrink(
-                          key: ValueKey('otp-error-hidden'),
-                        ),
                 ),
-              ),
-
-              // Resend countdown or action link
-              Center(
-                child: AnimatedSwitcher(
-                  duration: reduceMotion
-                      ? Duration.zero
-                      : const Duration(milliseconds: 180),
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
-                  child: countdown > 0
-                      ? Text(
-                          'Resend OTP in $countdownFormatted',
-                          key: const ValueKey('otp-countdown'),
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.primaryBlue,
-                          ),
-                        )
-                      : TextButton(
-                          key: const ValueKey('otp-resend'),
-                          onPressed: authProvider.isLoading || _isResending
-                              ? null
-                              : _handleResend,
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 8),
-                          ),
-                          child: Text(
-                            'Resend OTP',
-                            style: GoogleFonts.inter(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.primaryBlue,
-                            ),
-                          ),
-                        ),
-                ),
-              ),
-
-              const Spacer(),
-              // "Verify & Continue" Pill Button
-              EmployeePrimaryButton(
-                label: 'Verify & Continue',
-                isLoading: authProvider.isLoading,
-                onPressed: _otpCode.length == 6 ? _handleVerify : null,
-              ),
-
-              const SizedBox(height: 16),
-            ],
-          ),
+              ],
+            );
+          },
         ),
       ),
     );

@@ -71,79 +71,90 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     return Scaffold(
       backgroundColor: AppColors.surface,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          child: Column(
-            children: [
-              const SizedBox(height: 12),
-              // Brand Logo at top
-              _animateIn(
-                _entrance(0, 0.55),
-                const EmployeeBrandLogo(
-                  fontSize: 32,
-                  logoTheme: LogoTheme.light,
-                ),
-              ),
-
-              const Spacer(),
-
-              // Modern City & Sedan Car Illustration
-              _animateIn(
-                _entrance(0.08, 0.72),
-                const WelcomeIllustration(height: 220),
-              ),
-
-              const SizedBox(height: 36),
-
-              // Headline & Description
-              _animateIn(
-                _entrance(0.18, 0.82),
-                Text(
-                  'Your Daily Office\nCommute, Simplified',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.inter(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
-                    height: 1.25,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 14),
-
-              _animateIn(
-                _entrance(0.26, 0.88),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Text(
-                    'Safe, reliable and organized transportation for your work journey.',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                      color: AppColors.textSecondary,
-                      height: 1.5,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxHeight < 700;
+            final illustrationHeight =
+                constraints.maxHeight < 620 ? 144.0 : 184.0;
+            return SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: IntrinsicHeight(
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 480),
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: compact ? 12 : 20,
+                        ),
+                        child: Column(
+                          children: [
+                            const SizedBox(height: 12),
+                            _animateIn(
+                              _entrance(0, 0.55),
+                              const EmployeeBrandLogo(
+                                fontSize: 30,
+                                logoTheme: LogoTheme.light,
+                              ),
+                            ),
+                            SizedBox(height: compact ? 24 : 36),
+                            _animateIn(
+                              _entrance(0.08, 0.72),
+                              WelcomeIllustration(height: illustrationHeight),
+                            ),
+                            SizedBox(height: compact ? 24 : 32),
+                            _animateIn(
+                              _entrance(0.18, 0.82),
+                              Text(
+                                'Your Daily Office\nCommute, Simplified',
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.inter(
+                                  fontSize: compact ? 24 : 26,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.textPrimary,
+                                  height: 1.25,
+                                  letterSpacing: -0.5,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            _animateIn(
+                              _entrance(0.26, 0.88),
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 16),
+                                child: Text(
+                                  'Safe, reliable and organized transportation for your work journey.',
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w400,
+                                    color: AppColors.textSecondary,
+                                    height: 1.5,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const Spacer(),
+                            _animateIn(
+                              _entrance(0.34, 1),
+                              EmployeePrimaryButton(
+                                label: 'Get Started  →',
+                                onPressed: () =>
+                                    context.push(AppRoutes.mobileNumber),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
-
-              const Spacer(),
-
-              // Primary CTA Pill Button
-              _animateIn(
-                _entrance(0.34, 1),
-                EmployeePrimaryButton(
-                  label: 'Get Started  →',
-                  onPressed: () => context.push(AppRoutes.mobileNumber),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );

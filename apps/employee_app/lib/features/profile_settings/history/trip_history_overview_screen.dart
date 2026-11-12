@@ -158,6 +158,7 @@ class _TripHistoryOverviewScreenState extends State<TripHistoryOverviewScreen> {
       status: status,
       isDrop: isDrop,
       onTap: () => context.push(AppRoutes.tripHistoryDetails),
+      enableAnimations: false,
     );
   }
 }

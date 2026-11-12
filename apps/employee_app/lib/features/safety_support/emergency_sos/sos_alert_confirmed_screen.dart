@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:adhocx_employee/services/mock_data_service.dart';
-import 'package:adhocx_employee/routes/app_routes.dart';
 
 /// Screen 3: SOS - Alert Confirmed
 class SosAlertConfirmedScreen extends StatefulWidget {
@@ -162,30 +160,6 @@ class _SosAlertConfirmedScreenState extends State<SosAlertConfirmedScreen> {
                     ),
 
                     const Spacer(),
-
-                    // Action: Simulate incoming call
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () => context.push(AppRoutes.safetyTeamCall),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF2563EB),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14)),
-                          elevation: 0,
-                        ),
-                        child: Text(
-                          'Stay on This Screen (Incoming Call)',
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
                   ],
                 ),
               ),

@@ -105,214 +105,243 @@ class _MobileNumberScreenState extends State<MobileNumberScreen> {
         },
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Enter Mobile Number',
-                      style: GoogleFonts.inter(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                        letterSpacing: -0.4,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      "We'll send a 6-digit SMS OTP to verify your Indian mobile number via MSG91.",
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        color: AppColors.textSecondary,
-                        height: 1.45,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxHeight < 650;
+            final horizontalPadding = constraints.maxWidth > 520
+                ? (constraints.maxWidth - 480) / 2
+                : 20.0;
+            final keyboardIsOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
 
-                    // Phone Input Field (+91 India)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: rawText.isNotEmpty
-                              ? AppColors.primaryBlue
-                              : AppColors.border,
-                          width: rawText.isNotEmpty ? 2.0 : 1.5,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Text('🇮🇳',
-                                  style: TextStyle(fontSize: 16)),
-                              const SizedBox(width: 5),
-                              Text(
-                                '+91',
-                                style: GoogleFonts.inter(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary,
+            return Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.fromLTRB(
+                      horizontalPadding,
+                      compact ? 4 : 8,
+                      horizontalPadding,
+                      12,
+                    ),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 480),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Enter Mobile Number',
+                              style: GoogleFonts.inter(
+                                fontSize: compact ? 22 : 24,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.textPrimary,
+                                letterSpacing: -0.4,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              "We'll send a 6-digit SMS OTP to verify your Indian mobile number via MSG91.",
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w400,
+                                color: AppColors.textSecondary,
+                                height: 1.45,
+                              ),
+                            ),
+                            SizedBox(height: compact ? 18 : 24),
+
+                            // Phone Input Field (+91 India)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: rawText.isNotEmpty
+                                      ? AppColors.primaryBlue
+                                      : AppColors.border,
+                                  width: rawText.isNotEmpty ? 2.0 : 1.5,
                                 ),
                               ),
-                              const SizedBox(width: 4),
-                              const Icon(
-                                Icons.keyboard_arrow_down_rounded,
-                                size: 18,
-                                color: AppColors.textMuted,
+                              child: Row(
+                                children: [
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Text('🇮🇳',
+                                          style: TextStyle(fontSize: 16)),
+                                      const SizedBox(width: 5),
+                                      Text(
+                                        '+91',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppColors.textPrimary,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      const Icon(
+                                        Icons.keyboard_arrow_down_rounded,
+                                        size: 18,
+                                        color: AppColors.textMuted,
+                                      ),
+                                    ],
+                                  ),
+                                  Container(
+                                    height: 24,
+                                    width: 1,
+                                    color: AppColors.border,
+                                    margin: const EdgeInsets.symmetric(
+                                        horizontal: 10),
+                                  ),
+                                  Expanded(
+                                    child: Theme(
+                                      data: Theme.of(context).copyWith(
+                                        inputDecorationTheme:
+                                            const InputDecorationTheme(
+                                          filled: false,
+                                          border: InputBorder.none,
+                                          enabledBorder: InputBorder.none,
+                                          focusedBorder: InputBorder.none,
+                                          disabledBorder: InputBorder.none,
+                                          errorBorder: InputBorder.none,
+                                          focusedErrorBorder: InputBorder.none,
+                                        ),
+                                      ),
+                                      child: TextField(
+                                        controller: _inputController,
+                                        keyboardType: TextInputType.phone,
+                                        inputFormatters: [
+                                          FilteringTextInputFormatter
+                                              .digitsOnly,
+                                          LengthLimitingTextInputFormatter(10),
+                                        ],
+                                        style: GoogleFonts.inter(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.textPrimary,
+                                          letterSpacing: 0.6,
+                                        ),
+                                        decoration: InputDecoration(
+                                          hintText: '98765 43210',
+                                          hintStyle: GoogleFonts.inter(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w400,
+                                            color: AppColors.textMuted,
+                                            letterSpacing: 0,
+                                          ),
+                                          filled: false,
+                                          border: InputBorder.none,
+                                          enabledBorder: InputBorder.none,
+                                          focusedBorder: InputBorder.none,
+                                          disabledBorder: InputBorder.none,
+                                          errorBorder: InputBorder.none,
+                                          focusedErrorBorder: InputBorder.none,
+                                          isDense: true,
+                                          contentPadding:
+                                              const EdgeInsets.symmetric(
+                                            vertical: 12,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  if (rawText.isNotEmpty)
+                                    GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          _inputController.clear();
+                                        });
+                                      },
+                                      child: const Icon(
+                                        Icons.cancel,
+                                        size: 18,
+                                        color: AppColors.textMuted,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+
+                            if (authProvider.errorMessage != null) ...[
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  const Icon(Icons.error_outline,
+                                      size: 16, color: AppColors.error),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      authProvider.errorMessage!,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 12,
+                                        color: AppColors.error,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
-                          ),
-                          Container(
-                            height: 24,
-                            width: 1,
-                            color: AppColors.border,
-                            margin: const EdgeInsets.symmetric(horizontal: 10),
-                          ),
-                          Expanded(
-                            child: Theme(
-                              data: Theme.of(context).copyWith(
-                                inputDecorationTheme:
-                                    const InputDecorationTheme(
-                                  filled: false,
-                                  border: InputBorder.none,
-                                  enabledBorder: InputBorder.none,
-                                  focusedBorder: InputBorder.none,
-                                  disabledBorder: InputBorder.none,
-                                  errorBorder: InputBorder.none,
-                                  focusedErrorBorder: InputBorder.none,
-                                ),
-                              ),
-                              child: TextField(
-                                controller: _inputController,
-                                keyboardType: TextInputType.phone,
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.digitsOnly,
-                                  LengthLimitingTextInputFormatter(10),
-                                ],
-                                style: GoogleFonts.inter(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textPrimary,
-                                  letterSpacing: 0.6,
-                                ),
-                                decoration: InputDecoration(
-                                  hintText: '98765 43210',
-                                  hintStyle: GoogleFonts.inter(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w400,
-                                    color: AppColors.textMuted,
-                                    letterSpacing: 0,
-                                  ),
-                                  filled: false,
-                                  border: InputBorder.none,
-                                  enabledBorder: InputBorder.none,
-                                  focusedBorder: InputBorder.none,
-                                  disabledBorder: InputBorder.none,
-                                  errorBorder: InputBorder.none,
-                                  focusedErrorBorder: InputBorder.none,
-                                  isDense: true,
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    vertical: 12,
-                                  ),
-                                ),
-                              ),
+
+                            SizedBox(height: compact ? 16 : 24),
+
+                            // "Send SMS OTP" Full-width Pill Button
+                            EmployeePrimaryButton(
+                              label: 'Send SMS OTP',
+                              isLoading: authProvider.isLoading,
+                              onPressed: isReady ? _handleSendOtp : null,
                             ),
-                          ),
-                          if (rawText.isNotEmpty)
-                            GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _inputController.clear();
-                                });
-                              },
-                              child: const Icon(
-                                Icons.cancel,
-                                size: 18,
-                                color: AppColors.textMuted,
-                              ),
-                            ),
-                        ],
+
+                            const SizedBox(height: 16),
+                          ],
+                        ),
                       ),
                     ),
-
-                    if (authProvider.errorMessage != null) ...[
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          const Icon(Icons.error_outline,
-                              size: 16, color: AppColors.error),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              authProvider.errorMessage!,
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                color: AppColors.error,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-
-                    const SizedBox(height: 24),
-
-                    // "Send SMS OTP" Full-width Pill Button
-                    EmployeePrimaryButton(
-                      label: 'Send SMS OTP',
-                      isLoading: authProvider.isLoading,
-                      onPressed: isReady ? _handleSendOtp : null,
-                    ),
-
-                    const SizedBox(height: 16),
-                  ],
+                  ),
                 ),
-              ),
-            ),
-
-            // In-app dialpad for convenient mobile number entry
-            _buildCustomNumericDialpad(),
-          ],
+                if (!keyboardIsOpen)
+                  _buildCustomNumericDialpad(compact: compact),
+              ],
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _buildCustomNumericDialpad() {
+  Widget _buildCustomNumericDialpad({required bool compact}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 20 : 24,
+        vertical: compact ? 8 : 12,
+      ),
       decoration: const BoxDecoration(
         color: AppColors.surfaceMuted,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildDialpadRow(['1', '2', '3']),
-          _buildDialpadRow(['4', '5', '6']),
-          _buildDialpadRow(['7', '8', '9']),
-          _buildDialpadRow(['', '0', 'backspace']),
-          const SizedBox(height: 8),
-        ],
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildDialpadRow(['1', '2', '3'], compact: compact),
+              _buildDialpadRow(['4', '5', '6'], compact: compact),
+              _buildDialpadRow(['7', '8', '9'], compact: compact),
+              _buildDialpadRow(['', '0', 'backspace'], compact: compact),
+              SizedBox(height: compact ? 4 : 8),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildDialpadRow(List<String> keys) {
+  Widget _buildDialpadRow(List<String> keys, {required bool compact}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: EdgeInsets.symmetric(vertical: compact ? 2 : 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: keys.map((key) {

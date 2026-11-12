@@ -16,6 +16,7 @@ class EmployeeTripCard extends StatelessWidget {
   final bool isDrop;
   final VoidCallback? onTap;
   final Widget? trailing;
+  final bool enableAnimations;
 
   const EmployeeTripCard({
     super.key,
@@ -27,13 +28,15 @@ class EmployeeTripCard extends StatelessWidget {
     this.isDrop = false,
     this.onTap,
     this.trailing,
+    this.enableAnimations = true,
   });
 
   @override
   Widget build(BuildContext context) {
     return EmployeeEntrance(
+      enabled: enableAnimations,
       child: EmployeePressScale(
-        enabled: onTap != null,
+        enabled: enableAnimations && onTap != null,
         child: Container(
           margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(

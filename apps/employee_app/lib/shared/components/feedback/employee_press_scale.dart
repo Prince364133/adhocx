@@ -13,8 +13,8 @@ class EmployeePressScale extends StatefulWidget {
     super.key,
     required this.child,
     this.enabled = true,
-    this.pressedScale = 0.94,
-    this.hoveredScale = 1.015,
+    this.pressedScale = 0.96,
+    this.hoveredScale = 1,
     this.borderRadius = 16,
     this.shadowColor = AppColors.primaryBlue,
   });
@@ -54,10 +54,10 @@ class _EmployeePressScaleState extends State<EmployeePressScale> {
             boxShadow: [
               BoxShadow(
                 color: widget.shadowColor.withValues(
-                  alpha: isPressed ? 0.38 : (isHovered ? 0.24 : 0),
+                  alpha: isPressed ? 0.08 : (isHovered ? 0.04 : 0),
                 ),
-                blurRadius: isPressed ? 18 : (isHovered ? 14 : 0),
-                offset: Offset(0, isPressed ? 7 : (isHovered ? 5 : 0)),
+                blurRadius: isPressed ? 8 : (isHovered ? 6 : 0),
+                offset: Offset(0, isPressed ? 2 : (isHovered ? 1 : 0)),
               ),
             ],
           ),

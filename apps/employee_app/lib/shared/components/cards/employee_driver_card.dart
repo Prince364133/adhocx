@@ -36,18 +36,11 @@ class EmployeeDriverCard extends StatelessWidget {
       delay: const Duration(milliseconds: 80),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(color: AppColors.border),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 3),
-            ),
-          ],
         ),
         child: Column(
           children: [
@@ -58,11 +51,11 @@ class EmployeeDriverCard extends StatelessWidget {
                   alignment: Alignment.bottomRight,
                   children: [
                     const CircleAvatar(
-                      radius: 26,
+                      radius: 22,
                       backgroundColor: AppColors.primaryBlueLight,
                       child: Icon(
                         Icons.person,
-                        size: 30,
+                        size: 26,
                         color: AppColors.primaryBlue,
                       ),
                     ),
@@ -77,7 +70,7 @@ class EmployeeDriverCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
 
                 // Name, Rating, Vehicle Model
                 Expanded(
@@ -86,6 +79,8 @@ class EmployeeDriverCard extends StatelessWidget {
                     children: [
                       Text(
                         name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.inter(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
@@ -121,6 +116,8 @@ class EmployeeDriverCard extends StatelessWidget {
                         const SizedBox(height: 3),
                         Text(
                           vehicleModel!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.inter(
                             fontSize: 12,
                             color: AppColors.textSecondary,
@@ -132,21 +129,26 @@ class EmployeeDriverCard extends StatelessWidget {
                 ),
 
                 // Vehicle Number Badge
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceMuted,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Text(
-                    vehicleNumber,
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
-                      letterSpacing: 0.5,
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 112),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceMuted,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Text(
+                      vehicleNumber,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                        letterSpacing: 0.3,
+                      ),
                     ),
                   ),
                 ),

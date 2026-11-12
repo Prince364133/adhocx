@@ -4,8 +4,8 @@ import '../../../theme/app_colors.dart';
 import '../feedback/employee_entrance.dart';
 import '../feedback/employee_press_scale.dart';
 
-/// Flagship Gradient Hero Trip Card for AdhocX Home and Active Trip screens.
-/// Displays next upcoming pickup or drop with high visual contrast and key actions.
+/// Compact trip summary card for AdhocX Home and Active Trip screens.
+/// Displays next upcoming pickup or drop with key actions.
 class EmployeeHeroTripCard extends StatelessWidget {
   final String title;
   final String date;
@@ -47,23 +47,17 @@ class EmployeeHeroTripCard extends StatelessWidget {
         enabled: onTap != null,
         child: Material(
           color: Colors.transparent,
-          borderRadius: BorderRadius.circular(22),
+          borderRadius: BorderRadius.circular(10),
           child: InkWell(
             onTap: onTap,
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(10),
             child: Ink(
               width: double.infinity,
-              padding: const EdgeInsets.all(22),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                gradient: AppColors.primaryGradient,
-                borderRadius: BorderRadius.circular(22),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primaryBlue.withValues(alpha: 0.24),
-                    blurRadius: 18,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.border, width: 1.2),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -76,15 +70,15 @@ class EmployeeHeroTripCard extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(12),
+                          color: AppColors.primaryBlueLight,
+                          borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
                           badgeText,
                           style: GoogleFonts.inter(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
-                            color: Colors.white,
+                            color: AppColors.primaryBlue,
                           ),
                         ),
                       ),
@@ -92,13 +86,13 @@ class EmployeeHeroTripCard extends StatelessWidget {
                         date,
                         style: GoogleFonts.inter(
                           fontSize: 12,
-                          color: Colors.white.withValues(alpha: 0.9),
+                          color: AppColors.textSecondary,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 12),
 
                   // Trip Title
                   Text(
@@ -106,10 +100,10 @@ class EmployeeHeroTripCard extends StatelessWidget {
                     style: GoogleFonts.inter(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
-                      color: Colors.white,
+                      color: AppColors.textPrimary,
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
 
                   // Time & Direction Icon
                   Row(
@@ -118,23 +112,23 @@ class EmployeeHeroTripCard extends StatelessWidget {
                         isDrop
                             ? Icons.business_rounded
                             : Icons.directions_car_filled_rounded,
-                        color: Colors.white,
-                        size: 24,
+                        color: AppColors.primaryBlue,
+                        size: 22,
                       ),
                       const SizedBox(width: 8),
                       Text(
                         isDrop ? 'Drop at ' : 'Pickup at ',
                         style: GoogleFonts.inter(
                           fontSize: 14,
-                          color: Colors.white.withValues(alpha: 0.85),
+                          color: AppColors.textSecondary,
                         ),
                       ),
                       Text(
                         time,
                         style: GoogleFonts.inter(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
                         ),
                       ),
                     ],
@@ -143,7 +137,7 @@ class EmployeeHeroTripCard extends StatelessWidget {
                   // Action Buttons Row
                   if (primaryActionLabel != null ||
                       secondaryActionLabel != null) ...[
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 14),
                     Row(
                       children: [
                         if (primaryActionLabel != null)
@@ -153,16 +147,16 @@ class EmployeeHeroTripCard extends StatelessWidget {
                               height: 44,
                               child: EmployeePressScale(
                                 enabled: onPrimaryAction != null,
-                                borderRadius: 22,
-                                shadowColor: Colors.white,
+                                borderRadius: 10,
+                                shadowColor: AppColors.primaryBlue,
                                 child: ElevatedButton(
                                   onPressed: onPrimaryAction,
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.white,
-                                    foregroundColor: AppColors.primaryBlueDark,
+                                    backgroundColor: AppColors.primaryBlue,
+                                    foregroundColor: Colors.white,
                                     elevation: 0,
                                     shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(22),
+                                      borderRadius: BorderRadius.circular(10),
                                     ),
                                   ),
                                   child: Text(
@@ -186,19 +180,18 @@ class EmployeeHeroTripCard extends StatelessWidget {
                               height: 44,
                               child: EmployeePressScale(
                                 enabled: onSecondaryAction != null,
-                                borderRadius: 22,
-                                shadowColor: Colors.white,
+                                borderRadius: 10,
+                                shadowColor: AppColors.primaryBlue,
                                 child: OutlinedButton(
                                   onPressed: onSecondaryAction,
                                   style: OutlinedButton.styleFrom(
-                                    foregroundColor: Colors.white,
-                                    side: BorderSide(
-                                      color:
-                                          Colors.white.withValues(alpha: 0.4),
+                                    foregroundColor: AppColors.primaryBlue,
+                                    side: const BorderSide(
+                                      color: AppColors.border,
                                       width: 1.2,
                                     ),
                                     shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(22),
+                                      borderRadius: BorderRadius.circular(10),
                                     ),
                                   ),
                                   child: Text(
@@ -206,7 +199,7 @@ class EmployeeHeroTripCard extends StatelessWidget {
                                     style: GoogleFonts.inter(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w600,
-                                      color: Colors.white,
+                                      color: AppColors.primaryBlue,
                                     ),
                                   ),
                                 ),

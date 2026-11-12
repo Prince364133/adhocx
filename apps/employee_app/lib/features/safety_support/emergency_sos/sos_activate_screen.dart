@@ -13,8 +13,6 @@ class SosActivateScreen extends StatefulWidget {
 }
 
 class _SosActivateScreenState extends State<SosActivateScreen> {
-  double _sliderValue = 0.0;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -43,7 +41,7 @@ class _SosActivateScreenState extends State<SosActivateScreen> {
             children: [
               const Spacer(),
 
-              // Press & Hold Siren Centerpiece (Tap or hold to trigger)
+              // Tap the siren to trigger the emergency alert.
               GestureDetector(
                 onTap: () => context.push(AppRoutes.sosAlertConfirmed),
                 child: const SosSirenBadge(),
@@ -51,7 +49,7 @@ class _SosActivateScreenState extends State<SosActivateScreen> {
 
               const SizedBox(height: 32),
               Text(
-                'Press and hold for 3 seconds\nto send an emergency alert.',
+                'Tap the SOS siren to send an emergency alert.',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
                   fontSize: 15,
@@ -62,53 +60,6 @@ class _SosActivateScreenState extends State<SosActivateScreen> {
               ),
 
               const Spacer(),
-
-              // Slide to Send SOS Slider
-              Container(
-                width: double.infinity,
-                height: 56,
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.25),
-                  borderRadius: BorderRadius.circular(30),
-                  border:
-                      Border.all(color: Colors.white.withValues(alpha: 0.3)),
-                ),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Text(
-                      'Slide to Send SOS',
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white.withValues(alpha: 0.85),
-                      ),
-                    ),
-                    SliderTheme(
-                      data: SliderTheme.of(context).copyWith(
-                        thumbShape:
-                            const RoundSliderThumbShape(enabledThumbRadius: 22),
-                        thumbColor: const Color(0xFFDC2626),
-                        activeTrackColor: Colors.transparent,
-                        inactiveTrackColor: Colors.transparent,
-                        overlayColor: Colors.transparent,
-                      ),
-                      child: Slider(
-                        value: _sliderValue,
-                        onChanged: (val) {
-                          setState(() => _sliderValue = val);
-                          if (val >= 0.9) {
-                            context.push(AppRoutes.sosAlertConfirmed);
-                          }
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 16),
 
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),

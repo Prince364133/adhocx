@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 class EmployeeEntrance extends StatefulWidget {
   final Widget child;
+  final bool enabled;
   final Duration delay;
   final Duration duration;
   final Offset beginOffset;
@@ -11,6 +12,7 @@ class EmployeeEntrance extends StatefulWidget {
   const EmployeeEntrance({
     super.key,
     required this.child,
+    this.enabled = true,
     this.delay = Duration.zero,
     this.duration = const Duration(milliseconds: 360),
     this.beginOffset = const Offset(0, 0.035),
@@ -49,7 +51,7 @@ class _EmployeeEntranceState extends State<EmployeeEntrance>
   void didChangeDependencies() {
     super.didChangeDependencies();
     _delayTimer?.cancel();
-    if (MediaQuery.disableAnimationsOf(context)) {
+    if (!widget.enabled || MediaQuery.disableAnimationsOf(context)) {
       _controller.value = 1;
     } else if (!_controller.isCompleted && !_controller.isAnimating) {
       _delayTimer = Timer(widget.delay, () {
@@ -75,6 +77,8 @@ class _EmployeeEntranceState extends State<EmployeeEntrance>
 
   @override
   Widget build(BuildContext context) {
+    if (!widget.enabled) return widget.child;
+
     return FadeTransition(
       opacity: _opacity,
       child: SlideTransition(
