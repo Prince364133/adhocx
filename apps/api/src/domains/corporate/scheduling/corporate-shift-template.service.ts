@@ -146,7 +146,10 @@ export class CorporateShiftTemplateService {
     if (officeScope && !officeScope.includes(officeId)) {
       throw new ForbiddenException('Office is outside your corporate office scope');
     }
-    const office = await this.db.corporateOffice.findFirst({ where: { id: officeId, tenantId }, select: { id: true } });
+    const office = await this.db.corporateOffice.findFirst({
+      where: { id: officeId, tenantId, isActive: true },
+      select: { id: true },
+    });
     if (!office) throw new NotFoundException(`Office ${officeId} not found for tenant ${tenantId}`);
   }
 }

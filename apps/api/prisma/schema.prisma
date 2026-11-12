@@ -137,21 +137,21 @@ enum DriverSubscriptionStatus {
 }
 
 model User {
-  id           String     @id @default(uuid()) @db.Uuid
-  phone        String?    @unique
-  email        String?    @unique
-  passwordHash String?    @map("password_hash")
-  fullName     String?    @map("full_name")
-  role         UserRole   @default(DRIVER)
-  status       UserStatus @default(ACTIVE)
+  id                 String             @id @default(uuid()) @db.Uuid
+  phone              String?            @unique
+  email              String?            @unique
+  passwordHash       String?            @map("password_hash")
+  fullName           String?            @map("full_name")
+  role               UserRole           @default(DRIVER)
+  status             UserStatus         @default(ACTIVE)
   /// Corporate tenant this user belongs to (CORPORATE_ADMIN / CORPORATE_MANAGER / EMPLOYEE). Null for platform users.
-  corporateTenantId String? @map("corporate_tenant_id") @db.Uuid
+  corporateTenantId  String?            @map("corporate_tenant_id") @db.Uuid
   /// WS-F: fine-grained corporate role. Null => derived from `role` (CORPORATE_ADMIN -> CORP_SUPER_ADMIN, CORPORATE_MANAGER -> TRANSPORT).
   corporateRole      CorporateUserRole? @map("corporate_role")
   /// WS-F: office scope of a corporate user. Empty => all offices of the tenant.
   corporateOfficeIds String[]           @default([]) @map("corporate_office_ids") @db.Uuid
-  createdAt    DateTime   @default(now()) @map("created_at")
-  updatedAt    DateTime   @updatedAt @map("updated_at")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
 
   vendor                 Vendor?
   driver                 Driver?
@@ -196,47 +196,47 @@ model Vendor {
 }
 
 model Driver {
-  id                 String                   @id @default(uuid()) @db.Uuid
-  userId             String                   @unique @map("user_id") @db.Uuid
-  fullName           String                   @map("full_name")
-  phone              String?                  @unique
-  verificationStatus VerificationStatus       @default(PENDING) @map("verification_status")
-  availabilityStatus DriverAvailability       @default(OFFLINE) @map("availability_status")
-  vehicleType        String?                  @map("vehicle_type") @db.VarChar(50)
-  vehicleModel       String?                  @map("vehicle_model")
-  vehiclePlate       String?                  @map("vehicle_plate")
-  walletBalance      Decimal                  @default(0.00) @map("wallet_balance") @db.Decimal(12, 2)
-  trustScore         Float                    @default(100.0) @map("trust_score")
-  averageRating      Float                    @default(5.0) @map("average_rating")
-  ratingCount        Int                      @default(0) @map("rating_count")
-  totalTrips         Int                      @default(0) @map("total_trips")
-  acceptanceRate     Float                    @default(100.0) @map("acceptance_rate")
-  acceptedOffers     Int                      @default(0) @map("accepted_offers")
-  declinedOffers     Int                      @default(0) @map("declined_offers")
-  consecutiveDeclines Int                     @default(0) @map("consecutive_declines")
-  cooldownUntil      DateTime?                @map("cooldown_until")
-  cooldownLevel      Int                      @default(0) @map("cooldown_level")
-  lastCooldownAt     DateTime?                @map("last_cooldown_at")
-  currentLat        Decimal?                 @map("current_lat") @db.Decimal(10, 7)
-  currentLng         Decimal?                 @map("current_lng") @db.Decimal(10, 7)
-  lastLocationAt     DateTime?                @map("last_location_at")
-  rejectionReason    String?                  @map("rejection_reason")
-  kycDocuments       Json?                    @map("kyc_documents")
-  dlFrontUrl         String?                  @map("dl_front_url")
-  dlBackUrl          String?                  @map("dl_back_url")
-  rcDocUrl           String?                  @map("rc_doc_url")
-  insuranceDocUrl    String?                  @map("insurance_doc_url")
-  vehiclePhotoUrl    String?                  @map("vehicle_photo_url")
-  aadharFrontUrl     String?                  @map("aadhar_front_url")
-  aadharBackUrl      String?                  @map("aadhar_back_url")
-  panDocUrl          String?                  @map("pan_doc_url")
-  subscriptionStatus DriverSubscriptionStatus @default(TRIAL_ACTIVE) @map("subscription_status")
-  trialStartDate     DateTime                 @default(now()) @map("trial_start_date")
-  trialEndDate       DateTime?                @map("trial_end_date")
-  subscriptionExpiry DateTime?                @map("subscription_expiry")
-  autoDebit          Boolean                  @default(true) @map("auto_debit")
-  createdAt          DateTime                 @default(now()) @map("created_at")
-  updatedAt          DateTime                 @updatedAt @map("updated_at")
+  id                  String                   @id @default(uuid()) @db.Uuid
+  userId              String                   @unique @map("user_id") @db.Uuid
+  fullName            String                   @map("full_name")
+  phone               String?                  @unique
+  verificationStatus  VerificationStatus       @default(PENDING) @map("verification_status")
+  availabilityStatus  DriverAvailability       @default(OFFLINE) @map("availability_status")
+  vehicleType         String?                  @map("vehicle_type") @db.VarChar(50)
+  vehicleModel        String?                  @map("vehicle_model")
+  vehiclePlate        String?                  @map("vehicle_plate")
+  walletBalance       Decimal                  @default(0.00) @map("wallet_balance") @db.Decimal(12, 2)
+  trustScore          Float                    @default(100.0) @map("trust_score")
+  averageRating       Float                    @default(5.0) @map("average_rating")
+  ratingCount         Int                      @default(0) @map("rating_count")
+  totalTrips          Int                      @default(0) @map("total_trips")
+  acceptanceRate      Float                    @default(100.0) @map("acceptance_rate")
+  acceptedOffers      Int                      @default(0) @map("accepted_offers")
+  declinedOffers      Int                      @default(0) @map("declined_offers")
+  consecutiveDeclines Int                      @default(0) @map("consecutive_declines")
+  cooldownUntil       DateTime?                @map("cooldown_until")
+  cooldownLevel       Int                      @default(0) @map("cooldown_level")
+  lastCooldownAt      DateTime?                @map("last_cooldown_at")
+  currentLat          Decimal?                 @map("current_lat") @db.Decimal(10, 7)
+  currentLng          Decimal?                 @map("current_lng") @db.Decimal(10, 7)
+  lastLocationAt      DateTime?                @map("last_location_at")
+  rejectionReason     String?                  @map("rejection_reason")
+  kycDocuments        Json?                    @map("kyc_documents")
+  dlFrontUrl          String?                  @map("dl_front_url")
+  dlBackUrl           String?                  @map("dl_back_url")
+  rcDocUrl            String?                  @map("rc_doc_url")
+  insuranceDocUrl     String?                  @map("insurance_doc_url")
+  vehiclePhotoUrl     String?                  @map("vehicle_photo_url")
+  aadharFrontUrl      String?                  @map("aadhar_front_url")
+  aadharBackUrl       String?                  @map("aadhar_back_url")
+  panDocUrl           String?                  @map("pan_doc_url")
+  subscriptionStatus  DriverSubscriptionStatus @default(TRIAL_ACTIVE) @map("subscription_status")
+  trialStartDate      DateTime                 @default(now()) @map("trial_start_date")
+  trialEndDate        DateTime?                @map("trial_end_date")
+  subscriptionExpiry  DateTime?                @map("subscription_expiry")
+  autoDebit           Boolean                  @default(true) @map("auto_debit")
+  createdAt           DateTime                 @default(now()) @map("created_at")
+  updatedAt           DateTime                 @updatedAt @map("updated_at")
 
   user                 User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
   vehicles             Vehicle[]
@@ -302,7 +302,7 @@ model Requirement {
   createdAt        DateTime          @default(now()) @map("created_at")
   updatedAt        DateTime          @updatedAt @map("updated_at")
 
-  vendor          Vendor              @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  vendor          Vendor               @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   offers          Offer[]
   assignments     Assignment[]
   trips           Trip[]
@@ -389,11 +389,11 @@ model Trip {
   createdAt           DateTime   @default(now()) @map("created_at")
   updatedAt           DateTime   @updatedAt @map("updated_at")
 
-  requirement Requirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
-  assignment  Assignment  @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  vendor      Vendor      @relation(fields: [vendorId], references: [id], onDelete: Cascade)
-  driver      Driver      @relation(fields: [driverId], references: [id], onDelete: Cascade)
-  vehicle     Vehicle?    @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  requirement     Requirement          @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  assignment      Assignment           @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  vendor          Vendor               @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  driver          Driver               @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  vehicle         Vehicle?             @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
   events          TripEvent[]
   reviews         Review[]
   disputes        Dispute[]
@@ -936,16 +936,16 @@ model PricingSlab {
 }
 
 model PricingAudit {
-  id            String   @id @default(uuid()) @db.Uuid
-  actorId       String?  @map("actor_id")
-  actorName     String?  @map("actor_name")
-  action        String   // CREATE_PLAN, UPDATE_SLABS, PUBLISH_PLAN, RETIRE_PLAN
-  entityType    String   @default("PRICING_PLAN") @map("entity_type")
-  entityId      String   @map("entity_id")
-  oldValueJson  Json?    @map("old_value_json")
-  newValueJson  Json?    @map("new_value_json")
-  reason        String?
-  timestamp     DateTime @default(now())
+  id           String   @id @default(uuid()) @db.Uuid
+  actorId      String?  @map("actor_id")
+  actorName    String?  @map("actor_name")
+  action       String // CREATE_PLAN, UPDATE_SLABS, PUBLISH_PLAN, RETIRE_PLAN
+  entityType   String   @default("PRICING_PLAN") @map("entity_type")
+  entityId     String   @map("entity_id")
+  oldValueJson Json?    @map("old_value_json")
+  newValueJson Json?    @map("new_value_json")
+  reason       String?
+  timestamp    DateTime @default(now())
 
   @@index([entityId])
   @@index([timestamp])
@@ -978,15 +978,15 @@ model TripQuote {
   status            String       @default("ACTIVE") // ACTIVE, CONFIRMED, EXPIRED
   routeSummary      String?      @map("route_summary")
   /// Distance source and routing policy used (PRD 6 audit), e.g. GOOGLE_ROUTES / TRAFFIC_UNAWARE.
-  routeSource       String?      @map("route_source") @db.VarChar(32)
-  routingPreference String?      @map("routing_preference") @db.VarChar(32)
-  requirementId     String?      @unique @map("requirement_id") @db.Uuid
-  consumedAt        DateTime?    @map("consumed_at")
-  createdAt         DateTime     @default(now()) @map("created_at")
+  routeSource       String?   @map("route_source") @db.VarChar(32)
+  routingPreference String?   @map("routing_preference") @db.VarChar(32)
+  requirementId     String?   @unique @map("requirement_id") @db.Uuid
+  consumedAt        DateTime? @map("consumed_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
 
   // Restrict: a plan version referenced by a quote or trip can never be hard-deleted (PRD 4).
-  plan              PricingPlan? @relation(fields: [planId], references: [id], onDelete: Restrict)
-  requirement       Requirement? @relation(fields: [requirementId], references: [id], onDelete: SetNull)
+  plan        PricingPlan? @relation(fields: [planId], references: [id], onDelete: Restrict)
+  requirement Requirement? @relation(fields: [requirementId], references: [id], onDelete: SetNull)
 
   @@index([vendorId, status])
   @@map("trip_quotes")
@@ -1010,9 +1010,9 @@ model TripPricingSnapshot {
   overrideReason    String?      @map("override_reason")
   createdAt         DateTime     @default(now()) @map("created_at")
 
-  trip              Trip?        @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  requirement       Requirement? @relation(fields: [requirementId], references: [id], onDelete: Cascade)
-  plan              PricingPlan? @relation(fields: [planId], references: [id], onDelete: Restrict)
+  trip        Trip?        @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  requirement Requirement? @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  plan        PricingPlan? @relation(fields: [planId], references: [id], onDelete: Restrict)
 
   @@index([planVersion])
   @@map("trip_pricing_snapshots")
@@ -1091,14 +1091,28 @@ enum CorporateDriverEarningStatus {
 }
 
 model CorporateTenant {
-  id              String                @id @default(uuid()) @db.Uuid
-  code            String                @unique @db.VarChar(32)
-  name            String
-  legalEntityName String                @map("legal_entity_name")
-  gstin           String?               @db.VarChar(15)
-  status          CorporateTenantStatus @default(ACTIVE)
-  createdAt       DateTime              @default(now()) @map("created_at")
-  updatedAt       DateTime              @default(now()) @updatedAt @map("updated_at")
+  id                      String                @id @default(uuid()) @db.Uuid
+  code                    String                @unique @db.VarChar(32)
+  name                    String
+  legalEntityName         String                @map("legal_entity_name")
+  gstin                   String?               @db.VarChar(15)
+  cin                     String?               @db.VarChar(21)
+  logoUrl                 String?               @map("logo_url")
+  industry                String?
+  website                 String?
+  registeredAddress       String?               @map("registered_address")
+  city                    String?
+  state                   String?
+  pinCode                 String?               @map("pin_code") @db.VarChar(12)
+  country                 String?
+  primaryContactName      String?               @map("primary_contact_name")
+  primaryContactEmail     String?               @map("primary_contact_email")
+  primaryContactPhone     String?               @map("primary_contact_phone") @db.VarChar(32)
+  billingAddress          String?               @map("billing_address")
+  billingSameAsRegistered Boolean               @default(true) @map("billing_same_as_registered")
+  status                  CorporateTenantStatus @default(ACTIVE)
+  createdAt               DateTime              @default(now()) @map("created_at")
+  updatedAt               DateTime              @default(now()) @updatedAt @map("updated_at")
 
   offices           CorporateOffice[]
   employees         CorporateEmployee[]
@@ -1115,6 +1129,7 @@ model CorporateTenant {
   // WS-F back-relations
   departments       CorporateDepartment[]
   costCenters       CorporateCostCenter[]
+  transportZones    CorporateTransportZone[]
   policies          CorporateTenantPolicy[]
   shiftTemplates    CorporateShiftTemplate[]
   holidays          CorporateHoliday[]
@@ -1126,24 +1141,34 @@ model CorporateTenant {
 }
 
 model CorporateOffice {
-  id          String   @id @default(uuid()) @db.Uuid
-  tenantId    String   @map("tenant_id") @db.Uuid
-  code        String   @db.VarChar(32)
-  name        String
-  addressText String   @map("address_text")
-  latitude    Decimal  @db.Decimal(10, 7)
-  longitude   Decimal  @db.Decimal(10, 7)
-  h3Res8Index String   @map("h3_res8_index") @db.VarChar(15)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  code         String   @db.VarChar(32)
+  name         String
+  addressText  String   @map("address_text")
+  city         String?
+  state        String?
+  pinCode      String?  @map("pin_code") @db.VarChar(12)
+  country      String?
+  contactName  String?  @map("contact_name")
+  contactEmail String?  @map("contact_email")
+  contactPhone String?  @map("contact_phone") @db.VarChar(32)
+  isActive     Boolean  @default(true) @map("is_active")
+  latitude     Decimal  @db.Decimal(10, 7)
+  longitude    Decimal  @db.Decimal(10, 7)
+  h3Res8Index  String   @map("h3_res8_index") @db.VarChar(15)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
 
-  tenant    CorporateTenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  employees CorporateEmployee[]
-  rosters   CorporateRoster[]
-  routes    CorporateRoute[]
+  tenant         CorporateTenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employees      CorporateEmployee[]
+  rosters        CorporateRoster[]
+  routes         CorporateRoute[]
   // WS-F back-relations
   shiftTemplates CorporateShiftTemplate[]
   holidays       CorporateHoliday[]
+  departments    CorporateDepartment[]
+  transportZones CorporateTransportZone[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -1301,7 +1326,7 @@ model CorporateRoute {
   driverEarnings CorporateDriverEarning[]
   sosAlerts      CorporateSosAlert[]
   driverOffers   CorporateDriverOffer[]
-  atRisk         Boolean                     @default(false) @map("at_risk")
+  atRisk         Boolean                  @default(false) @map("at_risk")
 
   @@index([tenantId, shiftDate, shiftTime])
   @@index([shiftDate, tenantId, status])
@@ -1356,8 +1381,8 @@ model CorporateInvoice {
   createdAt          DateTime               @default(now()) @map("created_at")
   updatedAt          DateTime               @default(now()) @updatedAt @map("updated_at")
 
-  tenant CorporateTenant        @relation(fields: [tenantId], references: [id])
-  lines  CorporateInvoiceLine[]
+  tenant      CorporateTenant           @relation(fields: [tenantId], references: [id])
+  lines       CorporateInvoiceLine[]
   // wire/billing-payouts: corrections are additive (disputes -> credit notes); an issued invoice is never edited.
   disputes    CorporateInvoiceDispute[]
   creditNotes CorporateCreditNote[]
@@ -1592,7 +1617,7 @@ model CorporateTripFeedback {
   employeeId String   @map("employee_id") @db.Uuid
   routeId    String   @map("route_id") @db.Uuid
   stopId     String   @unique @map("stop_id") @db.Uuid
-  rating     Int      // 1 to 5
+  rating     Int // 1 to 5
   tags       String[] @default([])
   comment    String?
   createdAt  DateTime @default(now()) @map("created_at")
@@ -1951,20 +1976,46 @@ enum CorporateUserRole {
 }
 
 model CorporateDepartment {
-  id        String   @id @default(uuid()) @db.Uuid
-  tenantId  String   @map("tenant_id") @db.Uuid
-  code      String   @db.VarChar(32)
-  name      String
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  code           String   @db.VarChar(32)
+  name           String
+  departmentHead String?  @map("department_head")
+  officeId       String?  @map("office_id") @db.Uuid
+  description    String?
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
 
   tenant    CorporateTenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  office    CorporateOffice?    @relation(fields: [officeId], references: [id], onDelete: SetNull)
   employees CorporateEmployee[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
   @@map("corporate_departments")
+}
+
+model CorporateTransportZone {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  officeId        String   @map("office_id") @db.Uuid
+  code            String   @db.VarChar(32)
+  name            String
+  description     String?
+  serviceArea     String   @map("service_area")
+  pickupLocations Json     @default("[]") @map("pickup_locations")
+  dropLocations   Json     @default("[]") @map("drop_locations")
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at")
+
+  tenant CorporateTenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  office CorporateOffice @relation(fields: [officeId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, code])
+  @@index([tenantId, officeId])
+  @@map("corporate_transport_zones")
 }
 
 model CorporateCostCenter {

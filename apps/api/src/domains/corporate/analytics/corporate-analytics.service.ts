@@ -146,9 +146,15 @@ export class CorporateAnalyticsService {
     const routeWhere = this.routeWhere(f);
     const stopWhere = this.stopWhere(f);
 
-    const [routeGroups, requestGroups, stopGroups, servedGroups, utilisation, sosGroups, punctuality] =
+    const [routeGroups, dailyRouteGroups, requestGroups, stopGroups, servedGroups, utilisation, sosGroups, punctuality] =
       await Promise.all([
         db.corporateRoute.groupBy({ by: ['status'], where: routeWhere, _count: { _all: true } }),
+        db.corporateRoute.groupBy({
+          by: ['shiftDate', 'status'],
+          where: routeWhere,
+          _count: { _all: true },
+          orderBy: { shiftDate: 'asc' },
+        }),
         db.corporateTransportRequest.groupBy({ by: ['status'], where: this.requestWhere(f), _count: { _all: true } }),
         db.corporateRouteStop.groupBy({ by: ['status'], where: stopWhere, _count: { _all: true } }),
         db.corporateRouteStop.groupBy({ by: ['employeeId'], where: { ...stopWhere, status: 'BOARDED' } }),
@@ -163,6 +169,15 @@ export class CorporateAnalyticsService {
 
     const trips = zeroed(ROUTE_STATUSES);
     for (const g of routeGroups) trips[g.status] = countOf(g);
+    const dailyTripsByDate = new Map<string, { scheduled: number; completed: number }>();
+    for (const group of dailyRouteGroups) {
+      const date = new Date(group.shiftDate).toISOString().slice(0, 10);
+      const counts = dailyTripsByDate.get(date) ?? { scheduled: 0, completed: 0 };
+      const count = countOf(group);
+      if (group.status !== 'CANCELLED') counts.scheduled += count;
+      if (group.status === 'COMPLETED') counts.completed = count;
+      dailyTripsByDate.set(date, counts);
+    }
     const requests = zeroed(REQUEST_STATUSES);
     for (const g of requestGroups) requests[g.status] = countOf(g);
     const stops: Record<string, number> = {};
@@ -178,6 +193,7 @@ export class CorporateAnalyticsService {
       asOf: now.toISOString(),
       filter: this.filterEcho(f),
       trips: { total: sum(trips), byStatus: trips },
+      dailyTrips: Array.from(dailyTripsByDate, ([date, counts]) => ({ date, ...counts })),
       employeesServed: servedGroups.filter((g: any) => g.employeeId).length,
       requests: {
         total: sum(requests),

@@ -26,7 +26,8 @@ export default function CorridorDeviationsPage() {
     try {
       const board = await opsApi.getOpsBoard({});
       // Filter for in-transit routes with delay or stale telemetry
-      const active = (board.routes || []).filter(
+      const routes = Object.values(board.routes).flatMap((group) => group.items);
+      const active = routes.filter(
         (r) => r.status === 'IN_TRANSIT' && (r.isAtRisk || (r.delayMinutes && r.delayMinutes > 10)),
       );
       setRoutes(active);

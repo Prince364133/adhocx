@@ -5,6 +5,19 @@ export interface CreateCorporateTenantDto {
   name: string;
   legalEntityName: string;
   gstin?: string;
+  cin?: string;
+  industry?: string;
+  website?: string;
+  registeredAddress?: string;
+  city?: string;
+  state?: string;
+  pinCode?: string;
+  country?: string;
+  primaryContactName?: string;
+  primaryContactEmail?: string;
+  primaryContactPhone?: string;
+  billingAddress?: string;
+  billingSameAsRegistered?: boolean;
 }
 
 export interface OnboardCorporateOfficeInputDto {
@@ -59,11 +72,9 @@ export interface OnboardCorporateCompanyDto {
   shiftTemplate?: OnboardCorporateShiftInputDto;
 }
 
-export interface UpdateCorporateTenantDto {
-  name?: string;
-  legalEntityName?: string;
-  gstin?: string;
+export interface UpdateCorporateTenantDto extends Partial<Omit<CreateCorporateTenantDto, 'code'>> {
   status?: CorporateTenantStatus;
+  logoUrl?: string | null;
 }
 
 export interface CreateCorporateOfficeDto {
@@ -72,6 +83,31 @@ export interface CreateCorporateOfficeDto {
   addressText: string;
   latitude: number;
   longitude: number;
+  city?: string;
+  state?: string;
+  pinCode?: string;
+  country?: string;
+  contactName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  isActive?: boolean;
+}
+
+export interface UpdateCorporateOfficeDto extends Partial<CreateCorporateOfficeDto> {}
+
+export interface CreateCorporateTransportZoneDto {
+  officeId: string;
+  code: string;
+  name: string;
+  description?: string;
+  serviceArea: string;
+  pickupLocations?: string[];
+  dropLocations?: string[];
+  isActive?: boolean;
+}
+
+export interface UpdateCorporateTransportZoneDto extends Partial<CreateCorporateTransportZoneDto> {
+  officeId?: string;
 }
 
 export interface CreateCorporateEmployeeDto {
@@ -107,4 +143,3 @@ export interface CreateEmployeeLocationDto {
   longitude: number;
   isDefault?: boolean;
 }
-

@@ -90,6 +90,7 @@ describe('WS-D analytics dashboard', () => {
     const d: any = await svc.getDashboard(Q, asOf);
     expect(d.asOf).toBe(asOf.toISOString());
     expect(d.trips).toEqual({ total: 4, byStatus: { PLANNED: 0, DISPATCHING: 0, ASSIGNED: 1, IN_TRANSIT: 0, COMPLETED: 2, CANCELLED: 1 } });
+    expect(d.dailyTrips).toEqual([{ date: '2026-11-03', scheduled: 3, completed: 2 }]);
     expect(d.employeesServed).toBe(4);
     expect(d.requests).toMatchObject({ total: 8, cancelled: 1, noShows: 1, unserved: 1 });
     expect(d.requests.byStatus).toMatchObject({ COMPLETED: 4, UNSERVED: 2, CANCELLED: 1, RESCHEDULED: 1 });
@@ -291,7 +292,7 @@ describe('WS-D analytics tenant isolation (CorporateAccessGuard)', () => {
       await expect(guard.canActivate(c)).rejects.toBeInstanceOf(ForbiddenException);
     }
     expect(Reflect.getMetadata(ROLES_KEY, CorporateAnalyticsController.prototype.dashboard)).toEqual([
-      UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER,
+      UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER,
     ]);
   });
 });

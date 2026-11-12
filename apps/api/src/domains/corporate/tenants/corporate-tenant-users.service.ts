@@ -31,8 +31,12 @@ export interface InviteCorporateUserInput {
 }
 
 export interface UpdateCorporateUserInput {
+  fullName?: string;
+  email?: string;
+  phone?: string;
   corporateRole?: CorporateRole | string;
   officeIds?: string[];
+  isActive?: boolean;
 }
 
 /** The authenticated caller (request.user) of an invite / update. */
@@ -146,14 +150,50 @@ export class CorporateTenantUsersService {
     return user;
   }
 
-  /** Changes the role / office scope of a corporate user of the tenant. */
+  /** Updates a tenant corporate user's profile and access settings. */
   async updateUser(tenantId: string, userId: string, input: UpdateCorporateUserInput, actor: CorporateActor) {
     const existing: any = await this.db.user.findFirst({
       where: { id: userId, corporateTenantId: tenantId, role: { in: CORPORATE_USER_ROLES as any } },
       select: PUBLIC_USER_SELECT,
     });
     if (!existing) throw new NotFoundException(`Corporate user ${userId} not found in tenant ${tenantId}`);
-    if (userId === actor.id) throw new ForbiddenException('You cannot change your own corporate role or office scope');
+    if (userId === actor.id) throw new ForbiddenException('You cannot modify your own corporate account through this endpoint');
+    const fullName = input.fullName !== undefined ? sanitizeRealName(input.fullName) : undefined;
+    if (fullName !== undefined && (!fullName || fullName.length < 2)) {
+      throw new BadRequestException('fullName must be at least 2 characters');
+    }
+    const email = input.email !== undefined ? input.email.trim().toLowerCase() : undefined;
+    const phone = input.phone !== undefined ? input.phone.trim().replace(/[\s-]/g, '') : undefined;
+    if (email !== undefined && email && !EMAIL_RE.test(email)) throw new BadRequestException('email is invalid');
+    if (phone !== undefined && phone && phone.replace(/\D/g, '').length < 10) {
+      throw new BadRequestException('phone must have at least 10 digits');
+    }
+    if (email) {
+      const taken = await this.db.user.findFirst({
+        where: { id: { not: userId }, email: { equals: email, mode: 'insensitive' } },
+        select: { id: true },
+      });
+      if (taken) throw new ConflictException('This email address is already registered to another account');
+    }
+    if (phone) {
+      const taken = await this.db.user.findFirst({
+        where: { id: { not: userId }, phone },
+        select: { id: true },
+      });
+      if (taken) throw new ConflictException('This phone number is already registered to another account');
+    }
+    if (input?.isActive === false && effectiveCorporateRole(existing) === CorporateRole.CORP_SUPER_ADMIN) {
+      const activeAdmins = await this.db.user.count({
+        where: {
+          corporateTenantId: tenantId,
+          corporateRole: CorporateRole.CORP_SUPER_ADMIN as any,
+          status: 'ACTIVE',
+        },
+      });
+      if (activeAdmins <= 1) {
+        throw new BadRequestException('The tenant must have at least one active Corporate Super Admin');
+      }
+    }
 
     const corporateRole =
       input?.corporateRole !== undefined
@@ -168,22 +208,44 @@ export class CorporateTenantUsersService {
     const updated = await this.db.user.update({
       where: { id: userId },
       data: {
+        ...(fullName !== undefined ? { fullName } : {}),
+        ...(email !== undefined ? { email: email || null } : {}),
+        ...(phone !== undefined ? { phone: phone || null } : {}),
         role: userRoleForCorporateRole(corporateRole) as any,
         corporateRole: corporateRole as any,
         corporateOfficeIds: officeIds,
+        ...(input?.isActive !== undefined ? { status: input.isActive ? 'ACTIVE' : 'DEACTIVATED' } : {}),
       },
       select: PUBLIC_USER_SELECT,
     });
     await this.audit.log({
-      action: 'CORPORATE_USER_ROLE_CHANGED',
+      action: input?.isActive === false
+        ? 'CORPORATE_USER_DEACTIVATED'
+        : input?.isActive === true
+          ? 'CORPORATE_USER_REACTIVATED'
+          : 'CORPORATE_USER_UPDATED',
       userId: actor.id,
       actorRole: actor.role,
       entityId: userId,
       entityType: 'USER',
       metadata: {
         tenantId,
-        from: { corporateRole: existing.corporateRole, officeIds: existing.corporateOfficeIds },
-        to: { corporateRole, officeIds },
+        from: {
+          fullName: existing.fullName,
+          email: existing.email,
+          phone: existing.phone,
+          status: existing.status,
+          corporateRole: existing.corporateRole,
+          officeIds: existing.corporateOfficeIds,
+        },
+        to: {
+          fullName: updated.fullName,
+          email: updated.email,
+          phone: updated.phone,
+          status: updated.status,
+          corporateRole,
+          officeIds,
+        },
         note: 'Takes effect on the next token refresh / login',
       } as any,
     });
