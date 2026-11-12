@@ -171,6 +171,77 @@ describe('WS-D operations board', () => {
     await expect(ops.getBoard({ date: '2026-13-01' }, NOW)).rejects.toBeInstanceOf(BadRequestException);
   });
 
+  it('builds a cross-company live dashboard from grouped route data and bounded audit activity', async () => {
+    const { db, ops } = build();
+    addRoute(db, { id: 'recent-complete', shiftDate: new Date('2026-10-22T00:00:00.000Z'), status: 'COMPLETED' });
+    addRoute(db, { id: 'today-active', tenantId: 't2', officeId: 'o9', status: 'IN_TRANSIT' });
+    addRoute(db, { id: 'today-planned', status: 'PLANNED' });
+    addRoute(db, { id: 'outside-window', shiftDate: new Date('2026-10-20T00:00:00.000Z'), status: 'COMPLETED' });
+    db.insert('corporateEmployee', {
+      id: 'e-active',
+      tenantId: 't2',
+      officeId: 'o9',
+      employeeCode: 'ACTIVE-1',
+      fullName: 'Active employee',
+      isActive: true,
+    });
+    db.insert('auditLog', {
+      id: 'audit-recent',
+      action: 'CORPORATE_ROUTE_CREATED',
+      entityName: 'CORPORATE_ROUTE',
+      entityId: 'today-planned',
+      actorRole: 'OPS',
+      createdAt: min(-1),
+      payload: { mustNotBeReturned: true },
+    });
+    db.insert('auditLog', {
+      id: 'audit-unrelated',
+      action: 'PAYMENT_UPDATED',
+      entityName: 'PAYMENT',
+      entityId: 'payment-1',
+      createdAt: min(-2),
+    });
+    db.insert('auditLog', {
+      id: 'audit-old',
+      action: 'CORPORATE_ROUTE_CREATED',
+      entityName: 'CORPORATE_ROUTE',
+      entityId: 'old-route',
+      createdAt: new Date('2026-10-20T12:00:00.000Z'),
+    });
+
+    const result = await ops.getLiveOperations(1, 2, NOW);
+    expect(result.period).toEqual({ from: '2026-10-21', to: '2026-11-03', days: 14 });
+    expect(result.summary).toMatchObject({
+      companies: 2,
+      activeCompanies: 2,
+      activeRoutes: 1,
+      plannedRoutes: 1,
+      completedToday: 0,
+      routes14Days: 3,
+    });
+    expect(result.trend).toHaveLength(14);
+    expect(result.trend[0]).toMatchObject({ date: '2026-10-21', total: 0 });
+    expect(result.trend[1]).toMatchObject({ date: '2026-10-22', total: 1, completed: 1 });
+    expect(result.trend[13]).toMatchObject({ date: '2026-11-03', total: 2, inProgress: 1, planned: 1 });
+    expect(result.companies.find((company) => company.id === 't2')).toMatchObject({
+      routes14Days: 1,
+      routesToday: 1,
+      inProgress14Days: 1,
+      activeEmployees: 1,
+      offices: 1,
+    });
+    expect(result.routes).toMatchObject({ page: 1, pageSize: 2, total: 3, totalPages: 2 });
+    expect(result.routes.items).toHaveLength(2);
+    expect(result.activities).toHaveLength(1);
+    expect(result.activities[0]).toMatchObject({
+      id: 'audit-recent',
+      action: 'CORPORATE_ROUTE_CREATED',
+      actorRole: 'OPS',
+    });
+    expect(result.activities[0]).not.toHaveProperty('payload');
+    expect(result.activities[0]).not.toHaveProperty('ipAddress');
+  });
+
   it('computes the at-risk queue from data (unassigned, pickup-1 within the escalation lead)', async () => {
     const { db, ops } = build();
     const soon = addRoute(db, { status: 'PLANNED', targetPickup1Time: min(20) });
@@ -394,8 +465,8 @@ describe('WS-D manual reassign', () => {
     expect(await errs({ reason: 'ok reason', newDriverId: 'not-a-uuid' })).toContain('newDriverId');
   });
 
-  it('every command-centre endpoint is ADMIN only', () => {
-    for (const m of ['board', 'detail', 'reassign']) {
+  it('every command-centre read and write endpoint requires ADMIN or OPS', () => {
+    for (const m of ['board', 'liveOperations', 'detail', 'reassign']) {
       expect(Reflect.getMetadata(ROLES_KEY, (CorporateOperationsController.prototype as any)[m])).toEqual([UserRole.ADMIN, UserRole.OPS]);
     }
   });

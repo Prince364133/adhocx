@@ -224,7 +224,16 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   /**
    * Instantly revoke all active sessions for a user across the cluster
    */
-  async revokeUserSessions(userId: string): Promise<void> {
+  async revokeUserSessions(userId: string, requireSharedStore = false): Promise<void> {
+    if (requireSharedStore) {
+      if (!this.isConnected || !this.client) {
+        throw new Error('Shared Redis store is unavailable; distributed session revocation cannot be guaranteed');
+      }
+      await this.client.set(`user_revoked:${userId}`, '1', 'EX', 86400);
+      await this.client.del(`user_session:${userId}`);
+      this.announceRevocation({ userId });
+      return;
+    }
     await this.set(`user_revoked:${userId}`, '1', 86400);
     await this.del(`user_session:${userId}`);
     this.announceRevocation({ userId });
@@ -233,7 +242,14 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   /**
    * Remove revocation state when user is reinstated
    */
-  async unrevokeUser(userId: string): Promise<void> {
+  async unrevokeUser(userId: string, requireSharedStore = false): Promise<void> {
+    if (requireSharedStore) {
+      if (!this.isConnected || !this.client) {
+        throw new Error('Shared Redis store is unavailable; distributed session restoration cannot be guaranteed');
+      }
+      await this.client.del(`user_revoked:${userId}`);
+      return;
+    }
     await this.del(`user_revoked:${userId}`);
   }
 

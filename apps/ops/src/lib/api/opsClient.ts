@@ -14,6 +14,9 @@ import {
   TripEvent,
   OpsSupportTicket,
   OpsSupportTicketStatus,
+  OpsDriverDetail,
+  OpsDriverListResponse,
+  LiveOperationsResponse,
 } from './opsTypes';
 import {
   getStoredOpsToken,
@@ -324,6 +327,14 @@ export const opsApi = {
     return request<OpsBoardResponse>(`/corporate/ops/board?${q.toString()}`);
   },
 
+  getLiveOperations: (params: { routePage?: number; routePageSize?: number } = {}): Promise<LiveOperationsResponse> => {
+    const query = new URLSearchParams();
+    if (params.routePage) query.set('routePage', String(params.routePage));
+    if (params.routePageSize) query.set('routePageSize', String(params.routePageSize));
+    const suffix = query.size ? `?${query.toString()}` : '';
+    return request<LiveOperationsResponse>(`/corporate/ops/live-operations${suffix}`);
+  },
+
   getRouteDetail: async (routeId: string): Promise<CorporateRouteItem> => {
     const detail = await request<{
       route: CorporateRouteItem;
@@ -382,6 +393,55 @@ export const opsApi = {
 
   getTripEvents: (tripId: string): Promise<TripEvent[]> =>
     request<TripEvent[]>(`/trips/${encodeURIComponent(tripId)}/events`),
+
+  // ── Driver directory ──
+  getDrivers: (params: {
+    page?: number;
+    pageSize?: number;
+    search?: string;
+    verificationStatus?: string;
+    availabilityStatus?: string;
+  } = {}): Promise<OpsDriverListResponse> => {
+    const query = new URLSearchParams();
+    if (params.page) query.set('page', String(params.page));
+    if (params.pageSize) query.set('pageSize', String(params.pageSize));
+    if (params.search?.trim()) query.set('search', params.search.trim());
+    if (params.verificationStatus && params.verificationStatus !== 'ALL') {
+      query.set('verificationStatus', params.verificationStatus);
+    }
+    if (params.availabilityStatus && params.availabilityStatus !== 'ALL') {
+      query.set('availabilityStatus', params.availabilityStatus);
+    }
+    const suffix = query.size ? `?${query.toString()}` : '';
+    return request<OpsDriverListResponse>(`/corporate/ops/drivers${suffix}`);
+  },
+
+  getDriver: (driverId: string): Promise<OpsDriverDetail> =>
+    request<OpsDriverDetail>(`/corporate/ops/drivers/${encodeURIComponent(driverId)}`),
+
+  suspendDriver: (driverId: string, reason: string) =>
+    request<{ driverId: string; userId: string; verificationStatus: string }>(
+      `/corporate/ops/drivers/${encodeURIComponent(driverId)}/suspend`,
+      { method: 'POST', body: JSON.stringify({ reason }) },
+    ),
+
+  reactivateDriver: (driverId: string, notes: string) =>
+    request<{ driverId: string; userId: string; verificationStatus: string }>(
+      `/corporate/ops/drivers/${encodeURIComponent(driverId)}/reactivate`,
+      { method: 'POST', body: JSON.stringify({ notes }) },
+    ),
+
+  deactivateDriverAccount: (driverId: string, reason: string) =>
+    request<{ driverId: string; userId: string; userStatus: string }>(
+      `/corporate/ops/drivers/${encodeURIComponent(driverId)}/deactivate`,
+      { method: 'POST', body: JSON.stringify({ reason }) },
+    ),
+
+  activateDriverAccount: (driverId: string, notes: string) =>
+    request<{ driverId: string; userId: string; userStatus: string }>(
+      `/corporate/ops/drivers/${encodeURIComponent(driverId)}/activate`,
+      { method: 'POST', body: JSON.stringify({ notes }) },
+    ),
 
   // ── Companies / Tenants ──
   getTenants: async (params: { search?: string; page?: number; limit?: number } = {}): Promise<{

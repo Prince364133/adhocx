@@ -1,1 +1,5 @@
-export { default } from '../../../../../corporate/src/app/live/employees/page';
+import { redirect } from 'next/navigation';
+
+export default function RemovedEmployeeTrackingPage() {
+  redirect('/live');
+}

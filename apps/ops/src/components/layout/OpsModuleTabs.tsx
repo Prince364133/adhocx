@@ -5,7 +5,6 @@ import {
   AlertTriangle,
   Calendar,
   CalendarClock,
-  Car,
   CheckCircle,
   CheckCircle2,
   FileText,
@@ -16,22 +15,12 @@ import {
   Ticket,
   Truck,
   UploadCloud,
-  UserCheck,
 } from 'lucide-react';
 import { SubNavTab, SubNavTabs } from '../../../../corporate/src/components/layout/SubNavTabs';
 
-type Module = 'live' | 'rosters' | 'bookings' | 'routes' | 'safety';
+type Module = 'rosters' | 'bookings' | 'routes' | 'safety';
 
 const TABS: Record<Module, { title: string; tabs: SubNavTab[] }> = {
-  live: {
-    title: 'Live Operations & Commuter Tracking',
-    tabs: [
-      { href: '/live', label: 'Live Operations Map', icon: <Map size={15} /> },
-      { href: '/live/employees', label: 'Employee Live Tracking', icon: <UserCheck size={15} /> },
-      { href: '/live/trips', label: 'Live Trip Details', icon: <Car size={15} /> },
-      { href: '/live/exceptions', label: 'Tracking Exceptions', icon: <AlertTriangle size={15} /> },
-    ],
-  },
   rosters: {
     title: 'Shifts & Employee Rosters',
     tabs: [
