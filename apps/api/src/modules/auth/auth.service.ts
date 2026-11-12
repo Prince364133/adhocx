@@ -1287,31 +1287,39 @@ export class AuthService implements OnModuleInit {
     let isApproved = false;
 
     if (user) {
+      await this.verifyAccountActiveAndClearStaleRevocation(user).catch(() => undefined);
+
+      const hasVendorSubmission = Boolean(
+        user.vendor &&
+        (user.vendor.verificationStatus === 'VERIFIED' ||
+         user.vendor.verificationStatus === 'UNDER_REVIEW' ||
+         (user.vendor.verificationStatus === 'REJECTED' && Boolean(user.vendor.address?.trim())) ||
+         (Boolean(user.vendor.address?.trim()) &&
+          Boolean(user.vendor.organizationName?.trim()) &&
+          !isPlaceholderName(user.vendor.organizationName)))
+      );
+
+      const hasDriverSubmission = Boolean(
+        user.driver &&
+        (user.driver.verificationStatus === 'VERIFIED' ||
+         user.driver.verificationStatus === 'UNDER_REVIEW' ||
+         user.driver.verificationStatus === 'REJECTED' ||
+         user.driver.dlFrontUrl ||
+         (user.driver.vehiclePlate && user.driver.vehicleType))
+      );
+
       if (user.role === UserRole.DRIVER) {
         isApproved = user.driver?.verificationStatus === 'VERIFIED';
-        isOnboarded = Boolean(
-          user.driver &&
-          (user.driver.verificationStatus === 'VERIFIED' ||
-           user.driver.verificationStatus === 'UNDER_REVIEW' ||
-           (user.driver.vehiclePlate && user.driver.vehicleType))
-        );
+        isOnboarded = hasDriverSubmission;
       } else if (user.role === UserRole.VENDOR) {
         isApproved = user.vendor?.verificationStatus === 'VERIFIED';
-        isOnboarded = Boolean(
-          user.vendor &&
-          (user.vendor.verificationStatus === 'VERIFIED' ||
-           user.vendor.verificationStatus === 'UNDER_REVIEW' ||
-           (user.vendor.verificationStatus === 'REJECTED' && Boolean(user.vendor.address?.trim())) ||
-           (Boolean(user.vendor.address?.trim()) &&
-            Boolean(user.vendor.organizationName?.trim()) &&
-            !isPlaceholderName(user.vendor.organizationName)))
-        );
+        isOnboarded = hasVendorSubmission;
       } else if (user.role === UserRole.ADMIN) {
         isApproved = true;
         isOnboarded = true;
       }
 
-      if (user.driver?.verificationStatus === 'UNDER_REVIEW' || user.vendor?.verificationStatus === 'UNDER_REVIEW') {
+      if (hasVendorSubmission || hasDriverSubmission) {
         isOnboarded = true;
       }
       if (user.driver?.verificationStatus === 'VERIFIED' || user.vendor?.verificationStatus === 'VERIFIED') {
@@ -1336,6 +1344,32 @@ export class AuthService implements OnModuleInit {
         isApproved,
         hasPassword,
         isOnboarded,
+        vendorProfile: user?.vendor
+          ? {
+              id: user.vendor.id,
+              organizationName: user.vendor.organizationName,
+              fullName: user.vendor.fullName,
+              phone: user.vendor.phone || user.phone || undefined,
+              address: user.vendor.address,
+              gstNumber: user.vendor.gstNumber,
+              verificationStatus: user.vendor.verificationStatus,
+              rejectionReason: (user.vendor as any).rejectionReason || undefined,
+              createdAt: user.vendor.createdAt,
+            }
+          : undefined,
+        driverProfile: user?.driver
+          ? {
+              id: user.driver.id,
+              fullName: user.driver.fullName,
+              phone: user.driver.phone || user.phone || undefined,
+              verificationStatus: user.driver.verificationStatus,
+              availabilityStatus: user.driver.availabilityStatus,
+              vehicleType: user.driver.vehicleType || undefined,
+              walletBalance: Number(user.driver.walletBalance || 0),
+              rejectionReason: (user.driver as any).rejectionReason || undefined,
+              createdAt: user.driver.createdAt,
+            }
+          : undefined,
       },
     };
   }
@@ -1353,25 +1387,34 @@ export class AuthService implements OnModuleInit {
     const hasPassword = Boolean(user.passwordHash);
     let isOnboarded = false;
 
+    const hasVendorSubmission = Boolean(
+      user.vendor &&
+      (user.vendor.verificationStatus === 'VERIFIED' ||
+       user.vendor.verificationStatus === 'UNDER_REVIEW' ||
+       (user.vendor.verificationStatus === 'REJECTED' && Boolean(user.vendor.address?.trim())) ||
+       (Boolean(user.vendor.address?.trim()) &&
+        Boolean(user.vendor.organizationName?.trim()) &&
+        !isPlaceholderName(user.vendor.organizationName)))
+    );
+
+    const hasDriverSubmission = Boolean(
+      user.driver &&
+      (user.driver.verificationStatus === 'VERIFIED' ||
+       user.driver.verificationStatus === 'UNDER_REVIEW' ||
+       user.driver.verificationStatus === 'REJECTED' ||
+       user.driver.dlFrontUrl ||
+       (user.driver.vehiclePlate && user.driver.vehicleType))
+    );
+
     if (user.role === UserRole.DRIVER) {
-      isOnboarded = Boolean(
-        user.driver &&
-        (user.driver.verificationStatus === 'VERIFIED' ||
-         user.driver.verificationStatus === 'UNDER_REVIEW' ||
-         (user.driver.vehiclePlate && user.driver.vehicleType))
-      );
+      isOnboarded = hasDriverSubmission;
     } else if (user.role === UserRole.VENDOR) {
-      isOnboarded = Boolean(
-        user.vendor &&
-        (user.vendor.verificationStatus === 'VERIFIED' ||
-         user.vendor.verificationStatus === 'UNDER_REVIEW' ||
-         Boolean(user.vendor.organizationName?.trim()))
-      );
+      isOnboarded = hasVendorSubmission;
     } else if (user.role === UserRole.ADMIN) {
       isOnboarded = true;
     }
 
-    if (user.driver?.verificationStatus === 'UNDER_REVIEW' || user.vendor?.verificationStatus === 'UNDER_REVIEW') {
+    if (hasVendorSubmission || hasDriverSubmission) {
       isOnboarded = true;
     }
     if (user.driver?.verificationStatus === 'VERIFIED' || user.vendor?.verificationStatus === 'VERIFIED') {
@@ -1382,6 +1425,7 @@ export class AuthService implements OnModuleInit {
     const effectiveFullName = sanitizeRealName(user.fullName) || sanitizeRealName(user.driver?.fullName) || sanitizeRealName(user.vendor?.fullName) || undefined;
     const driverKyc = (user.driver?.kycDocuments as Record<string, any>) || {};
     const effectivePhoto = driverKyc.profilePhotoUrl || (user.vendor?.kycDocuments as any)?.logoUrl || undefined;
+    const effectiveDlFront = user.driver?.dlFrontUrl || driverKyc.dlFrontUrl || undefined;
 
     // Backfill user.phone if driver or vendor has a verified phone
     if (!user.phone && effectivePhone) {
@@ -1437,6 +1481,7 @@ export class AuthService implements OnModuleInit {
             walletBalance: Number(user.driver.walletBalance || 0),
             rejectionReason: (user.driver as any).rejectionReason || undefined,
             profilePhotoUrl: driverKyc.profilePhotoUrl || undefined,
+            dlFrontUrl: effectiveDlFront,
             dateOfBirth: driverKyc.dateOfBirth || undefined,
             gender: driverKyc.gender || undefined,
             address: driverKyc.address || undefined,

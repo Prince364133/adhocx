@@ -73,6 +73,7 @@ export class AdminPricingController {
       dto.slabs,
       { id: user.id, name: user.fullName || 'Admin' },
       dto.reason,
+      { peakWindows: dto.peakWindows, config: dto.config },
     );
   }
 

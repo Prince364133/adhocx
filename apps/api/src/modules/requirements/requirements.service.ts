@@ -97,6 +97,7 @@ export class RequirementsService {
           drop: dto.dropLocation,
           vehicleCategory: dto.vehicleType,
           ...(dto.hasEscort !== undefined ? { hasEscort: dto.hasEscort } : {}),
+          ...(dto.reportingTime ? { reportingTime: dto.reportingTime as any } : {}),
         });
       } else {
         const autoQuote = await this.distancePricing.createVendorQuote(
@@ -105,6 +106,8 @@ export class RequirementsService {
             drop: dto.dropLocation,
             vehicleCategory: dto.vehicleType,
             ...(dto.hasEscort !== undefined ? { hasEscort: dto.hasEscort } : {}),
+            // Price for the trip's own reporting time (peak vs non-peak), not the moment of booking.
+            ...(dto.reportingTime ? { pickupTime: dto.reportingTime as any } : {}),
           },
           vendorUserId,
         );

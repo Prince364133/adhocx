@@ -711,6 +711,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
           { latitude: pickupLat, longitude: pickupLng },
           { latitude: dropLat, longitude: dropLng },
           String(requirement.vehicleType || ''),
+          requirement.reportingTime,
         );
         driverOfferedRate = priced.driverPayoutPaise / 100;
       } catch (err: any) {

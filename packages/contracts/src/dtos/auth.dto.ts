@@ -240,6 +240,7 @@ export class UserMeResponseDto {
     rejectionReason?: string;
     createdAt?: any;
     profilePhotoUrl?: string;
+    dlFrontUrl?: string;
     dateOfBirth?: string;
     gender?: string;
     address?: string;

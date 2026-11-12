@@ -1,13 +1,18 @@
 import {
+  ArrayMaxSize,
   IsArray,
   IsBoolean,
   IsDateString,
   IsInt,
+  IsISO8601,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
+  Max,
+  MaxLength,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -33,6 +38,40 @@ export class GeoPointDto {
   label?: string;
 }
 
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/** A peak window in IST wall-clock time, [start, end). start > end crosses midnight. */
+export class PeakHourWindowDto {
+  @Matches(HHMM, { message: 'start must be HH:mm (00:00-23:59)' })
+  start!: string;
+
+  @Matches(HHMM, { message: 'end must be HH:mm (00:00-23:59)' })
+  end!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  label?: string;
+}
+
+/** Slab-generator settings the admin UI restores; display only, never used to price a trip. */
+export class RateCardConfigDto {
+  @IsOptional() @IsNumber() @Min(0.1) @Max(100)
+  vendorStepKm?: number;
+
+  @IsOptional() @IsNumber() @Min(0.1) @Max(100)
+  driverStepKm?: number;
+
+  @IsOptional() @IsNumber() @Min(0.1) @Max(1000)
+  maxDistanceKm?: number;
+
+  @IsOptional() @IsNumber() @Min(0) @Max(200)
+  vendorPeakSurchargePercent?: number;
+
+  @IsOptional() @IsNumber() @Min(0) @Max(200)
+  driverPeakSurchargePercent?: number;
+}
+
 export class CreatePricingSlabInputDto {
   @IsInt()
   @Min(0)
@@ -49,6 +88,16 @@ export class CreatePricingSlabInputDto {
   @IsInt()
   @Min(1)
   driverPayoutPaise!: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  vendorPeakPricePaise?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  driverPeakPayoutPaise?: number;
 
   @IsOptional()
   @IsBoolean()
@@ -78,6 +127,19 @@ export class CreateDistancePricingPlanDto {
   @ValidateNested({ each: true })
   @Type(() => CreatePricingSlabInputDto)
   slabs?: CreatePricingSlabInputDto[];
+
+  /** Omit to keep (or, for a new draft, inherit) the windows; [] turns peak pricing off. */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(6)
+  @ValidateNested({ each: true })
+  @Type(() => PeakHourWindowDto)
+  peakWindows?: PeakHourWindowDto[];
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => RateCardConfigDto)
+  config?: RateCardConfigDto;
 }
 
 export class UpdateDistancePricingSlabsDto {
@@ -85,6 +147,19 @@ export class UpdateDistancePricingSlabsDto {
   @ValidateNested({ each: true })
   @Type(() => CreatePricingSlabInputDto)
   slabs!: CreatePricingSlabInputDto[];
+
+  /** Omit to keep (or, for a new draft, inherit) the windows; [] turns peak pricing off. */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(6)
+  @ValidateNested({ each: true })
+  @Type(() => PeakHourWindowDto)
+  peakWindows?: PeakHourWindowDto[];
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => RateCardConfigDto)
+  config?: RateCardConfigDto;
 
   /** Why the rates change (stored in the pricing audit trail). */
   @IsOptional()
@@ -116,10 +191,17 @@ export class DistancePricingSlabDto {
   maxDistanceMInclusive!: number;
   vendorPricePaise!: number;
   driverPayoutPaise!: number;
+  vendorPeakPricePaise?: number;
+  driverPeakPayoutPaise?: number;
   grossSpreadPaise!: number;
   grossMarginPercent!: number;
   vendorPriceRupees!: number;
   driverPayoutRupees!: number;
+  vendorPeakPriceRupees?: number;
+  driverPeakPayoutRupees?: number;
+  peakGrossSpreadPaise?: number;
+  peakGrossSpreadRupees?: number;
+  peakGrossMarginPercent?: number;
   grossSpreadRupees!: number;
   minKm!: number;
   maxKm!: number;
@@ -133,6 +215,7 @@ export class DistancePricingPlanDto {
   vehicleCategory!: string;
   version!: string;
   name?: string | null;
+  displayName?: string | null;
   status!: 'DRAFT' | 'ACTIVE' | 'SCHEDULED' | 'RETIRED';
   effectiveFrom!: string;
   effectiveTo?: string | null;
@@ -141,6 +224,8 @@ export class DistancePricingPlanDto {
   publishedAt?: string | null;
   createdAt!: string;
   updatedAt!: string;
+  peakWindows?: PeakHourWindowDto[];
+  config?: RateCardConfigDto | null;
   slabs!: DistancePricingSlabDto[];
   slabCount?: number;
 }
@@ -186,6 +271,11 @@ export class VendorTripQuoteRequestDto {
   @IsOptional()
   @IsBoolean()
   hasEscort?: boolean;
+
+  /** ISO-8601 pickup instant (with offset). Decides peak vs non-peak; defaults to now. */
+  @IsOptional()
+  @IsISO8601({ strict: true })
+  pickupTime?: string;
 }
 
 export class VendorTripQuoteResponseDto {
@@ -206,6 +296,8 @@ export class VendorTripQuoteResponseDto {
   dropAddress?: string;
   canAutoQuote!: boolean;
   errorMessage?: string;
+  isPeak?: boolean;
+  activeWindowLabel?: string;
 }
 
 export class VendorConfirmTripDto {

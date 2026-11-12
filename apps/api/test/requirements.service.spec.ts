@@ -384,6 +384,8 @@ describe('RequirementsService Unit Tests', () => {
         pickup: dto.pickupLocation,
         drop: dto.dropLocation,
         vehicleCategory: VehicleType.SEDAN,
+        // The quote's peak/non-peak period is checked against the trip's own reporting time.
+        reportingTime: dto.reportingTime,
       });
       expect(db.requirement.create).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ ratePerVehicle: 1500, totalAmount: 1500 }) }),
@@ -430,7 +432,8 @@ describe('RequirementsService Unit Tests', () => {
 
       await service.createRequirement('usr-vnd-1', { ...dto, quoteId: undefined });
       expect(distancePricing.createVendorQuote).toHaveBeenLastCalledWith(
-        { pickup: dto.pickupLocation, drop: dto.dropLocation, vehicleCategory: VehicleType.SEDAN },
+        // Priced for the reporting time, not the moment of booking.
+        { pickup: dto.pickupLocation, drop: dto.dropLocation, vehicleCategory: VehicleType.SEDAN, pickupTime: dto.reportingTime },
         'usr-vnd-1',
       );
     });

@@ -267,6 +267,7 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
         pickupIsOffice: _pickupIsOffice,
         dropIsOffice: _dropIsOffice,
         hasEscort: _hasEscort,
+        pickupTime: _reportingDateTime,
       );
       if (!mounted || seq != _quoteRequestSeq) return;
       setState(() {

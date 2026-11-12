@@ -144,7 +144,7 @@ class _SignInScreenState extends State<SignInScreen> {
 
         if (!user.hasPassword) {
           context.go(AppRoutes.setPasswordScreen);
-        } else if (!user.isOnboarded && !user.isUnderReview && !user.isVerified) {
+        } else if (!user.isOnboarded && !user.isUnderReview && !user.isVerified && !user.isRejected) {
           context.go(AppRoutes.onboardingPersonalScreen);
         } else if (!user.isVerified) {
           context.go(AppRoutes.waitlistGateScreen);

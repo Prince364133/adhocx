@@ -260,8 +260,9 @@ describe('PRD 11: acceptance criteria', () => {
 
     const update = db.audits.find((a) => a.action === 'UPDATE_SLABS')!;
     expect(update).toMatchObject({ actorId: 'admin-1', actorName: 'Pricing Admin', reason: 'Q4 rates' });
-    expect(update.oldValueJson[0].vendorPricePaise).toBe(50000);
-    expect(update.newValueJson[0].vendorPricePaise).toBe(51000);
+    expect(update.oldValueJson.slabs[0].vendorPricePaise).toBe(50000);
+    expect(update.newValueJson.slabs[0].vendorPricePaise).toBe(51000);
+    expect(update.newValueJson.peakWindows).toEqual([]);
     const publish = db.audits.filter((a) => a.action === 'PUBLISH_PLAN').pop()!;
     expect(publish.oldValueJson).toMatchObject({ replacedPlanId: v1.id });
     expect(publish.newValueJson).toMatchObject({ status: 'ACTIVE', effectiveFrom: expect.any(String) });

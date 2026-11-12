@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Car, Truck, Bus, Sliders, Plus, Bike, Wallet, Percent } from 'lucide-react';
+import { Car, Truck, Bus, Sliders, Plus, Bike } from 'lucide-react';
 import { adminApi } from '../../lib/api/client';
-import { VehicleCategory, SystemPolicyConfig } from '../../lib/api/types';
-import { PageHeader, KpiStrip, SegmentedTabs, FeedbackBanner, Card, DataTable, Button, Drawer, StatusBadge } from '../../components/common';
+import { VehicleCategory } from '../../lib/api/types';
+import { PageHeader, SegmentedTabs, FeedbackBanner, Card, DataTable, Button, Drawer, StatusBadge } from '../../components/common';
 import { DynamicDistancePricingSection } from './DynamicDistancePricingSection';
 
-type Section = 'DISTANCE_ENGINE' | 'CATEGORIES' | 'POLICIES';
+type Section = 'DISTANCE_ENGINE' | 'CATEGORIES';
 
 const inputStyle: React.CSSProperties = {
   width: '100%',
@@ -35,9 +35,7 @@ function CategoryIcon({ c }: { c: VehicleCategory }) {
 export default function PricingPage() {
   const [activeSection, setActiveSection] = useState<Section>('DISTANCE_ENGINE');
   const [categories, setCategories] = useState<VehicleCategory[]>([]);
-  const [policyConfig, setPolicyConfig] = useState<SystemPolicyConfig | null>(null);
   const [loading, setLoading] = useState(true);
-  const [savingPolicy, setSavingPolicy] = useState(false);
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Category add / edit
@@ -49,12 +47,8 @@ export default function PricingPage() {
   async function loadAllData() {
     setLoading(true);
     try {
-      const [cats, policy] = await Promise.all([
-        adminApi.getPricingTiers().catch(() => [] as VehicleCategory[]),
-        adminApi.getPolicyConfig().catch(() => null),
-      ]);
+      const cats = await adminApi.getPricingTiers().catch(() => [] as VehicleCategory[]);
       setCategories(Array.isArray(cats) ? cats : []);
-      if (policy) setPolicyConfig(policy);
     } finally {
       setLoading(false);
     }
@@ -115,29 +109,6 @@ export default function PricingPage() {
     }
   }
 
-  async function handleSavePolicy(e: React.FormEvent) {
-    e.preventDefault();
-    if (!policyConfig) return;
-    setSavingPolicy(true);
-    try {
-      const updated = await adminApi.updatePolicyConfig({
-        commissionPercent: Number(policyConfig.commissionPercent),
-        driverMonthlyFee: Number(policyConfig.driverMonthlyFee ?? 0),
-        driverTrialDays: Number(policyConfig.driverTrialDays ?? 0),
-        minWithdrawalAmount: Number(policyConfig.minWithdrawalAmount),
-        escortFee: Number(policyConfig.escortFee ?? 0),
-        convenienceFeePercent: Number(policyConfig.convenienceFeePercent ?? 0),
-        gstPercent: Number(policyConfig.gstPercent ?? 0),
-      });
-      setPolicyConfig(updated);
-      setAlert({ type: 'success', message: 'Platform policy saved.' });
-    } catch (err: any) {
-      setAlert({ type: 'error', message: err.message || 'Failed to update platform policy' });
-    } finally {
-      setSavingPolicy(false);
-    }
-  }
-
   return (
     <div className="admin-page">
       {alert && (
@@ -150,14 +121,13 @@ export default function PricingPage() {
 
       <PageHeader
         title="Pricing"
-        subtitle="Distance-slab prices for vendors and drivers, vehicle categories, and platform policy. All values are stored in the database."
+        subtitle="Condition-based rate cards for vendors and drivers with peak-hour configurations, distance step generators, and real-time margin analytics."
       />
 
       <SegmentedTabs
         tabs={[
-          { id: 'DISTANCE_ENGINE', label: 'Distance Pricing' },
+          { id: 'DISTANCE_ENGINE', label: 'Rate Cards & Configuration' },
           { id: 'CATEGORIES', label: 'Vehicle Categories' },
-          { id: 'POLICIES', label: 'Platform Policy' },
         ]}
         activeTab={activeSection}
         onChange={setActiveSection}
@@ -235,140 +205,6 @@ export default function PricingPage() {
             emptySubtitle="Add a category to make it bookable."
           />
         </Card>
-      )}
-
-      {activeSection === 'POLICIES' && (
-        <>
-          <KpiStrip
-            columns={2}
-            items={[
-              {
-                id: 'min-withdrawal',
-                label: 'Minimum Withdrawal',
-                value: policyConfig ? `₹ ${policyConfig.minWithdrawalAmount}` : '—',
-                subtext: 'Enforced on driver payouts',
-                icon: <Wallet size={16} color="var(--color-success)" />,
-                tone: 'success',
-              },
-              {
-                id: 'legacy-commission',
-                label: 'Legacy Trip Commission',
-                value: policyConfig ? `${policyConfig.commissionPercent}%` : '—',
-                subtext: 'Only trips booked before distance pricing',
-                icon: <Percent size={16} color="#8b5cf6" />,
-                tone: 'violet',
-              },
-            ]}
-          />
-
-          <Card>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem', paddingTop: '0.15rem' }}>
-              <Sliders size={18} color="var(--brand-primary)" />
-              <div>
-                <h3 style={{ fontSize: '1.08rem', fontWeight: 700, color: 'var(--text-primary)' }}>Platform Policy</h3>
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.125rem' }}>
-                  Distance-priced trips pay the driver the slab payout in full; the platform keeps the slab spread. Commission below applies only to older trips without a pricing snapshot.
-                </p>
-              </div>
-            </div>
-
-            {!policyConfig ? (
-              <div style={{ padding: '1.5rem', color: 'var(--text-muted)' }}>{loading ? 'Loading…' : 'Policy could not be loaded.'}</div>
-            ) : (
-              <form onSubmit={handleSavePolicy} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
-                <div>
-                  <label style={labelStyle}>Minimum withdrawal (₹)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={policyConfig.minWithdrawalAmount}
-                    onChange={(e) => setPolicyConfig({ ...policyConfig, minWithdrawalAmount: Number(e.target.value) })}
-                    style={inputStyle}
-                  />
-                </div>
-                <div>
-                  <label style={labelStyle}>Driver monthly fee (₹)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={policyConfig.driverMonthlyFee ?? 0}
-                    onChange={(e) => setPolicyConfig({ ...policyConfig, driverMonthlyFee: Number(e.target.value) })}
-                    style={inputStyle}
-                  />
-                </div>
-                <div>
-                  <label style={labelStyle}>Driver trial days</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={policyConfig.driverTrialDays ?? 0}
-                    onChange={(e) => setPolicyConfig({ ...policyConfig, driverTrialDays: Number(e.target.value) })}
-                    style={inputStyle}
-                  />
-                </div>
-                <div>
-                  <label style={labelStyle}>Legacy trip commission (%)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="50"
-                    step="0.5"
-                    value={policyConfig.commissionPercent}
-                    onChange={(e) => setPolicyConfig({ ...policyConfig, commissionPercent: Number(e.target.value) })}
-                    style={inputStyle}
-                  />
-                </div>
-                <div>
-                  <label style={labelStyle}>Convenience fee (%)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    value={policyConfig.convenienceFeePercent ?? 0}
-                    onChange={(e) => setPolicyConfig({ ...policyConfig, convenienceFeePercent: Number(e.target.value) })}
-                    style={inputStyle}
-                  />
-                </div>
-                <div>
-                  <label style={labelStyle}>GST (%)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    value={policyConfig.gstPercent ?? 0}
-                    onChange={(e) => setPolicyConfig({ ...policyConfig, gstPercent: Number(e.target.value) })}
-                    style={inputStyle}
-                  />
-                </div>
-                <div>
-                  <label style={labelStyle}>Security escort fee (₹)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={policyConfig.escortFee ?? 300}
-                    onChange={(e) => setPolicyConfig({ ...policyConfig, escortFee: Number(e.target.value) })}
-                    style={inputStyle}
-                  />
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                    Added to vendor quote when Security Escort is toggled; settled via ESCORT_PAYABLE.
-                  </div>
-                </div>
-                <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.75rem', borderTop: '1px solid var(--border)' }}>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    {policyConfig.updatedAt ? `Last saved: ${new Date(policyConfig.updatedAt).toLocaleString()}` : ''}
-                  </span>
-                  <Button variant="primary" size="sm" type="submit" isLoading={savingPolicy}>
-                    Save Policy
-                  </Button>
-                </div>
-              </form>
-            )}
-          </Card>
-        </>
       )}
 
       {/* Add category */}

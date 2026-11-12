@@ -29,6 +29,7 @@ import {
   VendorTripQuoteRequestDto,
   VendorTripQuoteResponseDto,
 } from '@adhocx/contracts';
+import { PeakWindowDef, evaluatePeakTime, parsePickupTime, planPeakWindows, validatePeakWindows } from './peak-hours';
 
 /**
  * Dynamic Distance-Based Pricing Engine (PRD v1.0).
@@ -70,11 +71,27 @@ const envInt = (name: string, fallback: number) => {
 export const DEFAULT_PLAN_CATEGORY = 'ALL';
 const DEFAULT_ESCORT_FEE_PAISE = 30000;
 
+export { evaluatePeakTime, validatePeakWindows } from './peak-hours';
+export type { PeakWindowDef } from './peak-hours';
+
+/** Rates for a slab in a pricing period. A missing peak rate is the standard rate (never an implied surcharge). */
+export function slabRates(
+  slab: { vendorPricePaise: number; driverPayoutPaise: number; vendorPeakPricePaise?: number | null; driverPeakPayoutPaise?: number | null },
+  isPeak: boolean,
+) {
+  return {
+    vendorPricePaise: isPeak ? slab.vendorPeakPricePaise ?? slab.vendorPricePaise : slab.vendorPricePaise,
+    driverPayoutPaise: isPeak ? slab.driverPeakPayoutPaise ?? slab.driverPayoutPaise : slab.driverPayoutPaise,
+  };
+}
+
 type SlabInput = {
   minDistanceMExclusive: number;
   maxDistanceMInclusive: number;
   vendorPricePaise: number;
   driverPayoutPaise: number;
+  vendorPeakPricePaise?: number | null;
+  driverPeakPayoutPaise?: number | null;
   active?: boolean;
 };
 
@@ -181,12 +198,13 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
 
     let slabs: SlabInput[];
     let source: string;
+    let sourcePlan: any = null;
     if (dto.slabs && dto.slabs.length > 0) {
       this.validateSlabs(dto.slabs);
       slabs = dto.slabs;
       source = 'request';
     } else {
-      const sourcePlan = dto.cloneFromPlanId
+      sourcePlan = dto.cloneFromPlanId
         ? await this.db.pricingPlan.findUnique({
             where: { id: dto.cloneFromPlanId },
             include: { slabs: { orderBy: { minDistanceMExclusive: 'asc' } } },
@@ -201,11 +219,13 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
           `No slabs given and there is no active ${vehicleCategory} plan to copy. Provide the distance slabs for the new plan.`,
         );
       }
-      slabs = sourcePlan.slabs.map((s) => ({
+      slabs = sourcePlan.slabs.map((s: any) => ({
         minDistanceMExclusive: s.minDistanceMExclusive,
         maxDistanceMInclusive: s.maxDistanceMInclusive,
         vendorPricePaise: s.vendorPricePaise,
         driverPayoutPaise: s.driverPayoutPaise,
+        vendorPeakPricePaise: s.vendorPeakPricePaise ?? null,
+        driverPeakPayoutPaise: s.driverPeakPayoutPaise ?? null,
         active: s.active,
       }));
       source = `plan ${sourcePlan.id} (v${sourcePlan.version})`;
@@ -217,6 +237,12 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
     });
     if (clash) throw new ConflictException(`A ${vehicleCategory} pricing plan with version ${version} already exists.`);
 
+    // Windows: explicit in the request, else inherited from the plan being copied, else none (never peak).
+    const peakWindows = validatePeakWindows(
+      dto.peakWindows !== undefined ? dto.peakWindows : planPeakWindows(sourcePlan?.peakWindowsJson),
+    );
+    const rateConfig = dto.config ?? (sourcePlan?.rateConfigJson as any) ?? null;
+
     const created = await this.db.$transaction(async (tx) => {
       const plan = await tx.pricingPlan.create({
         data: {
@@ -224,6 +250,8 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
           version,
           name: dto.name?.trim() || `${vehicleCategory} distance plan v${version}`,
           status: 'DRAFT',
+          peakWindowsJson: peakWindows as any,
+          rateConfigJson: rateConfig as any,
           createdBy: actor.name || actor.id || 'ADMIN',
           slabs: { create: this.slabRows(slabs) },
         },
@@ -235,7 +263,7 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
           actorName: actor.name || 'Admin',
           action: 'CREATE_DRAFT_PLAN',
           entityId: plan.id,
-          newValueJson: { vehicleCategory, version, slabs: this.auditSlabs(slabs) } as any,
+          newValueJson: { vehicleCategory, version, peakWindows, slabs: this.auditSlabs(slabs) } as any,
           reason: `Draft created from ${source}`,
         },
       });
@@ -245,8 +273,16 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
   }
 
   /** Replace the slabs of a DRAFT plan. Live and historical versions are never edited in place. */
-  async updateDraftSlabs(planId: string, slabs: CreatePricingSlabInputDto[], actor: Actor, reason?: string) {
+  async updateDraftSlabs(
+    planId: string,
+    slabs: CreatePricingSlabInputDto[],
+    actor: Actor,
+    reason?: string,
+    meta?: { peakWindows?: PeakWindowDef[]; config?: object },
+  ) {
     this.validateSlabs(slabs);
+    // undefined = keep the draft's windows; [] = turn peak pricing off.
+    const nextWindows = meta?.peakWindows !== undefined ? validatePeakWindows(meta.peakWindows) : undefined;
     await this.db.$transaction(async (tx) => {
       const plan = await tx.pricingPlan.findUnique({ where: { id: planId }, include: { slabs: true } });
       if (!plan) throw new NotFoundException(`Pricing plan ${planId} not found`);
@@ -255,6 +291,13 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
           `Only DRAFT plans can be edited (this plan is ${plan.status}). Create a draft from it, change the rates, then publish.`,
         );
       }
+
+      const oldWindows = planPeakWindows(plan.peakWindowsJson);
+      const data: Record<string, unknown> = {};
+      if (nextWindows !== undefined) data.peakWindowsJson = nextWindows;
+      if (meta?.config !== undefined) data.rateConfigJson = meta.config;
+      if (Object.keys(data).length > 0) await tx.pricingPlan.update({ where: { id: planId }, data });
+
       await tx.pricingSlab.deleteMany({ where: { planId } });
       await tx.pricingSlab.createMany({ data: this.slabRows(slabs).map((r) => ({ ...r, planId })) });
       await tx.pricingAudit.create({
@@ -263,13 +306,17 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
           actorName: actor.name || 'Admin',
           action: 'UPDATE_SLABS',
           entityId: planId,
-          oldValueJson: this.auditSlabs(plan.slabs) as any,
-          newValueJson: this.auditSlabs(slabs) as any,
+          oldValueJson: { peakWindows: oldWindows, slabs: this.auditSlabs(plan.slabs) } as any,
+          newValueJson: { peakWindows: nextWindows ?? oldWindows, slabs: this.auditSlabs(slabs) } as any,
           reason: reason?.trim() || 'Draft slabs updated',
         },
       });
     });
     return this.getPlanById(planId);
+  }
+
+  validatePeakWindows(windows?: PeakWindowDef[]) {
+    return validatePeakWindows(windows);
   }
 
   /**
@@ -298,6 +345,7 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
       }
       if (plan.slabs.length === 0) throw new BadRequestException('Cannot publish a plan with no active distance slabs.');
       this.validateSlabs(plan.slabs);
+      const publishedWindows = validatePeakWindows(planPeakWindows(plan.peakWindowsJson));
 
       // Conditional transition: two admins publishing at once -> one wins.
       const claimed = await tx.pricingPlan.updateMany({
@@ -334,6 +382,7 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
             vehicleCategory: plan.vehicleCategory,
             version: plan.version,
             effectiveFrom: (isScheduled ? effectiveFrom : now).toISOString(),
+            peakWindows: publishedWindows,
             slabs: this.auditSlabs(plan.slabs),
           } as any,
           reason,
@@ -478,6 +527,19 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
           `Slab #${n}: vendor charge (₹${(slab.vendorPricePaise / 100).toFixed(2)}) cannot be less than driver payout (₹${(slab.driverPayoutPaise / 100).toFixed(2)}).`,
         );
       }
+      for (const [field, v] of Object.entries({
+        vendorPeakPricePaise: slab.vendorPeakPricePaise,
+        driverPeakPayoutPaise: slab.driverPeakPayoutPaise,
+      })) {
+        if (v === undefined || v === null) continue;
+        if (!Number.isInteger(v) || v <= 0) throw new BadRequestException(`Slab #${n}: ${field} must be a positive whole number.`);
+      }
+      const peak = slabRates(slab, true);
+      if (peak.vendorPricePaise < peak.driverPayoutPaise) {
+        throw new BadRequestException(
+          `Slab #${n} (peak): vendor charge (₹${(peak.vendorPricePaise / 100).toFixed(2)}) cannot be less than driver payout (₹${(peak.driverPayoutPaise / 100).toFixed(2)}).`,
+        );
+      }
       if (i > 0) {
         const prev = sorted[i - 1];
         if (slab.minDistanceMExclusive === prev.minDistanceMExclusive) {
@@ -525,7 +587,7 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
   }
 
   /** min < distance <= max on unrounded meters. Beyond the last slab is a configuration error, never a guess. */
-  resolveSlab(plan: { id?: string; version: string; vehicleCategory?: string; slabs: any[] }, distanceMeters: number) {
+  resolveSlab(plan: { id?: string; version: string; vehicleCategory?: string; slabs: any[] }, distanceMeters: number, isPeak = false) {
     const sorted = [...plan.slabs].filter((s) => s.active !== false).sort((a, b) => a.minDistanceMExclusive - b.minDistanceMExclusive);
     const match = sorted.find((s) => distanceMeters > s.minDistanceMExclusive && distanceMeters <= s.maxDistanceMInclusive);
     if (!match) {
@@ -539,7 +601,12 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
         { distanceMeters, maxConfiguredMeters: maxConfigured },
       );
     }
-    return match;
+    return { ...match, ...slabRates(match, isPeak) };
+  }
+
+  /** Pricing period of an instant under a plan's windows (IST). */
+  pricingPeriod(plan: { peakWindowsJson?: unknown }, at: Date) {
+    return evaluatePeakTime(at, planPeakWindows(plan.peakWindowsJson));
   }
 
   // ===========================================================================
@@ -566,7 +633,9 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
     );
     const vehicleCategory = this.normalizeCategory(dto.vehicleCategory);
     const plan = await this.resolveActivePlan(vehicleCategory);
-    const slab = this.resolveSlab(plan, route.distanceMeters);
+    const pricedForTime = parsePickupTime(dto.pickupTime);
+    const peakEval = this.pricingPeriod(plan, pricedForTime);
+    const slab = this.resolveSlab(plan, route.distanceMeters, peakEval.isPeak);
     const hasEscort = Boolean(dto.hasEscort);
     const escortFarePaise = hasEscort ? await this.resolveEscortFeePaise() : 0;
     const baseVendorPricePaise = slab.vendorPricePaise;
@@ -591,6 +660,8 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
         driverPayoutPaise: slab.driverPayoutPaise,
         hasEscort,
         escortFarePaise,
+        pricedForTime,
+        isPeak: peakEval.isPeak,
         expiresAt,
         status: 'ACTIVE',
         routeSummary: route.routeDescription || null,
@@ -599,7 +670,7 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
       },
     });
     this.logger.log(
-      `[pricing] metric=quote_created quote=${quote.id} category=${vehicleCategory} plan=${plan.vehicleCategory}/v${plan.version} distance_m=${route.distanceMeters} has_escort=${hasEscort} escort_paise=${escortFarePaise} latency_ms=${Date.now() - started}`,
+      `[pricing] metric=quote_created quote=${quote.id} category=${vehicleCategory} plan=${plan.vehicleCategory}/v${plan.version} distance_m=${route.distanceMeters} is_peak=${peakEval.isPeak} has_escort=${hasEscort} escort_paise=${escortFarePaise} latency_ms=${Date.now() - started}`,
     );
 
     return {
@@ -619,6 +690,8 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
       pickupAddress: pickup?.address || undefined,
       dropAddress: drop?.address || undefined,
       canAutoQuote: true,
+      isPeak: peakEval.isPeak,
+      activeWindowLabel: peakEval.activeWindow?.label,
     };
   }
 
@@ -635,6 +708,7 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
       drop?: { latitude: number; longitude: number };
       vehicleCategory?: string;
       hasEscort?: boolean;
+      reportingTime?: Date | string;
     },
   ) {
     const quote = await this.db.tripQuote.findUnique({ where: { id: quoteId }, include: { plan: true } });
@@ -652,6 +726,19 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
       throw pricingError(HttpStatus.GONE, PricingErrorCode.QUOTE_EXPIRED, 'This quote has expired. Please get a fresh quote.');
     }
     if (booking) this.assertBookingMatchesQuote(quote, booking);
+    // The booking's reporting time must fall in the pricing period the quote was priced for, or a
+    // vendor could quote at an off-peak time and book a peak trip (and the driver be underpaid).
+    if (booking?.reportingTime !== undefined && booking.reportingTime !== null && quote.plan) {
+      const period = this.pricingPeriod(quote.plan, parsePickupTime(booking.reportingTime));
+      if (period.isPeak !== Boolean(quote.isPeak)) {
+        this.logger.warn(`[pricing] metric=quote_period_mismatch quote=${quote.id} quoted_peak=${quote.isPeak} booking_peak=${period.isPeak}`);
+        throw pricingError(
+          HttpStatus.CONFLICT,
+          PricingErrorCode.QUOTE_MISMATCH,
+          `This quote was priced for ${quote.isPeak ? 'peak' : 'non-peak'} hours but the reporting time is in ${period.isPeak ? 'peak' : 'non-peak'} hours. Please get a fresh quote for the reporting time.`,
+        );
+      }
+    }
 
     const hasEscort = Boolean(quote.hasEscort);
     const escortFarePaise = Number(quote.escortFarePaise ?? 0);
@@ -697,11 +784,20 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
     pickup: { latitude: number; longitude: number },
     drop: { latitude: number; longitude: number },
     vehicleCategory?: string,
+    pickupTime?: Date | string,
   ) {
     const route = await this.verifiedDistance(pickup, drop);
     const plan = await this.resolveActivePlan(vehicleCategory);
-    const slab = this.resolveSlab(plan, route.distanceMeters);
-    return { driverPayoutPaise: slab.driverPayoutPaise, distanceMeters: route.distanceMeters, planVersion: plan.version, slabId: slab.id };
+    const peakEval = this.pricingPeriod(plan, parsePickupTime(pickupTime));
+    const slab = this.resolveSlab(plan, route.distanceMeters, peakEval.isPeak);
+    return {
+      driverPayoutPaise: slab.driverPayoutPaise,
+      distanceMeters: route.distanceMeters,
+      planVersion: plan.version,
+      slabId: slab.id,
+      isPeak: peakEval.isPeak,
+      activeWindowLabel: peakEval.activeWindow?.label,
+    };
   }
 
   /** Driver view: payout and route only (never the vendor charge or spread). */
@@ -743,6 +839,8 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
     pickup?: { lat: number; lng: number; address?: string };
     drop?: { lat: number; lng: number; address?: string };
     vehicleCategory?: string;
+    pickupTime?: string;
+    isPeak?: boolean;
   }) {
     let distanceMeters = params.distanceMeters ? Math.round(Number(params.distanceMeters)) : undefined;
     if (!distanceMeters && params.pickup && params.drop) {
@@ -759,8 +857,18 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
     }
     const vehicleCategory = this.normalizeCategory(params.vehicleCategory);
     const plan = await this.resolveActivePlan(vehicleCategory);
-    const slab = this.resolveSlab(plan, distanceMeters);
-    const grossSpreadPaise = slab.vendorPricePaise - slab.driverPayoutPaise;
+    const peakWindows = planPeakWindows(plan.peakWindowsJson);
+    const peakEval: { isPeak: boolean; activeWindow?: PeakWindowDef } =
+      params.isPeak !== undefined ? { isPeak: Boolean(params.isPeak) } : evaluatePeakTime(parsePickupTime(params.pickupTime), peakWindows);
+
+    const stdSlab = this.resolveSlab(plan, distanceMeters, false);
+    const peakSlab = this.resolveSlab(plan, distanceMeters, true);
+    const activeSlab = peakEval.isPeak ? peakSlab : stdSlab;
+
+    const grossSpreadPaise = activeSlab.vendorPricePaise - activeSlab.driverPayoutPaise;
+    const stdGrossSpreadPaise = stdSlab.vendorPricePaise - stdSlab.driverPayoutPaise;
+    const peakGrossSpreadPaise = peakSlab.vendorPricePaise - peakSlab.driverPayoutPaise;
+
     return {
       distanceMeters,
       displayedKm: Number((distanceMeters / 1000).toFixed(1)),
@@ -768,19 +876,34 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
       planVersion: plan.version,
       planCategory: plan.vehicleCategory,
       vehicleCategory,
-      slabId: slab.id,
-      slabRange: this.rangeLabel(slab),
-      vendorPricePaise: slab.vendorPricePaise,
-      vendorPriceRupees: slab.vendorPricePaise / 100,
-      driverPayoutPaise: slab.driverPayoutPaise,
-      driverPayoutRupees: slab.driverPayoutPaise / 100,
+      slabId: activeSlab.id,
+      slabRange: this.rangeLabel(activeSlab),
+      isPeak: peakEval.isPeak,
+      activeWindowLabel: peakEval.activeWindow?.label || (peakEval.isPeak ? 'Peak Hours' : 'Standard Non-Peak'),
+      vendorPricePaise: activeSlab.vendorPricePaise,
+      vendorPriceRupees: activeSlab.vendorPricePaise / 100,
+      driverPayoutPaise: activeSlab.driverPayoutPaise,
+      driverPayoutRupees: activeSlab.driverPayoutPaise / 100,
       grossSpreadPaise,
       grossSpreadRupees: grossSpreadPaise / 100,
-      grossMarginPercent: Number(((grossSpreadPaise / slab.vendorPricePaise) * 100).toFixed(2)),
+      grossMarginPercent: Number(((grossSpreadPaise / activeSlab.vendorPricePaise) * 100).toFixed(2)),
+      standard: {
+        vendorPriceRupees: stdSlab.vendorPricePaise / 100,
+        driverPayoutRupees: stdSlab.driverPayoutPaise / 100,
+        grossSpreadRupees: stdGrossSpreadPaise / 100,
+        grossMarginPercent: Number(((stdGrossSpreadPaise / stdSlab.vendorPricePaise) * 100).toFixed(2)),
+      },
+      peak: {
+        vendorPriceRupees: peakSlab.vendorPricePaise / 100,
+        driverPayoutRupees: peakSlab.driverPayoutPaise / 100,
+        grossSpreadRupees: peakGrossSpreadPaise / 100,
+        grossMarginPercent: Number(((peakGrossSpreadPaise / peakSlab.vendorPricePaise) * 100).toFixed(2)),
+      },
+      peakWindows,
     };
   }
 
-  /** Driver rate card: payouts only. */
+  /** Driver rate card: payouts only across standard & peak. */
   async getActiveDriverRateCard(vehicleCategory = DEFAULT_PLAN_CATEGORY) {
     const plan = await this.resolveActivePlan(vehicleCategory);
     return {
@@ -789,18 +912,24 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
       version: plan.version,
       vehicleCategory: plan.vehicleCategory,
       effectiveFrom: plan.effectiveFrom.toISOString(),
-      slabs: plan.slabs.map((s: any) => ({
-        id: s.id,
-        range: this.rangeLabel(s),
-        minKm: s.minDistanceMExclusive / 1000,
-        maxKm: s.maxDistanceMInclusive / 1000,
-        driverPayoutPaise: s.driverPayoutPaise,
-        driverPayoutRupees: s.driverPayoutPaise / 100,
-      })),
+      peakWindows: planPeakWindows(plan.peakWindowsJson),
+      slabs: plan.slabs.map((s: any) => {
+        const peakPayoutPaise = slabRates(s, true).driverPayoutPaise;
+        return {
+          id: s.id,
+          range: this.rangeLabel(s),
+          minKm: s.minDistanceMExclusive / 1000,
+          maxKm: s.maxDistanceMInclusive / 1000,
+          driverPayoutPaise: s.driverPayoutPaise,
+          driverPayoutRupees: s.driverPayoutPaise / 100,
+          driverPeakPayoutPaise: peakPayoutPaise,
+          driverPeakPayoutRupees: peakPayoutPaise / 100,
+        };
+      }),
     };
   }
 
-  /** Vendor rate card: charges only. */
+  /** Vendor rate card: charges only across standard & peak. */
   async getActiveVendorRateCard(vehicleCategory = DEFAULT_PLAN_CATEGORY) {
     const plan = await this.resolveActivePlan(vehicleCategory);
     const escortFeePaise = await this.resolveEscortFeePaise();
@@ -812,14 +941,20 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
       effectiveFrom: plan.effectiveFrom.toISOString(),
       escortFeePaise,
       escortFeeRupees: escortFeePaise / 100,
-      slabs: plan.slabs.map((s: any) => ({
-        id: s.id,
-        range: this.rangeLabel(s),
-        minKm: s.minDistanceMExclusive / 1000,
-        maxKm: s.maxDistanceMInclusive / 1000,
-        vendorPricePaise: s.vendorPricePaise,
-        vendorPriceRupees: s.vendorPricePaise / 100,
-      })),
+      peakWindows: planPeakWindows(plan.peakWindowsJson),
+      slabs: plan.slabs.map((s: any) => {
+        const peakPricePaise = slabRates(s, true).vendorPricePaise;
+        return {
+          id: s.id,
+          range: this.rangeLabel(s),
+          minKm: s.minDistanceMExclusive / 1000,
+          maxKm: s.maxDistanceMInclusive / 1000,
+          vendorPricePaise: s.vendorPricePaise,
+          vendorPriceRupees: s.vendorPricePaise / 100,
+          vendorPeakPricePaise: peakPricePaise,
+          vendorPeakPriceRupees: peakPricePaise / 100,
+        };
+      }),
     };
   }
 
@@ -950,6 +1085,8 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
         maxDistanceMInclusive: s.maxDistanceMInclusive,
         vendorPricePaise: s.vendorPricePaise,
         driverPayoutPaise: s.driverPayoutPaise,
+        vendorPeakPricePaise: s.vendorPeakPricePaise ?? null,
+        driverPeakPayoutPaise: s.driverPeakPayoutPaise ?? null,
         active: s.active !== false,
         sortOrder: idx,
       }));
@@ -963,6 +1100,8 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
         maxM: s.maxDistanceMInclusive,
         vendorPricePaise: s.vendorPricePaise,
         driverPayoutPaise: s.driverPayoutPaise,
+        vendorPeakPricePaise: s.vendorPeakPricePaise ?? null,
+        driverPeakPayoutPaise: s.driverPeakPayoutPaise ?? null,
         active: s.active !== false,
       }));
   }
@@ -976,6 +1115,9 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
   private mapPlanToDto(plan: any): DistancePricingPlanDto {
     const slabs = (plan.slabs || []).map((s: any) => {
       const grossSpreadPaise = s.vendorPricePaise - s.driverPayoutPaise;
+      const { vendorPricePaise: vendorPeakPricePaise, driverPayoutPaise: driverPeakPayoutPaise } = slabRates(s, true);
+      const peakGrossSpreadPaise = vendorPeakPricePaise - driverPeakPayoutPaise;
+
       return {
         id: s.id,
         planId: s.planId,
@@ -983,10 +1125,17 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
         maxDistanceMInclusive: s.maxDistanceMInclusive,
         vendorPricePaise: s.vendorPricePaise,
         driverPayoutPaise: s.driverPayoutPaise,
+        vendorPeakPricePaise,
+        driverPeakPayoutPaise,
         grossSpreadPaise,
         grossMarginPercent: s.vendorPricePaise > 0 ? Number(((grossSpreadPaise / s.vendorPricePaise) * 100).toFixed(2)) : 0,
         vendorPriceRupees: s.vendorPricePaise / 100,
         driverPayoutRupees: s.driverPayoutPaise / 100,
+        vendorPeakPriceRupees: vendorPeakPricePaise / 100,
+        driverPeakPayoutRupees: driverPeakPayoutPaise / 100,
+        peakGrossSpreadPaise,
+        peakGrossSpreadRupees: peakGrossSpreadPaise / 100,
+        peakGrossMarginPercent: vendorPeakPricePaise > 0 ? Number(((peakGrossSpreadPaise / vendorPeakPricePaise) * 100).toFixed(2)) : 0,
         grossSpreadRupees: grossSpreadPaise / 100,
         minKm: s.minDistanceMExclusive / 1000,
         maxKm: s.maxDistanceMInclusive / 1000,
@@ -995,11 +1144,13 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
         sortOrder: s.sortOrder,
       } as DistancePricingSlabDto;
     });
+
     return {
       id: plan.id,
       vehicleCategory: plan.vehicleCategory,
       version: plan.version,
       name: plan.name,
+      displayName: plan.name,
       status: plan.status,
       effectiveFrom: plan.effectiveFrom ? new Date(plan.effectiveFrom).toISOString() : null,
       effectiveTo: plan.effectiveTo ? new Date(plan.effectiveTo).toISOString() : null,
@@ -1008,6 +1159,8 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
       publishedAt: plan.publishedAt ? new Date(plan.publishedAt).toISOString() : null,
       createdAt: plan.createdAt ? new Date(plan.createdAt).toISOString() : null,
       updatedAt: plan.updatedAt ? new Date(plan.updatedAt).toISOString() : null,
+      peakWindows: planPeakWindows(plan.peakWindowsJson),
+      config: (plan.rateConfigJson as any) ?? null,
       slabs,
       slabCount: slabs.length,
     } as any;

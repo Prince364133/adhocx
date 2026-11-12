@@ -902,6 +902,10 @@ model PricingPlan {
   publishedAt     DateTime?             @map("published_at")
   createdAt       DateTime              @default(now()) @map("created_at")
   updatedAt       DateTime              @default(now()) @updatedAt @map("updated_at")
+  /// Peak windows in IST: [{ start: "08:00", end: "11:00", label? }]. Null/empty = never peak.
+  peakWindowsJson Json?                 @map("peak_windows_json")
+  /// Admin slab-generator settings (step km, max km, uplift %). Display only; never used for pricing.
+  rateConfigJson  Json?                 @map("rate_config_json")
 
   slabs           PricingSlab[]
   quotes          TripQuote[]
@@ -919,6 +923,9 @@ model PricingSlab {
   maxDistanceMInclusive Int         @map("max_distance_m_inclusive")
   vendorPricePaise      Int         @map("vendor_price_paise")
   driverPayoutPaise     Int         @map("driver_payout_paise")
+  /// Peak-hour rates. Null = same as the standard rate (no implicit surcharge).
+  vendorPeakPricePaise  Int?        @map("vendor_peak_price_paise")
+  driverPeakPayoutPaise Int?        @map("driver_peak_payout_paise")
   active                Boolean     @default(true)
   sortOrder             Int         @default(0) @map("sort_order")
 
@@ -963,6 +970,10 @@ model TripQuote {
   driverPayoutPaise Int          @map("driver_payout_paise")
   hasEscort         Boolean      @default(false) @map("has_escort")
   escortFarePaise   Int          @default(0) @map("escort_fare_paise")
+  /// Pickup instant the quote was priced for, and whether that fell in a peak window. A booking's
+  /// reporting time must fall in the same pricing period or the quote is refused.
+  pricedForTime     DateTime?    @map("priced_for_time")
+  isPeak            Boolean      @default(false) @map("is_peak")
   expiresAt         DateTime     @map("expires_at")
   status            String       @default("ACTIVE") // ACTIVE, CONFIRMED, EXPIRED
   routeSummary      String?      @map("route_summary")

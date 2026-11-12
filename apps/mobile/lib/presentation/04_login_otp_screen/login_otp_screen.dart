@@ -115,7 +115,7 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
           context.go(AppRoutes.setPasswordScreen);
         }
         // 2. Mandatory Onboarding: Only if user has never completed onboarding/profile setup
-        else if (!user.isOnboarded && !user.isUnderReview && !user.isVerified) {
+        else if (!user.isOnboarded && !user.isUnderReview && !user.isVerified && !user.isRejected) {
           context.go(AppRoutes.onboardingPersonalScreen);
         }
         // 3. Verification Gate: Unverified users (Drivers and Vendors) go to waitlist

@@ -261,6 +261,7 @@ class AuthService {
     _sessionEpoch = 0;
     _inFlightUserFetch = null;
     _lastUserFetchTime = null;
+    _lastLoginTime = null;
     _currentUser = null;
     authStateListenable.value = null;
   }
@@ -429,7 +430,10 @@ class AuthService {
     );
 
     final token = await _saveTokens(response);
-    final user = await fetchCurrentUser(forceRefresh: true);
+    UserModel? user;
+    try {
+      user = await fetchCurrentUser(forceRefresh: true);
+    } catch (_) {}
     final effectiveUser = user ?? _currentUser ?? UserModel(id: 'usr_auth', role: role ?? 'DRIVER');
     return AuthResult(user: effectiveUser, accessToken: token);
   }
@@ -481,7 +485,10 @@ class AuthService {
     );
 
     final token = await _saveTokens(response);
-    final user = await fetchCurrentUser(forceRefresh: true);
+    UserModel? user;
+    try {
+      user = await fetchCurrentUser(forceRefresh: true);
+    } catch (_) {}
     final effectiveUser = user ?? _currentUser ?? UserModel(id: 'usr_auth', role: role ?? 'DRIVER', phone: phone, email: email, fullName: fullName);
     return AuthResult(user: effectiveUser, accessToken: token);
   }
@@ -653,6 +660,7 @@ class AuthService {
 
   Future<UserModel?>? _inFlightUserFetch;
   DateTime? _lastUserFetchTime;
+  DateTime? _lastLoginTime;
 
   Future<UserModel?> ensureAuthenticatedSession({String? role, bool force = false}) async {
     if (!force && _currentUser != null) {
@@ -722,6 +730,15 @@ class AuthService {
       debugPrint('fetchCurrentUser error: $e');
       if (epoch != _sessionEpoch) return null;
       if (e is ApiException && e.statusCode == 401) {
+        if (_lastLoginTime != null &&
+            DateTime.now().difference(_lastLoginTime!) < const Duration(seconds: 15)) {
+          AppLogger.warn(
+            'Ignoring transient 401 on /auth/me right after login; retaining authenticated session',
+            tag: 'AUTH',
+          );
+          return _currentUser;
+        }
+
         // Attempt token refresh once before clearing session
         final refreshed = await _api.attemptTokenRefresh();
         if (epoch != _sessionEpoch) return null;
@@ -740,6 +757,10 @@ class AuthService {
           } catch (_) {}
         }
         if (epoch != _sessionEpoch) return null;
+        if (_lastLoginTime != null &&
+            DateTime.now().difference(_lastLoginTime!) < const Duration(seconds: 15)) {
+          return _currentUser;
+        }
         // Only if refresh token is truly expired/rejected, clear user session
         await _api.clearToken();
         await _persistCurrentUser(null);
@@ -801,9 +822,17 @@ class AuthService {
       if (epoch != _sessionEpoch) return _currentUser != null;
       debugPrint('checkAuthSession fetch error: $e');
       if (e is ApiException && e.statusCode == 401) {
+        if (_lastLoginTime != null &&
+            DateTime.now().difference(_lastLoginTime!) < const Duration(seconds: 15)) {
+          return _currentUser != null;
+        }
         final refreshed = await _api.attemptTokenRefresh();
         if (epoch != _sessionEpoch) return _currentUser != null;
         if (!refreshed) {
+          if (_lastLoginTime != null &&
+              DateTime.now().difference(_lastLoginTime!) < const Duration(seconds: 15)) {
+            return _currentUser != null;
+          }
           await _api.clearToken();
           await _persistCurrentUser(null);
           return false;
@@ -911,6 +940,7 @@ class AuthService {
     await _api.clearToken();
     await _persistCurrentUser(null);
     _lastUserFetchTime = null;
+    _lastLoginTime = null;
     _inFlightUserFetch = null;
     AppLogger.info('User session and credentials completely cleared', tag: 'AUTH');
   }
@@ -949,6 +979,7 @@ class AuthService {
     await _api.clearToken();
     await _persistCurrentUser(null);
     _lastUserFetchTime = null;
+    _lastLoginTime = null;
     _inFlightUserFetch = null;
     AppLogger.info('All local credentials and state cleared after account deletion', tag: 'AUTH');
   }
@@ -964,6 +995,7 @@ class AuthService {
         _sessionEpoch++;
         _inFlightUserFetch = null;
         _lastUserFetchTime = null;
+        _lastLoginTime = DateTime.now();
         await _api.setToken(accessToken, refreshToken: refreshToken);
         // Ensure no stale overlay or cached driver state from a prior account survives login.
         unawaited(GlobalDispatchOverlayService.instance.closeOrphanedOverlayIfActive());

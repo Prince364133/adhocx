@@ -182,6 +182,7 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
         pickupIsOffice: _pickupIsOffice,
         dropIsOffice: _dropIsOffice,
         hasEscort: _hasEscort,
+        pickupTime: draft.reportingDateTime,
       );
 
       if (mounted) {

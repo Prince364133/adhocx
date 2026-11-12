@@ -27,7 +27,6 @@ import {
   VehicleCategory,
   CreateVehicleCategoryPayload,
   UpdateVehicleCategoryPayload,
-  SystemPolicyConfig,
   CorridorAnalytics,
   OperationalReportData,
   TripFrequencyReport,
@@ -59,6 +58,7 @@ import {
   DistancePricingPlan,
   CreateDistancePricingPlanPayload,
   CreatePricingSlabInput,
+  PeakHourWindow,
   PricingAuditItem,
   DistanceSimulationResult,
   DigioVerificationItem,
@@ -839,14 +839,6 @@ export const adminApi = {
       method: 'DELETE',
     }),
 
-  getPolicyConfig: () => apiClient<SystemPolicyConfig>('/pricing/policy-config'),
-
-  updatePolicyConfig: (data: Partial<SystemPolicyConfig>) =>
-    apiClient<SystemPolicyConfig>('/pricing/admin/policy-config', {
-      method: 'PATCH',
-      body: data,
-    }),
-
   // ── Dynamic Distance-Based Pricing Engine (PRD v1.0) ──────────────────────
   getDistancePricingPlans: (params?: { vehicleCategory?: string; status?: string }) => {
     const q = new URLSearchParams();
@@ -865,10 +857,15 @@ export const adminApi = {
       body: data,
     }),
 
-  updateDistancePricingSlabs: (id: string, slabs: CreatePricingSlabInput[], reason?: string) =>
+  updateDistancePricingSlabs: (
+    id: string,
+    slabs: CreatePricingSlabInput[],
+    reason?: string,
+    meta?: { peakWindows?: PeakHourWindow[]; config?: any },
+  ) =>
     apiClient<DistancePricingPlan>(`/admin/pricing/plans/${id}/slabs`, {
       method: 'PUT',
-      body: { slabs, reason },
+      body: { slabs, reason, ...meta },
     }),
 
   retireDistancePricingPlan: (id: string, reason: string) =>

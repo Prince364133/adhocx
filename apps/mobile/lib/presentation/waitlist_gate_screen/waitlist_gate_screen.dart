@@ -74,7 +74,7 @@ class _WaitlistGateScreenState extends State<WaitlistGateScreen>
   void _checkInitialStatus() {
     final user = AuthService.instance.currentUser;
     if (user != null) {
-      if (!user.isOnboarded && !user.isUnderReview && !user.isVerified) {
+      if (!user.isOnboarded && !user.isUnderReview && !user.isVerified && !user.isRejected) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
             context.go(AppRoutes.onboardingPersonalScreen);

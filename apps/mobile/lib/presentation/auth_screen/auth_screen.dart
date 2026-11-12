@@ -47,7 +47,9 @@ class _AuthScreenState extends State<AuthScreen> {
 
   void _onVerificationSuccess(UserModel user) {
     if (user.isDriver) {
-      if (user.isPending) {
+      if (user.isRejected) {
+        context.go(AppRoutes.waitlistGateScreen);
+      } else if (user.isPending) {
         context.go(AppRoutes.kycUploadScreen);
       } else if (user.isVerified) {
         context.go(AppRoutes.tripsScreen);
@@ -55,10 +57,14 @@ class _AuthScreenState extends State<AuthScreen> {
         context.go(AppRoutes.waitlistGateScreen);
       }
     } else {
-      if (user.isPending) {
+      if (user.isRejected) {
+        context.go(AppRoutes.waitlistGateScreen);
+      } else if (user.isPending) {
         context.go(AppRoutes.kycUploadScreen);
+      } else if (user.isVerified) {
+        context.go(AppRoutes.userHomeScreen);
       } else {
-        context.go(AppRoutes.tripsScreen);
+        context.go(AppRoutes.waitlistGateScreen);
       }
     }
   }

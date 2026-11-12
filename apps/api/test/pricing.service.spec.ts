@@ -88,14 +88,10 @@ describe('PricingService (vehicle catalogue, no prices)', () => {
     expect(db.trip.count).toHaveBeenCalledTimes(1);
   });
 
-  it('reads and updates platform escortFee policy and rejects negative values', async () => {
+  it('reads platform policy defaults', async () => {
     const { svc } = build();
     const initial = await svc.getPolicyConfig();
     expect(initial.escortFee).toBe(300);
-
-    const updated = await svc.updatePolicyConfig({ escortFee: 450 });
-    expect(updated.escortFee).toBe(450);
-
-    await expect(svc.updatePolicyConfig({ escortFee: -10 })).rejects.toThrow(/non-negative/);
+    expect(initial.minWithdrawalAmount).toBe(1000);
   });
 });

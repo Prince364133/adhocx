@@ -565,8 +565,9 @@ class AppRoutes {
 
     // 3. Mandatory Onboarding Completion Guard:
     // If authenticated user has not completed onboarding, force appropriate onboarding screen
-    if (!user.isOnboarded && !user.isUnderReview && !user.isVerified) {
+    if (!user.isOnboarded && !user.isUnderReview && !user.isVerified && !user.isRejected) {
       const allowedOnboardingRoutes = {
+        waitlistGateScreen,
         chooseRoleScreen,
         onboardingPersonalScreen,
         onboardingVehicleScreen,

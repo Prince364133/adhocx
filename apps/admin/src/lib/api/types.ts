@@ -549,18 +549,6 @@ export interface UpdateVehicleCategoryPayload {
   isActive?: boolean;
 }
 
-export interface SystemPolicyConfig {
-  id?: string;
-  commissionPercent: number;
-  driverMonthlyFee?: number;
-  driverTrialDays?: number;
-  minWithdrawalAmount: number;
-  escortFee?: number;
-  convenienceFeePercent?: number;
-  gstPercent?: number;
-  updatedAt?: string;
-}
-
 export interface CorridorAnalytics {
   corridor: string;
   pickupCity: string;
@@ -1022,6 +1010,12 @@ export interface CorporateSosAlert {
 // DYNAMIC DISTANCE-BASED PRICING TYPES (PRD v1.0)
 // ==========================================
 
+export interface PeakHourWindow {
+  start: string; // "HH:mm" e.g. "08:00"
+  end: string; // "HH:mm" e.g. "11:00"
+  label?: string; // e.g. "Morning Rush"
+}
+
 export interface DistancePricingSlab {
   id: string;
   planId: string;
@@ -1029,10 +1023,17 @@ export interface DistancePricingSlab {
   maxDistanceMInclusive: number;
   vendorPricePaise: number;
   driverPayoutPaise: number;
+  vendorPeakPricePaise?: number;
+  driverPeakPayoutPaise?: number;
   grossSpreadPaise: number;
   grossMarginPercent: number;
   vendorPriceRupees: number;
   driverPayoutRupees: number;
+  vendorPeakPriceRupees?: number;
+  driverPeakPayoutRupees?: number;
+  peakGrossSpreadPaise?: number;
+  peakGrossSpreadRupees?: number;
+  peakGrossMarginPercent?: number;
   grossSpreadRupees: number;
   minKm: number;
   maxKm: number;
@@ -1046,6 +1047,7 @@ export interface DistancePricingPlan {
   vehicleCategory: string;
   version: string;
   name?: string | null;
+  displayName?: string | null;
   status: 'DRAFT' | 'PUBLISHING' | 'ACTIVE' | 'SCHEDULED' | 'RETIRED';
   effectiveFrom: string;
   effectiveTo?: string | null;
@@ -1054,6 +1056,14 @@ export interface DistancePricingPlan {
   publishedAt?: string | null;
   createdAt: string;
   updatedAt: string;
+  peakWindows?: PeakHourWindow[];
+  config?: {
+    vendorStepKm?: number;
+    driverStepKm?: number;
+    maxDistanceKm?: number;
+    driverPeakSurchargePercent?: number;
+    vendorPeakSurchargePercent?: number;
+  };
   slabs: DistancePricingSlab[];
   slabCount?: number;
 }
@@ -1063,6 +1073,8 @@ export interface CreatePricingSlabInput {
   maxDistanceMInclusive: number;
   vendorPricePaise: number;
   driverPayoutPaise: number;
+  vendorPeakPricePaise?: number;
+  driverPeakPayoutPaise?: number;
   active?: boolean;
 }
 
@@ -1073,6 +1085,14 @@ export interface CreateDistancePricingPlanPayload {
   name?: string;
   cloneFromPlanId?: string;
   slabs?: CreatePricingSlabInput[];
+  peakWindows?: PeakHourWindow[];
+  config?: {
+    vendorStepKm?: number;
+    driverStepKm?: number;
+    maxDistanceKm?: number;
+    driverPeakSurchargePercent?: number;
+    vendorPeakSurchargePercent?: number;
+  };
 }
 
 export interface PricingAuditItem {
@@ -1096,6 +1116,8 @@ export interface DistanceSimulationResult {
   vehicleCategory: string;
   slabId: string;
   slabRange: string;
+  isPeak?: boolean;
+  activeWindowLabel?: string;
   vendorPricePaise: number;
   vendorPriceRupees: number;
   driverPayoutPaise: number;
@@ -1103,6 +1125,13 @@ export interface DistanceSimulationResult {
   grossSpreadPaise: number;
   grossSpreadRupees: number;
   grossMarginPercent: number;
+  vendorPeakPricePaise?: number;
+  vendorPeakPriceRupees?: number;
+  driverPeakPayoutPaise?: number;
+  driverPeakPayoutRupees?: number;
+  peakGrossSpreadPaise?: number;
+  peakGrossSpreadRupees?: number;
+  peakGrossMarginPercent?: number;
 }
 // =============================================================================
 // DIGIO KYC / KYB VERIFICATION TYPES

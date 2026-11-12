@@ -449,4 +449,51 @@ describe('rejected KYC & same-second re-login session continuity', () => {
     await expect(guard.canActivate(mockCtx(first.accessToken))).rejects.toThrow(UnauthorizedException);
     await expect(guard.canActivate(mockCtx(second.accessToken))).resolves.toBe(true);
   });
+
+  it('KYC-rejected driver retains isOnboarded=true, feedback and profile across getCurrentUser and refreshToken', async () => {
+    const { svc, db } = makeRealJwtSetup();
+    const pwHash = await (svc as any).hashPassword('secret-123');
+    const rejectedDriverUser = {
+      id: 'u-rej-full',
+      phone: '+919000000030',
+      role: 'DRIVER',
+      status: 'ACTIVE',
+      passwordHash: pwHash,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      driver: {
+        id: 'drv-rej-full',
+        fullName: 'Rejected Driver',
+        phone: '+919000000030',
+        verificationStatus: 'REJECTED',
+        availabilityStatus: 'OFFLINE',
+        walletBalance: 0,
+        rejectionReason: 'Blurry or unreadable Driving License image',
+        dlFrontUrl: 'https://storage.adhocx.com/dl/front.jpg',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        kycDocuments: {
+          dlFrontUrl: 'https://storage.adhocx.com/dl/front.jpg',
+        },
+      },
+    };
+    db.user.findFirst.mockResolvedValue(rejectedDriverUser);
+    db.user.findUnique.mockResolvedValue(rejectedDriverUser);
+
+    const loginRes = await svc.login({ identifier: '+919000000030', password: 'secret-123' } as any);
+    expect(loginRes.user.isOnboarded).toBe(true);
+    expect(loginRes.user.isApproved).toBe(false);
+    expect(loginRes.user.driverProfile?.verificationStatus).toBe('REJECTED');
+    expect(loginRes.user.driverProfile?.rejectionReason).toBe('Blurry or unreadable Driving License image');
+
+    const meRes = await svc.getCurrentUser('u-rej-full');
+    expect(meRes.isOnboarded).toBe(true);
+    expect(meRes.driverProfile?.verificationStatus).toBe('REJECTED');
+    expect(meRes.driverProfile?.rejectionReason).toBe('Blurry or unreadable Driving License image');
+    expect(meRes.driverProfile?.dlFrontUrl).toBe('https://storage.adhocx.com/dl/front.jpg');
+
+    const refreshRes = await svc.refreshToken(loginRes.refreshToken);
+    expect(refreshRes.user.isOnboarded).toBe(true);
+    expect(refreshRes.user.isApproved).toBe(false);
+    expect(refreshRes.user.driverProfile?.verificationStatus).toBe('REJECTED');
+    expect(refreshRes.user.driverProfile?.rejectionReason).toBe('Blurry or unreadable Driving License image');
+  });
 });

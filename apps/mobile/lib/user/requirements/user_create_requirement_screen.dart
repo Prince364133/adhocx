@@ -376,6 +376,7 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
           pickupIsOffice: cab.pickupIsOffice,
           dropIsOffice: cab.dropIsOffice,
           hasEscort: cab.hasEscort,
+          pickupTime: cab.reportingDateTime,
         );
         final amount = (q['totalAmount'] as num?)?.toDouble();
         final quoteId = q['quoteId']?.toString();

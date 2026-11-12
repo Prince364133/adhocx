@@ -56,19 +56,15 @@ export class PricingController {
     return this.pricingService.deletePricingTier(vehicleType);
   }
 
+  /**
+   * Read-only platform policy. The admin editor (PATCH) is decommissioned, but shipped mobile builds
+   * still read the escort fee and driver fee/trial from here. Must stay above ':vehicleType', or
+   * this path would be matched as a vehicle category.
+   */
   @Get('policy-config')
-  @ApiOperation({ summary: 'Platform policy (driver monthly fee, trial days, minimum withdrawal)' })
+  @ApiOperation({ summary: 'Platform policy (read-only): escort fee, driver monthly fee, trial days, minimum withdrawal' })
   async getPolicyConfig() {
     return this.pricingService.getPolicyConfig();
-  }
-
-  @Patch('admin/policy-config')
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Update platform policy (Admin only)' })
-  async updatePolicyConfig(@Body() dto: any) {
-    return this.pricingService.updatePolicyConfig(dto);
   }
 
   @Get(':vehicleType')

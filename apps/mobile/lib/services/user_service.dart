@@ -516,6 +516,7 @@ class UserService {
     required double dropLng,
     required String dropAddress,
     required String vehicleCategory,
+    DateTime? pickupTime,
     bool pickupIsOffice = false,
     bool dropIsOffice = false,
     bool hasEscort = false,
@@ -529,6 +530,7 @@ class UserService {
       dropLng: dropLng,
       dropAddress: dropAddress,
       vehicleCategory: vehicleCategory,
+      pickupTime: pickupTime,
       pickupIsOffice: pickupIsOffice,
       dropIsOffice: dropIsOffice,
       hasEscort: hasEscort,
@@ -559,6 +561,7 @@ class UserService {
     required double dropLng,
     required String dropAddress,
     required String vehicleCategory,
+    DateTime? pickupTime,
     bool pickupIsOffice = false,
     bool dropIsOffice = false,
     bool hasEscort = false,
@@ -581,6 +584,7 @@ class UserService {
       'pickupLocation': pData,
       'dropLocation': dData,
       'vehicleCategory': vehicleCategory.trim().toUpperCase(),
+      if (pickupTime != null) 'pickupTime': pickupTime.toUtc().toIso8601String(),
       if (hasEscort) 'hasEscort': true,
     };
   }
