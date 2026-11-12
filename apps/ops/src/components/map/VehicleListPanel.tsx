@@ -38,22 +38,34 @@ export interface VehicleListPanelProps {
   /** Snapshot taken on the page's 1 s UI tick (never per fix). */
   items: VehicleListItem[];
   nowMs: number;
+  selectedCompanyName?: string | null;
+  isCompanyScoped?: boolean;
   onSelect: (routeId: string) => void;
 }
 
-/** Compact searchable/filterable list of every cab on the map. */
-export function VehicleListPanel({ items, nowMs, onSelect }: VehicleListPanelProps) {
+/** Compact searchable/filterable list of every working cab in the selected company or fleet. */
+export function VehicleListPanel({
+  items,
+  nowMs,
+  selectedCompanyName,
+  isCompanyScoped = false,
+  onSelect,
+}: VehicleListPanelProps) {
   const [query, setQuery] = useState('');
   const [gps, setGps] = useState<GpsFilter>('ALL');
   const [kind, setKind] = useState<KindFilter>('ALL');
 
+  const effectiveKind: KindFilter = isCompanyScoped ? 'ALL' : kind;
   const counts = useMemo(() => countByState(items), [items]);
-  const { rows, total } = useMemo(() => filterVehicles(items, { gps, kind, query }, MAX_ROWS), [items, gps, kind, query]);
+  const { rows, total } = useMemo(
+    () => filterVehicles(items, { gps, kind: effectiveKind, query }, MAX_ROWS),
+    [items, gps, effectiveKind, query],
+  );
 
   return (
     <div
       style={{
-        width: '320px',
+        width: '340px',
         backgroundColor: 'var(--bg-surface)',
         borderRadius: 'var(--radius-lg, 10px)',
         border: '1px solid var(--border-subtle)',
@@ -65,9 +77,26 @@ export function VehicleListPanel({ items, nowMs, onSelect }: VehicleListPanelPro
         overflow: 'hidden',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Fleet ({items.length})</span>
-        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Click a cab to inspect</span>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+        <div style={{ minWidth: 0 }}>
+          <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
+            Fleet ({items.length})
+          </span>
+          {selectedCompanyName && (
+            <div
+              style={{
+                fontSize: '11px',
+                color: 'var(--text-secondary)',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {selectedCompanyName}
+            </div>
+          )}
+        </div>
+        <span style={{ fontSize: '11px', color: 'var(--text-muted)', flexShrink: 0 }}>Click a cab to inspect</span>
       </div>
 
       <div style={{ position: 'relative' }}>
@@ -75,7 +104,7 @@ export function VehicleListPanel({ items, nowMs, onSelect }: VehicleListPanelPro
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Driver, route/trip id, vehicle no."
+          placeholder="Driver, company, route, vehicle no."
           style={{
             width: '100%',
             height: '30px',
@@ -99,23 +128,39 @@ export function VehicleListPanel({ items, nowMs, onSelect }: VehicleListPanelPro
             <span style={{ color: GPS_COLORS[s] }}>●</span> {s} {counts[s]}
           </button>
         ))}
-      </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-        <button type="button" style={chipStyle(kind === 'ALL')} onClick={() => setKind('ALL')}>
-          All types
-        </button>
-        <button type="button" style={chipStyle(kind === 'CORPORATE_ROUTE')} onClick={() => setKind('CORPORATE_ROUTE')}>
-          Corporate
-        </button>
-        <button type="button" style={chipStyle(kind === 'TRIP')} onClick={() => setKind('TRIP')}>
-          On-demand
+        <button
+          type="button"
+          style={chipStyle(gps === 'NO_GPS', GPS_COLORS.NO_GPS)}
+          onClick={() => setGps('NO_GPS')}
+        >
+          <span style={{ color: GPS_COLORS.NO_GPS }}>●</span> NO GPS {counts.NO_GPS}
         </button>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+      {!isCompanyScoped && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+          <button type="button" style={chipStyle(kind === 'ALL')} onClick={() => setKind('ALL')}>
+            All types
+          </button>
+          <button
+            type="button"
+            style={chipStyle(kind === 'CORPORATE_ROUTE')}
+            onClick={() => setKind('CORPORATE_ROUTE')}
+          >
+            Corporate
+          </button>
+          <button type="button" style={chipStyle(kind === 'TRIP')} onClick={() => setKind('TRIP')}>
+            On-demand
+          </button>
+        </div>
+      )}
+
+      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
         {rows.length === 0 && (
           <div style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', marginTop: '24px' }}>
-            {items.length === 0 ? 'No cabs reporting GPS yet.' : 'No cabs match these filters.'}
+            {items.length === 0
+              ? 'No active or assigned cabs for this scope yet.'
+              : 'No cabs match these filters.'}
           </div>
         )}
         {rows.map((v) => (
@@ -127,7 +172,7 @@ export function VehicleListPanel({ items, nowMs, onSelect }: VehicleListPanelPro
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              padding: '7px 8px',
+              padding: '8px 10px',
               borderRadius: 'var(--radius-md, 8px)',
               border: '1px solid var(--border-subtle)',
               backgroundColor: 'var(--bg-surface-muted)',
@@ -154,14 +199,48 @@ export function VehicleListPanel({ items, nowMs, onSelect }: VehicleListPanelPro
               >
                 {v.driverName || 'Unknown driver'}
               </div>
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'ui-monospace, monospace' }}>
+              <div
+                style={{
+                  fontSize: '11px',
+                  color: 'var(--text-muted)',
+                  fontFamily: 'ui-monospace, monospace',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
                 {v.label}
-                {v.vehicleNumber ? ` · ${v.vehicleNumber}` : ''} · {Math.round(v.speedKph)} km/h
+                {v.vehicleNumber ? ` · ${v.vehicleNumber}` : ''}
+                {v.hasGps
+                  ? ` · ${Math.round(v.speedKph)} km/h`
+                  : v.shiftTime
+                    ? ` · ${v.shiftTime} ${v.direction ?? ''}`
+                    : ''}
               </div>
+              {(v.companyName || v.status) && (
+                <div
+                  style={{
+                    fontSize: '10px',
+                    color: 'var(--text-secondary)',
+                    marginTop: '2px',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {v.companyCode || v.companyName || ''}
+                  {(v.companyCode || v.companyName) && v.status ? ' · ' : ''}
+                  {v.status || ''}
+                </div>
+              )}
             </div>
             <div style={{ textAlign: 'right', flexShrink: 0 }}>
-              <div style={{ fontSize: '10px', fontWeight: 700, color: GPS_COLORS[v.gpsState] }}>{v.gpsState}</div>
-              <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{ageText(v.recordedAt, nowMs)}</div>
+              <div style={{ fontSize: '10px', fontWeight: 700, color: GPS_COLORS[v.gpsState] }}>
+                {v.gpsState === 'NO_GPS' ? 'NO GPS' : v.gpsState}
+              </div>
+              <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                {v.hasGps ? ageText(v.recordedAt, nowMs) : 'Awaiting fix'}
+              </div>
             </div>
           </button>
         ))}

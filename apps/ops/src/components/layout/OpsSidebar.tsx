@@ -5,17 +5,10 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Building2,
-  Navigation,
-  MapPin,
-  Cpu,
   ShieldAlert,
-  Route,
   ExternalLink,
-  ClipboardList,
   Truck,
   Radio,
-  CalendarClock,
-  Ticket,
   LifeBuoy,
   Users,
 } from 'lucide-react';
@@ -34,36 +27,6 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Company Hub',
     icon: <Building2 size={18} />,
   },
-  {
-    href: '/companies',
-    label: 'Client Onboarding',
-    icon: <Building2 size={18} />,
-    badge: 'NEW',
-    badgeColor: '#5728B2',
-  },
-  {
-    href: '/board',
-    label: 'Live Route Deck',
-    icon: <Navigation size={18} />,
-  },
-  {
-    href: '/map',
-    label: 'Fleet Live Map',
-    icon: <MapPin size={18} />,
-    badge: 'LIVE',
-    badgeColor: '#16A34A',
-  },
-  {
-    href: '/planner',
-    label: 'Route Optimizer',
-    icon: <Cpu size={18} />,
-    badge: 'CVRPTW',
-  },
-  {
-    href: '/deviations',
-    label: 'Corridor Monitor',
-    icon: <Route size={18} />,
-  },
 ];
 
 const OPERATIONS_ITEMS: NavItem[] = [
@@ -72,21 +35,6 @@ const OPERATIONS_ITEMS: NavItem[] = [
     label: 'Live Operations',
     icon: <Radio size={18} />,
     badge: 'LIVE',
-  },
-  {
-    href: '/rosters',
-    label: 'Shifts & Rosters',
-    icon: <CalendarClock size={18} />,
-  },
-  {
-    href: '/bookings',
-    label: 'Bookings',
-    icon: <Ticket size={18} />,
-  },
-  {
-    href: '/routes',
-    label: 'Routes & Trips',
-    icon: <Navigation size={18} />,
   },
   {
     href: '/drivers',
@@ -105,16 +53,6 @@ const OPERATIONS_ITEMS: NavItem[] = [
     icon: <LifeBuoy size={18} />,
   },
   {
-    href: '/requirements',
-    label: 'Requirements',
-    icon: <ClipboardList size={18} />,
-  },
-  {
-    href: '/trips',
-    label: 'Trips & Telemetry',
-    icon: <Navigation size={18} />,
-  },
-  {
     href: '/assignments',
     label: 'Assignments',
     icon: <Truck size={18} />,
@@ -126,7 +64,8 @@ export const OpsSidebar: React.FC = () => {
 
   const renderNavItem = (item: NavItem) => {
     const isActive =
-      pathname === item.href || (item.href !== '/' && pathname.startsWith(`${item.href}/`));
+      pathname === item.href ||
+      (item.href !== '/' && pathname.startsWith(`${item.href}/`));
 
     return (
       <Link

@@ -653,7 +653,7 @@ describe('Corporate ETS Enterprise 500-Commuter Full-Lifecycle Simulation & Stre
   // =========================================================================
   // SIMULATION 2: CVRPTW Solver Under Full Load (125 Routes Generated)
   // =========================================================================
-  it('Simulation 2: CVRPTW clusters 500 passengers into optimized Sedan (max 4) and SUV (max 6) routes with 5-min buffers', async () => {
+  it('Simulation 2: CVRPTW clusters 500 passengers into optimized Sedan (max 3) and SUV (max 6) routes with 5-min buffers', async () => {
     // Run solver for Shift 1: 08:00 AM LOGIN (150 passengers)
     const summary08 = await routeSolverService.optimizeAndCreateRoutes({
       tenantId: 'tenant-global-tech',
@@ -661,16 +661,16 @@ describe('Corporate ETS Enterprise 500-Commuter Full-Lifecycle Simulation & Stre
       shiftDate: '2026-11-03',
       shiftTime: '08:00',
       direction: 'LOGIN',
-      vehicleCategory: 'SEDAN', // 4 per cab -> ceil(150/4) = 38 cabs
+      vehicleCategory: 'SEDAN', // 3 per cab -> ceil(150/3) = 50 cabs
     });
 
-    expect(summary08.routesCreated).toBe(38); // Exactly 38 cabs for 150 passengers (4 per cab)
+    expect(summary08.routesCreated).toBe(50); // Exactly 50 cabs for 150 passengers (3 per cab)
     expect(summary08.passengersAssigned).toBe(150);
 
-    // Verify Invariant: Every Sedan route has strictly <= 4 passengers
+    // Verify Invariant: Every Sedan route has strictly <= 3 passengers
     for (const rt of summary08.routes) {
-      expect(rt.passengerCount).toBeLessThanOrEqual(4);
-      expect(rt.maxCapacity).toBe(4);
+      expect(rt.passengerCount).toBeLessThanOrEqual(3);
+      expect(rt.maxCapacity).toBe(3);
     }
 
     // Run solver for Shift 2: 09:00 AM LOGIN (100 passengers) with SUVs (6 per cab)

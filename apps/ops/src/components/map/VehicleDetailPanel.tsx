@@ -1,11 +1,12 @@
 'use client';
 
 import React from 'react';
-import { Gauge, Navigation, Battery, ShieldCheck, Phone } from 'lucide-react';
+import Link from 'next/link';
+import { Gauge, Navigation, Battery, ShieldCheck, Phone, ExternalLink } from 'lucide-react';
 import { CorporateRouteItem } from '../../lib/api/opsTypes';
 import { Button } from '../common/Button';
 import { StatusBadge } from '../common/StatusBadge';
-import { FleetFix, GPS_COLORS, gpsStateOf, kindOf, vehicleLabel } from '../../lib/fleet-telemetry';
+import { FleetFix, GPS_COLORS, gpsStateOf, kindOf, TelemetryListState, vehicleLabel } from '../../lib/fleet-telemetry';
 
 const tile: React.CSSProperties = {
   backgroundColor: 'var(--bg-surface-muted)',
@@ -26,9 +27,9 @@ function Row({ label, value, color }: { label: string; value: React.ReactNode; c
 
 export interface VehicleDetailPanelProps {
   routeId: string;
-  /** Corporate route from the ops board, when this cab is serving one on the selected date. */
+  /** Corporate route from the routes list, when this cab is serving one. */
   route: CorporateRouteItem | null;
-  /** Latest merged telemetry (from the 1 s UI tick); null when the cab has dropped off the map. */
+  /** Latest merged telemetry (from the 1 s UI tick); null when no GPS fix has arrived yet. */
   telemetry: FleetFix | null;
   nowMs: number;
   onClose: () => void;
@@ -38,10 +39,17 @@ export interface VehicleDetailPanelProps {
 export function VehicleDetailPanel({ routeId, route, telemetry, nowMs, onClose }: VehicleDetailPanelProps) {
   const kind = kindOf(telemetry ?? (route ? { kind: 'CORPORATE_ROUTE' } : undefined));
   const label = vehicleLabel({ routeId, kind });
-  const gpsState = telemetry ? gpsStateOf(telemetry.recordedAt, nowMs) : 'OFFLINE';
+  const gpsState: TelemetryListState = telemetry ? gpsStateOf(telemetry.recordedAt, nowMs) : 'NO_GPS';
   const ageSec = telemetry ? Math.max(0, Math.round((nowMs - telemetry.recordedAt) / 1000)) : null;
   const status = route?.status ?? telemetry?.status;
-  const driverName = route?.driver?.fullName || telemetry?.driverName || (kind === 'TRIP' ? 'On-demand driver' : 'Unassigned Driver');
+  const driverName =
+    route?.driver?.fullName ||
+    telemetry?.driverName ||
+    (kind === 'TRIP'
+      ? 'On-demand driver'
+      : route?.status === 'DISPATCHING'
+        ? 'Dispatching (searching driver)'
+        : 'Unassigned Driver');
   const vehicleNo = route?.vehicle?.registrationNumber || telemetry?.vehicleNumber;
 
   return (
@@ -71,7 +79,7 @@ export function VehicleDetailPanel({ routeId, route, telemetry, nowMs, onClose }
         <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>{driverName}</h3>
         <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
           {route?.vehicle?.model ? `${route.vehicle.model} · ` : ''}
-          <span className="code-tag">{vehicleNo || 'VEHICLE'}</span>
+          <span className="code-tag">{vehicleNo || route?.vehicleCategory || 'VEHICLE'}</span>
         </p>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '14px' }}>
@@ -99,7 +107,7 @@ export function VehicleDetailPanel({ routeId, route, telemetry, nowMs, onClose }
               <span>GPS Signal</span>
             </div>
             <div style={{ fontSize: '12px', fontWeight: 700, color: GPS_COLORS[gpsState], marginTop: '6px' }}>
-              {gpsState}
+              {gpsState === 'NO_GPS' ? 'AWAITING GPS' : gpsState}
               {telemetry?.accuracyM !== undefined ? ` (±${Math.round(telemetry.accuracyM)}m)` : ''}
             </div>
             {ageSec !== null && <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>last fix {ageSec}s ago</div>}
@@ -128,13 +136,23 @@ export function VehicleDetailPanel({ routeId, route, telemetry, nowMs, onClose }
         >
           {route ? (
             <>
-              <Row label="Shift:" value={`${route.shiftTime} (${route.direction})`} />
+              {route.tenant?.name && (
+                <Row
+                  label="Company:"
+                  value={route.tenant.code ? `${route.tenant.name} (${route.tenant.code})` : route.tenant.name}
+                />
+              )}
+              <Row
+                label="Shift:"
+                value={`${String(route.shiftDate).slice(0, 10)} · ${route.shiftTime} (${route.direction})`}
+              />
               <Row
                 label="Occupancy:"
                 value={`${route.assignedPassengerCount} / ${route.maxCapacity} seats filled`}
                 color="var(--color-success, #16A34A)"
               />
               <Row label="Destination:" value={route.office?.name || 'Office Campus'} />
+              {route.dispatchStatus && <Row label="Dispatch:" value={route.dispatchStatus} />}
             </>
           ) : (
             <>
@@ -142,16 +160,13 @@ export function VehicleDetailPanel({ routeId, route, telemetry, nowMs, onClose }
               {telemetry?.tripId && telemetry.tripId !== routeId && <Row label="Trip:" value={telemetry.tripId.slice(0, 8).toUpperCase()} />}
               {status && <Row label="Status:" value={status} />}
               {telemetry?.delayMinutes !== undefined && <Row label="Delay:" value={`${telemetry.delayMinutes} min`} />}
-              {kind !== 'TRIP' && (
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Route details are not on the board for the selected date.</div>
-              )}
             </>
           )}
-          {!telemetry && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>No GPS fix received for this cab recently.</div>}
+          {!telemetry && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>No GPS fix received for this cab yet.</div>}
         </div>
 
         {route?.driver?.phone && (
-          <div style={{ marginTop: '16px' }}>
+          <div style={{ marginTop: '14px' }}>
             <a
               href={`tel:${route.driver.phone}`}
               style={{
@@ -176,9 +191,18 @@ export function VehicleDetailPanel({ routeId, route, telemetry, nowMs, onClose }
         )}
       </div>
 
-      <Button size="sm" variant="outline" onClick={onClose} style={{ width: '100%', marginTop: '16px' }}>
-        Close Telemetry
-      </Button>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '16px' }}>
+        {kind === 'CORPORATE_ROUTE' && (
+          <Link href={`/routes/${encodeURIComponent(routeId)}`} style={{ textDecoration: 'none' }}>
+            <Button size="sm" variant="primary" rightIcon={<ExternalLink size={13} />} style={{ width: '100%' }}>
+              View Route &amp; Directions
+            </Button>
+          </Link>
+        )}
+        <Button size="sm" variant="outline" onClick={onClose} style={{ width: '100%' }}>
+          Close Telemetry
+        </Button>
+      </div>
     </div>
   );
 }

@@ -24,11 +24,15 @@ import {
 } from './corporate-permissions';
 import { DEFAULT_TENANT_POLICY, validateTenantPolicyValues } from './corporate-tenant-policy.service';
 import { normalizeIndianPhone } from '../../../common/utils/uniqueness.util';
+import { VEHICLE_CAPACITY } from '../routing/routing.types';
 
 /** Portal password minimum (spec: 8). */
 export const CORPORATE_PORTAL_PASSWORD_MIN = 8;
 /** Seats a policy may assign per category. */
-const CATEGORY_MAX_CAPACITY: Record<string, number> = { SEDAN: 4, SUV: 7 };
+const CATEGORY_MAX_CAPACITY: Record<string, number> = {
+  SEDAN: VEHICLE_CAPACITY.SEDAN,
+  SUV: VEHICLE_CAPACITY.SUV,
+};
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TENANT_CODE_RE = /^[A-Z0-9_-]{2,32}$/;
@@ -346,15 +350,15 @@ export class CorporateOnboardingService {
     const category = String(raw.defaultVehicleCategory ?? DEFAULT_TENANT_POLICY.defaultVehicleCategory)
       .trim()
       .toUpperCase();
-    // Capacity follows the category unless given: SEDAN 4, SUV 6.
+    // Capacity follows the category unless given.
     if (raw.defaultCapacity === undefined || raw.defaultCapacity === null || raw.defaultCapacity === '') {
-      raw.defaultCapacity = category === 'SUV' ? 6 : 4;
+      raw.defaultCapacity = category === 'SUV' ? VEHICLE_CAPACITY.SUV : VEHICLE_CAPACITY.SEDAN;
     }
     for (const key of Object.keys(raw)) {
       if (raw[key] === undefined || raw[key] === null || raw[key] === '') delete raw[key];
     }
     const values = validateTenantPolicyValues({ ...raw, defaultVehicleCategory: category });
-    const maxSeats = CATEGORY_MAX_CAPACITY[values.defaultVehicleCategory] ?? 7;
+    const maxSeats = CATEGORY_MAX_CAPACITY[values.defaultVehicleCategory] ?? VEHICLE_CAPACITY.SUV;
     if (values.defaultCapacity > maxSeats) {
       throw new BadRequestException(
         `defaultCapacity ${values.defaultCapacity} exceeds the ${maxSeats} seats of a ${values.defaultVehicleCategory}`,

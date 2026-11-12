@@ -42,7 +42,7 @@ export const OpsShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       clearSession: clearOpsSession,
     });
 
-    const isMigratedModule = ['/live', '/rosters', '/bookings', '/routes', '/safety'].some(
+    const isMigratedModule = ['/live', '/routes', '/safety'].some(
       (path) => pathname === path || pathname.startsWith(`${path}/`),
     );
     if (isMigratedModule) {

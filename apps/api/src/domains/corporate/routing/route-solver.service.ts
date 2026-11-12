@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { DatabaseService } from '../../../database/database.service';
 import { istWallClockToUtc } from '../replanning/cutoff-policy';
 import { AuditService } from '../../../modules/audit/audit.service';
@@ -7,7 +7,10 @@ import {
   RouteOptimizationSummary,
   OptimizedRouteResult,
   OptimizedStopResult,
+  RouteOptimizationBatchSummary,
+  RouteOptimizationDirectionOutcome,
   VehicleCategory,
+  VEHICLE_CAPACITY,
 } from './routing.types';
 import { ITravelTimeMatrixPort, TRAVEL_TIME_MATRIX_PORT } from './travel-time-matrix.port';
 import { HaversineTravelTimeMatrix } from './haversine-travel-time-matrix';
@@ -18,9 +21,9 @@ export class RouteSolverService {
   private readonly logger = new Logger(RouteSolverService.name);
 
   // Constants per PRD specs
-  private readonly DEFAULT_SEDAN_CAPACITY = 3;
-  private readonly DEFAULT_SUV_CAPACITY = 6;
-  private readonly STOP_DWELL_SECONDS = 300; // 5.0 minutes buffer per stop
+  private readonly DEFAULT_SEDAN_CAPACITY = VEHICLE_CAPACITY.SEDAN;
+  private readonly DEFAULT_SUV_CAPACITY = VEHICLE_CAPACITY.SUV;
+  private readonly DEFAULT_STOP_DWELL_MINUTES = 5;
   private readonly OFFICE_ARRIVAL_BUFFER_MINUTES = 10; // Arrive 10m before shift login
   private readonly DEFAULT_MAX_RIDE_MINUTES = 120; // Max in-cab time per employee
   private readonly LOGOUT_REPORTING_BUFFER_MINUTES = 15; // Cab at office 15m before logout
@@ -43,24 +46,65 @@ export class RouteSolverService {
    * Solves and generates optimized corporate commuter routes for a given tenant, office, date, shift, and direction.
    */
   public async optimizeAndCreateRoutes(
+    options: RouteOptimizationOptions & { direction: 'LOGIN' | 'LOGOUT' },
+    actorUserId?: string,
+  ): Promise<RouteOptimizationSummary>;
+  public async optimizeAndCreateRoutes(
+    options: RouteOptimizationOptions & { direction: 'BOTH' },
+    actorUserId?: string,
+  ): Promise<RouteOptimizationBatchSummary>;
+  public async optimizeAndCreateRoutes(
     options: RouteOptimizationOptions,
     actorUserId?: string,
-  ): Promise<RouteOptimizationSummary> {
+  ): Promise<RouteOptimizationSummary | RouteOptimizationBatchSummary>;
+  public async optimizeAndCreateRoutes(
+    options: RouteOptimizationOptions,
+    actorUserId?: string,
+  ): Promise<RouteOptimizationSummary | RouteOptimizationBatchSummary> {
+    if (options.direction === 'BOTH') {
+      return this.optimizeBothDirections(options, actorUserId);
+    }
+
     const {
       tenantId,
       officeId,
       shiftDate,
-      shiftTime,
       direction,
       vehicleCategory = 'SEDAN',
       officeBufferMinutes = this.OFFICE_ARRIVAL_BUFFER_MINUTES,
       maxRideTimeMinutes = this.DEFAULT_MAX_RIDE_MINUTES,
       logoutReportingBufferMinutes = this.LOGOUT_REPORTING_BUFFER_MINUTES,
     } = options;
-
-    const maxCapacity =
-      options.maxCapacity ||
-      (vehicleCategory === 'SUV' ? this.DEFAULT_SUV_CAPACITY : this.DEFAULT_SEDAN_CAPACITY);
+    const stopDwellMinutes = options.stopDwellMinutes ?? this.DEFAULT_STOP_DWELL_MINUTES;
+    if (!Number.isInteger(stopDwellMinutes) || stopDwellMinutes < 1 || stopDwellMinutes > 10) {
+      throw new BadRequestException('stopDwellMinutes must be an integer between 1 and 10');
+    }
+    // Keep service-level compatibility for internal legacy callers; the HTTP controller requires direction-specific times.
+    const shiftTime = (direction === 'LOGIN' ? options.loginTime : options.logoutTime) ?? options.shiftTime;
+    if (!shiftTime) {
+      throw new BadRequestException(`${direction} optimization requires its direction-specific time`);
+    }
+    const sedanCapacity = options.sedanCapacity ?? this.DEFAULT_SEDAN_CAPACITY;
+    const suvCapacity = options.suvCapacity ?? this.DEFAULT_SUV_CAPACITY;
+    if (!Number.isInteger(sedanCapacity) || sedanCapacity < 1 || sedanCapacity > this.DEFAULT_SEDAN_CAPACITY) {
+      throw new BadRequestException(`sedanCapacity must be an integer between 1 and ${this.DEFAULT_SEDAN_CAPACITY}`);
+    }
+    if (!Number.isInteger(suvCapacity) || suvCapacity < 1 || suvCapacity > this.DEFAULT_SUV_CAPACITY) {
+      throw new BadRequestException(`suvCapacity must be an integer between 1 and ${this.DEFAULT_SUV_CAPACITY}`);
+    }
+    const categoryCapacity =
+      vehicleCategory === 'SUV'
+        ? suvCapacity
+        : vehicleCategory === 'BOTH'
+          ? Math.max(sedanCapacity, suvCapacity)
+          : sedanCapacity;
+    if (options.maxCapacity != null && (!Number.isInteger(options.maxCapacity) || options.maxCapacity < 1 || options.maxCapacity > this.DEFAULT_SUV_CAPACITY)) {
+      throw new BadRequestException(`maxCapacity must be an integer between 1 and ${this.DEFAULT_SUV_CAPACITY}`);
+    }
+    if (options.maxCapacity != null && options.maxCapacity > categoryCapacity) {
+      throw new BadRequestException('maxCapacity cannot exceed the selected vehicle category capacity');
+    }
+    const maxCapacity = options.maxCapacity ?? categoryCapacity;
 
     const office = await this.db.corporateOffice.findFirst({
       where: { id: officeId, tenantId, isActive: true },
@@ -95,6 +139,8 @@ export class RouteSolverService {
         direction,
         totalRequestsEvaluated: 0,
         routesCreated: 0,
+        sedanRoutesCreated: 0,
+        suvRoutesCreated: 0,
         passengersAssigned: 0,
         unassignedRequests: 0,
         averagePassengersPerRoute: 0,
@@ -120,9 +166,17 @@ export class RouteSolverService {
       shiftTime,
       maxCapacity,
       vehicleCategory,
+      sedanCapacity,
+      suvCapacity,
       officeBufferMinutes,
       maxRideTimeMinutes,
       logoutReportingBufferMinutes,
+      {
+        routingPreference: options.routingPreference,
+        avoidTolls: options.avoidTolls,
+        avoidHighways: options.avoidHighways,
+      },
+      stopDwellMinutes * 60,
     );
     if (plan.warnings.length > 0) {
       this.logger.warn(`Route plan warnings (${plan.warnings.length}): ${plan.warnings.slice(0, 5).join(' | ')}`);
@@ -171,12 +225,22 @@ export class RouteSolverService {
             },
           });
 
-          // Mark transport request as PLANNED
+          // Mark transport request as PLANNED. The status guard makes a concurrent optimize run that
+          // already claimed this request fail (P2025) and roll back instead of double-assigning it.
           if (stop.transportRequestId) {
-            await tx.corporateTransportRequest.update({
-              where: { id: stop.transportRequestId },
-              data: { status: 'PLANNED' },
-            });
+            try {
+              await tx.corporateTransportRequest.update({
+                where: { id: stop.transportRequestId, status: 'APPROVED' },
+                data: { status: 'PLANNED' },
+              });
+            } catch (error: any) {
+              if (error?.code === 'P2025') {
+                throw new ConflictException(
+                  `Transport request ${stop.transportRequestId} was already planned by another optimization run; retry to plan the remaining requests`,
+                );
+              }
+              throw error;
+            }
           }
         }
 
@@ -207,6 +271,8 @@ export class RouteSolverService {
       direction,
       totalRequestsEvaluated: requests.length,
       routesCreated: createdRoutesSummary.length,
+      sedanRoutesCreated: createdRoutesSummary.filter((route) => route.vehicleCategory === 'SEDAN').length,
+      suvRoutesCreated: createdRoutesSummary.filter((route) => route.vehicleCategory === 'SUV').length,
       passengersAssigned: assignedPassengers,
       unassignedRequests: requests.length - assignedPassengers,
       averagePassengersPerRoute:
@@ -231,6 +297,52 @@ export class RouteSolverService {
     return summary;
   }
 
+  private async optimizeBothDirections(
+    options: RouteOptimizationOptions,
+    actorUserId?: string,
+  ): Promise<RouteOptimizationBatchSummary> {
+    const plans: RouteOptimizationDirectionOutcome[] = [];
+    for (const direction of ['LOGIN', 'LOGOUT'] as const) {
+      const shiftTime = direction === 'LOGIN'
+        ? options.loginTime
+        : options.logoutTime;
+      if (!shiftTime) {
+        plans.push({
+          direction,
+          shiftTime: '',
+          success: false,
+          error: `${direction} optimization requires its direction-specific time`,
+        });
+        continue;
+      }
+      try {
+        const summary = await this.optimizeAndCreateRoutes(
+          { ...options, direction, shiftTime },
+          actorUserId,
+        );
+        plans.push({ direction, shiftTime, success: true, summary });
+      } catch (error) {
+        plans.push({
+          direction,
+          shiftTime,
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    return {
+      direction: 'BOTH',
+      plans,
+      totalRequestsEvaluated: plans.reduce((sum, plan) => sum + (plan.summary?.totalRequestsEvaluated ?? 0), 0),
+      routesCreated: plans.reduce((sum, plan) => sum + (plan.summary?.routesCreated ?? 0), 0),
+      sedanRoutesCreated: plans.reduce((sum, plan) => sum + (plan.summary?.sedanRoutesCreated ?? 0), 0),
+      suvRoutesCreated: plans.reduce((sum, plan) => sum + (plan.summary?.suvRoutesCreated ?? 0), 0),
+      passengersAssigned: plans.reduce((sum, plan) => sum + (plan.summary?.passengersAssigned ?? 0), 0),
+      unassignedRequests: plans.reduce((sum, plan) => sum + (plan.summary?.unassignedRequests ?? 0), 0),
+    };
+  }
+
   /** Run the planner and map its output to the persisted route/stop shape. */
   private async planRoutes(
     requests: any[],
@@ -241,9 +353,17 @@ export class RouteSolverService {
     shiftTime: string,
     maxCapacity: number,
     vehicleCategory: VehicleCategory,
+    sedanCapacity: number,
+    suvCapacity: number,
     officeBufferMinutes: number,
     maxRideTimeMinutes: number,
     logoutReportingBufferMinutes: number,
+    routingOptions: {
+      routingPreference?: RouteOptimizationOptions['routingPreference'];
+      avoidTolls?: boolean;
+      avoidHighways?: boolean;
+    },
+    stopDwellSeconds: number,
   ): Promise<{ routes: OptimizedRouteResult[]; plan: PlanResult }> {
     const isLogin = direction === 'LOGIN';
     const passengers: PlannerPassenger[] = requests.map((req) => ({
@@ -265,11 +385,12 @@ export class RouteSolverService {
       anchorTime,
       capacity: maxCapacity,
       passengers,
-      dwellSeconds: this.STOP_DWELL_SECONDS,
+      dwellSeconds: stopDwellSeconds,
       officeBufferMinutes,
       logoutReportingBufferMinutes,
       maxRideTimeSeconds: maxRideTimeMinutes * 60,
       nightShift: shiftHour < 6 || shiftHour >= 20,
+      routingOptions,
     });
 
     const routes = plan.routes.map((r, rIdx) => {
@@ -289,7 +410,7 @@ export class RouteSolverService {
           addressText: req.employee?.homeAddress || `${isLogin ? 'Stop' : 'Drop'} ${i + 1}`,
           plannedEta: r.stopEtas[i],
           boardingOtp: this.generateNumericOtp(),
-          dwellBufferSeconds: this.STOP_DWELL_SECONDS,
+          dwellBufferSeconds: stopDwellSeconds,
         };
       });
       const officeStop: OptimizedStopResult = {
@@ -303,10 +424,23 @@ export class RouteSolverService {
         boardingOtp: '------',
         dwellBufferSeconds: 0,
       };
+      const routeCategory: Exclude<VehicleCategory, 'BOTH'> =
+        vehicleCategory === 'BOTH'
+          ? r.passengers.length <= sedanCapacity
+            ? 'SEDAN'
+            : 'SUV'
+          : vehicleCategory;
+      const categoryCapacity = routeCategory === 'SEDAN' ? sedanCapacity : suvCapacity;
+      const routeCapacity = Math.min(maxCapacity, categoryCapacity);
+      if (r.passengers.length > routeCapacity) {
+        throw new BadRequestException(
+          `Route ${rIdx + 1} has ${r.passengers.length} passengers but ${routeCategory} capacity is ${routeCapacity}`,
+        );
+      }
       const result: OptimizedRouteResult = {
         routeIndex: rIdx + 1,
-        vehicleCategory,
-        maxCapacity,
+        vehicleCategory: routeCategory,
+        maxCapacity: routeCapacity,
         passengerCount: r.passengers.length,
         targetPickup1Time: r.firstStopTime,
         targetOfficeArrivalTime: isLogin ? r.officeTime : r.firstStopTime,

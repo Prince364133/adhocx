@@ -30,11 +30,18 @@ export interface TravelTimeMatrix {
   source: TravelTimeSource;
 }
 
+export interface TravelTimeMatrixOptions {
+  routingPreference?: 'TRAFFIC_UNAWARE' | 'TRAFFIC_AWARE' | 'TRAFFIC_AWARE_OPTIMAL';
+  avoidTolls?: boolean;
+  avoidHighways?: boolean;
+}
+
 export interface ITravelTimeMatrixPort {
   getMatrix(
     origins: MatrixPoint[],
     destinations: MatrixPoint[],
     departureTime: Date,
+    options?: TravelTimeMatrixOptions,
   ): Promise<TravelTimeMatrix>;
 }
 

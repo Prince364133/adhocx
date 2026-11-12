@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import { opsApi, getApiBaseUrl } from '../../lib/api/opsClient';
-import { CorporateRouteItem } from '../../lib/api/opsTypes';
+import { CorporateRouteItem, CorporateTenantOption } from '../../lib/api/opsTypes';
 import { Button } from '../../components/common/Button';
 import { VehicleListPanel } from '../../components/map/VehicleListPanel';
 import { VehicleDetailPanel } from '../../components/map/VehicleDetailPanel';
@@ -24,16 +25,13 @@ import {
   lerp,
   mergeFix,
   parseFixFrame,
+  routeToListItem,
   segmentDurationMs,
   segmentProgress,
   stepHeading,
   toListItem,
 } from '../../lib/fleet-telemetry';
-import { Car, Radio, RefreshCw } from 'lucide-react';
-
-function todayIst(): string {
-  return new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10);
-}
+import { ArrowLeft, Building2, Car, Radio, RefreshCw } from 'lucide-react';
 
 const DEFAULT_CENTER = { lat: 17.4435, lng: 78.3772 };
 const UI_TICK_MS = 1000;
@@ -75,6 +73,7 @@ interface VehicleState {
 interface UiSnapshot {
   nowMs: number;
   items: VehicleListItem[];
+  gpsCount: number;
   liveFixCount: number;
   lastFixAt: number | null;
 }
@@ -94,18 +93,24 @@ function* canvasVehicles(states: Map<string, VehicleState>): Generator<CanvasVeh
 }
 
 export default function FleetLiveMapPage() {
+  const [companies, setCompanies] = useState<CorporateTenantOption[]>([]);
+  const [selectedTenantId, setSelectedTenantId] = useState<string>('ALL');
+  const [tenantReady, setTenantReady] = useState(false);
+
   const [routes, setRoutes] = useState<CorporateRouteItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<string>(todayIst());
+  const [selectedDate, setSelectedDate] = useState<string>('');
+  const [mapReady, setMapReady] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'CONNECTING' | 'LIVE' | 'RECONNECTING'>('CONNECTING');
   // Everything derived from the fix stream reaches React only on the 1 s UI tick (never per fix).
-  const [ui, setUi] = useState<UiSnapshot>({ nowMs: Date.now(), items: [], liveFixCount: 0, lastFixAt: null });
+  const [ui, setUi] = useState<UiSnapshot>({ nowMs: Date.now(), items: [], gpsCount: 0, liveFixCount: 0, lastFixAt: null });
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const googleMapRef = useRef<any>(null);
   const overlayRef = useRef<FleetCanvasOverlay | null>(null);
+  const officeMarkersRef = useRef<any[]>([]);
   const boundsRef = useRef<LatLngBoundsLiteral | null>(null);
   const vehicleStatesRef = useRef<Map<string, VehicleState>>(new Map());
   const routesMapRef = useRef<Map<string, CorporateRouteItem>>(new Map());
@@ -114,30 +119,73 @@ export default function FleetLiveMapPage() {
   const liveFixCountRef = useRef(0);
   const lastFixAtRef = useRef<number | null>(null);
   const selectedIdRef = useRef<string | null>(null);
+  const activeTenantRef = useRef<string>('ALL');
+  const fittedScopeRef = useRef<string | null>(null);
+
   useEffect(() => {
     selectedIdRef.current = selectedId;
   }, [selectedId]);
 
+  useEffect(() => {
+    activeTenantRef.current = selectedTenantId;
+  }, [selectedTenantId]);
+
+  // Read initial ?tenantId=... once on client mount to avoid SSR hydration mismatch.
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const qs = new URLSearchParams(window.location.search);
+      const qTenant = qs.get('tenantId');
+      if (qTenant) setSelectedTenantId(qTenant);
+    }
+    setTenantReady(true);
+  }, []);
+
+  // Load onboarded companies for the company filter selector.
+  useEffect(() => {
+    let active = true;
+    void opsApi
+      .getTenants({ page: 1, limit: 100 })
+      .then((res) => {
+        if (active) setCompanies(Array.isArray(res?.items) ? res.items : []);
+      })
+      .catch(() => {
+        // Keep map operational even if tenant directory fetch fails briefly
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const selectedCompany = useMemo(
+    () => (selectedTenantId === 'ALL' ? null : companies.find((c) => c.id === selectedTenantId) ?? null),
+    [companies, selectedTenantId],
+  );
+
   // ─── 1. Google Maps Script Loader ───────────────────────────────────────────
   const loadGoogleMapsScript = useCallback((callback: () => void) => {
-    if ((window as any).google && (window as any).google.maps) {
+    const existingMaps = (window as any).google?.maps;
+    if (existingMaps && (typeof existingMaps.Map === 'function' || typeof existingMaps.importLibrary === 'function')) {
       callback();
       return;
     }
 
-    if (document.getElementById('google-maps-script')) {
-      const existing = (window as any).initOpsFleetMap;
+    const existingScript = document.getElementById('google-maps-script') as HTMLScriptElement | null;
+    if (existingScript) {
+      const prevCallback = (window as any).initOpsFleetMap;
       (window as any).initOpsFleetMap = () => {
-        existing?.();
+        prevCallback?.();
         callback();
       };
+      existingScript.addEventListener('load', callback, { once: true });
       return;
     }
 
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || '';
     const script = document.createElement('script');
     script.id = 'google-maps-script';
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initOpsFleetMap&loading=async&v=weekly`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=geometry,marker&callback=initOpsFleetMap&loading=async&v=weekly`;
+    script.async = true;
+    script.defer = true;
     (window as any).initOpsFleetMap = callback;
     document.head.appendChild(script);
   }, []);
@@ -145,10 +193,22 @@ export default function FleetLiveMapPage() {
   // ─── 2. Initialize Google Map ───────────────────────────────────────────────
   // No mapId: with a mapId, Google ignores `styles` (cloud styling), which broke the dark theme.
   // Cabs are drawn on one canvas overlay (fleetCanvasOverlay.ts), which needs no mapId either.
-  const initMap = useCallback(() => {
-    if (!mapContainerRef.current || !(window as any).google || googleMapRef.current) return;
+  const initMap = useCallback(async () => {
+    if (!mapContainerRef.current || !(window as any).google?.maps || googleMapRef.current) return;
     const google = (window as any).google;
-    const map = new google.maps.Map(mapContainerRef.current, {
+
+    let MapCtor = google.maps.Map;
+    if (typeof MapCtor !== 'function' && typeof google.maps.importLibrary === 'function') {
+      try {
+        const lib = await google.maps.importLibrary('maps');
+        MapCtor = lib.Map;
+      } catch {
+        return;
+      }
+    }
+    if (typeof MapCtor !== 'function' || !mapContainerRef.current || googleMapRef.current) return;
+
+    const map = new MapCtor(mapContainerRef.current, {
       center: DEFAULT_CENTER,
       zoom: 12.5,
       disableDefaultUI: false,
@@ -185,6 +245,7 @@ export default function FleetLiveMapPage() {
       }
     });
     googleMapRef.current = map;
+    setMapReady(true);
   }, []);
 
   // Re-style when the theme toggle flips data-theme.
@@ -198,9 +259,14 @@ export default function FleetLiveMapPage() {
   }, []);
 
   // ─── 3. Apply a fix (from the snapshot or the stream). Touches refs only. ───
-  const applyFix = useCallback((incoming: FleetFix, countAsLive: boolean) => {
-    const g = (window as any).google;
-    if (!googleMapRef.current || !g || !isValidFix(incoming)) return;
+  const applyFix = useCallback((incoming: FleetFix, countAsLive: boolean, scopedTenantId: string) => {
+    if (scopedTenantId !== activeTenantRef.current) return;
+    if (!isValidFix(incoming)) return;
+    if (scopedTenantId !== 'ALL') {
+      if (incoming.kind === 'TRIP') return;
+      if (incoming.tenantId && incoming.tenantId !== scopedTenantId) return;
+    }
+
     if (countAsLive) {
       liveFixCountRef.current += 1;
       lastFixAtRef.current = Date.now();
@@ -246,104 +312,116 @@ export default function FleetLiveMapPage() {
     });
   }, []);
 
-  const applyFrame = useCallback((data: string) => {
-    parseFixFrame(data).forEach((f) => applyFix(f, true));
-  }, [applyFix]);
-
   const removeVehicle = useCallback((routeId: string) => {
-    const v = vehicleStatesRef.current.get(routeId);
-    if (!v) return;
+    if (!vehicleStatesRef.current.has(routeId)) return;
     vehicleStatesRef.current.delete(routeId);
   }, []);
 
   // ─── 4. Snapshot: real last-known positions (never guessed) ────────────────
-  const loadSnapshot = useCallback(async () => {
-    try {
-      const fixes = (await opsApi.getFleetSnapshot()) as FleetFix[];
-      (fixes || []).forEach((f) => applyFix(f, false));
-    } catch {
-      // the stream still delivers new fixes
-    }
-  }, [applyFix]);
+  const loadSnapshot = useCallback(
+    async (tenantIdScope: string, isStale?: () => boolean) => {
+      try {
+        const fixes = (await opsApi.getFleetSnapshot(tenantIdScope !== 'ALL' ? tenantIdScope : undefined)) as FleetFix[];
+        if (isStale?.() || tenantIdScope !== activeTenantRef.current) return;
+        (fixes || []).forEach((f) => applyFix(f, false, tenantIdScope));
+      } catch {
+        // the stream still delivers new fixes
+      }
+    },
+    [applyFix],
+  );
 
-  // ─── 5. Live stream with reconnect (exponential backoff, re-hydrates on reconnect) ──
+  // ─── 5. Live stream with reconnect (scoped by selectedTenantId) ────────────
   const reconnectAttemptRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const unmountedRef = useRef(false);
-  // Every connect attempt (and unmount) bumps this; an attempt that resumes after an await with a
-  // stale generation gives up, so two overlapping attempts can never leave an orphaned EventSource.
   const connectGenRef = useRef(0);
+  const routesReqGenRef = useRef(0);
 
-  const connectStream = useCallback(async () => {
-    if (unmountedRef.current) return;
-    const gen = ++connectGenRef.current;
-    const stale = () => unmountedRef.current || gen !== connectGenRef.current;
-    if (reconnectTimerRef.current) {
-      clearTimeout(reconnectTimerRef.current);
-      reconnectTimerRef.current = null;
-    }
-    eventSourceRef.current?.close();
-    eventSourceRef.current = null;
-    // Snapshot first (it also refreshes an expired access token), then a single-use ticket for the
-    // stream URL: the access token itself never goes in a URL.
-    await loadSnapshot();
-    if (stale()) return;
-    let ticket: string;
-    try {
-      ticket = (await opsApi.createStreamTicket()).ticket;
-    } catch {
-      // Treat like a dropped stream: back off and try again (auth failures redirect to login).
-      if (stale()) return;
-      setConnectionStatus('RECONNECTING');
-      const attempt = reconnectAttemptRef.current++;
-      reconnectTimerRef.current = setTimeout(() => void connectStream(), Math.min(1000 * 2 ** attempt, 30_000));
-      return;
-    }
-    if (stale()) return;
-    const url = `${getApiBaseUrl()}/corporate/trips/routes/fleet/live-stream?ticket=${encodeURIComponent(ticket)}`;
-    const es = new EventSource(url);
-    eventSourceRef.current = es;
-    es.onopen = () => {
-      reconnectAttemptRef.current = 0;
-      setConnectionStatus('LIVE');
-    };
-    // Batched frames (current API) and single-object/array default frames (older API builds).
-    es.addEventListener('fixes', (event) => applyFrame((event as MessageEvent).data));
-    es.onmessage = (event) => applyFrame(event.data);
-    // `heartbeat` events need no handler: named events never reach onmessage.
-    // The server is about to close because the token expires: reconnect now with a fresh token,
-    // without counting it as a failure.
-    es.addEventListener('reauth', (event) => {
-      es.onerror = null;
-      es.close();
-      if (eventSourceRef.current === es) eventSourceRef.current = null;
-      let reason = '';
-      try {
-        reason = JSON.parse((event as MessageEvent).data)?.reason ?? '';
-      } catch {
-        // no reason: treat as expiry
+  const connectStream = useCallback(
+    async (tenantIdScope: string, isCancelled?: () => boolean) => {
+      if (unmountedRef.current || isCancelled?.()) return;
+      const gen = ++connectGenRef.current;
+      const stale = () => unmountedRef.current || Boolean(isCancelled?.()) || gen !== connectGenRef.current;
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
       }
-      if (reason === 'REVOKED') {
-        // Session was revoked: the ticket request will fail and send the user to login; back off
-        // so a revoked session never spins.
+      eventSourceRef.current?.close();
+      eventSourceRef.current = null;
+      setConnectionStatus('CONNECTING');
+
+      // Snapshot first (it also refreshes an expired access token), then a single-use ticket for the stream URL.
+      await loadSnapshot(tenantIdScope, stale);
+      if (stale()) return;
+      let ticket: string;
+      try {
+        ticket = (await opsApi.createStreamTicket()).ticket;
+      } catch {
+        if (stale()) return;
         setConnectionStatus('RECONNECTING');
         const attempt = reconnectAttemptRef.current++;
-        reconnectTimerRef.current = setTimeout(() => void connectStream(), Math.min(1000 * 2 ** attempt, 30_000));
+        reconnectTimerRef.current = setTimeout(
+          () => void connectStream(tenantIdScope, isCancelled),
+          Math.min(1000 * 2 ** attempt, 30_000),
+        );
         return;
       }
-      reconnectAttemptRef.current = 0;
-      void connectStream();
-    });
-    es.onerror = () => {
-      es.close();
-      if (eventSourceRef.current !== es) return; // superseded by a newer connection
-      eventSourceRef.current = null;
-      setConnectionStatus('RECONNECTING');
-      const attempt = reconnectAttemptRef.current++;
-      const delay = Math.min(1000 * 2 ** attempt, 30_000);
-      reconnectTimerRef.current = setTimeout(() => void connectStream(), delay);
-    };
-  }, [applyFrame, loadSnapshot]);
+      if (stale()) return;
+
+      const tenantParam = tenantIdScope !== 'ALL' ? `&tenantId=${encodeURIComponent(tenantIdScope)}` : '';
+      const url = `${getApiBaseUrl()}/corporate/trips/routes/fleet/live-stream?ticket=${encodeURIComponent(ticket)}${tenantParam}`;
+      const es = new EventSource(url);
+      eventSourceRef.current = es;
+      es.onopen = () => {
+        if (stale()) {
+          es.close();
+          return;
+        }
+        reconnectAttemptRef.current = 0;
+        setConnectionStatus('LIVE');
+      };
+      const handleFrame = (raw: string) => {
+        if (stale()) return;
+        parseFixFrame(raw).forEach((f) => applyFix(f, true, tenantIdScope));
+      };
+      es.addEventListener('fixes', (event) => handleFrame((event as MessageEvent).data));
+      es.onmessage = (event) => handleFrame(event.data);
+      es.addEventListener('reauth', (event) => {
+        es.onerror = null;
+        es.close();
+        if (eventSourceRef.current === es) eventSourceRef.current = null;
+        if (stale()) return;
+        let reason = '';
+        try {
+          reason = JSON.parse((event as MessageEvent).data)?.reason ?? '';
+        } catch {
+          // treat as expiry
+        }
+        if (reason === 'REVOKED') {
+          setConnectionStatus('RECONNECTING');
+          const attempt = reconnectAttemptRef.current++;
+          reconnectTimerRef.current = setTimeout(
+            () => void connectStream(tenantIdScope, isCancelled),
+            Math.min(1000 * 2 ** attempt, 30_000),
+          );
+          return;
+        }
+        reconnectAttemptRef.current = 0;
+        void connectStream(tenantIdScope, isCancelled);
+      });
+      es.onerror = () => {
+        es.close();
+        if (eventSourceRef.current !== es || stale()) return;
+        eventSourceRef.current = null;
+        setConnectionStatus('RECONNECTING');
+        const attempt = reconnectAttemptRef.current++;
+        const delay = Math.min(1000 * 2 ** attempt, 30_000);
+        reconnectTimerRef.current = setTimeout(() => void connectStream(tenantIdScope, isCancelled), delay);
+      };
+    },
+    [applyFix, loadSnapshot],
+  );
 
   // ─── 6. Animation loop (viewport-culled) + freshness sweep ─────────────────
   useEffect(() => {
@@ -362,7 +440,6 @@ export default function FleetLiveMapPage() {
           lng = lerp(veh.fromLng, veh.toLng, t);
           veh.currentHeading = stepHeading(veh.currentHeading, veh.targetHeading);
         } else {
-          // Off-screen cabs snap to their target: nobody sees them, so they cost no per-frame work.
           lat = veh.toLat;
           lng = veh.toLng;
           veh.currentHeading = veh.targetHeading;
@@ -370,10 +447,7 @@ export default function FleetLiveMapPage() {
         veh.currentLat = lat;
         veh.currentLng = lng;
       });
-      // One canvas pass for every on-screen cab (STALE/OFFLINE colours come from gpsState).
       overlayRef.current?.render(canvasVehicles(vehicleStatesRef.current), selectedIdRef.current);
-      // Every 5 s: re-derive GPS freshness (a cab that stops reporting turns STALE, then OFFLINE)
-      // and drop cabs that have been silent for a long time.
       if (now - lastSweep > FRESHNESS_SWEEP_MS) {
         lastSweep = now;
         const nowMs = Date.now();
@@ -395,84 +469,260 @@ export default function FleetLiveMapPage() {
     };
   }, [removeVehicle]);
 
-  // ─── 7. UI tick: the only place stream-derived data enters React state ─────
-  useEffect(() => {
-    const publish = () => {
-      const nowMs = Date.now();
-      const items: VehicleListItem[] = [];
-      vehicleStatesRef.current.forEach((veh) => items.push(toListItem(veh.telemetry, nowMs)));
-      setUi({ nowMs, items, liveFixCount: liveFixCountRef.current, lastFixAt: lastFixAtRef.current });
-    };
-    publish();
-    const id = setInterval(publish, UI_TICK_MS);
-    return () => clearInterval(id);
+  // ─── 7. UI tick: merges live GPS cabs + assigned/active routes for the company ─
+  const publishSnapshot = useCallback(() => {
+    const nowMs = Date.now();
+    const items: VehicleListItem[] = [];
+    const seen = new Set<string>();
+    vehicleStatesRef.current.forEach((veh) => {
+      const route = routesMapRef.current.get(veh.telemetry.routeId) ?? null;
+      items.push(toListItem(veh.telemetry, nowMs, route));
+      seen.add(veh.telemetry.routeId);
+    });
+    routesMapRef.current.forEach((route) => {
+      if (seen.has(route.id)) return;
+      if (ACTIVE_ROUTE_STATUSES.has(route.status) || Boolean(route.driverId || route.vehicleId)) {
+        items.push(routeToListItem(route));
+      }
+    });
+    setUi({
+      nowMs,
+      items,
+      gpsCount: vehicleStatesRef.current.size,
+      liveFixCount: liveFixCountRef.current,
+      lastFixAt: lastFixAtRef.current,
+    });
   }, []);
 
-  // ─── 8. Route list for the selected date (no cabs are invented here) ────
-  const loadMapData = useCallback(async () => {
+  useEffect(() => {
+    publishSnapshot();
+    const id = setInterval(publishSnapshot, UI_TICK_MS);
+    return () => clearInterval(id);
+  }, [publishSnapshot]);
+
+  // ─── 8. Active/assigned routes for the selected company & optional shift date ─
+  const loadMapData = useCallback(async (isCancelled?: () => boolean) => {
+    if (!tenantReady || isCancelled?.()) return;
+    const reqGen = ++routesReqGenRef.current;
+    const scopeTenant = selectedTenantId;
     try {
-      const board = await opsApi.getOpsBoard({ date: selectedDate });
-      const routes = Object.values(board.routes).flatMap((group) => group.items);
-      const active = routes.filter((r) => ACTIVE_ROUTE_STATUSES.has(r.status));
+      const list = await opsApi.getRoutes({
+        tenantId: scopeTenant !== 'ALL' ? scopeTenant : undefined,
+        shiftDate: selectedDate || undefined,
+        includeStops: false,
+        limit: 200,
+      });
+      if (
+        unmountedRef.current ||
+        isCancelled?.() ||
+        reqGen !== routesReqGenRef.current ||
+        scopeTenant !== activeTenantRef.current
+      ) {
+        return;
+      }
+      const active = (Array.isArray(list) ? list : []).filter(
+        (r) =>
+          r.status !== 'CANCELLED' &&
+          r.status !== 'COMPLETED' &&
+          (ACTIVE_ROUTE_STATUSES.has(r.status) || Boolean(r.driverId || r.vehicleId)),
+      );
       setRoutes(active);
       const byId = new Map<string, CorporateRouteItem>();
       active.forEach((r) => byId.set(r.id, r));
       routesMapRef.current = byId;
+      publishSnapshot();
     } catch {
-      // quiet
+      // keep existing state if transient error
     } finally {
-      setLoading(false);
+      if (
+        !unmountedRef.current &&
+        !isCancelled?.() &&
+        reqGen === routesReqGenRef.current &&
+        scopeTenant === activeTenantRef.current
+      ) {
+        setLoading(false);
+      }
     }
-  }, [selectedDate]);
+  }, [tenantReady, selectedTenantId, selectedDate, publishSnapshot]);
 
-  // ─── 9. Bootstrap once ─────────────────────────────────────────────────────
+  // ─── 9. Bootstrap map once ─────────────────────────────────────────────────
   useEffect(() => {
     unmountedRef.current = false;
     const vehicles = vehicleStatesRef.current;
     loadGoogleMapsScript(() => {
-      initMap();
-      void connectStream();
+      void initMap();
     });
     return () => {
       unmountedRef.current = true;
-      // eslint-disable-next-line react-hooks/exhaustive-deps -- a generation counter (invalidates in-flight connects), not a DOM ref
-      connectGenRef.current++;
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       eventSourceRef.current?.close();
       eventSourceRef.current = null;
+      officeMarkersRef.current.forEach((m) => m.setMap(null));
+      officeMarkersRef.current = [];
       vehicles.clear();
       overlayRef.current?.destroy();
       overlayRef.current = null;
     };
-    // connectStream / initMap / loadGoogleMapsScript are stable (no changing deps)
-  }, [loadGoogleMapsScript, initMap, connectStream]);
+  }, [loadGoogleMapsScript, initMap]);
 
+  // Connect / reconnect stream & reset scoped state whenever selectedTenantId changes.
   useEffect(() => {
-    void loadMapData();
-  }, [loadMapData]);
+    if (!tenantReady) return;
+    let cancelled = false;
+    setSelectedId(null);
+    fittedScopeRef.current = null;
+    vehicleStatesRef.current.clear();
+    liveFixCountRef.current = 0;
+    lastFixAtRef.current = null;
+    routesMapRef.current = new Map();
+    setRoutes([]);
+    publishSnapshot();
+    void connectStream(selectedTenantId, () => cancelled);
+    return () => {
+      cancelled = true;
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+      eventSourceRef.current?.close();
+      eventSourceRef.current = null;
+    };
+  }, [tenantReady, selectedTenantId, connectStream, publishSnapshot]);
+
+  // Load company/date active routes without resetting the live telemetry stream when Shift Date changes.
+  useEffect(() => {
+    if (!tenantReady) return;
+    let cancelled = false;
+    setLoading(true);
+    void loadMapData(() => cancelled);
+    return () => {
+      cancelled = true;
+    };
+  }, [tenantReady, loadMapData]);
+
+  // ─── 10. Plot office hub markers & auto-center on company scope ────────────
+  useEffect(() => {
+    if (!mapReady || !googleMapRef.current || !(window as any).google?.maps) return;
+    const google = (window as any).google;
+    const map = googleMapRef.current;
+
+    officeMarkersRef.current.forEach((m) => m.setMap(null));
+    officeMarkersRef.current = [];
+
+    const officeList: Array<{ id: string; name: string; lat: number; lng: number }> = [];
+    const seenOffices = new Set<string>();
+
+    const addOffice = (id: string, name: string, latVal: unknown, lngVal: unknown) => {
+      const lat = Number(latVal);
+      const lng = Number(lngVal);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) return;
+      if (seenOffices.has(id)) return;
+      seenOffices.add(id);
+      officeList.push({ id, name, lat, lng });
+    };
+
+    if (selectedCompany?.offices) {
+      selectedCompany.offices.forEach((o) => addOffice(o.id, `${selectedCompany.name} — ${o.name}`, o.latitude, o.longitude));
+    } else if (selectedTenantId === 'ALL') {
+      companies.slice(0, 40).forEach((c) => {
+        c.offices?.forEach((o) => addOffice(o.id, `${c.name} — ${o.name}`, o.latitude, o.longitude));
+      });
+    }
+    routes.forEach((r) => {
+      if (r.office) {
+        addOffice(
+          r.office.id,
+          r.tenant?.name ? `${r.tenant.name} — ${r.office.name}` : r.office.name,
+          r.office.latitude,
+          r.office.longitude,
+        );
+      }
+    });
+
+    if (typeof google.maps.Marker === 'function') {
+      officeMarkersRef.current = officeList.map(
+        (office) =>
+          new google.maps.Marker({
+            position: { lat: office.lat, lng: office.lng },
+            map,
+            title: office.name,
+            icon: {
+              path: google.maps.SymbolPath.CIRCLE,
+              scale: 7,
+              fillColor: '#5728B2',
+              fillOpacity: 1,
+              strokeColor: '#FFFFFF',
+              strokeWeight: 2,
+            },
+            zIndex: 2,
+          }),
+      );
+    }
+
+    if (fittedScopeRef.current !== selectedTenantId) {
+      const points: Array<{ lat: number; lng: number }> = [];
+      vehicleStatesRef.current.forEach((v) => {
+        points.push({ lat: v.toLat, lng: v.toLng });
+      });
+      if (points.length === 0 || selectedTenantId !== 'ALL') {
+        officeList.forEach((o) => points.push({ lat: o.lat, lng: o.lng }));
+      }
+      if (points.length === 1) {
+        map.panTo(points[0]);
+        map.setZoom(13);
+        fittedScopeRef.current = selectedTenantId;
+      } else if (points.length > 1) {
+        const bounds = new google.maps.LatLngBounds();
+        points.forEach((pt) => bounds.extend(pt));
+        map.fitBounds(bounds, 60);
+        fittedScopeRef.current = selectedTenantId;
+      }
+    }
+  }, [mapReady, selectedTenantId, selectedCompany, companies, routes, ui.gpsCount]);
+
+  function handleCompanyChange(newTenantId: string) {
+    setSelectedTenantId(newTenantId);
+    if (typeof window !== 'undefined') {
+      const nextUrl = newTenantId !== 'ALL' ? `/map?tenantId=${encodeURIComponent(newTenantId)}` : '/map';
+      window.history.replaceState(null, '', nextUrl);
+    }
+  }
 
   async function handleRefresh() {
     setRefreshing(true);
-    await Promise.all([loadMapData(), loadSnapshot()]);
+    await Promise.all([loadMapData(), loadSnapshot(selectedTenantId)]);
+    publishSnapshot();
     setRefreshing(false);
   }
 
-  // Pan/zoom to a cab when it is selected (from the map or the list).
+  // Pan/zoom to a cab (or its office) when selected from the map or the fleet list.
   useEffect(() => {
     if (!selectedId || !googleMapRef.current) return;
     const v = vehicleStatesRef.current.get(selectedId);
     if (v) {
       googleMapRef.current.panTo({ lat: v.toLat, lng: v.toLng });
       googleMapRef.current.setZoom(14.5);
+      return;
+    }
+    const route = routesMapRef.current.get(selectedId);
+    const lat = Number(route?.office?.latitude);
+    const lng = Number(route?.office?.longitude);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      googleMapRef.current.panTo({ lat, lng });
+      googleMapRef.current.setZoom(13);
     }
   }, [selectedId]);
 
-  const activeVehiclesCount = ui.items.length;
-  const reportingRoutes = ui.items.filter((i) => i.kind === 'CORPORATE_ROUTE' && routesMapRef.current.has(i.routeId)).length;
-  const tripCount = ui.items.length - ui.items.filter((i) => i.kind === 'CORPORATE_ROUTE').length;
+  const activeRouteIds = useMemo(() => new Set(routes.map((r) => r.id)), [routes]);
+  const selectedCompanyName =
+    selectedCompany?.name ?? (selectedTenantId !== 'ALL' ? routes.find((r) => r.tenant?.id === selectedTenantId)?.tenant?.name ?? null : null);
+  const totalWorkingCount = ui.items.length;
+  const reportingRoutes = ui.items.filter((i) => i.hasGps && i.kind === 'CORPORATE_ROUTE' && activeRouteIds.has(i.routeId)).length;
+  const tripCount = ui.items.filter((i) => i.kind === 'TRIP').length;
+  const assignedRoutesCount = routes.filter((r) => Boolean(r.driverId || r.vehicleId)).length;
   const lastFixAgeSec = ui.lastFixAt ? Math.max(0, Math.round((ui.nowMs - ui.lastFixAt) / 1000)) : null;
   const selectedVehicle = selectedId ? vehicleStatesRef.current.get(selectedId) : undefined;
-  const selectedRoute = selectedId ? routesMapRef.current.get(selectedId) ?? routes.find((r) => r.id === selectedId) ?? null : null;
+  const selectedRoute = selectedId ? routes.find((r) => r.id === selectedId) ?? null : null;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 104px)', gap: '16px' }}>
@@ -492,6 +742,48 @@ export default function FleetLiveMapPage() {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <Link
+            href={selectedTenantId !== 'ALL' ? `/routes?tenantId=${encodeURIComponent(selectedTenantId)}` : '/routes'}
+            style={{ textDecoration: 'none' }}
+          >
+            <Button size="sm" variant="secondary" leftIcon={<ArrowLeft size={14} />}>
+              Back to Routes
+            </Button>
+          </Link>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Building2 size={14} color="var(--text-muted)" />
+            <select
+              aria-label="Filter fleet by company"
+              value={selectedTenantId}
+              onChange={(e) => handleCompanyChange(e.target.value)}
+              style={{
+                height: '32px',
+                backgroundColor: 'var(--bg-surface-muted)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-md, 8px)',
+                padding: '0 10px',
+                color: 'var(--text-primary)',
+                fontSize: '12px',
+                fontWeight: 600,
+                outline: 'none',
+                maxWidth: '240px',
+              }}
+            >
+              <option value="ALL">All Onboarded Companies ({companies.length})</option>
+              {selectedTenantId !== 'ALL' && !selectedCompany && (
+                <option value={selectedTenantId}>
+                  {selectedCompanyName || 'Selected Company'}
+                </option>
+              )}
+              {companies.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} ({c.code})
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Connection Status Pill */}
           <div
             style={{
@@ -510,7 +802,7 @@ export default function FleetLiveMapPage() {
             <Radio size={13} className={connectionStatus === 'LIVE' ? 'pulse-warning' : 'spin'} />
             <span>
               {connectionStatus === 'LIVE'
-                ? `${reportingRoutes} of ${routes.length} active routes reporting GPS${tripCount ? ` · ${tripCount} on-demand trips` : ''}`
+                ? `${reportingRoutes} of ${routes.length} active route${routes.length === 1 ? '' : 's'} reporting GPS · ${assignedRoutesCount} assigned cab${assignedRoutesCount === 1 ? '' : 's'}${tripCount ? ` · ${tripCount} on-demand` : ''}`
                 : connectionStatus === 'CONNECTING'
                   ? 'Connecting Stream...'
                   : 'Reconnecting Stream...'}
@@ -524,12 +816,12 @@ export default function FleetLiveMapPage() {
           </span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <input
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
-            title="Shift date used for corporate route details"
+            title="Optional shift date filter (leave empty for all active dates)"
             style={{
               height: '32px',
               backgroundColor: 'var(--bg-input)',
@@ -541,6 +833,11 @@ export default function FleetLiveMapPage() {
               outline: 'none',
             }}
           />
+          {selectedDate && (
+            <Button size="sm" variant="ghost" onClick={() => setSelectedDate('')}>
+              Clear
+            </Button>
+          )}
 
           <Button
             size="sm"
@@ -586,10 +883,38 @@ export default function FleetLiveMapPage() {
               zIndex: 10,
             }}
           >
-            CABS: {activeVehiclesCount} · LIVE FIXES: {ui.liveFixCount} · ▲ corporate · ◆ on-demand
+            FLEET: {totalWorkingCount} ({ui.gpsCount} GPS) · LIVE FIXES: {ui.liveFixCount} · ▲ corporate · ● office HQ
           </div>
 
-          {activeVehiclesCount === 0 && !loading && (
+          {ui.gpsCount === 0 && totalWorkingCount > 0 && !loading && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '16px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                zIndex: 5,
+                backgroundColor: 'var(--bg-surface)',
+                padding: '8px 14px',
+                borderRadius: 'var(--radius-pill)',
+                border: '1px solid var(--border-subtle)',
+                boxShadow: 'var(--shadow-card)',
+                fontSize: '12px',
+                color: 'var(--text-secondary)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <Car size={14} color="var(--brand-blue-500, #5728B2)" />
+              <span>
+                Awaiting live GPS pings — showing {totalWorkingCount} active/assigned route{totalWorkingCount === 1 ? '' : 's'} in the Fleet panel.
+              </span>
+            </div>
+          )}
+
+          {totalWorkingCount === 0 && !loading && (
             <div
               style={{
                 position: 'absolute',
@@ -606,9 +931,11 @@ export default function FleetLiveMapPage() {
               }}
             >
               <Car size={32} color="var(--brand-blue-500, #5728B2)" style={{ marginBottom: '8px' }} />
-              <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>No cabs reporting GPS</h3>
+              <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                {selectedCompanyName ? `No active cabs for ${selectedCompanyName}` : 'No cabs active or reporting GPS'}
+              </h3>
               <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                Cabs appear here as soon as an active route or trip sends a location fix.
+                Assigned cabs and live GPS vehicles for the selected company appear here automatically.
               </p>
             </div>
           )}
@@ -623,7 +950,13 @@ export default function FleetLiveMapPage() {
             onClose={() => setSelectedId(null)}
           />
         ) : (
-          <VehicleListPanel items={ui.items} nowMs={ui.nowMs} onSelect={setSelectedId} />
+          <VehicleListPanel
+            items={ui.items}
+            nowMs={ui.nowMs}
+            selectedCompanyName={selectedCompanyName}
+            isCompanyScoped={selectedTenantId !== 'ALL'}
+            onSelect={setSelectedId}
+          />
         )}
       </div>
     </div>

@@ -1,21 +1,14 @@
 import React from 'react';
 import { CorporateTenantOption } from '../../lib/api/opsTypes';
 import { Building2, Car, Users, CheckCircle, AlertTriangle, ArrowRight } from 'lucide-react';
-import { Button } from '../common/Button';
 
 export interface CompanyCardProps {
   tenant: CorporateTenantOption;
   isSelected: boolean;
   onSelect: (tenantId: string) => void;
-  onOpenDeck: (tenantId: string) => void;
 }
 
-export const CompanyCard: React.FC<CompanyCardProps> = ({
-  tenant,
-  isSelected,
-  onSelect,
-  onOpenDeck,
-}) => {
+export const CompanyCard: React.FC<CompanyCardProps> = ({ tenant, isSelected, onSelect }) => {
   const activeCabs = tenant.activeCabsCount ?? 0;
   const inTransit = tenant.inTransitCount ?? 0;
   const onTimePct = tenant.onTimePunctualityPct ?? 98.4;
@@ -25,7 +18,15 @@ export const CompanyCard: React.FC<CompanyCardProps> = ({
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       onClick={() => onSelect(tenant.id)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSelect(tenant.id);
+        }
+      }}
       style={{
         backgroundColor: 'var(--bg-surface)',
         border: `1px solid ${
@@ -178,7 +179,7 @@ export const CompanyCard: React.FC<CompanyCardProps> = ({
         </div>
       </div>
 
-      {/* Action Footer */}
+      {/* Selection Footer */}
       <div
         style={{
           marginTop: '16px',
@@ -190,20 +191,20 @@ export const CompanyCard: React.FC<CompanyCardProps> = ({
         }}
       >
         <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-          {isSelected ? '✓ Active in Operations' : 'Click to Focus Fleet'}
+          {isSelected ? '✓ Active in Operations' : 'Click to view routes & trips'}
         </span>
-
-        <Button
-          size="sm"
-          variant={isSelected ? 'primary' : 'outline'}
-          rightIcon={<ArrowRight size={14} />}
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpenDeck(tenant.id);
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            fontSize: '12px',
+            fontWeight: 600,
+            color: 'var(--brand-blue-500, #5728B2)',
           }}
         >
-          Open Deck
-        </Button>
+          Routes &amp; Trips <ArrowRight size={13} />
+        </span>
       </div>
     </div>
   );

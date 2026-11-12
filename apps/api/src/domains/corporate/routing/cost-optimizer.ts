@@ -11,6 +11,7 @@
  */
 
 import { haversineKm } from './google-routes-v2.adapter';
+import { VEHICLE_CAPACITY } from './routing.types';
 
 export interface DistanceSlab {
   upToKm: number;
@@ -66,7 +67,7 @@ export const DEFAULT_PRICING_CONFIG: PricingConfig = {
   cabTypes: [
     {
       name: 'sedan',
-      capacity: 3,
+      capacity: VEHICLE_CAPACITY.SEDAN,
       fleetCount: DEFAULT_PLANNING_FLEET_COUNT,
       fixedCharge: 350.0,
       perKmCharge: 14.0,
@@ -78,7 +79,7 @@ export const DEFAULT_PRICING_CONFIG: PricingConfig = {
     },
     {
       name: 'suv',
-      capacity: 6,
+      capacity: VEHICLE_CAPACITY.SUV,
       fleetCount: DEFAULT_PLANNING_FLEET_COUNT,
       fixedCharge: 500.0,
       perKmCharge: 16.0,

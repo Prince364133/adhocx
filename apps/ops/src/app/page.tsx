@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { opsApi } from '../lib/api/opsClient';
 import { CorporateTenantOption } from '../lib/api/opsTypes';
@@ -14,7 +14,6 @@ import {
   AlertTriangle,
   Search,
   RefreshCw,
-  Navigation,
 } from 'lucide-react';
 
 const COMPANY_STORAGE_KEY = 'adhocx_ops_selected_tenant';
@@ -27,11 +26,15 @@ export default function CompanyHubPage() {
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    loadTenants();
+  const persistSelectedTenant = useCallback((id: string) => {
+    setSelectedTenantId(id);
+    try {
+      localStorage.setItem(COMPANY_STORAGE_KEY, id);
+      window.dispatchEvent(new Event('adhocx:ops-tenant-changed'));
+    } catch {}
   }, []);
 
-  async function loadTenants() {
+  const loadTenants = useCallback(async () => {
     setLoading(true);
     try {
       const res = await opsApi.getTenants({ limit: 100 });
@@ -45,25 +48,21 @@ export default function CompanyHubPage() {
 
       const initial = items.find((t) => t.id === remembered)?.id ?? items[0]?.id ?? '';
       setSelectedTenantId(initial);
-      if (initial) handleSelectTenant(initial);
+      if (initial) persistSelectedTenant(initial);
     } catch (err) {
       console.error('Failed to load tenants:', err);
     } finally {
       setLoading(false);
     }
-  }
+  }, [persistSelectedTenant]);
+
+  useEffect(() => {
+    void loadTenants();
+  }, [loadTenants]);
 
   function handleSelectTenant(id: string) {
-    setSelectedTenantId(id);
-    try {
-      localStorage.setItem(COMPANY_STORAGE_KEY, id);
-      window.dispatchEvent(new Event('adhocx:ops-tenant-changed'));
-    } catch {}
-  }
-
-  function handleOpenDeck(id: string) {
-    handleSelectTenant(id);
-    router.push(`/board?tenantId=${id}`);
+    persistSelectedTenant(id);
+    router.push(`/routes?tenantId=${encodeURIComponent(id)}`);
   }
 
   async function handleRefresh() {
@@ -110,16 +109,6 @@ export default function CompanyHubPage() {
             Refresh Hub
           </Button>
 
-          {selectedTenantId && (
-            <Button
-              variant="primary"
-              size="md"
-              leftIcon={<Navigation size={15} />}
-              onClick={() => router.push(`/board?tenantId=${selectedTenantId}`)}
-            >
-              Open Live Route Deck
-            </Button>
-          )}
         </div>
       </div>
 
@@ -242,7 +231,6 @@ export default function CompanyHubPage() {
               tenant={t}
               isSelected={selectedTenantId === t.id}
               onSelect={handleSelectTenant}
-              onOpenDeck={handleOpenDeck}
             />
           ))}
         </div>

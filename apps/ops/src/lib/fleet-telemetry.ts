@@ -1,5 +1,6 @@
 /** Live fleet map helpers (kept out of the page file: Next.js pages may only export the page). */
 import type { LiveVehicleTelemetryPayload } from '@adhocx/contracts';
+import type { CorporateRouteItem } from './api/opsTypes';
 
 // Same thresholds as the API (tracking.types.ts): LIVE <= 45 s, STALE <= 180 s, else OFFLINE.
 export const GPS_LIVE_MAX_AGE_SEC = 45;
@@ -11,6 +12,7 @@ export const ACTIVE_ROUTE_STATUSES = new Set(['IN_TRANSIT', 'ASSIGNED', 'DISPATC
 export const ICON_ROTATION_STEP_DEG = 2;
 
 export type GpsState = 'LIVE' | 'STALE' | 'OFFLINE';
+export type TelemetryListState = GpsState | 'NO_GPS';
 export type VehicleKind = 'CORPORATE_ROUTE' | 'TRIP';
 
 /**
@@ -24,7 +26,7 @@ export function gpsStateOf(recordedAtMs: number, nowMs = Date.now()): GpsState {
   return ageSec <= GPS_LIVE_MAX_AGE_SEC ? 'LIVE' : ageSec <= GPS_STALE_MAX_AGE_SEC ? 'STALE' : 'OFFLINE';
 }
 
-export const GPS_COLORS = { LIVE: '#16A34A', STALE: '#EAB308', OFFLINE: '#9CA3AF' } as const;
+export const GPS_COLORS = { LIVE: '#16A34A', STALE: '#EAB308', OFFLINE: '#9CA3AF', NO_GPS: '#64748B' } as const;
 /** Stroke colour per vehicle kind, so on-demand trips stand apart from corporate routes. */
 export const KIND_STROKE = { CORPORATE_ROUTE: '#FFFFFF', TRIP: '#2563EB' } as const;
 
@@ -134,7 +136,7 @@ export function isInViewport(lat: number, lng: number, b: LatLngBoundsLiteral | 
 
 // ─── Vehicle list (side panel) ────────────────────────────────────────────────
 
-export type GpsFilter = 'ALL' | GpsState;
+export type GpsFilter = 'ALL' | TelemetryListState;
 export type KindFilter = 'ALL' | VehicleKind;
 
 export interface VehicleListItem {
@@ -143,40 +145,74 @@ export interface VehicleListItem {
   label: string;
   driverName?: string;
   vehicleNumber?: string;
+  vehicleModel?: string;
+  companyName?: string;
+  companyCode?: string;
+  shiftTime?: string;
+  direction?: string;
   status?: string;
-  gpsState: GpsState;
+  hasGps: boolean;
+  gpsState: TelemetryListState;
   speedKph: number;
   recordedAt: number;
 }
 
-export function toListItem(fix: FleetFix, nowMs = Date.now()): VehicleListItem {
+export function toListItem(fix: FleetFix, nowMs = Date.now(), route?: CorporateRouteItem | null): VehicleListItem {
   return {
     routeId: fix.routeId,
     kind: kindOf(fix),
     label: vehicleLabel(fix),
-    driverName: fix.driverName,
-    vehicleNumber: fix.vehicleNumber,
-    status: fix.status,
+    driverName: fix.driverName || route?.driver?.fullName,
+    vehicleNumber: fix.vehicleNumber || route?.vehicle?.registrationNumber,
+    vehicleModel: route?.vehicle?.model,
+    companyName: route?.tenant?.name,
+    companyCode: route?.tenant?.code,
+    shiftTime: route?.shiftTime,
+    direction: route?.direction,
+    status: route?.status ?? fix.status,
+    hasGps: true,
     gpsState: gpsStateOf(fix.recordedAt, nowMs),
     speedKph: Number.isFinite(fix.speedKph) ? fix.speedKph : 0,
     recordedAt: fix.recordedAt,
   };
 }
 
-export function countByState(items: VehicleListItem[]): Record<GpsState, number> {
-  const c: Record<GpsState, number> = { LIVE: 0, STALE: 0, OFFLINE: 0 };
+export function routeToListItem(route: CorporateRouteItem): VehicleListItem {
+  return {
+    routeId: route.id,
+    kind: 'CORPORATE_ROUTE',
+    label: vehicleLabel({ kind: 'CORPORATE_ROUTE', routeId: route.id }),
+    driverName:
+      route.driver?.fullName ||
+      (route.status === 'DISPATCHING' ? 'Dispatching (searching driver)' : 'Unassigned Driver'),
+    vehicleNumber: route.vehicle?.registrationNumber,
+    vehicleModel: route.vehicle?.model,
+    companyName: route.tenant?.name,
+    companyCode: route.tenant?.code,
+    shiftTime: route.shiftTime,
+    direction: route.direction,
+    status: route.status,
+    hasGps: false,
+    gpsState: 'NO_GPS',
+    speedKph: 0,
+    recordedAt: 0,
+  };
+}
+
+export function countByState(items: VehicleListItem[]): Record<TelemetryListState, number> {
+  const c: Record<TelemetryListState, number> = { LIVE: 0, STALE: 0, OFFLINE: 0, NO_GPS: 0 };
   items.forEach((i) => c[i.gpsState]++);
   return c;
 }
 
-const STATE_ORDER: Record<GpsState, number> = { LIVE: 0, STALE: 1, OFFLINE: 2 };
+const STATE_ORDER: Record<TelemetryListState, number> = { LIVE: 0, STALE: 1, OFFLINE: 2, NO_GPS: 3 };
 
 const byName = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
 /**
- * Filters by GPS state / kind / free text (driver, route id, label, vehicle number). Grouped by GPS
- * state, then by driver name: a STABLE order, so rows do not jump under the cursor every second as
- * fixes arrive (freshness is shown per row instead).
+ * Filters by GPS state / kind / free text (driver, company, route id, label, vehicle number).
+ * Grouped by telemetry state, then by driver name: a STABLE order, so rows do not jump under the
+ * cursor every second as fixes arrive.
  */
 export function filterVehicles(
   items: VehicleListItem[],
@@ -188,7 +224,9 @@ export function filterVehicles(
     if (opts.gps !== 'ALL' && i.gpsState !== opts.gps) return false;
     if (opts.kind !== 'ALL' && i.kind !== opts.kind) return false;
     if (!q) return true;
-    return [i.driverName, i.routeId, i.label, i.vehicleNumber].some((v) => v && v.toLowerCase().includes(q));
+    return [i.driverName, i.routeId, i.label, i.vehicleNumber, i.vehicleModel, i.companyName, i.companyCode, i.status].some(
+      (v) => v && v.toLowerCase().includes(q),
+    );
   });
   matched.sort(
     (a, b) =>

@@ -3,51 +3,15 @@
 import React from 'react';
 import {
   AlertTriangle,
-  Calendar,
-  CalendarClock,
-  CheckCircle,
   CheckCircle2,
   FileText,
-  ListFilter,
-  Map,
-  Navigation,
   ShieldAlert,
-  Ticket,
-  Truck,
-  UploadCloud,
 } from 'lucide-react';
 import { SubNavTab, SubNavTabs } from '../../../../corporate/src/components/layout/SubNavTabs';
 
-type Module = 'rosters' | 'bookings' | 'routes' | 'safety';
+type Module = 'safety';
 
 const TABS: Record<Module, { title: string; tabs: SubNavTab[] }> = {
-  rosters: {
-    title: 'Shifts & Employee Rosters',
-    tabs: [
-      { href: '/rosters/shifts', label: 'Shift Templates', icon: <CalendarClock size={15} /> },
-      { href: '/rosters/calendar', label: 'Roster Calendar', icon: <Calendar size={15} /> },
-      { href: '/rosters/import', label: 'Import & Preview', icon: <UploadCloud size={15} /> },
-      { href: '/rosters/approve', label: 'Approval & Publish', icon: <CheckCircle size={15} /> },
-    ],
-  },
-  bookings: {
-    title: 'Bookings & Commute Requests',
-    tabs: [
-      { href: '/bookings/overview', label: 'Bookings Overview', icon: <Ticket size={15} /> },
-      { href: '/bookings', label: 'Booking Queue', icon: <ListFilter size={15} /> },
-      { href: '/bookings/details', label: 'Booking Details', icon: <FileText size={15} /> },
-      { href: '/bookings/approvals', label: 'Approval Inbox', icon: <CheckCircle2 size={15} /> },
-    ],
-  },
-  routes: {
-    title: 'Routes & Trips',
-    tabs: [
-      { href: '/routes', label: 'Route Planner', icon: <Navigation size={15} /> },
-      { href: '/routes/active', label: 'Active Routes', icon: <Map size={15} /> },
-      { href: '/routes/allocation', label: 'Fleet Allocation', icon: <Truck size={15} /> },
-      { href: '/routes/details', label: 'Route Details', icon: <FileText size={15} /> },
-    ],
-  },
   safety: {
     title: 'Safety & Incident Management',
     tabs: [

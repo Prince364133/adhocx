@@ -594,7 +594,7 @@ describe('Corporate Managed ETS: 20-Step Comprehensive Operational Simulations',
   });
 
   // STEP 02: CVRPTW Solver with Sedan Capacity <= 4
-  it('Step 02: Capacitated Vehicle Routing Solver groups 500 employees into Sedan routes strictly capping 4 per car', async () => {
+  it('Step 02: Capacitated Vehicle Routing Solver groups 500 employees into Sedan routes strictly capping 3 per car', async () => {
     const summary = await routeSolverService.optimizeAndCreateRoutes({
       tenantId: 'tenant-acme-corp',
       officeId: OFFICE_HUB.id,
@@ -602,12 +602,12 @@ describe('Corporate Managed ETS: 20-Step Comprehensive Operational Simulations',
       shiftTime: '08:00',
       direction: 'LOGIN',
       vehicleCategory: 'SEDAN',
-      maxCapacity: 4,
+      maxCapacity: 3,
     });
 
     expect(summary.routesCreated).toBeGreaterThan(0);
     for (const route of summary.routes) {
-      expect(route.passengerCount).toBeLessThanOrEqual(4);
+      expect(route.passengerCount).toBeLessThanOrEqual(3);
     }
   });
 

@@ -114,15 +114,25 @@ function assignedIds(routes: { passengers: PlannerPassenger[] }[]): string[] {
 
 /** Fake Google client: haversine at 40 km/h on the centroids it is sent. */
 class FakeGoogleClient implements RouteMatrixClient {
-  calls: { o: number; d: number; departure?: Date }[] = [];
+  calls: {
+    o: number;
+    d: number;
+    departure?: Date;
+    options?: { routingPreference?: string; avoidTolls?: boolean; avoidHighways?: boolean };
+  }[] = [];
   available = true;
   failWith: Error | null = null;
   noRoute = new Set<string>(); // "oi|di" within a request
   isRouteMatrixAvailable() {
     return this.available;
   }
-  async computeRouteMatrixElements(o: MatrixPoint[], d: MatrixPoint[], departure?: Date) {
-    this.calls.push({ o: o.length, d: d.length, departure });
+  async computeRouteMatrixElements(
+    o: MatrixPoint[],
+    d: MatrixPoint[],
+    departure?: Date,
+    options?: { routingPreference?: string; avoidTolls?: boolean; avoidHighways?: boolean },
+  ) {
+    this.calls.push({ o: o.length, d: d.length, departure, options });
     if (this.failWith) throw this.failWith;
     const out: any[] = [];
     o.forEach((a, i) =>
@@ -390,6 +400,16 @@ describe('GoogleTravelTimeMatrixAdapter', () => {
     expect(m.durationSec[0][59]).toBeGreaterThan(0);
   });
 
+  it('keeps TRAFFIC_AWARE_OPTIMAL requests within the Google 100-element limit', async () => {
+    const client = new FakeGoogleClient();
+    const adapter = new GoogleTravelTimeMatrixAdapter(client, new MemoryCache(), undefined, { now });
+    const pts = gridPoints(6, 10);
+    const m = await adapter.getMatrix(pts, pts, departure, { routingPreference: 'TRAFFIC_AWARE_OPTIMAL' });
+    expect(client.calls.length).toBeGreaterThan(0);
+    client.calls.forEach((c) => expect(c.o * c.d).toBeLessThanOrEqual(100));
+    expect(m.source).toBe('GOOGLE');
+  });
+
   it('serves a repeat request entirely from the H3 cell-pair cache', async () => {
     const client = new FakeGoogleClient();
     const cache = new MemoryCache();
@@ -403,9 +423,53 @@ describe('GoogleTravelTimeMatrixAdapter', () => {
     expect(second.source).toBe('CACHE');
     expect(second.durationSec).toEqual(first.durationSec);
     expect(adapter.stats.cacheHits).toBeGreaterThan(0);
-    // Cache key = resolution + time bucket + cell pair
+    // Cache key includes routing preferences so incompatible matrix results never collide.
     const [anyKey] = [...cache.store.keys()];
-    expect(anyKey).toMatch(/^corp:ttm:v1:r8:wd0700:[0-9a-f]+:[0-9a-f]+$/);
+    expect(anyKey).toMatch(/^corp:ttm:v2:r8:wd0700:TRAFFIC_AWARE:t0:h0:[0-9a-f]+:[0-9a-f]+$/);
+  });
+
+  it('forwards routing strategy and independent route modifiers to Google and isolates their cache entries', async () => {
+    const client = new FakeGoogleClient();
+    const cache = new MemoryCache();
+    const adapter = new GoogleTravelTimeMatrixAdapter(client, cache, undefined, { now });
+    const origins = gridPoints(1, 1);
+    const destinations = gridPoints(1, 2);
+
+    await adapter.getMatrix(origins, destinations, departure, {
+      routingPreference: 'TRAFFIC_UNAWARE',
+      avoidTolls: true,
+      avoidHighways: false,
+    });
+    await adapter.getMatrix(origins, destinations, departure, {
+      routingPreference: 'TRAFFIC_AWARE_OPTIMAL',
+      avoidTolls: false,
+      avoidHighways: true,
+    });
+
+    expect(client.calls.map((call) => call.options)).toEqual([
+      { routingPreference: 'TRAFFIC_UNAWARE', avoidTolls: true, avoidHighways: false },
+      { routingPreference: 'TRAFFIC_AWARE_OPTIMAL', avoidTolls: false, avoidHighways: true },
+    ]);
+    expect(cache.store.size).toBe(2);
+  });
+
+  it('maps routing preferences and independent modifiers into the Google Routes request body', async () => {
+    const maps = new GoogleMapsService();
+    (maps as any).apiKey = 'test-key';
+    const postJson = jest.spyOn(maps as any, 'postJson').mockResolvedValue([
+      { originIndex: 0, destinationIndex: 0, duration: '600s', distanceMeters: 5000, condition: 'ROUTE_EXISTS' },
+    ]);
+
+    await maps.computeRouteMatrixElements([OFFICE], [OFFICE], departure, {
+      routingPreference: 'TRAFFIC_AWARE_OPTIMAL',
+      avoidTolls: true,
+      avoidHighways: false,
+    });
+
+    const payload = JSON.parse(String(postJson.mock.calls[0][2]));
+    expect(payload.routingPreference).toBe('TRAFFIC_AWARE_OPTIMAL');
+    expect(payload.routeModifiers).toEqual({ avoidTolls: true, avoidHighways: false });
+    postJson.mockRestore();
   });
 
   it('falls back to haversine when Google fails, and does not cache the fallback', async () => {
@@ -516,7 +580,9 @@ describe('RouteSolverService with an injected travel-time matrix', () => {
       shiftDate: '2026-11-10',
       shiftTime: '08:00',
       direction: 'LOGIN',
+      vehicleCategory: 'SUV',
     });
+    if ('plans' in summary) throw new Error('Expected a single-direction optimization summary');
     expect(summary.routesCreated).toBe(1);
     expect(summary.travelTimeSource).toBe('GOOGLE');
     expect(db.corporateTransportRequest.findMany.mock.calls[0][0].where.employee).toEqual({ officeId: 'off' });
@@ -526,6 +592,177 @@ describe('RouteSolverService with an injected travel-time matrix', () => {
     const route = db.corporateRoute.create.mock.calls[0][0].data;
     expect(hhmm(route.targetPickup1Time)).toBe('06:00');
     expect(route.estDurationSeconds).toBe(110 * 60);
+  });
+
+  it('optimizes LOGIN and LOGOUT once each with distinct request sets and returns both outcomes', async () => {
+    const makeRequest = (direction: 'LOGIN' | 'LOGOUT', id: string) => ({
+      id,
+      employeeId: `employee-${id}`,
+      pickupLat: OFFICE.latitude,
+      pickupLng: OFFICE.longitude,
+      dropoffLat: OFFICE.latitude,
+      dropoffLng: OFFICE.longitude,
+      employee: { gender: 'MALE', officeId: 'off' },
+      direction,
+    });
+    const requestsByDirection = {
+      LOGIN: [makeRequest('LOGIN', 'login-request')],
+      LOGOUT: [makeRequest('LOGOUT', 'logout-request')],
+    };
+    const db = mockDb([]);
+    db.corporateTransportRequest.findMany.mockImplementation(async ({ where }: any) => {
+      return requestsByDirection[where.direction as 'LOGIN' | 'LOGOUT'];
+    });
+    const svc = new RouteSolverService(db, { log: jest.fn() } as any, new GridPort());
+
+    const summary = await svc.optimizeAndCreateRoutes({
+      tenantId: 't',
+      officeId: 'off',
+      shiftDate: '2026-11-10',
+      direction: 'BOTH',
+      loginTime: '08:00',
+      logoutTime: '17:00',
+      vehicleCategory: 'SEDAN',
+    });
+
+    expect('plans' in summary).toBe(true);
+    if (!('plans' in summary)) throw new Error('Expected per-direction outcomes');
+    expect(summary.plans.map(({ direction, success }) => ({ direction, success }))).toEqual([
+      { direction: 'LOGIN', success: true },
+      { direction: 'LOGOUT', success: true },
+    ]);
+    expect(db.corporateTransportRequest.findMany.mock.calls.map(([{ where }]: any) => where.direction)).toEqual([
+      'LOGIN',
+      'LOGOUT',
+    ]);
+    expect(summary.routesCreated).toBe(2);
+  });
+
+  it('returns an explicit partial BOTH result when one direction fails', async () => {
+    const db = mockDb([]);
+    db.corporateTransportRequest.findMany.mockImplementation(async ({ where }: any) => {
+      if (where.direction === 'LOGIN') throw new Error('LOGIN query failed');
+      return [{
+        id: 'logout-request',
+        employeeId: 'employee-logout',
+        pickupLat: OFFICE.latitude,
+        pickupLng: OFFICE.longitude,
+        dropoffLat: OFFICE.latitude,
+        dropoffLng: OFFICE.longitude,
+        employee: { gender: 'MALE', officeId: 'off' },
+      }];
+    });
+    const svc = new RouteSolverService(db, { log: jest.fn() } as any, new GridPort());
+
+    const summary = await svc.optimizeAndCreateRoutes({
+      tenantId: 't',
+      officeId: 'off',
+      shiftDate: '2026-11-10',
+      direction: 'BOTH',
+      loginTime: '08:00',
+      logoutTime: '17:00',
+      vehicleCategory: 'SEDAN',
+    });
+
+    expect('plans' in summary).toBe(true);
+    if (!('plans' in summary)) throw new Error('Expected per-direction outcomes');
+    expect(summary.plans).toMatchObject([
+      { direction: 'LOGIN', success: false, error: 'LOGIN query failed' },
+      { direction: 'LOGOUT', success: true },
+    ]);
+    expect(summary.routesCreated).toBe(1);
+    expect(summary.passengersAssigned).toBe(1);
+  });
+
+  it('assigns both sedan and SUV routes based on the configured mixed-mode capacities', async () => {
+    const requests = Array.from({ length: 7 }, (_, index) => ({
+      id: `request-${index}`,
+      employeeId: `employee-${index}`,
+      pickupLat: OFFICE.latitude + index * 0.0001,
+      pickupLng: OFFICE.longitude,
+      dropoffLat: OFFICE.latitude + index * 0.0001,
+      dropoffLng: OFFICE.longitude,
+      employee: { gender: 'MALE', officeId: 'off' },
+    }));
+    const db = mockDb(requests);
+    const svc = new RouteSolverService(db, { log: jest.fn() } as any, new GridPort());
+
+    const summary = await svc.optimizeAndCreateRoutes({
+      tenantId: 't',
+      officeId: 'off',
+      shiftDate: '2026-11-10',
+      shiftTime: '08:00',
+      direction: 'LOGIN',
+      vehicleCategory: 'BOTH',
+      sedanCapacity: 3,
+      suvCapacity: 6,
+    });
+
+    if ('plans' in summary) throw new Error('Expected a single-direction summary');
+    expect(summary.routesCreated).toBe(2);
+    expect(summary.sedanRoutesCreated).toBe(1);
+    expect(summary.suvRoutesCreated).toBe(1);
+    expect(summary.passengersAssigned).toBe(7);
+    expect(summary.unassignedRequests).toBe(0);
+    const persistedRoutes = db.corporateRoute.create.mock.calls.map(([{ data }]: any) => data);
+    expect(persistedRoutes.map(({ vehicleCategory }: any) => vehicleCategory).sort()).toEqual(['SEDAN', 'SUV']);
+    expect(persistedRoutes.every((route: any) => route.assignedPassengerCount <= route.maxCapacity)).toBe(true);
+  });
+
+  it('rolls back with a conflict when a concurrent run already planned one of the requests', async () => {
+    const reqs = linePassengers([1.5, 2.5]).map((p, i) => ({
+      id: p.requestId,
+      employeeId: `e${i}`,
+      pickupLat: p.latitude,
+      pickupLng: p.longitude,
+      employee: { gender: 'MALE', officeId: 'off' },
+    }));
+    const db = mockDb(reqs);
+    db.corporateTransportRequest.update.mockImplementation(async () => {
+      throw Object.assign(new Error('Record to update not found.'), { code: 'P2025' });
+    });
+    const svc = new RouteSolverService(db, { log: jest.fn() } as any, new GridPort());
+    await expect(
+      svc.optimizeAndCreateRoutes({
+        tenantId: 't',
+        officeId: 'off',
+        shiftDate: '2026-11-10',
+        loginTime: '08:00',
+        direction: 'LOGIN',
+        vehicleCategory: 'SUV',
+      }),
+    ).rejects.toThrow(/already planned by another optimization run/);
+    const guardedWhere = db.corporateTransportRequest.update.mock.calls[0][0].where;
+    expect(guardedWhere.status).toBe('APPROVED');
+    expect(reqs.map((r) => r.id)).toContain(guardedWhere.id);
+  });
+
+  it('applies the configured dwell to LOGOUT drop stops', async () => {
+    const request = {
+      id: 'logout-request',
+      employeeId: 'employee-logout',
+      pickupLat: OFFICE.latitude,
+      pickupLng: OFFICE.longitude,
+      dropoffLat: OFFICE.latitude + 0.001,
+      dropoffLng: OFFICE.longitude,
+      employee: { gender: 'MALE', officeId: 'off' },
+    };
+    const db = mockDb([request]);
+    const svc = new RouteSolverService(db, { log: jest.fn() } as any, new GridPort());
+
+    await svc.optimizeAndCreateRoutes({
+      tenantId: 't',
+      officeId: 'off',
+      shiftDate: '2026-11-10',
+      direction: 'LOGOUT',
+      logoutTime: '17:00',
+      vehicleCategory: 'SEDAN',
+      stopDwellMinutes: 8,
+    });
+
+    const stopRecords = db.corporateRouteStop.create.mock.calls.map(([{ data }]: any) => data);
+    expect(stopRecords.find((stop: any) => stop.stopType === 'PICKUP')?.dwellBufferSeconds).toBe(0);
+    expect(stopRecords.find((stop: any) => stop.stopType === 'DROPOFF')?.dwellBufferSeconds).toBe(8 * 60);
   });
 });
 

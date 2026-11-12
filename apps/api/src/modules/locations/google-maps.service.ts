@@ -240,6 +240,11 @@ export class GoogleMapsService {
     origins: LatLng[],
     destinations: LatLng[],
     departureTime?: Date,
+    options: {
+      routingPreference?: 'TRAFFIC_UNAWARE' | 'TRAFFIC_AWARE' | 'TRAFFIC_AWARE_OPTIMAL';
+      avoidTolls?: boolean;
+      avoidHighways?: boolean;
+    } = {},
     timeoutMs = 10_000,
   ): Promise<
     { originIndex?: number; destinationIndex?: number; duration?: string; distanceMeters?: number; condition?: string }[]
@@ -253,7 +258,11 @@ export class GoogleMapsService {
       origins: origins.map(wp),
       destinations: destinations.map(wp),
       travelMode: 'DRIVE',
-      routingPreference: 'TRAFFIC_AWARE',
+      routingPreference: options.routingPreference ?? 'TRAFFIC_AWARE',
+      routeModifiers: {
+        avoidTolls: options.avoidTolls ?? false,
+        avoidHighways: options.avoidHighways ?? false,
+      },
       ...(departureTime ? { departureTime: departureTime.toISOString() } : {}),
     });
     try {

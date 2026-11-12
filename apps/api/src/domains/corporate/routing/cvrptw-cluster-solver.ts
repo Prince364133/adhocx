@@ -376,8 +376,6 @@ export async function solveCabRoute(
 
 
 /** Hand-over time budgeted at each LOGOUT drop (employee alights; no boarding wait). */
-export const LOGOUT_DROP_DWELL_SECONDS = 120;
-
 /**
  * LOGOUT itinerary for one cab: departs the office at the shift logout time (`config.loginTime`
  * carries the logout anchor) and drops employees nearest-first, ending at the farthest home.
@@ -393,6 +391,8 @@ export async function solveLogoutCabRoute(
   pricingConfig: PricingConfig = DEFAULT_PRICING_CONFIG,
   fleetUsed: Record<string, number> = {},
 ): Promise<SolverCalculatedRoute> {
+  const pickupWaitMinutes = Math.min(Math.max(Number(config.pickupWaitMinutes) || 5, 1), 10);
+  const dropDwellSeconds = Math.round(pickupWaitMinutes * 60);
   const people = orderPickupsByShortestPath(group, officeCoord).reverse();
   const departure = new Date(config.loginTime.getTime());
   const options: RouteRequestOptions = {
@@ -424,7 +424,7 @@ export async function solveLogoutCabRoute(
     const legSec = legSeconds[idx];
     const legDistanceMeters = legs[idx]?.distanceMeters ?? Math.round(route.distanceMeters / people.length);
     const arrive = new Date(clock.getTime() + legSec * 1000);
-    const handOverUntil = new Date(arrive.getTime() + LOGOUT_DROP_DWELL_SECONDS * 1000);
+    const handOverUntil = new Date(arrive.getTime() + dropDwellSeconds * 1000);
     const next = people[idx + 1];
     segments.push({
       from: fromName,
@@ -451,7 +451,7 @@ export async function solveLogoutCabRoute(
       etaIso: arrive.toISOString(),
       dwellUntil: formatClock(handOverUntil),
       dwellUntilIso: handOverUntil.toISOString(),
-      dwellSeconds: LOGOUT_DROP_DWELL_SECONDS,
+      dwellSeconds: dropDwellSeconds,
       nextStop: next ? next.employeeName : 'End of route',
       travelToNextMinutes: next ? Number(((legSeconds[idx + 1] ?? 0) / 60).toFixed(1)) : 0,
       distanceToNextKm: next ? Number((((legs[idx + 1]?.distanceMeters ?? 0) as number) / 1000).toFixed(2)) : 0,
@@ -485,7 +485,7 @@ export async function solveLogoutCabRoute(
     requiredArrival: formatClock(departure),
     requiredArrivalDateTime: departure.toISOString(),
     departureDateTime: departure.toISOString(),
-    dwellSeconds: LOGOUT_DROP_DWELL_SECONDS,
+    dwellSeconds: dropDwellSeconds,
     cabType: cabType.name || 'sedan',
     driverPayout,
     corporateRevenue,

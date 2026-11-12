@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable, Logger, NotFoundExc
 import { DatabaseService } from '../../../database/database.service';
 import { AuditService } from '../../../modules/audit/audit.service';
 import { RESCHEDULE_CUTOFF_HOURS, isValidShiftTime } from '../replanning/cutoff-policy';
+import { VEHICLE_CAPACITY } from '../routing/routing.types';
 
 /** Operating policy of a corporate tenant at a point in time (CP-ROS-03, CP-ADM-03). */
 export interface CorporateTenantPolicyValues {
@@ -35,7 +36,7 @@ export const DEFAULT_TENANT_POLICY: Readonly<CorporateTenantPolicyValues> = Obje
   cancelCutoffHours: RESCHEDULE_CUTOFF_HOURS,
   maxRideMinutes: 120,
   defaultVehicleCategory: 'SEDAN',
-  defaultCapacity: 4,
+  defaultCapacity: VEHICLE_CAPACITY.SEDAN,
   escalationLeadMinutes: 30,
   officeArrivalBufferMinutes: 10,
   stopDwellMinutes: 10,
@@ -85,6 +86,16 @@ export class CorporateTenantPolicyService {
     if (!row) {
       return { tenantId, version: null, effectiveFrom: null, source: 'DEFAULT', ...DEFAULT_TENANT_POLICY };
     }
+    const defaultVehicleCategory = String(row.defaultVehicleCategory).trim().toUpperCase();
+    if (!VEHICLE_CATEGORIES.includes(defaultVehicleCategory)) {
+      throw new BadRequestException('Stored tenant policy has an unsupported defaultVehicleCategory');
+    }
+    const categoryCapacity =
+      defaultVehicleCategory === 'SEDAN' ? VEHICLE_CAPACITY.SEDAN : VEHICLE_CAPACITY.SUV;
+    const storedCapacity = Number(row.defaultCapacity);
+    if (!Number.isInteger(storedCapacity) || storedCapacity < 1) {
+      throw new BadRequestException('Stored tenant policy defaultCapacity must be a positive integer');
+    }
     return {
       tenantId,
       version: row.version,
@@ -92,8 +103,8 @@ export class CorporateTenantPolicyService {
       source: 'TENANT_POLICY',
       cancelCutoffHours: row.cancelCutoffHours,
       maxRideMinutes: row.maxRideMinutes,
-      defaultVehicleCategory: row.defaultVehicleCategory,
-      defaultCapacity: row.defaultCapacity,
+      defaultVehicleCategory,
+      defaultCapacity: Math.min(storedCapacity, categoryCapacity),
       escalationLeadMinutes: row.escalationLeadMinutes,
       officeArrivalBufferMinutes: row.officeArrivalBufferMinutes,
       stopDwellMinutes: row.stopDwellMinutes ?? DEFAULT_TENANT_POLICY.stopDwellMinutes,
@@ -191,6 +202,13 @@ export function validateTenantPolicyValues(v: Partial<CorporateTenantPolicyValue
   out.defaultVehicleCategory = String(out.defaultVehicleCategory).trim().toUpperCase();
   if (!VEHICLE_CATEGORIES.includes(out.defaultVehicleCategory)) {
     throw new BadRequestException(`defaultVehicleCategory must be one of ${VEHICLE_CATEGORIES.join(', ')}`);
+  }
+  const categoryCapacity =
+    out.defaultVehicleCategory === 'SEDAN' ? VEHICLE_CAPACITY.SEDAN : VEHICLE_CAPACITY.SUV;
+  if (out.defaultCapacity > categoryCapacity) {
+    throw new BadRequestException(
+      `defaultCapacity ${out.defaultCapacity} exceeds the ${categoryCapacity} seats of a ${out.defaultVehicleCategory}`,
+    );
   }
   for (const key of ['nightShiftStart', 'nightShiftEnd']) {
     if (!isValidShiftTime(out[key])) throw new BadRequestException(`${key} must be HH:mm`);
