@@ -101,4 +101,40 @@ export interface CreateSafetyIncidentDto {
   reportedByRole?: 'EMPLOYEE' | 'DRIVER' | 'COMMAND_CENTER' | 'SYSTEM_AUTONOMOUS';
 }
 
+export interface CreateCorporateTicketMessageDto {
+  message: string;
+  isInternal?: boolean;
+}
+
+export interface CorporateTicketMessageResponseDto {
+  id: string;
+  ticketId: string;
+  senderId: string;
+  senderRole: string;
+  senderName?: string | null;
+  message: string;
+  isInternal: boolean;
+  createdAt: string;
+}
+
+export interface AssignCorporateTicketDto {
+  assignedToUserId: string | null;
+  notes?: string;
+}
+
+export interface ReopenCorporateTicketDto {
+  reason: string;
+}
+
+export interface CorporateTicketActivityDto {
+  id: string;
+  action: string;
+  actorId?: string | null;
+  actorName?: string | null;
+  actorRole?: string | null;
+  timestamp: string;
+  metadata?: Record<string, unknown>;
+}
+
+
 

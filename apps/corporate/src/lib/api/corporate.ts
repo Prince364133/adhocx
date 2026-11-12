@@ -40,6 +40,8 @@ import type {
   SosAlert,
   SafetyIncident,
   SupportTicket,
+  CorporateTicketMessage,
+  CorporateTicketActivity,
   Tenant,
   TenantIntegrations,
 } from './types';
@@ -431,7 +433,7 @@ export const supportApi = {
       limit?: number;
       offset?: number;
     } = {},
-  ) => apiRequest<SupportTicket[]>(`/corporate/support/tickets${qs({ ...p })}`),
+  ) => apiRequest<SupportTicket[]>(`/corporate/support/tickets${qs({ tenantId, ...p })}`),
   get: (ticketId: string) => apiRequest<SupportTicket>(`/corporate/support/tickets/${ticketId}`),
   summary: () =>
     apiRequest<{
@@ -454,14 +456,21 @@ export const supportApi = {
     attachments: File[] = [],
     idempotencyKey = crypto.randomUUID(),
   ) => {
-    const formData = new FormData();
-    Object.entries({ ...body, tenantId }).forEach(([key, value]) => {
-      if (value !== undefined) formData.append(key, value);
-    });
-    attachments.forEach((file) => formData.append('attachments', file));
+    if (attachments && attachments.length > 0) {
+      const formData = new FormData();
+      Object.entries({ ...body, tenantId }).forEach(([key, value]) => {
+        if (value !== undefined) formData.append(key, value);
+      });
+      attachments.forEach((file) => formData.append('attachments', file));
+      return apiRequest<SupportTicket>('/corporate/support/tickets', {
+        method: 'POST',
+        formData,
+        headers: { 'Idempotency-Key': idempotencyKey },
+      });
+    }
     return apiRequest<SupportTicket>('/corporate/support/tickets', {
       method: 'POST',
-      formData,
+      body: { ...body, tenantId },
       headers: { 'Idempotency-Key': idempotencyKey },
     });
   },
@@ -471,11 +480,20 @@ export const supportApi = {
     attachments.forEach((file) => formData.append('attachments', file));
     return apiRequest<SupportTicket>(`/corporate/support/tickets/${ticketId}/replies`, { method: 'POST', formData });
   },
-  reopen: (ticketId: string) =>
+  listMessages: (ticketId: string) =>
+    apiRequest<CorporateTicketMessage[]>(`/corporate/support/tickets/${ticketId}/messages`),
+  sendMessage: (ticketId: string, body: { message: string }) =>
+    apiRequest<CorporateTicketMessage>(`/corporate/support/tickets/${ticketId}/messages`, {
+      method: 'POST',
+      body,
+    }),
+  reopen: (ticketId: string, body?: { reason?: string }) =>
     apiRequest<SupportTicket>(`/corporate/support/tickets/${ticketId}/reopen`, {
       method: 'POST',
-      body: {},
+      body: body || {},
     }),
+  activity: (ticketId: string) =>
+    apiRequest<CorporateTicketActivity[]>(`/corporate/support/tickets/${ticketId}/activity`),
 };
 
 export const billingApi = {

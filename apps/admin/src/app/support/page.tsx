@@ -1,278 +1,1301 @@
-﻿'use client';
+'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertCircle, CheckCircle2, Clock3, Eye, Headphones, MessageSquareText, Search, Send, Shield, X } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import {
+  Headphones,
+  Clock,
+  Search,
+  CheckCircle2,
+  Building2,
+  User,
+  Car,
+  AlertCircle,
+  MessageSquare,
+  Send,
+  RefreshCw,
+  RotateCcw,
+  ShieldCheck,
+  Tag,
+  AlertTriangle,
+} from 'lucide-react';
 import { adminApi } from '../../lib/api/client';
-import type { CorporateSupportTicket, CorporateTicketPriority, CorporateTicketStatus, UserListItem } from '../../lib/api/types';
+import {
+  SupportTicketItem,
+  CorporateSupportTicket,
+  CorporateTicketMessage,
+  CorporateTicketStatus,
+  CorporateTicketPriority,
+} from '../../lib/api/types';
+import {
+  PageHeader,
+  KpiStrip,
+  SegmentedTabs,
+  FilterBar,
+  DataTable,
+  StatusBadge,
+  Button,
+  Drawer,
+  FeedbackBanner,
+  ConfirmDialog,
+} from '../../components/common';
 
-const STATUSES: CorporateTicketStatus[] = ['OPEN', 'ASSIGNED', 'IN_PROGRESS', 'WAITING_FOR_CORPORATE', 'RESOLVED', 'CLOSED', 'REOPENED'];
-const PRIORITIES: CorporateTicketPriority[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
-const CATEGORIES = ['TECHNICAL_ISSUE', 'EMPLOYEE_MANAGEMENT', 'ROUTE_MANAGEMENT', 'TRANSPORT_OPERATIONS', 'BILLING_PAYMENTS', 'ACCOUNT_ACCESS', 'GENERAL_SUPPORT', 'OTHER'];
-const TEAMS = ['OPS', 'SUPPORT', 'BILLING', 'TECHNICAL', 'TRANSPORT'];
-const PAGE_SIZE = 10;
+const DESK_TABS = [
+  { id: 'CORPORATE_ETS', label: 'Corporate ETS Support' },
+  { id: 'ON_DEMAND', label: 'On-Demand Helpdesk & Disputes' },
+];
 
-const inputStyle: React.CSSProperties = { minHeight: 38, width: '100%', padding: '8px 10px', borderRadius: 7, border: '1px solid var(--border-subtle)', background: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: 12, boxSizing: 'border-box' };
-const buttonStyle: React.CSSProperties = { minHeight: 34, padding: '0 11px', borderRadius: 7, border: '1px solid var(--border-subtle)', background: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: 12, fontWeight: 600, cursor: 'pointer' };
-const primaryStyle: React.CSSProperties = { ...buttonStyle, border: 0, background: '#5d3ab6', color: '#fff' };
+const CORP_STATUS_TABS = [
+  { id: 'ALL', label: 'All Tickets' },
+  { id: 'OPEN', label: 'Open' },
+  { id: 'IN_PROGRESS', label: 'In Progress' },
+  { id: 'RESOLVED', label: 'Resolved' },
+  { id: 'CLOSED', label: 'Closed' },
+];
 
-function display(value?: string | null) {
-  return value ? value.replaceAll('_', ' ').toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase()) : '—';
-}
-
-function dateLabel(value: string) {
-  return new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-}
-
-function Badge({ status }: { status: string }) {
-  const color = ['RESOLVED', 'CLOSED'].includes(status) ? '#27784a' : status === 'WAITING_FOR_CORPORATE' ? '#9a6400' : ['OPEN', 'REOPENED'].includes(status) ? '#5d5a66' : '#5d3ab6';
-  return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 8px', borderRadius: 5, background: `${color}12`, color, fontSize: 10, fontWeight: 700, whiteSpace: 'nowrap' }}><span style={{ width: 6, height: 6, borderRadius: 9, background: 'currentColor' }} />{display(status)}</span>;
-}
+const ON_DEMAND_STATUS_TABS = [
+  { id: 'ALL', label: 'All Tickets' },
+  { id: 'PENDING', label: 'Pending' },
+  { id: 'UNDER_REVIEW', label: 'Under Review' },
+  { id: 'RESOLVED', label: 'Resolved' },
+];
 
 export default function SupportPage() {
-  const [tickets, setTickets] = useState<CorporateSupportTicket[]>([]);
-  const [summary, setSummary] = useState<{ total: number; open: number; unassigned: number; inProgress: number; waitingForCorporate: number; resolved: number; closed: number } | null>(null);
-  const [users, setUsers] = useState<UserListItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
-  const [query, setQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [priorityFilter, setPriorityFilter] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
-  const [page, setPage] = useState(1);
-  const [selected, setSelected] = useState<CorporateSupportTicket | null>(null);
-  const [team, setTeam] = useState('');
-  const [assignee, setAssignee] = useState('');
-  const [priority, setPriority] = useState<CorporateTicketPriority>('MEDIUM');
-  const [status, setStatus] = useState<CorporateTicketStatus>('OPEN');
-  const [resolutionNotes, setResolutionNotes] = useState('');
-  const [assignmentSaving, setAssignmentSaving] = useState(false);
-  const [response, setResponse] = useState('');
-  const [internalNote, setInternalNote] = useState('');
-  const [savingAction, setSavingAction] = useState(false);
+  const [activeDesk, setActiveDesk] = useState<'CORPORATE_ETS' | 'ON_DEMAND'>('CORPORATE_ETS');
+  const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  const loadTickets = useCallback(async () => {
-    setLoading(true);
-    setError('');
+  // ---------------------------------------------------------------------------
+  // Corporate ETS State
+  // ---------------------------------------------------------------------------
+  const [corpTickets, setCorpTickets] = useState<CorporateSupportTicket[]>([]);
+  const [corpLoading, setCorpLoading] = useState(true);
+  const [corpActiveTab, setCorpActiveTab] = useState('ALL');
+  const [corpSearchQuery, setCorpSearchQuery] = useState('');
+  const [selectedCorpTicket, setSelectedCorpTicket] = useState<CorporateSupportTicket | null>(null);
+
+  // Corporate message thread state
+  const [corpMessages, setCorpMessages] = useState<CorporateTicketMessage[]>([]);
+  const [corpMessagesLoading, setCorpMessagesLoading] = useState(false);
+  const [replyMessage, setReplyMessage] = useState('');
+  const [isInternalReply, setIsInternalReply] = useState(false);
+  const [sendingReply, setSendingReply] = useState(false);
+
+  // Corporate status update state
+  const [corpStatusNote, setCorpStatusNote] = useState('');
+  const [corpTargetStatus, setCorpTargetStatus] = useState<CorporateTicketStatus>('IN_PROGRESS');
+  const [corpStatusLoading, setCorpStatusLoading] = useState(false);
+
+  // ---------------------------------------------------------------------------
+  // On-Demand Helpdesk State (Preserving existing functionality)
+  // ---------------------------------------------------------------------------
+  const [onDemandTickets, setOnDemandTickets] = useState<SupportTicketItem[]>([]);
+  const [onDemandLoading, setOnDemandLoading] = useState(false);
+  const [onDemandActiveTab, setOnDemandActiveTab] = useState('ALL');
+  const [onDemandSearchQuery, setOnDemandSearchQuery] = useState('');
+  const [selectedOnDemandTicket, setSelectedOnDemandTicket] = useState<SupportTicketItem | null>(null);
+  const [resolutionNotes, setResolutionNotes] = useState('');
+  const [onDemandActionLoading, setOnDemandActionLoading] = useState(false);
+  const [confirmResolveOpen, setConfirmResolveOpen] = useState(false);
+
+  // ---------------------------------------------------------------------------
+  // Corporate ETS Handlers
+  // ---------------------------------------------------------------------------
+  const loadCorpTickets = useCallback(async (status?: string) => {
+    setCorpLoading(true);
     try {
-      const [result, counts] = await Promise.all([
-        adminApi.listCorporateSupportTickets({ limit: 200 }),
-        adminApi.getCorporateSupportTicketSummary(),
-      ]);
-      setTickets(Array.isArray(result) ? result : []);
-      setSummary(counts);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Unable to load support tickets.');
+      const data = await adminApi.listCorporateSupportTickets({
+        status: status && status !== 'ALL' ? (status as CorporateTicketStatus) : undefined,
+        limit: 100,
+      }).catch(() => [] as CorporateSupportTicket[]);
+      setCorpTickets(Array.isArray(data) ? data : []);
     } finally {
-      setLoading(false);
+      setCorpLoading(false);
+    }
+  }, []);
+
+  const loadCorpMessages = useCallback(async (ticketId: string) => {
+    setCorpMessagesLoading(true);
+    try {
+      const msgs = await adminApi.listCorporateTicketMessages(ticketId).catch(() => [] as CorporateTicketMessage[]);
+      setCorpMessages(Array.isArray(msgs) ? msgs : []);
+    } finally {
+      setCorpMessagesLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    void loadTickets();
-    const timer = window.setInterval(() => void loadTickets(), 30000);
-    void Promise.all([
-      adminApi.getUsers({ role: 'ADMIN', status: 'ACTIVE', limit: 100 }),
-      adminApi.getUsers({ role: 'OPS', status: 'ACTIVE', limit: 100 }),
-    ]).then(([admins, ops]) => setUsers([...admins, ...ops].filter((user) => ['ADMIN', 'OPS'].includes(user.role)))).catch(() => setUsers([]));
-    return () => window.clearInterval(timer);
-  }, [loadTickets]);
+    if (activeDesk === 'CORPORATE_ETS') {
+      loadCorpTickets(corpActiveTab);
+    } else {
+      loadOnDemandTickets(onDemandActiveTab);
+    }
+  }, [activeDesk, corpActiveTab, onDemandActiveTab, loadCorpTickets]);
 
-  const filtered = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    return tickets.filter((ticket) => {
-      const matchesSearch = !needle || [ticket.ticketNumber, ticket.subject, ticket.tenant?.name, ticket.employee?.fullName, ticket.description]
-        .some((value) => value?.toLowerCase().includes(needle));
-      const created = new Date(ticket.createdAt).getTime();
-      return matchesSearch
-        && (!statusFilter || ticket.status === statusFilter)
-        && (!priorityFilter || ticket.priority === priorityFilter)
-        && (!categoryFilter || ticket.category === categoryFilter)
-        && (!fromDate || created >= new Date(`${fromDate}T00:00:00`).getTime())
-        && (!toDate || created <= new Date(`${toDate}T23:59:59`).getTime());
+  const handleSelectCorpTicket = (ticket: CorporateSupportTicket) => {
+    setSelectedCorpTicket(ticket);
+    setCorpStatusNote(ticket.resolutionNotes || ticket.adminNotes || '');
+    setCorpTargetStatus(
+      ticket.status === 'OPEN'
+        ? 'IN_PROGRESS'
+        : ticket.status === 'IN_PROGRESS'
+        ? 'RESOLVED'
+        : ticket.status === 'RESOLVED'
+        ? 'CLOSED'
+        : 'IN_PROGRESS',
+    );
+    setReplyMessage('');
+    setIsInternalReply(false);
+    loadCorpMessages(ticket.id);
+  };
+
+  const handleSendCorpReply = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!selectedCorpTicket || !replyMessage.trim()) return;
+
+    setSendingReply(true);
+    try {
+      const newMsg = await adminApi.sendCorporateTicketMessage(selectedCorpTicket.id, {
+        message: replyMessage.trim(),
+        isInternal: isInternalReply,
+      });
+      setCorpMessages((prev) => [...prev, newMsg]);
+      setReplyMessage('');
+      setAlert({
+        type: 'success',
+        message: isInternalReply
+          ? 'Internal ops note recorded.'
+          : 'Reply sent. Visible in Corporate Portal.',
+      });
+      loadCorpTickets(corpActiveTab);
+    } catch (err: any) {
+      setAlert({ type: 'error', message: err.message || 'Failed to send reply' });
+    } finally {
+      setSendingReply(false);
+    }
+  };
+
+  const handleUpdateCorpStatus = async (status: CorporateTicketStatus, customNote?: string) => {
+    if (!selectedCorpTicket) return;
+
+    setCorpStatusLoading(true);
+    try {
+      const noteToSend = customNote !== undefined ? customNote : corpStatusNote;
+      const updated = await adminApi.updateCorporateSupportTicketStatus(
+        selectedCorpTicket.id,
+        status,
+        noteToSend.trim() || undefined,
+      );
+      setSelectedCorpTicket(updated);
+      setAlert({
+        type: 'success',
+        message: `Corporate support ticket #${updated.ticketNumber || updated.id.slice(0, 8).toUpperCase()} updated to ${status}.`,
+      });
+      loadCorpTickets(corpActiveTab);
+      loadCorpMessages(updated.id);
+    } catch (err: any) {
+      setAlert({ type: 'error', message: err.message || 'Failed to update ticket status' });
+    } finally {
+      setCorpStatusLoading(false);
+    }
+  };
+
+  // Filtered Corporate Tickets
+  const filteredCorp = useMemo(() => {
+    if (!corpSearchQuery.trim()) return corpTickets;
+    const q = corpSearchQuery.toLowerCase().trim();
+    return corpTickets.filter((t) => {
+      return (
+        t.id.toLowerCase().includes(q) ||
+        (t.ticketNumber && t.ticketNumber.toLowerCase().includes(q)) ||
+        (t.subject && t.subject.toLowerCase().includes(q)) ||
+        (t.description && t.description.toLowerCase().includes(q)) ||
+        (t.category && t.category.toLowerCase().includes(q)) ||
+        (t.tenant?.name && t.tenant.name.toLowerCase().includes(q)) ||
+        (t.tenant?.code && t.tenant.code.toLowerCase().includes(q)) ||
+        (t.employee?.fullName && t.employee.fullName.toLowerCase().includes(q)) ||
+        (t.employee?.employeeCode && t.employee.employeeCode.toLowerCase().includes(q)) ||
+        (t.employee?.phone && t.employee.phone.toLowerCase().includes(q)) ||
+        (t.employee?.phoneNumber && t.employee.phoneNumber.toLowerCase().includes(q)) ||
+        (t.driver?.name && t.driver.name.toLowerCase().includes(q)) ||
+        (t.driver?.phone && t.driver.phone.toLowerCase().includes(q)) ||
+        (t.routeId && t.routeId.toLowerCase().includes(q))
+      );
     });
-  }, [tickets, query, statusFilter, priorityFilter, categoryFilter, fromDate, toDate]);
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const currentPage = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  useEffect(() => setPage(1), [query, statusFilter, priorityFilter, categoryFilter, fromDate, toDate]);
+  }, [corpTickets, corpSearchQuery]);
 
-  const metrics = useMemo(() => ({
-    total: summary?.total ?? tickets.length,
-    open: summary?.open ?? tickets.filter((ticket) => ['OPEN', 'REOPENED'].includes(ticket.status)).length,
-    unassigned: summary?.unassigned ?? tickets.filter((ticket) => !ticket.assignedTeam && !ticket.assignedToUserId).length,
-    progress: summary?.inProgress ?? tickets.filter((ticket) => ticket.status === 'IN_PROGRESS').length,
-    waiting: summary?.waitingForCorporate ?? tickets.filter((ticket) => ticket.status === 'WAITING_FOR_CORPORATE').length,
-    resolved: summary?.resolved ?? tickets.filter((ticket) => ticket.status === 'RESOLVED').length,
-    closed: summary?.closed ?? tickets.filter((ticket) => ticket.status === 'CLOSED').length,
-  }), [tickets, summary]);
+  // Corporate Metrics
+  const corpMetrics = useMemo(() => {
+    const open = corpTickets.filter((t) => t.status === 'OPEN').length;
+    const inProgress = corpTickets.filter((t) => t.status === 'IN_PROGRESS').length;
+    const resolved = corpTickets.filter((t) => t.status === 'RESOLVED' || t.status === 'CLOSED').length;
+    return { total: corpTickets.length, open, inProgress, resolved };
+  }, [corpTickets]);
 
-  const openDetails = async (ticket: CorporateSupportTicket) => {
+  // ---------------------------------------------------------------------------
+  // On-Demand Handlers
+  // ---------------------------------------------------------------------------
+  async function loadOnDemandTickets(status: string) {
+    setOnDemandLoading(true);
     try {
-      const detail = await adminApi.getCorporateSupportTicket(ticket.id);
-      setSelected(detail);
-      setTeam(detail.assignedTeam || '');
-      setAssignee(detail.assignedToUserId || '');
-      setPriority(detail.priority);
-      setStatus(detail.status);
-      setResolutionNotes(detail.resolutionNotes || '');
-      setResponse('');
-      setInternalNote('');
-    } catch (reason) {
-      setNotice(reason instanceof Error ? reason.message : 'Unable to load ticket details.');
-    }
-  };
-
-  const refreshSelected = async (ticketId: string) => {
-    const detail = await adminApi.getCorporateSupportTicket(ticketId);
-    setSelected(detail);
-    await loadTickets();
-  };
-
-  const saveAssignment = async () => {
-    if (!selected) return;
-    setAssignmentSaving(true);
-    try {
-      await adminApi.assignCorporateSupportTicket(selected.id, { team: team || null, userId: assignee || null });
-      setNotice('Ticket assignment updated.');
-      await refreshSelected(selected.id);
-    } catch (reason) {
-      setNotice(reason instanceof Error ? reason.message : 'Unable to update assignment.');
+      const data = await adminApi.getSupportTickets({
+        status: status !== 'ALL' ? status : undefined,
+      }).catch(() => [] as SupportTicketItem[]);
+      setOnDemandTickets(Array.isArray(data) ? data : []);
     } finally {
-      setAssignmentSaving(false);
+      setOnDemandLoading(false);
     }
-  };
+  }
 
-  const savePriority = async () => {
-    if (!selected) return;
-    setSavingAction(true);
+  const filteredOnDemand = useMemo(() => {
+    if (!onDemandSearchQuery.trim()) return onDemandTickets;
+    const q = onDemandSearchQuery.toLowerCase().trim();
+    return onDemandTickets.filter((t) => {
+      return (
+        t.id.toLowerCase().includes(q) ||
+        (t.reporterName && t.reporterName.toLowerCase().includes(q)) ||
+        (t.issueType && t.issueType.toLowerCase().includes(q)) ||
+        (t.description && t.description.toLowerCase().includes(q)) ||
+        (t.reporterPhone && t.reporterPhone.toLowerCase().includes(q))
+      );
+    });
+  }, [onDemandTickets, onDemandSearchQuery]);
+
+  const onDemandMetrics = useMemo(() => {
+    const pending = onDemandTickets.filter((t) => t.status === 'PENDING').length;
+    const review = onDemandTickets.filter((t) => t.status === 'UNDER_REVIEW').length;
+    const resolved = onDemandTickets.filter((t) => t.status === 'RESOLVED').length;
+    return { total: onDemandTickets.length, pending, review, resolved };
+  }, [onDemandTickets]);
+
+  async function handleResolveOnDemand(status: 'PENDING' | 'UNDER_REVIEW' | 'RESOLVED') {
+    if (!selectedOnDemandTicket) return;
+
+    setOnDemandActionLoading(true);
     try {
-      await adminApi.updateCorporateSupportTicketPriority(selected.id, priority);
-      setNotice('Ticket priority updated.');
-      await refreshSelected(selected.id);
-    } catch (reason) {
-      setNotice(reason instanceof Error ? reason.message : 'Unable to update priority.');
+      await adminApi.resolveSupportTicket(selectedOnDemandTicket.id, {
+        status,
+        notes: resolutionNotes || selectedOnDemandTicket.operatorNotes || 'Processed by Administrator',
+      });
+
+      setAlert({
+        type: 'success',
+        message: `Support ticket #${selectedOnDemandTicket.id.slice(0, 8).toUpperCase()} updated to ${status}.`,
+      });
+      setConfirmResolveOpen(false);
+      setSelectedOnDemandTicket(null);
+      setResolutionNotes('');
+      loadOnDemandTickets(onDemandActiveTab);
+    } catch (err: any) {
+      setAlert({ type: 'error', message: err.message || 'Failed to update support ticket' });
     } finally {
-      setSavingAction(false);
+      setOnDemandActionLoading(false);
     }
-  };
-
-  const saveStatus = async () => {
-    if (!selected) return;
-    setSavingAction(true);
-    try {
-      await adminApi.updateCorporateSupportTicketStatus(selected.id, status, status === 'RESOLVED' ? resolutionNotes : undefined);
-      setNotice(`Ticket status changed to ${display(status)}.`);
-      await refreshSelected(selected.id);
-    } catch (reason) {
-      setNotice(reason instanceof Error ? reason.message : 'Status change was not allowed.');
-    } finally {
-      setSavingAction(false);
-    }
-  };
-
-  const submitMessage = async (kind: 'public' | 'internal') => {
-    if (!selected) return;
-    const message = kind === 'public' ? response.trim() : internalNote.trim();
-    if (!message) return;
-    setSavingAction(true);
-    try {
-      if (kind === 'public') await adminApi.addCorporateSupportComment(selected.id, message);
-      else await adminApi.addCorporateSupportInternalNote(selected.id, message);
-      setNotice(kind === 'public' ? 'Public response sent.' : 'Internal note added.');
-      if (kind === 'public') setResponse('');
-      else setInternalNote('');
-      await refreshSelected(selected.id);
-    } catch (reason) {
-      setNotice(reason instanceof Error ? reason.message : 'Unable to save ticket update.');
-    } finally {
-      setSavingAction(false);
-    }
-  };
-
-  const resetFilters = () => {
-    setQuery('');
-    setStatusFilter('');
-    setPriorityFilter('');
-    setCategoryFilter('');
-    setFromDate('');
-    setToDate('');
-  };
-
-  const cards = [
-    { title: 'Total Tickets', value: metrics.total, icon: <Headphones size={17} />, color: '#5d3ab6' },
-    { title: 'Open Tickets', value: metrics.open, icon: <AlertCircle size={17} />, color: '#a76a0b' },
-    { title: 'Unassigned', value: metrics.unassigned, icon: <Clock3 size={17} />, color: '#b04a3f' },
-    { title: 'In Progress', value: metrics.progress, icon: <Clock3 size={17} />, color: '#5d3ab6' },
-    { title: 'Waiting for Corporate', value: metrics.waiting, icon: <MessageSquareText size={17} />, color: '#9a6400' },
-    { title: 'Resolved', value: metrics.resolved, icon: <CheckCircle2 size={17} />, color: '#27784a' },
-    { title: 'Closed', value: metrics.closed, icon: <CheckCircle2 size={17} />, color: '#64748b' },
-  ];
+  }
 
   return (
-    <div style={{ maxWidth: 1500, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap' }}>
-        <div><h1 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1.4rem', fontWeight: 750 }}>Corporate Support</h1><p style={{ margin: '6px 0 0', color: 'var(--text-muted)', fontSize: 13 }}>Manage tenant tickets, assignments, responses, and operational updates.</p></div>
-        <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>Shared queue · auto-refreshes every 30 seconds</span>
-      </header>
-      {notice && <div role="status" style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px', borderRadius: 7, background: '#f1effb', color: '#523697', fontSize: 12 }}>{notice}<button type="button" aria-label="Dismiss" onClick={() => setNotice('')} style={{ border: 0, background: 'none', color: 'inherit', cursor: 'pointer' }}><X size={14} /></button></div>}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
-        {cards.map((card) => <article key={card.title} style={{ border: '1px solid var(--border-subtle)', borderRadius: 8, background: 'var(--bg-surface)', padding: '13px 15px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}><div><div style={{ color: 'var(--text-muted)', fontSize: 11 }}>{card.title}</div><div style={{ marginTop: 6, color: 'var(--text-primary)', fontSize: 22, fontWeight: 700 }}>{card.value}</div></div><span style={{ color: card.color }}>{card.icon}</span></article>)}
-      </div>
-      <section style={{ border: '1px solid var(--border-subtle)', borderRadius: 9, background: 'var(--bg-surface)', overflow: 'hidden' }}>
-        <div style={{ padding: 14, borderBottom: '1px solid var(--border-subtle)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}><h2 style={{ margin: 0, fontSize: 14, color: 'var(--text-primary)' }}>Ticket queue</h2><button type="button" onClick={() => void loadTickets()} style={buttonStyle}>Refresh</button></div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(145px, 1fr))', gap: 8 }}>
-            <label style={{ position: 'relative' }}><Search size={14} style={{ position: 'absolute', top: 12, left: 9, color: 'var(--text-muted)' }} /><input aria-label="Search tickets" placeholder="Search ticket, company, employee…" value={query} onChange={(event) => setQuery(event.target.value)} style={{ ...inputStyle, paddingLeft: 29 }} /></label>
-            <select aria-label="Status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} style={inputStyle}><option value="">All statuses</option>{STATUSES.map((value) => <option key={value} value={value}>{display(value)}</option>)}</select>
-            <select aria-label="Priority" value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)} style={inputStyle}><option value="">All priorities</option>{PRIORITIES.map((value) => <option key={value} value={value}>{display(value)}</option>)}</select>
-            <select aria-label="Category" value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} style={inputStyle}><option value="">All categories</option>{CATEGORIES.map((value) => <option key={value} value={value}>{display(value)}</option>)}</select>
-            <input aria-label="Created from" type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} style={inputStyle} />
-            <div style={{ display: 'flex', gap: 7 }}><input aria-label="Created to" type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} style={inputStyle} /><button type="button" onClick={resetFilters} title="Clear filters" style={buttonStyle}>Clear</button></div>
-          </div>
-        </div>
-        {error ? <div role="alert" style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}><p>{error}</p><button type="button" onClick={() => void loadTickets()} style={primaryStyle}>Retry</button></div>
-          : loading ? <div style={{ padding: 30, color: 'var(--text-muted)', fontSize: 13 }}>Loading ticket queue…</div>
-            : currentPage.length === 0 ? <div style={{ padding: 42, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>No tickets match the selected filters.</div>
-              : <div style={{ overflowX: 'auto' }}><table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 1120, textAlign: 'left' }}>
-                <thead><tr style={{ background: 'var(--bg-surface-muted)', fontSize: 10, textTransform: 'uppercase', color: 'var(--text-muted)' }}>{['Ticket ID', 'Company / Tenant', 'Raised By', 'Title & Category', 'Priority', 'Created', 'Assigned Team / Person', 'Status', ''].map((head) => <th key={head} style={{ padding: '10px 12px', whiteSpace: 'nowrap', fontWeight: 700 }}>{head}</th>)}</tr></thead>
-                <tbody>{currentPage.map((ticket) => <tr key={ticket.id} style={{ borderTop: '1px solid var(--border-subtle)' }}>
-                  <td style={{ padding: '12px', color: '#5d3ab6', fontSize: 11, fontWeight: 700 }}>{ticket.ticketNumber}</td>
-                  <td style={{ padding: '12px', color: 'var(--text-primary)', fontSize: 12, fontWeight: 600 }}>{ticket.tenant?.name || ticket.tenantId}</td>
-                  <td style={{ padding: '12px', color: 'var(--text-secondary)', fontSize: 12 }}>{ticket.employee?.fullName || '—'}</td>
-                  <td style={{ padding: '12px', maxWidth: 250 }}><div style={{ color: 'var(--text-primary)', fontSize: 12, fontWeight: 650, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ticket.subject}</div><div style={{ color: 'var(--text-muted)', fontSize: 10, marginTop: 3 }}>{display(ticket.category)}</div></td>
-                  <td style={{ padding: '12px', color: ticket.priority === 'CRITICAL' || ticket.priority === 'HIGH' ? '#a13f38' : 'var(--text-secondary)', fontSize: 11, fontWeight: 650 }}>{display(ticket.priority)}</td>
-                  <td style={{ padding: '12px', color: 'var(--text-secondary)', fontSize: 11, whiteSpace: 'nowrap' }}>{dateLabel(ticket.createdAt)}</td>
-                  <td style={{ padding: '12px', color: 'var(--text-secondary)', fontSize: 11 }}>{ticket.assignedTeam || 'Unassigned'}{ticket.assignedToUserId ? <div style={{ color: 'var(--text-muted)', fontSize: 10 }}>{users.find((user) => user.id === ticket.assignedToUserId)?.fullName || ticket.assignedToUserId}</div> : null}</td>
-                  <td style={{ padding: '12px' }}><Badge status={ticket.status} /></td>
-                  <td style={{ padding: '12px' }}><button type="button" title="View ticket" aria-label={`View ${ticket.ticketNumber}`} onClick={() => void openDetails(ticket)} style={{ ...buttonStyle, display: 'inline-flex', alignItems: 'center', padding: 7 }}><Eye size={14} /></button></td>
-                </tr>)}</tbody>
-              </table></div>}
-        {!loading && !error && filtered.length > 0 && <footer style={{ padding: '11px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-subtle)', color: 'var(--text-muted)', fontSize: 11 }}><span>Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length} tickets</span><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><span>Page {page} of {pageCount}</span><button type="button" disabled={page <= 1} onClick={() => setPage((value) => value - 1)} style={buttonStyle}>Previous</button><button type="button" disabled={page >= pageCount} onClick={() => setPage((value) => value + 1)} style={buttonStyle}>Next</button></div></footer>}
-      </section>
+    <div className="admin-page">
+      {/* Alert Banner */}
+      {alert && (
+        <FeedbackBanner
+          type={alert.type}
+          message={alert.message}
+          onDismiss={() => setAlert(null)}
+        />
+      )}
 
-      {selected && <div onMouseDown={(event) => { if (event.target === event.currentTarget) setSelected(null); }} style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', justifyContent: 'flex-end', background: 'rgba(15,23,42,.4)' }}>
-        <aside role="dialog" aria-modal="true" aria-labelledby="admin-ticket-title" style={{ width: 'min(650px, 100vw)', height: '100%', background: 'var(--bg-surface)', display: 'flex', flexDirection: 'column', boxShadow: '-12px 0 34px rgba(0,0,0,.12)' }}>
-          <header style={{ padding: '20px 22px 16px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', gap: 14 }}><div><div style={{ color: '#5d3ab6', fontSize: 10, letterSpacing: '.08em', fontWeight: 700 }}>{selected.ticketNumber} · {selected.tenant?.name || selected.tenantId}</div><h2 id="admin-ticket-title" style={{ color: 'var(--text-primary)', fontSize: 19, margin: '6px 0 8px' }}>{selected.subject}</h2><Badge status={selected.status} /></div><button type="button" aria-label="Close" onClick={() => setSelected(null)} style={{ ...buttonStyle, padding: 6, minHeight: 30 }}><X size={16} /></button></header>
-          <div style={{ padding: 20, overflowY: 'auto', flex: 1 }}>
-            <div style={{ paddingBottom: 16, borderBottom: '1px solid var(--border-subtle)' }}><div style={{ color: 'var(--text-muted)', fontSize: 10, fontWeight: 700, marginBottom: 6 }}>DESCRIPTION</div><p style={{ whiteSpace: 'pre-wrap', color: 'var(--text-secondary)', fontSize: 12, lineHeight: 1.6, margin: 0 }}>{selected.description}</p></div>
-            {!!selected.attachments?.length && <div style={{ padding: '15px 0', borderBottom: '1px solid var(--border-subtle)' }}><h3 style={subheading}>Attachments</h3><div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>{selected.attachments.map((file) => <a key={file.id} href={file.url} target="_blank" rel="noreferrer"><img src={file.url} alt={file.fileName} style={{ width: 90, height: 70, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--border-subtle)' }} /></a>)}</div></div>}
-            <section style={{ padding: '15px 0', borderBottom: '1px solid var(--border-subtle)' }}>
-              <h3 style={subheading}>Assignment</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}><select aria-label="Assigned team" value={team} onChange={(event) => setTeam(event.target.value)} style={inputStyle}><option value="">Unassigned team</option>{TEAMS.map((value) => <option key={value} value={value}>{value}</option>)}</select><select aria-label="Assigned person" value={assignee} onChange={(event) => setAssignee(event.target.value)} style={inputStyle}><option value="">No assigned person</option>{users.map((user) => <option key={user.id} value={user.id}>{user.fullName} · {user.role}</option>)}</select></div>
-              <button type="button" disabled={assignmentSaving} onClick={() => void saveAssignment()} style={{ ...primaryStyle, marginTop: 8 }}>{assignmentSaving ? 'Saving…' : 'Save assignment'}</button>
-            </section>
-            <section style={{ padding: '15px 0', borderBottom: '1px solid var(--border-subtle)' }}><h3 style={subheading}>Priority and status</h3><div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}><div><label style={smallLabel}>Priority</label><select value={priority} onChange={(event) => setPriority(event.target.value as CorporateTicketPriority)} style={inputStyle}>{PRIORITIES.map((value) => <option key={value} value={value}>{display(value)}</option>)}</select><button type="button" disabled={savingAction} onClick={() => void savePriority()} style={{ ...buttonStyle, marginTop: 7 }}>Update priority</button></div><div><label style={smallLabel}>Status</label><select value={status} onChange={(event) => setStatus(event.target.value as CorporateTicketStatus)} style={inputStyle}>{STATUSES.map((value) => <option key={value} value={value}>{display(value)}</option>)}</select><button type="button" disabled={savingAction || (status === 'RESOLVED' && !resolutionNotes.trim()) || status === selected.status} onClick={() => void saveStatus()} style={{ ...buttonStyle, marginTop: 7 }}>Update status</button></div></div>{status === 'RESOLVED' && <textarea maxLength={1000} rows={3} value={resolutionNotes} onChange={(event) => setResolutionNotes(event.target.value)} placeholder="Resolution details (required)" style={{ ...inputStyle, marginTop: 9, resize: 'vertical' }} />}</section>
-            <section style={{ padding: '15px 0', borderBottom: '1px solid var(--border-subtle)' }}><h3 style={subheading}>Activity timeline</h3>{[...(selected.activities ?? []).map((item) => ({ id: item.id, text: item.description, createdAt: item.createdAt, internal: item.visibility === 'INTERNAL' })), ...(selected.comments ?? []).map((item) => ({ id: item.id, text: item.message, createdAt: item.createdAt, internal: item.visibility === 'INTERNAL' }))].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()).map((item) => <div key={item.id} style={{ display: 'flex', gap: 8, padding: '6px 0' }}><span style={{ color: item.internal ? '#9b6500' : '#5d3ab6' }}>{item.internal ? <Shield size={13} /> : <MessageSquareText size={13} />}</span><div><div style={{ color: 'var(--text-secondary)', fontSize: 11 }}>{item.text} {item.internal && <b style={{ color: '#9b6500' }}>· Internal</b>}</div><div style={{ color: 'var(--text-muted)', fontSize: 9, marginTop: 3 }}>{dateLabel(item.createdAt)}</div></div></div>)}{selected.resolutionNotes && <p style={{ color: 'var(--text-secondary)', fontSize: 11 }}>Resolution: {selected.resolutionNotes}</p>}</section>
-            <section style={{ padding: '15px 0' }}><h3 style={subheading}>Public response</h3><textarea maxLength={1000} rows={3} value={response} onChange={(event) => setResponse(event.target.value)} placeholder="Visible to the corporate requester (1,000 characters max)" style={{ ...inputStyle, resize: 'vertical' }} /><button type="button" disabled={savingAction || !response.trim()} onClick={() => void submitMessage('public')} style={{ ...primaryStyle, marginTop: 7, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Send size={13} /> Send response</button></section>
-            <section style={{ padding: '14px 0', borderTop: '1px solid var(--border-subtle)' }}><h3 style={{ ...subheading, display: 'flex', alignItems: 'center', gap: 6 }}><Shield size={13} /> Internal note <span style={{ color: '#9b6500', fontSize: 9, fontWeight: 500 }}>Admin/OPS only</span></h3><textarea maxLength={1000} rows={3} value={internalNote} onChange={(event) => setInternalNote(event.target.value)} placeholder="Private note for authorized staff only" style={{ ...inputStyle, resize: 'vertical' }} /><button type="button" disabled={savingAction || !internalNote.trim()} onClick={() => void submitMessage('internal')} style={{ ...buttonStyle, marginTop: 7 }}>Add internal note</button></section>
-          </div>
-        </aside>
-      </div>}
+      {/* Page Header */}
+      <PageHeader
+        title="Support & Operational Helpdesk"
+        subtitle="Unified resolution platform for Corporate ETS SLAs, commuter complaints, driver dispatch escalations, and ride disputes"
+        liveStatus="Helpdesk Dispatch Online"
+      />
+
+      {/* Primary Module Tabs */}
+      <SegmentedTabs
+        tabs={DESK_TABS}
+        activeTab={activeDesk}
+        onChange={(tab) => setActiveDesk(tab as 'CORPORATE_ETS' | 'ON_DEMAND')}
+      />
+
+      {activeDesk === 'CORPORATE_ETS' ? (
+        <>
+          {/* Corporate ETS KPI Metrics */}
+          <KpiStrip
+            columns={4}
+            items={[
+              {
+                id: 'total',
+                label: 'Corporate Tickets',
+                value: corpMetrics.total,
+                subtext: 'Active ETS support queue',
+                icon: <Headphones size={16} color="var(--brand-primary)" />,
+                tone: 'indigo',
+              },
+              {
+                id: 'open',
+                label: 'Open / Triage Pending',
+                value: corpMetrics.open,
+                subtext: 'Awaiting operator response',
+                icon: <Clock size={16} color="var(--color-danger)" />,
+                tone: 'danger',
+              },
+              {
+                id: 'in_progress',
+                label: 'Under Investigation',
+                value: corpMetrics.inProgress,
+                subtext: 'Active resolution & driver inquiry',
+                icon: <Search size={16} color="var(--color-warning)" />,
+                tone: 'warning',
+              },
+              {
+                id: 'resolved',
+                label: 'Resolved / Closed Cases',
+                value: corpMetrics.resolved,
+                subtext: 'Completed interventions',
+                icon: <CheckCircle2 size={16} color="var(--color-success)" />,
+                tone: 'success',
+              },
+            ]}
+          />
+
+          {/* Corporate ETS Filter Bar */}
+          <FilterBar
+            tabs={CORP_STATUS_TABS.map((t) => ({
+              id: t.id,
+              label: t.label,
+            }))}
+            activeTab={corpActiveTab}
+            onTabChange={setCorpActiveTab}
+            search={corpSearchQuery}
+            onSearchChange={setCorpSearchQuery}
+            searchPlaceholder="Search by ticket #, company, employee, driver, category..."
+          />
+
+          {/* Corporate ETS DataTable */}
+          <DataTable
+            columns={[
+              {
+                key: 'id',
+                label: 'TICKET # & SLA',
+                render: (t: CorporateSupportTicket) => (
+                  <div>
+                    <div style={{ fontFamily: 'monospace', fontWeight: 700, color: '#5728B2', fontSize: '0.8125rem' }}>
+                      #{t.ticketNumber || t.id.slice(0, 8).toUpperCase()}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                      {new Date(t.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}{' '}
+                      {new Date(t.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                    <div style={{ display: 'inline-block', marginTop: '0.25rem', fontSize: '0.6875rem', fontWeight: 600, color: '#4338CA', backgroundColor: '#EEF2FF', padding: '1px 6px', borderRadius: 4 }}>
+                      SLA: {t.slaMinutes}m
+                    </div>
+                  </div>
+                ),
+              },
+              {
+                key: 'tenant',
+                label: 'CORPORATE CLIENT',
+                render: (t: CorporateSupportTicket) => (
+                  <div>
+                    <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.8125rem' }}>
+                      {t.tenant?.name || 'Corporate Client'}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.125rem' }}>
+                      Code: <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{t.tenant?.code || '—'}</span>
+                    </div>
+                  </div>
+                ),
+              },
+              {
+                key: 'employee',
+                label: 'COMMUTER / EMPLOYEE',
+                render: (t: CorporateSupportTicket) => (
+                  <div>
+                    <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.8rem' }}>
+                      {t.employee?.fullName || 'Employee'}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.125rem' }}>
+                      {t.employee?.phoneNumber || t.employee?.phone || '—'}
+                      {t.employee?.employeeCode && (
+                        <span style={{ marginLeft: 6, color: 'var(--brand-primary)', fontWeight: 500 }}>
+                          ({t.employee.employeeCode})
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ),
+              },
+              {
+                key: 'driver',
+                label: 'DRIVER & ROUTE',
+                render: (t: CorporateSupportTicket) => (
+                  <div style={{ fontSize: '0.75rem' }}>
+                    {t.driver ? (
+                      <div>
+                        <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{t.driver.name}</div>
+                        <div style={{ color: 'var(--text-muted)' }}>{t.driver.phone || t.driver.licenseNumber || 'Assigned Driver'}</div>
+                        {t.driver.vehiclePlate && (
+                          <div style={{ fontFamily: 'monospace', color: '#5728B2', fontWeight: 700 }}>
+                            {t.driver.vehiclePlate}
+                          </div>
+                        )}
+                      </div>
+                    ) : t.routeId ? (
+                      <div>
+                        <span style={{ color: 'var(--text-secondary)' }}>Route Linked:</span>
+                        <div style={{ fontFamily: 'monospace', color: 'var(--brand-primary)', fontWeight: 600 }}>
+                          {t.routeId.slice(0, 8).toUpperCase()}
+                        </div>
+                      </div>
+                    ) : (
+                      <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Direct Portal Issue</span>
+                    )}
+                  </div>
+                ),
+              },
+              {
+                key: 'issue',
+                label: 'CATEGORY & SUMMARY',
+                render: (t: CorporateSupportTicket) => (
+                  <div style={{ maxWidth: '280px' }}>
+                    <div style={{ marginBottom: '0.25rem' }}>
+                      <span
+                        style={{
+                          padding: '0.15rem 0.5rem',
+                          borderRadius: 'var(--radius-sm)',
+                          backgroundColor: 'var(--bg-card-elevated)',
+                          border: '1px solid var(--border-subtle)',
+                          fontSize: '0.6875rem',
+                          fontWeight: 700,
+                          color: '#475569',
+                          textTransform: 'uppercase',
+                        }}
+                      >
+                        {t.category.replace(/_/g, ' ')}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {t.subject}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '0.1rem' }}>
+                      {t.description}
+                    </div>
+                  </div>
+                ),
+              },
+              {
+                key: 'priority',
+                label: 'PRIORITY',
+                render: (t: CorporateSupportTicket) => {
+                  const p = (t.priority || 'MEDIUM').toUpperCase();
+                  const isHigh = p === 'CRITICAL' || p === 'HIGH';
+                  return (
+                    <span
+                      style={{
+                        padding: '0.2rem 0.5rem',
+                        borderRadius: 4,
+                        fontSize: '0.6875rem',
+                        fontWeight: 700,
+                        backgroundColor: isHigh ? '#FEE2E2' : '#EFF6FF',
+                        color: isHigh ? '#DC2626' : '#4338CA',
+                        border: `1px solid ${isHigh ? '#FECACA' : '#DBEAFE'}`,
+                      }}
+                    >
+                      {p}
+                    </span>
+                  );
+                },
+              },
+              {
+                key: 'status',
+                label: 'STATUS',
+                render: (t: CorporateSupportTicket) => <StatusBadge status={t.status} />,
+              },
+              {
+                key: 'actions',
+                label: 'ACTIONS',
+                align: 'right',
+                render: (t: CorporateSupportTicket) => (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => handleSelectCorpTicket(t)}
+                  >
+                    Manage & Chat
+                  </Button>
+                ),
+              },
+            ]}
+            data={filteredCorp}
+            keyExtractor={(t) => t.id}
+            loading={corpLoading}
+            emptyTitle="No corporate support tickets found"
+            emptySubtitle="No tickets matching this status filter or search term."
+          />
+
+          {/* Corporate Support Ticket Slide-out Drawer */}
+          <Drawer
+            isOpen={!!selectedCorpTicket}
+            onClose={() => setSelectedCorpTicket(null)}
+            title={selectedCorpTicket ? `Support Ticket #${selectedCorpTicket.ticketNumber || selectedCorpTicket.id.slice(0, 8).toUpperCase()}` : 'Support Ticket'}
+            subtitle={selectedCorpTicket ? `Category: ${selectedCorpTicket.category.replace(/_/g, ' ')} · Priority: ${selectedCorpTicket.priority}` : ''}
+            footer={
+              selectedCorpTicket ? (
+                <div style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Button variant="secondary" size="sm" onClick={() => setSelectedCorpTicket(null)}>
+                    Close
+                  </Button>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    {selectedCorpTicket.status === 'OPEN' && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={corpStatusLoading}
+                        onClick={() => handleUpdateCorpStatus('IN_PROGRESS')}
+                      >
+                        Start Investigation
+                      </Button>
+                    )}
+                    {selectedCorpTicket.status !== 'RESOLVED' && selectedCorpTicket.status !== 'CLOSED' && (
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        disabled={corpStatusLoading}
+                        onClick={() => handleUpdateCorpStatus('RESOLVED')}
+                      >
+                        Resolve Ticket
+                      </Button>
+                    )}
+                    {selectedCorpTicket.status === 'RESOLVED' && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={corpStatusLoading}
+                        onClick={() => handleUpdateCorpStatus('CLOSED')}
+                      >
+                        Close Ticket
+                      </Button>
+                    )}
+                    {(selectedCorpTicket.status === 'RESOLVED' || selectedCorpTicket.status === 'CLOSED') && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={corpStatusLoading}
+                        onClick={() => handleUpdateCorpStatus('IN_PROGRESS', 'Reopened by Admin Operator')}
+                      >
+                        <RotateCcw size={13} style={{ marginRight: 4 }} /> Reopen
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ) : null
+            }
+          >
+            {selectedCorpTicket && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                {/* Status Summary & Quick Status Switcher */}
+                <div
+                  style={{
+                    padding: '1rem',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: 'var(--bg-surface-elevated)',
+                    border: '1px solid var(--border-subtle)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.875rem',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Current Lifecycle Status</div>
+                      <div style={{ marginTop: '0.25rem' }}>
+                        <StatusBadge status={selectedCorpTicket.status} />
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Created At & SLA</div>
+                      <div style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', marginTop: '0.25rem', fontWeight: 600 }}>
+                        {new Date(selectedCorpTicket.createdAt).toLocaleString()}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: '#4338CA', fontWeight: 600 }}>
+                        SLA Window: {selectedCorpTicket.slaMinutes} mins
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Operator Status Changer */}
+                  <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem' }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.375rem' }}>
+                      Update Ticket Status & Notes:
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                      {(['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'] as CorporateTicketStatus[]).map((st) => (
+                        <button
+                          key={st}
+                          type="button"
+                          onClick={() => setCorpTargetStatus(st)}
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: 4,
+                            border: corpTargetStatus === st ? '2px solid #5728B2' : '1px solid var(--border-color)',
+                            backgroundColor: corpTargetStatus === st ? '#F5F3FF' : 'var(--bg-surface)',
+                            color: corpTargetStatus === st ? '#5728B2' : 'var(--text-secondary)',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {st.replace(/_/g, ' ')}
+                        </button>
+                      ))}
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={corpStatusLoading || corpTargetStatus === selectedCorpTicket.status}
+                        onClick={() => handleUpdateCorpStatus(corpTargetStatus)}
+                      >
+                        {corpStatusLoading ? 'Saving...' : 'Apply Status'}
+                      </Button>
+                    </div>
+                    <input
+                      type="text"
+                      value={corpStatusNote}
+                      onChange={(e) => setCorpStatusNote(e.target.value)}
+                      placeholder="Add status change remark or operator notes..."
+                      style={{
+                        width: '100%',
+                        marginTop: '0.5rem',
+                        padding: '6px 10px',
+                        borderRadius: 6,
+                        border: '1px solid var(--border-subtle)',
+                        backgroundColor: 'var(--bg-surface)',
+                        color: 'var(--text-primary)',
+                        fontSize: '0.75rem',
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Information Cards: Company, Employee, Driver */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                  {/* Company Info */}
+                  <div
+                    style={{
+                      padding: '1rem',
+                      borderRadius: 'var(--radius-md)',
+                      backgroundColor: 'var(--bg-surface-elevated)',
+                      border: '1px solid var(--border-subtle)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', fontWeight: 700, color: '#5728B2', marginBottom: '0.5rem' }}>
+                      <Building2 size={14} /> Corporate Account
+                    </div>
+                    <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      {selectedCorpTicket.tenant?.name || 'Corporate Client'}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                      Code: <span style={{ fontFamily: 'monospace' }}>{selectedCorpTicket.tenant?.code || '—'}</span>
+                    </div>
+                  </div>
+
+                  {/* Employee Info */}
+                  <div
+                    style={{
+                      padding: '1rem',
+                      borderRadius: 'var(--radius-md)',
+                      backgroundColor: 'var(--bg-surface-elevated)',
+                      border: '1px solid var(--border-subtle)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', fontWeight: 700, color: '#4338CA', marginBottom: '0.5rem' }}>
+                      <User size={14} /> Affected Employee
+                    </div>
+                    <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      {selectedCorpTicket.employee?.fullName || 'Employee'}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                      Phone: <span style={{ fontFamily: 'monospace' }}>{selectedCorpTicket.employee?.phoneNumber || selectedCorpTicket.employee?.phone || '—'}</span>
+                    </div>
+                    {selectedCorpTicket.employee?.email && (
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        {selectedCorpTicket.employee.email}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Driver / Route Information */}
+                {(selectedCorpTicket.driver || selectedCorpTicket.routeId) && (
+                  <div
+                    style={{
+                      padding: '1rem',
+                      borderRadius: 'var(--radius-md)',
+                      backgroundColor: 'var(--bg-surface-elevated)',
+                      border: '1px solid var(--border-subtle)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', fontWeight: 700, color: '#047857', marginBottom: '0.5rem' }}>
+                      <Car size={14} /> Driver & Vehicle Telemetry
+                    </div>
+                    {selectedCorpTicket.driver ? (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+                        <div>
+                          <span style={{ color: 'var(--text-muted)' }}>Driver:</span>{' '}
+                          <strong>{selectedCorpTicket.driver.name}</strong>
+                          {selectedCorpTicket.driver.phone && <span> ({selectedCorpTicket.driver.phone})</span>}
+                        </div>
+                        {selectedCorpTicket.driver.vehiclePlate && (
+                          <div>
+                            <span style={{ color: 'var(--text-muted)' }}>Vehicle:</span>{' '}
+                            <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{selectedCorpTicket.driver.vehiclePlate}</span>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: '0.8125rem', color: 'var(--text-primary)' }}>
+                        Linked Route ID: <span style={{ fontFamily: 'monospace', color: 'var(--brand-primary)' }}>{selectedCorpTicket.routeId}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Original Issue Description */}
+                <div
+                  style={{
+                    padding: '1rem',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: 'var(--bg-surface-elevated)',
+                    border: '1px solid var(--border-subtle)',
+                  }}
+                >
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.35rem' }}>
+                    Issue Reported
+                  </div>
+                  <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+                    {selectedCorpTicket.subject}
+                  </div>
+                  <p
+                    style={{
+                      fontSize: '0.8125rem',
+                      lineHeight: 1.5,
+                      color: 'var(--text-secondary)',
+                      padding: '0.75rem',
+                      borderRadius: 'var(--radius-sm)',
+                      backgroundColor: 'var(--bg-surface)',
+                      border: '1px solid var(--border-subtle)',
+                      margin: 0,
+                      whiteSpace: 'pre-wrap',
+                    }}
+                  >
+                    {selectedCorpTicket.description || 'No description provided.'}
+                  </p>
+                </div>
+
+                {/* Resolution Summary (If present) */}
+                {selectedCorpTicket.resolutionNotes && (
+                  <div
+                    style={{
+                      padding: '1rem',
+                      borderRadius: 'var(--radius-md)',
+                      backgroundColor: '#F0FDF4',
+                      border: '1px solid #BBF7D0',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 4,
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', fontWeight: 700, color: '#166534' }}>
+                      <CheckCircle2 size={15} color="#16A34A" /> Official Resolution Notes
+                    </div>
+                    <div style={{ fontSize: '0.8125rem', color: '#14532D', lineHeight: 1.5 }}>
+                      {selectedCorpTicket.resolutionNotes}
+                    </div>
+                    {selectedCorpTicket.resolvedAt && (
+                      <div style={{ fontSize: '0.75rem', color: '#16A34A', marginTop: 4 }}>
+                        Resolved at: {new Date(selectedCorpTicket.resolvedAt).toLocaleString()}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Two-Way Message Conversation Thread */}
+                <div
+                  style={{
+                    padding: '1rem',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: 'var(--bg-surface-elevated)',
+                    border: '1px solid var(--border-subtle)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.75rem',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      <MessageSquare size={15} color="#5728B2" /> Conversation History ({corpMessages.length})
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => loadCorpMessages(selectedCorpTicket.id)}
+                      disabled={corpMessagesLoading}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: 'var(--text-muted)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        fontSize: '0.75rem',
+                      }}
+                    >
+                      <RefreshCw size={12} style={{ animation: corpMessagesLoading ? 'spin 1s linear infinite' : undefined }} /> Refresh
+                    </button>
+                  </div>
+
+                  {/* Messages Stream */}
+                  <div
+                    style={{
+                      maxHeight: '260px',
+                      overflowY: 'auto',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.625rem',
+                      padding: '0.5rem',
+                      backgroundColor: 'var(--bg-surface)',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border-subtle)',
+                    }}
+                  >
+                    {corpMessagesLoading && corpMessages.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                        Loading message history...
+                      </div>
+                    ) : corpMessages.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                        No messages recorded yet. Reply below to communicate with the company, driver, or employee.
+                      </div>
+                    ) : (
+                      corpMessages.map((m) => {
+                        const isPlatformStaff = m.senderRole === 'ADMIN' || m.senderRole === 'OPS';
+                        const isInternal = Boolean(m.isInternal);
+
+                        return (
+                          <div
+                            key={m.id}
+                            style={{
+                              padding: '0.625rem 0.875rem',
+                              borderRadius: 'var(--radius-sm)',
+                              backgroundColor: isInternal
+                                ? '#FEF3C7'
+                                : isPlatformStaff
+                                ? '#EEF2FF'
+                                : 'var(--bg-surface-elevated)',
+                              border: `1px solid ${
+                                isInternal
+                                  ? '#FCD34D'
+                                  : isPlatformStaff
+                                  ? '#C7D2FE'
+                                  : 'var(--border-subtle)'
+                              }`,
+                              marginLeft: isPlatformStaff ? '1rem' : 0,
+                              marginRight: isPlatformStaff ? 0 : '1rem',
+                            }}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: isPlatformStaff ? '#4338CA' : 'var(--text-primary)' }}>
+                                {m.senderName || (isPlatformStaff ? 'AdhocX Support Desk' : 'Client User')}
+                                <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--text-muted)', marginLeft: 6 }}>
+                                  ({m.senderRole})
+                                </span>
+                                {isInternal && (
+                                  <span
+                                    style={{
+                                      marginLeft: 6,
+                                      padding: '1px 5px',
+                                      backgroundColor: '#F59E0B',
+                                      color: '#FFFFFF',
+                                      borderRadius: 3,
+                                      fontSize: '0.625rem',
+                                      fontWeight: 800,
+                                    }}
+                                  >
+                                    INTERNAL NOTE
+                                  </span>
+                                )}
+                              </div>
+                              <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+                                {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>
+                              {m.message}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {/* Reply Form */}
+                  <form onSubmit={handleSendCorpReply} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.25rem' }}>
+                    <textarea
+                      rows={3}
+                      value={replyMessage}
+                      onChange={(e) => setReplyMessage(e.target.value)}
+                      placeholder="Type a response to the company, employee, or driver..."
+                      style={{
+                        width: '100%',
+                        padding: '0.625rem 0.875rem',
+                        borderRadius: 'var(--radius-md)',
+                        backgroundColor: 'var(--bg-surface)',
+                        border: '1px solid var(--border-subtle)',
+                        color: 'var(--text-primary)',
+                        fontSize: '0.8125rem',
+                        resize: 'vertical',
+                      }}
+                    />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={isInternalReply}
+                          onChange={(e) => setIsInternalReply(e.target.checked)}
+                          style={{ cursor: 'pointer' }}
+                        />
+                        Internal ops note only (hidden from Corporate Portal)
+                      </label>
+                      <Button
+                        type="submit"
+                        variant="primary"
+                        size="sm"
+                        disabled={sendingReply || !replyMessage.trim()}
+                      >
+                        <Send size={13} style={{ marginRight: 4 }} />
+                        {sendingReply ? 'Sending...' : 'Send Reply'}
+                      </Button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+          </Drawer>
+        </>
+      ) : (
+        <>
+          {/* On-Demand KPI Metrics */}
+          <KpiStrip
+            columns={4}
+            items={[
+              {
+                id: 'total',
+                label: 'Total Support Cases',
+                value: onDemandMetrics.total,
+                subtext: 'Active ticket queue',
+                icon: <Headphones size={16} color="var(--brand-primary)" />,
+                tone: 'indigo',
+              },
+              {
+                id: 'pending',
+                label: 'Pending Triage',
+                value: onDemandMetrics.pending,
+                subtext: 'Unassigned tickets',
+                icon: <Clock size={16} color="var(--color-danger)" />,
+                tone: 'danger',
+              },
+              {
+                id: 'review',
+                label: 'Under Investigation',
+                value: onDemandMetrics.review,
+                subtext: 'Operator active handling',
+                icon: <Search size={16} color="var(--color-warning)" />,
+                tone: 'warning',
+              },
+              {
+                id: 'resolved',
+                label: 'Resolved Cases',
+                value: onDemandMetrics.resolved,
+                subtext: 'Completed interventions',
+                icon: <CheckCircle2 size={16} color="var(--color-success)" />,
+                tone: 'success',
+              },
+            ]}
+          />
+
+          {/* On-Demand Filter Bar */}
+          <FilterBar
+            tabs={ON_DEMAND_STATUS_TABS.map((t) => ({
+              id: t.id,
+              label: t.label,
+            }))}
+            activeTab={onDemandActiveTab}
+            onTabChange={setOnDemandActiveTab}
+            search={onDemandSearchQuery}
+            onSearchChange={setOnDemandSearchQuery}
+            searchPlaceholder="Search by user, phone, issue, description, ID..."
+          />
+
+          {/* On-Demand Tickets DataTable */}
+          <DataTable
+            columns={[
+              {
+                key: 'id',
+                label: 'TICKET #',
+                render: (t: SupportTicketItem) => (
+                  <div>
+                    <div style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--brand-primary)', fontSize: '0.8125rem' }}>
+                      #{t.id.slice(0, 8).toUpperCase()}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                      {new Date(t.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                ),
+              },
+              {
+                key: 'reporterName',
+                label: 'REPORTER & CONTACT',
+                render: (t: SupportTicketItem) => (
+                  <div>
+                    <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.8rem' }}>
+                      {t.reporterName}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.125rem' }}>
+                      <span style={{ color: 'var(--brand-primary)', fontWeight: 500 }}>{t.reporterRole}</span> • {t.reporterPhone || '—'}
+                    </div>
+                  </div>
+                ),
+              },
+              {
+                key: 'issueType',
+                label: 'ISSUE CATEGORY',
+                render: (t: SupportTicketItem) => (
+                  <span
+                    style={{
+                      padding: '0.2rem 0.5rem',
+                      borderRadius: 'var(--radius-sm)',
+                      backgroundColor: 'var(--bg-card-elevated)',
+                      border: '1px solid var(--border-subtle)',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                    }}
+                  >
+                    {t.issueType.replace(/_/g, ' ')}
+                  </span>
+                ),
+              },
+              {
+                key: 'description',
+                label: 'DESCRIPTION & CONTEXT',
+                render: (t: SupportTicketItem) => (
+                  <div style={{ maxWidth: '320px' }}>
+                    <div style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {t.description || 'No description provided'}
+                    </div>
+                    {t.relatedTripId && (
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
+                        Trip: {t.relatedTripId.slice(0, 8).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                ),
+              },
+              {
+                key: 'status',
+                label: 'STATUS',
+                render: (t: SupportTicketItem) => <StatusBadge status={t.status} />,
+              },
+              {
+                key: 'actions',
+                label: 'ACTIONS',
+                align: 'right',
+                render: (t: SupportTicketItem) => (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedOnDemandTicket(t);
+                      setResolutionNotes(t.operatorNotes || '');
+                    }}
+                  >
+                    Inspect Ticket
+                  </Button>
+                ),
+              },
+            ]}
+            data={filteredOnDemand}
+            keyExtractor={(t) => t.id}
+            loading={onDemandLoading}
+            emptyTitle="No support tickets found"
+            emptySubtitle="No tickets matching this status filter."
+          />
+
+          {/* On-Demand Support Ticket Drawer */}
+          <Drawer
+            isOpen={!!selectedOnDemandTicket}
+            onClose={() => setSelectedOnDemandTicket(null)}
+            title={selectedOnDemandTicket ? `Support Ticket #${selectedOnDemandTicket.id.slice(0, 8).toUpperCase()}` : 'Support Ticket'}
+            subtitle={selectedOnDemandTicket ? `Issue: ${selectedOnDemandTicket.issueType}` : ''}
+            footer={
+              selectedOnDemandTicket ? (
+                <div style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'flex-end' }}>
+                  <Button variant="secondary" size="sm" onClick={() => setSelectedOnDemandTicket(null)}>
+                    Close
+                  </Button>
+                  {selectedOnDemandTicket.status !== 'UNDER_REVIEW' && selectedOnDemandTicket.status !== 'RESOLVED' && (
+                    <Button variant="secondary" size="sm" onClick={() => handleResolveOnDemand('UNDER_REVIEW')} disabled={onDemandActionLoading}>
+                      Mark In Review
+                    </Button>
+                  )}
+                  {selectedOnDemandTicket.status !== 'RESOLVED' && (
+                    <Button variant="primary" size="sm" onClick={() => setConfirmResolveOpen(true)} disabled={onDemandActionLoading}>
+                      Resolve Ticket
+                    </Button>
+                  )}
+                </div>
+              ) : null
+            }
+          >
+            {selectedOnDemandTicket && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <div
+                  style={{
+                    padding: '1rem',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: 'var(--bg-surface-elevated)',
+                    border: '1px solid var(--border-subtle)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Ticket Status</div>
+                    <div style={{ marginTop: '0.25rem' }}>
+                      <StatusBadge status={selectedOnDemandTicket.status} />
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Timestamp</div>
+                    <div style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', marginTop: '0.25rem' }}>
+                      {new Date(selectedOnDemandTicket.createdAt).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    padding: '1.25rem',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: 'var(--bg-surface-elevated)',
+                    border: '1px solid var(--border-subtle)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.75rem',
+                  }}
+                >
+                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.5rem' }}>
+                    Reporter Details
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Name:</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{selectedOnDemandTicket.reporterName}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Role:</span>
+                    <span style={{ color: 'var(--brand-primary)', fontWeight: 600 }}>{selectedOnDemandTicket.reporterRole}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Phone Number:</span>
+                    <span style={{ fontFamily: 'monospace', color: 'var(--text-primary)' }}>{selectedOnDemandTicket.reporterPhone || '—'}</span>
+                  </div>
+                  {selectedOnDemandTicket.relatedTripId && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>Related Trip:</span>
+                      <span style={{ fontFamily: 'monospace', color: 'var(--brand-primary)' }}>{selectedOnDemandTicket.relatedTripId}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div
+                  style={{
+                    padding: '1.25rem',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: 'var(--bg-surface-elevated)',
+                    border: '1px solid var(--border-subtle)',
+                  }}
+                >
+                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+                    Issue Description ({selectedOnDemandTicket.issueType})
+                  </div>
+                  <p
+                    style={{
+                      fontSize: '0.8125rem',
+                      lineHeight: 1.5,
+                      color: 'var(--text-secondary)',
+                      padding: '0.875rem',
+                      borderRadius: 'var(--radius-sm)',
+                      backgroundColor: 'var(--bg-surface)',
+                      border: '1px solid var(--border-subtle)',
+                    }}
+                  >
+                    {selectedOnDemandTicket.description || 'No description provided.'}
+                  </p>
+                </div>
+
+                <div
+                  style={{
+                    padding: '1.25rem',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: 'var(--bg-surface-elevated)',
+                    border: '1px solid var(--border-subtle)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.75rem',
+                  }}
+                >
+                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    Operator Triage & Resolution Notes
+                  </div>
+                  <textarea
+                    rows={3}
+                    value={resolutionNotes}
+                    onChange={(e) => setResolutionNotes(e.target.value)}
+                    placeholder="Log internal telemetry review, FASTag reconciliation, or action taken..."
+                    style={{
+                      width: '100%',
+                      padding: '0.625rem 0.875rem',
+                      borderRadius: 'var(--radius-md)',
+                      backgroundColor: 'var(--bg-surface)',
+                      border: '1px solid var(--border-subtle)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.8125rem',
+                      resize: 'vertical',
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+          </Drawer>
+
+          <ConfirmDialog
+            isOpen={confirmResolveOpen && !!selectedOnDemandTicket}
+            onClose={() => !onDemandActionLoading && setConfirmResolveOpen(false)}
+            onConfirm={() => handleResolveOnDemand('RESOLVED')}
+            variant="success"
+            isLoading={onDemandActionLoading}
+            title="Mark Support Ticket Resolved?"
+            subtitle={selectedOnDemandTicket ? `Ticket #${selectedOnDemandTicket.id.slice(0, 8).toUpperCase()}` : undefined}
+            description={
+              <span>
+                Confirm resolving this {selectedOnDemandTicket?.issueType} case reported by{' '}
+                <strong>{selectedOnDemandTicket?.reporterName}</strong> and persisting operator triage notes.
+              </span>
+            }
+            confirmLabel="Resolve Ticket"
+          />
+        </>
+      )}
     </div>
   );
 }
-
-const subheading: React.CSSProperties = { margin: '0 0 9px', color: 'var(--text-primary)', fontSize: 12, fontWeight: 700 };
-const smallLabel: React.CSSProperties = { display: 'block', marginBottom: 4, color: 'var(--text-muted)', fontSize: 10 };

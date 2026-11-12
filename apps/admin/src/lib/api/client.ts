@@ -51,6 +51,8 @@ import {
   CorporateInvoiceDispute,
   CorporateCreditNote,
   CorporateSupportTicket,
+  CorporateTicketMessage,
+  CorporateTicketActivity,
   CorporateTicketStatus,
   CorporateTicketPriority,
   CorporateSosAlert,
@@ -1476,6 +1478,40 @@ export const adminApi = {
     return apiClient<CorporateSupportTicket[]>(`/corporate/support/tickets?${q.toString()}`, { allowForbidden: true });
   },
 
+  listCorporateTicketMessages: (id: string) =>
+    apiClient<CorporateTicketMessage[]>(`/corporate/support/tickets/${id}/messages`),
+
+  sendCorporateTicketMessage: (id: string, data: { message: string; isInternal?: boolean }) =>
+    apiClient<CorporateTicketMessage>(`/corporate/support/tickets/${id}/messages`, {
+      method: 'POST',
+      body: data,
+    }),
+
+  assignCorporateSupportTicket: (
+    id: string,
+    data: { assignedToUserId?: string | null; notes?: string; team?: string | null; userId?: string | null },
+  ) => {
+    if ('team' in data) {
+      return apiClient<CorporateSupportTicket>(`/corporate/support/tickets/${id}/assignment`, {
+        method: 'PATCH',
+        body: data,
+        allowForbidden: true,
+      });
+    }
+    return apiClient<CorporateSupportTicket>(`/corporate/support/tickets/${id}/assign`, {
+      method: 'PATCH',
+      body: data,
+    });
+  },
+
+  reopenCorporateSupportTicket: (id: string, reason: string) =>
+    apiClient<CorporateSupportTicket>(`/corporate/support/tickets/${id}/reopen`, {
+      method: 'POST',
+      body: { reason },
+    }),
+
+  getCorporateTicketActivity: (id: string) =>
+    apiClient<CorporateTicketActivity[]>(`/corporate/support/tickets/${id}/activity`),
   updateCorporateSupportTicketStatus: (id: string, status: CorporateTicketStatus, notes?: string) =>
     apiClient<CorporateSupportTicket>(`/corporate/support/tickets/${id}/status`, {
       method: 'PATCH',
@@ -1492,12 +1528,6 @@ export const adminApi = {
       { allowForbidden: true },
     ),
 
-  assignCorporateSupportTicket: (id: string, assignment: { team: string | null; userId: string | null }) =>
-    apiClient<CorporateSupportTicket>(`/corporate/support/tickets/${id}/assignment`, {
-      method: 'PATCH',
-      body: assignment,
-      allowForbidden: true,
-    }),
 
   updateCorporateSupportTicketPriority: (id: string, priority: CorporateTicketPriority) =>
     apiClient<CorporateSupportTicket>(`/corporate/support/tickets/${id}/priority`, {

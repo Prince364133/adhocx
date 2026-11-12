@@ -32,8 +32,14 @@ import { Roles } from '../../../common/decorators/roles.decorator';
 import { CorporateResource, CorporateTenantScoped } from '../../../common/decorators/corporate-resource.decorator';
 import { StorageService, uploadSigningSecret } from '../../../common/storage/storage.service';
 import { CorporateSupportTicketService, SupportTicketActor } from './corporate-support-ticket.service';
-import { CreateCorporateSupportTicketDto, UpdateSupportTicketStatusDto } from './safety.types';
-import { TicketAttachmentInput } from './safety.types';
+import {
+  AssignCorporateTicketDto,
+  CreateCorporateSupportTicketDto,
+  CreateCorporateTicketMessageDto,
+  ReopenCorporateTicketDto,
+  TicketAttachmentInput,
+  UpdateSupportTicketStatusDto,
+} from './safety.types';
 
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -45,11 +51,13 @@ const parseIntOrUndefined = (value?: string): number | undefined => {
   return Number.isInteger(parsed) ? parsed : undefined;
 };
 
-const actorFromRequest = (req: any): SupportTicketActor => ({
-  userId: req.user?.id,
+const resolveActor = (req: any): SupportTicketActor => ({
+  userId: req.user?.id || req.user?.sub,
   role: req.user?.role,
+  corporateTenantId: req.user?.corporateTenantId,
+  corporateEmployeeId: req.user?.corporateEmployeeId,
 });
-
+const actorFromRequest = resolveActor;
 @ApiTags('Corporate ETS - Support Tickets')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard, CorporateAccessGuard)
@@ -110,7 +118,7 @@ export class CorporateSupportTicketController {
   }
 
   @Post()
-  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER, UserRole.EMPLOYEE)
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER, UserRole.EMPLOYEE)
   @CorporateTenantScoped()
   @UseInterceptors(FilesInterceptor('attachments', MAX_FILES, { limits: { fileSize: MAX_FILE_SIZE } }))
   @ApiOperation({ summary: 'Create a tenant-scoped support ticket with optional images' })
@@ -151,7 +159,7 @@ export class CorporateSupportTicketController {
   }
 
   @Get()
-  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER, UserRole.EMPLOYEE)
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER, UserRole.EMPLOYEE)
   @CorporateTenantScoped()
   @ApiOperation({ summary: 'List authorized corporate tickets; platform Admin may filter across tenants' })
   public async listTickets(
@@ -202,7 +210,7 @@ export class CorporateSupportTicketController {
   }
 
   @Get(':id')
-  @Roles(UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER, UserRole.EMPLOYEE)
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER, UserRole.EMPLOYEE, UserRole.DRIVER)
   @CorporateResource('ticket', 'id')
   @ApiOperation({ summary: 'Get authorized ticket details, replies, public timeline, and signed image URLs' })
   public async getTicket(@Param('id') id: string, @Req() req: any = { user: { role: UserRole.ADMIN } }) {
@@ -246,13 +254,13 @@ export class CorporateSupportTicketController {
   }
 
   @Patch(':id/status')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateResource('ticket', 'id')
   @ApiOperation({ summary: 'Change ticket status within the shared workflow' })
   @ApiBody({ schema: { type: 'object', properties: { status: { type: 'string', enum: Object.values(CorporateTicketStatus) }, notes: { type: 'string' } }, required: ['status'] } })
   @ApiResponse({ status: 409, description: 'Illegal ticket transition' })
   public async updateStatus(@Param('id') id: string, @Body() dto: UpdateSupportTicketStatusDto, @Req() req: any) {
-    return this.tickets.updateTicketStatus(id, dto?.status, actorFromRequest(req), dto?.notes);
+    return this.tickets.updateTicketStatus(id, dto?.status, resolveActor(req), dto?.notes);
   }
 
   @Patch(':id/assignment')
@@ -263,28 +271,96 @@ export class CorporateSupportTicketController {
     @Body() dto: { team?: string | null; userId?: string | null },
     @Req() req: any,
   ) {
-    return this.tickets.assignTicket(id, dto?.team, dto?.userId, actorFromRequest(req));
+    return this.tickets.assignTicket(id, dto?.team, dto?.userId, resolveActor(req));
+  }
+
+  @Patch(':id/assign')
+  @Roles(UserRole.ADMIN, UserRole.OPS)
+  @CorporateResource('ticket', 'id')
+  @ApiOperation({ summary: 'Assign or reassign a support ticket to an administrator or ops staff' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        assignedToUserId: { type: 'string', nullable: true },
+        notes: { type: 'string' },
+      },
+    },
+  })
+  public async assignTicket(@Param('id') id: string, @Body() dto: AssignCorporateTicketDto, @Req() req: any) {
+    return this.tickets.assignTicket(id, dto, resolveActor(req));
   }
 
   @Patch(':id/priority')
   @Roles(UserRole.ADMIN)
   @CorporateResource('ticket', 'id')
   public async updatePriority(@Param('id') id: string, @Body('priority') priority: CorporateTicketPriority, @Req() req: any) {
-    return this.tickets.changePriority(id, priority, actorFromRequest(req));
+    return this.tickets.changePriority(id, priority, resolveActor(req));
   }
 
   @Post(':id/comments')
   @Roles(UserRole.ADMIN)
   @CorporateResource('ticket', 'id')
   public async adminReply(@Param('id') id: string, @Body('message') message: string, @Req() req: any) {
-    return this.tickets.addComment(id, message, actorFromRequest(req), CorporateTicketCommentVisibility.PUBLIC);
+    return this.tickets.addComment(id, message, resolveActor(req), CorporateTicketCommentVisibility.PUBLIC);
   }
 
   @Post(':id/notes')
   @Roles(UserRole.ADMIN)
   @CorporateResource('ticket', 'id')
   public async adminNote(@Param('id') id: string, @Body('message') message: string, @Req() req: any) {
-    return this.tickets.addComment(id, message, actorFromRequest(req), CorporateTicketCommentVisibility.INTERNAL);
+    return this.tickets.addComment(id, message, resolveActor(req), CorporateTicketCommentVisibility.INTERNAL);
+  }
+
+  @Get(':id/messages')
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER, UserRole.EMPLOYEE, UserRole.DRIVER)
+  @CorporateResource('ticket', 'id')
+  @ApiOperation({ summary: 'List conversation messages for a support ticket' })
+  public async listMessages(@Param('id') id: string, @Req() req: any) {
+    return this.tickets.listMessages(id, resolveActor(req));
+  }
+
+  @Post(':id/messages')
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER, UserRole.EMPLOYEE, UserRole.DRIVER)
+  @CorporateResource('ticket', 'id')
+  @ApiOperation({ summary: 'Post a reply or internal note on a support ticket' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        isInternal: { type: 'boolean' },
+      },
+      required: ['message'],
+    },
+  })
+  public async createMessage(@Param('id') id: string, @Body() dto: CreateCorporateTicketMessageDto, @Req() req: any) {
+    return this.tickets.createMessage(id, dto, resolveActor(req));
+  }
+
+  @Post(':id/reopen')
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @CorporateResource('ticket', 'id')
+  @ApiOperation({ summary: 'Reopen an eligible resolved or closed support ticket' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        reason: { type: 'string' },
+      },
+      required: ['reason'],
+    },
+  })
+  public async reopenTicket(@Param('id') id: string, @Body() dto: ReopenCorporateTicketDto, @Req() req: any) {
+    return this.tickets.reopenTicket(id, dto, resolveActor(req));
+  }
+
+  @Get(':id/activity')
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @CorporateResource('ticket', 'id')
+  @ApiOperation({ summary: 'Get ticket audit and activity history' })
+  public async getActivity(@Param('id') id: string, @Req() req: any) {
+    return this.tickets.getActivity(id, resolveActor(req));
   }
 }
 
@@ -298,26 +374,26 @@ export class OpsSupportTicketController {
   @Get()
   @Roles(UserRole.OPS)
   public async list(@Req() req: any) {
-    return this.tickets.listOpsTickets(actorFromRequest(req));
+    return this.tickets.listOpsTickets(resolveActor(req));
   }
 
   @Get(':id')
   @Roles(UserRole.OPS)
   public async detail(@Param('id') id: string, @Req() req: any) {
-    return this.tickets.getOpsTicket(id, actorFromRequest(req));
+    return this.tickets.getOpsTicket(id, resolveActor(req));
   }
 
   @Post(':id/updates')
   @Roles(UserRole.OPS)
   public async update(@Param('id') id: string, @Body('message') message: string, @Req() req: any) {
-    await this.tickets.assertOpsTicket(id, actorFromRequest(req));
-    return this.tickets.addComment(id, message, actorFromRequest(req), CorporateTicketCommentVisibility.INTERNAL);
+    await this.tickets.assertOpsTicket(id, resolveActor(req));
+    return this.tickets.addComment(id, message, resolveActor(req), CorporateTicketCommentVisibility.INTERNAL);
   }
 
   @Patch(':id/status')
   @Roles(UserRole.OPS)
   public async status(@Param('id') id: string, @Body() dto: UpdateSupportTicketStatusDto, @Req() req: any) {
-    const actor = actorFromRequest(req);
+    const actor = resolveActor(req);
     await this.tickets.assertOpsTicket(id, actor);
     return this.tickets.updateTicketStatus(id, dto.status, actor, dto.notes, [
       CorporateTicketStatus.IN_PROGRESS,

@@ -543,8 +543,8 @@ export interface SosAlert {
 export interface SupportTicket {
   id: string;
   ticketNumber: string;
-  employeeId: string;
   tenantId: string;
+  employeeId: string;
   routeId: string | null;
   category: string;
   priority: string;
@@ -554,8 +554,25 @@ export interface SupportTicket {
   assignedTeam?: string | null;
   assignedToUserId?: string | null;
   raisedByUserId?: string | null;
-  employee?: { id: string; fullName: string; email: string } | null;
-  tenant?: { id: string; name: string } | null;
+  adminNotes?: string | null;
+  employee?: {
+    id: string;
+    fullName: string;
+    employeeCode?: string;
+    phone?: string;
+    email?: string;
+  } | null;
+  tenant?: {
+    id: string;
+    name: string;
+    code?: string;
+  } | null;
+  assignedToUser?: {
+    id: string;
+    fullName: string;
+    email?: string;
+    role?: string;
+  } | null;
   comments?: Array<{
     id: string;
     message: string;
@@ -581,7 +598,28 @@ export interface SupportTicket {
   slaMinutes: number;
   resolvedAt: string | null;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
+}
+
+export interface CorporateTicketMessage {
+  id: string;
+  ticketId: string;
+  senderId: string;
+  senderRole: string;
+  senderName?: string | null;
+  message: string;
+  isInternal: boolean;
+  createdAt: string;
+}
+
+export interface CorporateTicketActivity {
+  id: string;
+  action: string;
+  actorId?: string | null;
+  actorName?: string | null;
+  actorRole?: string | null;
+  timestamp: string;
+  metadata?: Record<string, unknown>;
 }
 
 // ── Billing ────────────────────────────────────────────────────────────────

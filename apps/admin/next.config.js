@@ -4,6 +4,15 @@ const nextConfig = {
   transpilePackages: ['@adhocx/contracts'],
   reactStrictMode: true,
   poweredByHeader: false,
+  async redirects() {
+    return [
+      {
+        source: '/undefined/:slug*',
+        destination: '/:slug*',
+        permanent: false,
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;
