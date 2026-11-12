@@ -83,7 +83,7 @@ export const FinanceAreaChart: React.FC<{
   );
 
   const width = 840;
-  const height = 280;
+  const height = 225;
   const paddingLeft = 65;
   const paddingRight = 24;
   const paddingTop = 24;
@@ -132,25 +132,25 @@ export const FinanceAreaChart: React.FC<{
         background: 'var(--bg-card)',
         border: '1px solid var(--border-subtle)',
         borderRadius: 'var(--radius-lg)',
-        padding: '1.25rem 1.5rem',
+        padding: '1.2rem 1.2rem 1rem',
         boxShadow: 'var(--shadow-card)',
         display: 'flex',
         flexDirection: 'column',
-        gap: '1rem',
+        gap: '0.8rem',
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.65rem' }}>
         <div>
-          <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+          <h3 style={{ fontSize: '1.06rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
             {title}
           </h3>
-          <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0.2rem 0 0 0' }}>
+          <p style={{ fontSize: '0.73rem', color: 'var(--text-muted)', margin: '0.15rem 0 0 0' }}>
             Interactive financial trajectory comparing Gross Revenue, Platform Commission, and Driver Net Pay
           </p>
         </div>
 
         {onMetricChange && (
-          <div style={{ display: 'flex', gap: '0.35rem', background: 'var(--bg-base)', padding: '0.2rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+          <div style={{ display: 'flex', gap: '0.28rem', background: 'var(--bg-base)', padding: '0.16rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
             {(
               [
                 { id: 'ALL', label: 'All Streams' },
@@ -164,9 +164,9 @@ export const FinanceAreaChart: React.FC<{
                 type="button"
                 onClick={() => onMetricChange(btn.id)}
                 style={{
-                  padding: '0.3rem 0.65rem',
+                  padding: '0.24rem 0.56rem',
                   borderRadius: 'var(--radius-sm)',
-                  fontSize: '0.74rem',
+                  fontSize: '0.7rem',
                   fontWeight: selectedMetric === btn.id ? 700 : 500,
                   border: 'none',
                   background: selectedMetric === btn.id ? 'var(--bg-card)' : 'transparent',
@@ -404,7 +404,7 @@ export const FinanceBarComparisonChart: React.FC<{
   );
 
   const width = 840;
-  const height = 240;
+  const height = 195;
   const paddingLeft = 65;
   const paddingRight = 24;
   const paddingTop = 20;
@@ -421,18 +421,18 @@ export const FinanceBarComparisonChart: React.FC<{
         background: 'var(--bg-card)',
         border: '1px solid var(--border-subtle)',
         borderRadius: 'var(--radius-lg)',
-        padding: '1.25rem 1.5rem',
+        padding: '1.2rem 1.2rem 1rem',
         boxShadow: 'var(--shadow-card)',
         display: 'flex',
         flexDirection: 'column',
-        gap: '0.85rem',
+        gap: '0.72rem',
       }}
     >
       <div>
-        <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+        <h3 style={{ fontSize: '1.06rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
           {title}
         </h3>
-        <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0.2rem 0 0 0' }}>
+        <p style={{ fontSize: '0.73rem', color: 'var(--text-muted)', margin: '0.15rem 0 0 0' }}>
           Side-by-side volume distribution between retained platform commission and driver settlements
         </p>
       </div>
@@ -578,40 +578,40 @@ export const RevenueCategoryBreakdownCard: React.FC<{
         background: 'var(--bg-card)',
         border: '1px solid var(--border-subtle)',
         borderRadius: 'var(--radius-lg)',
-        padding: '1.25rem 1.5rem',
+        padding: '1.2rem 1.2rem 1rem',
         boxShadow: 'var(--shadow-card)',
         display: 'flex',
         flexDirection: 'column',
-        gap: '1rem',
+        gap: '0.8rem',
       }}
     >
       <div>
-        <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+        <h3 style={{ fontSize: '1.06rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
           Vehicle Fleet & Category Revenue Breakdown
         </h3>
-        <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0.2rem 0 0 0' }}>
+        <p style={{ fontSize: '0.73rem', color: 'var(--text-muted)', margin: '0.15rem 0 0 0' }}>
           Contribution of each vehicle class to platform gross bookings and fulfilled volume
         </p>
       </div>
 
       {categories.length === 0 ? (
-        <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.84rem' }}>
+        <div style={{ padding: '1.4rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.775rem' }}>
           No category booking records available for this timeframe
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
           {categories.map((cat, idx) => {
             const pct = totalRevenue > 0 ? Math.round((cat.revenue / totalRevenue) * 100) : 0;
             return (
-              <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.82rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.775rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
                     <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{cat.category}</span>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>({cat.count} fulfilled trips)</span>
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>({cat.count} fulfilled trips)</span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
                     <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{formatINR(cat.revenue)}</span>
-                    <span style={{ fontSize: '0.74rem', fontWeight: 600, color: 'var(--brand-primary)', minWidth: '36px', textAlign: 'right' }}>
+                    <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--brand-primary)', minWidth: '34px', textAlign: 'right' }}>
                       {pct}%
                     </span>
                   </div>

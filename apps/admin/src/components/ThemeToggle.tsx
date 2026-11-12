@@ -63,13 +63,13 @@ export const ThemeToggle: React.FC = () => {
         style={{
           display: 'inline-flex',
           alignItems: 'center',
-          gap: '0.25rem',
-          padding: '0.25rem',
+          gap: '0.15rem',
+          padding: '0.2rem',
           backgroundColor: 'var(--bg-card-elevated)',
           border: '1px solid var(--border-subtle)',
           borderRadius: 'var(--radius-pill)',
-          height: '32px',
-          width: '90px',
+          height: '28px',
+          width: '74px',
         }}
       />
     );
@@ -80,8 +80,8 @@ export const ThemeToggle: React.FC = () => {
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: '0.15rem',
-        padding: '0.2rem',
+        gap: '0.125rem',
+        padding: '0.15rem',
         backgroundColor: 'var(--bg-card-elevated)',
         border: '1px solid var(--border-subtle)',
         borderRadius: 'var(--radius-pill)',
@@ -94,7 +94,7 @@ export const ThemeToggle: React.FC = () => {
         type="button"
         onClick={() => handleSelectTheme('light')}
         style={{
-          padding: '0.3rem 0.55rem',
+          padding: '0.25rem 0.4rem',
           borderRadius: 'var(--radius-pill)',
           border: 'none',
           backgroundColor: theme === 'light' ? 'var(--brand-primary)' : 'transparent',
@@ -102,14 +102,13 @@ export const ThemeToggle: React.FC = () => {
           cursor: 'pointer',
           display: 'inline-flex',
           alignItems: 'center',
-          gap: '0.3rem',
-          fontWeight: 600,
+          justifyContent: 'center',
           transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
         title="Light Mode"
+        aria-label="Light Mode"
       >
-        <Sun size={13} />
-        <span style={{ fontSize: '0.6875rem' }}>Light</span>
+        <Sun size={12} />
       </button>
 
       {/* Dark Mode */}
@@ -117,7 +116,7 @@ export const ThemeToggle: React.FC = () => {
         type="button"
         onClick={() => handleSelectTheme('dark')}
         style={{
-          padding: '0.3rem 0.55rem',
+          padding: '0.25rem 0.4rem',
           borderRadius: 'var(--radius-pill)',
           border: 'none',
           backgroundColor: theme === 'dark' ? 'var(--brand-primary)' : 'transparent',
@@ -125,14 +124,13 @@ export const ThemeToggle: React.FC = () => {
           cursor: 'pointer',
           display: 'inline-flex',
           alignItems: 'center',
-          gap: '0.3rem',
-          fontWeight: 600,
+          justifyContent: 'center',
           transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
         title="Dark Mode"
+        aria-label="Dark Mode"
       >
-        <Moon size={13} />
-        <span style={{ fontSize: '0.6875rem' }}>Dark</span>
+        <Moon size={12} />
       </button>
 
       {/* Auto / System */}
@@ -140,7 +138,7 @@ export const ThemeToggle: React.FC = () => {
         type="button"
         onClick={() => handleSelectTheme('system')}
         style={{
-          padding: '0.3rem 0.45rem',
+          padding: '0.25rem 0.4rem',
           borderRadius: 'var(--radius-pill)',
           border: 'none',
           backgroundColor: theme === 'system' ? 'var(--brand-primary)' : 'transparent',
@@ -152,8 +150,9 @@ export const ThemeToggle: React.FC = () => {
           transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
         title="Auto / System Preference"
+        aria-label="Auto / System Preference"
       >
-        <Monitor size={13} />
+        <Monitor size={12} />
       </button>
     </div>
   );

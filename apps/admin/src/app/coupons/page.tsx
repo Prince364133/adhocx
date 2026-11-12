@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Tag, Ticket, CheckCircle2, Wallet, Plus, X, AlertTriangle, Check } from 'lucide-react';
+import { Tag, Ticket, CheckCircle2, Wallet, Plus } from 'lucide-react';
 import { adminApi } from '../../lib/api/client';
 import {
   CouponListItem,
@@ -10,8 +10,17 @@ import {
   CreateCouponPayload,
   UpdateCouponPayload,
 } from '../../lib/api/types';
-import { Modal } from '../../components/Modal';
-import { PageHeader, MetricCard, Button, FilterBar, DataTable, StatusBadge } from '../../components/common';
+import {
+  PageHeader,
+  KpiStrip,
+  Button,
+  FilterBar,
+  DataTable,
+  StatusBadge,
+  Drawer,
+  ConfirmDialog,
+  FeedbackBanner,
+} from '../../components/common';
 
 const STATUS_TABS = ['ALL', 'ACTIVE', 'EXPIRED', 'INACTIVE', 'EXHAUSTED'];
 
@@ -260,34 +269,14 @@ export default function CouponsPage() {
   }
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
+    <div className="admin-page">
       {/* Alert banner */}
       {alert && (
-        <div
-          style={{
-            padding: '0.75rem 1rem',
-            borderRadius: 'var(--radius-md)',
-            backgroundColor: alert.type === 'success' ? 'var(--color-success-bg)' : 'var(--color-danger-bg)',
-            border: `1px solid ${alert.type === 'success' ? 'var(--color-success-border)' : 'var(--color-danger-border)'}`,
-            color: alert.type === 'success' ? 'var(--color-success)' : 'var(--color-danger)',
-            fontSize: '0.875rem',
-            marginBottom: '1.5rem',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontWeight: 500 }}>
-            {alert.type === 'success' ? <Check size={16} /> : <AlertTriangle size={16} />}
-            <span>{alert.message}</span>
-          </div>
-          <button
-            onClick={() => setAlert(null)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', display: 'flex', alignItems: 'center' }}
-          >
-            <X size={16} />
-          </button>
-        </div>
+        <FeedbackBanner
+          type={alert.type}
+          message={alert.message}
+          onDismiss={() => setAlert(null)}
+        />
       )}
 
       {/* Page Header */}
@@ -303,43 +292,43 @@ export default function CouponsPage() {
       />
 
       {/* KPI Cards Grid */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-          gap: '1.25rem',
-          marginBottom: '2rem',
-        }}
-      >
-        <MetricCard
-          label="Total Coupons"
-          value={metrics?.totalCoupons ?? 0}
-          subtext="Configured promos"
-          icon={<Ticket size={18} color="var(--brand-primary)" />}
-          accentColor="var(--brand-primary)"
-        />
-        <MetricCard
-          label="Active Promos"
-          value={metrics?.activeCoupons ?? 0}
-          subtext="Claimable by users"
-          icon={<CheckCircle2 size={18} color="var(--color-success)" />}
-          accentColor="var(--color-success)"
-        />
-        <MetricCard
-          label="Total Redemptions"
-          value={metrics?.totalRedemptions ?? 0}
-          subtext="Trips & wallet topups"
-          icon={<Tag size={18} color="#8B5CF6" />}
-          accentColor="#8B5CF6"
-        />
-        <MetricCard
-          label="Discount Disbursed"
-          value={`₹ ${(metrics?.totalDiscountDisbursed ?? 0).toLocaleString('en-IN')}`}
-          subtext="Platform promo savings"
-          icon={<Wallet size={18} color="var(--color-warning)" />}
-          accentColor="var(--color-warning)"
-        />
-      </div>
+      <KpiStrip
+        columns={4}
+        items={[
+          {
+            id: 'total',
+            label: 'Total Coupons',
+            value: metrics?.totalCoupons ?? 0,
+            subtext: 'Configured promos',
+            icon: <Ticket size={16} color="var(--brand-primary)" />,
+            tone: 'indigo',
+          },
+          {
+            id: 'active',
+            label: 'Active Promos',
+            value: metrics?.activeCoupons ?? 0,
+            subtext: 'Claimable by users',
+            icon: <CheckCircle2 size={16} color="var(--color-success)" />,
+            tone: 'success',
+          },
+          {
+            id: 'redemptions',
+            label: 'Total Redemptions',
+            value: metrics?.totalRedemptions ?? 0,
+            subtext: 'Trips & wallet topups',
+            icon: <Tag size={16} color="#8b5cf6" />,
+            tone: 'violet',
+          },
+          {
+            id: 'disbursed',
+            label: 'Discount Disbursed',
+            value: `₹ ${(metrics?.totalDiscountDisbursed ?? 0).toLocaleString('en-IN')}`,
+            subtext: 'Platform promo savings',
+            icon: <Wallet size={16} color="var(--color-warning)" />,
+            tone: 'warning',
+          },
+        ]}
+      />
 
       {/* Toolbar / Filters */}
       <FilterBar
@@ -554,98 +543,82 @@ export default function CouponsPage() {
       />
 
 
-      {/* CREATE COUPON MODAL */}
-      <Modal
+      {/* CREATE COUPON DRAWER */}
+      <Drawer
         isOpen={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
+        onClose={() => !submitting && setIsCreateOpen(false)}
         title="Create Promotional Coupon"
-        maxWidth="680px"
+        subtitle="Configure promo rules, caps, target applicability, and expiry dates"
+        icon={<Ticket size={18} />}
+        width="min(94vw, 620px)"
+        closeOnBackdrop={!submitting}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.65rem', width: '100%' }}>
+            <Button type="button" variant="secondary" size="md" onClick={() => setIsCreateOpen(false)} disabled={submitting}>
+              Cancel
+            </Button>
+            <Button type="submit" form="create-coupon-form" variant="primary" size="md" isLoading={submitting}>
+              Create Promo Code
+            </Button>
+          </div>
+        }
       >
-        <form onSubmit={handleCreateCoupon} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+        <form id="create-coupon-form" onSubmit={handleCreateCoupon} style={{ display: 'flex', flexDirection: 'column', gap: '0.95rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.95rem' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
+              <label className="form-label" style={{ display: 'block', marginBottom: '0.35rem' }}>
                 Coupon Code * (Uppercase)
               </label>
               <input
                 type="text"
                 required
+                className="form-input"
                 placeholder="e.g. ADHOC100, SAVE20"
                 value={createForm.code}
                 onChange={(e) => setCreateForm({ ...createForm, code: e.target.value.toUpperCase() })}
-                style={{
-                  width: '100%',
-                  padding: '0.625rem',
-                  borderRadius: '6px',
-                  backgroundColor: 'var(--bg-surface-elevated)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-primary)',
-                  fontWeight: 600,
-                  fontFamily: 'monospace',
-                }}
+                style={{ fontWeight: 600, fontFamily: 'monospace' }}
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
+              <label className="form-label" style={{ display: 'block', marginBottom: '0.35rem' }}>
                 Promo Title *
               </label>
               <input
                 type="text"
                 required
+                className="form-input"
                 placeholder="e.g. Welcome 20% Discount"
                 value={createForm.title}
                 onChange={(e) => setCreateForm({ ...createForm, title: e.target.value })}
-                style={{
-                  width: '100%',
-                  padding: '0.625rem',
-                  borderRadius: '6px',
-                  backgroundColor: 'var(--bg-surface-elevated)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-primary)',
-                }}
               />
             </div>
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
+            <label className="form-label" style={{ display: 'block', marginBottom: '0.35rem' }}>
               Description (Optional)
             </label>
             <input
               type="text"
+              className="form-input"
               placeholder="e.g. Get 20% discount on your first outstation requirement or wallet top-up"
               value={createForm.description}
               onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
-              style={{
-                width: '100%',
-                padding: '0.625rem',
-                borderRadius: '6px',
-                backgroundColor: 'var(--bg-surface-elevated)',
-                border: '1px solid var(--border)',
-                color: 'var(--text-primary)',
-              }}
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.95rem' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
+              <label className="form-label" style={{ display: 'block', marginBottom: '0.35rem' }}>
                 Discount Type *
               </label>
               <select
+                className="form-select"
                 value={createForm.discountType}
                 onChange={(e) =>
                   setCreateForm({ ...createForm, discountType: e.target.value as 'PERCENTAGE' | 'FLAT' })
                 }
-                style={{
-                  width: '100%',
-                  padding: '0.625rem',
-                  borderRadius: '6px',
-                  backgroundColor: 'var(--bg-surface-elevated)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-primary)',
-                }}
               >
                 <option value="PERCENTAGE">Percentage (%)</option>
                 <option value="FLAT">Flat Amount (₹)</option>
@@ -653,34 +626,28 @@ export default function CouponsPage() {
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
+              <label className="form-label" style={{ display: 'block', marginBottom: '0.35rem' }}>
                 {createForm.discountType === 'PERCENTAGE' ? 'Discount Rate (%) *' : 'Flat Discount (₹) *'}
               </label>
               <input
                 type="number"
                 required
+                className="form-input"
                 min={0.01}
                 max={createForm.discountType === 'PERCENTAGE' ? 100 : 100000}
                 step="0.01"
                 value={createForm.discountValue}
                 onChange={(e) => setCreateForm({ ...createForm, discountValue: parseFloat(e.target.value) || 0 })}
-                style={{
-                  width: '100%',
-                  padding: '0.625rem',
-                  borderRadius: '6px',
-                  backgroundColor: 'var(--bg-surface-elevated)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-primary)',
-                }}
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
+              <label className="form-label" style={{ display: 'block', marginBottom: '0.35rem' }}>
                 Max Cap (₹)
               </label>
               <input
                 type="number"
+                className="form-input"
                 min={1}
                 max={99999999}
                 placeholder="No max cap"
@@ -691,45 +658,31 @@ export default function CouponsPage() {
                     maxDiscountAmount: e.target.value ? parseFloat(e.target.value) : undefined,
                   })
                 }
-                style={{
-                  width: '100%',
-                  padding: '0.625rem',
-                  borderRadius: '6px',
-                  backgroundColor: 'var(--bg-surface-elevated)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-primary)',
-                }}
               />
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.95rem' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
+              <label className="form-label" style={{ display: 'block', marginBottom: '0.35rem' }}>
                 Min Order Spend (₹)
               </label>
               <input
                 type="number"
+                className="form-input"
                 min={0}
                 max={99999999}
                 value={createForm.minOrderAmount ?? 0}
                 onChange={(e) => setCreateForm({ ...createForm, minOrderAmount: parseFloat(e.target.value) || 0 })}
-                style={{
-                  width: '100%',
-                  padding: '0.625rem',
-                  borderRadius: '6px',
-                  backgroundColor: 'var(--bg-surface-elevated)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-primary)',
-                }}
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
+              <label className="form-label" style={{ display: 'block', marginBottom: '0.35rem' }}>
                 Applicable Scope
               </label>
               <select
+                className="form-select"
                 value={createForm.applicableTo}
                 onChange={(e) =>
                   setCreateForm({
@@ -737,14 +690,6 @@ export default function CouponsPage() {
                     applicableTo: e.target.value as 'WALLET_TOPUP' | 'REQUIREMENT_BOOKING' | 'ALL',
                   })
                 }
-                style={{
-                  width: '100%',
-                  padding: '0.625rem',
-                  borderRadius: '6px',
-                  backgroundColor: 'var(--bg-surface-elevated)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-primary)',
-                }}
               >
                 <option value="ALL">Universal (All Operations)</option>
                 <option value="WALLET_TOPUP">Wallet Top-up Only</option>
@@ -753,13 +698,14 @@ export default function CouponsPage() {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.95rem' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
+              <label className="form-label" style={{ display: 'block', marginBottom: '0.35rem' }}>
                 Total Platform Usage Limit
               </label>
               <input
                 type="number"
+                className="form-input"
                 min={1}
                 max={10000000}
                 placeholder="e.g. 1000 (empty for unlimited)"
@@ -770,182 +716,112 @@ export default function CouponsPage() {
                     usageLimitTotal: e.target.value ? parseInt(e.target.value, 10) : undefined,
                   })
                 }
-                style={{
-                  width: '100%',
-                  padding: '0.625rem',
-                  borderRadius: '6px',
-                  backgroundColor: 'var(--bg-surface-elevated)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-primary)',
-                }}
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
+              <label className="form-label" style={{ display: 'block', marginBottom: '0.35rem' }}>
                 Per User Limit * {createForm.usageLimitTotal ? `(Max: ${createForm.usageLimitTotal})` : ''}
               </label>
               <input
                 type="number"
                 required
+                className="form-input"
                 min={1}
                 max={createForm.usageLimitTotal || 1000000}
                 value={createForm.usageLimitPerUser}
                 onChange={(e) => setCreateForm({ ...createForm, usageLimitPerUser: parseInt(e.target.value, 10) || 1 })}
-                style={{
-                  width: '100%',
-                  padding: '0.625rem',
-                  borderRadius: '6px',
-                  backgroundColor: 'var(--bg-surface-elevated)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-primary)',
-                }}
               />
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.95rem' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
+              <label className="form-label" style={{ display: 'block', marginBottom: '0.35rem' }}>
                 Valid From Date *
               </label>
               <input
                 type="date"
                 required
+                className="form-input"
                 value={createForm.validFrom}
                 onChange={(e) => setCreateForm({ ...createForm, validFrom: e.target.value })}
-                style={{
-                  width: '100%',
-                  padding: '0.625rem',
-                  borderRadius: '6px',
-                  backgroundColor: 'var(--bg-surface-elevated)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-primary)',
-                }}
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
+              <label className="form-label" style={{ display: 'block', marginBottom: '0.35rem' }}>
                 Valid Until (Expiry Date) *
               </label>
               <input
                 type="date"
                 required
+                className="form-input"
                 value={createForm.validUntil}
                 onChange={(e) => setCreateForm({ ...createForm, validUntil: e.target.value })}
-                style={{
-                  width: '100%',
-                  padding: '0.625rem',
-                  borderRadius: '6px',
-                  backgroundColor: 'var(--bg-surface-elevated)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-primary)',
-                }}
               />
             </div>
           </div>
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
-            <button
-              type="button"
-              onClick={() => setIsCreateOpen(false)}
-              style={{
-                padding: '0.625rem 1rem',
-                borderRadius: '6px',
-                border: '1px solid var(--border)',
-                backgroundColor: 'transparent',
-                color: 'var(--text-secondary)',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              style={{
-                padding: '0.625rem 1.25rem',
-                borderRadius: '6px',
-                border: 'none',
-                backgroundColor: 'var(--accent-primary)',
-                color: '#ffffff',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              {submitting ? 'Creating...' : 'Create Promo Code'}
-            </button>
-          </div>
         </form>
-      </Modal>
+      </Drawer>
 
-      {/* EDIT COUPON MODAL */}
-      <Modal
+      {/* EDIT COUPON DRAWER */}
+      <Drawer
         isOpen={!!editingCoupon}
-        onClose={() => setEditingCoupon(null)}
-        title={`Edit Coupon: ${editingCoupon?.code}`}
-        maxWidth="680px"
+        onClose={() => !submitting && setEditingCoupon(null)}
+        title={editingCoupon ? `Edit Coupon: ${editingCoupon.code}` : 'Edit Coupon'}
+        subtitle="Update coupon rules, discount caps, applicability, and validity dates"
+        icon={<Tag size={18} />}
+        width="min(94vw, 620px)"
+        closeOnBackdrop={!submitting}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.65rem', width: '100%' }}>
+            <Button type="button" variant="secondary" size="md" onClick={() => setEditingCoupon(null)} disabled={submitting}>
+              Cancel
+            </Button>
+            <Button type="submit" form="edit-coupon-form" variant="primary" size="md" isLoading={submitting}>
+              Save Changes
+            </Button>
+          </div>
+        }
       >
-        <form onSubmit={handleUpdateCoupon} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <form id="edit-coupon-form" onSubmit={handleUpdateCoupon} style={{ display: 'flex', flexDirection: 'column', gap: '0.95rem' }}>
           <div>
-            <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
+            <label className="form-label" style={{ display: 'block', marginBottom: '0.35rem' }}>
               Promo Title *
             </label>
             <input
               type="text"
               required
+              className="form-input"
               value={editForm.title || ''}
               onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-              style={{
-                width: '100%',
-                padding: '0.625rem',
-                borderRadius: '6px',
-                backgroundColor: 'var(--bg-surface-elevated)',
-                border: '1px solid var(--border)',
-                color: 'var(--text-primary)',
-              }}
             />
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
+            <label className="form-label" style={{ display: 'block', marginBottom: '0.35rem' }}>
               Description
             </label>
             <input
               type="text"
+              className="form-input"
               value={editForm.description || ''}
               onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-              style={{
-                width: '100%',
-                padding: '0.625rem',
-                borderRadius: '6px',
-                backgroundColor: 'var(--bg-surface-elevated)',
-                border: '1px solid var(--border)',
-                color: 'var(--text-primary)',
-              }}
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.95rem' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
+              <label className="form-label" style={{ display: 'block', marginBottom: '0.35rem' }}>
                 Discount Type
               </label>
               <select
+                className="form-select"
                 value={editForm.discountType}
                 onChange={(e) =>
                   setEditForm({ ...editForm, discountType: e.target.value as 'PERCENTAGE' | 'FLAT' })
                 }
-                style={{
-                  width: '100%',
-                  padding: '0.625rem',
-                  borderRadius: '6px',
-                  backgroundColor: 'var(--bg-surface-elevated)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-primary)',
-                }}
               >
                 <option value="PERCENTAGE">Percentage (%)</option>
                 <option value="FLAT">Flat (₹)</option>
@@ -953,32 +829,26 @@ export default function CouponsPage() {
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
+              <label className="form-label" style={{ display: 'block', marginBottom: '0.35rem' }}>
                 Discount Value
               </label>
               <input
                 type="number"
+                className="form-input"
                 min={0.01}
                 step="0.01"
                 value={editForm.discountValue || ''}
                 onChange={(e) => setEditForm({ ...editForm, discountValue: parseFloat(e.target.value) || 0 })}
-                style={{
-                  width: '100%',
-                  padding: '0.625rem',
-                  borderRadius: '6px',
-                  backgroundColor: 'var(--bg-surface-elevated)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-primary)',
-                }}
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
+              <label className="form-label" style={{ display: 'block', marginBottom: '0.35rem' }}>
                 Max Cap (₹)
               </label>
               <input
                 type="number"
+                className="form-input"
                 min={1}
                 max={99999999}
                 value={editForm.maxDiscountAmount || ''}
@@ -988,45 +858,31 @@ export default function CouponsPage() {
                     maxDiscountAmount: e.target.value ? parseFloat(e.target.value) : undefined,
                   })
                 }
-                style={{
-                  width: '100%',
-                  padding: '0.625rem',
-                  borderRadius: '6px',
-                  backgroundColor: 'var(--bg-surface-elevated)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-primary)',
-                }}
               />
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.95rem' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
+              <label className="form-label" style={{ display: 'block', marginBottom: '0.35rem' }}>
                 Min Order Spend (₹)
               </label>
               <input
                 type="number"
+                className="form-input"
                 min={0}
                 max={99999999}
                 value={editForm.minOrderAmount ?? 0}
                 onChange={(e) => setEditForm({ ...editForm, minOrderAmount: parseFloat(e.target.value) || 0 })}
-                style={{
-                  width: '100%',
-                  padding: '0.625rem',
-                  borderRadius: '6px',
-                  backgroundColor: 'var(--bg-surface-elevated)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-primary)',
-                }}
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
+              <label className="form-label" style={{ display: 'block', marginBottom: '0.35rem' }}>
                 Applicable Scope
               </label>
               <select
+                className="form-select"
                 value={editForm.applicableTo}
                 onChange={(e) =>
                   setEditForm({
@@ -1034,14 +890,6 @@ export default function CouponsPage() {
                     applicableTo: e.target.value as 'WALLET_TOPUP' | 'REQUIREMENT_BOOKING' | 'ALL',
                   })
                 }
-                style={{
-                  width: '100%',
-                  padding: '0.625rem',
-                  borderRadius: '6px',
-                  backgroundColor: 'var(--bg-surface-elevated)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-primary)',
-                }}
               >
                 <option value="ALL">Universal (All Operations)</option>
                 <option value="WALLET_TOPUP">Wallet Top-up Only</option>
@@ -1050,89 +898,51 @@ export default function CouponsPage() {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.95rem' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
+              <label className="form-label" style={{ display: 'block', marginBottom: '0.35rem' }}>
                 Valid From Date
               </label>
               <input
                 type="date"
+                className="form-input"
                 value={editForm.validFrom || ''}
                 onChange={(e) => setEditForm({ ...editForm, validFrom: e.target.value })}
-                style={{
-                  width: '100%',
-                  padding: '0.625rem',
-                  borderRadius: '6px',
-                  backgroundColor: 'var(--bg-surface-elevated)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-primary)',
-                }}
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
+              <label className="form-label" style={{ display: 'block', marginBottom: '0.35rem' }}>
                 Valid Until (Expiry Date)
               </label>
               <input
                 type="date"
+                className="form-input"
                 value={editForm.validUntil || ''}
                 onChange={(e) => setEditForm({ ...editForm, validUntil: e.target.value })}
-                style={{
-                  width: '100%',
-                  padding: '0.625rem',
-                  borderRadius: '6px',
-                  backgroundColor: 'var(--bg-surface-elevated)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-primary)',
-                }}
               />
             </div>
           </div>
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
-            <button
-              type="button"
-              onClick={() => setEditingCoupon(null)}
-              style={{
-                padding: '0.625rem 1rem',
-                borderRadius: '6px',
-                border: '1px solid var(--border)',
-                backgroundColor: 'transparent',
-                color: 'var(--text-secondary)',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              style={{
-                padding: '0.625rem 1.25rem',
-                borderRadius: '6px',
-                border: 'none',
-                backgroundColor: 'var(--accent-primary)',
-                color: '#ffffff',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              {submitting ? 'Saving...' : 'Save Changes'}
-            </button>
-          </div>
         </form>
-      </Modal>
+      </Drawer>
 
-      {/* REDEMPTIONS AUDIT MODAL */}
-      <Modal
+      {/* REDEMPTIONS AUDIT DRAWER */}
+      <Drawer
         isOpen={!!selectedRedemptionsCoupon}
         onClose={() => setSelectedRedemptionsCoupon(null)}
-        title={`Redemption Audit Logs: ${selectedRedemptionsCoupon?.code}`}
-        maxWidth="850px"
+        title={selectedRedemptionsCoupon ? `Redemption Audit Logs: ${selectedRedemptionsCoupon.code}` : 'Redemption Audit Logs'}
+        subtitle="Real-time server-side ledger of promo claims and applied discounts"
+        icon={<CheckCircle2 size={18} />}
+        width="min(95vw, 760px)"
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
+            <Button type="button" variant="secondary" size="md" onClick={() => setSelectedRedemptionsCoupon(null)}>
+              Close
+            </Button>
+          </div>
+        }
       >
-        <div style={{ marginBottom: '1rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+        <div style={{ marginBottom: '0.85rem', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>
           Real-time server-side ledger of all user claims for promo code{' '}
           <strong style={{ color: 'var(--text-primary)' }}>{selectedRedemptionsCoupon?.code}</strong>.
         </div>
@@ -1146,44 +956,44 @@ export default function CouponsPage() {
             No redemptions recorded yet for this coupon.
           </div>
         ) : (
-          <div style={{ maxHeight: '400px', overflowY: 'auto', border: '1px solid var(--border)', borderRadius: '6px' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.8125rem' }}>
+          <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
+            <table className="data-table">
               <thead>
-                <tr style={{ backgroundColor: 'var(--bg-surface-elevated)', borderBottom: '1px solid var(--border)' }}>
-                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)' }}>USER</th>
-                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)' }}>CONTEXT / REF ID</th>
-                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)' }}>ORDER VALUE</th>
-                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)' }}>DISCOUNT APPLIED</th>
-                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)' }}>FINAL PAID</th>
-                  <th style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)' }}>DATE & TIME</th>
+                <tr>
+                  <th>USER</th>
+                  <th>CONTEXT / REF ID</th>
+                  <th>ORDER VALUE</th>
+                  <th>DISCOUNT APPLIED</th>
+                  <th>FINAL PAID</th>
+                  <th>DATE &amp; TIME</th>
                 </tr>
               </thead>
               <tbody>
                 {redemptions.map((r) => (
-                  <tr key={r.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                    <td style={{ padding: '0.75rem 1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  <tr key={r.id}>
+                    <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
                       <div>{r.userName}</div>
-                      <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>{r.userPhone}</div>
+                      <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 400 }}>{r.userPhone}</div>
                     </td>
-                    <td style={{ padding: '0.75rem 1rem' }}>
+                    <td>
                       <span
                         style={{
                           fontSize: '0.75rem',
                           fontFamily: 'monospace',
-                          padding: '0.125rem 0.375rem',
+                          padding: '0.125rem 0.4rem',
                           backgroundColor: 'var(--bg-surface-elevated)',
-                          borderRadius: '4px',
+                          borderRadius: 'var(--radius-sm)',
                         }}
                       >
                         {r.referenceType}: {r.referenceId.slice(0, 14)}...
                       </span>
                     </td>
-                    <td style={{ padding: '0.75rem 1rem' }}>₹{r.orderAmount.toFixed(2)}</td>
-                    <td style={{ padding: '0.75rem 1rem', color: 'var(--color-success)', fontWeight: 700 }}>
+                    <td>₹{r.orderAmount.toFixed(2)}</td>
+                    <td style={{ color: 'var(--color-success)', fontWeight: 700 }}>
                       - ₹{r.discountAmount.toFixed(2)}
                     </td>
-                    <td style={{ padding: '0.75rem 1rem', fontWeight: 600 }}>₹{r.finalAmount.toFixed(2)}</td>
-                    <td style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)' }}>
+                    <td style={{ fontWeight: 600 }}>₹{r.finalAmount.toFixed(2)}</td>
+                    <td style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
                       {new Date(r.redeemedAt).toLocaleString()}
                     </td>
                   </tr>
@@ -1192,55 +1002,32 @@ export default function CouponsPage() {
             </table>
           </div>
         )}
-      </Modal>
+      </Drawer>
 
-      {/* DELETE CONFIRMATION MODAL */}
-      <Modal
+      {/* DELETE CONFIRMATION DIALOG */}
+      <ConfirmDialog
         isOpen={!!deletingCoupon}
-        onClose={() => setDeletingCoupon(null)}
+        onClose={() => !submitting && setDeletingCoupon(null)}
+        onConfirm={handleDeleteCoupon}
+        variant="danger"
+        isLoading={submitting}
         title="Confirm Coupon Deletion"
-        maxWidth="480px"
-      >
-        <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.5 }}>
-          Are you sure you want to delete coupon <strong style={{ color: 'var(--text-primary)' }}>{deletingCoupon?.code}</strong>?
-          <p style={{ marginTop: '0.5rem', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
-            Note: If this coupon has past transaction claims, it will be safely deactivated instead of deleted to protect ledger integrity.
-          </p>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
-          <button
-            type="button"
-            onClick={() => setDeletingCoupon(null)}
-            style={{
-              padding: '0.625rem 1rem',
-              borderRadius: '6px',
-              border: '1px solid var(--border)',
-              backgroundColor: 'transparent',
-              color: 'var(--text-secondary)',
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            disabled={submitting}
-            onClick={handleDeleteCoupon}
-            style={{
-              padding: '0.625rem 1.25rem',
-              borderRadius: '6px',
-              border: 'none',
-              backgroundColor: 'var(--danger)',
-              color: '#ffffff',
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            {submitting ? 'Deleting...' : 'Confirm Delete'}
-          </button>
-        </div>
-      </Modal>
+        subtitle="Promotional campaign safeguard"
+        description={
+          deletingCoupon ? (
+            <div>
+              Are you sure you want to delete coupon{' '}
+              <strong style={{ color: 'var(--text-primary)' }}>{deletingCoupon.code}</strong>?
+              <div style={{ marginTop: '0.45rem', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+                Note: If this coupon has past transaction claims, it will be safely deactivated instead of deleted to protect ledger integrity.
+              </div>
+            </div>
+          ) : (
+            ''
+          )
+        }
+        confirmLabel="Confirm Delete"
+      />
     </div>
   );
 }

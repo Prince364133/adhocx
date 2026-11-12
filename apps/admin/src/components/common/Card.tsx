@@ -1,94 +1,79 @@
-﻿import React from 'react';
+'use client';
+
+import React from 'react';
 
 export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: 'default' | 'elevated' | 'interactive' | 'accent';
   padding?: 'none' | 'sm' | 'md' | 'lg' | 'xl';
+  title?: string;
+  subtitle?: string;
+  actions?: React.ReactNode;
 }
 
 export const Card: React.FC<CardProps> = ({
   children,
   variant = 'default',
-  padding = 'lg',
+  padding = 'md',
+  title,
+  subtitle,
+  actions,
   className = '',
-  style,
+  style = {},
   ...props
 }) => {
-  const getPaddingStyles = (): React.CSSProperties => {
-    switch (padding) {
-      case 'none':
-        return { padding: 0 };
-      case 'sm':
-        return { padding: '0.75rem' };
-      case 'md':
-        return { padding: '1rem' };
-      case 'xl':
-        return { padding: '2rem' };
-      case 'lg':
-      default:
-        return { padding: '1.5rem' };
-    }
+  const paddingMap = {
+    none: '0',
+    sm: '0.68rem',
+    md: '0.9rem',
+    lg: '1.1rem',
+    xl: '1.35rem',
   };
 
-  const getVariantStyles = (): React.CSSProperties => {
-    switch (variant) {
-      case 'elevated':
-        return {
-          background: 'var(--bg-surface-elevated)',
-          border: '1px solid var(--border-light)',
-          boxShadow: 'var(--shadow-elevated)',
-        };
-      case 'interactive':
-        return {
-          background: 'var(--bg-surface)',
-          border: '1px solid var(--border)',
-          boxShadow: 'var(--shadow-card)',
-          cursor: 'pointer',
-          transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-        };
-      case 'accent':
-        return {
-          background: 'var(--bg-surface)',
-          border: '1px solid var(--border)',
-          borderTop: '3px solid var(--brand-primary)',
-          boxShadow: 'var(--shadow-card)',
-          transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-        };
-      case 'default':
-      default:
-        return {
-          background: 'var(--bg-surface)',
-          border: '1px solid var(--border)',
-          boxShadow: 'var(--shadow-card)',
-          transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-        };
-    }
-  };
+  const isInteractive = variant === 'interactive';
+  const isElevated = variant === 'elevated';
+  const isAccent = variant === 'accent';
 
   return (
     <div
-      className={`card ${className}`}
+      {...props}
+      className={`card${isInteractive ? ' interactive-card' : ''} ${className}`}
       style={{
+        backgroundColor: isElevated ? 'var(--bg-card-elevated)' : 'var(--bg-card)',
+        border: isAccent ? '1px solid var(--brand-primary-border)' : '1px solid var(--border)',
         borderRadius: 'var(--radius-xl)',
-        ...getVariantStyles(),
-        ...getPaddingStyles(),
+        padding: paddingMap[padding],
+        boxShadow: isElevated ? 'var(--shadow-elevated)' : 'var(--shadow-card)',
+        transition: 'border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease',
         ...style,
       }}
-      onMouseEnter={(e) => {
-        if (variant === 'interactive') {
-          e.currentTarget.style.transform = 'translateY(-2px)';
-          e.currentTarget.style.borderColor = 'var(--brand-primary)';
-          e.currentTarget.style.boxShadow = 'var(--shadow-elevated)';
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (variant === 'interactive') {
-          e.currentTarget.style.transform = 'translateY(0)';
-          e.currentTarget.style.borderColor = 'var(--border)';
-          e.currentTarget.style.boxShadow = 'var(--shadow-card)';
-        }
-      }}
-      {...props}
     >
+      {(title || subtitle || actions) && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            gap: '0.75rem',
+            marginBottom: padding === 'none' ? 0 : '0.82rem',
+            padding: padding === 'none' ? '1.08rem 1.1rem 0.88rem' : '0.18rem 0 0',
+            borderBottom: padding === 'none' ? '1px solid var(--border)' : 'none',
+          }}
+        >
+          <div style={{ minWidth: 0 }}>
+            {title && (
+              <h3 style={{ margin: 0, fontSize: '1.06rem', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.3 }}>
+                {title}
+              </h3>
+            )}
+            {subtitle && (
+              <p style={{ margin: '0.18rem 0 0', fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                {subtitle}
+              </p>
+            )}
+          </div>
+          {actions && <div style={{ flexShrink: 0 }}>{actions}</div>}
+        </div>
+      )}
       {children}
     </div>
   );

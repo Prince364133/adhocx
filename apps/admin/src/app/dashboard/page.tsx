@@ -12,12 +12,13 @@ import {
   DollarSign,
   MapPin,
 } from 'lucide-react';
-import { adminApi } from '../../lib/api/client';
+import { adminApi, getOpsBaseUrl } from '../../lib/api/client';
 import {
   AdminMetrics,
   AuditLogItem,
   CorridorAnalytics,
   DailyFinancialReport,
+  FinancialCompanyOption,
   OperationalReportData,
   RequirementListItem,
 } from '../../lib/api/types';
@@ -28,6 +29,7 @@ import {
   CorridorMatrixChart,
 } from '../../components/dashboard/ExecutiveCharts';
 import TripFrequencyCharts from '../../components/dashboard/TripFrequencyCharts';
+import { CompanyFilterDropdown } from '../../components/dashboard/CompanyFilterDropdown';
 
 function getIndiaDateInputValue() {
   const dateParts = new Intl.DateTimeFormat('en-GB', {
@@ -41,7 +43,12 @@ function getIndiaDateInputValue() {
 }
 
 export default function DashboardPage() {
-  const opsBaseUrl = process.env.NEXT_PUBLIC_OPS_URL?.replace(/\/+$/, '');
+  const [opsBaseUrl, setOpsBaseUrl] = useState<string>(
+    () => process.env.NEXT_PUBLIC_OPS_URL?.trim().replace(/\/+$/, '') || 'http://localhost:7004',
+  );
+  useEffect(() => {
+    setOpsBaseUrl(getOpsBaseUrl());
+  }, []);
   const [metrics, setMetrics] = useState<AdminMetrics>({
     totalDrivers: 0,
     verifiedDrivers: 0,
@@ -56,6 +63,9 @@ export default function DashboardPage() {
   });
 
   const [selectedFinancialDate, setSelectedFinancialDate] = useState(getIndiaDateInputValue);
+  const [financialCompanies, setFinancialCompanies] = useState<FinancialCompanyOption[]>([]);
+  const [financialCompaniesLoading, setFinancialCompaniesLoading] = useState(true);
+  const [selectedFinancialCompany, setSelectedFinancialCompany] = useState<FinancialCompanyOption | null>(null);
   const [dailyFinancialReport, setDailyFinancialReport] = useState<DailyFinancialReport | null>(null);
   const [financialReportLoading, setFinancialReportLoading] = useState(true);
   const [financialReportError, setFinancialReportError] = useState<string | null>(null);
@@ -75,12 +85,14 @@ export default function DashboardPage() {
         corridorsRes,
         logsRes,
         requirementsRes,
+        companiesRes,
       ] = await Promise.allSettled([
         adminApi.getMetrics(),
         adminApi.getOperationalReports(),
         adminApi.getCorridorAnalytics(),
         adminApi.getAuditLogs(8),
         adminApi.getRequirements('ALL'),
+        adminApi.getFinancialCompanies(),
       ]);
 
       if (metricsRes.status === 'fulfilled' && metricsRes.value) {
@@ -93,8 +105,12 @@ export default function DashboardPage() {
         const reqs = Array.isArray(requirementsRes.value) ? requirementsRes.value : [];
         setRecentRequirements(reqs.slice(0, 6));
       }
+      if (companiesRes.status === 'fulfilled' && Array.isArray(companiesRes.value)) {
+        setFinancialCompanies(companiesRes.value);
+      }
     } finally {
       setLoading(false);
+      setFinancialCompaniesLoading(false);
     }
   }
 
@@ -111,7 +127,11 @@ export default function DashboardPage() {
     setDailyFinancialReport(null);
 
     adminApi
-      .getDailyFinancialReport(selectedFinancialDate)
+      .getDailyFinancialReport(
+        selectedFinancialDate,
+        selectedFinancialCompany?.entityId,
+        selectedFinancialCompany?.companyType,
+      )
       .then((report) => {
         if (active) setDailyFinancialReport(report);
       })
@@ -125,133 +145,122 @@ export default function DashboardPage() {
     return () => {
       active = false;
     };
-  }, [selectedFinancialDate]);
+  }, [selectedFinancialDate, selectedFinancialCompany]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem', paddingBottom: '3rem' }}>
+    <div className="admin-page">
       {/* ─────────────────────────────────────────────────────────────
-       * 1. Production-Grade Executive KPI Band (Financial & Velocity)
+       * 1. Production-Grade Executive KPI Header Bar & Financial Strip
        * ───────────────────────────────────────────────────────────── */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '0.75rem',
-        }}
-      >
+      <div className="module-bar" style={{ padding: '0.88rem 1.15rem 0.82rem', marginTop: '0.15rem' }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+          <h2 style={{ margin: 0, fontSize: '1.08rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.015em' }}>
             Financial Metrics
           </h2>
-          <p style={{ margin: '0.25rem 0 0', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+          <p style={{ margin: '0.2rem 0 0', fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
             Selected India business date · INR
           </p>
         </div>
-        <label
+        <div
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '0.55rem',
-            color: 'var(--text-secondary)',
-            fontSize: '0.8rem',
-            fontWeight: 700,
+            gap: '0.75rem',
+            flexWrap: 'wrap',
           }}
         >
-          <span>Select date</span>
-          <input
-            aria-label="Financial metrics date"
-            type="date"
-            value={selectedFinancialDate}
-            max={getIndiaDateInputValue()}
-            onChange={(event) => {
-              if (event.target.value) setSelectedFinancialDate(event.target.value);
-            }}
-            style={{
-              padding: '0.5rem 0.65rem',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--bg-canvas)',
-              color: 'var(--text-primary)',
-              fontSize: '0.8125rem',
-            }}
+          <CompanyFilterDropdown
+            companies={financialCompanies}
+            selectedCompanyId={selectedFinancialCompany?.id ?? null}
+            onChange={setSelectedFinancialCompany}
+            loading={financialCompaniesLoading}
           />
-        </label>
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              color: 'var(--text-secondary)',
+              fontSize: '0.78rem',
+              fontWeight: 600,
+            }}
+          >
+            <span>Select date</span>
+            <input
+              aria-label="Financial metrics date"
+              type="date"
+              value={selectedFinancialDate}
+              max={getIndiaDateInputValue()}
+              onChange={(event) => {
+                if (event.target.value) setSelectedFinancialDate(event.target.value);
+              }}
+              className="form-input"
+              style={{
+                width: 'auto',
+                padding: '0.36rem 0.65rem',
+                fontSize: '0.78rem',
+              }}
+            />
+          </label>
+        </div>
       </div>
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-          gap: '1.25rem',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
+          gap: '0.85rem',
         }}
       >
         {/* KPI 1: Gross Booking Value (GMV) */}
         <div
+          className="stat-card"
           style={{
-            background: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border)',
-            padding: '1.35rem 1.5rem',
-            boxShadow: 'var(--shadow-card)',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            gap: '1rem',
-            position: 'relative',
-            overflow: 'hidden',
+            borderTop: '2px solid var(--brand-primary)',
+            gap: '0.55rem',
             order: 1,
           }}
         >
           <div>
-            <div style={{ marginBottom: '0.5rem' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <div style={{ marginBottom: '0.35rem' }}>
+              <span style={{ fontSize: '0.74rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
                 Gross Merchandise Value
               </span>
             </div>
-            <div style={{ fontSize: '1.85rem', fontWeight: 900, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
+            <div style={{ fontSize: '1.375rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1.2, fontVariantNumeric: 'tabular-nums' }}>
               {financialReportLoading ? '…' : dailyFinancialReport ? `₹ ${dailyFinancialReport.grossBookingValue.toLocaleString('en-IN')}` : '—'}
             </div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.22rem' }}>
               Captured payment value on the selected date
             </div>
           </div>
-          <div style={{ paddingTop: '0.5rem', borderTop: '1px solid var(--border-subtle)', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+          <div style={{ paddingTop: '0.42rem', borderTop: '1px solid var(--border-subtle)', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
             {dailyFinancialReport ? `${dailyFinancialReport.capturedPaymentCount} captured payments` : 'Recorded payment data'}
           </div>
         </div>
 
         {/* KPI 2: Platform Take-Rate Revenue (Net Margin) */}
         <div
+          className="stat-card"
           style={{
-            background: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border)',
-            padding: '1.35rem 1.5rem',
-            boxShadow: 'var(--shadow-card)',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            gap: '1rem',
-            position: 'relative',
-            overflow: 'hidden',
+            borderTop: '2px solid var(--brand-secondary)',
+            gap: '0.55rem',
             order: 3,
           }}
         >
           <div>
-            <div style={{ marginBottom: '0.5rem' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <div style={{ marginBottom: '0.35rem' }}>
+              <span style={{ fontSize: '0.74rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
                 Platform Revenue (Recorded)
               </span>
             </div>
-            <div style={{ fontSize: '1.85rem', fontWeight: 900, color: 'var(--brand-secondary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
+            <div style={{ fontSize: '1.375rem', fontWeight: 700, color: 'var(--brand-secondary)', letterSpacing: '-0.02em', lineHeight: 1.2, fontVariantNumeric: 'tabular-nums' }}>
               {financialReportLoading ? '…' : dailyFinancialReport ? `₹ ${dailyFinancialReport.revenue.toLocaleString('en-IN')}` : '—'}
             </div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.22rem' }}>
               Recorded platform commission and pricing-spread credits
             </div>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: '0.5rem', borderTop: '1px solid var(--border-subtle)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: '0.42rem', borderTop: '1px solid var(--border-subtle)' }}>
             <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
               {dailyFinancialReport ? `${dailyFinancialReport.platformRevenueEntryCount} platform ledger credits` : 'Recorded platform ledger data'}
             </span>
@@ -260,35 +269,27 @@ export default function DashboardPage() {
 
         {/* KPI 3: Live Escrow In Transit */}
         <div
+          className="stat-card"
           style={{
-            background: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border)',
-            padding: '1.35rem 1.5rem',
-            boxShadow: 'var(--shadow-card)',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            gap: '1rem',
-            position: 'relative',
-            overflow: 'hidden',
+            borderTop: '2px solid #0284C7',
+            gap: '0.55rem',
             order: 4,
           }}
         >
           <div>
-            <div style={{ marginBottom: '0.5rem' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <div style={{ marginBottom: '0.35rem' }}>
+              <span style={{ fontSize: '0.74rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
                 Active Escrow Locked
               </span>
             </div>
-            <div style={{ fontSize: '1.85rem', fontWeight: 900, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
+            <div style={{ fontSize: '1.375rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1.2, fontVariantNumeric: 'tabular-nums' }}>
               {financialReportLoading ? '…' : dailyFinancialReport ? `₹ ${dailyFinancialReport.activeEscrowHoldValue.toLocaleString('en-IN')}` : '—'}
             </div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.22rem' }}>
               Active pending/authorized holds opened on this date
             </div>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: '0.5rem', borderTop: '1px solid var(--border-subtle)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: '0.42rem', borderTop: '1px solid var(--border-subtle)' }}>
             <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
               Active holds: <strong>{dailyFinancialReport?.activeEscrowHoldCount ?? '—'} Txns</strong>
             </span>
@@ -297,31 +298,23 @@ export default function DashboardPage() {
 
         {/* KPI 4: Driver Settlements Disbursed */}
         <div
+          className="stat-card"
           style={{
-            background: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border)',
-            padding: '1.35rem 1.5rem',
-            boxShadow: 'var(--shadow-card)',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            gap: '1rem',
-            position: 'relative',
-            overflow: 'hidden',
+            borderTop: '2px solid var(--color-success)',
+            gap: '0.55rem',
             order: 2,
           }}
         >
           <div>
-            <div style={{ marginBottom: '0.5rem' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <div style={{ marginBottom: '0.35rem' }}>
+              <span style={{ fontSize: '0.74rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
                 Driver Settlements Disbursed
               </span>
             </div>
-            <div style={{ fontSize: '1.85rem', fontWeight: 900, color: 'var(--color-success)', letterSpacing: '-0.02em', lineHeight: 1 }}>
+            <div style={{ fontSize: '1.375rem', fontWeight: 700, color: 'var(--color-success)', letterSpacing: '-0.02em', lineHeight: 1.2, fontVariantNumeric: 'tabular-nums' }}>
               {financialReportLoading ? '…' : dailyFinancialReport ? `₹ ${dailyFinancialReport.expenditure.toLocaleString('en-IN')}` : '—'}
             </div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.22rem' }}>
               Settled payout value on the selected date
             </div>
           </div>
@@ -337,170 +330,52 @@ export default function DashboardPage() {
       )}
 
       {/* ─────────────────────────────────────────────────────────────
-       * 3. Operational Pulse Metrics (Fleet, Drivers, Vendors, SLA)
+       * 3. Operational Pulse Metrics (Unified Reference Strip)
        * ───────────────────────────────────────────────────────────── */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
-          gap: '1rem',
-        }}
-      >
-        <div
-          style={{
-            padding: '1rem 1.25rem',
-            background: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-lg)',
-            border: '1px solid var(--border)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '1rem',
-          }}
-        >
-          <div
-            style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--brand-primary-subtle)',
-              color: 'var(--brand-primary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            <ClipboardList size={22} />
+      <div className="kpi-strip">
+        <div className="kpi-strip-cell">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.74rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+            <ClipboardList size={14} color="var(--brand-primary)" />
+            <span>Active Requirements</span>
           </div>
-          <div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
-              Active Requirements
-            </div>
-            <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-              {metrics.activeRequirements}
-            </div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-              Live booking demands
-            </div>
+          <div style={{ fontSize: '1.3125rem', fontWeight: 700, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
+            {metrics.activeRequirements}
           </div>
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Live booking demands</div>
         </div>
 
-        <div
-          style={{
-            padding: '1rem 1.25rem',
-            background: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-lg)',
-            border: '1px solid var(--border)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '1rem',
-          }}
-        >
-          <div
-            style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: 'var(--radius-md)',
-              background: 'rgba(2, 132, 199, 0.12)',
-              color: '#0284C7',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            <Car size={22} />
+        <div className="kpi-strip-cell">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.74rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+            <Car size={14} color="#0284C7" />
+            <span>Fleet In Transit</span>
           </div>
-          <div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
-              Fleet In Transit
-            </div>
-            <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-              {metrics.activeTrips}
-            </div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-              Cabs currently on duty
-            </div>
+          <div style={{ fontSize: '1.3125rem', fontWeight: 700, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
+            {metrics.activeTrips}
           </div>
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Cabs currently on duty</div>
         </div>
 
-        <div
-          style={{
-            padding: '1rem 1.25rem',
-            background: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-lg)',
-            border: '1px solid var(--border)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '1rem',
-          }}
-        >
-          <div
-            style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--color-success-bg)',
-              color: 'var(--color-success)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            <ShieldCheck size={22} />
+        <div className="kpi-strip-cell">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.74rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+            <ShieldCheck size={14} color="var(--color-success)" />
+            <span>Verified Drivers</span>
           </div>
-          <div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
-              Verified Drivers
-            </div>
-            <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-              {metrics.verifiedDrivers}
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}> / {metrics.totalDrivers}</span>
-            </div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-              {metrics.pendingDriversKyc} pending KYC review
-            </div>
+          <div style={{ fontSize: '1.3125rem', fontWeight: 700, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
+            {metrics.verifiedDrivers}
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}> / {metrics.totalDrivers}</span>
           </div>
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{metrics.pendingDriversKyc} pending KYC review</div>
         </div>
 
-        <div
-          style={{
-            padding: '1rem 1.25rem',
-            background: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-lg)',
-            border: '1px solid var(--border)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '1rem',
-          }}
-        >
-          <div
-            style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--brand-orange-subtle)',
-              color: 'var(--brand-secondary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            <Building2 size={22} />
+        <div className="kpi-strip-cell">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.74rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+            <Building2 size={14} color="var(--brand-secondary)" />
+            <span>Corporate Vendors</span>
           </div>
-          <div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
-              Corporate Vendors
-            </div>
-            <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-              {metrics.totalVendors}
-            </div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-              {metrics.verifiedVendors} verified B2B clients
-            </div>
+          <div style={{ fontSize: '1.3125rem', fontWeight: 700, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
+            {metrics.totalVendors}
           </div>
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{metrics.verifiedVendors} verified B2B clients</div>
         </div>
       </div>
 
@@ -509,105 +384,44 @@ export default function DashboardPage() {
       {/* ─────────────────────────────────────────────────────────────
        * 4. Multi-Graph Command Center (Production Grade Charts)
        * ───────────────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem', marginTop: '0.2rem' }}>
         {/* Graph Selection Tabs Bar */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '0.75rem',
-            borderBottom: '1px solid var(--border)',
-            paddingBottom: '0.75rem',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <div className="module-bar" style={{ padding: '0.68rem 1rem' }}>
+          <div className="module-bar-title">Analytics & Telemetry</div>
+          <div className="module-bar-tabs">
             <button
               type="button"
               onClick={() => setActiveChartTab('REVENUE')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.45rem',
-                padding: '0.5rem 1rem',
-                borderRadius: 'var(--radius-lg)',
-                border: activeChartTab === 'REVENUE' ? '1px solid var(--brand-primary)' : '1px solid var(--border)',
-                background: activeChartTab === 'REVENUE' ? 'var(--brand-primary-gradient)' : 'var(--bg-surface)',
-                color: activeChartTab === 'REVENUE' ? '#ffffff' : 'var(--text-secondary)',
-                fontSize: '0.8125rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
+              className={`module-tab-btn${activeChartTab === 'REVENUE' ? ' active' : ''}`}
             >
-              <DollarSign size={16} />
-              <span>Revenue & Income Graph</span>
+              <DollarSign size={14} />
+              <span>Revenue & Income</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveChartTab('ECOSYSTEM')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.45rem',
-                padding: '0.5rem 1rem',
-                borderRadius: 'var(--radius-lg)',
-                border: activeChartTab === 'ECOSYSTEM' ? '1px solid var(--brand-primary)' : '1px solid var(--border)',
-                background: activeChartTab === 'ECOSYSTEM' ? 'var(--brand-primary-gradient)' : 'var(--bg-surface)',
-                color: activeChartTab === 'ECOSYSTEM' ? '#ffffff' : 'var(--text-secondary)',
-                fontSize: '0.8125rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
+              className={`module-tab-btn${activeChartTab === 'ECOSYSTEM' ? ' active' : ''}`}
             >
-              <Users size={16} />
-              <span>Driver, Vendor & User Scaling Graph</span>
+              <Users size={14} />
+              <span>Driver & Vendor Growth</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveChartTab('FLEET')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.45rem',
-                padding: '0.5rem 1rem',
-                borderRadius: 'var(--radius-lg)',
-                border: activeChartTab === 'FLEET' ? '1px solid var(--brand-primary)' : '1px solid var(--border)',
-                background: activeChartTab === 'FLEET' ? 'var(--brand-primary-gradient)' : 'var(--bg-surface)',
-                color: activeChartTab === 'FLEET' ? '#ffffff' : 'var(--text-secondary)',
-                fontSize: '0.8125rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
+              className={`module-tab-btn${activeChartTab === 'FLEET' ? ' active' : ''}`}
             >
-              <Car size={16} />
+              <Car size={14} />
               <span>Fleet Category Demand</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveChartTab('CORRIDORS')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.45rem',
-                padding: '0.5rem 1rem',
-                borderRadius: 'var(--radius-lg)',
-                border: activeChartTab === 'CORRIDORS' ? '1px solid var(--brand-primary)' : '1px solid var(--border)',
-                background: activeChartTab === 'CORRIDORS' ? 'var(--brand-primary-gradient)' : 'var(--bg-surface)',
-                color: activeChartTab === 'CORRIDORS' ? '#ffffff' : 'var(--text-secondary)',
-                fontSize: '0.8125rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
+              className={`module-tab-btn${activeChartTab === 'CORRIDORS' ? ' active' : ''}`}
             >
-              <MapPin size={16} />
+              <MapPin size={14} />
               <span>Corridor Intelligence</span>
             </button>
           </div>
@@ -642,33 +456,31 @@ export default function DashboardPage() {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
-          gap: '1.5rem',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
+          gap: '1.15rem',
+          marginTop: '0.15rem',
         }}
       >
         {/* Active Requirements Board */}
         <div
+          className="card"
           style={{
-            background: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border)',
-            padding: '1.5rem',
-            boxShadow: 'var(--shadow-card)',
+            padding: '1.22rem 1.2rem 1.1rem',
             display: 'flex',
             flexDirection: 'column',
-            gap: '1.25rem',
+            gap: '0.95rem',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
-              <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 0.25rem 0' }}>
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.18rem 0' }}>
                 Live Requirements Dispatch Queue
               </h3>
-              <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: 0 }}>
+              <p style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', margin: 0 }}>
                 Active direct dispatch and corporate transport requests
               </p>
             </div>
-            <Link
+            <a
               href={`${opsBaseUrl}/requirements`}
               target="_blank"
               rel="noopener noreferrer"
@@ -684,7 +496,7 @@ export default function DashboardPage() {
             >
               <span>View All</span>
               <ArrowRight size={14} />
-            </Link>
+            </a>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -768,23 +580,20 @@ export default function DashboardPage() {
 
         {/* SLA & Governance Radar */}
         <div
+          className="card"
           style={{
-            background: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border)',
-            padding: '1.5rem',
-            boxShadow: 'var(--shadow-card)',
+            padding: '1.22rem 1.2rem 1.1rem',
             display: 'flex',
             flexDirection: 'column',
-            gap: '1.25rem',
+            gap: '0.95rem',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
-              <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 0.25rem 0' }}>
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.18rem 0' }}>
                 Operational SLA Performance Radar
               </h3>
-              <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: 0 }}>
+              <p style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', margin: 0 }}>
                 Enterprise contract commitments and compliance adherence
               </p>
             </div>
@@ -855,7 +664,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '1.1rem', fontWeight: 900, color: sla.value !== 'N/A' ? 'var(--color-success)' : 'var(--text-muted)' }}>
+                  <div style={{ fontSize: '1rem', fontWeight: 700, color: sla.value !== 'N/A' ? 'var(--color-success)' : 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
                     {sla.value}
                   </div>
                   <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600 }}>
@@ -872,23 +681,27 @@ export default function DashboardPage() {
        * 6. Live Audit & Governance Event Stream
        * ───────────────────────────────────────────────────────────── */}
       <div
+        className="card"
         style={{
-          background: 'var(--bg-surface)',
-          borderRadius: 'var(--radius-xl)',
-          border: '1px solid var(--border)',
-          padding: '1.5rem',
-          boxShadow: 'var(--shadow-card)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '1rem',
+          padding: 0,
+          overflow: 'hidden',
+          marginTop: '0.15rem',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '1.08rem 1.2rem 0.95rem',
+            borderBottom: '1px solid var(--border)',
+          }}
+        >
           <div>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 0.25rem 0' }}>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.18rem 0' }}>
               Security, Financial & Administrative Audit Stream
             </h3>
-            <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: 0 }}>
+            <p style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', margin: 0 }}>
               Immutable system ledger logs across KYC, settlements, and contracts
             </p>
           </div>
@@ -896,7 +709,7 @@ export default function DashboardPage() {
             href="/audit"
             style={{
               fontSize: '0.78rem',
-              fontWeight: 700,
+              fontWeight: 600,
               color: 'var(--brand-primary)',
               textDecoration: 'none',
               display: 'flex',
@@ -910,64 +723,45 @@ export default function DashboardPage() {
         </div>
 
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
+          <table className="data-table">
             <thead>
-              <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
-                <th style={{ padding: '0.6rem 0.5rem', color: 'var(--text-muted)', fontWeight: 700 }}>TIMESTAMP</th>
-                <th style={{ padding: '0.6rem 0.5rem', color: 'var(--text-muted)', fontWeight: 700 }}>ACTION</th>
-                <th style={{ padding: '0.6rem 0.5rem', color: 'var(--text-muted)', fontWeight: 700 }}>ENTITY</th>
-                <th style={{ padding: '0.6rem 0.5rem', color: 'var(--text-muted)', fontWeight: 700 }}>ACTOR</th>
-                <th style={{ padding: '0.6rem 0.5rem', color: 'var(--text-muted)', fontWeight: 700, textAlign: 'right' }}>INTEGRITY</th>
+              <tr>
+                <th>Timestamp</th>
+                <th>Action</th>
+                <th>Entity</th>
+                <th>Actor</th>
+                <th style={{ textAlign: 'right' }}>Integrity</th>
               </tr>
             </thead>
             <tbody>
               {recentLogs.length > 0 ? (
                 recentLogs.map((log) => (
-                  <tr key={log.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                    <td style={{ padding: '0.75rem 0.5rem', color: 'var(--text-muted)' }}>
+                  <tr key={log.id}>
+                    <td style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                       {new Date(log.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
                     </td>
-                    <td style={{ padding: '0.75rem 0.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
                       {log.action}
                     </td>
-                    <td style={{ padding: '0.75rem 0.5rem' }}>
-                      <span
-                        style={{
-                          fontSize: '0.6875rem',
-                          fontWeight: 700,
-                          padding: '0.1rem 0.45rem',
-                          borderRadius: 'var(--radius-sm)',
-                          background: 'var(--bg-canvas)',
-                          color: 'var(--text-secondary)',
-                          border: '1px solid var(--border)',
-                        }}
-                      >
+                    <td>
+                      <span className="code-tag">
                         {log.entityType} ({log.entityId ? log.entityId.slice(0, 8) + '...' : 'SYSTEM'})
                       </span>
                     </td>
-                    <td style={{ padding: '0.75rem 0.5rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                    <td style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>
                       {log.actor?.phone || log.actor?.role || 'SYSTEM_DAEMON'}
                     </td>
-                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right' }}>
-                      <span
-                        style={{
-                          fontSize: '0.72rem',
-                          fontWeight: 800,
-                          color: 'var(--color-success)',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.25rem',
-                        }}
-                      >
-                        <ShieldCheck size={13} />
-                        <span>VERIFIED</span>
+                    <td style={{ textAlign: 'right' }}>
+                      <span className="badge badge-success">
+                        <ShieldCheck size={12} />
+                        <span>Verified</span>
                       </span>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <td colSpan={5} style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                     System operating nominally. All events ledgered.
                   </td>
                 </tr>

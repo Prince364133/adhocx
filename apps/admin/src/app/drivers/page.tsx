@@ -4,7 +4,6 @@ import React, { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import {
   Star,
-  X,
   Mail,
   Phone,
   Car,
@@ -18,7 +17,6 @@ import {
   ArrowLeft,
   ExternalLink,
   Check,
-  AlertTriangle,
   Navigation,
 } from 'lucide-react';
 import {
@@ -35,7 +33,10 @@ import {
   Column,
   StatusBadge,
   Button,
-  Card,
+  KpiStrip,
+  FeedbackBanner,
+  ConfirmDialog,
+  Drawer,
 } from '../../components/common';
 
 const STATUS_TABS = [
@@ -774,40 +775,31 @@ export default function DriversPage() {
     const colWidth = (chartWidth - 70) / 12;
 
     return (
-      <div style={{ maxWidth: '1440px', margin: '0 auto', paddingBottom: '3rem' }}>
+      <div className="admin-page">
         {/* Top Navigation Bar with Back Button and Quick Actions */}
         <div
+          className="module-bar"
           style={{
-            display: 'flex',
-            alignItems: 'center',
+            marginTop: '0.15rem',
+            marginBottom: 0,
+            padding: '0.68rem 1rem',
             justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '1rem',
-            marginBottom: '1.5rem',
-            paddingBottom: '1rem',
-            borderBottom: '1px solid var(--border)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
             <Button
-              variant="secondary"
+              variant="outline"
               size="sm"
               onClick={() => {
                 setSelectedDriver(null);
                 setActionType(null);
                 setIsEditModalOpen(false);
               }}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                fontWeight: 700,
-              }}
+              leftIcon={<ArrowLeft size={15} />}
             >
-              <ArrowLeft size={16} />
-              <span>Back to Driver Fleet</span>
+              Back to Driver Fleet
             </Button>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
               <span>Drivers</span>
               <span>/</span>
               <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{selectedDriver.fullName}</span>
@@ -816,19 +808,8 @@ export default function DriversPage() {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
             <Link href={`/drivers/route-earnings?driverId=${selectedDriver.id}`}>
-              <Button
-                variant="primary"
-                size="sm"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  background: 'var(--brand-primary-gradient)',
-                  boxShadow: 'var(--shadow-sm)',
-                }}
-              >
-                <Navigation size={14} />
-                <span>Route & Earnings</span>
+              <Button variant="primary" size="sm" leftIcon={<Navigation size={14} />}>
+                Route & Earnings
               </Button>
             </Link>
 
@@ -836,10 +817,9 @@ export default function DriversPage() {
               variant="outline"
               size="sm"
               onClick={handleTriggerEditFromDetails}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+              leftIcon={<Edit3 size={14} />}
             >
-              <Edit3 size={15} />
-              <span>Edit Profile</span>
+              Edit Profile
             </Button>
 
             {selectedDriver.verificationStatus === 'UNDER_REVIEW' && (
@@ -870,105 +850,82 @@ export default function DriversPage() {
           </div>
         </div>
 
-        {/* Action Reason Banner / Confirm Dialog */}
-        {actionType && (
-          <Card
-            variant="accent"
-            style={{
-              marginBottom: '1.5rem',
-              border: `1px solid ${
-                actionType === 'VERIFY' || actionType === 'REACTIVATE'
-                  ? 'var(--color-success-border)'
-                  : 'var(--color-danger-border)'
-              }`,
-              background: 'var(--bg-surface)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '0.9375rem' }}>
-                <AlertTriangle
-                  size={18}
-                  color={actionType === 'VERIFY' || actionType === 'REACTIVATE' ? 'var(--color-success)' : 'var(--color-danger)'}
-                />
-                <span>
-                  Confirm Transition: {actionType === 'VERIFY' ? 'Approve Driver KYC' : `${actionType} Driver`}
-                </span>
+        {/* Confirm Driver Status Transition Dialog */}
+        <ConfirmDialog
+          isOpen={Boolean(actionType)}
+          onClose={() => {
+            if (!actionLoading) {
+              setActionType(null);
+              setReason('');
+            }
+          }}
+          onConfirm={() => handleExecuteAction()}
+          variant={actionType === 'VERIFY' || actionType === 'REACTIVATE' ? 'confirm' : 'danger'}
+          title={
+            actionType === 'VERIFY'
+              ? 'Approve Driver KYC'
+              : actionType === 'REJECT'
+              ? 'Reject Driver KYC'
+              : actionType === 'SUSPEND'
+              ? 'Suspend Driver Account'
+              : 'Reactivate Driver Account'
+          }
+          subtitle={`${selectedDriver.fullName}${selectedDriver.vehiclePlate ? ` · ${selectedDriver.vehiclePlate}` : ''}`}
+          description={
+            actionType === 'REJECT'
+              ? 'Declining KYC will block this driver from accepting dispatches. Provide a clear rejection reason.'
+              : actionType === 'SUSPEND'
+              ? 'Suspending this driver immediately halts active dispatches. Specify the audit reason.'
+              : actionType === 'VERIFY'
+              ? 'Mark this driver KYC package as verified and unlock live trip assignments.'
+              : 'Restore this suspended driver account back to verified active status.'
+          }
+          requireReason={actionType === 'REJECT' || actionType === 'SUSPEND'}
+          reasonLabel={
+            actionType === 'REJECT'
+              ? 'Mandatory Reason for Rejection'
+              : 'Mandatory Reason for Suspension'
+          }
+          reasonPlaceholder="e.g. Expired commercial driving permit or unverified vehicle registration"
+          reasonValue={reason}
+          onReasonChange={setReason}
+          details={
+            actionType === 'VERIFY' || actionType === 'REACTIVATE' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                {alert?.type === 'error' && (
+                  <FeedbackBanner type="error" message={alert.message} />
+                )}
+                <div>
+                  <label className="form-label">
+                    {actionType === 'VERIFY'
+                      ? 'Approval Notes / Compliance Override Reason (optional unless blockers exist)'
+                      : 'Optional Reactivation Notes'}
+                  </label>
+                  <textarea
+                    className="form-textarea"
+                    rows={3}
+                    placeholder="Add operational or override notes for the audit trail..."
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    disabled={actionLoading}
+                  />
+                </div>
               </div>
-              <button
-                onClick={() => setActionType(null)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <label className="form-label" style={{ marginBottom: '0.5rem', display: 'block', fontSize: '0.8125rem' }}>
-              {actionType === 'REJECT' && 'Mandatory Reason for Rejection:'}
-              {actionType === 'SUSPEND' && 'Mandatory Reason for Suspension:'}
-              {actionType === 'VERIFY' && 'Optional Approval Notes:'}
-              {actionType === 'REACTIVATE' && 'Optional Reactivation Notes:'}
-            </label>
-            <textarea
-              className="form-textarea"
-              rows={3}
-              placeholder={
-                actionType === 'REJECT'
-                  ? 'e.g. Expired commercial driving permit or unverified vehicle registration'
-                  : 'Add operational notes for the audit trail...'
-              }
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-light)',
-                background: 'var(--bg-base)',
-                color: 'var(--text-primary)',
-                fontSize: '0.875rem',
-                marginBottom: '1rem',
-              }}
-            />
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-              <Button variant="outline" size="sm" onClick={() => setActionType(null)} disabled={actionLoading}>
-                Cancel
-              </Button>
-              <Button
-                variant={actionType === 'VERIFY' || actionType === 'REACTIVATE' ? 'success' : 'danger'}
-                size="sm"
-                onClick={handleExecuteAction}
-                isLoading={actionLoading}
-              >
-                Execute {actionType}
-              </Button>
-            </div>
-          </Card>
-        )}
+            ) : alert?.type === 'error' ? (
+              <FeedbackBanner type="error" message={alert.message} />
+            ) : undefined
+          }
+          confirmLabel={actionType ? `Execute ${actionType}` : 'Confirm'}
+          isLoading={actionLoading}
+        />
 
         {/* Global Toast / Alert */}
-        {alert && (
-          <div
-            style={{
-              padding: '0.875rem 1.25rem',
-              borderRadius: 'var(--radius-md)',
-              marginBottom: '1.5rem',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              background: alert.type === 'success' ? 'var(--color-success-bg)' : 'var(--color-danger-bg)',
-              border: `1px solid ${alert.type === 'success' ? 'var(--color-success-border)' : 'var(--color-danger-border)'}`,
-              color: alert.type === 'success' ? 'var(--color-success)' : 'var(--color-danger)',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-            }}
-          >
-            <span>{alert.message}</span>
-            <button
-              onClick={() => setAlert(null)}
-              style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-            >
-              <X size={16} />
-            </button>
-          </div>
+        {alert && !actionType && (
+          <FeedbackBanner
+            type={alert.type}
+            message={alert.message}
+            onDismiss={() => setAlert(null)}
+          />
         )}
 
         {/* SECTION 2: Top Profile Details Header Card */}
@@ -976,32 +933,31 @@ export default function DriversPage() {
           style={{
             background: 'var(--bg-surface)',
             border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-xl)',
-            padding: '1.5rem 1.75rem',
-            marginBottom: '1.5rem',
-            boxShadow: 'var(--shadow-sm)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '1.15rem 1.35rem',
+            boxShadow: 'var(--shadow-xs)',
             display: 'flex',
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'space-between',
             flexWrap: 'wrap',
-            gap: '1.5rem',
+            gap: '1.25rem',
           }}
         >
           {/* Driver identity */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
             <div
               style={{
-                width: '64px',
-                height: '64px',
+                width: '52px',
+                height: '52px',
                 borderRadius: '50%',
                 background: 'var(--brand-primary-subtle)',
-                border: '2px solid var(--brand-primary)',
+                border: '1px solid rgba(87, 40, 178, 0.25)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '1.35rem',
-                fontWeight: 800,
+                fontSize: '1.05rem',
+                fontWeight: 700,
                 color: 'var(--brand-primary)',
                 flexShrink: 0,
               }}
@@ -1010,11 +966,11 @@ export default function DriversPage() {
             </div>
 
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexWrap: 'wrap' }}>
                 <h1
                   style={{
-                    fontSize: '1.5rem',
-                    fontWeight: 800,
+                    fontSize: '1.36rem',
+                    fontWeight: 700,
                     color: 'var(--text-primary)',
                     margin: 0,
                     letterSpacing: '-0.02em',
@@ -1144,143 +1100,52 @@ export default function DriversPage() {
         </div>
 
         {/* SECTION 3: Summary Cards (5 Cards) */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            gap: '1rem',
-            marginBottom: '1.75rem',
-          }}
-        >
-          {/* 1. Total Orders */}
-          <div
-            style={{
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-lg)',
-              padding: '1.25rem',
-              boxShadow: 'var(--shadow-sm)',
-              position: 'relative',
-              overflow: 'hidden',
-            }}
-          >
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'var(--brand-primary)' }} />
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-              <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Total Orders</span>
-              <TrendingUp size={18} color="var(--brand-primary)" />
-            </div>
-            <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-              {summary.totalOrders.toLocaleString('en-IN')}
-            </div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-              Lifetime platform dispatch count
-            </div>
-          </div>
-
-          {/* 2. Completed Orders */}
-          <div
-            style={{
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-lg)',
-              padding: '1.25rem',
-              boxShadow: 'var(--shadow-sm)',
-              position: 'relative',
-              overflow: 'hidden',
-            }}
-          >
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'var(--color-success)' }} />
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-              <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Completed Orders</span>
-              <CheckCircle2 size={18} color="var(--color-success)" />
-            </div>
-            <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--color-success)' }}>
-              {summary.completedOrders.toLocaleString('en-IN')}
-            </div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-              {summary.totalOrders > 0
-                ? `${Math.round((summary.completedOrders / summary.totalOrders) * 100)}% fulfillment rate`
-                : '100% fulfillment rate'}
-            </div>
-          </div>
-
-          {/* 3. Cancelled Orders */}
-          <div
-            style={{
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-lg)',
-              padding: '1.25rem',
-              boxShadow: 'var(--shadow-sm)',
-              position: 'relative',
-              overflow: 'hidden',
-            }}
-          >
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'var(--color-danger)' }} />
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-              <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Cancelled Orders</span>
-              <XCircle size={18} color="var(--color-danger)" />
-            </div>
-            <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--color-danger)' }}>
-              {summary.cancelledOrders.toLocaleString('en-IN')}
-            </div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-              {summary.totalOrders > 0
-                ? `${Math.round((summary.cancelledOrders / summary.totalOrders) * 100)}% drop rate`
-                : '0% drop rate'}
-            </div>
-          </div>
-
-          {/* 4. Active Days */}
-          <div
-            style={{
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-lg)',
-              padding: '1.25rem',
-              boxShadow: 'var(--shadow-sm)',
-              position: 'relative',
-              overflow: 'hidden',
-            }}
-          >
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: '#0284C7' }} />
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-              <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Active Days</span>
-              <Calendar size={18} color="#0284C7" />
-            </div>
-            <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-              {summary.activeDays} <span style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-muted)' }}>Days</span>
-            </div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-              Operational days on route
-            </div>
-          </div>
-
-          {/* 5. Total Earnings */}
-          <div
-            style={{
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-lg)',
-              padding: '1.25rem',
-              boxShadow: 'var(--shadow-sm)',
-              position: 'relative',
-              overflow: 'hidden',
-            }}
-          >
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'var(--brand-orange)' }} />
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-              <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Total Earnings</span>
-              <IndianRupee size={18} color="var(--brand-orange)" />
-            </div>
-            <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--brand-orange)' }}>
-              {formatCurrency(summary.totalEarnings)}
-            </div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-              Wallet: ₹{Number(selectedDriver.walletBalance || 0).toLocaleString('en-IN')}
-            </div>
-          </div>
-        </div>
+        <KpiStrip
+          columns={5}
+          items={[
+            {
+              label: 'Total Orders',
+              value: summary.totalOrders.toLocaleString('en-IN'),
+              subtext: 'Lifetime platform dispatch count',
+              tone: 'primary',
+              icon: <TrendingUp size={15} />,
+            },
+            {
+              label: 'Completed Orders',
+              value: summary.completedOrders.toLocaleString('en-IN'),
+              subtext:
+                summary.totalOrders > 0
+                  ? `${Math.round((summary.completedOrders / summary.totalOrders) * 100)}% fulfillment rate`
+                  : '100% fulfillment rate',
+              tone: 'success',
+              icon: <CheckCircle2 size={15} />,
+            },
+            {
+              label: 'Cancelled Orders',
+              value: summary.cancelledOrders.toLocaleString('en-IN'),
+              subtext:
+                summary.totalOrders > 0
+                  ? `${Math.round((summary.cancelledOrders / summary.totalOrders) * 100)}% drop rate`
+                  : '0% drop rate',
+              tone: 'danger',
+              icon: <XCircle size={15} />,
+            },
+            {
+              label: 'Active Days',
+              value: `${summary.activeDays} Days`,
+              subtext: 'Operational days on route',
+              tone: 'info',
+              icon: <Calendar size={15} />,
+            },
+            {
+              label: 'Total Earnings',
+              value: formatCurrency(summary.totalEarnings),
+              subtext: `Wallet: ₹${Number(selectedDriver.walletBalance || 0).toLocaleString('en-IN')}`,
+              tone: 'warning',
+              icon: <IndianRupee size={15} />,
+            },
+          ]}
+        />
 
         {/* SECTION 4 & 5: Earnings History Table (Left) + Performance Graph (Right) */}
         <div
@@ -1311,13 +1176,14 @@ export default function DriversPage() {
                 justifyContent: 'space-between',
                 flexWrap: 'wrap',
                 gap: '0.75rem',
+                paddingTop: '0.15rem',
                 marginBottom: '1.25rem',
                 paddingBottom: '0.75rem',
                 borderBottom: '1px solid var(--border)',
               }}
             >
               <div>
-                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                <h3 style={{ margin: 0, fontSize: '1.08rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                   Earnings and Orders History
                 </h3>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
@@ -1557,13 +1423,14 @@ export default function DriversPage() {
                 justifyContent: 'space-between',
                 flexWrap: 'wrap',
                 gap: '0.75rem',
+                paddingTop: '0.15rem',
                 marginBottom: '1rem',
                 paddingBottom: '0.75rem',
                 borderBottom: '1px solid var(--border)',
               }}
             >
               <div>
-                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                <h3 style={{ margin: 0, fontSize: '1.08rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                   Performance Graph
                 </h3>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
@@ -1853,9 +1720,9 @@ export default function DriversPage() {
             boxShadow: 'var(--shadow-sm)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', paddingTop: '0.15rem' }}>
             <div>
-              <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+              <h3 style={{ margin: 0, fontSize: '1.08rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                 Submitted Compliance Documents
               </h3>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
@@ -1959,175 +1826,89 @@ export default function DriversPage() {
           )}
         </div>
 
-        {/* EDIT DRIVER MODAL */}
-        {isEditModalOpen && (
-          <div
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'rgba(15, 23, 42, 0.65)',
-              backdropFilter: 'blur(3px)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 999,
-              padding: '1rem',
-            }}
-          >
-            <div
-              style={{
-                background: 'var(--bg-surface)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-xl)',
-                width: '100%',
-                maxWidth: '520px',
-                padding: '1.75rem',
-                boxShadow: 'var(--shadow-elevated)',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                    Edit Driver Profile
-                  </h3>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                    Update administrative details for {selectedDriver.fullName}
-                  </div>
-                </div>
-                <button
-                  onClick={() => setIsEditModalOpen(false)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
-                >
-                  <X size={20} />
-                </button>
+        {/* EDIT PROFILE DRAWER */}
+        <Drawer
+          isOpen={isEditModalOpen}
+          onClose={() => {
+            if (!actionLoading) setIsEditModalOpen(false);
+          }}
+          width="min(92vw, 480px)"
+          title="Edit Driver Profile"
+          subtitle={`Update administrative details for ${selectedDriver.fullName}`}
+          icon={<Edit3 size={17} />}
+          footer={
+            <>
+              <Button variant="outline" size="sm" onClick={() => setIsEditModalOpen(false)} disabled={actionLoading}>
+                Cancel
+              </Button>
+              <Button variant="primary" size="sm" onClick={handleSaveEditDriver} isLoading={actionLoading}>
+                Save Changes
+              </Button>
+            </>
+          }
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div>
+              <label className="form-label">Full Legal Name</label>
+              <input
+                type="text"
+                className="form-input"
+                value={editFormData.fullName}
+                onChange={(e) => setEditFormData({ ...editFormData, fullName: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <label className="form-label">Phone Number (Mobile)</label>
+              <input
+                type="text"
+                className="form-input"
+                value={editFormData.phone}
+                onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div>
+                <label className="form-label">Vehicle Plate Number</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. TS07KA2864"
+                  value={editFormData.vehiclePlate}
+                  onChange={(e) => setEditFormData({ ...editFormData, vehiclePlate: e.target.value })}
+                  style={{ textTransform: 'uppercase' }}
+                />
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
-                    Full Legal Name
-                  </label>
-                  <input
-                    type="text"
-                    value={editFormData.fullName}
-                    onChange={(e) => setEditFormData({ ...editFormData, fullName: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '0.65rem 0.85rem',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-light)',
-                      background: 'var(--bg-base)',
-                      color: 'var(--text-primary)',
-                      fontSize: '0.875rem',
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
-                    Phone Number (Mobile)
-                  </label>
-                  <input
-                    type="text"
-                    value={editFormData.phone}
-                    onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '0.65rem 0.85rem',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-light)',
-                      background: 'var(--bg-base)',
-                      color: 'var(--text-primary)',
-                      fontSize: '0.875rem',
-                    }}
-                  />
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
-                      Vehicle Plate Number
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. TS07KA2864"
-                      value={editFormData.vehiclePlate}
-                      onChange={(e) => setEditFormData({ ...editFormData, vehiclePlate: e.target.value })}
-                      style={{
-                        width: '100%',
-                        padding: '0.65rem 0.85rem',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px solid var(--border-light)',
-                        background: 'var(--bg-base)',
-                        color: 'var(--text-primary)',
-                        fontSize: '0.875rem',
-                        textTransform: 'uppercase',
-                      }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
-                      Vehicle Model
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Maruti Dzire"
-                      value={editFormData.vehicleModel}
-                      onChange={(e) => setEditFormData({ ...editFormData, vehicleModel: e.target.value })}
-                      style={{
-                        width: '100%',
-                        padding: '0.65rem 0.85rem',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px solid var(--border-light)',
-                        background: 'var(--bg-base)',
-                        color: 'var(--text-primary)',
-                        fontSize: '0.875rem',
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
-                    Vehicle Category / Type
-                  </label>
-                  <select
-                    value={editFormData.vehicleType}
-                    onChange={(e) => setEditFormData({ ...editFormData, vehicleType: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '0.65rem 0.85rem',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-light)',
-                      background: 'var(--bg-base)',
-                      color: 'var(--text-primary)',
-                      fontSize: '0.875rem',
-                    }}
-                  >
-                    {VEHICLE_TYPE_OPTIONS.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
-                <Button variant="outline" size="sm" onClick={() => setIsEditModalOpen(false)} disabled={actionLoading}>
-                  Cancel
-                </Button>
-                <Button variant="primary" size="sm" onClick={handleSaveEditDriver} isLoading={actionLoading}>
-                  Save Changes
-                </Button>
+              <div>
+                <label className="form-label">Vehicle Model</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. Maruti Dzire"
+                  value={editFormData.vehicleModel}
+                  onChange={(e) => setEditFormData({ ...editFormData, vehicleModel: e.target.value })}
+                />
               </div>
             </div>
+
+            <div>
+              <label className="form-label">Vehicle Category / Type</label>
+              <select
+                className="form-select"
+                value={editFormData.vehicleType}
+                onChange={(e) => setEditFormData({ ...editFormData, vehicleType: e.target.value })}
+              >
+                {VEHICLE_TYPE_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-        )}
+        </Drawer>
       </div>
     );
   }
@@ -2136,7 +1917,7 @@ export default function DriversPage() {
   // VIEW: FLEET MANAGEMENT LIST TABLE (DEFAULT)
   // =========================================================================
   return (
-    <div>
+    <div className="admin-page">
       <PageHeader
         title="Driver Fleet Management"
         subtitle="Operational oversight of commercial drivers, compliance documents, and real-time availability"
@@ -2144,29 +1925,11 @@ export default function DriversPage() {
       />
 
       {alert && (
-        <div
-          style={{
-            padding: '0.875rem 1.25rem',
-            borderRadius: 'var(--radius-md)',
-            marginBottom: '1.5rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: alert.type === 'success' ? 'var(--color-success-bg)' : 'var(--color-danger-bg)',
-            border: `1px solid ${alert.type === 'success' ? 'var(--color-success-border)' : 'var(--color-danger-border)'}`,
-            color: alert.type === 'success' ? 'var(--color-success)' : 'var(--color-danger)',
-            fontSize: '0.875rem',
-            fontWeight: 600,
-          }}
-        >
-          <span>{alert.message}</span>
-          <button
-            onClick={() => setAlert(null)}
-            style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-          >
-            <X size={16} />
-          </button>
-        </div>
+        <FeedbackBanner
+          type={alert.type}
+          message={alert.message}
+          onDismiss={() => setAlert(null)}
+        />
       )}
 
       <FilterBar

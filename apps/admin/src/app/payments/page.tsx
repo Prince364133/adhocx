@@ -6,7 +6,7 @@ import { adminApi } from '../../lib/api/client';
 import { AdminPaymentItem, AdminPaymentMetrics } from '../../lib/api/types';
 import {
   PageHeader,
-  MetricCard,
+  KpiStrip,
   FilterBar,
   DataTable,
   StatusBadge,
@@ -79,7 +79,7 @@ export default function PaymentsPage() {
   }, [payments, searchQuery]);
 
   return (
-    <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div className="admin-page">
       {/* Page Header */}
       <PageHeader
         title="Customer Payments & Escrow Ledger"
@@ -88,42 +88,43 @@ export default function PaymentsPage() {
       />
 
       {/* Top Level Metric Cards */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-          gap: '1.25rem',
-        }}
-      >
-        <MetricCard
-          label="Total Escrow Volume"
-          value={`₹ ${Number(metrics.totalEscrowVolume || 0).toLocaleString('en-IN')}`}
-          subtext="Total escrow deposits to date"
-          icon={<CreditCard size={18} color="var(--brand-primary)" />}
-          accentColor="var(--brand-primary)"
-        />
-        <MetricCard
-          label="Settled & Disbursed"
-          value={`₹ ${Number(metrics.settledVolume || 0).toLocaleString('en-IN')}`}
-          subtext="Released to drivers upon completion"
-          icon={<CheckCircle2 size={18} color="var(--color-success)" />}
-          accentColor="var(--color-success)"
-        />
-        <MetricCard
-          label="Active Escrow Holds"
-          value={`₹ ${Number(metrics.activeEscrowHolds || 0).toLocaleString('en-IN')}`}
-          subtext="Locked in escrow for active trips"
-          icon={<Lock size={18} color="#8B5CF6" />}
-          accentColor="#8B5CF6"
-        />
-        <MetricCard
-          label="Pending Transactions"
-          value={metrics.pendingTransactions || 0}
-          subtext="Awaiting gateway clearance"
-          icon={<RotateCcw size={18} color="var(--color-warning)" />}
-          accentColor="var(--color-warning)"
-        />
-      </div>
+      <KpiStrip
+        columns={4}
+        items={[
+          {
+            id: 'total-escrow',
+            label: 'Total Escrow Volume',
+            value: `₹ ${Number(metrics.totalEscrowVolume || 0).toLocaleString('en-IN')}`,
+            subtext: 'Total escrow deposits to date',
+            icon: <CreditCard size={16} color="var(--brand-primary)" />,
+            tone: 'indigo',
+          },
+          {
+            id: 'settled',
+            label: 'Settled & Disbursed',
+            value: `₹ ${Number(metrics.settledVolume || 0).toLocaleString('en-IN')}`,
+            subtext: 'Released to drivers upon completion',
+            icon: <CheckCircle2 size={16} color="var(--color-success)" />,
+            tone: 'success',
+          },
+          {
+            id: 'active-holds',
+            label: 'Active Escrow Holds',
+            value: `₹ ${Number(metrics.activeEscrowHolds || 0).toLocaleString('en-IN')}`,
+            subtext: 'Locked in escrow for active trips',
+            icon: <Lock size={16} color="#8b5cf6" />,
+            tone: 'violet',
+          },
+          {
+            id: 'pending',
+            label: 'Pending Transactions',
+            value: metrics.pendingTransactions || 0,
+            subtext: 'Awaiting gateway clearance',
+            icon: <RotateCcw size={16} color="var(--color-warning)" />,
+            tone: 'warning',
+          },
+        ]}
+      />
 
       {/* Filter Bar */}
       <FilterBar
@@ -161,7 +162,7 @@ export default function PaymentsPage() {
           {
             header: 'ENTERPRISE VENDOR',
             accessor: (p: AdminPaymentItem) => (
-              <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.875rem' }}>
+              <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.8rem' }}>
                 {p.vendorName || 'Corporate Client'}
               </div>
             ),

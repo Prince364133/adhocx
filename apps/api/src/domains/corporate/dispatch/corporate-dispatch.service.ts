@@ -697,7 +697,7 @@ export class CorporateDispatchService {
 
     let cursor: string | undefined;
     for (;;) {
-      let page: any[] = [];
+      let page: any[];
       try {
         page = await this.db.corporateRoute.findMany({
           where: {

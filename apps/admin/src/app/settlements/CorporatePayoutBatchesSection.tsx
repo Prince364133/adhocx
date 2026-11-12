@@ -112,55 +112,55 @@ export function CorporatePayoutBatchesSection() {
   };
 
   return (
-    <div style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       {alert && (
         <div
           role="status"
           style={{
-            padding: '0.875rem 1.25rem',
+            padding: '0.68rem 0.95rem',
             borderRadius: 'var(--radius-md)',
-            fontSize: '0.875rem',
+            fontSize: '0.78rem',
             fontWeight: 500,
             display: 'flex',
             alignItems: 'center',
-            gap: '0.75rem',
+            gap: '0.55rem',
             backgroundColor: alert.type === 'success' ? 'var(--color-success-bg)' : 'var(--color-danger-bg)',
             border: `1px solid ${alert.type === 'success' ? 'var(--color-success-border)' : 'var(--color-danger-border)'}`,
             color: alert.type === 'success' ? 'var(--color-success)' : 'var(--color-danger)',
           }}
         >
-          {alert.type === 'success' ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
+          {alert.type === 'success' ? <CheckCircle size={15} /> : <AlertCircle size={15} />}
           <span>{alert.message}</span>
         </div>
       )}
 
-      <div style={{ ...cardStyle, padding: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+      <div style={{ ...cardStyle, padding: '1.2rem 1.2rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.85rem' }}>
         <div>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+          <h2 style={{ fontSize: '1.08rem', fontWeight: 700, color: 'var(--text-primary)' }}>
             Corporate Driver Payouts (Maker-Checker)
           </h2>
-          <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', marginTop: '0.25rem', maxWidth: '46rem' }}>
+          <p style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: '0.2rem', maxWidth: '46rem' }}>
             Create a batch from unpaid commute earnings (1% TDS under Sec 194C is deducted). A different admin approves it,
             then it is sent to the payout provider. Payouts show as paid only when the provider confirms them.
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <Button variant="secondary" onClick={() => loadBatches()} disabled={listLoading}>
-            <RefreshCw size={14} style={{ marginRight: '0.4rem' }} />
+        <div style={{ display: 'flex', gap: '0.55rem' }}>
+          <Button variant="secondary" size="sm" onClick={() => loadBatches()} disabled={listLoading}>
+            <RefreshCw size={13} style={{ marginRight: '0.35rem' }} />
             Refresh
           </Button>
-          <Button variant="primary" onClick={handleCreate} disabled={busy !== null}>
+          <Button variant="primary" size="sm" onClick={handleCreate} disabled={busy !== null}>
             {busy === 'create' ? 'Creating batch...' : 'Create payout batch'}
           </Button>
         </div>
       </div>
 
       <div style={{ ...cardStyle, padding: 0, overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.84rem' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.775rem' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'var(--bg-surface)' }}>
               {['BATCH', 'CREATED', 'DRIVERS', 'NET PAYABLE', 'TDS', 'STATUS', ''].map((h) => (
-                <th key={h} style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{h}</th>
+                <th key={h} style={{ padding: '0.58rem 0.85rem', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.7rem' }}>{h}</th>
               ))}
             </tr>
           </thead>

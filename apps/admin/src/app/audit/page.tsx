@@ -6,7 +6,7 @@ import { adminApi } from '../../lib/api/client';
 import { AuditLogItem } from '../../lib/api/types';
 import {
   PageHeader,
-  MetricCard,
+  KpiStrip,
   FilterBar,
   DataTable,
   StatusBadge,
@@ -76,83 +76,84 @@ export default function AuditLogsPage() {
   }, [logs]);
 
   return (
-    <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div className="admin-page">
       {/* Page Header */}
       <PageHeader
-        title="Platform Audit Trail & Compliance"
-        subtitle="Immutable chronological log of administrative interventions, KYC decisions, state transitions, and bank payouts"
-        liveStatus="Audit Engine Online (Append-Only)"
+        title="Audit Logs & Compliance"
+        subtitle="Immutable compliance ledger tracing every administrative mutation across the platform"
+        liveStatus="Append-Only Ledger"
         actions={
-          <Button variant="secondary" size="md" onClick={loadAuditLogs} leftIcon="↻">
-            Refresh Stream
+          <Button variant="secondary" size="sm" onClick={loadAuditLogs} leftIcon="↻">
+            Refresh
           </Button>
         }
       />
 
-      {/* KPI Cards */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-          gap: '1.25rem',
-        }}
-      >
-        <MetricCard
-          label="Total Audit Events"
-          value={metrics.total}
-          subtext="Indexed server journal entries"
-          icon={<FileText size={18} color="var(--brand-primary)" />}
-          accentColor="var(--brand-primary)"
-        />
-        <MetricCard
-          label="Admin Interventions"
-          value={metrics.adminEvents}
-          subtext="KYC, approvals, settlements"
-          icon={<ShieldCheck size={18} color="var(--color-warning)" />}
-          accentColor="var(--color-warning)"
-        />
-        <MetricCard
-          label="Supply Transitions"
-          value={metrics.supplyEvents}
-          subtext="Driver requests & allocations"
-          icon={<Car size={18} color="var(--color-success)" />}
-          accentColor="var(--color-success)"
-        />
-        <MetricCard
-          label="Financial Actions"
-          value={metrics.financialEvents}
-          subtext="Payouts & escrow transactions"
-          icon={<Wallet size={18} color="#8B5CF6" />}
-          accentColor="#8B5CF6"
-        />
-      </div>
-
-      {/* Filter Bar */}
-      <FilterBar
-        tabs={ROLE_TABS.map((t) => ({
-          id: t.id,
-          label: t.label,
-          count:
-            t.id === 'ALL'
-              ? logs.length
-              : logs.filter((l) => l.actorRole?.toUpperCase() === t.id).length,
-        }))}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        searchPlaceholder="Search action, entity, actor phone, or record ID..."
+      {/* Unified Reference KPI Strip */}
+      <KpiStrip
+        columns={4}
+        items={[
+          {
+            label: 'Total Audit Events',
+            value: metrics.total,
+            subtext: 'Fetched ledger batch',
+            tone: 'primary',
+            icon: <FileText size={14} />,
+          },
+          {
+            label: 'Admin Interventions',
+            value: metrics.adminEvents,
+            subtext: 'Manual operator actions',
+            tone: 'warning',
+            icon: <ShieldCheck size={14} />,
+          },
+          {
+            label: 'Supply Transitions',
+            value: metrics.supplyEvents,
+            subtext: 'Driver & vehicle updates',
+            tone: 'success',
+            icon: <Car size={14} />,
+          },
+          {
+            label: 'Financial Actions',
+            value: metrics.financialEvents,
+            subtext: 'Payout & settlement entries',
+            tone: 'info',
+            icon: <Wallet size={14} />,
+          },
+        ]}
       />
 
-      {/* Audit Log DataTable */}
+      {/* Unified Audit Log Table with Embedded Filter Toolbar */}
       <DataTable
+        title="Compliance Activity Stream"
+        subtitle="Select any log row to inspect full before/after metadata in the right-side drawer."
+        countLabel={`${filteredLogs.length} entries`}
+        toolbar={
+          <FilterBar
+            tabs={ROLE_TABS.map((t) => ({
+              id: t.id,
+              label: t.label,
+              count:
+                t.id === 'ALL'
+                  ? logs.length
+                  : logs.filter((l) => l.actorRole?.toUpperCase() === t.id).length,
+            }))}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            searchPlaceholder="Search logs..."
+            style={{ marginBottom: 0 }}
+          />
+        }
         columns={[
           {
             header: 'TIMESTAMP',
             accessor: (log) => (
-              <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                 <div>{new Date(log.createdAt).toLocaleDateString()}</div>
-                <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                <div style={{ color: 'var(--text-muted)', fontSize: '0.6875rem' }}>
                   {new Date(log.createdAt).toLocaleTimeString()}
                 </div>
               </div>
@@ -162,38 +163,35 @@ export default function AuditLogsPage() {
             header: 'ACTOR & ROLE',
             accessor: (log) => (
               <div>
-                <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.875rem' }}>
+                <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.78125rem' }}>
                   {log.actorPhone || 'System'}
                 </div>
-                <div style={{ fontSize: '0.6875rem', fontFamily: 'monospace', color: 'var(--brand-primary)', marginTop: '0.125rem' }}>
+                <div style={{ fontSize: '0.625rem', fontFamily: 'monospace', color: 'var(--brand-primary)', marginTop: '0.1rem' }}>
                   {log.actorRole || 'SYSTEM'}
                 </div>
               </div>
             ),
           },
           {
-            header: 'ACTION EVENT',
-            accessor: (log) => <StatusBadge status={log.action} />,
+            header: 'ACTION',
+            accessor: (log) => <StatusBadge status={log.action} size="sm" />,
           },
           {
             header: 'TARGET ENTITY',
             accessor: (log) => (
               <div>
-                <span style={{ fontWeight: 600, fontSize: '0.8125rem', color: 'var(--text-primary)' }}>
+                <span style={{ fontWeight: 600, fontSize: '0.75rem', color: 'var(--text-primary)' }}>
                   {log.entityName}
                 </span>
-                <div style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.125rem' }}>
-                  {log.entityId ? `#${log.entityId}` : '—'}
+                <div
+                  title={log.entityId || undefined}
+                  style={{ fontFamily: 'monospace', fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}
+                >
+                  {log.entityId
+                    ? `#${log.entityId.length > 10 ? `${log.entityId.slice(0, 8)}…` : log.entityId}`
+                    : '—'}
                 </div>
               </div>
-            ),
-          },
-          {
-            header: 'IP ADDRESS',
-            accessor: (log) => (
-              <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                {log.ipAddress || '—'}
-              </span>
             ),
           },
           {
@@ -208,7 +206,7 @@ export default function AuditLogsPage() {
                   setSelectedLog(log);
                 }}
               >
-                Inspect Payload
+                Inspect
               </Button>
             ),
           },
@@ -234,43 +232,43 @@ export default function AuditLogsPage() {
         }
       >
         {selectedLog && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
             {/* Event Summary Card */}
             <div
               style={{
-                padding: '1.25rem',
+                padding: '0.9rem',
                 borderRadius: 'var(--radius-md)',
                 backgroundColor: 'var(--bg-card)',
                 border: '1px solid var(--border-subtle)',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '0.75rem',
+                gap: '0.5rem',
               }}
             >
-              <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.5rem' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.4rem' }}>
                 Event Metadata
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
                 <span style={{ color: 'var(--text-muted)' }}>Actor Identity:</span>
                 <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{selectedLog.actorPhone || 'System'}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
                 <span style={{ color: 'var(--text-muted)' }}>Role Authority:</span>
                 <span style={{ fontFamily: 'monospace', color: 'var(--brand-primary)' }}>{selectedLog.actorRole || 'SYSTEM'}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
                 <span style={{ color: 'var(--text-muted)' }}>Target Entity:</span>
                 <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{selectedLog.entityName}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
                 <span style={{ color: 'var(--text-muted)' }}>Target Entity ID:</span>
                 <span style={{ fontFamily: 'monospace', color: 'var(--text-secondary)' }}>{selectedLog.entityId || 'N/A'}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
                 <span style={{ color: 'var(--text-muted)' }}>Origin IP Address:</span>
-                <span style={{ fontFamily: 'monospace', color: 'var(--text-muted)' }}>{selectedLog.ipAddress || '127.0.0.1'}</span>
+                <span style={{ fontFamily: 'monospace', color: 'var(--text-muted)' }}>{selectedLog.ipAddress || '—'}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
                 <span style={{ color: 'var(--text-muted)' }}>Recorded Timestamp:</span>
                 <span style={{ color: 'var(--text-primary)' }}>{new Date(selectedLog.createdAt).toLocaleString()}</span>
               </div>
@@ -279,27 +277,27 @@ export default function AuditLogsPage() {
             {/* JSON Payload Viewer */}
             <div
               style={{
-                padding: '1.25rem',
+                padding: '0.9rem',
                 borderRadius: 'var(--radius-md)',
                 backgroundColor: 'var(--bg-card)',
                 border: '1px solid var(--border-subtle)',
               }}
             >
-              <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
                 Journal Payload Data (Immutable JSON)
               </div>
               <pre
                 style={{
                   margin: 0,
                   fontFamily: 'monospace',
-                  fontSize: '0.8125rem',
+                  fontSize: '0.75rem',
                   color: 'var(--brand-secondary)',
                   backgroundColor: 'var(--bg-canvas)',
                   border: '1px solid var(--border-subtle)',
-                  padding: '1rem',
+                  padding: '0.75rem',
                   borderRadius: 'var(--radius-sm)',
                   overflowX: 'auto',
-                  lineHeight: 1.5,
+                  lineHeight: 1.45,
                 }}
               >
                 {selectedLog.payload ? JSON.stringify(selectedLog.payload, null, 2) : '// No structured payload recorded'}

@@ -32,6 +32,8 @@ import {
   OperationalReportData,
   TripFrequencyReport,
   DailyFinancialReport,
+  FinancialCompanyOption,
+  FinancialCompanySource,
   SupportTicketItem,
   NotificationCampaignItem,
   NotificationMetrics,
@@ -98,6 +100,34 @@ export function getApiBaseUrl(): string {
   }
 
   return 'http://localhost:7001/api/v1';
+}
+
+export function getOpsBaseUrl(): string {
+  const configured = process.env.NEXT_PUBLIC_OPS_URL?.trim().replace(/\/+$/, '');
+
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname.toLowerCase();
+    const port = window.location.port;
+    const protocol = window.location.protocol;
+
+    // Local app development routes to the local Ops portal on port 7004.
+    if (port === '7002' || host === 'localhost' || host === '127.0.0.1' || /^(\d{1,3}\.){3}\d{1,3}$/.test(host)) {
+      return `${protocol}//${host}:7004`;
+    }
+
+    if (configured) {
+      return configured;
+    }
+
+    if (host.includes('adhocx.com')) {
+      const opsHost = host.startsWith('admin.') ? host.replace(/^admin\./, 'ops.') : 'ops.adhocx.com';
+      return `https://${opsHost}`;
+    }
+
+    return `${protocol}//${host}:7004`;
+  }
+
+  return configured || 'http://localhost:7004';
 }
 
 export { resolveDocumentUrl, handleDocumentImageError } from './resolveDocumentUrl';
@@ -921,8 +951,56 @@ export const adminApi = {
     return apiClient<TripFrequencyReport>(`/admin/reports/trips/weekly?${searchParams.toString()}`);
   },
 
-  getDailyFinancialReport: (date: string) => {
+  getFinancialCompanies: async (): Promise<FinancialCompanyOption[]> => {
+    try {
+      const companies = await apiClient<FinancialCompanyOption[]>('/admin/reports/financial-companies');
+      if (Array.isArray(companies)) {
+        return [...companies].sort((a, b) =>
+          a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }),
+        );
+      }
+    } catch {
+      // Fallback to existing vendor & corporate tenant endpoints if financial-companies route is unavailable
+    }
+
+    const [vendorsRes, tenantsRes] = await Promise.allSettled([
+      adminApi.getVendors(),
+      adminApi.getCorporateTenants({ limit: 100 }),
+    ]);
+
+    const vendorOptions: FinancialCompanyOption[] =
+      vendorsRes.status === 'fulfilled'
+        ? (vendorsRes.value || []).flatMap((v): FinancialCompanyOption[] => {
+            const name = (v.organizationName || v.companyName || v.fullName || '').trim();
+            return name
+              ? [{ id: `VENDOR:${v.id}`, entityId: v.id, companyType: 'VENDOR', name, code: null }]
+              : [];
+          })
+        : [];
+
+    const tenantOptions: FinancialCompanyOption[] =
+      tenantsRes.status === 'fulfilled'
+        ? (tenantsRes.value?.items || []).flatMap((t): FinancialCompanyOption[] => {
+            const name = (t.name || '').trim();
+            return name
+              ? [{ id: `CORPORATE_TENANT:${t.id}`, entityId: t.id, companyType: 'CORPORATE_TENANT', name, code: t.code ?? null }]
+              : [];
+          })
+        : [];
+
+    return [...vendorOptions, ...tenantOptions].sort((a, b) =>
+      a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }),
+    );
+  },
+
+  getDailyFinancialReport: (
+    date: string,
+    companyId?: string,
+    companyType?: FinancialCompanySource,
+  ) => {
     const searchParams = new URLSearchParams({ date });
+    if (companyId) searchParams.set('companyId', companyId);
+    if (companyType) searchParams.set('companyType', companyType);
     return apiClient<DailyFinancialReport>(`/admin/reports/financial-daily?${searchParams.toString()}`);
   },
 

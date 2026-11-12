@@ -2,7 +2,6 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  X,
   AlertTriangle,
   User,
   Car,
@@ -20,6 +19,7 @@ import { VerificationItem, DriverKycDocument, DigioComplianceAlert } from '../..
 import { adminApi, resolveDocumentUrl } from '../../lib/api/client';
 import { DocumentPreviewModal } from './DocumentPreviewModal';
 import { DigioVerificationPanel } from './DigioVerificationPanel';
+import { Drawer, Button } from '../common';
 
 interface DetailModalProps {
   item: VerificationItem | null;
@@ -33,20 +33,33 @@ interface DetailModalProps {
 }
 
 export const VerificationDetailModal: React.FC<DetailModalProps> = ({
-  item,
+  item: selectedItem,
   onClose,
   onApprove,
   onDecline,
   isProcessing,
   approvalBlockers,
 }) => {
+  // Keep last selected item while closing so Drawer slide-out animation never flashes empty.
+  const [cachedItem, setCachedItem] = useState<VerificationItem | null>(selectedItem);
+  useEffect(() => {
+    if (selectedItem) {
+      setCachedItem(selectedItem);
+    }
+  }, [selectedItem]);
+  const item = selectedItem ?? cachedItem;
+
   const [panelAlerts, setPanelAlerts] = useState<DigioComplianceAlert[]>([]);
   const [overrideReason, setOverrideReason] = useState('');
-  const itemId = item?.id;
+  const itemId = selectedItem?.id;
   useEffect(() => {
     setPanelAlerts([]);
     setOverrideReason('');
-  }, [itemId]);
+    setIsEditingContact(false);
+    setContactError(null);
+    setEditName(selectedItem?.name || '');
+    setEditPhone(selectedItem?.phone || '');
+  }, [itemId, selectedItem?.name, selectedItem?.phone]);
   const handleAlertsChange = useCallback((alerts: DigioComplianceAlert[]) => setPanelAlerts(alerts), []);
 
   // Blockers known from the Digio panel plus any the API reported on a refused approval.
@@ -62,8 +75,8 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
 
   const [activePreviewDoc, setActivePreviewDoc] = useState<DriverKycDocument | null>(null);
   const [isEditingContact, setIsEditingContact] = useState(false);
-  const [editName, setEditName] = useState(item?.name || '');
-  const [editPhone, setEditPhone] = useState(item?.phone || '');
+  const [editName, setEditName] = useState(selectedItem?.name || '');
+  const [editPhone, setEditPhone] = useState(selectedItem?.phone || '');
   const [isSavingContact, setIsSavingContact] = useState(false);
   const [contactError, setContactError] = useState<string | null>(null);
 
@@ -107,103 +120,63 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
   const statusColor = isVerified ? '#10b981' : isRejected ? '#f43f5e' : '#f59e0b';
   const statusLabel = isVerified ? 'VERIFIED' : isRejected ? 'REJECTED' : 'UNDER REVIEW';
 
+  const drawerFooter = (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: '0.75rem', flexWrap: 'wrap' }}>
+      <Button variant="outline" size="sm" onClick={onClose}>
+        Close
+      </Button>
+
+      <div style={{ display: 'flex', gap: '0.625rem', flexWrap: 'wrap' }}>
+        <Button
+          variant="danger"
+          size="sm"
+          onClick={() => onDecline(item)}
+          disabled={isProcessing}
+          leftIcon={<XCircle size={15} />}
+        >
+          Decline Application...
+        </Button>
+
+        <Button
+          variant="success"
+          size="sm"
+          onClick={() => onApprove(item, needsOverride ? (overrideReason.trim() || 'Approved by admin override') : undefined)}
+          disabled={approveDisabled}
+          isLoading={isProcessing}
+          leftIcon={<CheckCircle2 size={15} />}
+        >
+          {isProcessing ? 'Activating...' : needsOverride ? 'Approve with Override' : 'Approve & Activate'}
+        </Button>
+      </div>
+    </div>
+  );
+
   return (
     <>
-      <div
-        style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.75)',
-          backdropFilter: 'blur(6px)',
-          zIndex: 90,
-          display: 'flex',
-          justifyContent: 'flex-end',
-        }}
-        onClick={onClose}
-      >
-        <div
-          style={{
-            width: '100%',
-            maxWidth: '840px',
-            height: '100vh',
-            background: 'var(--bg-surface)',
-            borderLeft: '1px solid var(--border-light)',
-            boxShadow: '-10px 0 30px rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            flexDirection: 'column',
-            overflowY: 'auto',
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header */}
-          <div
+      <Drawer
+        isOpen={Boolean(selectedItem)}
+        onClose={onClose}
+        width="min(94vw, 760px)"
+        title={`${item.name}${item.organizationName ? ` · ${item.organizationName}` : ''}`}
+        subtitle={`${item.entityType} APPLICATION`}
+        badge={
+          <span
             style={{
-              padding: '1.5rem 2rem',
-              borderBottom: '1px solid var(--border)',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              position: 'sticky',
-              top: 0,
-              background: 'var(--bg-surface)',
-              zIndex: 10,
+              fontSize: '0.7rem',
+              fontWeight: 700,
+              color: statusColor,
+              background: statusBg,
+              padding: '0.2rem 0.55rem',
+              borderRadius: '999px',
+              whiteSpace: 'nowrap',
             }}
           >
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
-                <span
-                  style={{
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.06em',
-                    color: isDriver ? 'var(--accent-primary)' : 'var(--accent-secondary)',
-                    background: isDriver ? 'rgba(99, 102, 241, 0.12)' : 'rgba(14, 165, 233, 0.12)',
-                    padding: '0.25rem 0.5rem',
-                    borderRadius: '6px',
-                  }}
-                >
-                  {item.entityType} APPLICATION
-                </span>
-                <span
-                  style={{
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    color: statusColor,
-                    background: statusBg,
-                    padding: '0.25rem 0.5rem',
-                    borderRadius: '6px',
-                  }}
-                >
-                  {statusLabel}
-                </span>
-              </div>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                {item.name} {item.organizationName ? `· ${item.organizationName}` : ''}
-              </h2>
-            </div>
-
-            <button
-              onClick={onClose}
-              style={{
-                background: 'var(--bg-surface-elevated)',
-                border: '1px solid var(--border-light)',
-                borderRadius: '8px',
-                color: 'var(--text-muted)',
-                width: '36px',
-                height: '36px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-              }}
-            >
-              <X size={18} />
-            </button>
-          </div>
-
-          {/* Body Content */}
-          <div style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '2rem', flex: 1 }}>
+            {statusLabel}
+          </span>
+        }
+        footer={drawerFooter}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.15rem' }}>
             {/* Rejection banner if rejected */}
             {isRejected && item.rejectionReason && (
               <div
@@ -234,10 +207,10 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
                   padding: '1.25rem',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', paddingTop: '0.1rem' }}>
                   <h3
                     style={{
-                      fontSize: '0.8125rem',
+                      fontSize: '0.94rem',
                       fontWeight: 700,
                       textTransform: 'uppercase',
                       letterSpacing: '0.06em',
@@ -390,11 +363,12 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
               >
                 <h3
                   style={{
-                    fontSize: '0.8125rem',
+                    fontSize: '0.94rem',
                     fontWeight: 700,
                     textTransform: 'uppercase',
                     letterSpacing: '0.06em',
                     color: 'var(--text-muted)',
+                    paddingTop: '0.1rem',
                     marginBottom: '1rem',
                     display: 'flex',
                     alignItems: 'center',
@@ -458,10 +432,10 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
                   padding: '1.25rem',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', paddingTop: '0.1rem' }}>
                   <h3
                     style={{
-                      fontSize: '0.8125rem',
+                      fontSize: '0.94rem',
                       fontWeight: 700,
                       textTransform: 'uppercase',
                       letterSpacing: '0.06em',
@@ -525,10 +499,10 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
 
             {/* Document Verification Gallery */}
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', paddingTop: '0.1rem' }}>
                 <h3
                   style={{
-                    fontSize: '0.8125rem',
+                    fontSize: '0.94rem',
                     fontWeight: 700,
                     textTransform: 'uppercase',
                     letterSpacing: '0.06em',
@@ -640,14 +614,12 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
               {/* Digio Driver Identity, DL & Vehicle RC Verification Panel */}
               {item.entityType === 'DRIVER' && <DigioVerificationPanel item={item} onAlertsChange={handleAlertsChange} />}
             </div>
-          </div>
 
           {/* Compliance blockers: approving requires a recorded justification */}
           {needsOverride && (
             <div
               role="alert"
               style={{
-                margin: '0 2rem 1rem',
                 padding: '1rem 1.25rem',
                 borderRadius: '10px',
                 border: '1px solid rgba(244, 63, 94, 0.45)',
@@ -688,83 +660,8 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
               />
             </div>
           )}
-
-          {/* Action Footer */}
-          <div
-            style={{
-              padding: '1.25rem 2rem',
-              borderTop: '1px solid var(--border)',
-              background: 'var(--bg-surface)',
-              position: 'sticky',
-              bottom: 0,
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              zIndex: 10,
-            }}
-          >
-            <button
-              onClick={onClose}
-              style={{
-                padding: '0.625rem 1.25rem',
-                borderRadius: '8px',
-                background: 'var(--bg-surface-elevated)',
-                border: '1px solid var(--border-light)',
-                color: 'var(--text-secondary)',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              Close
-            </button>
-
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
-              <button
-                onClick={() => onDecline(item)}
-                disabled={isProcessing}
-                style={{
-                  padding: '0.625rem 1.5rem',
-                  borderRadius: '8px',
-                  background: 'rgba(244, 63, 94, 0.15)',
-                  border: '1px solid rgba(244, 63, 94, 0.4)',
-                  color: '#f43f5e',
-                  fontSize: '0.875rem',
-                  fontWeight: 700,
-                  cursor: isProcessing ? 'not-allowed' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                }}
-              >
-                <XCircle size={16} /> Decline Application...
-              </button>
-
-              <button
-                onClick={() => onApprove(item, needsOverride ? (overrideReason.trim() || 'Approved by admin override') : undefined)}
-                disabled={approveDisabled}
-                style={{
-                  padding: '0.625rem 1.75rem',
-                  borderRadius: '8px',
-                  background: 'linear-gradient(135deg, #10b981, #059669)',
-                  border: 'none',
-                  color: '#ffffff',
-                  fontSize: '0.875rem',
-                  fontWeight: 700,
-                  opacity: approveDisabled ? 0.55 : 1,
-                  cursor: approveDisabled ? 'not-allowed' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
-                }}
-              >
-                <CheckCircle2 size={16} /> {isProcessing ? 'Activating...' : needsOverride ? 'Approve with Override' : 'Approve & Activate'}
-              </button>
-            </div>
-          </div>
         </div>
-      </div>
+      </Drawer>
 
       {/* Document Zoom Lightbox Modal */}
       <DocumentPreviewModal

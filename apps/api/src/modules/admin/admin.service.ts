@@ -2190,7 +2190,116 @@ export class AdminService {
     };
   }
 
-  async getDailyFinancialReport(dateInput: string) {
+  private parseCompanyFilter(
+    companyId?: string,
+    companyType?: string,
+  ): { entityId: string; companyType?: 'VENDOR' | 'CORPORATE_TENANT' } | null {
+    const rawId = companyId?.trim();
+    if (!rawId || rawId.toUpperCase() === 'ALL') {
+      return null;
+    }
+
+    if (rawId.startsWith('VENDOR:')) {
+      const entityId = rawId.slice('VENDOR:'.length).trim();
+      return entityId ? { entityId, companyType: 'VENDOR' } : null;
+    }
+
+    if (rawId.startsWith('CORPORATE_TENANT:')) {
+      const entityId = rawId.slice('CORPORATE_TENANT:'.length).trim();
+      return entityId ? { entityId, companyType: 'CORPORATE_TENANT' } : null;
+    }
+
+    const normalizedType = companyType?.trim().toUpperCase();
+    if (normalizedType === 'VENDOR' || normalizedType === 'CORPORATE_TENANT') {
+      return { entityId: rawId, companyType: normalizedType };
+    }
+
+    return { entityId: rawId };
+  }
+
+  async getFinancialCompanies() {
+    const [vendors, corporateTenants] = await Promise.all([
+      this.db.vendor.findMany({
+        select: { id: true, organizationName: true, fullName: true },
+      }),
+      this.db.corporateTenant?.findMany
+        ? this.db.corporateTenant.findMany({
+            select: { id: true, name: true, legalEntityName: true, code: true },
+          })
+        : Promise.resolve([]),
+    ]);
+
+    const vendorItems = (vendors || [])
+      .map((vendor: any) => {
+        const name = (
+          vendor.organizationName?.trim() ||
+          sanitizeRealName(vendor.fullName) ||
+          vendor.fullName?.trim() ||
+          ''
+        ).trim();
+        if (!name) return null;
+        return {
+          id: `VENDOR:${vendor.id}`,
+          entityId: vendor.id,
+          companyType: 'VENDOR' as const,
+          name,
+          code: null,
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
+
+    const tenantItems = (corporateTenants || [])
+      .map((tenant: any) => {
+        const name = (tenant.name?.trim() || tenant.legalEntityName?.trim() || '').trim();
+        if (!name) return null;
+        return {
+          id: `CORPORATE_TENANT:${tenant.id}`,
+          entityId: tenant.id,
+          companyType: 'CORPORATE_TENANT' as const,
+          name,
+          code: tenant.code ?? null,
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
+
+    return [...vendorItems, ...tenantItems].sort((a, b) =>
+      a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }),
+    );
+  }
+
+  private formatDailyFinancialReport(params: {
+    date: string;
+    grossBookingValue: number;
+    revenue: number;
+    expenditure: number;
+    activeEscrowHoldValue: number;
+    capturedPaymentCount: number;
+    platformRevenueEntryCount: number;
+    settledPayoutCount: number;
+    activeEscrowHoldCount: number;
+  }) {
+    const roundMoney = (val: number) => Math.round(val * 100) / 100;
+    const grossBookingValue = roundMoney(params.grossBookingValue);
+    const revenue = roundMoney(params.revenue);
+    const expenditure = roundMoney(params.expenditure);
+    const activeEscrowHoldValue = roundMoney(params.activeEscrowHoldValue);
+
+    return {
+      date: params.date,
+      currency: 'INR',
+      grossBookingValue,
+      revenue,
+      expenditure,
+      activeEscrowHoldValue,
+      grossProfit: roundMoney(revenue - expenditure),
+      capturedPaymentCount: params.capturedPaymentCount,
+      platformRevenueEntryCount: params.platformRevenueEntryCount,
+      settledPayoutCount: params.settledPayoutCount,
+      activeEscrowHoldCount: params.activeEscrowHoldCount,
+    };
+  }
+
+  async getDailyFinancialReport(dateInput: string, companyId?: string, companyType?: string) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
       throw new BadRequestException('A valid report date is required.');
     }
@@ -2211,7 +2320,187 @@ export class AdminService {
     const indiaOffsetMinutes = 5 * 60 + 30;
     const dayStart = new Date(utcDate.getTime() - indiaOffsetMinutes * 60 * 1000);
     const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
-    const [capturedPayments, platformRevenueEntries, settledPayouts, activeEscrowHolds] = await Promise.all([
+
+    const parsedCompany = this.parseCompanyFilter(companyId, companyType);
+    let resolvedCompanyType = parsedCompany?.companyType;
+
+    if (parsedCompany && !resolvedCompanyType) {
+      const [vendorMatch, tenantMatch] = await Promise.all([
+        this.db.vendor.findUnique({ where: { id: parsedCompany.entityId }, select: { id: true } }),
+        this.db.corporateTenant?.findUnique
+          ? this.db.corporateTenant.findUnique({ where: { id: parsedCompany.entityId }, select: { id: true } })
+          : Promise.resolve(null),
+      ]);
+      if (vendorMatch) {
+        resolvedCompanyType = 'VENDOR';
+      } else if (tenantMatch) {
+        resolvedCompanyType = 'CORPORATE_TENANT';
+      } else {
+        throw new NotFoundException('Selected company not found.');
+      }
+    }
+
+    if (parsedCompany && resolvedCompanyType === 'CORPORATE_TENANT') {
+      const tenantId = parsedCompany.entityId;
+      const [paidInvoices, tenantEarnings] = await Promise.all([
+        this.db.corporateInvoice?.findMany
+          ? this.db.corporateInvoice.findMany({
+              where: {
+                tenantId,
+                status: 'PAID',
+                updatedAt: { gte: dayStart, lt: dayEnd },
+              },
+              select: { totalAmountPaise: true },
+            })
+          : Promise.resolve([]),
+        this.db.corporateDriverEarning?.findMany
+          ? this.db.corporateDriverEarning.findMany({
+              where: {
+                route: { tenantId },
+                payoutStatus: 'PAID',
+              },
+              select: { id: true, totalEarnedPaise: true },
+            })
+          : Promise.resolve([]),
+      ]);
+
+      const tenantEarningMap = new Map<string, number>(
+        tenantEarnings.map((entry: any) => [entry.id, Number(entry.totalEarnedPaise || 0)]),
+      );
+      const tenantEarningIds = [...tenantEarningMap.keys()];
+
+      const paidCorporatePayouts =
+        tenantEarningIds.length > 0 && this.db.corporatePayout?.findMany
+          ? await this.db.corporatePayout.findMany({
+              where: {
+                status: 'PAID',
+                kind: 'PAYOUT',
+                paidAt: { gte: dayStart, lt: dayEnd },
+                earningIds: { hasSome: tenantEarningIds },
+              },
+              select: { netPaise: true, grossPaise: true, earningIds: true },
+            })
+          : [];
+
+      const grossBookingValue = paidInvoices.reduce(
+        (total: number, inv: any) => total + Number(inv.totalAmountPaise || 0) / 100,
+        0,
+      );
+      const expenditure = paidCorporatePayouts.reduce((total: number, payout: any) => {
+        const earningIds: string[] = Array.isArray(payout.earningIds) ? payout.earningIds : [];
+        const netRupees = Number(payout.netPaise || 0) / 100;
+        if (earningIds.length === 0 || earningIds.every((id) => tenantEarningMap.has(id))) {
+          return total + netRupees;
+        }
+        const grossPaise = Number(payout.grossPaise || 0);
+        if (grossPaise <= 0) {
+          return total + netRupees;
+        }
+        const tenantGrossPaise = earningIds.reduce(
+          (sum, id) => sum + (tenantEarningMap.get(id) ?? 0),
+          0,
+        );
+        return total + netRupees * (tenantGrossPaise / grossPaise);
+      }, 0);
+
+      return this.formatDailyFinancialReport({
+        date: dateInput,
+        grossBookingValue,
+        revenue: 0,
+        expenditure,
+        activeEscrowHoldValue: 0,
+        capturedPaymentCount: paidInvoices.length,
+        platformRevenueEntryCount: 0,
+        settledPayoutCount: paidCorporatePayouts.length,
+        activeEscrowHoldCount: 0,
+      });
+    }
+
+    if (parsedCompany && resolvedCompanyType === 'VENDOR') {
+      const vendorId = parsedCompany.entityId;
+      const [capturedPayments, allPlatformEntries, vendorTripDrivers, activeEscrowHolds] = await Promise.all([
+        this.db.payment.findMany({
+          where: { vendorId, status: 'CAPTURED', updatedAt: { gte: dayStart, lt: dayEnd } },
+          select: { amount: true },
+        }),
+        this.db.ledgerEntry.findMany({
+          where: {
+            accountType: 'PLATFORM',
+            entryType: 'CREDIT',
+            referenceType: { in: ['PLATFORM_COMMISSION', 'DISTANCE_PLATFORM_SPREAD', 'ZONAL_PLATFORM_SPREAD'] },
+            createdAt: { gte: dayStart, lt: dayEnd },
+          },
+          select: { amount: true, referenceId: true, accountId: true },
+        }),
+        this.db.trip.findMany({
+          where: { vendorId },
+          distinct: ['driverId'],
+          select: { driverId: true },
+        }),
+        this.db.payment.findMany({
+          where: {
+            vendorId,
+            status: { in: ['AUTHORIZED', 'PENDING'] },
+            createdAt: { gte: dayStart, lt: dayEnd },
+          },
+          select: { amount: true },
+        }),
+      ]);
+
+      const entryTripIds = [
+        ...new Set(allPlatformEntries.map((entry: any) => entry.referenceId).filter(Boolean)),
+      ];
+      const matchingVendorTrips =
+        entryTripIds.length > 0
+          ? await this.db.trip.findMany({
+              where: { id: { in: entryTripIds }, vendorId },
+              select: { id: true },
+            })
+          : [];
+      const vendorTripIdSet = new Set(matchingVendorTrips.map((trip: any) => trip.id));
+
+      const platformRevenueEntries = allPlatformEntries.filter(
+        (entry: any) =>
+          (entry.referenceId && vendorTripIdSet.has(entry.referenceId)) ||
+          entry.accountId === vendorId,
+      );
+
+      const vendorDriverIds = [
+        ...new Set(vendorTripDrivers.map((row: any) => row.driverId).filter(Boolean)),
+      ];
+      const settledPayouts =
+        vendorDriverIds.length > 0
+          ? await this.db.settlement.findMany({
+              where: {
+                status: 'SETTLED',
+                driverId: { in: vendorDriverIds },
+                processedAt: { gte: dayStart, lt: dayEnd },
+              },
+              select: { amount: true },
+            })
+          : [];
+
+      return this.formatDailyFinancialReport({
+        date: dateInput,
+        grossBookingValue: capturedPayments.reduce((total: number, payment: any) => total + Number(payment.amount), 0),
+        revenue: platformRevenueEntries.reduce((total: number, entry: any) => total + Number(entry.amount), 0),
+        expenditure: settledPayouts.reduce((total: number, payout: any) => total + Number(payout.amount), 0),
+        activeEscrowHoldValue: activeEscrowHolds.reduce((total: number, payment: any) => total + Number(payment.amount), 0),
+        capturedPaymentCount: capturedPayments.length,
+        platformRevenueEntryCount: platformRevenueEntries.length,
+        settledPayoutCount: settledPayouts.length,
+        activeEscrowHoldCount: activeEscrowHolds.length,
+      });
+    }
+
+    const [
+      capturedPayments,
+      platformRevenueEntries,
+      settledPayouts,
+      activeEscrowHolds,
+      paidCorporateInvoices,
+      paidCorporatePayouts,
+    ] = await Promise.all([
       this.db.payment.findMany({
         where: { status: 'CAPTURED', updatedAt: { gte: dayStart, lt: dayEnd } },
         select: { amount: true },
@@ -2236,33 +2525,48 @@ export class AdminService {
         },
         select: { amount: true },
       }),
+      this.db.corporateInvoice?.findMany
+        ? this.db.corporateInvoice.findMany({
+            where: {
+              status: 'PAID',
+              updatedAt: { gte: dayStart, lt: dayEnd },
+            },
+            select: { totalAmountPaise: true },
+          })
+        : Promise.resolve([]),
+      this.db.corporatePayout?.findMany
+        ? this.db.corporatePayout.findMany({
+            where: {
+              status: 'PAID',
+              kind: 'PAYOUT',
+              paidAt: { gte: dayStart, lt: dayEnd },
+            },
+            select: { netPaise: true },
+          })
+        : Promise.resolve([]),
     ]);
 
-    const grossBookingValue = Math.round(
-      capturedPayments.reduce((total, payment) => total + Number(payment.amount), 0) * 100,
-    ) / 100;
-    const revenue = Math.round(
-      platformRevenueEntries.reduce((total, entry) => total + Number(entry.amount), 0) * 100,
-    ) / 100;
-    const expenditure = Math.round(
-      settledPayouts.reduce((total, payout) => total + Number(payout.amount), 0) * 100,
-    ) / 100;
-
-    return {
+    return this.formatDailyFinancialReport({
       date: dateInput,
-      currency: 'INR',
-      grossBookingValue,
-      revenue,
-      expenditure,
-      activeEscrowHoldValue: Math.round(
-        activeEscrowHolds.reduce((total, payment) => total + Number(payment.amount), 0) * 100,
-      ) / 100,
-      grossProfit: Math.round((revenue - expenditure) * 100) / 100,
-      capturedPaymentCount: capturedPayments.length,
+      grossBookingValue:
+        capturedPayments.reduce((total: number, payment: any) => total + Number(payment.amount), 0) +
+        paidCorporateInvoices.reduce(
+          (total: number, inv: any) => total + Number(inv.totalAmountPaise || 0) / 100,
+          0,
+        ),
+      revenue: platformRevenueEntries.reduce((total: number, entry: any) => total + Number(entry.amount), 0),
+      expenditure:
+        settledPayouts.reduce((total: number, payout: any) => total + Number(payout.amount), 0) +
+        paidCorporatePayouts.reduce(
+          (total: number, payout: any) => total + Number(payout.netPaise || 0) / 100,
+          0,
+        ),
+      activeEscrowHoldValue: activeEscrowHolds.reduce((total: number, payment: any) => total + Number(payment.amount), 0),
+      capturedPaymentCount: capturedPayments.length + paidCorporateInvoices.length,
       platformRevenueEntryCount: platformRevenueEntries.length,
-      settledPayoutCount: settledPayouts.length,
+      settledPayoutCount: settledPayouts.length + paidCorporatePayouts.length,
       activeEscrowHoldCount: activeEscrowHolds.length,
-    };
+    });
   }
 
   /**

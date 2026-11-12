@@ -130,17 +130,18 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: '0.375rem',
-        padding: size === 'sm' ? '0.15rem 0.5rem' : '0.25rem 0.625rem',
+        gap: '0.3rem',
+        padding: size === 'sm' ? '0.12rem 0.46rem' : '0.18rem 0.54rem',
         borderRadius: 'var(--radius-pill)',
-        fontSize: size === 'sm' ? '0.6875rem' : '0.75rem',
+        fontSize: size === 'sm' ? '0.65rem' : '0.69rem',
         fontWeight: 600,
         textTransform: 'uppercase',
-        letterSpacing: '0.04em',
+        letterSpacing: '0.03em',
         backgroundColor: st.bg,
         color: st.color,
         border: `1px solid ${st.border}`,
         whiteSpace: 'nowrap',
+        lineHeight: 1.35,
       }}
     >
       {pulse && <span className={`pulse-dot ${st.pulseColor}`} />}

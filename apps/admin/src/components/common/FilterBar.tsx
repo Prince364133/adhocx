@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { Search, X } from 'lucide-react';
 
@@ -15,179 +17,188 @@ export interface FilterBarProps {
   tabs?: TabOption[];
   activeTab?: string;
   onTabChange?: (tabId: string) => void;
+  tabVariant?: 'pills' | 'segments';
   extraFilters?: React.ReactNode;
+  rightSlot?: React.ReactNode;
+  onReset?: () => void;
+  style?: React.CSSProperties;
 }
 
 export const FilterBar: React.FC<FilterBarProps> = ({
   search,
   searchQuery,
   onSearchChange,
-  searchPlaceholder = 'Search records...',
+  searchPlaceholder = 'Search...',
   tabs,
   activeTab,
   onTabChange,
+  tabVariant = 'pills',
   extraFilters,
+  rightSlot,
+  onReset,
+  style = {},
 }) => {
-  const currentSearch = search ?? searchQuery ?? '';
+  const effectiveSearch = search !== undefined ? search : searchQuery || '';
+
   return (
     <div
       style={{
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '1rem',
-        marginBottom: '1.5rem',
+        flexDirection: 'column',
+        gap: '0.52rem',
+        marginBottom: '0.65rem',
+        ...style,
       }}
     >
-      {/* Tabs */}
-      {tabs && tabs.length > 0 && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.25rem',
-            background: 'var(--bg-surface-elevated)',
-            padding: '0.25rem',
-            borderRadius: 'var(--radius-md)',
-            border: '1px solid var(--border)',
-          }}
-        >
-          {tabs.map((tab) => {
-            const isActive = tab.id === activeTab;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => onTabChange?.(tab.id)}
-                style={{
-                  padding: '0.4rem 0.85rem',
-                  borderRadius: 'var(--radius-sm)',
-                  fontSize: '0.8125rem',
-                  fontWeight: isActive ? 600 : 500,
-                  color: isActive ? 'var(--text-primary)' : 'var(--text-muted)',
-                  backgroundColor: isActive ? 'var(--bg-surface)' : 'transparent',
-                  boxShadow: isActive ? 'var(--shadow-sm)' : 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                }}
-              >
-                {tab.label}
-                {tab.count !== undefined && (
-                  <span
-                    style={{
-                      padding: '0.1rem 0.4rem',
-                      borderRadius: 'var(--radius-pill)',
-                      fontSize: '0.6875rem',
-                      fontWeight: 700,
-                      backgroundColor: isActive ? 'var(--brand-primary-subtle)' : 'var(--bg-base)',
-                      color: isActive ? 'var(--brand-primary)' : 'var(--text-muted)',
-                    }}
-                  >
-                    {tab.count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Right controls: Search & Extra filters */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '0.75rem',
-          flex: tabs && tabs.length > 0 ? '0 1 auto' : '1 1 auto',
-          justifyContent: 'flex-end',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '0.65rem',
         }}
       >
         {onSearchChange && (
-          <div
-            style={{
-              position: 'relative',
-              width: '280px',
-              maxWidth: '100%',
-            }}
-          >
-            <span
+          <div style={{ position: 'relative', flex: '1 1 230px', maxWidth: '300px' }}>
+            <Search
+              size={13}
               style={{
                 position: 'absolute',
-                left: '0.75rem',
+                left: '0.65rem',
                 top: '50%',
                 transform: 'translateY(-50%)',
                 color: 'var(--text-muted)',
-                display: 'flex',
-                alignItems: 'center',
                 pointerEvents: 'none',
               }}
-            >
-              <Search size={15} />
-            </span>
+            />
             <input
               type="text"
-              value={currentSearch}
+              value={effectiveSearch}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder={searchPlaceholder}
+              className="form-input"
               style={{
-                width: '100%',
-                padding: '0.5rem 2rem 0.5rem 2.25rem',
-                backgroundColor: 'var(--bg-surface)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-md)',
-                color: 'var(--text-primary)',
-                fontSize: '0.875rem',
-                outline: 'none',
-                fontFamily: 'inherit',
-                transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-              }}
-              onFocus={(e) => {
-                e.target.style.borderColor = 'var(--brand-primary)';
-                e.target.style.boxShadow = '0 0 0 3px var(--brand-primary-subtle)';
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = 'var(--border)';
-                e.target.style.boxShadow = 'none';
+                paddingLeft: '1.95rem',
+                paddingRight: effectiveSearch ? '1.85rem' : '0.65rem',
+                height: '32px',
+                fontSize: '0.775rem',
               }}
             />
-            {currentSearch && (
+            {effectiveSearch && (
               <button
+                type="button"
                 onClick={() => onSearchChange('')}
+                aria-label="Clear search"
                 style={{
                   position: 'absolute',
-                  right: '0.65rem',
+                  right: '0.5rem',
                   top: '50%',
                   transform: 'translateY(-50%)',
-                  background: 'none',
+                  background: 'transparent',
                   border: 'none',
                   color: 'var(--text-muted)',
                   cursor: 'pointer',
-                  padding: '0.2rem',
-                  display: 'flex',
+                  padding: '0.15rem',
+                  display: 'inline-flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: '50%',
-                  transition: 'color 0.15s ease',
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = 'var(--text-primary)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = 'var(--text-muted)';
-                }}
-                title="Clear search"
               >
-                <X size={14} />
+                <X size={13} />
               </button>
             )}
           </div>
         )}
 
-        {extraFilters}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.45rem',
+            flexWrap: 'wrap',
+            marginLeft: onSearchChange ? 'auto' : 0,
+          }}
+        >
+          {tabs && tabs.length > 0 && (
+            tabVariant === 'segments' ? (
+              <div className="tabs" style={{ flexWrap: 'wrap' }}>
+                {tabs.map((tab) => {
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => onTabChange?.(tab.id)}
+                      aria-pressed={isActive}
+                      className={`tab-item${isActive ? ' active' : ''}`}
+                    >
+                      <span>{tab.label}</span>
+                      {tab.count !== undefined && (
+                        <span
+                          style={{
+                            padding: '0.05rem 0.4rem',
+                            borderRadius: 'var(--radius-pill)',
+                            background: isActive ? 'var(--brand-primary-subtle)' : 'var(--bg-card)',
+                            color: isActive ? 'var(--brand-primary)' : 'var(--text-secondary)',
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                          }}
+                        >
+                          {tab.count}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+                {tabs.map((tab) => {
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => onTabChange?.(tab.id)}
+                      aria-pressed={isActive}
+                      className={`filter-pill-chip${isActive ? ' active' : ''}`}
+                    >
+                      <span>{tab.label}</span>
+                      {tab.count !== undefined && (
+                        <span
+                          style={{
+                            padding: '0.02rem 0.38rem',
+                            borderRadius: 'var(--radius-pill)',
+                            background: isActive ? 'var(--brand-primary)' : 'var(--bg-surface-elevated)',
+                            color: isActive ? '#ffffff' : 'var(--text-muted)',
+                            fontSize: '0.68rem',
+                            fontWeight: 700,
+                          }}
+                        >
+                          {tab.count}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )
+          )}
+
+          {extraFilters}
+          {rightSlot}
+
+          {onReset && (
+            <button
+              type="button"
+              onClick={onReset}
+              className="filter-pill-chip"
+              title="Reset active filters"
+            >
+              Reset
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

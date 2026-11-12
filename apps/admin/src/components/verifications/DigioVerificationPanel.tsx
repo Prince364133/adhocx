@@ -204,11 +204,11 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
   return (
     <div
       style={{
-        marginTop: '1.75rem',
-        padding: '1.25rem',
+        marginTop: '1.25rem',
+        padding: '1.1rem',
         borderRadius: '12px',
-        background: 'rgba(99, 102, 241, 0.04)',
-        border: '1px solid rgba(99, 102, 241, 0.25)',
+        background: 'rgba(87, 40, 178, 0.04)',
+        border: '1px solid rgba(87, 40, 178, 0.22)',
       }}
     >
       <div
@@ -217,14 +217,15 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
           justifyContent: 'space-between',
           alignItems: 'center',
           gap: '0.75rem',
-          marginBottom: '1rem',
+          paddingTop: '0.15rem',
+          marginBottom: '0.9rem',
           flexWrap: 'wrap',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-          <ShieldCheck size={20} color="#6366f1" />
+          <ShieldCheck size={18} style={{ color: 'var(--brand-primary)' }} />
           <div>
-            <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+            <h3 style={{ margin: 0, fontSize: '1.06rem', fontWeight: 700, color: 'var(--text-primary)' }}>
               Digio Driver Identity, DL & Vehicle RC Engine
             </h3>
             <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
@@ -250,6 +251,7 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
               display: 'flex',
               alignItems: 'center',
               gap: '0.35rem',
+              transition: 'all 0.15s ease',
             }}
           >
             <RefreshCw size={13} /> Refresh
@@ -262,15 +264,17 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
             style={{
               padding: '0.45rem 0.9rem',
               borderRadius: '8px',
-              background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+              background: 'var(--brand-primary)',
               border: 'none',
               color: '#ffffff',
               fontSize: '0.75rem',
-              fontWeight: 700,
+              fontWeight: 600,
               cursor: running ? 'wait' : 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: '0.4rem',
+              boxShadow: 'var(--shadow-sm)',
+              transition: 'all 0.15s ease',
             }}
           >
             {running ? <Loader2 size={13} className="animate-spin" /> : <Play size={13} />}
@@ -312,13 +316,14 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
 
       {statusBanner && (
         <div
+          className="animate-banner"
           style={{
             marginBottom: '0.75rem',
             padding: '0.6rem 0.85rem',
             borderRadius: '8px',
-            background: 'rgba(16, 185, 129, 0.12)',
-            border: '1px solid rgba(16, 185, 129, 0.3)',
-            color: '#10b981',
+            background: 'var(--color-success-bg)',
+            border: '1px solid var(--color-success-border)',
+            color: 'var(--color-success)',
             fontSize: '0.78rem',
             fontWeight: 600,
           }}
@@ -329,13 +334,14 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
 
       {errorMsg && (
         <div
+          className="animate-banner"
           style={{
             marginBottom: '0.75rem',
             padding: '0.6rem 0.85rem',
             borderRadius: '8px',
-            background: 'rgba(244, 63, 94, 0.12)',
-            border: '1px solid rgba(244, 63, 94, 0.3)',
-            color: '#f43f5e',
+            background: 'var(--color-danger-bg)',
+            border: '1px solid var(--color-danger-border)',
+            color: 'var(--color-danger)',
             fontSize: '0.78rem',
             fontWeight: 600,
           }}

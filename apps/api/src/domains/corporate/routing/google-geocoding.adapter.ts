@@ -82,7 +82,7 @@ export class GoogleGeocodingAdapter {
         return result;
       } catch (err: any) {
         if (!GoogleGeocodingAdapter.fallbackAllowed()) {
-          throw new Error(`Google Geocoding failed for "${raw}": ${err.message}`);
+          throw new Error(`Google Geocoding failed for "${raw}": ${err.message}`, { cause: err });
         }
         this.logger.warn(`Google Geocoding failed for "${raw}" (${err.message}). Using synthetic fallback coordinates (non-production).`);
       }

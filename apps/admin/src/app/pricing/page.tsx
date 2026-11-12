@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Car, Truck, Bus, X, Sliders, Plus, Bike, Wallet, Percent } from 'lucide-react';
+import { Car, Truck, Bus, Sliders, Plus, Bike, Wallet, Percent } from 'lucide-react';
 import { adminApi } from '../../lib/api/client';
 import { VehicleCategory, SystemPolicyConfig } from '../../lib/api/types';
-import { PageHeader, MetricCard, Card, DataTable, Button, Drawer, StatusBadge } from '../../components/common';
+import { PageHeader, KpiStrip, SegmentedTabs, FeedbackBanner, Card, DataTable, Button, Drawer, StatusBadge } from '../../components/common';
 import { DynamicDistancePricingSection } from './DynamicDistancePricingSection';
 
 type Section = 'DISTANCE_ENGINE' | 'CATEGORIES' | 'POLICIES';
@@ -26,10 +26,10 @@ const emptyCategory = { vehicleType: '', categoryLabel: '', seatingCapacity: '',
 
 function CategoryIcon({ c }: { c: VehicleCategory }) {
   const key = c.iconKey || '';
-  if (c.vehicleType === 'BIKE' || key === 'bike') return <Bike size={20} color="#F59E0B" />;
-  if (c.vehicleType === 'BUS' || key === 'bus') return <Bus size={20} color="#10B981" />;
-  if (c.vehicleType === 'TEMPO_TRAVELLER' || key === 'truck') return <Truck size={20} color="#8B5CF6" />;
-  return <Car size={20} color="var(--brand-primary)" />;
+  if (c.vehicleType === 'BIKE' || key === 'bike') return <Bike size={17} color="#F59E0B" />;
+  if (c.vehicleType === 'BUS' || key === 'bus') return <Bus size={17} color="#10B981" />;
+  if (c.vehicleType === 'TEMPO_TRAVELLER' || key === 'truck') return <Truck size={17} color="#8B5CF6" />;
+  return <Car size={17} color="var(--brand-primary)" />;
 }
 
 export default function PricingPage() {
@@ -138,51 +138,14 @@ export default function PricingPage() {
     }
   }
 
-  const tab = (id: Section, label: string) => (
-    <button
-      type="button"
-      onClick={() => setActiveSection(id)}
-      style={{
-        padding: '0.75rem 1.25rem',
-        background: activeSection === id ? 'var(--brand-primary)' : 'var(--bg-card)',
-        color: activeSection === id ? '#fff' : 'var(--text-secondary)',
-        fontWeight: 700,
-        fontSize: '0.875rem',
-        borderRadius: 'var(--radius-md) var(--radius-md) 0 0',
-        border: '1px solid var(--border)',
-        borderBottom: activeSection === id ? 'none' : '1px solid var(--border)',
-        cursor: 'pointer',
-      }}
-    >
-      {label}
-    </button>
-  );
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div className="admin-page">
       {alert && (
-        <div
-          style={{
-            padding: '0.875rem 1.25rem',
-            borderRadius: 'var(--radius-md)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: alert.type === 'success' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-            border: `1px solid ${alert.type === 'success' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
-            color: alert.type === 'success' ? 'var(--color-success)' : 'var(--color-danger)',
-            fontSize: '0.875rem',
-            fontWeight: 500,
-          }}
-        >
-          <span>{alert.message}</span>
-          <button
-            onClick={() => setAlert(null)}
-            style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-          >
-            <X size={16} />
-          </button>
-        </div>
+        <FeedbackBanner
+          type={alert.type}
+          message={alert.message}
+          onDismiss={() => setAlert(null)}
+        />
       )}
 
       <PageHeader
@@ -190,19 +153,23 @@ export default function PricingPage() {
         subtitle="Distance-slab prices for vendors and drivers, vehicle categories, and platform policy. All values are stored in the database."
       />
 
-      <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.25rem', flexWrap: 'wrap' }}>
-        {tab('DISTANCE_ENGINE', 'Distance Pricing')}
-        {tab('CATEGORIES', 'Vehicle Categories')}
-        {tab('POLICIES', 'Platform Policy')}
-      </div>
+      <SegmentedTabs
+        tabs={[
+          { id: 'DISTANCE_ENGINE', label: 'Distance Pricing' },
+          { id: 'CATEGORIES', label: 'Vehicle Categories' },
+          { id: 'POLICIES', label: 'Platform Policy' },
+        ]}
+        activeTab={activeSection}
+        onChange={setActiveSection}
+      />
 
       {activeSection === 'DISTANCE_ENGINE' && <DynamicDistancePricingSection />}
 
       {activeSection === 'CATEGORIES' && (
         <Card>
-          <div style={{ marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <div style={{ marginBottom: '1.25rem', paddingTop: '0.15rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
             <div>
-              <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>Vehicle Categories</h3>
+              <h3 style={{ fontSize: '1.08rem', fontWeight: 700, color: 'var(--text-primary)' }}>Vehicle Categories</h3>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
                 Names and seating shown in the apps. Prices are set per category in Distance Pricing; a category without its own plan uses the ALL plan.
               </p>
@@ -272,28 +239,33 @@ export default function PricingPage() {
 
       {activeSection === 'POLICIES' && (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
-            <MetricCard
-              label="Minimum Withdrawal"
-              value={policyConfig ? `₹ ${policyConfig.minWithdrawalAmount}` : '—'}
-              subtext="Enforced on driver payouts"
-              icon={<Wallet size={18} color="var(--color-success)" />}
-              accentColor="var(--color-success)"
-            />
-            <MetricCard
-              label="Legacy Trip Commission"
-              value={policyConfig ? `${policyConfig.commissionPercent}%` : '—'}
-              subtext="Only trips booked before distance pricing"
-              icon={<Percent size={18} color="#8B5CF6" />}
-              accentColor="#8B5CF6"
-            />
-          </div>
+          <KpiStrip
+            columns={2}
+            items={[
+              {
+                id: 'min-withdrawal',
+                label: 'Minimum Withdrawal',
+                value: policyConfig ? `₹ ${policyConfig.minWithdrawalAmount}` : '—',
+                subtext: 'Enforced on driver payouts',
+                icon: <Wallet size={16} color="var(--color-success)" />,
+                tone: 'success',
+              },
+              {
+                id: 'legacy-commission',
+                label: 'Legacy Trip Commission',
+                value: policyConfig ? `${policyConfig.commissionPercent}%` : '—',
+                subtext: 'Only trips booked before distance pricing',
+                icon: <Percent size={16} color="#8b5cf6" />,
+                tone: 'violet',
+              },
+            ]}
+          />
 
           <Card>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem', paddingTop: '0.15rem' }}>
               <Sliders size={18} color="var(--brand-primary)" />
               <div>
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>Platform Policy</h3>
+                <h3 style={{ fontSize: '1.08rem', fontWeight: 700, color: 'var(--text-primary)' }}>Platform Policy</h3>
                 <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.125rem' }}>
                   Distance-priced trips pay the driver the slab payout in full; the platform keeps the slab spread. Commission below applies only to older trips without a pricing snapshot.
                 </p>
@@ -405,7 +377,8 @@ export default function PricingPage() {
         onClose={() => setIsAddOpen(false)}
         title="Add Vehicle Category"
         subtitle="Catalogue only. Set its price in Distance Pricing (or let the ALL plan cover it)."
-        width="520px"
+        icon={<Car size={18} />}
+        width="min(94vw, 520px)"
         footer={
           <div style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'flex-end' }}>
             <Button variant="secondary" size="sm" onClick={() => setIsAddOpen(false)}>
@@ -452,7 +425,8 @@ export default function PricingPage() {
         onClose={() => setEditing(null)}
         title={`Edit ${editing?.vehicleType || ''}`}
         subtitle="Deactivated categories cannot be booked. Deactivation is refused while trips in the category are running."
-        width="520px"
+        icon={<Sliders size={18} />}
+        width="min(94vw, 520px)"
         footer={
           <div style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'flex-end' }}>
             <Button variant="secondary" size="sm" onClick={() => setEditing(null)}>

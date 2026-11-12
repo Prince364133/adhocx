@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ZoomIn, ZoomOut, RotateCw, X, FileText, ExternalLink } from 'lucide-react';
 import { DriverKycDocument } from '../../lib/api/types';
 import { resolveDocumentUrl, handleDocumentImageError } from '../../lib/api/client';
+import { acquireScrollLock } from '../common/scrollLock';
 
 interface PreviewModalProps {
   isOpen: boolean;
@@ -19,118 +20,124 @@ export const DocumentPreviewModal: React.FC<PreviewModalProps> = ({
   const [zoom, setZoom] = useState<number>(1);
   const [rotation, setRotation] = useState<number>(0);
 
+  useEffect(() => {
+    if (!isOpen || !document) return;
+    setZoom(1);
+    setRotation(0);
+
+    const releaseLock = acquireScrollLock();
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      releaseLock();
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, document, onClose]);
+
   if (!isOpen || !document) return null;
+
+  const toolbarBtnStyle: React.CSSProperties = {
+    padding: '0.4rem 0.65rem',
+    borderRadius: '8px',
+    background: 'rgba(15, 23, 42, 0.86)',
+    border: '1px solid rgba(255, 255, 255, 0.16)',
+    color: '#ffffff',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.3rem',
+    fontSize: '0.78rem',
+    fontWeight: 600,
+    transition: 'all 0.15s ease',
+  };
 
   return (
     <div
+      className="animate-modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Document preview: ${document.title}`}
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.85)',
+        backgroundColor: 'rgba(15, 23, 42, 0.88)',
         backdropFilter: 'blur(8px)',
         zIndex: 120,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '2rem',
+        padding: '1.5rem',
       }}
       onClick={onClose}
     >
       {/* Header bar */}
       <div
+        className="animate-modal-pop"
         style={{
           width: '100%',
           maxWidth: '900px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: '1rem',
+          gap: '1rem',
+          flexWrap: 'wrap',
+          marginBottom: '0.85rem',
           color: '#ffffff',
         }}
         onClick={(e) => e.stopPropagation()}
       >
         <div>
-          <h3 style={{ fontSize: '1.125rem', fontWeight: 700 }}>
+          <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0, color: '#ffffff' }}>
             {document.title}
           </h3>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          <p style={{ fontSize: '0.75rem', color: '#cbd5e1', margin: '0.15rem 0 0' }}>
             Cloudflare R2 Encrypted Document Storage
           </p>
         </div>
 
         {/* Zoom and Rotate controls */}
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '0.45rem', alignItems: 'center' }}>
           <button
+            type="button"
             onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))}
-            style={{
-              padding: '0.375rem 0.6rem',
-              borderRadius: '6px',
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border-light)',
-              color: '#fff',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.25rem',
-            }}
+            style={toolbarBtnStyle}
             title="Zoom Out"
           >
-            <ZoomOut size={16} />
+            <ZoomOut size={15} />
           </button>
-          <span style={{ fontSize: '0.75rem', minWidth: '40px', textAlign: 'center' }}>
+          <span style={{ fontSize: '0.75rem', minWidth: '42px', textAlign: 'center', color: '#e2e8f0', fontWeight: 600 }}>
             {Math.round(zoom * 100)}%
           </span>
           <button
+            type="button"
             onClick={() => setZoom((z) => Math.min(3, z + 0.25))}
-            style={{
-              padding: '0.375rem 0.6rem',
-              borderRadius: '6px',
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border-light)',
-              color: '#fff',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.25rem',
-            }}
+            style={toolbarBtnStyle}
             title="Zoom In"
           >
-            <ZoomIn size={16} />
+            <ZoomIn size={15} />
           </button>
 
           <button
+            type="button"
             onClick={() => setRotation((r) => (r + 90) % 360)}
-            style={{
-              padding: '0.375rem 0.75rem',
-              borderRadius: '6px',
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border-light)',
-              color: '#fff',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.35rem',
-              fontSize: '0.8125rem',
-            }}
+            style={toolbarBtnStyle}
           >
             <RotateCw size={14} /> Rotate
           </button>
 
           <button
+            type="button"
             onClick={onClose}
             style={{
-              padding: '0.375rem 0.75rem',
-              borderRadius: '6px',
-              background: 'rgba(244, 63, 94, 0.2)',
-              border: '1px solid rgba(244, 63, 94, 0.4)',
-              color: '#f43f5e',
-              cursor: 'pointer',
-              fontWeight: 700,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.35rem',
-              fontSize: '0.8125rem',
+              ...toolbarBtnStyle,
+              background: 'rgba(220, 38, 38, 0.22)',
+              border: '1px solid rgba(248, 113, 113, 0.45)',
+              color: '#fecaca',
             }}
           >
             <X size={14} /> Close
