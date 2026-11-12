@@ -8,7 +8,14 @@
 
 export type CorporateRole = 'CORP_SUPER_ADMIN' | 'HR' | 'TRANSPORT' | 'FINANCE' | 'SAFETY' | 'READ_ONLY';
 
-export const CORPORATE_ROLES: CorporateRole[] = ['CORP_SUPER_ADMIN', 'HR', 'TRANSPORT', 'FINANCE', 'SAFETY', 'READ_ONLY'];
+export const CORPORATE_ROLES: CorporateRole[] = [
+  'CORP_SUPER_ADMIN',
+  'HR',
+  'TRANSPORT',
+  'FINANCE',
+  'SAFETY',
+  'READ_ONLY',
+];
 
 export const CORPORATE_ROLE_LABELS: Record<CorporateRole, string> = {
   CORP_SUPER_ADMIN: 'Super Admin',
@@ -21,6 +28,7 @@ export const CORPORATE_ROLE_LABELS: Record<CorporateRole, string> = {
 
 export const CORPORATE_PERMISSIONS = [
   'tenant:read',
+  'tenant:write',
   'offices:read',
   'offices:write',
   'employees:read',

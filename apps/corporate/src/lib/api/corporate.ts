@@ -5,6 +5,7 @@
  * forces it server side anyway and rejects any other value.
  */
 import { apiDownload, apiRequest, qs } from './client';
+import type { UpdateCorporateTenantProfileDto } from '@adhocx/contracts';
 import type {
   AttendancePage,
   AuthResponse,
@@ -13,6 +14,7 @@ import type {
   CorporateUser,
   CreditNote,
   Dashboard,
+  Department,
   Direction,
   Employee,
   EmployeeLocation,
@@ -66,7 +68,11 @@ export type ReportType = 'trips' | 'no-shows' | 'attendance';
 export const authApi = {
   /** Password login (POST /auth/login). */
   login: (identifier: string, password: string) =>
-    apiRequest<AuthResponse>('/auth/login', { method: 'POST', body: { identifier, password }, anonymous: true }),
+    apiRequest<AuthResponse>('/auth/login', {
+      method: 'POST',
+      body: { identifier, password },
+      anonymous: true,
+    }),
 
   /**
    * OTP request for an EXISTING account only (isRegister: false), so the OTP verify step can never
@@ -80,34 +86,71 @@ export const authApi = {
     }),
 
   verifyOtp: (body: { requestId?: string; phone?: string; email?: string; otp: string }) =>
-    apiRequest<AuthResponse>('/auth/otp/verify', { method: 'POST', body: { ...body, isRegister: false }, anonymous: true }),
+    apiRequest<AuthResponse>('/auth/otp/verify', {
+      method: 'POST',
+      body: { ...body, isRegister: false },
+      anonymous: true,
+    }),
 
-  logout: () => apiRequest<{ success: boolean }>('/auth/logout', { method: 'POST', body: {} }),
+  logout: () =>
+    apiRequest<{ success: boolean }>('/auth/logout', {
+      method: 'POST',
+      body: {},
+    }),
 };
 
 export const tenantApi = {
   get: (tenantId: string) => apiRequest<Tenant>(`/corporate/tenants/${tenantId}`),
+  updateProfile: (tenantId: string, body: UpdateCorporateTenantProfileDto) =>
+    apiRequest<Tenant>(`/corporate/tenants/${tenantId}/profile`, {
+      method: 'PATCH',
+      body,
+    }),
   offices: (tenantId: string) => apiRequest<Office[]>(`/corporate/tenants/${tenantId}/offices`),
-  geofences: (tenantId: string, officeId: string) =>
-    apiRequest<OfficeGeofenceDetails>(`/corporate/tenants/${tenantId}/offices/${officeId}/geofences`),
-  integrations: (tenantId: string) =>
-    apiRequest<TenantIntegrations>(`/corporate/tenants/${tenantId}/integrations`),
-  costCenters: (tenantId: string) =>
-    apiRequest<any[]>(`/corporate/tenants/${tenantId}/cost-centers`),
-  departments: (tenantId: string) =>
-    apiRequest<any[]>(`/corporate/tenants/${tenantId}/departments`),
+  createOffice: (
+    tenantId: string,
+    body: {
+      code: string;
+      name: string;
+      city?: string;
+      addressText: string;
+      latitude: number;
+      longitude: number;
+    },
+  ) =>
+    apiRequest<Office>(`/corporate/tenants/${tenantId}/offices`, {
+      method: 'POST',
+      body,
+    }),
+  geofences: (tenantId: string, officeId: string) => apiRequest<OfficeGeofenceDetails>(`/corporate/tenants/${tenantId}/offices/${officeId}/geofences`),
+  integrations: (tenantId: string) => apiRequest<TenantIntegrations>(`/corporate/tenants/${tenantId}/integrations`),
+  costCenters: (tenantId: string) => apiRequest<any[]>(`/corporate/tenants/${tenantId}/cost-centers`),
+  departments: (tenantId: string) => apiRequest<Department[]>(`/corporate/tenants/${tenantId}/departments`),
+  createDepartment: (tenantId: string, body: { code: string; name: string }) =>
+    apiRequest<Department>(`/corporate/tenants/${tenantId}/departments`, {
+      method: 'POST',
+      body,
+    }),
 };
 
 export const analyticsApi = {
   dashboard: (p: AnalyticsParams) => apiRequest<Dashboard>(`/corporate/analytics/dashboard${qs({ ...p })}`),
-  tripsReport: (p: AnalyticsParams) =>
-    apiRequest<TripsAnalyticsReport>(`/corporate/analytics/reports/trips${qs({ ...p, format: 'json' })}`),
-  exceptions: (p: { tenantId?: string; officeId?: string; from?: string; to?: string }) =>
-    apiRequest<ExceptionsResponse>(`/corporate/analytics/exceptions${qs(p)}`),
-  attendance: (p: Omit<AnalyticsParams, 'direction' | 'shiftTime'> & { page?: number; pageSize?: number }) =>
-    apiRequest<AttendancePage>(`/corporate/analytics/attendance${qs({ ...p })}`),
+  tripsReport: (p: AnalyticsParams) => apiRequest<TripsAnalyticsReport>(`/corporate/analytics/reports/trips${qs({ ...p, format: 'json' })}`),
+  exceptions: (p: { tenantId?: string; officeId?: string; from?: string; to?: string }) => apiRequest<ExceptionsResponse>(`/corporate/analytics/exceptions${qs(p)}`),
+  attendance: (
+    p: Omit<AnalyticsParams, 'direction' | 'shiftTime'> & {
+      page?: number;
+      pageSize?: number;
+    },
+  ) => apiRequest<AttendancePage>(`/corporate/analytics/attendance${qs({ ...p })}`),
   downloadReport: (
-    typeOrParams: ReportType | ({ type: ReportType; tenantId: string; format?: string } & AnalyticsParams),
+    typeOrParams:
+      | ReportType
+      | ({
+          type: ReportType;
+          tenantId: string;
+          format?: string;
+        } & AnalyticsParams),
     maybeParams?: AnalyticsParams,
   ) => {
     let type: ReportType;
@@ -120,10 +163,7 @@ export const analyticsApi = {
       p = maybeParams || { tenantId: '9d66820f-280c-400c-98dc-e021d0045b58' };
     }
     const filename = `adhocx-${type}-${p.from || 'report'}_to_${p.to || 'latest'}.csv`;
-    return apiDownload(
-      `/corporate/analytics/reports/${type}${qs({ ...p, format: 'csv' })}`,
-      filename,
-    );
+    return apiDownload(`/corporate/analytics/reports/${type}${qs({ ...p, format: 'csv' })}`, filename);
   },
 };
 
@@ -152,20 +192,32 @@ export type EmployeeUpdate = Partial<
 export const employeeApi = {
   list: (
     tenantId: string,
-    p: { search?: string; officeId?: string; isActive?: string; page?: number; limit?: number },
+    p: {
+      search?: string;
+      officeId?: string;
+      isActive?: string;
+      page?: number;
+      limit?: number;
+    },
   ) => apiRequest<Paginated<Employee>>(`/corporate/tenants/${tenantId}/employees${qs(p)}`),
-  get: (tenantId: string, employeeId: string) =>
-    apiRequest<Employee>(`/corporate/tenants/${tenantId}/employees/${employeeId}`),
-  requests: (tenantId: string, employeeId: string, limit = 30) =>
-    apiRequest<EmployeeRequestsResponse>(`/corporate/tenants/${tenantId}/employees/${employeeId}/requests${qs({ limit })}`),
+  get: (tenantId: string, employeeId: string) => apiRequest<Employee>(`/corporate/tenants/${tenantId}/employees/${employeeId}`),
+  requests: (tenantId: string, employeeId: string, limit = 30) => apiRequest<EmployeeRequestsResponse>(`/corporate/tenants/${tenantId}/employees/${employeeId}/requests${qs({ limit })}`),
   create: (tenantId: string, body: EmployeeInput) =>
-    apiRequest<Employee>(`/corporate/tenants/${tenantId}/employees`, { method: 'POST', body }),
-  update: (tenantId: string, employeeId: string, body: EmployeeUpdate) =>
-    apiRequest<Employee>(`/corporate/tenants/${tenantId}/employees/${employeeId}`, { method: 'PATCH', body }),
+    apiRequest<Employee>(`/corporate/tenants/${tenantId}/employees`, {
+      method: 'POST',
+      body,
+    }),
+  update: (tenantId: string, employeeId: string, body: EmployeeUpdate) => apiRequest<Employee>(`/corporate/tenants/${tenantId}/employees/${employeeId}`, { method: 'PATCH', body }),
   addLocation: (
     tenantId: string,
     employeeId: string,
-    body: { addressText: string; landmark?: string; latitude: number; longitude: number; isDefault?: boolean },
+    body: {
+      addressText: string;
+      landmark?: string;
+      latitude: number;
+      longitude: number;
+      isDefault?: boolean;
+    },
   ) =>
     apiRequest<EmployeeLocation>(`/corporate/tenants/${tenantId}/employees/${employeeId}/locations`, {
       method: 'POST',
@@ -196,27 +248,43 @@ export const rosterApi = {
       formData: fd,
     });
   },
-  list: (tenantId: string, p: { rosterDate?: string; officeId?: string }) =>
-    apiRequest<Roster[]>(`/corporate/rosters${qs({ tenantId, ...p })}`),
+  list: (tenantId: string, p: { rosterDate?: string; officeId?: string }) => apiRequest<Roster[]>(`/corporate/rosters${qs({ tenantId, ...p })}`),
   get: (rosterId: string) => apiRequest<Roster & { requests: RosterRequest[] }>(`/corporate/rosters/${rosterId}`),
-  requests: (rosterId: string, status?: string) =>
-    apiRequest<RosterRequest[]>(`/corporate/rosters/${rosterId}/requests${qs({ status })}`),
-  approve: (rosterId: string) => apiRequest<Roster>(`/corporate/rosters/${rosterId}/approve`, { method: 'POST', body: {} }),
-  publish: (rosterId: string) => apiRequest<unknown>(`/corporate/rosters/${rosterId}/publish`, { method: 'POST', body: {} }),
+  requests: (rosterId: string, status?: string) => apiRequest<RosterRequest[]>(`/corporate/rosters/${rosterId}/requests${qs({ status })}`),
+  approve: (rosterId: string) =>
+    apiRequest<Roster>(`/corporate/rosters/${rosterId}/approve`, {
+      method: 'POST',
+      body: {},
+    }),
+  publish: (rosterId: string) =>
+    apiRequest<unknown>(`/corporate/rosters/${rosterId}/publish`, {
+      method: 'POST',
+      body: {},
+    }),
 };
 
 export const schedulingApi = {
-  shiftTemplates: (tenantId: string, officeId?: string) =>
-    apiRequest<ShiftTemplate[]>(`/corporate/scheduling/shift-templates${qs({ tenantId, officeId })}`),
+  shiftTemplates: (tenantId: string, officeId?: string) => apiRequest<ShiftTemplate[]>(`/corporate/scheduling/shift-templates${qs({ tenantId, officeId })}`),
   createShiftTemplate: (
     tenantId: string,
-    body: { officeId: string; name: string; loginTime: string; logoutTime: string; weekdays: number[] },
+    body: {
+      officeId: string;
+      name: string;
+      loginTime: string;
+      logoutTime: string;
+      weekdays: number[];
+    },
   ) =>
-    apiRequest<ShiftTemplate>('/corporate/scheduling/shift-templates', { method: 'POST', body: { ...body, tenantId } }),
-  holidays: (tenantId: string, from?: string, to?: string) =>
-    apiRequest<Holiday[]>(`/corporate/scheduling/holidays${qs({ tenantId, from, to })}`),
+    apiRequest<ShiftTemplate>('/corporate/scheduling/shift-templates', {
+      method: 'POST',
+      body: { ...body, tenantId },
+    }),
+  holidays: (tenantId: string, from?: string, to?: string) => apiRequest<Holiday[]>(`/corporate/scheduling/holidays${qs({ tenantId, from, to })}`),
   createHoliday: (tenantId: string, body: { officeId?: string | null; holidayDate: string; name: string }) =>
-    apiRequest<Holiday>('/corporate/scheduling/holidays', { method: 'POST', body: { ...body, tenantId } }),
+    apiRequest<Holiday>('/corporate/scheduling/holidays', {
+      method: 'POST',
+      body: { ...body, tenantId },
+    }),
 };
 
 export const routesApi = {
@@ -270,21 +338,23 @@ export const tripsApi = {
    */
   rescheduleOrCancel: (
     requestId: string,
-    body: { employeeId: string; action: 'CANCEL' | 'RESCHEDULE'; newShiftTime?: string; newShiftDate?: string },
-  ) => apiRequest<unknown>(`/corporate/trips/requests/${requestId}/reschedule`, { method: 'POST', body }),
+    body: {
+      employeeId: string;
+      action: 'CANCEL' | 'RESCHEDULE';
+      newShiftTime?: string;
+      newShiftDate?: string;
+    },
+  ) =>
+    apiRequest<unknown>(`/corporate/trips/requests/${requestId}/reschedule`, {
+      method: 'POST',
+      body,
+    }),
 
   /**
    * List corporate transport requests across all rosters for a tenant.
    */
-  requests: (p: {
-    tenantId?: string;
-    status?: string;
-    direction?: string;
-    scheduledDate?: string;
-    search?: string;
-    page?: number;
-    limit?: number;
-  }) => apiRequest<BookingQueueResponse>(`/corporate/trips/requests${qs(p)}`),
+  requests: (p: { tenantId?: string; status?: string; direction?: string; scheduledDate?: string; search?: string; page?: number; limit?: number }) =>
+    apiRequest<BookingQueueResponse>(`/corporate/trips/requests${qs(p)}`),
 
   /**
    * Approve or reject an ad-hoc or exception transport booking request.
@@ -303,34 +373,74 @@ export const safetyApi = {
     const status = typeof p === 'string' ? p : p?.status;
     return apiRequest<SosAlert[]>(`/corporate/safety/alerts${qs({ tenantId, status })}`);
   },
-  incidents: (tenantId: string = '9d66820f-280c-400c-98dc-e021d0045b58', p?: { status?: string }) =>
-    apiRequest<SafetyIncident[]>(`/corporate/safety/alerts${qs({ tenantId, ...p })}`),
-  incident: (incidentId: string) =>
-    apiRequest<SafetyIncident>(`/corporate/safety/alerts/${incidentId}`),
-  resolveAlert: (alertId: string, body: { reason?: string; resolutionNotes?: string; falsePositive?: boolean }) =>
-    apiRequest<unknown>(`/corporate/safety/alerts/${alertId}/resolve`, { method: 'POST', body }),
-  resolveIncident: (incidentId: string, body: { reason?: string; resolutionNotes?: string; falsePositive?: boolean }) =>
-    apiRequest<unknown>(`/corporate/safety/alerts/${incidentId}/resolve`, { method: 'POST', body }),
+  incidents: (tenantId: string = '9d66820f-280c-400c-98dc-e021d0045b58', p?: { status?: string }) => apiRequest<SafetyIncident[]>(`/corporate/safety/alerts${qs({ tenantId, ...p })}`),
+  incident: (incidentId: string) => apiRequest<SafetyIncident>(`/corporate/safety/alerts/${incidentId}`),
+  resolveAlert: (
+    alertId: string,
+    body: {
+      reason?: string;
+      resolutionNotes?: string;
+      falsePositive?: boolean;
+    },
+  ) =>
+    apiRequest<unknown>(`/corporate/safety/alerts/${alertId}/resolve`, {
+      method: 'POST',
+      body,
+    }),
+  resolveIncident: (
+    incidentId: string,
+    body: {
+      reason?: string;
+      resolutionNotes?: string;
+      falsePositive?: boolean;
+    },
+  ) =>
+    apiRequest<unknown>(`/corporate/safety/alerts/${incidentId}/resolve`, {
+      method: 'POST',
+      body,
+    }),
   confirmSafeDrop: (routeId: string, stopId: string, body: { confirmedByRole: 'DRIVER' | 'EMPLOYEE'; notes?: string }) =>
-    apiRequest<unknown>(`/corporate/safety/routes/${routeId}/stops/${stopId}/confirm-safe-drop`, { method: 'POST', body }),
+    apiRequest<unknown>(`/corporate/safety/routes/${routeId}/stops/${stopId}/confirm-safe-drop`, {
+      method: 'POST',
+      body,
+    }),
   confirmSafeReach: (routeId: string, stopId: string, body: { confirmedSafely?: boolean; notes?: string }) =>
-    apiRequest<unknown>(`/corporate/safety/routes/${routeId}/stops/${stopId}/confirm-safe-reach`, { method: 'POST', body }),
+    apiRequest<unknown>(`/corporate/safety/routes/${routeId}/stops/${stopId}/confirm-safe-reach`, {
+      method: 'POST',
+      body,
+    }),
   emergencyBoardingOverride: (routeId: string, stopId: string, body: { reason: string; verificationEvidence?: string; notes?: string }) =>
-    apiRequest<unknown>(`/corporate/safety/routes/${routeId}/stops/${stopId}/emergency-boarding-override`, { method: 'POST', body }),
-  trackingLossRoutes: () =>
-    apiRequest<string[]>(`/corporate/safety/tracking-loss`),
-  getSafeDropStatus: (stopId: string) =>
-    apiRequest<unknown>(`/corporate/safety/stops/${stopId}/safe-drop-status`),
+    apiRequest<unknown>(`/corporate/safety/routes/${routeId}/stops/${stopId}/emergency-boarding-override`, {
+      method: 'POST',
+      body,
+    }),
+  trackingLossRoutes: () => apiRequest<string[]>(`/corporate/safety/tracking-loss`),
+  getSafeDropStatus: (stopId: string) => apiRequest<unknown>(`/corporate/safety/stops/${stopId}/safe-drop-status`),
 };
 
 export const supportApi = {
   list: (
     tenantId?: string,
-    p: { status?: string; priority?: string; category?: string; search?: string; from?: string; to?: string; limit?: number; offset?: number } = {},
-  ) =>
-    apiRequest<SupportTicket[]>(`/corporate/support/tickets${qs({ ...p })}`),
+    p: {
+      status?: string;
+      priority?: string;
+      category?: string;
+      search?: string;
+      from?: string;
+      to?: string;
+      limit?: number;
+      offset?: number;
+    } = {},
+  ) => apiRequest<SupportTicket[]>(`/corporate/support/tickets${qs({ ...p })}`),
   get: (ticketId: string) => apiRequest<SupportTicket>(`/corporate/support/tickets/${ticketId}`),
-  summary: () => apiRequest<{ total: number; open: number; inProgress: number; resolved: number; closed: number }>('/corporate/support/tickets/summary'),
+  summary: () =>
+    apiRequest<{
+      total: number;
+      open: number;
+      inProgress: number;
+      resolved: number;
+      closed: number;
+    }>('/corporate/support/tickets/summary'),
   create: (
     tenantId: string,
     body: {
@@ -362,33 +472,46 @@ export const supportApi = {
     return apiRequest<SupportTicket>(`/corporate/support/tickets/${ticketId}/replies`, { method: 'POST', formData });
   },
   reopen: (ticketId: string) =>
-    apiRequest<SupportTicket>(`/corporate/support/tickets/${ticketId}/reopen`, { method: 'POST', body: {} }),
+    apiRequest<SupportTicket>(`/corporate/support/tickets/${ticketId}/reopen`, {
+      method: 'POST',
+      body: {},
+    }),
 };
 
 export const billingApi = {
-  invoices: (tenantId: string, p: { status?: string; page?: number; limit?: number }) =>
-    apiRequest<Paginated<Invoice>>(`/corporate/billing/invoices${qs({ tenantId, ...p })}`),
+  invoices: (tenantId: string, p: { status?: string; page?: number; limit?: number }) => apiRequest<Paginated<Invoice>>(`/corporate/billing/invoices${qs({ tenantId, ...p })}`),
   invoice: (invoiceId: string) => apiRequest<InvoiceDetail>(`/corporate/billing/invoices/${invoiceId}`),
-  downloadPdf: (invoice: { id: string; invoiceNumber: string }) =>
-    apiDownload(`/corporate/billing/invoices/${invoice.id}/pdf`, `Invoice-${invoice.invoiceNumber}.pdf`),
-  raiseDispute: (invoiceId: string, body: { reason: string; claimedAmountPaise: string; invoiceLineId?: string }) =>
-    apiRequest<InvoiceDispute>(`/corporate/billing/invoices/${invoiceId}/disputes`, { method: 'POST', body }),
-  disputes: (tenantId: string, p: { status?: string; invoiceId?: string } = {}) =>
-    apiRequest<InvoiceDispute[]>(`/corporate/billing/disputes${qs({ tenantId, ...p })}`),
-  creditNotes: (tenantId: string, p: { invoiceId?: string } = {}) =>
-    apiRequest<CreditNote[]>(`/corporate/billing/credit-notes${qs({ tenantId, ...p })}`),
+  downloadPdf: (invoice: { id: string; invoiceNumber: string }) => apiDownload(`/corporate/billing/invoices/${invoice.id}/pdf`, `Invoice-${invoice.invoiceNumber}.pdf`),
+  raiseDispute: (
+    invoiceId: string,
+    body: {
+      reason: string;
+      claimedAmountPaise: string;
+      invoiceLineId?: string;
+    },
+  ) => apiRequest<InvoiceDispute>(`/corporate/billing/invoices/${invoiceId}/disputes`, { method: 'POST', body }),
+  disputes: (tenantId: string, p: { status?: string; invoiceId?: string } = {}) => apiRequest<InvoiceDispute[]>(`/corporate/billing/disputes${qs({ tenantId, ...p })}`),
+  creditNotes: (tenantId: string, p: { invoiceId?: string } = {}) => apiRequest<CreditNote[]>(`/corporate/billing/credit-notes${qs({ tenantId, ...p })}`),
   rateCards: (tenantId: string, includeRetired: boolean) =>
-    apiRequest<CorporateRateCard[]>(
-      `/corporate/billing/rate-cards/corporate${qs({ tenantId, includeRetired: includeRetired ? 'true' : undefined })}`,
-    ),
+    apiRequest<CorporateRateCard[]>(`/corporate/billing/rate-cards/corporate${qs({ tenantId, includeRetired: includeRetired ? 'true' : undefined })}`),
 };
 
 export const usersApi = {
   list: (tenantId: string) => apiRequest<CorporateUser[]>(`/corporate/tenants/${tenantId}/users`),
   invite: (
     tenantId: string,
-    body: { fullName: string; email?: string; phone?: string; corporateRole: string; officeIds: string[] },
-  ) => apiRequest<CorporateUser>(`/corporate/tenants/${tenantId}/users`, { method: 'POST', body }),
+    body: {
+      fullName: string;
+      email?: string;
+      phone?: string;
+      corporateRole: string;
+      officeIds: string[];
+    },
+  ) =>
+    apiRequest<CorporateUser>(`/corporate/tenants/${tenantId}/users`, {
+      method: 'POST',
+      body,
+    }),
   update: (tenantId: string, userId: string, body: { corporateRole?: string; officeIds?: string[] }) =>
     apiRequest<CorporateUser>(`/corporate/tenants/${tenantId}/users/${userId}`, { method: 'PATCH', body }),
 };

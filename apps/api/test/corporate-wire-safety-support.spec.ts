@@ -547,6 +547,20 @@ describe('wire/safety-support: SOS lifecycle, escalation scheduler, support tick
       );
     });
 
+    it('accepts legacy corporate role aliases without granting unrelated roles', () => {
+      const rolesGuard = new RolesGuard(new Reflector());
+      const listAs = (role: string) =>
+        rolesGuard.canActivate(ctx(CorporateSupportTicketController, 'listTickets', req({ id: 'legacy', role })));
+
+      expect(listAs('CORP_ADMIN')).toBe(true);
+      expect(listAs('CORP_MANAGER')).toBe(true);
+      expect(() =>
+        rolesGuard.canActivate(
+          ctx(CorporateSupportTicketController, 'updateStatus', req({ id: 'legacy', role: 'CORP_ADMIN' })),
+        ),
+      ).toThrow(ForbiddenException);
+    });
+
     it('tenant isolation on create: corporate admin may raise tickets only for employees of their tenant', async () => {
       // Spoofed tenantId in the body is rejected by the guard.
       const spoof = req(CORP_ADMIN_T1, { body: { tenantId: T2.id, employeeId: 'emp-9' } });

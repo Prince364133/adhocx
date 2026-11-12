@@ -77,9 +77,31 @@ export interface UpdateCorporateTenantDto extends Partial<Omit<CreateCorporateTe
   logoUrl?: string | null;
 }
 
+export interface UpdateCorporateTenantProfileDto {
+  name: string;
+  legalEntityName: string;
+  gstin?: string | null;
+  industry?: string | null;
+  website?: string | null;
+  logoUrl?: string | null;
+  registeredAddress?: string | null;
+  city?: string | null;
+  state?: string | null;
+  pinCode?: string | null;
+  country?: string | null;
+  primaryContactName?: string | null;
+  primaryContactEmail?: string | null;
+  primaryContactPhone?: string | null;
+  cin?: string | null;
+  registeredBusinessAddress?: string | null;
+  billingAddress?: string | null;
+  billingSameAsRegistered?: boolean;
+}
+
 export interface CreateCorporateOfficeDto {
   code: string;
   name: string;
+  city?: string;
   addressText: string;
   latitude: number;
   longitude: number;

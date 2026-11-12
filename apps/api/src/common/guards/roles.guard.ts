@@ -22,7 +22,12 @@ export class RolesGuard implements CanActivate {
       throw new ForbiddenException('Access denied: unauthenticated or invalid user role');
     }
 
-    const userRoleStr = String(user.role).trim().toUpperCase();
+    const rawUserRole = String(user.role).trim().toUpperCase();
+    const roleAliases: Record<string, string> = {
+      CORP_ADMIN: UserRole.CORPORATE_ADMIN,
+      CORP_MANAGER: UserRole.CORPORATE_MANAGER,
+    };
+    const userRoleStr = roleAliases[rawUserRole] ?? rawUserRole;
     
     // ADMIN has unrestricted superuser access
     if (userRoleStr === 'ADMIN' || userRoleStr === UserRole.ADMIN) {

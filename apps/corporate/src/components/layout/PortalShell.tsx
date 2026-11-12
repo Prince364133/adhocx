@@ -10,14 +10,13 @@ import {
   LifeBuoy,
   Receipt,
   BarChart3,
-  Settings,
   Navigation,
   Search,
   Bell,
   HelpCircle,
-  ChevronDown,
   LogOut,
   Building,
+  CalendarX,
 } from 'lucide-react';
 import { SessionProvider, useSession } from '../../lib/auth/SessionContext';
 import { CORPORATE_ROLE_LABELS, CorporatePermission } from '../../lib/auth/permissions';
@@ -34,11 +33,12 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/dashboard', label: 'Overview', icon: <LayoutDashboard size={18} /> },
   { href: '/routes', label: 'Routes & Dispatch', icon: <Navigation size={18} /> },
   { href: '/employees', label: 'Employees', icon: <Users size={18} /> },
+  { href: '/cancellations', label: 'Cancellation Requests', icon: <CalendarX size={18} /> },
   { href: '/routes-list', label: 'Routes', icon: <Route size={18} /> },
   { href: '/support', label: 'Support', icon: <LifeBuoy size={18} /> },
   { href: '/billing', label: 'Billing & Invoices', icon: <Receipt size={18} /> },
   { href: '/dashboard/analytics', label: 'Transport Analytics', icon: <BarChart3 size={15} /> },
-  { href: '/settings', label: 'Organization Settings', icon: <Settings size={18} /> },
+  { href: '/company-profile', label: 'Company Profile', icon: <Building size={18} /> },
 ];
 
 function isActive(pathname: string, href: string): boolean {
@@ -148,7 +148,7 @@ function Sidebar() {
 }
 
 function TopBar() {
-  const { tenant, user, corporateRole, logout } = useSession();
+  const { user, corporateRole, logout } = useSession();
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   return (
@@ -168,7 +168,7 @@ function TopBar() {
         transition: 'background-color 0.2s ease, border-color 0.2s ease',
       }}
     >
-      {/* Left: Brand + Tenant Selector */}
+      {/* Left: Brand */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
         <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
           <img
@@ -186,28 +186,6 @@ function TopBar() {
           </span>
         </Link>
 
-        <div style={{ height: 20, width: 1, backgroundColor: 'var(--border-subtle)' }} />
-
-        {/* Tenant Selector Dropdown */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            backgroundColor: 'var(--bg-surface-muted)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: '6px',
-            padding: '6px 12px',
-            fontSize: '13px',
-            fontWeight: 600,
-            color: 'var(--text-primary)',
-            cursor: 'pointer',
-          }}
-        >
-          <Building size={14} color="var(--brand-primary, #5728B2)" />
-          <span>{tenant?.name || 'HiTEC Technologies'}</span>
-          <ChevronDown size={14} color="var(--text-muted)" />
-        </div>
       </div>
 
       {/* Middle: Global Omnisearch */}

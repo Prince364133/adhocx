@@ -12,6 +12,7 @@ import { H3Service } from '../../../modules/locations/h3.service';
 import {
   CreateCorporateTenantDto,
   UpdateCorporateTenantDto,
+  UpdateCorporateTenantProfileDto,
   CreateCorporateOfficeDto,
   UpdateCorporateOfficeDto,
   CreateCorporateEmployeeDto,
@@ -231,6 +232,91 @@ export class CorporateTenantService {
       entityId: tenant.id,
       entityType: 'CORPORATE_TENANT',
       metadata: { updates: dto },
+    });
+
+    return updated;
+  }
+
+  async updateTenantProfile(
+    tenantId: string,
+    dto: UpdateCorporateTenantProfileDto,
+    actorUserId?: string,
+  ) {
+    await this.getTenantById(tenantId);
+    const name = dto.name.trim();
+    const legalEntityName = dto.legalEntityName.trim();
+    if (!name || !legalEntityName) {
+      throw new BadRequestException('Organization name and legal business name are required');
+    }
+    const gstin = dto.gstin?.trim().toUpperCase() || null;
+    const cin = dto.cin?.trim().toUpperCase() || null;
+    const email = dto.primaryContactEmail?.trim() || null;
+    const website = dto.website?.trim() || null;
+    const phone = dto.primaryContactPhone?.trim() || null;
+    const logoUrl = dto.logoUrl?.trim() || null;
+    if (gstin && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][A-Z0-9]Z[A-Z0-9]$/.test(gstin)) {
+      throw new BadRequestException('GSTIN must be a valid 15-character registration number');
+    }
+    if (cin && !/^[LU][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$/.test(cin)) {
+      throw new BadRequestException('CIN must be a valid 21-character registration number');
+    }
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new BadRequestException('Primary contact email must be valid');
+    }
+    if (phone && phone.replace(/\D/g, '').length < 10) {
+      throw new BadRequestException('Primary contact phone must contain at least 10 digits');
+    }
+    for (const [label, url] of [['Company website', website], ['Company logo URL', logoUrl]] as const) {
+      if (!url) continue;
+      try {
+        const parsedUrl = new URL(url);
+        if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+          throw new Error('Unsupported protocol');
+        }
+      } catch {
+        throw new BadRequestException(`${label} must be a valid HTTP or HTTPS URL`);
+      }
+    }
+    if (dto.billingSameAsRegistered === false && !dto.billingAddress?.trim()) {
+      throw new BadRequestException('Billing address is required when it differs from the registered address');
+    }
+
+    const updated = await this.db.corporateTenant.update({
+      where: { id: tenantId },
+      data: {
+        name,
+        legalEntityName,
+        gstin: dto.gstin === undefined ? undefined : gstin,
+        industry: dto.industry === undefined ? undefined : dto.industry?.trim() || null,
+        website: dto.website === undefined ? undefined : website,
+        logoUrl: dto.logoUrl === undefined ? undefined : logoUrl,
+        registeredAddress: dto.registeredAddress === undefined ? undefined : dto.registeredAddress?.trim() || null,
+        city: dto.city === undefined ? undefined : dto.city?.trim() || null,
+        state: dto.state === undefined ? undefined : dto.state?.trim() || null,
+        pinCode: dto.pinCode === undefined ? undefined : dto.pinCode?.trim() || null,
+        country: dto.country === undefined ? undefined : dto.country?.trim() || null,
+        primaryContactName: dto.primaryContactName === undefined ? undefined : dto.primaryContactName?.trim() || null,
+        primaryContactEmail: dto.primaryContactEmail === undefined ? undefined : email,
+        primaryContactPhone: dto.primaryContactPhone === undefined ? undefined : phone,
+        cin: dto.cin === undefined ? undefined : cin,
+        registeredBusinessAddress:
+          dto.registeredBusinessAddress === undefined ? undefined : dto.registeredBusinessAddress?.trim() || null,
+        billingAddress:
+          dto.billingSameAsRegistered === true
+            ? null
+            : dto.billingAddress === undefined
+              ? undefined
+              : dto.billingAddress?.trim() || null,
+        billingSameAsRegistered: dto.billingSameAsRegistered,
+      },
+    });
+
+    await this.audit.log({
+      action: 'CORPORATE_TENANT_PROFILE_UPDATED',
+      userId: actorUserId,
+      entityId: updated.id,
+      entityType: 'CORPORATE_TENANT',
+      metadata: { tenantId: updated.id },
     });
 
     return updated;

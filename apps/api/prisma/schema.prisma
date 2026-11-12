@@ -1091,28 +1091,29 @@ enum CorporateDriverEarningStatus {
 }
 
 model CorporateTenant {
-  id                      String                @id @default(uuid()) @db.Uuid
-  code                    String                @unique @db.VarChar(32)
-  name                    String
-  legalEntityName         String                @map("legal_entity_name")
-  gstin                   String?               @db.VarChar(15)
-  cin                     String?               @db.VarChar(21)
-  logoUrl                 String?               @map("logo_url")
-  industry                String?
-  website                 String?
-  registeredAddress       String?               @map("registered_address")
-  city                    String?
-  state                   String?
-  pinCode                 String?               @map("pin_code") @db.VarChar(12)
-  country                 String?
-  primaryContactName      String?               @map("primary_contact_name")
-  primaryContactEmail     String?               @map("primary_contact_email")
-  primaryContactPhone     String?               @map("primary_contact_phone") @db.VarChar(32)
-  billingAddress          String?               @map("billing_address")
-  billingSameAsRegistered Boolean               @default(true) @map("billing_same_as_registered")
-  status                  CorporateTenantStatus @default(ACTIVE)
-  createdAt               DateTime              @default(now()) @map("created_at")
-  updatedAt               DateTime              @default(now()) @updatedAt @map("updated_at")
+  id                        String                @id @default(uuid()) @db.Uuid
+  code                      String                @unique @db.VarChar(32)
+  name                      String
+  legalEntityName           String                @map("legal_entity_name")
+  gstin                     String?               @db.VarChar(15)
+  cin                       String?               @db.VarChar(21)
+  logoUrl                   String?               @map("logo_url")
+  industry                  String?
+  website                   String?
+  registeredAddress         String?               @map("registered_address")
+  city                      String?
+  state                     String?
+  pinCode                   String?               @map("pin_code") @db.VarChar(12)
+  country                   String?
+  primaryContactName        String?               @map("primary_contact_name")
+  primaryContactEmail       String?               @map("primary_contact_email")
+  primaryContactPhone       String?               @map("primary_contact_phone") @db.VarChar(32)
+  registeredBusinessAddress String?               @map("registered_business_address")
+  billingAddress            String?               @map("billing_address")
+  billingSameAsRegistered   Boolean               @default(true) @map("billing_same_as_registered")
+  status                    CorporateTenantStatus @default(ACTIVE)
+  createdAt                 DateTime              @default(now()) @map("created_at")
+  updatedAt                 DateTime              @default(now()) @updatedAt @map("updated_at")
 
   offices           CorporateOffice[]
   employees         CorporateEmployee[]
