@@ -212,7 +212,6 @@ export function CompanyOnboardingDrawer({
             <Field label="Primary contact name" name="primaryContactName" value={draft.primaryContactName ?? ''} onChange={changeField} required maxLength={120} />
             <Field label="Primary contact email" name="primaryContactEmail" value={draft.primaryContactEmail ?? ''} onChange={changeField} required type="email" maxLength={254} />
             <Field label="Primary contact phone" name="primaryContactPhone" value={draft.primaryContactPhone ?? ''} onChange={changeField} required type="tel" pattern="[+0-9() .-]{7,24}" maxLength={24} />
-            <Field label="Registered address" name="registeredAddress" value={draft.registeredAddress ?? ''} onChange={changeField} required multiline maxLength={500} />
             <Field label="City" name="city" value={draft.city ?? ''} onChange={changeField} required maxLength={100} />
             <Field label="State" name="state" value={draft.state ?? ''} onChange={changeField} required maxLength={100} />
             <Field label="PIN code" name="pinCode" value={draft.pinCode ?? ''} onChange={changeField} required maxLength={12} />

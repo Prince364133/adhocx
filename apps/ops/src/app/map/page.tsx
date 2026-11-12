@@ -412,7 +412,8 @@ export default function FleetLiveMapPage() {
   const loadMapData = useCallback(async () => {
     try {
       const board = await opsApi.getOpsBoard({ date: selectedDate });
-      const active = (board.routes || []).filter((r) => ACTIVE_ROUTE_STATUSES.has(r.status));
+      const routes = Object.values(board.routes).flatMap((group) => group.items);
+      const active = routes.filter((r) => ACTIVE_ROUTE_STATUSES.has(r.status));
       setRoutes(active);
       const byId = new Map<string, CorporateRouteItem>();
       active.forEach((r) => byId.set(r.id, r));

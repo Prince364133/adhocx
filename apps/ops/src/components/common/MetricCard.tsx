@@ -8,6 +8,7 @@ export interface MetricCardProps {
   trend?: {
     value: string;
     isPositive?: boolean;
+    isLive?: boolean;
   };
   highlightColor?: string;
 }
@@ -87,11 +88,19 @@ export const MetricCard: React.FC<MetricCardProps> = ({
         {trend && (
           <span
             style={{
-              fontSize: '12px',
-              fontWeight: 600,
-              color: trend.isPositive ? 'var(--color-success, #16A34A)' : 'var(--color-danger, #DC2626)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: trend.isLive ? '3px 8px' : 0,
+              borderRadius: 'var(--radius-pill)',
+              fontSize: '11px',
+              fontWeight: 700,
+              color: trend.isLive ? 'var(--color-success, #16A34A)' : trend.isPositive ? 'var(--color-success, #16A34A)' : 'var(--color-danger, #DC2626)',
+              backgroundColor: trend.isLive ? 'var(--color-success-bg)' : 'transparent',
+              border: trend.isLive ? '1px solid var(--color-success-border)' : 'none',
             }}
           >
+            {trend.isLive && <span className="pulse-green" />}
             {trend.value}
           </span>
         )}

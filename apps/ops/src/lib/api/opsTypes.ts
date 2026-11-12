@@ -235,22 +235,50 @@ export interface CorporateRouteItem {
 }
 
 export interface OpsBoardSummary {
-  totalRoutes: number;
-  planned: number;
-  dispatching: number;
-  assigned: number;
-  inTransit: number;
-  completed: number;
-  cancelled: number;
-  atRiskCount: number;
-  staleGpsCount: number;
+  PLANNED: number;
+  DISPATCHING: number;
+  ASSIGNED: number;
+  IN_TRANSIT: number;
+  COMPLETED: number;
+  CANCELLED: number;
+  total: number;
+  atRisk: number;
 }
 
 export interface OpsBoardResponse {
-  summary: OpsBoardSummary;
-  routes: CorporateRouteItem[];
-  atRisk: CorporateRouteItem[];
-  staleGps: CorporateRouteItem[];
+  asOf: string;
+  date: string;
+  timezone: string;
+  filter: { tenantId: string | null; officeId: string | null };
+  page: number;
+  pageSize: number;
+  counts: OpsBoardSummary;
+  routes: Record<
+    'PLANNED' | 'DISPATCHING' | 'ASSIGNED' | 'IN_TRANSIT' | 'COMPLETED' | 'CANCELLED',
+    { total: number; items: CorporateRouteItem[]; hasMore: boolean }
+  >;
+  atRisk: { leadMinutes: number; items: (CorporateRouteItem & { minutesToPickup?: number; reason?: string })[] };
+  staleGps: {
+    summary: { LIVE: number; STALE: number; OFFLINE: number };
+    items: CorporateRouteItem[];
+  };
+}
+
+export interface OperationsAnalyticsDashboard {
+  asOf: string;
+  filter: { tenantId: string; from: string; to: string; shiftTime?: string | null; timezone: string };
+  trips: { total: number; byStatus: Record<string, number> };
+  employeesServed: number;
+  requests: { total: number; byStatus: Record<string, number>; cancelled: number; noShows: number; unserved: number };
+  punctuality: {
+    measuredStops: number;
+    onTimePickups: number;
+    latePickups: number;
+    onTimePct: number | null;
+    avgDelayMinutes: number | null;
+  };
+  seatUtilisation: { completedRoutes: number; assignedSeats: number; capacitySeats: number; pct: number | null };
+  dailyTrips: Array<{ date: string; scheduled: number; completed: number }>;
 }
 
 export interface LiveOperationsResponse {

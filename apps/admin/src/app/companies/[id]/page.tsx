@@ -7,13 +7,11 @@ import {
   ArrowLeft,
   Building2,
   Check,
-  ClipboardList,
   FileText,
   MapPin,
   Pencil,
   Plus,
   Shield,
-  Users,
   X,
 } from 'lucide-react';
 import { adminApi } from '../../../lib/api/client';
@@ -42,17 +40,11 @@ type OfficeDraft = CorporateOfficeInput;
 type DepartmentDraft = CorporateDepartmentInput;
 type ZoneDraft = CorporateTransportZoneInput;
 type UserDraft = InviteCorporateCompanyUserInput;
-const OPS_BASE_URL =
-  process.env.NEXT_PUBLIC_OPS_URL?.replace(/\/+$/, '') ||
-  (process.env.NODE_ENV === 'development' ? 'http://localhost:7004' : undefined);
 
 const sectionItems: { id: Section; label: string; icon: React.ReactNode }[] = [
   { id: 'organization', label: 'Organization', icon: <Building2 size={17} /> },
   { id: 'legal', label: 'Legal & tax', icon: <FileText size={17} /> },
   { id: 'offices', label: 'Offices & sites', icon: <MapPin size={17} /> },
-  { id: 'departments', label: 'Departments', icon: <ClipboardList size={17} /> },
-  { id: 'zones', label: 'Transport zones', icon: <MapPin size={17} /> },
-  { id: 'users', label: 'Users & roles', icon: <Users size={17} /> },
 ];
 
 const roleOptions = [
@@ -804,13 +796,6 @@ export default function CompanyProfilePage() {
               </button>
             ))}
           </nav>
-          {OPS_BASE_URL && (
-            <div style={{ borderTop: '1px solid var(--border-light)', marginTop: '0.7rem', padding: '0.8rem 0.5rem 0.25rem' }}>
-              <a href={`${OPS_BASE_URL}/board?tenantId=${encodeURIComponent(company.id)}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--brand-primary)', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 650 }}>
-                View operations →
-              </a>
-            </div>
-          )}
         </Card>
 
         <div aria-live="polite">
