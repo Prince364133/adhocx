@@ -101,7 +101,6 @@ export interface UpdateCorporateTenantProfileDto {
 export interface CreateCorporateOfficeDto {
   code: string;
   name: string;
-  city?: string;
   addressText: string;
   latitude: number;
   longitude: number;
