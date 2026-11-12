@@ -57,6 +57,36 @@ describe('CorporateTenantService', () => {
   });
 
   describe('Tenant Onboarding', () => {
+    it('lists companies with profile overview data and normalized office coordinates', async () => {
+      mockDb.corporateTenant.count.mockResolvedValue(1);
+      mockDb.corporateTenant.findMany.mockResolvedValue([
+        {
+          id: 'tenant-101',
+          code: 'ACME',
+          name: 'Acme',
+          legalEntityName: 'Acme Ltd',
+          status: 'ACTIVE',
+          offices: [{ id: 'office-1', latitude: '17.4', longitude: '78.4' }],
+        },
+      ]);
+
+      const result = await service.listTenants({ page: 1, limit: 20 });
+
+      expect(mockDb.corporateTenant.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: expect.objectContaining({
+            offices: expect.objectContaining({ take: 10 }),
+            policies: expect.objectContaining({ take: 1 }),
+            users: expect.objectContaining({ take: 5 }),
+            _count: { select: { offices: true, employees: true, routes: true } },
+          }),
+        }),
+      );
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].offices[0]).toMatchObject({ latitude: 17.4, longitude: 78.4 });
+      expect(result.pagination.total).toBe(1);
+    });
+
     it('should create a corporate tenant with uppercase code', async () => {
       mockDb.corporateTenant.findUnique.mockResolvedValue(null);
       mockDb.corporateTenant.create.mockResolvedValue({

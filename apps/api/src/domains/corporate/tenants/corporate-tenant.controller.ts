@@ -10,15 +10,22 @@ import {
   UseGuards,
   ForbiddenException,
   BadRequestException,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { CorporateTenantService } from './corporate-tenant.service';
 import { CorporateOnboardingService } from './corporate-onboarding.service';
+import { CorporateTransportZoneService } from './corporate-transport-zone.service';
+import { StorageService } from '../../../common/storage/storage.service';
 import {
   CreateCorporateTenantDto,
   OnboardCorporateCompanyDto,
   UpdateCorporateTenantDto,
   CreateCorporateOfficeDto,
+  UpdateCorporateOfficeDto,
+  CreateCorporateTransportZoneDto,
+  UpdateCorporateTransportZoneDto,
   CreateCorporateEmployeeDto,
   UpdateCorporateEmployeeDto,
   CreateEmployeeLocationDto,
@@ -55,6 +62,8 @@ export class CorporateTenantController {
     private readonly policyService: CorporateTenantPolicyService,
     private readonly orgService: CorporateOrgStructureService,
     private readonly usersService: CorporateTenantUsersService,
+    private readonly transportZoneService: CorporateTransportZoneService,
+    private readonly storage: StorageService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -120,6 +129,30 @@ export class CorporateTenantController {
     return this.tenantService.updateTenant(id, dto, req.user?.id);
   }
 
+  @Post(':id/logo')
+  @Roles(UserRole.ADMIN)
+  @CorporateResource('tenant', 'id')
+  @UseInterceptors(FileInterceptor('file', {
+    limits: { fileSize: 2 * 1024 * 1024 },
+    fileFilter: (_req, file, callback) => {
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) {
+        return callback(new BadRequestException('Logo must be a JPEG, PNG, or WebP image'), false);
+      }
+      callback(null, true);
+    },
+  }))
+  @ApiOperation({ summary: 'Upload a sanitized company logo (JPEG, PNG or WebP; maximum 2 MB)' })
+  public async uploadTenantLogo(@Param('id') id: string, @Req() req: any) {
+    const file = req.file as Express.Multer.File | undefined;
+    if (!file) throw new BadRequestException('A logo image is required');
+    const stored = await this.storage.saveFile(file, {
+      allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
+      maxSizeBytes: 2 * 1024 * 1024,
+    });
+    const tenant = await this.tenantService.updateTenant(id, { logoUrl: stored.url }, req.user?.id);
+    return { logoUrl: tenant.logoUrl };
+  }
+
   // ---------------------------------------------------------------------------
   // CORPORATE USERS (6 roles + office scope)
   // ---------------------------------------------------------------------------
@@ -169,8 +202,12 @@ export class CorporateTenantController {
   @CorporateResource('tenant', 'id')
   @CorporatePermission('departments:read')
   @ApiOperation({ summary: 'List departments of a tenant' })
-  public async listDepartments(@Param('id') tenantId: string) {
-    return this.orgService.list('department', tenantId);
+  public async listDepartments(
+    @Param('id') tenantId: string,
+    @Query('includeInactive') includeInactive?: string,
+    @Req() req?: any,
+  ) {
+    return this.orgService.list('department', tenantId, includeInactive === 'true', scopeOf(req));
   }
 
   @Post(':id/departments')
@@ -179,7 +216,70 @@ export class CorporateTenantController {
   @CorporatePermission('departments:write')
   @ApiOperation({ summary: 'Create a department (code unique per tenant); links employees whose department text matches' })
   public async createDepartment(@Param('id') tenantId: string, @Body() body: CreateOrgUnitInput, @Req() req: any) {
+    if (scopeOf(req) && (!body.officeId || !scopeOf(req)!.includes(body.officeId))) {
+      throw new ForbiddenException('Office-scoped users can only create departments for their offices');
+    }
     return this.orgService.create('department', tenantId, body, req.user?.id);
+  }
+
+  @Patch(':id/departments/:departmentId')
+  @Roles(...CORPORATE_PORTAL_ROLES)
+  @CorporateResource('tenant', 'id')
+  @CorporatePermission('departments:write')
+  @ApiOperation({ summary: 'Update or deactivate a tenant department' })
+  public async updateDepartment(
+    @Param('id') tenantId: string,
+    @Param('departmentId') departmentId: string,
+    @Body() body: Partial<CreateOrgUnitInput>,
+    @Req() req: any,
+  ) {
+    if (scopeOf(req) && body.officeId && !scopeOf(req)!.includes(body.officeId)) {
+      throw new ForbiddenException('Office is outside your corporate office scope');
+    }
+    return this.orgService.updateDepartment(tenantId, departmentId, body, req.user?.id, scopeOf(req));
+  }
+
+  @Get(':id/transport-zones')
+  @Roles(...CORPORATE_PORTAL_ROLES)
+  @CorporateResource('tenant', 'id')
+  @CorporatePermission('zones:read')
+  @ApiOperation({ summary: 'List transport zones for this tenant' })
+  public async listTransportZones(
+    @Param('id') tenantId: string,
+    @Query('includeInactive') includeInactive?: string,
+    @Req() req?: any,
+  ) {
+    return this.transportZoneService.list(tenantId, includeInactive === 'true', scopeOf(req));
+  }
+
+  @Post(':id/transport-zones')
+  @Roles(...CORPORATE_PORTAL_ROLES)
+  @CorporateResource('tenant', 'id')
+  @CorporatePermission('zones:write')
+  @ApiOperation({ summary: 'Create a tenant-scoped transport zone' })
+  public async createTransportZone(
+    @Param('id') tenantId: string,
+    @Body() body: CreateCorporateTransportZoneDto,
+    @Req() req: any,
+  ) {
+    if (scopeOf(req) && !scopeOf(req)!.includes(body.officeId)) {
+      throw new ForbiddenException('Office is outside your corporate office scope');
+    }
+    return this.transportZoneService.create(tenantId, body, req.user?.id);
+  }
+
+  @Patch(':id/transport-zones/:zoneId')
+  @Roles(...CORPORATE_PORTAL_ROLES)
+  @CorporateResource('tenant', 'id')
+  @CorporatePermission('zones:write')
+  @ApiOperation({ summary: 'Update or deactivate a tenant-scoped transport zone' })
+  public async updateTransportZone(
+    @Param('id') tenantId: string,
+    @Param('zoneId') zoneId: string,
+    @Body() body: UpdateCorporateTransportZoneDto,
+    @Req() req: any,
+  ) {
+    return this.transportZoneService.update(tenantId, zoneId, body, req.user?.id, scopeOf(req));
   }
 
   @Get(':id/cost-centers')
@@ -261,8 +361,12 @@ export class CorporateTenantController {
   @CorporatePermission('offices:read')
   @ApiOperation({ summary: 'List all office campuses for a corporate tenant (office-scoped users: their offices)' })
   @ApiResponse({ status: 200, description: 'List of offices' })
-  public async listOffices(@Param('id') tenantId: string, @Req() req?: any) {
-    return this.tenantService.listOffices(tenantId, scopeOf(req));
+  public async listOffices(
+    @Param('id') tenantId: string,
+    @Query('includeInactive') includeInactive?: string,
+    @Req() req?: any,
+  ) {
+    return this.tenantService.listOffices(tenantId, scopeOf(req), includeInactive === 'true');
   }
 
   @Get(':id/offices/:officeId')
@@ -276,6 +380,23 @@ export class CorporateTenantController {
     @Param('officeId') officeId: string,
   ) {
     return this.tenantService.getOfficeById(tenantId, officeId);
+  }
+
+  @Patch(':id/offices/:officeId')
+  @Roles(...CORPORATE_PORTAL_ROLES)
+  @CorporateResource('tenant', 'id')
+  @CorporatePermission('offices:write')
+  @ApiOperation({ summary: 'Update or deactivate an office while preserving historical references' })
+  public async updateOffice(
+    @Param('id') tenantId: string,
+    @Param('officeId') officeId: string,
+    @Body() dto: UpdateCorporateOfficeDto,
+    @Req() req: any,
+  ) {
+    if (scopeOf(req) && !scopeOf(req)!.includes(officeId)) {
+      throw new ForbiddenException('Office is outside your corporate office scope');
+    }
+    return this.tenantService.updateOffice(tenantId, officeId, dto, req.user?.id);
   }
 
   @Get(':id/offices/:officeId/geofences')

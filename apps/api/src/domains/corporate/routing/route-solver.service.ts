@@ -63,7 +63,7 @@ export class RouteSolverService {
       (vehicleCategory === 'SUV' ? this.DEFAULT_SUV_CAPACITY : this.DEFAULT_SEDAN_CAPACITY);
 
     const office = await this.db.corporateOffice.findFirst({
-      where: { id: officeId, tenantId },
+      where: { id: officeId, tenantId, isActive: true },
     });
     if (!office) {
       throw new NotFoundException(`Office ${officeId} not found for tenant ${tenantId}`);

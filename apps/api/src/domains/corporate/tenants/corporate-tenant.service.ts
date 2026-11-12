@@ -13,6 +13,7 @@ import {
   CreateCorporateTenantDto,
   UpdateCorporateTenantDto,
   CreateCorporateOfficeDto,
+  UpdateCorporateOfficeDto,
   CreateCorporateEmployeeDto,
   UpdateCorporateEmployeeDto,
   CreateEmployeeLocationDto,
@@ -38,6 +39,13 @@ export class CorporateTenantService {
   // ---------------------------------------------------------------------------
 
   async createTenant(dto: CreateCorporateTenantDto, actorUserId?: string) {
+    if (!/^[A-Z0-9][A-Z0-9_-]{0,31}$/.test(dto.code?.trim().toUpperCase() ?? '')) {
+      throw new BadRequestException('Company code must contain 1-32 letters, numbers, hyphens, or underscores');
+    }
+    if (!dto.name?.trim() || !dto.legalEntityName?.trim()) {
+      throw new BadRequestException('Company name and legal business name are required');
+    }
+    const profile = this.validateTenantProfile(dto);
     const existing = await this.db.corporateTenant.findUnique({
       where: { code: dto.code.trim().toUpperCase() },
     });
@@ -52,6 +60,7 @@ export class CorporateTenantService {
         name: dto.name.trim(),
         legalEntityName: dto.legalEntityName.trim(),
         gstin: dto.gstin?.trim() || null,
+        ...profile,
         status: 'ACTIVE',
       },
     });
@@ -208,9 +217,10 @@ export class CorporateTenantService {
     const updated = await this.db.corporateTenant.update({
       where: { id: tenantId },
       data: {
-        name: dto.name !== undefined ? dto.name.trim() : undefined,
-        legalEntityName: dto.legalEntityName !== undefined ? dto.legalEntityName.trim() : undefined,
-        gstin: dto.gstin !== undefined ? dto.gstin.trim() : undefined,
+        ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+        ...(dto.legalEntityName !== undefined ? { legalEntityName: dto.legalEntityName.trim() } : {}),
+        ...this.validateTenantProfile(dto),
+        ...(dto.logoUrl !== undefined ? { logoUrl: dto.logoUrl?.trim() || null } : {}),
         status: dto.status as any,
       },
     });
@@ -232,6 +242,13 @@ export class CorporateTenantService {
 
   async createOffice(tenantId: string, dto: CreateCorporateOfficeDto, actorUserId?: string) {
     await this.getTenantById(tenantId);
+    this.validateOfficeContact(dto);
+    if (!/^[A-Z0-9][A-Z0-9_-]{0,31}$/.test(dto.code?.trim().toUpperCase() ?? '')) {
+      throw new BadRequestException('Office code must contain 1-32 letters, numbers, hyphens, or underscores');
+    }
+    if (!dto.name?.trim() || !dto.addressText?.trim()) {
+      throw new BadRequestException('Office name and address are required');
+    }
 
     const lat = Number(dto.latitude);
     const lng = Number(dto.longitude);
@@ -249,6 +266,14 @@ export class CorporateTenantService {
         code: dto.code.trim().toUpperCase(),
         name: dto.name.trim(),
         addressText: dto.addressText.trim(),
+        city: dto.city?.trim() || null,
+        state: dto.state?.trim() || null,
+        pinCode: dto.pinCode?.trim() || null,
+        country: dto.country?.trim() || null,
+        contactName: dto.contactName?.trim() || null,
+        contactEmail: dto.contactEmail?.trim().toLowerCase() || null,
+        contactPhone: dto.contactPhone?.trim() || null,
+        isActive: dto.isActive ?? true,
         latitude: lat,
         longitude: lng,
         h3Res8Index,
@@ -266,11 +291,15 @@ export class CorporateTenantService {
     return office;
   }
 
-  async listOffices(tenantId: string, officeScope?: string[] | null) {
+  async listOffices(tenantId: string, officeScope?: string[] | null, includeInactive = false) {
     await this.getTenantById(tenantId);
 
     return this.db.corporateOffice.findMany({
-      where: { tenantId, ...(officeScope ? { id: { in: officeScope } } : {}) },
+      where: {
+        tenantId,
+        ...(officeScope ? { id: { in: officeScope } } : {}),
+        ...(!includeInactive ? { isActive: true } : {}),
+      },
       orderBy: { name: 'asc' },
       include: {
         _count: {
@@ -281,6 +310,97 @@ export class CorporateTenantService {
         },
       },
     });
+  }
+
+  async updateOffice(
+    tenantId: string,
+    officeId: string,
+    dto: UpdateCorporateOfficeDto,
+    actorUserId?: string,
+  ) {
+    const office = await this.getOfficeById(tenantId, officeId);
+    this.validateOfficeContact(dto);
+    if (dto.code !== undefined && !/^[A-Z0-9][A-Z0-9_-]{0,31}$/.test(dto.code.trim().toUpperCase())) {
+      throw new BadRequestException('Office code must contain 1-32 letters, numbers, hyphens, or underscores');
+    }
+    if (dto.name !== undefined && !dto.name.trim()) {
+      throw new BadRequestException('Office name is required');
+    }
+    if (dto.addressText !== undefined && !dto.addressText.trim()) {
+      throw new BadRequestException('Office address is required');
+    }
+    const hasLatitude = dto.latitude !== undefined;
+    const hasLongitude = dto.longitude !== undefined;
+    if (hasLatitude !== hasLongitude) {
+      throw new BadRequestException('latitude and longitude must be updated together');
+    }
+
+    let coordinates: { latitude?: number; longitude?: number; h3Res8Index?: string } = {};
+    if (hasLatitude && hasLongitude) {
+      const latitude = Number(dto.latitude);
+      const longitude = Number(dto.longitude);
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude) ||
+        latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+        throw new BadRequestException('Invalid geographic coordinates provided for office');
+      }
+      coordinates = {
+        latitude,
+        longitude,
+        h3Res8Index: this.h3Service.latLngToCell(latitude, longitude, 8),
+      };
+    }
+
+    if (dto.isActive === false && office.isActive) {
+      const [activeRoute, pendingRoster] = await Promise.all([
+        this.db.corporateRoute.findFirst({
+          where: {
+            tenantId,
+            officeId,
+            status: { in: ['PLANNED', 'DISPATCHING', 'ASSIGNED', 'IN_TRANSIT'] },
+          },
+          select: { id: true },
+        }),
+        this.db.corporateRoster.findFirst({
+          where: {
+            tenantId,
+            officeId,
+            status: { in: ['DRAFT', 'APPROVED', 'PUBLISHED'] },
+            rosterDate: { gte: new Date(new Date().toISOString().slice(0, 10)) },
+          },
+          select: { id: true },
+        }),
+      ]);
+      if (activeRoute || pendingRoster) {
+        throw new BadRequestException('Reassign or cancel active routes and future rosters before deactivating this office');
+      }
+    }
+
+    const updated = await this.db.corporateOffice.update({
+      where: { id: officeId },
+      data: {
+        ...(dto.code !== undefined ? { code: dto.code.trim().toUpperCase() } : {}),
+        ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+        ...(dto.addressText !== undefined ? { addressText: dto.addressText.trim() } : {}),
+        ...(dto.city !== undefined ? { city: dto.city.trim() || null } : {}),
+        ...(dto.state !== undefined ? { state: dto.state.trim() || null } : {}),
+        ...(dto.pinCode !== undefined ? { pinCode: dto.pinCode.trim() || null } : {}),
+        ...(dto.country !== undefined ? { country: dto.country.trim() || null } : {}),
+        ...(dto.contactName !== undefined ? { contactName: dto.contactName.trim() || null } : {}),
+        ...(dto.contactEmail !== undefined ? { contactEmail: dto.contactEmail.trim().toLowerCase() || null } : {}),
+        ...(dto.contactPhone !== undefined ? { contactPhone: dto.contactPhone.trim() || null } : {}),
+        ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
+        ...coordinates,
+      },
+    });
+
+    await this.audit.log({
+      action: dto.isActive === false ? 'CORPORATE_OFFICE_DEACTIVATED' : 'CORPORATE_OFFICE_UPDATED',
+      userId: actorUserId,
+      entityId: officeId,
+      entityType: 'CORPORATE_OFFICE',
+      metadata: { tenantId, updates: dto },
+    });
+    return updated;
   }
 
   async getOfficeById(tenantId: string, officeId: string) {
@@ -310,7 +430,7 @@ export class CorporateTenantService {
 
     // Verify office exists
     const office = await this.db.corporateOffice.findFirst({
-      where: { id: dto.officeId, tenantId },
+      where: { id: dto.officeId, tenantId, isActive: true },
     });
     if (!office) {
       throw new BadRequestException(`Office ${dto.officeId} not found under tenant ${tenantId}`);
@@ -525,7 +645,7 @@ export class CorporateTenantService {
 
     if (dto.officeId) {
       const office = await this.db.corporateOffice.findFirst({
-        where: { id: dto.officeId, tenantId },
+        where: { id: dto.officeId, tenantId, isActive: true },
       });
       if (!office) {
         throw new BadRequestException(`Office ${dto.officeId} not found under tenant ${tenantId}`);
@@ -704,5 +824,79 @@ export class CorporateTenantService {
         { systemField: 'homeAddress', hrmsField: 'RESIDENTIAL_ADDRESS', isRequired: true, mapped: true },
       ],
     };
+  }
+
+  private validateTenantProfile(dto: Partial<CreateCorporateTenantDto | UpdateCorporateTenantDto>) {
+    const gstin = dto.gstin?.trim().toUpperCase();
+    if (gstin && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][A-Z0-9]Z[A-Z0-9]$/.test(gstin)) {
+      throw new BadRequestException('GSTIN format is invalid');
+    }
+
+    const cin = dto.cin?.trim().toUpperCase();
+    if (cin && !/^[LU][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$/.test(cin)) {
+      throw new BadRequestException('CIN format is invalid');
+    }
+
+    const primaryContactEmail = dto.primaryContactEmail?.trim().toLowerCase();
+    if (primaryContactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(primaryContactEmail)) {
+      throw new BadRequestException('Primary contact email is invalid');
+    }
+    if (dto.website?.trim()) {
+      try {
+        const url = new URL(dto.website.trim());
+        if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error('scheme');
+      } catch {
+        throw new BadRequestException('Company website must be a valid HTTP or HTTPS URL');
+      }
+    }
+    if (dto.primaryContactPhone?.trim()) {
+      const phone = dto.primaryContactPhone.trim();
+      const digits = phone.replace(/\D/g, '');
+      if (!/^[+\d\s().-]+$/.test(phone) || digits.length < 7 || digits.length > 15) {
+        throw new BadRequestException('Primary contact phone number is invalid');
+      }
+    }
+
+    const textFields = [
+      'industry',
+      'website',
+      'registeredAddress',
+      'city',
+      'state',
+      'pinCode',
+      'country',
+      'primaryContactName',
+      'primaryContactEmail',
+      'primaryContactPhone',
+      'billingAddress',
+    ] as const;
+    const normalized = Object.fromEntries(
+      textFields
+        .filter((key) => dto[key] !== undefined)
+        .map((key) => [key, dto[key]?.trim() || null]),
+    );
+
+    return {
+      ...normalized,
+      ...(dto.gstin !== undefined ? { gstin: gstin || null } : {}),
+      ...(dto.cin !== undefined ? { cin: cin || null } : {}),
+      ...(dto.billingSameAsRegistered !== undefined
+        ? { billingSameAsRegistered: dto.billingSameAsRegistered }
+        : {}),
+      ...(dto.billingSameAsRegistered === true ? { billingAddress: null } : {}),
+    };
+  }
+
+  private validateOfficeContact(input: Partial<CreateCorporateOfficeDto | UpdateCorporateOfficeDto>) {
+    if (input.contactEmail?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.contactEmail.trim())) {
+      throw new BadRequestException('Office contact email is invalid');
+    }
+    if (input.contactPhone?.trim()) {
+      const phone = input.contactPhone.trim();
+      const digits = phone.replace(/\D/g, '');
+      if (!/^[+\d\s().-]+$/.test(phone) || digits.length < 7 || digits.length > 15) {
+        throw new BadRequestException('Office contact phone number is invalid');
+      }
+    }
   }
 }

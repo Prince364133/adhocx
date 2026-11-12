@@ -11,6 +11,188 @@ export interface AdminMetrics {
   pendingSettlements: number;
 }
 
+export interface CorporateTenantListItem {
+  id: string;
+  code: string;
+  name: string;
+  legalEntityName: string;
+  gstin?: string | null;
+  cin?: string | null;
+  logoUrl?: string | null;
+  industry?: string | null;
+  website?: string | null;
+  registeredAddress?: string | null;
+  city?: string | null;
+  state?: string | null;
+  pinCode?: string | null;
+  country?: string | null;
+  primaryContactName?: string | null;
+  primaryContactEmail?: string | null;
+  primaryContactPhone?: string | null;
+  billingAddress?: string | null;
+  billingSameAsRegistered: boolean;
+  status: 'ACTIVE' | 'SUSPENDED' | 'INACTIVE' | string;
+  createdAt: string;
+  updatedAt?: string;
+  _count?: {
+    offices: number;
+    employees: number;
+    routes: number;
+    rosters?: number;
+    invoices?: number;
+  };
+}
+
+export interface CorporateTenantProfile extends CorporateTenantListItem {
+  offices: {
+    id: string;
+    code: string;
+    name: string;
+    addressText: string;
+    city?: string | null;
+    state?: string | null;
+    pinCode?: string | null;
+    country?: string | null;
+    contactName?: string | null;
+    contactEmail?: string | null;
+    contactPhone?: string | null;
+    isActive: boolean;
+    latitude: number | string;
+    longitude: number | string;
+    _count?: {
+      employees: number;
+      routes: number;
+    };
+  }[];
+}
+
+export interface CreateCorporateTenantInput {
+  code: string;
+  name: string;
+  legalEntityName: string;
+  gstin?: string;
+  cin?: string;
+  industry?: string;
+  website?: string;
+  registeredAddress?: string;
+  city?: string;
+  state?: string;
+  pinCode?: string;
+  country?: string;
+  primaryContactName?: string;
+  primaryContactEmail?: string;
+  primaryContactPhone?: string;
+  billingAddress?: string;
+  billingSameAsRegistered?: boolean;
+}
+
+export type UpdateCorporateTenantInput = Partial<Omit<CreateCorporateTenantInput, 'code'>> & {
+  status?: CorporateTenantListItem['status'];
+};
+
+export interface CorporateOfficeItem {
+  id: string;
+  tenantId: string;
+  code: string;
+  name: string;
+  addressText: string;
+  city?: string | null;
+  state?: string | null;
+  pinCode?: string | null;
+  country?: string | null;
+  contactName?: string | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+  isActive: boolean;
+  latitude: number | string;
+  longitude: number | string;
+  _count?: { employees: number; routes: number };
+}
+
+export interface CorporateOfficeInput {
+  code: string;
+  name: string;
+  addressText: string;
+  city: string;
+  state: string;
+  pinCode: string;
+  country: string;
+  contactName: string;
+  contactEmail: string;
+  contactPhone: string;
+  latitude: number;
+  longitude: number;
+  isActive?: boolean;
+}
+
+export interface CorporateDepartmentItem {
+  id: string;
+  tenantId: string;
+  code: string;
+  name: string;
+  departmentHead?: string | null;
+  officeId?: string | null;
+  description?: string | null;
+  isActive: boolean;
+  office?: { id: string; code: string; name: string } | null;
+  _count?: { employees: number };
+}
+
+export interface CorporateDepartmentInput {
+  code: string;
+  name: string;
+  departmentHead?: string;
+  officeId?: string;
+  description?: string;
+  isActive?: boolean;
+}
+
+export interface CorporateTransportZoneItem {
+  id: string;
+  tenantId: string;
+  officeId: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  serviceArea: string;
+  pickupLocations: string[];
+  dropLocations: string[];
+  isActive: boolean;
+  office?: { id: string; code: string; name: string; isActive: boolean };
+}
+
+export interface CorporateTransportZoneInput {
+  officeId: string;
+  code: string;
+  name: string;
+  description?: string;
+  serviceArea: string;
+  pickupLocations: string[];
+  dropLocations: string[];
+  isActive?: boolean;
+}
+
+export interface CorporateCompanyUser {
+  id: string;
+  fullName: string;
+  email?: string | null;
+  phone?: string | null;
+  role: string;
+  status: string;
+  corporateTenantId: string;
+  corporateRole: string;
+  corporateOfficeIds: string[];
+  createdAt: string;
+}
+
+export interface InviteCorporateCompanyUserInput {
+  fullName: string;
+  email?: string;
+  phone?: string;
+  corporateRole: string;
+  officeIds?: string[];
+}
+
 export interface DriverListItem {
   id: string;
   fullName: string;

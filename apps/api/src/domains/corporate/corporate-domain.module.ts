@@ -17,6 +17,7 @@ import { CorporateTenantController } from './tenants/corporate-tenant.controller
 import { CorporateTenantPolicyService } from './tenants/corporate-tenant-policy.service';
 import { CorporateOrgStructureService } from './tenants/corporate-org-structure.service';
 import { CorporateTenantUsersService } from './tenants/corporate-tenant-users.service';
+import { CorporateTransportZoneService } from './tenants/corporate-transport-zone.service';
 
 // Rosters Sub-Module
 import { RosterTemplateService } from './rosters/roster-template.service';
@@ -151,6 +152,7 @@ import { CorporateRiderController } from './rider/corporate-rider.controller';
     CorporateTenantPolicyService,
     CorporateOrgStructureService,
     CorporateTenantUsersService,
+    CorporateTransportZoneService,
     RosterLifecycleService,
     CorporateShiftTemplateService,
     CorporateAutoPlannerService,

@@ -21,6 +21,7 @@ import {
   LogOut,
   Radio,
   ExternalLink,
+  Building2,
 } from 'lucide-react';
 import { AdhocxBrandLogo } from './AdhocxBrandLogo';
 import { ConfirmDialog } from './common/ConfirmDialog';
@@ -45,6 +46,7 @@ const navSections: NavSection[] = [
   {
     title: 'MARKETPLACE',
     items: [
+      { href: '/companies', label: 'Companies', icon: Building2 },
       { href: '/verifications', label: 'Verification Center', icon: ShieldCheck },
       { href: '/drivers', label: 'Driver Fleet', icon: Car },
       { href: '/users', label: 'Users & Vendors', icon: Users },

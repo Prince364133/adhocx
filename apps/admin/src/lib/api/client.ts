@@ -56,6 +56,18 @@ import {
   CorporateTicketPriority,
   CorporateSosAlert,
   CorporateSosStatus,
+  CorporateTenantListItem,
+  CorporateTenantProfile,
+  CreateCorporateTenantInput,
+  UpdateCorporateTenantInput,
+  CorporateOfficeItem,
+  CorporateOfficeInput,
+  CorporateDepartmentItem,
+  CorporateDepartmentInput,
+  CorporateTransportZoneItem,
+  CorporateTransportZoneInput,
+  CorporateCompanyUser,
+  InviteCorporateCompanyUserInput,
   DistancePricingPlan,
   CreateDistancePricingPlanPayload,
   CreatePricingSlabInput,
@@ -215,6 +227,7 @@ async function refreshAdminAccessToken(): Promise<string | null> {
 type RequestOptions = {
   method?: string;
   body?: unknown;
+  formData?: FormData;
   headers?: Record<string, string>;
   token?: string;
   /**
@@ -233,10 +246,10 @@ export async function apiClient<T = unknown>(
   endpoint: string,
   options: RequestOptions = {},
 ): Promise<T> {
-  const { method = 'GET', body, headers = {}, token, allowForbidden = false } = options;
+  const { method = 'GET', body, formData, headers = {}, token, allowForbidden = false } = options;
 
   const requestHeaders: Record<string, string> = {
-    'Content-Type': 'application/json',
+    ...(formData ? {} : { 'Content-Type': 'application/json' }),
     ...headers,
   };
 
@@ -257,7 +270,7 @@ export async function apiClient<T = unknown>(
     response = await fetch(`${baseUrl}${endpoint}`, {
       method,
       headers: requestHeaders,
-      body: body ? JSON.stringify(body) : undefined,
+      body: formData ?? (body !== undefined ? JSON.stringify(body) : undefined),
       signal: controller.signal,
     });
   } catch (netErr: any) {
@@ -1200,16 +1213,100 @@ export const adminApi = {
     apiClient<{ valid: boolean; user: any }>('/auth/admin/verify'),
 
   // Corporate ETS
-  getCorporateTenants: (params: { search?: string; page?: number; limit?: number } = {}) => {
+  getCorporateTenants: (params: { search?: string; status?: string; page?: number; limit?: number } = {}) => {
     const q = new URLSearchParams();
     if (params.search) q.set('search', params.search);
+    if (params.status && params.status !== 'ALL') q.set('status', params.status);
     q.set('page', String(params.page ?? 1));
     q.set('limit', String(params.limit ?? 100));
     return apiClient<{
-      items: { id: string; code: string; name: string; status: string }[];
+      items: CorporateTenantListItem[];
       pagination: { total: number; page: number; limit: number; totalPages: number };
     }>(`/corporate/tenants?${q.toString()}`);
   },
+  getCorporateTenant: (id: string) =>
+    apiClient<CorporateTenantProfile>(`/corporate/tenants/${encodeURIComponent(id)}`),
+  createCorporateTenant: (input: CreateCorporateTenantInput) =>
+    apiClient<CorporateTenantListItem>('/corporate/tenants', {
+      method: 'POST',
+      body: input,
+    }),
+  updateCorporateTenant: (id: string, input: UpdateCorporateTenantInput) =>
+    apiClient<CorporateTenantProfile>(`/corporate/tenants/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: input,
+    }),
+  uploadCorporateTenantLogo: (id: string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return apiClient<{ logoUrl: string }>(`/corporate/tenants/${encodeURIComponent(id)}/logo`, {
+      method: 'POST',
+      formData,
+    });
+  },
+  getCorporateOffices: (id: string) =>
+    apiClient<CorporateOfficeItem[]>(`/corporate/tenants/${encodeURIComponent(id)}/offices?includeInactive=true`),
+  createCorporateOffice: (id: string, input: CorporateOfficeInput) =>
+    apiClient<CorporateOfficeItem>(`/corporate/tenants/${encodeURIComponent(id)}/offices`, {
+      method: 'POST',
+      body: input,
+    }),
+  updateCorporateOffice: (id: string, officeId: string, input: Partial<CorporateOfficeInput>) =>
+    apiClient<CorporateOfficeItem>(
+      `/corporate/tenants/${encodeURIComponent(id)}/offices/${encodeURIComponent(officeId)}`,
+      { method: 'PATCH', body: input },
+    ),
+  getCorporateDepartments: (id: string) =>
+    apiClient<CorporateDepartmentItem[]>(
+      `/corporate/tenants/${encodeURIComponent(id)}/departments?includeInactive=true`,
+    ),
+  createCorporateDepartment: (id: string, input: CorporateDepartmentInput) =>
+    apiClient<CorporateDepartmentItem>(`/corporate/tenants/${encodeURIComponent(id)}/departments`, {
+      method: 'POST',
+      body: input,
+    }),
+  updateCorporateDepartment: (id: string, departmentId: string, input: Partial<CorporateDepartmentInput>) =>
+    apiClient<CorporateDepartmentItem>(
+      `/corporate/tenants/${encodeURIComponent(id)}/departments/${encodeURIComponent(departmentId)}`,
+      { method: 'PATCH', body: input },
+    ),
+  getCorporateTransportZones: (id: string) =>
+    apiClient<CorporateTransportZoneItem[]>(
+      `/corporate/tenants/${encodeURIComponent(id)}/transport-zones?includeInactive=true`,
+    ),
+  createCorporateTransportZone: (id: string, input: CorporateTransportZoneInput) =>
+    apiClient<CorporateTransportZoneItem>(
+      `/corporate/tenants/${encodeURIComponent(id)}/transport-zones`,
+      { method: 'POST', body: input },
+    ),
+  updateCorporateTransportZone: (id: string, zoneId: string, input: Partial<CorporateTransportZoneInput>) =>
+    apiClient<CorporateTransportZoneItem>(
+      `/corporate/tenants/${encodeURIComponent(id)}/transport-zones/${encodeURIComponent(zoneId)}`,
+      { method: 'PATCH', body: input },
+    ),
+  getCorporateCompanyUsers: (id: string) =>
+    apiClient<CorporateCompanyUser[]>(`/corporate/tenants/${encodeURIComponent(id)}/users`),
+  inviteCorporateCompanyUser: (id: string, input: InviteCorporateCompanyUserInput) =>
+    apiClient<CorporateCompanyUser>(`/corporate/tenants/${encodeURIComponent(id)}/users`, {
+      method: 'POST',
+      body: input,
+    }),
+  updateCorporateCompanyUser: (
+    id: string,
+    userId: string,
+    input: {
+      fullName?: string;
+      email?: string;
+      phone?: string;
+      corporateRole?: string;
+      officeIds?: string[];
+      isActive?: boolean;
+    },
+  ) =>
+    apiClient<CorporateCompanyUser>(
+      `/corporate/tenants/${encodeURIComponent(id)}/users/${encodeURIComponent(userId)}`,
+      { method: 'PATCH', body: input },
+    ),
 
   getCorporateRoutes: (params: {
     tenantId: string;

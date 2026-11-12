@@ -61,7 +61,7 @@ export class RosterIngestionService {
 
     // Cache active office codes for tenant
     const activeOffices = await this.db.corporateOffice.findMany({
-      where: { tenantId },
+      where: { tenantId, isActive: true },
       select: { id: true, code: true, latitude: true, longitude: true },
     });
     const officeCodeMap = new Map(activeOffices.map((o) => [o.code.toUpperCase(), o]));
@@ -251,7 +251,7 @@ export class RosterIngestionService {
 
     const rows = await this.parseExcelRows(buffer);
     const activeOffices = await this.db.corporateOffice.findMany({
-      where: { tenantId },
+      where: { tenantId, isActive: true },
     });
     const officeCodeMap = new Map(activeOffices.map((o) => [o.code.toUpperCase(), o]));
 
@@ -367,7 +367,7 @@ export class RosterIngestionService {
     }
 
     const rows = await this.parseExcelRows(buffer);
-    const offices = await this.db.corporateOffice.findMany({ where: { tenantId } });
+    const offices = await this.db.corporateOffice.findMany({ where: { tenantId, isActive: true } });
     const officeCodeMap = new Map(offices.map((o) => [o.code.toUpperCase(), o]));
     const templates = await this.db.corporateShiftTemplate.findMany({
       where: { tenantId, isActive: true },
