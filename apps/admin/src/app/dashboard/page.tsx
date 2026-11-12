@@ -481,7 +481,7 @@ export default function DashboardPage() {
               </p>
             </div>
             <a
-              href={`${opsBaseUrl}/requirements`}
+              href={`${opsBaseUrl || 'http://localhost:7004'}/requirements`}
               target="_blank"
               rel="noopener noreferrer"
               style={{

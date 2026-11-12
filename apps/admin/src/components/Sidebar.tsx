@@ -15,6 +15,7 @@ import {
   Tag,
   Ticket,
   Newspaper,
+  Headphones,
   Scale,
   FileText,
   BellRing,
@@ -59,12 +60,13 @@ const navSections: NavSection[] = [
     ],
   },
   {
-    title: 'GROWTH & CONTENT',
+    title: 'GROWTH & SUPPORT',
     items: [
+      { href: '/support', label: 'Support & Helpdesk', icon: Headphones },
+      { href: '/disputes', label: 'Disputes & Claims', icon: Scale },
       { href: '/notifications', label: 'Push Notifications', icon: BellRing, badge: 'FCM' },
       { href: '/coupons', label: 'Coupons & Promos', icon: Ticket },
       { href: '/blogs', label: 'Blog & Content', icon: Newspaper },
-      { href: '/disputes', label: 'Disputes & Support', icon: Scale },
     ],
   },
   {

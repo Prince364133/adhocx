@@ -10,6 +10,7 @@ import {
 import { supportApi } from '../../../lib/api/corporate';
 import type { SupportTicket } from '../../../lib/api/types';
 import { useSession } from '../../../lib/auth/SessionContext';
+import { RaiseTicketModal } from '../../../components/support/RaiseTicketModal';
 
 export default function SupportTicketListPage() {
   const { tenantId } = useSession();
@@ -18,9 +19,10 @@ export default function SupportTicketListPage() {
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusTab, setStatusTab] = useState<'All' | 'OPEN' | 'RESOLVED'>('All');
+  const [statusTab, setStatusTab] = useState<'All' | 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED'>('All');
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  useEffect(() => {
+  const loadData = () => {
     setLoading(true);
     supportApi
       .list(activeTenantId, {})
@@ -33,14 +35,20 @@ export default function SupportTicketListPage() {
       .finally(() => {
         setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    loadData();
   }, [activeTenantId]);
 
   const filteredTickets = tickets.filter((tkt) => {
     const q = searchTerm.toLowerCase();
     const matchesSearch =
       tkt.id.toLowerCase().includes(q) ||
+      (tkt.ticketNumber && tkt.ticketNumber.toLowerCase().includes(q)) ||
       (tkt.subject || '').toLowerCase().includes(q) ||
-      (tkt.category || '').toLowerCase().includes(q);
+      (tkt.category || '').toLowerCase().includes(q) ||
+      (tkt.employee?.fullName && tkt.employee.fullName.toLowerCase().includes(q));
     const matchesTab = statusTab === 'All' || tkt.status === statusTab;
     return matchesSearch && matchesTab;
   });
@@ -60,7 +68,7 @@ export default function SupportTicketListPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
             type="button"
-            onClick={() => alert('New ticket modal')}
+            onClick={() => setIsModalOpen(true)}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -94,8 +102,8 @@ export default function SupportTicketListPage() {
           flexWrap: 'wrap',
         }}
       >
-        <div style={{ display: 'flex', gap: 6 }}>
-          {(['All', 'OPEN', 'RESOLVED'] as const).map((tab) => (
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {(['All', 'OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setStatusTab(tab)}
@@ -110,7 +118,7 @@ export default function SupportTicketListPage() {
                 cursor: 'pointer',
               }}
             >
-              {tab === 'All' ? 'All Tickets' : tab}
+              {tab === 'All' ? 'All Tickets' : tab.replace('_', ' ')}
             </button>
           ))}
         </div>
@@ -121,7 +129,7 @@ export default function SupportTicketListPage() {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search tickets..."
+            placeholder="Search tickets by ID, subject..."
             style={{
               width: '100%',
               height: 34,
@@ -159,7 +167,7 @@ export default function SupportTicketListPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
               <thead>
                 <tr style={{ backgroundColor: 'var(--bg-surface-muted)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
-                  <th style={{ padding: '12px 16px' }}>Ticket ID</th>
+                  <th style={{ padding: '12px 16px' }}>Ticket Number</th>
                   <th style={{ padding: '12px 16px' }}>Subject</th>
                   <th style={{ padding: '12px 16px' }}>Category</th>
                   <th style={{ padding: '12px 16px' }}>Priority</th>
@@ -170,14 +178,14 @@ export default function SupportTicketListPage() {
               <tbody>
                 {filteredTickets.map((tkt) => (
                   <tr key={tkt.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                    <td style={{ padding: '14px 16px', fontWeight: 800, color: 'var(--text-primary)' }}>
-                      {tkt.id.slice(0, 8)}
+                    <td style={{ padding: '14px 16px', fontWeight: 800, fontFamily: 'monospace', color: '#5728B2' }}>
+                      #{tkt.ticketNumber || tkt.id.slice(0, 8).toUpperCase()}
                     </td>
                     <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--text-primary)' }}>
                       {tkt.subject}
                     </td>
                     <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>
-                      {tkt.category}
+                      {tkt.category ? tkt.category.replace('_', ' ') : 'General'}
                     </td>
                     <td style={{ padding: '14px 16px' }}>
                       <span
@@ -186,8 +194,10 @@ export default function SupportTicketListPage() {
                           borderRadius: 4,
                           fontSize: 11,
                           fontWeight: 700,
-                          backgroundColor: tkt.priority === 'HIGH' ? '#FEE2E2' : '#EFF6FF',
-                          color: tkt.priority === 'HIGH' ? '#DC2626' : '#5728B2',
+                          backgroundColor:
+                            tkt.priority === 'CRITICAL' || tkt.priority === 'HIGH' ? '#FEE2E2' : '#EFF6FF',
+                          color:
+                            tkt.priority === 'CRITICAL' || tkt.priority === 'HIGH' ? '#DC2626' : '#5728B2',
                         }}
                       >
                         {tkt.priority || 'NORMAL'}
@@ -197,14 +207,29 @@ export default function SupportTicketListPage() {
                       <span
                         style={{
                           padding: '3px 8px',
-                          backgroundColor: tkt.status === 'RESOLVED' ? '#DCFCE7' : '#FEF3C7',
-                          color: tkt.status === 'RESOLVED' ? '#16A34A' : '#D97706',
+                          backgroundColor:
+                            tkt.status === 'RESOLVED'
+                              ? '#DCFCE7'
+                              : tkt.status === 'IN_PROGRESS'
+                              ? '#E0E7FF'
+                              : tkt.status === 'CLOSED'
+                              ? '#F1F5F9'
+                              : '#FEF3C7',
+                          color:
+                            tkt.status === 'RESOLVED'
+                              ? '#16A34A'
+                              : tkt.status === 'IN_PROGRESS'
+                              ? '#4338CA'
+                              : tkt.status === 'CLOSED'
+                              ? '#475569'
+                              : '#D97706',
                           borderRadius: 4,
                           fontSize: 11,
                           fontWeight: 700,
+                          textTransform: 'uppercase',
                         }}
                       >
-                        {tkt.status}
+                        {tkt.status.replace('_', ' ')}
                       </span>
                     </td>
                     <td style={{ padding: '14px 16px', textAlign: 'right' }}>
@@ -231,6 +256,13 @@ export default function SupportTicketListPage() {
           </div>
         )}
       </div>
+
+      <RaiseTicketModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        tenantId={activeTenantId}
+        onSuccess={() => loadData()}
+      />
     </div>
   );
 }

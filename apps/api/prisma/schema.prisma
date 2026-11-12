@@ -166,6 +166,7 @@ model User {
   notificationPreference NotificationPreference?
   corporateTenant        CorporateTenant?        @relation(fields: [corporateTenantId], references: [id], onDelete: SetNull)
   corporateEmployee      CorporateEmployee?
+  corporateTicketMessages CorporateTicketMessage[]
 
   @@index([corporateTenantId])
   @@map("users")
@@ -1493,11 +1494,30 @@ model CorporateSupportTicket {
 
   tenant   CorporateTenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   employee CorporateEmployee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  messages CorporateTicketMessage[]
 
   @@index([tenantId, status])
   @@index([employeeId])
   @@index([status, priority])
   @@map("corporate_support_tickets")
+}
+
+model CorporateTicketMessage {
+  id         String   @id @default(uuid()) @db.Uuid
+  ticketId   String   @map("ticket_id") @db.Uuid
+  senderId   String   @map("sender_id") @db.Uuid
+  senderRole String   @map("sender_role") @db.VarChar(32)
+  senderName String?  @map("sender_name") @db.VarChar(128)
+  message    String   @db.Text
+  isInternal Boolean  @default(false) @map("is_internal")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  ticket CorporateSupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  sender User                   @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
+  @@index([senderId])
+  @@map("corporate_ticket_messages")
 }
 
 model CorporateTripFeedback {

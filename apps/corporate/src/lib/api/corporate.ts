@@ -38,6 +38,8 @@ import type {
   SosAlert,
   SafetyIncident,
   SupportTicket,
+  CorporateTicketMessage,
+  CorporateTicketActivity,
   Tenant,
   TenantIntegrations,
 } from './types';
@@ -297,9 +299,11 @@ export const safetyApi = {
 export const supportApi = {
   list: (
     tenantId: string = '9d66820f-280c-400c-98dc-e021d0045b58',
-    p: { status?: string; priority?: string; limit?: number; offset?: number } = {},
+    p: { status?: string; priority?: string; category?: string; search?: string; limit?: number; offset?: number } = {},
   ) =>
     apiRequest<SupportTicket[]>(`/corporate/support/tickets${qs({ tenantId, ...p })}`),
+  get: (ticketId: string) =>
+    apiRequest<SupportTicket>(`/corporate/support/tickets/${ticketId}`),
   create: (
     tenantId: string,
     body: {
@@ -311,6 +315,20 @@ export const supportApi = {
       routeId?: string;
     },
   ) => apiRequest<SupportTicket>('/corporate/support/tickets', { method: 'POST', body: { ...body, tenantId } }),
+  listMessages: (ticketId: string) =>
+    apiRequest<CorporateTicketMessage[]>(`/corporate/support/tickets/${ticketId}/messages`),
+  sendMessage: (ticketId: string, body: { message: string }) =>
+    apiRequest<CorporateTicketMessage>(`/corporate/support/tickets/${ticketId}/messages`, {
+      method: 'POST',
+      body,
+    }),
+  reopen: (ticketId: string, body: { reason: string }) =>
+    apiRequest<SupportTicket>(`/corporate/support/tickets/${ticketId}/reopen`, {
+      method: 'POST',
+      body,
+    }),
+  activity: (ticketId: string) =>
+    apiRequest<CorporateTicketActivity[]>(`/corporate/support/tickets/${ticketId}/activity`),
 };
 
 export const billingApi = {

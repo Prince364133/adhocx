@@ -213,6 +213,10 @@ export interface CreateSupportTicketDto {
 export interface SupportTicketResponse {
   id: string;
   ticketNumber: string;
+  tenantId?: string;
+  employeeId?: string;
+  routeId?: string | null;
+  stopId?: string | null;
   category: CorporateTicketCategory;
   priority: CorporateTicketPriority;
   status: CorporateTicketStatus;
@@ -220,8 +224,10 @@ export interface SupportTicketResponse {
   description: string;
   adminNotes?: string | null;
   resolutionNotes?: string | null;
+  assignedToUserId?: string | null;
   slaMinutes: number;
   resolvedAt?: Date | null;
+  resolvedByUserId?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

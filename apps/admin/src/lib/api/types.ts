@@ -957,6 +957,32 @@ export interface CorporateSupportTicket {
   resolvedByUserId: string | null;
   createdAt: string;
   updatedAt: string;
+  tenant?: { id: string; name: string; code?: string } | null;
+  employee?: { id: string; fullName: string; employeeCode?: string; phone?: string; phoneNumber?: string; email?: string } | null;
+  assignedToUser?: { id: string; fullName: string; email: string; role?: string } | null;
+  route?: any | null;
+  driver?: { id: string; name: string; phone?: string | null; email?: string | null; licenseNumber?: string | null; vehiclePlate?: string | null } | null;
+}
+
+export interface CorporateTicketMessage {
+  id: string;
+  ticketId: string;
+  senderId: string;
+  senderRole: string;
+  senderName?: string | null;
+  message: string;
+  isInternal: boolean;
+  createdAt: string;
+}
+
+export interface CorporateTicketActivity {
+  id: string;
+  action: string;
+  actorId?: string | null;
+  actorName?: string | null;
+  actorRole?: string | null;
+  timestamp: string;
+  metadata?: Record<string, unknown>;
 }
 
 export type CorporateSosStatus =

@@ -28,9 +28,11 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
     case 'ACTIVE':
     case 'AVAILABLE':
     case 'PUBLISHED':
+    case 'RESOLVED':
       variant = 'success';
       break;
 
+    case 'OPEN':
     case 'PENDING':
     case 'UNDER_REVIEW':
     case 'PARTIALLY_FULFILLED':
@@ -65,6 +67,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
       variant = 'purple';
       break;
 
+    case 'CLOSED':
     case 'DRAFT':
     case 'OFFLINE':
     case 'ARCHIVED':

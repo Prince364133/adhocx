@@ -443,6 +443,7 @@ export interface SosAlert {
 export interface SupportTicket {
   id: string;
   ticketNumber: string;
+  tenantId?: string;
   employeeId: string;
   routeId: string | null;
   category: string;
@@ -450,10 +451,51 @@ export interface SupportTicket {
   status: string;
   subject: string;
   description: string;
+  adminNotes?: string | null;
   resolutionNotes: string | null;
   slaMinutes: number;
   resolvedAt: string | null;
   createdAt: string;
+  updatedAt?: string;
+  employee?: {
+    id: string;
+    fullName: string;
+    employeeCode?: string;
+    phone?: string;
+    email?: string;
+  } | null;
+  tenant?: {
+    id: string;
+    name: string;
+    code?: string;
+  } | null;
+  assignedToUser?: {
+    id: string;
+    fullName: string;
+    email?: string;
+    role?: string;
+  } | null;
+}
+
+export interface CorporateTicketMessage {
+  id: string;
+  ticketId: string;
+  senderId: string;
+  senderRole: string;
+  senderName?: string | null;
+  message: string;
+  isInternal: boolean;
+  createdAt: string;
+}
+
+export interface CorporateTicketActivity {
+  id: string;
+  action: string;
+  actorId?: string | null;
+  actorName?: string | null;
+  actorRole?: string | null;
+  timestamp: string;
+  metadata?: Record<string, unknown>;
 }
 
 // ── Billing ────────────────────────────────────────────────────────────────

@@ -3180,7 +3180,56 @@ export class AdminService {
       };
     });
 
-    const allTickets = [...disputeItems, ...generalTicketItems];
+    // Also include CorporateSupportTicket records
+    const corpWhere: any = {};
+    if (status && status !== 'ALL') {
+      if (status === 'PENDING') {
+        corpWhere.status = 'OPEN';
+      } else if (status === 'UNDER_REVIEW') {
+        corpWhere.status = 'IN_PROGRESS';
+      } else if (status === 'RESOLVED') {
+        corpWhere.status = { in: ['RESOLVED', 'CLOSED'] };
+      }
+    }
+    if (search && search.trim().length > 0) {
+      const q = search.trim();
+      corpWhere.OR = [
+        { id: { contains: q, mode: 'insensitive' } },
+        { ticketNumber: { contains: q, mode: 'insensitive' } },
+        { subject: { contains: q, mode: 'insensitive' } },
+        { description: { contains: q, mode: 'insensitive' } },
+        { tenant: { name: { contains: q, mode: 'insensitive' } } },
+        { employee: { fullName: { contains: q, mode: 'insensitive' } } },
+        { employee: { phoneNumber: { contains: q } } },
+      ];
+    }
+
+    const corpTickets = await this.db.corporateSupportTicket.findMany({
+      where: corpWhere,
+      include: {
+        tenant: true,
+        employee: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+
+    const corpTicketItems = corpTickets.map((t) => ({
+      id: t.id,
+      reporterName: t.employee?.fullName
+        ? `${t.employee.fullName} (${t.tenant?.name || 'Corporate'})`
+        : (t.tenant?.name || 'Corporate Client'),
+      reporterRole: 'VENDOR' as const,
+      reporterPhone: t.employee?.phoneNumber || '',
+      relatedTripId: t.routeId || undefined,
+      issueType: `[${t.category}] ${t.subject}`,
+      description: t.description || '',
+      status: (t.status === 'OPEN' ? 'PENDING' : t.status === 'IN_PROGRESS' ? 'UNDER_REVIEW' : 'RESOLVED') as 'PENDING' | 'UNDER_REVIEW' | 'RESOLVED',
+      operatorNotes: t.resolutionNotes || t.adminNotes || undefined,
+      createdAt: t.createdAt.toISOString(),
+    }));
+
+    const allTickets = [...corpTicketItems, ...disputeItems, ...generalTicketItems];
     allTickets.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     return allTickets.slice(0, 50);
   }
@@ -3189,6 +3238,35 @@ export class AdminService {
    * Resolve or update support helpdesk ticket.
    */
   async resolveSupportTicket(id: string, adminId: string, dto: { status: 'PENDING' | 'UNDER_REVIEW' | 'RESOLVED'; notes?: string }) {
+    const corpTicket = await this.db.corporateSupportTicket.findUnique({ where: { id } });
+    if (corpTicket) {
+      const mappedStatus = dto.status === 'PENDING' ? 'OPEN' : dto.status === 'UNDER_REVIEW' ? 'IN_PROGRESS' : 'RESOLVED';
+      const now = new Date();
+      const updated = await this.db.corporateSupportTicket.update({
+        where: { id },
+        data: {
+          status: mappedStatus as any,
+          resolutionNotes: dto.notes,
+          adminNotes: dto.notes,
+          resolvedAt: mappedStatus === 'RESOLVED' ? now : null,
+          resolvedByUserId: mappedStatus === 'RESOLVED' ? adminId : null,
+        },
+      });
+
+      await this.audit.log({
+        userId: adminId,
+        action: 'CORPORATE_SUPPORT_TICKET_RESOLVED',
+        entityType: 'CORPORATE_SUPPORT_TICKET',
+        entityId: id,
+        metadata: { status: mappedStatus, notes: dto.notes },
+      });
+
+      return {
+        id: updated.id,
+        status: dto.status,
+        resolutionText: dto.notes,
+      };
+    }
     const dispute = await this.db.dispute.findUnique({ where: { id } });
     if (dispute) {
       const mappedDisputeStatus = dto.status === 'PENDING' ? 'OPEN' : dto.status;

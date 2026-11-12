@@ -52,6 +52,8 @@ import {
   CorporateInvoiceDispute,
   CorporateCreditNote,
   CorporateSupportTicket,
+  CorporateTicketMessage,
+  CorporateTicketActivity,
   CorporateTicketStatus,
   CorporateTicketPriority,
   CorporateSosAlert,
@@ -1365,6 +1367,8 @@ export const adminApi = {
       tenantId?: string;
       status?: CorporateTicketStatus;
       priority?: CorporateTicketPriority;
+      category?: string;
+      search?: string;
       limit?: number;
       offset?: number;
     } = {},
@@ -1373,10 +1377,39 @@ export const adminApi = {
     if (params.tenantId) q.set('tenantId', params.tenantId);
     if (params.status) q.set('status', params.status);
     if (params.priority) q.set('priority', params.priority);
+    if (params.category) q.set('category', params.category);
+    if (params.search) q.set('search', params.search);
     q.set('limit', String(params.limit ?? 100));
     if (params.offset) q.set('offset', String(params.offset));
     return apiClient<CorporateSupportTicket[]>(`/corporate/support/tickets?${q.toString()}`, { allowForbidden: true });
   },
+
+  getCorporateSupportTicket: (id: string) =>
+    apiClient<CorporateSupportTicket>(`/corporate/support/tickets/${id}`),
+
+  listCorporateTicketMessages: (id: string) =>
+    apiClient<CorporateTicketMessage[]>(`/corporate/support/tickets/${id}/messages`),
+
+  sendCorporateTicketMessage: (id: string, data: { message: string; isInternal?: boolean }) =>
+    apiClient<CorporateTicketMessage>(`/corporate/support/tickets/${id}/messages`, {
+      method: 'POST',
+      body: data,
+    }),
+
+  assignCorporateSupportTicket: (id: string, data: { assignedToUserId: string | null; notes?: string }) =>
+    apiClient<CorporateSupportTicket>(`/corporate/support/tickets/${id}/assign`, {
+      method: 'PATCH',
+      body: data,
+    }),
+
+  reopenCorporateSupportTicket: (id: string, reason: string) =>
+    apiClient<CorporateSupportTicket>(`/corporate/support/tickets/${id}/reopen`, {
+      method: 'POST',
+      body: { reason },
+    }),
+
+  getCorporateTicketActivity: (id: string) =>
+    apiClient<CorporateTicketActivity[]>(`/corporate/support/tickets/${id}/activity`),
 
   /** Only the next status is legal (OPEN -> IN_PROGRESS -> RESOLVED -> CLOSED); anything else is 409. */
   updateCorporateSupportTicketStatus: (id: string, status: CorporateTicketStatus, notes?: string) =>

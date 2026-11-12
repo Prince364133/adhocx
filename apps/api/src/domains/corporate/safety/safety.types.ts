@@ -88,6 +88,44 @@ export interface SupportTicketListQuery {
   employeeId?: string;
   status?: CorporateTicketStatus;
   priority?: CorporateTicketPriority;
+  category?: CorporateTicketCategory;
+  search?: string;
   limit?: number;
   offset?: number;
 }
+
+export interface CreateCorporateTicketMessageDto {
+  message: string;
+  isInternal?: boolean;
+}
+
+export interface AssignCorporateTicketDto {
+  assignedToUserId: string | null;
+  notes?: string;
+}
+
+export interface ReopenCorporateTicketDto {
+  reason: string;
+}
+
+export interface CorporateTicketMessageResponse {
+  id: string;
+  ticketId: string;
+  senderId: string;
+  senderRole: string;
+  senderName?: string | null;
+  message: string;
+  isInternal: boolean;
+  createdAt: string;
+}
+
+export interface CorporateTicketActivityResponse {
+  id: string;
+  action: string;
+  actorId?: string | null;
+  actorName?: string | null;
+  actorRole?: string | null;
+  timestamp: string;
+  metadata?: Record<string, unknown>;
+}
+
