@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/services/mock_data_service.dart';
+import 'package:adhocx_employee/shared/components/components.dart';
+import 'package:adhocx_employee/theme/app_colors.dart';
+import 'package:adhocx_employee/theme/app_radius.dart';
+import 'package:adhocx_employee/theme/app_spacing.dart';
+import 'package:adhocx_employee/theme/app_typography.dart';
+import 'package:adhocx_employee/theme/employee_palette.dart';
 
-/// Screen 13: Live Support / Chat
+/// Screen 7: Live Support Chat
 class LiveSupportChatScreen extends StatefulWidget {
   const LiveSupportChatScreen({super.key});
 
@@ -12,9 +16,10 @@ class LiveSupportChatScreen extends StatefulWidget {
 }
 
 class _LiveSupportChatScreenState extends State<LiveSupportChatScreen> {
-  List<dynamic> _messages = [];
-  bool _isLoading = true;
+  final List<Map<String, dynamic>> _messages = [];
   final TextEditingController _msgController = TextEditingController();
+  final ScrollController _scroll = ScrollController();
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -24,134 +29,139 @@ class _LiveSupportChatScreenState extends State<LiveSupportChatScreen> {
 
   Future<void> _loadMessages() async {
     final safety = await MockDataService.getSafetyData();
-    if (mounted) {
-      setState(() {
-        _messages = List.from(safety['chat_messages'] as List<dynamic>? ?? []);
-        _isLoading = false;
-      });
-    }
+    if (!mounted) return;
+    setState(() {
+      _messages.addAll(
+        (safety['chat_messages'] as List<dynamic>? ?? const [])
+            .cast<Map<String, dynamic>>(),
+      );
+      _isLoading = false;
+    });
+  }
+
+  /// Keeps the newest message in view (it previously landed off-screen).
+  void _scrollToEnd() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scroll.hasClients) {
+        _scroll.animateTo(
+          _scroll.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   void _sendMessage() {
     final text = _msgController.text.trim();
     if (text.isEmpty) return;
-
     setState(() {
-      _messages.add({
-        'sender': 'user',
-        'text': text,
-        'time': 'Just now',
-      });
+      _messages.add({'sender': 'user', 'text': text, 'time': 'Just now'});
       _msgController.clear();
     });
+    _scrollToEnd();
 
-    // Simulated support response
-    Future.delayed(const Duration(milliseconds: 1000), () {
-      if (mounted) {
-        setState(() {
-          _messages.add({
-            'sender': 'support',
-            'text':
-                "Thank you for reaching out. An AdhocX transport agent is reviewing your message.",
-            'time': 'Just now',
-          });
+    // Simulated support response (mock).
+    Future.delayed(const Duration(seconds: 1), () {
+      if (!mounted) return;
+      setState(() {
+        _messages.add({
+          'sender': 'support',
+          'text':
+              'Thank you for reaching out. An AdhocX transport agent is reviewing your message.',
+          'time': 'Just now',
         });
-      }
+      });
+      _scrollToEnd();
     });
   }
 
   @override
   void dispose() {
     _msgController.dispose();
+    _scroll.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final p = EmployeePalette.of(context);
+
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              size: 18, color: AppColors.textPrimary),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Row(
+      backgroundColor: p.background,
+      appBar: EmployeeAppBar(
+        centerTitle: false,
+        titleWidget: Row(
           children: [
             CircleAvatar(
               radius: 16,
-              backgroundColor:
-                  AppColors.primaryBlueLight.withValues(alpha: 0.5),
-              child: const Icon(Icons.headset_mic_rounded,
-                  size: 18, color: AppColors.primaryBlue),
+              backgroundColor: p.accentTint,
+              child: Icon(Icons.headset_mic_rounded, size: 18, color: p.accent),
             ),
-            const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'AdhocX Support',
-                  style: GoogleFonts.inter(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
+            const SizedBox(width: AppSpacing.sm + 2),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'AdhocX Support',
+                    style: AppTypography.h4(
+                      color: p.textPrimary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
-                Text(
-                  "We're here to help you",
-                  style: GoogleFonts.inter(
-                      fontSize: 11, color: AppColors.textMuted),
-                ),
-              ],
+                  Text(
+                    "We're here to help you",
+                    style: AppTypography.micro(color: p.textMuted),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: CircularProgressIndicator(color: p.accent))
           : SafeArea(
               child: Column(
                 children: [
-                  // Message Thread
                   Expanded(
                     child: ListView.builder(
-                      padding: const EdgeInsets.all(20),
+                      controller: _scroll,
+                      padding: const EdgeInsets.all(AppSpacing.xl),
                       itemCount: _messages.length,
                       itemBuilder: (context, index) {
-                        final msg = _messages[index] as Map<String, dynamic>;
+                        final msg = _messages[index];
                         final isUser = msg['sender'] == 'user';
-                        final text = msg['text'] ?? '';
-                        final time = msg['time'] ?? '';
-
                         return Align(
                           alignment: isUser
                               ? Alignment.centerRight
                               : Alignment.centerLeft,
                           child: Container(
-                            margin: const EdgeInsets.only(bottom: 14),
+                            margin: const EdgeInsets.only(
+                              bottom: AppSpacing.md + 2,
+                            ),
                             constraints: BoxConstraints(
-                                maxWidth:
-                                    MediaQuery.of(context).size.width * 0.75),
+                              maxWidth:
+                                  MediaQuery.sizeOf(context).width * 0.75,
+                            ),
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 12),
+                              horizontal: AppSpacing.lg,
+                              vertical: AppSpacing.md,
+                            ),
                             decoration: BoxDecoration(
-                              color:
-                                  isUser ? AppColors.primaryBlue : Colors.white,
+                              color: isUser ? AppColors.primary : p.surface,
+                              border: isUser ? null : Border.all(color: p.border),
                               borderRadius: BorderRadius.only(
-                                topLeft: const Radius.circular(16),
-                                topRight: const Radius.circular(16),
-                                bottomLeft: Radius.circular(isUser ? 16 : 4),
-                                bottomRight: Radius.circular(isUser ? 4 : 16),
+                                topLeft: const Radius.circular(AppRadius.xxl),
+                                topRight: const Radius.circular(AppRadius.xxl),
+                                bottomLeft: Radius.circular(
+                                    isUser ? AppRadius.xxl : AppRadius.xs),
+                                bottomRight: Radius.circular(
+                                    isUser ? AppRadius.xs : AppRadius.xxl),
                               ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.04),
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
                             ),
                             child: Column(
                               crossAxisAlignment: isUser
@@ -159,23 +169,19 @@ class _LiveSupportChatScreenState extends State<LiveSupportChatScreen> {
                                   : CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  text,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 14,
-                                    color: isUser
-                                        ? Colors.white
-                                        : AppColors.textPrimary,
-                                    height: 1.35,
+                                  '${msg['text'] ?? ''}',
+                                  style: AppTypography.body(
+                                    color: isUser ? Colors.white : p.textPrimary,
                                   ),
                                 ),
-                                const SizedBox(height: 4),
+                                const SizedBox(height: AppSpacing.xs),
                                 Text(
-                                  time,
-                                  style: GoogleFonts.inter(
+                                  '${msg['time'] ?? ''}',
+                                  style: AppTypography.micro(
                                     fontSize: 10,
                                     color: isUser
-                                        ? Colors.white70
-                                        : AppColors.textMuted,
+                                        ? Colors.white.withAlpha(179)
+                                        : p.textMuted,
                                   ),
                                 ),
                               ],
@@ -185,49 +191,67 @@ class _LiveSupportChatScreenState extends State<LiveSupportChatScreen> {
                       },
                     ),
                   ),
-
-                  // Bottom Input Bar
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 10),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      border: const Border(
-                          top: const BorderSide(color: AppColors.border)),
+                      horizontal: AppSpacing.lg,
+                      vertical: AppSpacing.sm + 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: p.surface,
+                      border: Border(top: BorderSide(color: p.border)),
                     ),
                     child: Row(
                       children: [
+                        // Attachments aren't implemented yet: shown disabled
+                        // instead of as a dead tap target.
                         IconButton(
-                          icon: const Icon(Icons.attach_file_rounded,
-                              color: AppColors.textMuted),
-                          onPressed: () {},
+                          tooltip: 'Attachments (coming soon)',
+                          icon: Icon(Icons.attach_file_rounded,
+                              color: p.textMuted),
+                          onPressed: null,
                         ),
                         Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF1F5F9),
-                              borderRadius: BorderRadius.circular(24),
-                            ),
-                            child: TextField(
-                              controller: _msgController,
-                              decoration: const InputDecoration(
-                                hintText: 'Type a message...',
-                                border: InputBorder.none,
+                          child: TextField(
+                            controller: _msgController,
+                            textInputAction: TextInputAction.send,
+                            textCapitalization: TextCapitalization.sentences,
+                            onSubmitted: (_) => _sendMessage(),
+                            style: AppTypography.body(color: p.textPrimary),
+                            cursorColor: p.accent,
+                            decoration: InputDecoration(
+                              hintText: 'Type a message...',
+                              hintStyle: AppTypography.body(color: p.textMuted),
+                              filled: true,
+                              fillColor: p.surfaceElevated,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.lg,
+                                vertical: AppSpacing.sm + 2,
                               ),
-                              style: GoogleFonts.inter(fontSize: 14),
-                              onSubmitted: (_) => _sendMessage(),
+                              border: OutlineInputBorder(
+                                borderRadius: AppRadius.borderPill,
+                                borderSide: BorderSide.none,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: AppRadius.borderPill,
+                                borderSide: BorderSide.none,
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: AppRadius.borderPill,
+                                borderSide:
+                                    BorderSide(color: p.accent, width: 1.5),
+                              ),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        CircleAvatar(
-                          backgroundColor: AppColors.primaryBlue,
-                          child: IconButton(
-                            icon: const Icon(Icons.send_rounded,
-                                color: Colors.white, size: 18),
-                            onPressed: _sendMessage,
+                        const SizedBox(width: AppSpacing.sm),
+                        IconButton.filled(
+                          tooltip: 'Send',
+                          onPressed: _sendMessage,
+                          style: IconButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
                           ),
+                          icon: const Icon(Icons.send_rounded, size: 18),
                         ),
                       ],
                     ),

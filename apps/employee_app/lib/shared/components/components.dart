@@ -43,3 +43,4 @@ export 'inputs/employee_otp_input.dart';
 
 // Layout
 export 'layout/employee_centered_layout.dart';
+export 'layout/employee_nav_tile.dart';

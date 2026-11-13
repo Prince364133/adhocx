@@ -1,246 +1,203 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
+import 'package:adhocx_employee/shared/components/components.dart';
+import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
+import 'package:adhocx_employee/theme/app_colors.dart';
+import 'package:adhocx_employee/theme/app_radius.dart';
+import 'package:adhocx_employee/theme/app_spacing.dart';
+import 'package:adhocx_employee/theme/app_typography.dart';
+import '../widgets/safety_widgets.dart';
 
-/// Screen 3: SOS - Alert Confirmed
-class SosAlertConfirmedScreen extends StatefulWidget {
+/// SOS sent confirmation. Emergency response surface: fixed dark slate in
+/// light and dark mode.
+class SosAlertConfirmedScreen extends StatelessWidget {
   const SosAlertConfirmedScreen({super.key});
 
   @override
-  State<SosAlertConfirmedScreen> createState() =>
-      _SosAlertConfirmedScreenState();
-}
-
-class _SosAlertConfirmedScreenState extends State<SosAlertConfirmedScreen> {
-  Map<String, dynamic>? _sosData;
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadData();
-  }
-
-  Future<void> _loadData() async {
-    final safety = await MockDataService.getSafetyData();
-    if (mounted) {
-      setState(() {
-        _sosData = safety['sos_alert'] as Map<String, dynamic>?;
-        _isLoading = false;
-      });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final title = _sosData?['title'] ?? 'SOS Alert Sent';
-    final message = _sosData?['message'] ??
-        'Our safety team has been notified and is contacting you shortly.';
-    final liveMsg = _sosData?['liveAssistance'] ??
-        'You will receive a call from our safety team in a few moments.';
+    final onDark = Colors.white.withAlpha(179);
 
-    return Scaffold(
-      backgroundColor:
-          const Color(0xFF1E293B), // Charcoal emergency response theme
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close_rounded, color: Colors.white70),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Colors.white))
-          : SafeArea(
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 12),
-                    // Green verified check badge
-                    Container(
-                      width: 72,
-                      height: 72,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF16A34A),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Center(
-                        child: Icon(Icons.check_rounded,
-                            color: Colors.white, size: 44),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      title,
-                      style: GoogleFonts.inter(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      message,
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        color: Colors.white70,
-                        height: 1.4,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Live Assistance Callout Card
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFDC2626).withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFFEF4444)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.headset_mic_rounded,
-                              color: Color(0xFFFCA5A5), size: 24),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Live Assistance',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  liveMsg,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    color: Colors.white70,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Status Timeline Card
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0F172A),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.1)),
-                      ),
-                      child: Column(
-                        children: [
-                          _buildStepRow('Alert Received', '9:41 AM',
-                              isDone: true),
-                          const Divider(color: Colors.white12, height: 20),
-                          _buildStepRow('Team Assigned', 'In Progress',
-                              isActive: true),
-                          const Divider(color: Colors.white12, height: 20),
-                          _buildStepRow('In Contact', 'Pending'),
-                        ],
-                      ),
-                    ),
-
-                    const Spacer(),
-
-                    // Action: Simulate incoming call
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () => context.push(AppRoutes.safetyTeamCall),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF2563EB),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14)),
-                          elevation: 0,
-                        ),
-                        child: Text(
-                          'Stay on This Screen (Incoming Call)',
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                ),
-              ),
-            ),
-    );
-  }
-
-  Widget _buildStepRow(String title, String status,
-      {bool isDone = false, bool isActive = false}) {
-    return Row(
-      children: [
-        Container(
-          width: 18,
-          height: 18,
-          decoration: BoxDecoration(
-            color: isDone
-                ? const Color(0xFF16A34A)
-                : isActive
-                    ? const Color(0xFF2563EB)
-                    : Colors.white24,
-            shape: BoxShape.circle,
-          ),
-          child: Center(
-            child: isDone
+    Widget step(String title, String status,
+        {bool done = false, bool active = false}) {
+      final dot = done
+          ? AppColors.success
+          : active
+              ? AppColors.accentBlue
+              : Colors.white.withAlpha(61);
+      return Row(
+        children: [
+          Container(
+            width: 18,
+            height: 18,
+            decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
+            child: done
                 ? const Icon(Icons.check, size: 12, color: Colors.white)
-                : isActive
-                    ? Container(
-                        width: 6,
-                        height: 6,
-                        decoration: const BoxDecoration(
-                            color: Colors.white, shape: BoxShape.circle))
+                : active
+                    ? Center(
+                        child: Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      )
                     : null,
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            title,
-            style: GoogleFonts.inter(
-                fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Text(
+              title,
+              style: AppTypography.small(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Text(
+            status,
+            style: AppTypography.caption(
+              color: done
+                  ? AppColors.accentGreenLight
+                  : active
+                      ? AppColors.primaryLight
+                      : Colors.white.withAlpha(97),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      );
+    }
+
+    return TripDataBuilder(
+      load: () => loadSafetySection('sos_alert'),
+      builder: (context, data) => Scaffold(
+        backgroundColor: AppColors.slate800,
+        appBar: EmployeeAppBar(
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          leading: IconButton(
+            tooltip: 'Close',
+            icon: Icon(Icons.close_rounded, color: onDark),
+            onPressed: () => Navigator.of(context).maybePop(),
           ),
         ),
-        Text(
-          status,
-          style: GoogleFonts.inter(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: isDone
-                ? const Color(0xFF4ADE80)
-                : isActive
-                    ? const Color(0xFF60A5FA)
-                    : Colors.white38,
+        body: SafeArea(
+          child: Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xxl,
+                    vertical: AppSpacing.lg,
+                  ),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 72,
+                        height: 72,
+                        decoration: const BoxDecoration(
+                          color: AppColors.success,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.check_rounded,
+                            color: Colors.white, size: 44),
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+                      Text(
+                        data['title'] ?? 'SOS Alert Sent',
+                        style: AppTypography.h2(color: Colors.white),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        data['message'] ??
+                            'Our safety team has been notified and is contacting you shortly.',
+                        textAlign: TextAlign.center,
+                        style: AppTypography.small(color: onDark),
+                      ),
+                      const SizedBox(height: AppSpacing.xxl),
+                      Container(
+                        width: double.infinity,
+                        padding: AppSpacing.paddingLg,
+                        decoration: BoxDecoration(
+                          color: AppColors.error.withAlpha(51),
+                          borderRadius: AppRadius.borderXxl,
+                          border: Border.all(color: AppColors.error),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.headset_mic_rounded,
+                                color: AppColors.errorContainer, size: 24),
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Live Assistance',
+                                    style: AppTypography.small(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    data['liveAssistance'] ??
+                                        'You will receive a call from our safety team in a few moments.',
+                                    style: AppTypography.caption(color: onDark),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xxl),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(AppSpacing.lg + 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.slate900,
+                          borderRadius: AppRadius.borderXxl,
+                          border: Border.all(color: Colors.white.withAlpha(26)),
+                        ),
+                        child: Column(
+                          children: [
+                            step('Alert Received', '9:41 AM', done: true),
+                            Divider(
+                                color: Colors.white.withAlpha(31),
+                                height: AppSpacing.xl),
+                            step('Team Assigned', 'In Progress', active: true),
+                            Divider(
+                                color: Colors.white.withAlpha(31),
+                                height: AppSpacing.xl),
+                            step('In Contact', 'Pending'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.xxl,
+                  AppSpacing.sm,
+                  AppSpacing.xxl,
+                  AppSpacing.lg,
+                ),
+                child: EmployeePrimaryButton(
+                  label: 'Stay on This Screen (Incoming Call)',
+                  backgroundColor: AppColors.accentBlue,
+                  onPressed: () => context.push(AppRoutes.safetyTeamCall),
+                ),
+              ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 }

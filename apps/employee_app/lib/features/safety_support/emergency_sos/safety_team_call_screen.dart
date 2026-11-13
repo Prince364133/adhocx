@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:adhocx_employee/widgets/batch_07_illustrations.dart';
+import 'package:adhocx_employee/shared/illustrations/safety_illustrations.dart';
+import 'package:adhocx_employee/theme/app_colors.dart';
+import 'package:adhocx_employee/theme/app_spacing.dart';
+import 'package:adhocx_employee/theme/app_typography.dart';
 
-/// Screen 4: Safety Team Call (In Progress)
+/// Incoming / connected call with the safety team.
+/// Call surface: fixed dark slate in light and dark mode.
 class SafetyTeamCallScreen extends StatefulWidget {
   const SafetyTeamCallScreen({super.key});
 
@@ -11,104 +14,127 @@ class SafetyTeamCallScreen extends StatefulWidget {
 }
 
 class _SafetyTeamCallScreenState extends State<SafetyTeamCallScreen> {
-  bool _isCallAnswered = false;
+  bool _answered = false;
+  bool _muted = false;
+  bool _speaker = false;
+
+  Widget _roundButton({
+    required IconData icon,
+    required Color color,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: Material(
+        color: color,
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            child: Icon(icon, size: 32, color: Colors.white),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _toggle({
+    required IconData icon,
+    required bool active,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return IconButton(
+      tooltip: label,
+      isSelected: active,
+      onPressed: onTap,
+      style: IconButton.styleFrom(
+        backgroundColor:
+            active ? Colors.white.withAlpha(46) : Colors.transparent,
+      ),
+      icon: Icon(icon, color: Colors.white, size: 28),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    void hangUp() => Navigator.of(context).maybePop();
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A), // Dark call screen canvas
+      backgroundColor: AppColors.slate900,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 30),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xxl,
+            vertical: AppSpacing.xxxl,
+          ),
           child: Column(
             children: [
-              const SizedBox(height: 30),
+              const SizedBox(height: AppSpacing.xxxl),
               Text(
                 'Safety Team',
-                style: GoogleFonts.inter(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                ),
+                style: AppTypography.h1(color: Colors.white, fontSize: 26),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               Text(
-                _isCallAnswered ? 'Connected • 00:14' : 'Incoming Emergency Call...',
-                style: GoogleFonts.inter(
-                  fontSize: 14,
+                _answered ? 'Connected • 00:14' : 'Incoming Emergency Call...',
+                style: AppTypography.body(
+                  color: _answered
+                      ? AppColors.accentGreenLight
+                      : Colors.white.withAlpha(179),
                   fontWeight: FontWeight.w500,
-                  color: _isCallAnswered ? const Color(0xFF4ADE80) : Colors.white70,
                 ),
               ),
-
               const Spacer(),
-
-              // Center Call Pulse Graphic
               const SafetyCallPulseAvatar(),
-
               const Spacer(),
-
-              // Call Controls
-              if (!_isCallAnswered) ...[
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    // Accept Call (Green)
-                    InkWell(
-                      onTap: () {
-                        setState(() => _isCallAnswered = true);
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF16A34A),
-                          shape: BoxShape.circle,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: _answered
+                    ? [
+                        // Mute / speaker were dead buttons; now toggle.
+                        _toggle(
+                          icon: _muted
+                              ? Icons.mic_off_rounded
+                              : Icons.mic_rounded,
+                          active: _muted,
+                          label: _muted ? 'Unmute' : 'Mute',
+                          onTap: () => setState(() => _muted = !_muted),
                         ),
-                        child: const Icon(Icons.call_rounded, size: 32, color: Colors.white),
-                      ),
-                    ),
-                    // Decline Call (Red)
-                    InkWell(
-                      onTap: () => Navigator.of(context).pop(),
-                      child: Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFDC2626),
-                          shape: BoxShape.circle,
+                        _roundButton(
+                          icon: Icons.call_end_rounded,
+                          color: AppColors.error,
+                          label: 'End call',
+                          onTap: hangUp,
                         ),
-                        child: const Icon(Icons.call_end_rounded, size: 32, color: Colors.white),
-                      ),
-                    ),
-                  ],
-                ),
-              ] else ...[
-                // Connected Call Actions (Mute, Speaker, End Call)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.mic_off_rounded, color: Colors.white, size: 28),
-                      onPressed: () {},
-                    ),
-                    InkWell(
-                      onTap: () => Navigator.of(context).pop(),
-                      child: Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFDC2626),
-                          shape: BoxShape.circle,
+                        _toggle(
+                          icon: Icons.volume_up_rounded,
+                          active: _speaker,
+                          label: _speaker ? 'Speaker off' : 'Speaker on',
+                          onTap: () => setState(() => _speaker = !_speaker),
                         ),
-                        child: const Icon(Icons.call_end_rounded, size: 32, color: Colors.white),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.volume_up_rounded, color: Colors.white, size: 28),
-                      onPressed: () {},
-                    ),
-                  ],
-                ),
-              ],
-              const SizedBox(height: 24),
+                      ]
+                    : [
+                        _roundButton(
+                          icon: Icons.call_rounded,
+                          color: AppColors.success,
+                          label: 'Accept call',
+                          onTap: () => setState(() => _answered = true),
+                        ),
+                        _roundButton(
+                          icon: Icons.call_end_rounded,
+                          color: AppColors.error,
+                          label: 'Decline call',
+                          onTap: hangUp,
+                        ),
+                      ],
+              ),
+              const SizedBox(height: AppSpacing.xxl),
             ],
           ),
         ),
@@ -116,6 +142,3 @@ class _SafetyTeamCallScreenState extends State<SafetyTeamCallScreen> {
     );
   }
 }
-
-
-
