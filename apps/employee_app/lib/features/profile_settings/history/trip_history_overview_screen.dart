@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:adhocx_employee/theme/app_colors.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
+import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
+import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
+import 'package:adhocx_employee/theme/app_spacing.dart';
+import 'package:adhocx_employee/theme/app_typography.dart';
+import 'package:adhocx_employee/theme/employee_palette.dart';
 
-/// Screen: Trip History (Overview)
-/// Uses design system components: EmployeeAppBar, EmployeePillFilter, EmployeeTripCard, EmployeeBottomNavBar.
+/// Trips tab: completed trip history grouped by month.
 class TripHistoryOverviewScreen extends StatefulWidget {
   const TripHistoryOverviewScreen({super.key});
 
@@ -17,140 +18,113 @@ class TripHistoryOverviewScreen extends StatefulWidget {
 }
 
 class _TripHistoryOverviewScreenState extends State<TripHistoryOverviewScreen> {
-  Map<String, dynamic>? _historyData;
-  bool _isLoading = true;
-  int _selectedTab = 0; // 0: All, 1: Pickup, 2: Drop
+  static const _tabs = ['All', 'Pickup', 'Drop'];
+  int _selectedTab = 0;
 
-  final List<String> _tabs = ['All', 'Pickup', 'Drop'];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadData();
+  static bool _isDrop(String type) {
+    final t = type.toLowerCase();
+    return t.contains('drop') || t.contains('logout');
   }
 
-  Future<void> _loadData() async {
-    final hp = await MockDataService.getHistoryProfileData();
-    if (mounted) {
-      setState(() {
-        _historyData = hp['trip_history'] as Map<String, dynamic>?;
-        _isLoading = false;
-      });
+  bool _matches(Map<String, dynamic> trip) {
+    final type = '${trip['type'] ?? ''}';
+    switch (_selectedTab) {
+      case 1:
+        return !_isDrop(type);
+      case 2:
+        return _isDrop(type);
+      default:
+        return true;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final thisMonth =
-        (_historyData?['this_month'] as List<dynamic>? ?? []).where((item) {
-      if (_selectedTab == 0) return true;
-      final type = (item['type'] ?? '').toString().toLowerCase();
-      if (_selectedTab == 1)
-        return type.contains('pickup') || type.contains('login');
-      if (_selectedTab == 2)
-        return type.contains('drop') || type.contains('logout');
-      return true;
-    }).toList();
+    return TripDataBuilder(
+      load: () async => (await MockDataService.getHistoryProfileData())[
+          'trip_history'] as Map<String, dynamic>?,
+      builder: (context, history) {
+        final p = EmployeePalette.of(context);
+        List<Map<String, dynamic>> pick(String key) =>
+            ((history[key] as List<dynamic>?) ?? const [])
+                .cast<Map<String, dynamic>>()
+                .where(_matches)
+                .toList();
+        final thisMonth = pick('this_month');
+        final lastMonth = pick('last_month');
 
-    final lastMonth =
-        (_historyData?['last_month'] as List<dynamic>? ?? []).where((item) {
-      if (_selectedTab == 0) return true;
-      final type = (item['type'] ?? '').toString().toLowerCase();
-      if (_selectedTab == 1)
-        return type.contains('pickup') || type.contains('login');
-      if (_selectedTab == 2)
-        return type.contains('drop') || type.contains('logout');
-      return true;
-    }).toList();
-
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: EmployeeAppBar(
-        title: 'Trip History',
-        centerTitle: true,
-        onBack: () => context.go(AppRoutes.homeUpcomingPickup),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.bar_chart_rounded,
-                color: AppColors.primaryBlue),
-            onPressed: () => context.push(AppRoutes.tripSummaryAnalytics),
-          ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primaryBlue))
-          : SafeArea(
-              child: Column(
-                children: [
-                  // Reusable Segmented Pill Filter
-                  EmployeePillFilter(
-                    options: _tabs,
-                    selectedIndex: _selectedTab,
-                    onSelected: (index) => setState(() => _selectedTab = index),
+        Widget section(String title, List<Map<String, dynamic>> trips) =>
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  title,
+                  style: AppTypography.small(
+                    color: p.textSecondary,
+                    fontWeight: FontWeight.w700,
                   ),
-
-                  // Trip History List
-                  Expanded(
-                    child: ListView(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 16),
-                      children: [
-                        if (thisMonth.isNotEmpty) ...[
-                          Text(
-                            'This Month',
-                            style: GoogleFonts.inter(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          ...thisMonth.map((t) => _buildTripCard(t)),
-                          const SizedBox(height: 16),
-                        ],
-                        if (lastMonth.isNotEmpty) ...[
-                          Text(
-                            'Last Month',
-                            style: GoogleFonts.inter(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          ...lastMonth.map((t) => _buildTripCard(t)),
-                        ],
-                        if (thisMonth.isEmpty && lastMonth.isEmpty)
-                          const EmployeeEmptyState(
-                            icon: Icons.history_rounded,
-                            title: 'No Trip History',
-                            description:
-                                'No completed commute trips recorded in this period.',
-                          ),
-                      ],
-                    ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                for (final t in trips)
+                  EmployeeTripCard(
+                    title: '${t['type'] ?? ''}',
+                    date: '${t['date'] ?? ''}',
+                    status: '${t['status'] ?? ''}',
+                    isDrop: _isDrop('${t['type'] ?? ''}'),
+                    onTap: () => context.push(AppRoutes.tripHistoryDetails),
                   ),
-                ],
+                const SizedBox(height: AppSpacing.lg),
+              ],
+            );
+
+        return Scaffold(
+          backgroundColor: p.background,
+          appBar: EmployeeAppBar(
+            title: 'Trip History',
+            onBack: () => context.go(AppRoutes.homeUpcomingPickup),
+            actions: [
+              IconButton(
+                tooltip: 'Trip analytics',
+                icon: Icon(Icons.bar_chart_rounded, color: p.accent),
+                onPressed: () => context.push(AppRoutes.tripSummaryAnalytics),
               ),
+            ],
+          ),
+          body: SafeArea(
+            child: Column(
+              children: [
+                EmployeePillFilter(
+                  options: _tabs,
+                  selectedIndex: _selectedTab,
+                  onSelected: (i) => setState(() => _selectedTab = i),
+                ),
+                Expanded(
+                  child: thisMonth.isEmpty && lastMonth.isEmpty
+                      ? const EmployeeEmptyState(
+                          icon: Icons.history_rounded,
+                          title: 'No Trip History',
+                          description:
+                              'No completed commute trips recorded in this period.',
+                        )
+                      : ListView(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.xl,
+                            vertical: AppSpacing.lg,
+                          ),
+                          children: [
+                            if (thisMonth.isNotEmpty)
+                              section('This Month', thisMonth),
+                            if (lastMonth.isNotEmpty)
+                              section('Last Month', lastMonth),
+                          ],
+                        ),
+                ),
+              ],
             ),
-      bottomNavigationBar: EmployeeBottomNavBar(currentIndex: 2),
-    );
-  }
-
-  Widget _buildTripCard(dynamic trip) {
-    final type = trip['type'] ?? '';
-    final date = trip['date'] ?? '';
-    final status = trip['status'] ?? '';
-    final isDrop = type.toString().toLowerCase().contains('drop') ||
-        type.toString().toLowerCase().contains('logout');
-
-    return EmployeeTripCard(
-      title: type,
-      date: date,
-      status: status,
-      isDrop: isDrop,
-      onTap: () => context.push(AppRoutes.tripHistoryDetails),
+          ),
+          bottomNavigationBar: const EmployeeBottomNavBar(currentIndex: 2),
+        );
+      },
     );
   }
 }

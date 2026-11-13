@@ -1,95 +1,78 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:adhocx_employee/theme/app_colors.dart';
+import 'package:provider/provider.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
+import 'package:adhocx_employee/theme/app_spacing.dart';
+import 'package:adhocx_employee/theme/app_typography.dart';
+import 'package:adhocx_employee/theme/employee_palette.dart';
+import 'package:adhocx_employee/theme/theme_provider.dart';
 
-/// Screen: Settings Overview
-/// Uses design system components: EmployeeAppBar.
-class SettingsOverviewScreen extends StatefulWidget {
+/// Settings: appearance (light / dark / system, same as the Driver app) and
+/// language.
+class SettingsOverviewScreen extends StatelessWidget {
   const SettingsOverviewScreen({super.key});
 
   @override
-  State<SettingsOverviewScreen> createState() => _SettingsOverviewScreenState();
-}
-
-class _SettingsOverviewScreenState extends State<SettingsOverviewScreen> {
-  @override
   Widget build(BuildContext context) {
+    final p = EmployeePalette.of(context);
+    final themeProvider = context.watch<ThemeProvider>();
+
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: const EmployeeAppBar(
-        title: 'Settings',
-        centerTitle: true,
-      ),
+      backgroundColor: p.background,
+      appBar: const EmployeeAppBar(title: 'Settings'),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+          padding: const EdgeInsets.all(AppSpacing.xl),
           children: [
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: AppColors.border),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.02),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+            const EmployeeSectionHeader(
+              title: 'Appearance',
+              padding: EdgeInsets.zero,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            AppSegmentedControl<ThemeMode>(
+              items: const [
+                SegmentItem(
+                  value: ThemeMode.light,
+                  label: 'Light',
+                  icon: Icons.light_mode_outlined,
+                ),
+                SegmentItem(
+                  value: ThemeMode.dark,
+                  label: 'Dark',
+                  icon: Icons.dark_mode_outlined,
+                ),
+                SegmentItem(
+                  value: ThemeMode.system,
+                  label: 'System',
+                  icon: Icons.settings_suggest_outlined,
+                ),
+              ],
+              selectedValue: themeProvider.themeMode,
+              onValueChanged: themeProvider.setThemeMode,
+            ),
+            if (!ThemeProvider.darkModeReady) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'Dark mode is being finalised and will apply in an upcoming update.',
+                style: AppTypography.caption(color: p.textMuted),
               ),
-              child: _buildSettingTile(
-                icon: Icons.language_rounded,
-                title: 'Language',
-                trailingText: 'Change',
-                onTap: () => context.push(AppRoutes.selectLanguage),
-              ),
+            ],
+            const SizedBox(height: AppSpacing.xxl),
+            const EmployeeSectionHeader(
+              title: 'General',
+              padding: EdgeInsets.zero,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            EmployeeNavTile(
+              icon: Icons.language_rounded,
+              title: 'Language',
+              subtitle: 'Change app language',
+              onTap: () => context.push(AppRoutes.selectLanguage),
             ),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildSettingTile({
-    required IconData icon,
-    required String title,
-    String? trailingText,
-    required VoidCallback onTap,
-  }) {
-    return ListTile(
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: const BoxDecoration(
-          color: AppColors.primaryBlueSoft,
-          shape: BoxShape.circle,
-        ),
-        child: Icon(icon, color: AppColors.primaryBlue, size: 20),
-      ),
-      title: Text(
-        title,
-        style: GoogleFonts.inter(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary),
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (trailingText != null)
-            Text(
-              trailingText,
-              style:
-                  GoogleFonts.inter(fontSize: 13, color: AppColors.textMuted),
-            ),
-          const SizedBox(width: 6),
-          const Icon(Icons.chevron_right_rounded,
-              size: 18, color: AppColors.textMuted),
-        ],
-      ),
-      onTap: onTap,
     );
   }
 }

@@ -1,123 +1,98 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
+import 'package:adhocx_employee/shared/components/components.dart';
+import 'package:adhocx_employee/theme/app_colors.dart';
+import 'package:adhocx_employee/theme/app_spacing.dart';
+import 'package:adhocx_employee/theme/app_typography.dart';
+import 'package:adhocx_employee/theme/employee_palette.dart';
 
-/// Screen 11: Privacy & Data
 class PrivacyDataScreen extends StatelessWidget {
   const PrivacyDataScreen({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.textPrimary),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          'Privacy & Data',
-          style: GoogleFonts.inter(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
+  void _explain(BuildContext context, String title, String body) {
+    AppBottomSheet.show<void>(
+      context: context,
+      title: title,
+      child: Builder(
+        builder: (ctx) => Text(
+          body,
+          style: AppTypography.body(
+            color: EmployeePalette.of(ctx).textSecondary,
           ),
         ),
-        centerTitle: true,
       ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = EmployeePalette.of(context);
+    Widget gap() => const SizedBox(height: AppSpacing.sm + 2);
+
+    return Scaffold(
+      backgroundColor: p.background,
+      appBar: const EmployeeAppBar(title: 'Privacy & Data'),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+          padding: const EdgeInsets.all(AppSpacing.xl),
           children: [
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: AppColors.border),
+            // Policy documents aren't published in-app yet: shown as
+            // "coming soon" instead of rows that silently did nothing.
+            EmployeeNavTile(
+              icon: Icons.policy_outlined,
+              title: 'Privacy Policy',
+              subtitle: 'Coming soon',
+              trailing: const SizedBox.shrink(),
+            ),
+            gap(),
+            EmployeeNavTile(
+              icon: Icons.article_outlined,
+              title: 'Terms & Conditions',
+              subtitle: 'Coming soon',
+              trailing: const SizedBox.shrink(),
+            ),
+            gap(),
+            EmployeeNavTile(
+              icon: Icons.data_usage_rounded,
+              title: 'Data Usage',
+              onTap: () => _explain(
+                context,
+                'Data Usage',
+                'AdhocX uses your profile, shift schedule and trip details to plan your cab, notify you about trips, and handle support or safety requests raised by you.',
               ),
-              child: Column(
-                children: [
-                  _buildItem(
-                    icon: Icons.policy_outlined,
-                    title: 'Privacy Policy',
-                    onTap: () {},
-                  ),
-                  const Divider(height: 1),
-                  _buildItem(
-                    icon: Icons.article_outlined,
-                    title: 'Terms & Conditions',
-                    onTap: () {},
-                  ),
-                  const Divider(height: 1),
-                  _buildItem(
-                    icon: Icons.data_usage_rounded,
-                    title: 'Data Usage',
-                    onTap: () {},
-                  ),
-                  const Divider(height: 1),
-                  _buildItem(
-                    icon: Icons.location_on_outlined,
-                    title: 'Location Usage',
-                    onTap: () {},
-                  ),
-                  const Divider(height: 1),
-                  _buildItem(
-                    icon: Icons.download_rounded,
-                    title: 'Your Data',
-                    subtitle: 'Download your account data archive',
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Data export request initiated.')),
-                      );
-                    },
-                  ),
-                  const Divider(height: 1),
-                  ListTile(
-                    leading: const Icon(Icons.delete_outline_rounded, color: Color(0xFFDC2626)),
-                    title: Text(
-                      'Delete Account',
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFFDC2626),
-                      ),
-                    ),
-                    trailing: const Icon(Icons.chevron_right_rounded, size: 18, color: Color(0xFFDC2626)),
-                    onTap: () => context.push(AppRoutes.deleteAccount),
-                  ),
-                ],
+            ),
+            gap(),
+            EmployeeNavTile(
+              icon: Icons.location_on_outlined,
+              title: 'Location Usage',
+              onTap: () => _explain(
+                context,
+                'Location Usage',
+                'We use your location to show pickup updates, trip tracking and estimated arrival time.',
               ),
+            ),
+            gap(),
+            EmployeeNavTile(
+              icon: Icons.download_rounded,
+              title: 'Your Data',
+              subtitle: 'Download your account data archive',
+              onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Data export request initiated.')),
+              ),
+            ),
+            gap(),
+            EmployeeNavTile(
+              icon: Icons.delete_outline_rounded,
+              title: 'Delete Account',
+              iconColor: AppColors.error,
+              trailing: const Icon(Icons.chevron_right_rounded,
+                  size: 20, color: AppColors.error),
+              onTap: () => context.push(AppRoutes.deleteAccount),
             ),
           ],
         ),
       ),
     );
   }
-
-  Widget _buildItem({
-    required IconData icon,
-    required String title,
-    String? subtitle,
-    required VoidCallback onTap,
-  }) {
-    return ListTile(
-      leading: Icon(icon, color: AppColors.primaryBlue, size: 22),
-      title: Text(
-        title,
-        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-      ),
-      subtitle: subtitle != null
-          ? Text(subtitle, style: GoogleFonts.inter(fontSize: 12, color: AppColors.textMuted))
-          : null,
-      trailing: const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.textMuted),
-      onTap: onTap,
-    );
-  }
 }
-
-
-

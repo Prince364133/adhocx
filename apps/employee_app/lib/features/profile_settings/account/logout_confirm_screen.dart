@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
-import 'package:adhocx_employee/state/employee_auth_provider.dart';
-import 'package:adhocx_employee/widgets/batch_08_illustrations.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
+import 'package:adhocx_employee/shared/illustrations/profile_illustrations.dart';
+import 'package:adhocx_employee/state/employee_auth_provider.dart';
+import 'package:adhocx_employee/theme/app_spacing.dart';
+import 'package:adhocx_employee/theme/employee_palette.dart';
 
-/// Screen: Logout / Sign Out Screen
-/// Uses design system components: EmployeeAppBar, EmployeeConfirmationSheet.
+/// Sign out confirmation.
 class LogoutConfirmScreen extends StatefulWidget {
   const LogoutConfirmScreen({super.key});
 
@@ -20,45 +21,37 @@ class _LogoutConfirmScreenState extends State<LogoutConfirmScreen> {
 
   Future<void> _handleSignOut() async {
     setState(() => _isSigningOut = true);
-    final authProvider = Provider.of<EmployeeAuthProvider>(context, listen: false);
-    await authProvider.signOut();
-    if (mounted) {
-      context.go(AppRoutes.welcome);
-    }
+    await context.read<EmployeeAuthProvider>().signOut();
+    if (mounted) context.go(AppRoutes.welcome);
   }
 
   @override
   Widget build(BuildContext context) {
+    final p = EmployeePalette.of(context);
+
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: const EmployeeAppBar(
-        title: '',
-        backgroundColor: Colors.white,
-      ),
+      backgroundColor: p.background,
+      appBar: const EmployeeAppBar(),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Spacer(),
-              EmployeeConfirmationSheet(
-                illustration: const Center(child: SignOutConfirmBadge()),
-                title: 'Sign Out?',
-                description: "You'll be signed out of your AdhocX corporate account on this device.",
-                confirmLabel: 'Sign Out',
-                isDestructive: true,
-                isLoading: _isSigningOut,
-                onConfirm: _handleSignOut,
-                cancelLabel: 'Cancel',
-                onCancel: () => Navigator.of(context).pop(),
-              ),
-              const Spacer(),
-            ],
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.xxl,
+              vertical: AppSpacing.xl,
+            ),
+            child: EmployeeConfirmationSheet(
+              illustration: const Center(child: SignOutConfirmBadge()),
+              title: 'Sign Out?',
+              description:
+                  "You'll be signed out of your AdhocX corporate account on this device.",
+              confirmLabel: 'Sign Out',
+              isLoading: _isSigningOut,
+              onConfirm: _handleSignOut,
+              onCancel: () => Navigator.of(context).maybePop(),
+            ),
           ),
         ),
       ),
     );
   }
 }
-
