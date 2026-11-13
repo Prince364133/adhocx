@@ -34,6 +34,8 @@ import {
 } from '@adhocx/contracts';
 import { DatabaseService } from '../../src/database/database.service';
 import { DispatchService } from '../../src/modules/dispatch/dispatch.service';
+import { rookieQuotaFor } from '../../src/modules/dispatch/dispatch-ranking';
+import { DispatchConfig } from '../../src/modules/dispatch/dispatch.config';
 import { DispatchSchedulerService } from '../../src/modules/dispatch/dispatch-scheduler.service';
 import { DriverBehaviorService } from '../../src/modules/dispatch/driver-behavior.service';
 import { OffersService } from '../../src/modules/offers/offers.service';
@@ -346,7 +348,9 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
     await seedDriver('suv-3', VehicleType.SUV, 28.485, 77.055, { trust: 91 });
     await seedDriver('suv-4', VehicleType.SUV, 28.51, 77.075, { trust: 86 });
     await seedDriver('hatch-1', VehicleType.HATCHBACK, 28.461, 77.028, { trust: 96 });
-    await seedDriver('hatch-2', VehicleType.HATCHBACK, 28.472, 77.042, { trust: 93 });
+    // ~1.75 km: inside the 2 km first ring (wave 1 = maxPickupRadius 10 km / 5 waves), so the
+    // 1-seat race in rides 31-33 really has two drivers.
+    await seedDriver('hatch-2', VehicleType.HATCHBACK, 28.470, 77.040, { trust: 93 });
     await seedDriver('hatch-3', VehicleType.HATCHBACK, 28.495, 77.065, { trust: 89 });
     await seedDriver('sedan-offline', VehicleType.SEDAN, 28.4596, 77.0267);
     await setOnline(['sedan-offline'], false);
@@ -398,8 +402,12 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
       expect(offeredKeys).not.toContain('sedan-unverified');
       // Aerially closest sedan is 40 min away by road -> never in a 2-driver wave 1
       expect(offeredKeys).not.toContain('sedan-2');
-      // Rookie exploration slot
-      expect(offeredKeys).toContain('sedan-rookie');
+      // Rookie exploration slot: honoured on average since 2026-11-10. A 2-offer wave reserves
+      // floor(2 x share) = 0 seats, so the rookie gets the slot only when the deterministic
+      // FNV-1a hit (requirement id + wave) says so. Assert exactly that rule.
+      const rookieSlot = rookieQuotaFor(2, 1, DispatchConfig.rookieShare, reqId, 1) > 0;
+      if (rookieSlot) expect(offeredKeys).toContain('sedan-rookie');
+      else expect(offeredKeys).not.toContain('sedan-rookie');
       // Dispatch-time snapshot stored for later behaviour decisions
       expect(wave.every((o) => o.distanceKm !== null && o.etaMinutes !== null && o.waveNumber === 1)).toBe(true);
 
@@ -796,8 +804,12 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
       const now47 = await prisma.driver.findUniqueOrThrow({ where: { id: d.id } });
       expect(now47.declinedOffers).toBe(d.declinedOffers + 1);
     }
+    // Processed once: at most ONE follow-up wave after wave 1. (Its number can exceed 2: an empty ring
+    // makes the same dispatch widen and advance the wave counter, see dispatch.service.)
     const waves47 = await prisma.offer.groupBy({ by: ['waveNumber'], where: { requirementId: r47 }, _count: true });
-    expect(waves47.every((w) => w.waveNumber <= 2)).toBe(true);
+    expect(waves47.filter((w) => w.waveNumber > 1).length).toBeLessThanOrEqual(1);
+    const offers47 = await prisma.offer.findMany({ where: { requirementId: r47 }, select: { driverId: true } });
+    expect(new Set(offers47.map((o) => o.driverId)).size).toBe(offers47.length); // no driver offered twice
     const live47 = await liveOffers(r47);
     if (live47.length > 0) {
       await accept(live47[0].id, live47[0].driverId);
@@ -814,18 +826,16 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
     expect(r48.reqId).toBeDefined();
     routing.outage = false;
 
-    // Ride 49: a driver with no GPS fix is still dispatchable (ranked last), never treated as 0 km away
+    // Ride 49: a driver with no GPS fix is NEVER dispatched (pickup-radius invariant, 2026-11-10:
+    // offers need a known, fresh location within the radius; unknown is never "0 km away").
     await seedDriver('suv-nogps', VehicleType.SUV, 0, 0, { noGps: true, trust: 100 });
     await setOnline(['suv-1', 'suv-2', 'suv-3', 'suv-4'], false);
     const r49 = await book(5, VehicleType.SUV);
-    const [o49] = await liveOffers(r49);
-    expect(keyOf(o49.driverId)).toBe('suv-nogps');
-    expect(o49.distanceKm).toBeNull();
-    expect(o49.etaMinutes).toBeNull();
-    await prisma.offer.update({ where: { id: o49.id }, data: { seenAt: new Date() } });
-    await offers.declineOffer(o49.id, D('suv-nogps').userId);
+    const nogpsOffers = await prisma.offer.count({ where: { requirementId: r49, driverId: D('suv-nogps').id } });
+    expect(nogpsOffers).toBe(0);
+    expect(await liveOffers(r49)).toHaveLength(0);
     const nogps = await prisma.driver.findUniqueOrThrow({ where: { id: D('suv-nogps').id } });
-    expect(nogps.trustScore).toBe(100); // unknown distance is never "nearby"
+    expect(nogps.trustScore).toBe(100); // never penalised for an offer it could not get
     await setOnline(['suv-1', 'suv-2', 'suv-3', 'suv-4'], true);
     await requirements.retryRequirement(r49, vendors[5].userId);
     const w49 = await liveOffers(r49);
@@ -834,9 +844,12 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
     await completeTrip(t49.id);
     await review(5, t49.id, 5);
 
-    // Ride 50: rookie exploration — the rookie appears in the wave despite a lower composite score
+    // Ride 50: rookie exploration — the rookie appears in the wave despite a lower composite score.
+    // Share = 1 makes the (otherwise 15 %, id-hashed) exploration slot deterministic for this ride.
+    process.env.DISPATCH_ROOKIE_SHARE = '1';
     const r50 = await book(0, VehicleType.SEDAN);
     const w50 = await liveOffers(r50);
+    delete process.env.DISPATCH_ROOKIE_SHARE;
     expect(w50.map((o) => keyOf(o.driverId))).toContain('sedan-rookie');
     const rookieOffer = w50.find((o) => keyOf(o.driverId) === 'sedan-rookie')!;
     await accept(rookieOffer.id, rookieOffer.driverId);
