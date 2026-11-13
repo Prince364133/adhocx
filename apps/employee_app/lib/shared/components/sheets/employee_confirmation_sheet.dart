@@ -209,7 +209,10 @@ class _ContactOption extends StatelessWidget {
     final textMuted =
         isDark ? AppColors.textMutedDark : AppColors.textMutedLight;
 
-    return ListTile(
+    // Own Material so the ink ripple shows above the sheet's surface colour.
+    return Material(
+      color: Colors.transparent,
+      child: ListTile(
       onTap: onTap,
       shape: RoundedRectangleBorder(
         borderRadius: AppRadius.borderLg,
@@ -232,6 +235,7 @@ class _ContactOption extends StatelessWidget {
       ),
       subtitle: Text(subtitle, style: AppTypography.caption(color: textMuted)),
       trailing: Icon(Icons.chevron_right_rounded, color: textMuted),
+      ),
     );
   }
 }

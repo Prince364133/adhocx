@@ -409,6 +409,205 @@ class TripDestinationTile extends StatelessWidget {
   }
 }
 
+/// One entry of a [TripTimeline].
+class TripTimelineEntry {
+  final Color dotColor;
+  final Widget? dotChild;
+  final String title;
+  final bool emphasise;
+  final Widget? titleTrailing;
+  final String subtitle;
+
+  const TripTimelineEntry({
+    required this.dotColor,
+    this.dotChild,
+    required this.title,
+    this.emphasise = false,
+    this.titleTrailing,
+    required this.subtitle,
+  });
+}
+
+/// Vertical timeline (dots joined by a line) used for stop lists and logs.
+/// Grows with its content — no fixed connector heights.
+class TripTimeline extends StatelessWidget {
+  final List<TripTimelineEntry> entries;
+  final double dotSize;
+
+  const TripTimeline({super.key, required this.entries, this.dotSize = 22});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = EmployeePalette.of(context);
+
+    return Column(
+      children: [
+        for (var i = 0; i < entries.length; i++)
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Column(
+                  children: [
+                    Container(
+                      width: dotSize,
+                      height: dotSize,
+                      decoration: BoxDecoration(
+                        color: entries[i].dotColor,
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: entries[i].dotChild,
+                    ),
+                    if (i < entries.length - 1)
+                      Expanded(child: Container(width: 2, color: p.borderSubtle)),
+                  ],
+                ),
+                const SizedBox(width: AppSpacing.md + 2),
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      bottom: i < entries.length - 1 ? AppSpacing.xl : 0,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Wrap(
+                          spacing: AppSpacing.sm,
+                          runSpacing: AppSpacing.xs,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(
+                              entries[i].title,
+                              style: AppTypography.bodyMedium(
+                                color: entries[i].emphasise
+                                    ? p.accent
+                                    : p.textPrimary,
+                                fontWeight: entries[i].emphasise
+                                    ? FontWeight.w800
+                                    : FontWeight.w700,
+                              ),
+                            ),
+                            if (entries[i].titleTrailing != null)
+                              entries[i].titleTrailing!,
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          entries[i].subtitle,
+                          style: AppTypography.caption(
+                            color: p.textSecondary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Card with a title + muted description header ("Assignment Logs").
+class TripSectionCard extends StatelessWidget {
+  final String title;
+  final String? description;
+  final Widget child;
+
+  const TripSectionCard({
+    super.key,
+    required this.title,
+    this.description,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final p = EmployeePalette.of(context);
+    return AppCard(
+      width: double.infinity,
+      padding: AppSpacing.paddingXl,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: AppTypography.h4(
+              color: p.textPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (description != null) ...[
+            const SizedBox(height: AppSpacing.xs + 2),
+            Text(description!,
+                style: AppTypography.caption(color: p.textMuted)),
+          ],
+          const SizedBox(height: AppSpacing.xxl),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+/// Car icon tile + title + subtitle summary card (trip type / route).
+class TripSummaryCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+
+  const TripSummaryCard({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    this.icon = Icons.directions_car_rounded,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final p = EmployeePalette.of(context);
+
+    return AppCard(
+      width: double.infinity,
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.sm + 2),
+            decoration: BoxDecoration(
+              color: p.accentTint,
+              borderRadius: AppRadius.borderLg,
+            ),
+            child: Icon(icon, color: p.accent, size: 22),
+          ),
+          const SizedBox(width: AppSpacing.md + 2),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: AppTypography.bodyMedium(
+                    color: p.textPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(subtitle,
+                    style: AppTypography.caption(color: p.textSecondary)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Read-only boarding OTP shown as one box per digit.
 class TripOtpDigits extends StatelessWidget {
   final String otp;

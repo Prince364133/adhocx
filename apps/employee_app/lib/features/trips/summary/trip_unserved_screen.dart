@@ -38,8 +38,11 @@ class TripUnservedScreen extends StatelessWidget {
               const SizedBox(height: AppSpacing.lg),
               AppCard(
                 padding: EdgeInsets.zero,
-                onTap: _callHelpline,
-                child: ListTile(
+                // Own Material so the ListTile ripple shows on the card.
+                child: Material(
+                  color: Colors.transparent,
+                  child: ListTile(
+                  onTap: _callHelpline,
                   leading: Icon(Icons.phone_in_talk_rounded, color: p.accent),
                   title: Text(
                     'Emergency Transport Helpline',
@@ -53,6 +56,7 @@ class TripUnservedScreen extends StatelessWidget {
                     style: AppTypography.small(color: p.accent),
                   ),
                   trailing: Icon(Icons.call_rounded, color: p.accent),
+                  ),
                 ),
               ),
             ],

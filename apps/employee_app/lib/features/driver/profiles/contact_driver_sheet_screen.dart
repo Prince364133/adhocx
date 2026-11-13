@@ -51,7 +51,7 @@ class _ContactDriverSheetScreenState extends State<ContactDriverSheetScreen> {
     return Scaffold(
       backgroundColor: Colors.black54,
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primaryBlue))
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
           : GestureDetector(
               onTap: () => Navigator.of(context).pop(),
               child: Container(
