@@ -134,14 +134,7 @@ class _TripHistoryOverviewScreenState extends State<TripHistoryOverviewScreen> {
                 ],
               ),
             ),
-      bottomNavigationBar: EmployeeBottomNavBar(
-        currentIndex: 2, // Trips Tab Active
-        onTap: (index) {
-          if (index == 0) context.go(AppRoutes.homeUpcomingPickup);
-          if (index == 1) context.go(AppRoutes.scheduleToday);
-          if (index == 3) context.go(AppRoutes.profileDetails);
-        },
-      ),
+      bottomNavigationBar: EmployeeBottomNavBar(currentIndex: 2),
     );
   }
 

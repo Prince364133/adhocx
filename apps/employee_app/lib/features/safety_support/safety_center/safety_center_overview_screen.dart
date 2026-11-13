@@ -198,15 +198,7 @@ class _SafetyCenterOverviewScreenState
                 ),
               ),
             ),
-      bottomNavigationBar: EmployeeBottomNavBar(
-        currentIndex: -1,
-        onTap: (index) {
-          if (index == 0) context.push(AppRoutes.homeUpcomingPickup);
-          if (index == 1) context.push(AppRoutes.scheduleToday);
-          if (index == 2) context.push(AppRoutes.tripHistoryOverview);
-          if (index == 3) context.push(AppRoutes.profileDetails);
-        },
-      ),
+      bottomNavigationBar: EmployeeBottomNavBar(currentIndex: -1),
     );
   }
 

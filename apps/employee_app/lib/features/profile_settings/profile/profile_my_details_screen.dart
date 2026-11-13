@@ -235,14 +235,7 @@ class _ProfileMyDetailsScreenState extends State<ProfileMyDetailsScreen> {
                 ),
               ),
             ),
-      bottomNavigationBar: EmployeeBottomNavBar(
-        currentIndex: 3, // Profile Tab Active
-        onTap: (index) {
-          if (index == 0) context.push(AppRoutes.homeUpcomingPickup);
-          if (index == 1) context.push(AppRoutes.scheduleToday);
-          if (index == 2) context.push(AppRoutes.tripHistoryOverview);
-        },
-      ),
+      bottomNavigationBar: EmployeeBottomNavBar(currentIndex: 3),
     );
   }
 

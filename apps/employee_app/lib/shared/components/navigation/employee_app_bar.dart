@@ -135,88 +135,136 @@ class EmployeeGreetingHeader extends StatelessWidget {
           ),
         ),
         if (onSosTap != null) ...[
-          Semantics(
-            button: true,
-            label: 'SOS emergency',
-            child: InkWell(
-              onTap: onSosTap,
-              customBorder: const CircleBorder(),
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.xs),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: const BoxDecoration(
-                        color: AppColors.error,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.sos_rounded,
-                          color: Colors.white, size: 20),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'SOS',
-                      style: AppTypography.micro(
-                        color: AppColors.error,
-                        fontSize: 9,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+          EmployeeSosButton(onPressed: onSosTap!),
           const SizedBox(width: AppSpacing.sm),
         ],
-        Semantics(
-          button: true,
-          label: unreadNotificationsCount > 0
-              ? 'Notifications, $unreadNotificationsCount unread'
-              : 'Notifications',
-          child: Stack(
-            clipBehavior: Clip.none,
+        EmployeeNotificationBell(
+          unreadCount: unreadNotificationsCount,
+          onPressed: onNotificationTap,
+        ),
+      ],
+    );
+  }
+}
+
+/// Red SOS shortcut (circle + "SOS" caption). Use once per screen.
+class EmployeeSosButton extends StatelessWidget {
+  final VoidCallback onPressed;
+
+  /// Circle diameter. Use [compactSize] inside a 56px AppBar.
+  final double size;
+  static const double compactSize = 30;
+
+  const EmployeeSosButton({
+    super.key,
+    required this.onPressed,
+    this.size = 36,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'SOS emergency',
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onPressed,
+        customBorder: const CircleBorder(),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xs),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              InkWell(
-                onTap: onNotificationTap,
-                customBorder: const CircleBorder(),
-                child: Container(
-                  padding: const EdgeInsets.all(AppSpacing.sm + 2),
-                  decoration: BoxDecoration(
-                    color:
-                        isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                    ),
-                  ),
-                  child: Icon(
-                    Icons.notifications_none_rounded,
-                    color: textPrimary,
-                    size: 22,
-                  ),
+              Container(
+                width: size,
+                height: size,
+                decoration: const BoxDecoration(
+                  color: AppColors.error,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.sos_rounded,
+                  color: Colors.white,
+                  size: size * 0.55,
                 ),
               ),
-              if (unreadNotificationsCount > 0)
-                Positioned(
-                  right: 4,
-                  top: 4,
-                  child: Container(
-                    width: 9,
-                    height: 9,
-                    decoration: const BoxDecoration(
-                      color: AppColors.error,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
+              const SizedBox(height: 2),
+              Text(
+                'SOS',
+                style: AppTypography.micro(
+                  color: AppColors.error,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w800,
                 ),
+              ),
             ],
           ),
         ),
-      ],
+      ),
+    );
+  }
+}
+
+/// Outlined round notification bell with an unread dot.
+class EmployeeNotificationBell extends StatelessWidget {
+  final int unreadCount;
+  final VoidCallback? onPressed;
+
+  const EmployeeNotificationBell({
+    super.key,
+    this.unreadCount = 0,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Semantics(
+      button: true,
+      label: unreadCount > 0
+          ? 'Notifications, $unreadCount unread'
+          : 'Notifications',
+      excludeSemantics: true,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          InkWell(
+            onTap: onPressed,
+            customBorder: const CircleBorder(),
+            child: Container(
+              padding: const EdgeInsets.all(AppSpacing.sm + 2),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                ),
+              ),
+              child: Icon(
+                Icons.notifications_none_rounded,
+                color: isDark
+                    ? AppColors.textPrimaryDark
+                    : AppColors.textPrimaryLight,
+                size: 22,
+              ),
+            ),
+          ),
+          if (unreadCount > 0)
+            Positioned(
+              right: 4,
+              top: 4,
+              child: Container(
+                width: 9,
+                height: 9,
+                decoration: const BoxDecoration(
+                  color: AppColors.error,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

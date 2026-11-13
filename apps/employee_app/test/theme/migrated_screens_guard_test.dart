@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 const migratedFolders = <String>[
   'lib/features/auth',
+  'lib/features/home',
 ];
 
 /// Old employee-only colour names (temporary aliases in AppColors).

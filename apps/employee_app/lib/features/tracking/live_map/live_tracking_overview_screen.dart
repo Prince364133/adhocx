@@ -200,13 +200,7 @@ class _LiveTrackingOverviewScreenState
                 ),
               ),
             ),
-      bottomNavigationBar: EmployeeBottomNavBar(
-        currentIndex: 2,
-        onTap: (index) {
-          if (index == 0) context.push(AppRoutes.homeUpcomingPickup);
-          if (index == 1) context.push(AppRoutes.scheduleToday);
-        },
-      ),
+      bottomNavigationBar: EmployeeBottomNavBar(currentIndex: 2),
     );
   }
 }

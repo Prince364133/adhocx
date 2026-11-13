@@ -1,6 +1,8 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import '../../../routes/app_routes.dart';
 import '../../../theme/app_colors.dart';
 
 /// Bottom navigation — same design as the Driver app's rider navigation
@@ -8,7 +10,12 @@ import '../../../theme/app_colors.dart';
 /// 20px top radius, top hairline border, tinted pill behind the active
 /// outlined/filled icon, 10px labels. Tabs: 0 Home, 1 Schedule, 2 Trips,
 /// 3 Profile.
+///
+/// Tab routing is built in ([tabRoutes], replace-style `go`) so every screen
+/// navigates identically and no tab can be left dead. Pass [onTap] only to
+/// intercept taps (e.g. tests).
 class EmployeeBottomNavBar extends StatelessWidget {
+  /// Active tab, or -1 on screens outside the four tabs (e.g. Safety Center).
   final int currentIndex;
   final ValueChanged<int>? onTap;
 
@@ -17,6 +24,23 @@ class EmployeeBottomNavBar extends StatelessWidget {
     this.currentIndex = 0,
     this.onTap,
   });
+
+  /// Destination of each tab, by index.
+  static const List<String> tabRoutes = [
+    AppRoutes.homeUpcomingPickup,
+    AppRoutes.scheduleToday,
+    AppRoutes.historyOverview,
+    AppRoutes.profileDetails,
+  ];
+
+  void _handleTap(BuildContext context, int index) {
+    if (onTap != null) {
+      onTap!(index);
+      return;
+    }
+    if (index == currentIndex) return; // already on this tab
+    context.go(tabRoutes[index]);
+  }
 
   static const List<_TabSpec> _tabs = [
     _TabSpec('Home', Icons.home_outlined, Icons.home),
@@ -77,7 +101,7 @@ class EmployeeBottomNavBar extends StatelessWidget {
                     label: tab.label,
                     excludeSemantics: true,
                     child: GestureDetector(
-                      onTap: () => onTap?.call(i),
+                      onTap: () => _handleTap(context, i),
                       behavior: HitTestBehavior.opaque,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 8),

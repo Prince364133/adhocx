@@ -335,14 +335,7 @@ class _ScheduleTodayOverviewScreenState
           ),
         ),
       ),
-      bottomNavigationBar: EmployeeBottomNavBar(
-        currentIndex: 1, // Schedule Tab Active
-        onTap: (index) {
-          if (index == 0) context.go(AppRoutes.homeUpcomingPickup);
-          if (index == 2) context.go(AppRoutes.historyOverview);
-          if (index == 3) context.go(AppRoutes.profileDetails);
-        },
-      ),
+      bottomNavigationBar: EmployeeBottomNavBar(currentIndex: 1),
     );
   }
 }

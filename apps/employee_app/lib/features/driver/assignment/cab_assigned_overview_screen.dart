@@ -369,13 +369,7 @@ class _CabAssignedOverviewScreenState extends State<CabAssignedOverviewScreen> {
                 ),
               ),
             ),
-      bottomNavigationBar: EmployeeBottomNavBar(
-        currentIndex: 0,
-        onTap: (index) {
-          if (index == 1) context.push(AppRoutes.scheduleToday);
-          if (index == 0) context.push(AppRoutes.homeUpcomingPickup);
-        },
-      ),
+      bottomNavigationBar: EmployeeBottomNavBar(currentIndex: 0),
     );
   }
 }

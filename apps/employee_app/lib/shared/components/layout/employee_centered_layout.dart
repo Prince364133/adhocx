@@ -104,6 +104,23 @@ class EmployeeCenteredLayout extends StatelessWidget {
   }
 }
 
+/// Full-screen loading state: page background + brand spinner.
+class EmployeeLoadingScaffold extends StatelessWidget {
+  final PreferredSizeWidget? appBar;
+
+  const EmployeeLoadingScaffold({super.key, this.appBar});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = EmployeePalette.of(context);
+    return Scaffold(
+      backgroundColor: p.background,
+      appBar: appBar,
+      body: Center(child: CircularProgressIndicator(color: p.accent)),
+    );
+  }
+}
+
 /// Full-width text link used under a primary button ("Not now", "Back to
 /// login"). 48dp tall touch target, Driver `label` typography.
 class EmployeeTextLink extends StatelessWidget {
