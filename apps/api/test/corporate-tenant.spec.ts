@@ -9,6 +9,7 @@ describe('CorporateTenantService', () => {
   let mockDb: any;
   let mockAudit: any;
   let mockH3Service: any;
+  let mockGeocoder: any;
 
   beforeEach(() => {
     mockDb = {
@@ -49,10 +50,15 @@ describe('CorporateTenantService', () => {
       ),
     };
 
+    mockGeocoder = {
+      geocode: jest.fn(async () => ({ lat: 17.4604, lng: 78.3637, matchedAddress: 'Kondapur', partialMatch: false, isRealGeocode: true })),
+    };
+
     service = new CorporateTenantService(
       mockDb as unknown as DatabaseService,
       mockAudit as unknown as AuditService,
       mockH3Service as unknown as H3Service,
+      mockGeocoder,
     );
   });
 
@@ -115,6 +121,56 @@ describe('CorporateTenantService', () => {
       expect(mockAudit.log).toHaveBeenCalledWith(
         expect.objectContaining({ action: 'CORPORATE_TENANT_CREATED' }),
       );
+    });
+
+    describe('company phone login + HQ office provisioning', () => {
+      const dto = {
+        code: 'acme', name: 'Acme Technologies', legalEntityName: 'Acme Tech India Pvt Ltd',
+        primaryContactPhone: '+91 98765 43210', primaryContactName: 'Asha', primaryContactEmail: 'asha@acme.com',
+        registeredAddress: 'Plot 5, Hitech City', city: 'Hyderabad', state: 'Telangana', pinCode: '500081',
+      } as any;
+      beforeEach(() => {
+        mockDb.corporateTenant.findUnique.mockResolvedValue(null);
+        mockDb.corporateTenant.create.mockResolvedValue({ id: 'tenant-101', code: 'ACME', name: 'Acme Technologies' });
+        mockDb.user = { findFirst: jest.fn(), update: jest.fn(), create: jest.fn(async ({ data }: any) => ({ id: 'u-new', ...data })) };
+      });
+
+      it('never converts an existing driver (or vendor/staff) account into the corporate admin', async () => {
+        for (const existing of [
+          { id: 'u-drv', role: 'DRIVER', driver: { id: 'd1' }, vendor: null },
+          { id: 'u-ven', role: 'VENDOR', driver: null, vendor: { id: 'v1' } },
+          { id: 'u-ops', role: 'OPS', driver: null, vendor: null },
+          { id: 'u-other', role: 'CORPORATE_ADMIN', corporateTenantId: 'other-tenant', driver: null, vendor: null },
+        ]) {
+          mockDb.user.findFirst.mockResolvedValueOnce(existing);
+          await service.createTenant(dto);
+        }
+        expect(mockDb.user.update).not.toHaveBeenCalled();
+        expect(mockDb.user.create).not.toHaveBeenCalled();
+      });
+
+      it('provisions a corporate super admin for a fresh company number', async () => {
+        mockDb.user.findFirst.mockResolvedValueOnce(null);
+        await service.createTenant(dto);
+        expect(mockDb.user.create).toHaveBeenCalledWith({
+          data: expect.objectContaining({ role: 'CORPORATE_ADMIN', corporateRole: 'CORP_SUPER_ADMIN', corporateTenantId: 'tenant-101' }),
+        });
+      });
+
+      it('creates the HQ office at the geocoded address, and skips it rather than invent a location', async () => {
+        mockDb.user.findFirst.mockResolvedValue(null);
+        await service.createTenant(dto);
+        expect(mockGeocoder.geocode).toHaveBeenCalledWith('Plot 5, Hitech City, Hyderabad, Telangana, 500081, India');
+        expect(mockDb.corporateOffice.create).toHaveBeenCalledWith({
+          data: expect.objectContaining({ code: 'ACME-HQ', latitude: 17.4604, longitude: 78.3637, isActive: true }),
+        });
+
+        mockDb.corporateOffice.create.mockClear();
+        mockGeocoder.geocode.mockRejectedValueOnce(new Error('ZERO_RESULTS'));
+        const tenant = await service.createTenant(dto);
+        expect(tenant.id).toBe('tenant-101'); // company is still created
+        expect(mockDb.corporateOffice.create).not.toHaveBeenCalled();
+      });
     });
 
     it('should throw ConflictException if tenant code is already registered', async () => {
@@ -213,7 +269,7 @@ describe('CorporateTenantService', () => {
       expect(result.employeeCode).toBe('EMP001');
     });
 
-    it('should use geocoding fallback when latitude/longitude are omitted', async () => {
+    it('geocodes the home address when latitude/longitude are omitted (no invented point)', async () => {
       mockDb.corporateTenant.findUnique.mockResolvedValue({ id: 'tenant-101' });
       mockDb.corporateOffice.findFirst.mockResolvedValue({
         id: 'office-1',
@@ -241,8 +297,23 @@ describe('CorporateTenantService', () => {
         // coordinates omitted
       });
 
-      expect(mockH3Service.latLngToCell).toHaveBeenCalled();
+      expect(mockGeocoder.geocode).toHaveBeenCalledWith('Kondapur, Hyderabad');
+      expect(mockH3Service.latLngToCell).toHaveBeenCalledWith(17.4604, 78.3637, 8);
       expect(result.id).toBe('emp-2');
+    });
+
+    it('rejects an employee without coordinates when the address cannot be located', async () => {
+      mockDb.corporateTenant.findUnique.mockResolvedValue({ id: 'tenant-101' });
+      mockDb.corporateOffice.findFirst.mockResolvedValue({ id: 'office-1', latitude: { toNumber: () => 17.44 }, longitude: { toNumber: () => 78.37 } });
+      mockDb.corporateEmployee.findFirst.mockResolvedValueOnce(null);
+      mockGeocoder.geocode.mockRejectedValueOnce(new Error('GOOGLE_MAPS_API_KEY is not configured'));
+      await expect(
+        service.createEmployee('tenant-101', {
+          officeId: 'office-1', employeeCode: 'EMP009', fullName: 'No Pin', email: 'np@acme.com',
+          phoneNumber: '+919876543219', gender: 'MALE' as any, homeAddress: 'Somewhere unknown',
+        }),
+      ).rejects.toThrow(/provide latitude and longitude/);
+      expect(mockDb.corporateEmployee.create).not.toHaveBeenCalled();
     });
 
     it('should throw ConflictException on duplicate employee code', async () => {
