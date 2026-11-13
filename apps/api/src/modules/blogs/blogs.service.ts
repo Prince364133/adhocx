@@ -144,7 +144,7 @@ This creates extreme churn, driver dissatisfaction, and high ride-cancellation r
 At AdhocX, we engineered an **Automated Double-Entry Settlement Ledger** directly tied to banking partner APIs:
 
 - **1-Hour Bank Payouts:** The moment a corporate trip is marked completed and digital trip telemetry is verified, the net earnings are dispatched directly to the driver's linked bank account (IMPS/UPI).
-- **Zero Hidden Commission Deductions:** Drivers see the exact breakdown of fare, platform convenience fee, and incentives before accepting any trip.
+- **Rate-Card Payouts:** Drivers see the agreed payout and trip terms before accepting any assignment.
 - **₹2,000 Milestone Bonus:** To celebrate dedication, every driver who completes 100 verified trips on the AdhocX platform receives a flat ₹2,000 direct bank cash bonus.
 
 \`\`\`

@@ -23,7 +23,7 @@ Commercial yellow-plate taxi drivers, independent fleet drivers, aggregators loo
 
 #### Campaign Messaging Hierarchy
 * **Primary Headline:** Earn More with Every Kilometre. Complete 100 Rides & Get an Instant ₹2,000 Bonus.
-* **Secondary Headline:** Guaranteed daily corporate routes, zero commission deductions during promotional window, and direct weekly bank payouts.
+* **Secondary Headline:** Guaranteed daily corporate routes, clear rate-card payouts, and direct weekly bank payouts.
 * **Supporting Pillars:**
   1. **₹2,000 Milestone Bonus:** Complete 100 verified trips in your first 30 days and receive ₹2,000 directly into your bank account.
   2. **Predictable Corporate Shifts:** No endless waiting at street corners. Get pre-scheduled airport, corporate office, and outstation trips with fixed guaranteed tariffs.
@@ -47,7 +47,7 @@ CTA Secondary: View Earnings Calculator & Bonus Terms
 * **Q: How does the ₹2,000 bonus work?**
   * **A:** Once your driver account is verified, any completed trip counts toward your 100-ride milestone. When you complete your 100th trip within 30 days of registration, the ₹2,000 bonus is automatically unlocked and credited directly into your registered bank account in the next payout cycle.
 * **Q: Are there any deductions from my bonus?**
-  * **A:** Absolutely zero. The full ₹2,000 is paid out without any platform commission or administrative deductions.
+  * **A:** The driver payout is determined by the agreed rate card and shown before accepting the route.
 * **Q: What documents do I need to register?**
   * **A:** 1) Commercial Driving License, 2) Vehicle RC (Yellow Board), 3) Commercial Insurance, 4) Fitness Certificate, 5) Aadhaar Card, 6) Bank Account Details / UPI ID.
 * **Q: How soon can I start driving after signing up?**

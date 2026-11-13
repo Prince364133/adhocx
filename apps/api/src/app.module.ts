@@ -27,6 +27,9 @@ import { DigioModule } from './modules/digio/digio.module';
       isGlobal: true,
       load: configs,
       envFilePath: ['.env.local', '.env', '../../.env.local', '../../.env'],
+      // A test server must never pick up live keys from the repo's .env files (that once sent
+      // real OTP SMS from a local E2E run). In NODE_ENV=test only explicitly passed env is used.
+      ignoreEnvFile: process.env.NODE_ENV === 'test',
     }),
 
     // Infrastructure

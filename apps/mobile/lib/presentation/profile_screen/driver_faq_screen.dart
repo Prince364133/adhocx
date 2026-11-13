@@ -75,9 +75,9 @@ class _DriverFaqScreenState extends State<DriverFaqScreen> {
     ),
     FaqItem(
       category: 'Earnings & Payouts',
-      question: 'Are there any platform commissions or hidden charges?',
+      question: 'How is my trip payout calculated?',
       answer:
-          'AdhocX operates on a transparent, flat commission model with zero hidden fees. Your driver rate card displays the exact base fare, per-kilometer rate, and waiting charges upfront before you accept any assignment.',
+          'Your driver rate card shows the agreed payout for each assignment before you accept. That same payout is credited to your wallet after verified trip completion.',
     ),
     FaqItem(
       category: 'Safety & Policies',

@@ -346,7 +346,7 @@ export class AdminController {
   }
 
   @Get('reports/financial-daily')
-  @ApiOperation({ summary: 'Get date-filtered booking volume, platform revenue, payouts, and active escrow holds' })
+  @ApiOperation({ summary: 'Get date-filtered booking volume, settled payouts, and active escrow holds' })
   async getDailyFinancialReport(
     @Query('date') date: string,
     @Query('companyId') companyId?: string,
@@ -357,7 +357,7 @@ export class AdminController {
 
   @Get('reports/analytics')
   @Get('reports')
-  @ApiOperation({ summary: 'Get operational SLA performance and platform GMV breakdown' })
+  @ApiOperation({ summary: 'Get operational SLA performance and driver payout metrics' })
   async getOperationalReports() {
     return this.adminService.getOperationalReports();
   }

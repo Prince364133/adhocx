@@ -53,7 +53,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String _trustTier = 'Platinum';
   Map<String, dynamic>? _liveOffer;
   Map<String, dynamic>? _liveTrip;
-  double _platformCommissionPercent = 10.0;
   Timer? _autoRefreshTimer;
   StreamSubscription<Map<String, dynamic>>? _tripEventsSubscription;
   final TextEditingController _otpController = TextEditingController();
@@ -111,10 +110,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed &&
-        mounted &&
-        _currentState == DriverHomeState.offline &&
-        !_isTogglingOnline) {
+    if (state == AppLifecycleState.resumed && mounted && _currentState == DriverHomeState.offline && !_isTogglingOnline) {
       unawaited(_resumePendingGoOnlineIfGranted());
     }
   }
@@ -176,52 +172,36 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         DriverService.instance.getOffers(forceRefresh: forceFetch).catchError((_) => []),
         Future.value([]),
         DriverService.instance.getTrips(forceRefresh: forceFetch).catchError((_) => []),
-        silent ? Future.value(null) : DriverService.instance.getPolicyConfig(forceRefresh: forceFetch).catchError((_) => null),
       ]);
 
       final pRaw = results[0];
-      final profile = pRaw is Map<String, dynamic>
-          ? (pRaw['data'] is Map<String, dynamic> ? pRaw['data'] as Map<String, dynamic> : pRaw)
-          : null;
+      final profile = pRaw is Map<String, dynamic> ? (pRaw['data'] is Map<String, dynamic> ? pRaw['data'] as Map<String, dynamic> : pRaw) : null;
 
       final wRaw = results[1];
-      final wallet = wRaw is Map<String, dynamic>
-          ? (wRaw['data'] is Map<String, dynamic> ? wRaw['data'] as Map<String, dynamic> : wRaw)
-          : null;
+      final wallet = wRaw is Map<String, dynamic> ? (wRaw['data'] is Map<String, dynamic> ? wRaw['data'] as Map<String, dynamic> : wRaw) : null;
 
       final oRaw = results[2];
-      final offers = oRaw is List
-          ? oRaw
-          : (oRaw is Map && oRaw['data'] is List ? oRaw['data'] as List<dynamic> : []);
+      final offers = oRaw is List ? oRaw : (oRaw is Map && oRaw['data'] is List ? oRaw['data'] as List<dynamic> : []);
 
       final tRaw = results[4];
-      final trips = tRaw is List
-          ? tRaw
-          : (tRaw is Map && tRaw['data'] is List ? tRaw['data'] as List<dynamic> : []);
-
-      final polRaw = results[5];
-      if (polRaw is Map && polRaw['commissionPercent'] != null) {
-        final cp = double.tryParse(polRaw['commissionPercent'].toString());
-        if (cp != null && cp >= 0) {
-          _platformCommissionPercent = cp;
-        }
-      }
+      final trips = tRaw is List ? tRaw : (tRaw is Map && tRaw['data'] is List ? tRaw['data'] as List<dynamic> : []);
 
       if (mounted) {
         setState(() {
           if (profile != null) {
             final user = profile['user'] as Map<String, dynamic>?;
-            final rawName = profile['fullName'] as String? ??
-                user?['name'] as String? ??
-                user?['fullName'] as String? ??
-                AuthService.instance.currentUser?.fullName;
+            final rawName = profile['fullName'] as String? ?? user?['name'] as String? ?? user?['fullName'] as String? ?? AuthService.instance.currentUser?.fullName;
             _driverName = !isPlaceholderName(rawName) ? rawName! : 'Partner';
-            final num? scoreNum = profile['trustScore'] as num? ??
-                profile['trust_score'] as num? ??
-                profile['currentScore'] as num?;
+            final num? scoreNum = profile['trustScore'] as num? ?? profile['trust_score'] as num? ?? profile['currentScore'] as num?;
             final rawScore = scoreNum?.toDouble() ?? 100.0;
             _trustScore = rawScore;
-            _trustTier = rawScore >= 90 ? 'Platinum' : rawScore >= 80 ? 'Gold' : rawScore >= 70 ? 'Silver' : 'Bronze';
+            _trustTier = rawScore >= 90
+                ? 'Platinum'
+                : rawScore >= 80
+                    ? 'Gold'
+                    : rawScore >= 70
+                        ? 'Silver'
+                        : 'Bronze';
 
             final avail = profile['availabilityStatus'] as String? ?? 'OFFLINE';
             if (avail == 'AVAILABLE') {
@@ -263,30 +243,42 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
           // 1. Check if an active / in-progress / arrived trip exists
           final inProgressTrip = trips.firstWhere(
-            (t) => t['status'] == 'IN_PROGRESS' || t['status'] == 'ARRIVED',
+            (t) {
+              final status = (t['status'] ?? '').toString().toUpperCase();
+              return status == 'IN_PROGRESS' || status == 'STARTED' || status == 'ARRIVED';
+            },
             orElse: () => null,
           );
           if (inProgressTrip != null) {
             _liveTrip = inProgressTrip as Map<String, dynamic>;
             _currentState = DriverHomeState.activeTrip;
+            _liveOffer = null;
+            GlobalDispatchOverlayService.instance.syncOffersToBubble([]);
             GlobalDispatchOverlayService.instance.syncActiveTripToBubble(_liveTrip);
             return;
           }
 
           // 2. Check if assigned trip exists
           final assignedTrip = trips.firstWhere(
-            (t) => t['status'] == 'ASSIGNED' || t['status'] == 'DRIVER_ASSIGNED',
+            (t) {
+              final status = (t['status'] ?? '').toString().toUpperCase();
+              return status == 'ASSIGNED' || status == 'DRIVER_ASSIGNED';
+            },
             orElse: () => null,
           );
           if (assignedTrip != null) {
             _liveTrip = assignedTrip as Map<String, dynamic>;
             _currentState = DriverHomeState.assignedTrip;
+            _liveOffer = null;
+            GlobalDispatchOverlayService.instance.syncOffersToBubble([]);
             GlobalDispatchOverlayService.instance.syncActiveTripToBubble(_liveTrip);
             return;
           }
 
           // Neither active nor assigned trip exists: clear stale trip and release driver state!
-          _liveTrip = null;
+          if (_currentState != DriverHomeState.completedTrip) {
+            _liveTrip = null;
+          }
           GlobalDispatchOverlayService.instance.syncActiveTripToBubble(null);
           if (_currentState == DriverHomeState.assignedTrip || _currentState == DriverHomeState.activeTrip) {
             _currentState = DriverHomeState.available;
@@ -327,8 +319,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           }
 
           // 4. If driver is available and has no active trip, ensure available state
-          if (_currentState != DriverHomeState.offline &&
-              _currentState != DriverHomeState.completedTrip) {
+          if (_currentState != DriverHomeState.offline && _currentState != DriverHomeState.completedTrip) {
             _currentState = DriverHomeState.available;
           }
         });
@@ -508,9 +499,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           GlobalDispatchOverlayService.instance.stopAssistiveBubble();
         }
         Fluttertoast.showToast(
-          msg: goOnline
-              ? 'You are now ONLINE & ready to receive live ride dispatches'
-              : 'You are now OFFLINE',
+          msg: goOnline ? 'You are now ONLINE & ready to receive live ride dispatches' : 'You are now OFFLINE',
           backgroundColor: goOnline ? AppColors.accentGreenDark : AppColors.slate700,
         );
         _loadLiveDriverData(silent: true);
@@ -676,9 +665,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               children: [
                                 Flexible(
                                   child: Text(
-                                    (_driverName.toLowerCase() == 'driver' || _driverName.toLowerCase() == 'partner')
-                                        ? context.tr(_driverName)
-                                        : _driverName,
+                                    (_driverName.toLowerCase() == 'driver' || _driverName.toLowerCase() == 'partner') ? context.tr(_driverName) : _driverName,
                                     style: AppTypography.body(
                                       color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                       fontWeight: FontWeight.bold,
@@ -737,20 +724,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         ),
                       ),
-                      GestureDetector(
-                        onTap: () async {
-                          await context.push(AppRoutes.personalInfoScreen);
-                          if (mounted) {
-                            try {
-                              await AuthService.instance.fetchCurrentUser(forceRefresh: true);
-                            } catch (_) {}
-                            setState(() {});
-                          }
-                        },
-                        child: AppProfileAvatar(
-                          radius: 18,
-                          name: _driverName,
-                          isDark: isDark,
+                      IconButton(
+                        tooltip: context.tr('Earnings'),
+                        onPressed: () => context.push(AppRoutes.walletScreen),
+                        icon: Icon(
+                          Icons.account_balance_wallet_outlined,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                        ),
+                      ),
+                      Semantics(
+                        button: true,
+                        label: context.tr('Profile'),
+                        child: GestureDetector(
+                          onTap: () => context.push(AppRoutes.profileScreen),
+                          child: Padding(
+                            padding: const EdgeInsets.all(4),
+                            child: AppProfileAvatar(
+                              radius: 18,
+                              name: _driverName,
+                              isDark: isDark,
+                            ),
+                          ),
                         ),
                       ),
                     ],
@@ -778,7 +772,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             DriverHomeState.activeTrip => _buildActiveTripState(isDark),
                             DriverHomeState.completedTrip => _buildCompletedTripState(isDark),
                           },
-                          const SizedBox(height: 100),
+                          const SizedBox(height: AppSpacing.xl),
                         ],
                       ),
                     ),
@@ -838,9 +832,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
               const SizedBox(height: 2),
               Text(
-                _isTogglingOnline
-                    ? (_togglingOnlineStep ?? 'Connecting to dispatch network...')
-                    : context.tr('You are currently offline. Go online to receive trip offers.'),
+                _isTogglingOnline ? (_togglingOnlineStep ?? 'Connecting to dispatch network...') : context.tr('You are currently offline. Go online to receive trip offers.'),
                 style: AppTypography.caption(color: Colors.white70),
               ),
               const SizedBox(height: AppSpacing.lg),
@@ -898,7 +890,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ),
         const SizedBox(height: AppSpacing.xl),
-
         Center(
           child: Column(
             children: [
@@ -1022,9 +1013,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               ],
                             ),
                             Text(
-                              offerHasEscort
-                                  ? 'Tap to view route & accept guaranteed fare • Escort included'
-                                  : 'Tap to view route & accept guaranteed fare',
+                              offerHasEscort ? 'Tap to view route & accept guaranteed fare • Escort included' : 'Tap to view route & accept guaranteed fare',
                               style: AppTypography.caption(
                                 color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                               ),
@@ -1213,7 +1202,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final vehicle = (offer?['vehicleType'] ?? reqObj?['vehicleType'] ?? 'Sedan').toString();
     final pickup = (offer?['pickupLocation']?['address'] ?? offer?['pickup'] ?? reqObj?['pickupAddress'] ?? 'Pickup Location').toString();
     final drop = (offer?['dropLocation']?['address'] ?? offer?['drop'] ?? reqObj?['dropAddress'] ?? 'Drop Location').toString();
-    
+
     final num rate = DriverService.resolveDriverPayout(offer);
     final rateStr = rate > 0 ? '₹ ${rate.toStringAsFixed(0)} Net' : '₹ Net';
 
@@ -1558,6 +1547,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   ),
                 ],
               ),
+              const SizedBox(height: AppSpacing.md),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    await context.push(AppRoutes.tripDetailsScreen, extra: trip);
+                    if (mounted) {
+                      _loadLiveDriverData(silent: true, force: true);
+                    }
+                  },
+                  icon: const Icon(Icons.receipt_long_outlined, size: 18),
+                  label: const Text('VIEW TRIP DETAILS'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(color: AppColors.primary),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                  ),
+                ),
+              ),
               const SizedBox(height: AppSpacing.lg),
               SizedBox(
                 width: double.infinity,
@@ -1604,19 +1614,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget _buildActiveTripState(bool isDark) {
     final trip = _liveTrip;
     final tripId = trip?['id'] as String? ?? '';
-    final status = (trip?['status'] as String? ?? 'IN_PROGRESS');
+    final status = (trip?['status'] as String? ?? 'IN_PROGRESS').toUpperCase();
+    final pickup = (trip?['pickupLocation']?['address'] ?? trip?['pickupAddress'] ?? trip?['requirement']?['pickupLocation']?['address'] ?? 'Pickup Location').toString();
     final drop = (trip?['dropLocation']?['address'] ?? trip?['dropAddress'] ?? 'Destination').toString();
-    final rawPayout = trip?['driverRate'] ??
-        trip?['totalDriverEarnings'] ??
-        trip?['driverEarnings'] ??
-        trip?['fare'] ??
-        trip?['rate'];
-    final num? parsedPayout = rawPayout != null
-        ? ((rawPayout is num) ? rawPayout : num.tryParse(rawPayout.toString()))
-        : null;
-    final payout = (parsedPayout != null && parsedPayout > 0)
-        ? parsedPayout.toStringAsFixed(0)
-        : (rawPayout?.toString() ?? '--');
+    final vehicle = (trip?['vehicleType'] ?? trip?['requirement']?['vehicleType'] ?? 'Vehicle').toString();
+    final rawPassengerName = trip?['passengerName'] ??
+        trip?['userName'] ??
+        trip?['customerName'] ??
+        trip?['user']?['fullName'] ??
+        trip?['vendor']?['user']?['fullName'] ??
+        trip?['vendor']?['organizationName'];
+    final safePassengerName = sanitizeRealName(rawPassengerName?.toString());
+    final passengerName = safePassengerName.isNotEmpty ? safePassengerName : 'Passenger';
+    final rawPayout = trip?['driverRate'] ?? trip?['totalDriverEarnings'] ?? trip?['driverEarnings'] ?? trip?['fare'] ?? trip?['rate'];
+    final num? parsedPayout = rawPayout != null ? ((rawPayout is num) ? rawPayout : num.tryParse(rawPayout.toString())) : null;
+    final payout = (parsedPayout != null && parsedPayout > 0) ? parsedPayout.toStringAsFixed(0) : (rawPayout?.toString() ?? '--');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1653,6 +1665,47 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Text(
+                'Vehicle: $vehicle',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Pickup: $pickup',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Drop: $drop',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Passenger: $passengerName',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Estimated earnings: ₹$payout',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
               if (status == 'ARRIVED') ...[
                 Container(
                   width: double.infinity,
@@ -1697,11 +1750,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   height: 48,
                   child: ElevatedButton.icon(
                     onPressed: () async {
-                      final rawName = trip?['passengerName'] ??
-                          trip?['userName'] ??
-                          trip?['customerName'] ??
-                          trip?['user']?['fullName'] ??
-                          trip?['vendor']?['user']?['fullName'];
+                      final rawName = trip?['passengerName'] ?? trip?['userName'] ?? trip?['customerName'] ?? trip?['user']?['fullName'] ?? trip?['vendor']?['user']?['fullName'];
                       final sanitized = sanitizeRealName(rawName?.toString());
                       final pName = sanitized.isNotEmpty ? sanitized : 'Passenger';
                       final started = await TripStartOtpBottomSheet.show(
@@ -1735,6 +1784,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ),
                   ),
                 ),
+                const SizedBox(height: AppSpacing.xs),
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton.icon(
+                    onPressed: () async {
+                      await context.push(AppRoutes.tripDetailsScreen, extra: trip);
+                      if (mounted) {
+                        _loadLiveDriverData(silent: true, force: true);
+                      }
+                    },
+                    icon: const Icon(Icons.receipt_long_outlined, size: 18),
+                    label: const Text('VIEW TRIP DETAILS'),
+                  ),
+                ),
               ] else ...[
                 Text(
                   'Driving to Destination',
@@ -1743,15 +1806,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Drop: $drop',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: AppSpacing.sm),
                 SizedBox(
                   width: double.infinity,
                   height: 48,
@@ -1765,6 +1820,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ),
                   ),
                 ),
+                const SizedBox(height: AppSpacing.xs),
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton.icon(
+                    onPressed: () async {
+                      await context.push(AppRoutes.tripDetailsScreen, extra: trip);
+                      if (mounted) {
+                        _loadLiveDriverData(silent: true, force: true);
+                      }
+                    },
+                    icon: const Icon(Icons.receipt_long_outlined, size: 18),
+                    label: const Text('VIEW TRIP DETAILS'),
+                  ),
+                ),
               ],
             ],
           ),
@@ -1774,7 +1843,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   void _showCompleteTripModal(BuildContext context, String tripId, String dropAddress, String rawFare) {
-    final baseFare = double.tryParse(rawFare.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0;
+    final driverPayout = double.tryParse(rawFare.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0;
     bool isSubmitting = false;
 
     showModalBottomSheet(
@@ -1786,11 +1855,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         builder: (ctx, setModalState) {
           final isDark = Theme.of(ctx).brightness == Brightness.dark;
           final bottomInset = MediaQuery.of(ctx).viewInsets.bottom;
-          final isCorporate = (_liveTrip?['requirement']?['fulfillmentMode'] ?? _liveTrip?['fulfillmentMode']) == 'CORPORATE_DISPATCH' || _liveTrip?['localityTier'] != null;
-          final commissionPercent = _platformCommissionPercent;
-          final platformFee = isCorporate ? 0.0 : (baseFare * (commissionPercent / 100.0)).roundToDouble();
-          final netPayout = (baseFare - platformFee).clamp(0.0, 9999999.0);
-
           return SafeArea(
             top: false,
             child: Container(
@@ -1804,112 +1868,97 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
               ),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Complete Dropoff',
-                        style: AppTypography.h2(
-                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.of(ctx).pop(),
-                        icon: const Icon(Icons.close),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Arrived at: $dropAddress',
-                    style: TextStyle(fontSize: 12, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
-                  ),
-                  const Divider(height: 24),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: isDark ? AppColors.slate800 : AppColors.slate100,
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                    child: Column(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text('Base Fare', style: TextStyle(fontSize: 12)),
-                            Text('₹ ${baseFare.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                          ],
-                        ),
-                        if (platformFee > 0) ...[
-                          const SizedBox(height: 4),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text('Platform Commission (${commissionPercent.toStringAsFixed(0)}%)', style: const TextStyle(fontSize: 12, color: AppColors.error)),
-                              Text('-₹ ${platformFee.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.error)),
-                            ],
+                        Text(
+                          'Complete Dropoff',
+                          style: AppTypography.h2(
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                            fontWeight: FontWeight.bold,
                           ),
-                        ],
-                        const Divider(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text('Net Driver Wallet Credit', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                            Text(
-                              '₹ ${netPayout.toStringAsFixed(0)}',
-                              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppColors.primary),
-                            ),
-                          ],
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          icon: const Icon(Icons.close),
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: isSubmitting
-                          ? null
-                          : () async {
-                              setModalState(() => isSubmitting = true);
-                              try {
-                                await DriverService.instance.completeTrip(
-                                  tripId,
-                                );
-                                if (ctx.mounted) Navigator.of(ctx).pop();
-                                Fluttertoast.showToast(msg: 'Trip Completed! ₹${netPayout.toStringAsFixed(0)} credited.', backgroundColor: AppColors.success);
-                                setState(() => _currentState = DriverHomeState.completedTrip);
-                                _loadLiveDriverData(silent: false);
-                              } catch (e) {
-                                setModalState(() => isSubmitting = false);
-                                Fluttertoast.showToast(msg: 'Failed: $e', backgroundColor: AppColors.error);
-                              }
-                            },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.accentGreenDark,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                      ),
-                      child: isSubmitting
-                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : const Text('CONFIRM & COMPLETE TRIP', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Arrived at: $dropAddress',
+                      style: TextStyle(fontSize: 12, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
                     ),
-                  ),
-                ],
+                    const Divider(height: 24),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.slate800 : AppColors.slate100,
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Driver Payout', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                              Text(
+                                '₹ ${driverPayout.toStringAsFixed(0)}',
+                                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppColors.primary),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: isSubmitting
+                            ? null
+                            : () async {
+                                setModalState(() => isSubmitting = true);
+                                try {
+                                  await DriverService.instance.completeTrip(
+                                    tripId,
+                                  );
+                                  if (ctx.mounted) Navigator.of(ctx).pop();
+                                  if (!mounted) return;
+                                  Fluttertoast.showToast(msg: 'Trip Completed! ₹${driverPayout.toStringAsFixed(0)} credited.', backgroundColor: AppColors.success);
+                                  setState(() => _currentState = DriverHomeState.completedTrip);
+                                  unawaited(_loadLiveDriverData(silent: false, force: true));
+                                } catch (e) {
+                                  if (ctx.mounted) setModalState(() => isSubmitting = false);
+                                  if (mounted) {
+                                    Fluttertoast.showToast(msg: 'Failed: $e', backgroundColor: AppColors.error);
+                                  }
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.accentGreenDark,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                        ),
+                        child: isSubmitting
+                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            : const Text('CONFIRM & COMPLETE TRIP', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        );
-      },
-    ),
-  );
-}
+          );
+        },
+      ),
+    );
+  }
 
   // ───────────────────────────────────────────────────────────────────────────
   // STATE 6: COMPLETED TRIP STATE

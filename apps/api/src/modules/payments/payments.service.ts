@@ -828,18 +828,10 @@ export class PaymentsService {
    * Get aggregate payment metrics for admin overview.
    */
   async getAdminPaymentMetrics() {
-    const [all, settledPayouts, platformRevenueEntries] = await Promise.all([
+    const [all, settledPayouts] = await Promise.all([
       this.db.payment.findMany(),
       this.db.settlement.findMany({
         where: { status: 'SETTLED' },
-        select: { amount: true },
-      }),
-      this.db.ledgerEntry.findMany({
-        where: {
-          accountType: 'PLATFORM',
-          entryType: 'CREDIT',
-          referenceType: { in: ['PLATFORM_COMMISSION', 'DISTANCE_PLATFORM_SPREAD', 'ZONAL_PLATFORM_SPREAD'] },
-        },
         select: { amount: true },
       }),
     ]);
@@ -859,7 +851,6 @@ export class PaymentsService {
       }
     }
     const settledVolume = settledPayouts.reduce((total, payout) => total + Number(payout.amount), 0);
-    const platformRevenue = platformRevenueEntries.reduce((total, entry) => total + Number(entry.amount), 0);
 
     return {
       totalVolume: captured + escrow,
@@ -869,7 +860,6 @@ export class PaymentsService {
       totalEscrowVolume: captured + escrow,
       activeEscrowHolds: escrow,
       settledVolume,
-      platformRevenue,
       pendingTransactions: all.filter((p) => p.status === 'AUTHORIZED' || p.status === 'PENDING').length,
     };
   }

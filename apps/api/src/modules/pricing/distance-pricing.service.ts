@@ -865,10 +865,6 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
     const peakSlab = this.resolveSlab(plan, distanceMeters, true);
     const activeSlab = peakEval.isPeak ? peakSlab : stdSlab;
 
-    const grossSpreadPaise = activeSlab.vendorPricePaise - activeSlab.driverPayoutPaise;
-    const stdGrossSpreadPaise = stdSlab.vendorPricePaise - stdSlab.driverPayoutPaise;
-    const peakGrossSpreadPaise = peakSlab.vendorPricePaise - peakSlab.driverPayoutPaise;
-
     return {
       distanceMeters,
       displayedKm: Number((distanceMeters / 1000).toFixed(1)),
@@ -884,20 +880,13 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
       vendorPriceRupees: activeSlab.vendorPricePaise / 100,
       driverPayoutPaise: activeSlab.driverPayoutPaise,
       driverPayoutRupees: activeSlab.driverPayoutPaise / 100,
-      grossSpreadPaise,
-      grossSpreadRupees: grossSpreadPaise / 100,
-      grossMarginPercent: Number(((grossSpreadPaise / activeSlab.vendorPricePaise) * 100).toFixed(2)),
       standard: {
         vendorPriceRupees: stdSlab.vendorPricePaise / 100,
         driverPayoutRupees: stdSlab.driverPayoutPaise / 100,
-        grossSpreadRupees: stdGrossSpreadPaise / 100,
-        grossMarginPercent: Number(((stdGrossSpreadPaise / stdSlab.vendorPricePaise) * 100).toFixed(2)),
       },
       peak: {
         vendorPriceRupees: peakSlab.vendorPricePaise / 100,
         driverPayoutRupees: peakSlab.driverPayoutPaise / 100,
-        grossSpreadRupees: peakGrossSpreadPaise / 100,
-        grossMarginPercent: Number(((peakGrossSpreadPaise / peakSlab.vendorPricePaise) * 100).toFixed(2)),
       },
       peakWindows,
     };
@@ -1114,9 +1103,7 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
 
   private mapPlanToDto(plan: any): DistancePricingPlanDto {
     const slabs = (plan.slabs || []).map((s: any) => {
-      const grossSpreadPaise = s.vendorPricePaise - s.driverPayoutPaise;
       const { vendorPricePaise: vendorPeakPricePaise, driverPayoutPaise: driverPeakPayoutPaise } = slabRates(s, true);
-      const peakGrossSpreadPaise = vendorPeakPricePaise - driverPeakPayoutPaise;
 
       return {
         id: s.id,
@@ -1127,16 +1114,10 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
         driverPayoutPaise: s.driverPayoutPaise,
         vendorPeakPricePaise,
         driverPeakPayoutPaise,
-        grossSpreadPaise,
-        grossMarginPercent: s.vendorPricePaise > 0 ? Number(((grossSpreadPaise / s.vendorPricePaise) * 100).toFixed(2)) : 0,
         vendorPriceRupees: s.vendorPricePaise / 100,
         driverPayoutRupees: s.driverPayoutPaise / 100,
         vendorPeakPriceRupees: vendorPeakPricePaise / 100,
         driverPeakPayoutRupees: driverPeakPayoutPaise / 100,
-        peakGrossSpreadPaise,
-        peakGrossSpreadRupees: peakGrossSpreadPaise / 100,
-        peakGrossMarginPercent: vendorPeakPricePaise > 0 ? Number(((peakGrossSpreadPaise / vendorPeakPricePaise) * 100).toFixed(2)) : 0,
-        grossSpreadRupees: grossSpreadPaise / 100,
         minKm: s.minDistanceMExclusive / 1000,
         maxKm: s.maxDistanceMInclusive / 1000,
         displayRange: this.rangeLabel(s),

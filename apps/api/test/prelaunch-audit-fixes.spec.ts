@@ -27,7 +27,6 @@ describe('UpdatePolicyConfigDto (admin escort fee editor)', () => {
     expect(await errorsFor({ escortFee: -1 })).toContain('escortFee');
     expect(await errorsFor({ escortFee: Number.NaN })).toContain('escortFee');
     expect(await errorsFor({ escortFee: 1_000_000 })).toContain('escortFee');
-    expect(await errorsFor({ commissionPercent: 150 })).toContain('commissionPercent');
     expect(await errorsFor({ driverTrialDays: 2.5 })).toContain('driverTrialDays');
   });
 });
@@ -36,7 +35,6 @@ describe('PricingService.updatePolicyConfig', () => {
   function build() {
     const row = {
       key: 'GLOBAL_POLICY',
-      commissionPercent: 10,
       driverMonthlyFee: 499,
       driverTrialDays: 15,
       minWithdrawalAmount: 1000,

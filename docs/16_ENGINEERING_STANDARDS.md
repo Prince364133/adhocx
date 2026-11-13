@@ -454,13 +454,7 @@ Business configuration belongs in configuration/domain policy rather than random
 
 Never embed unresolved business decisions.
 
-Bad:
-
-```typescript
-const commission = amount * 0.15;
-```
-
-if commission has not been finalized.
+Do not derive a payout using an invented percentage when the locked rate-card snapshot already defines it.
 
 Correct:
 
@@ -2243,7 +2237,6 @@ ask for clarification when implementation depends on it
 Examples:
 
 ```text
-commission percentage
 cancellation penalty
 dispatch timeout
 KYC document list
@@ -2294,7 +2287,7 @@ Use API/state models.
 Do not implement:
 
 ```text
-commission calculation
+pricing calculation
 dispatch selection
 authorization decisions
 trip state transitions

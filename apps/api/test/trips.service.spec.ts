@@ -246,8 +246,9 @@ describe('TripsService Unit Tests', () => {
     });
     db.driver.findUnique.mockResolvedValue({ id: 'drv-1', userId: 'usr-drv-1' });
 
+    let tx: any;
     db.$transaction.mockImplementation(async (callback: any) => {
-      const tx = {
+      tx = {
         trip: {
           updateMany: jest.fn().mockResolvedValue({ count: 1 }),
           findUnique: jest.fn().mockResolvedValue({
@@ -264,7 +265,7 @@ describe('TripsService Unit Tests', () => {
             driverRate: 1500,
             tollCharges: 100,
             parkingCharges: 50,
-            totalDriverEarnings: 1500,
+            totalDriverEarnings: 1650,
             createdAt: now,
             updatedAt: now,
           }),
@@ -295,7 +296,16 @@ describe('TripsService Unit Tests', () => {
     });
 
     expect(result.status).toBe(TripStatus.COMPLETED);
-    expect(result.totalDriverEarnings).toBe(1500);
+    expect(result.totalDriverEarnings).toBe(1650);
+    expect(tx.driver.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ walletBalance: { increment: 1650 } }) }),
+    );
+    expect(tx.ledgerEntry.create).toHaveBeenCalledTimes(1);
+    expect(tx.ledgerEntry.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ accountType: 'DRIVER', amount: 1650, referenceType: 'TRIP_EARNINGS' }),
+      }),
+    );
     expect(db.tripEvent.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ eventType: 'TRIP_COMPLETED' }),
@@ -304,7 +314,7 @@ describe('TripsService Unit Tests', () => {
     expect(notifications.emitEvent).toHaveBeenCalledWith(
       'driver:drv-1',
       'TRIP_COMPLETED',
-      expect.objectContaining({ totalEarnings: 1500 }),
+      expect.objectContaining({ totalEarnings: 1650 }),
     );
   });
 
@@ -458,7 +468,6 @@ describe('TripsService Unit Tests', () => {
           escortFarePaise: 50000,
           totalFarePaise: 200000,
           driverFarePaise: 127500,
-          platformFeePaise: 22500,
         },
       },
     });
@@ -480,7 +489,7 @@ describe('TripsService Unit Tests', () => {
       db.$transaction.mockImplementation(async (cb: any) => cb(tx));
     });
 
-    it('Simulation 2 / D AT03: credits the fixed driver quote, books spread and escort payable separately', async () => {
+    it('Simulation 2 / D AT03: credits the fixed driver quote and books escort payable separately', async () => {
       db.trip.findUnique.mockResolvedValue(zonalTrip(TripStatus.IN_PROGRESS));
 
       await service.completeTrip('trip-z1', 'usr-drv-1', { tollCharges: 150, parkingCharges: 40 } as any);
@@ -492,10 +501,10 @@ describe('TripsService Unit Tests', () => {
       expect(entries).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ accountType: 'DRIVER', amount: 1275 }),
-          expect.objectContaining({ accountType: 'PLATFORM', referenceType: 'ZONAL_PLATFORM_SPREAD', amount: 225 }),
           expect.objectContaining({ accountType: 'ESCORT_PAYABLE', referenceType: 'ZONAL_ESCORT_PAYABLE', amount: 500 }),
         ]),
       );
+      expect(entries).not.toContainEqual(expect.objectContaining({ accountType: 'PLATFORM' }));
       // Tolls/parking are recorded as claims for ops approval, never auto-paid on zonal trips.
       expect(tx.trip.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ tollCharges: 0, parkingCharges: 0, totalDriverEarnings: 1275 }) }),

@@ -1084,7 +1084,7 @@ export class DriversService {
       tier = 'BRONZE';
       tierBenefits = [
         'Probation Recovery Dispatch Queue',
-        '15% Standard Platform Fee',
+        'Rate-card based trip payouts',
         'Fast-Track Score Rehabilitation Access',
         'Dedicated Safety Support Assistance',
       ];

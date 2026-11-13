@@ -101,7 +101,7 @@ The AdhocX Marketing Web App bridges high-converting promotional storytelling wi
   * `Trips Required:` `100 Trips`
   * `Eligibility Period:` `First 30 Days`
   * `Bonus Payout:` `₹2,000 Direct to Bank`
-  * `Commission During Offer:` `0% Deduction`
+  * `Driver Payout:` Rate-card amount
 * **Progress Simulator:** Visual animated step indicator showing Milestone 1 (25 trips), Milestone 2 (50 trips), Milestone 3 (75 trips), and Goal (100 trips = ₹2,000 unlocked).
 
 ---

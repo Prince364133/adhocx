@@ -95,7 +95,7 @@ describe('AdhocX End-to-End: Google Maps Road Distance, Pricing, Dispatch & Comp
   // =========================================================================
   // SUITE 2: PRICING ENGINE, TARIFF SCHEDULES & CENTRAL PLATFORM PROFIT
   // =========================================================================
-  describe('Suite 2: Pricing Engine Fare Calculation & Platform Commission Margin', () => {
+  describe('Suite 2: Pricing Engine Fare Calculation & Driver Payout', () => {
     it('Calculation 1: a route is priced from its road distance slab (vendor charge > driver payout)', async () => {
       // CP to Noida Sector 62
       const route = await googleMapsService.computeRoadRoute(
@@ -287,31 +287,26 @@ describe('AdhocX End-to-End: Google Maps Road Distance, Pricing, Dispatch & Comp
       expect(trip.status).toBe(TripStatus.IN_PROGRESS);
     });
 
-    it('Stage 6: Trip completes with tolls & parking; ledger settles central platform profit and driver payout', () => {
+    it('Stage 6: Trip completes with the agreed driver payout plus tolls and parking', () => {
       const trip = simulationState.trip;
       const driver = simulationState.drivers.find((d) => d.id === trip.driverId)!;
       const initialDriverWallet = driver.walletBalance;
 
       const fareAmount = Number(trip.driverRate);
-      const commissionPercent = 10.0; // Standard 10% platform commission
-      const commission = Math.round((fareAmount * commissionPercent) / 100);
       const tollCharges = 120.0;
       const parkingCharges = 80.0;
 
-      const netDriverEarnings = fareAmount - commission + tollCharges + parkingCharges;
+      const driverEarnings = fareAmount + tollCharges + parkingCharges;
 
       // Settle trip
       trip.status = TripStatus.COMPLETED;
       trip.completedAt = new Date();
       trip.tollCharges = tollCharges;
       trip.parkingCharges = parkingCharges;
-      trip.totalDriverEarnings = netDriverEarnings;
+      trip.totalDriverEarnings = driverEarnings;
 
-      // 1. Credit central platform commission into platform ledger
-      simulationState.platformLedgerBalance += commission;
-
-      // 2. Credit driver wallet with net earnings
-      driver.walletBalance += netDriverEarnings;
+      // Credit the driver with the full agreed payout.
+      driver.walletBalance += driverEarnings;
       driver.status = DriverAvailability.AVAILABLE;
 
       // 3. Mark parent requirement COMPLETED
@@ -319,9 +314,8 @@ describe('AdhocX End-to-End: Google Maps Road Distance, Pricing, Dispatch & Comp
 
       // Assertions
       expect(trip.status).toBe(TripStatus.COMPLETED);
-      expect(simulationState.platformLedgerBalance).toBe(commission);
-      expect(simulationState.platformLedgerBalance).toBeGreaterThan(0);
-      expect(driver.walletBalance).toBe(initialDriverWallet + netDriverEarnings);
+      expect(simulationState.platformLedgerBalance).toBe(0);
+      expect(driver.walletBalance).toBe(initialDriverWallet + driverEarnings);
       expect(driver.status).toBe(DriverAvailability.AVAILABLE);
       expect(simulationState.requirement.status).toBe(RequirementStatus.COMPLETED);
     });

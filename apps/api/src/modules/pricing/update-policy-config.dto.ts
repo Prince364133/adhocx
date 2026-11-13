@@ -14,13 +14,6 @@ export class UpdatePolicyConfigDto {
   @Max(100000)
   escortFee?: number;
 
-  @ApiPropertyOptional({ description: 'Commission % on legacy trips', example: 10 })
-  @IsOptional()
-  @IsNumber({ allowNaN: false, allowInfinity: false, maxDecimalPlaces: 2 })
-  @Min(0)
-  @Max(100)
-  commissionPercent?: number;
-
   @ApiPropertyOptional({ description: 'Driver monthly subscription fee, in rupees', example: 499 })
   @IsOptional()
   @IsNumber({ allowNaN: false, allowInfinity: false, maxDecimalPlaces: 2 })

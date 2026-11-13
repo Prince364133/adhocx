@@ -459,7 +459,6 @@ export interface RequirementPricingSnapshot {
   distanceM: number;
   vendorPricePaise: number;
   driverPayoutPaise: number;
-  grossSpreadPaise: number;
   quotedAt: string;
 }
 
@@ -697,7 +696,6 @@ export interface AdminPaymentMetrics {
   totalEscrowVolume: number;
   activeEscrowHolds: number;
   settledVolume: number;
-  platformRevenue: number;
   pendingTransactions: number;
 }
 
@@ -748,9 +746,6 @@ export interface OperationalReportData {
   fulfilledRequirements?: number;
   fulfillmentRate?: string;
   fulfillmentRatePercent?: number;
-  totalGrossBookingValue?: number;
-  platformGmv?: string;
-  platformRevenue?: number;
   totalDriverPayouts?: number;
   activeDrivers?: number;
   activeVendors?: number;
@@ -798,12 +793,9 @@ export interface DailyFinancialReport {
   date: string;
   currency: 'INR';
   grossBookingValue: number;
-  revenue: number;
   expenditure: number;
   activeEscrowHoldValue: number;
-  grossProfit: number;
   capturedPaymentCount: number;
-  platformRevenueEntryCount: number;
   settledPayoutCount: number;
   activeEscrowHoldCount: number;
 }
@@ -1231,16 +1223,10 @@ export interface DistancePricingSlab {
   driverPayoutPaise: number;
   vendorPeakPricePaise?: number;
   driverPeakPayoutPaise?: number;
-  grossSpreadPaise: number;
-  grossMarginPercent: number;
   vendorPriceRupees: number;
   driverPayoutRupees: number;
   vendorPeakPriceRupees?: number;
   driverPeakPayoutRupees?: number;
-  peakGrossSpreadPaise?: number;
-  peakGrossSpreadRupees?: number;
-  peakGrossMarginPercent?: number;
-  grossSpreadRupees: number;
   minKm: number;
   maxKm: number;
   displayRange: string;
@@ -1277,7 +1263,6 @@ export interface DistancePricingPlan {
 }
 
 export interface PlatformPolicyConfig {
-  commissionPercent: number;
   driverMonthlyFee: number;
   driverTrialDays: number;
   minWithdrawalAmount: number;
@@ -1339,16 +1324,10 @@ export interface DistanceSimulationResult {
   vendorPriceRupees: number;
   driverPayoutPaise: number;
   driverPayoutRupees: number;
-  grossSpreadPaise: number;
-  grossSpreadRupees: number;
-  grossMarginPercent: number;
   vendorPeakPricePaise?: number;
   vendorPeakPriceRupees?: number;
   driverPeakPayoutPaise?: number;
   driverPeakPayoutRupees?: number;
-  peakGrossSpreadPaise?: number;
-  peakGrossSpreadRupees?: number;
-  peakGrossMarginPercent?: number;
 }
 // =============================================================================
 // DIGIO KYC / KYB VERIFICATION TYPES
@@ -1404,12 +1383,9 @@ export interface DigioAdminDriverSuiteResult {
 
 export interface FinanceOverviewMetrics {
   totalRevenue: number;
-  adminEarnings: number;
   totalPaidToDrivers: number;
   pendingDriverPayments: number;
   totalTransactions: number;
-  netProfit: number;
-  commissionRatePercent?: number;
   totalRefunds?: number;
 }
 
@@ -1421,7 +1397,6 @@ export interface FinanceTimeSeriesPoint {
   year?: string;
   label: string;
   revenue: number;
-  adminCommission: number;
   driverEarnings: number;
   transactions: number;
 }
@@ -1444,7 +1419,6 @@ export interface FinanceDriverItem {
   totalEarnings: number;
   amountPaid: number;
   pendingBalance: number;
-  commissionDeducted: number;
   bankAccountName?: string;
   bankAccountNumber?: string;
   bankIfsc?: string;
@@ -1454,7 +1428,6 @@ export interface FinanceDriverSummary {
   totalDriverEarnings: number;
   amountPaidToDrivers: number;
   pendingDriverPayments: number;
-  totalCommissionDeducted: number;
   drivers: FinanceDriverItem[];
 }
 
@@ -1469,7 +1442,6 @@ export interface FinanceTransactionItem {
   customerName: string;
   customerId?: string;
   totalOrderAmount: number;
-  adminCommission: number;
   driverEarnings: number;
   paymentStatus: string;
   paymentMethod: string;
@@ -1513,13 +1485,6 @@ export interface FinanceRevenueBreakdownItem {
   percentage: number;
 }
 
-export interface FinanceCommissionBreakdownItem {
-  label: string;
-  rate: string;
-  amount: number;
-  description: string;
-}
-
 export interface FinanceDashboardData {
   isEmpty: boolean;
   message?: string;
@@ -1533,7 +1498,6 @@ export interface FinanceDashboardData {
   settlements: FinanceSettlementReportItem[];
   refunds: FinanceRefundItem[];
   revenueBreakdown: FinanceRevenueBreakdownItem[];
-  commissionBreakdown: FinanceCommissionBreakdownItem[];
 }
 
 export interface DriverFinancialHistoryDetail {

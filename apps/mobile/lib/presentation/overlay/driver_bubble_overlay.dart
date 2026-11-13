@@ -7,6 +7,7 @@ import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:vibration/vibration.dart';
+import '../dispatch_overlay/incoming_requirement_bottom_sheet.dart';
 import '../../shared/theme/app_theme.dart';
 
 /// Top-level Entry Point for the Floating Assistive Overlay Window.
@@ -87,11 +88,6 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
   Map<String, dynamic>? _activeTripData;
   List<Map<String, dynamic>> _availableOffers = [];
   Map<String, dynamic>? _currentOfferData;
-
-  // Countdown & Alert
-  Timer? _countdownTimer;
-  int _secondsRemaining = 30;
-  static const int _totalSeconds = 30;
 
   // Animations
   late AnimationController _pulseController;
@@ -249,18 +245,16 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
 
   /// Auto-opens the Bottom Sheet into the 30-Second Countdown Dispatch Offer View
   Future<void> _triggerIncomingOffer(Map<String, dynamic> offerData) async {
-    _countdownTimer?.cancel();
-
-    final req = offerData['requirement'] as Map<String, dynamic>?;
-    final expSec = int.tryParse(offerData['expiresInSeconds']?.toString() ?? '') ??
-        int.tryParse(req?['expiresInSeconds']?.toString() ?? '') ??
-        30;
+    final incomingOfferId = (offerData['id'] ?? offerData['offerId'])?.toString();
+    if (_isOfferActive && incomingOfferId != null &&
+        incomingOfferId == (_currentOfferData?['id'] ?? _currentOfferData?['offerId'])?.toString()) {
+      return;
+    }
 
     setState(() {
       _currentOfferData = offerData;
       _isOfferActive = true;
       _isBallVisible = false;
-      _secondsRemaining = expSec.clamp(5, 60);
       _dragOffsetY = 0.0;
     });
 
@@ -294,25 +288,9 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
       debugPrint('⚠️ [Overlay] Audio playback notice: $e');
     }
 
-    // 4. Start 1-second countdown timer
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-      if (_secondsRemaining <= 1) {
-        timer.cancel();
-        _onOfferTimeout();
-      } else {
-        setState(() {
-          _secondsRemaining--;
-        });
-      }
-    });
   }
 
   Future<void> _dismissOfferLocally() async {
-    _countdownTimer?.cancel();
     try {
       await Vibration.cancel();
     } catch (_) {}
@@ -327,7 +305,6 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
     setState(() {
       _isOfferActive = false;
       _currentOfferData = null;
-      _secondsRemaining = 30;
       _dragOffsetY = 0.0;
     });
 
@@ -343,44 +320,23 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
     }
   }
 
-  Future<void> _onOfferTimeout() async {
-    final offerId = _currentOfferData?['id'] ?? _currentOfferData?['offerId'];
-    if (offerId != null) {
-      FlutterOverlayWindow.shareData(jsonEncode({
-        'action': 'OFFER_EXPIRED',
-        'offerId': offerId.toString(),
-      }));
+  Future<void> _finishOverlayOffer(String outcome) async {
+    final offerId = (_currentOfferData?['id'] ?? _currentOfferData?['offerId'])?.toString();
+    if (offerId != null && offerId.isNotEmpty) {
+      try {
+        await FlutterOverlayWindow.shareData(jsonEncode({
+          'action': 'OFFER_ACTION_COMPLETED',
+          'offerId': offerId,
+          'outcome': outcome,
+        }));
+      } catch (e) {
+        debugPrint('⚠️ [Overlay] Could not sync offer outcome: $e');
+      }
     }
-    await _dismissOfferLocally();
-  }
 
-  Future<void> _acceptCurrentOffer([Map<String, dynamic>? customOffer]) async {
-    final target = customOffer ?? _currentOfferData;
-    final offerId = target?['id'] ?? target?['offerId'];
-    FlutterOverlayWindow.shareData(jsonEncode({
-      'action': 'ACCEPT_OFFER',
-      'offerId': offerId?.toString(),
-      'offerData': target,
-    }));
     await _dismissOfferLocally();
-    await _bringAppToFront();
-  }
-
-  Future<void> _declineCurrentOffer([Map<String, dynamic>? customOffer]) async {
-    final target = customOffer ?? _currentOfferData;
-    final offerId = target?['id'] ?? target?['offerId'];
-    FlutterOverlayWindow.shareData(jsonEncode({
-      'action': 'DECLINE_OFFER',
-      'offerId': offerId?.toString(),
-      'offerData': target,
-    }));
-    if (customOffer == null || customOffer == _currentOfferData) {
-      await _dismissOfferLocally();
-    } else {
-      setState(() {
-        _availableOffers.removeWhere(
-            (o) => (o['id'] ?? o['offerId'])?.toString() == offerId?.toString());
-      });
+    if (outcome == 'accepted') {
+      await _bringAppToFront();
     }
   }
 
@@ -536,7 +492,6 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
 
   @override
   void dispose() {
-    _countdownTimer?.cancel();
     _overlaySub?.cancel();
     _pulseController.dispose();
     _sheetAnimController.dispose();
@@ -557,7 +512,7 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
     return Material(
       color: Colors.transparent,
       child: _isOfferActive
-          ? _buildIncomingOfferCard(colors)
+          ? _buildIncomingOfferCard()
           : (_isBottomSheetOpen ? _buildLiveBottomSheet(colors) : _buildAssistiveBall()),
     );
   }
@@ -1207,92 +1162,9 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
     );
   }
 
-  Color _getTimerColor() {
-    if (_secondsRemaining > 15) return const Color(0xFF22C55E); // Green 500
-    if (_secondsRemaining > 6) return const Color(0xFFD97706); // Amber 600
-    return const Color(0xFFDC2626); // Red 600
-  }
-
-  // ===========================================================================
-  // 3. AUTO-OPENED 30-SECOND COUNTDOWN DISPATCH OFFER VIEW (CLEAN GREEN DESIGN)
-  // ===========================================================================
-  Widget _buildIncomingOfferCard([_OverlayColors? colors]) {
-    final req = _currentOfferData?['requirement'] as Map<String, dynamic>?;
-
-    // 1. Rate parsing
-    final rawRate = _currentOfferData?['offeredRate'] ??
-        req?['ratePerVehicle'] ??
-        _currentOfferData?['rate'] ??
-        req?['budget'] ??
-        '---';
-    String rateStr = rawRate.toString();
-    if (rawRate is num) {
-      rateStr = rawRate.toStringAsFixed(0);
-    } else {
-      final parsed = double.tryParse(rawRate.toString());
-      if (parsed != null) {
-        rateStr = parsed.toStringAsFixed(0);
-      }
-    }
-
-    // 2. Vehicle Type
-    final vehicleType =
-        (_currentOfferData?['vehicleType'] ?? req?['vehicleType'] ?? 'SEDAN').toString().toUpperCase();
-
-    // 3. Pickup location
-    final pickup = (_currentOfferData?['pickupLocation'] is Map
-            ? _currentOfferData!['pickupLocation']['address']
-            : null) ??
-        _currentOfferData?['pickupAddress'] ??
-        (req?['pickupLocation'] is Map ? req!['pickupLocation']['address'] : null) ??
-        req?['pickupAddress'] ??
-        'Pickup point';
-
-    // 4. Drop location
-    final drop = (_currentOfferData?['dropLocation'] is Map
-            ? _currentOfferData!['dropLocation']['address']
-            : null) ??
-        _currentOfferData?['dropAddress'] ??
-        (req?['dropLocation'] is Map ? req!['dropLocation']['address'] : null) ??
-        req?['dropAddress'] ??
-        'Drop destination';
-
-    // 5. Distance
-    final rawDist = _currentOfferData?['tripDistanceKm'] ??
-        _currentOfferData?['distanceKm'] ??
-        req?['tripDistanceKm'] ??
-        req?['distanceKm'];
-    String distanceDisplay = '';
-    if (rawDist != null) {
-      final d = (rawDist is num) ? rawDist.toDouble() : double.tryParse(rawDist.toString());
-      if (d != null && d > 0) {
-        distanceDisplay = '${d.toStringAsFixed(1)} km total';
-      }
-    }
-    if (distanceDisplay.isEmpty) {
-      distanceDisplay = '17.3 km total';
-    }
-
-    // 6. ETA
-    final rawEta = _currentOfferData?['tripEtaMinutes'] ??
-        _currentOfferData?['durationMinutes'] ??
-        req?['tripEtaMinutes'] ??
-        req?['durationMinutes'];
-    String? etaDisplay;
-    if (rawEta != null) {
-      final m = (rawEta is num) ? rawEta.toInt() : int.tryParse(rawEta.toString());
-      if (m != null && m > 0) {
-        etaDisplay = m < 60 ? '$m mins' : '${m ~/ 60}h ${m % 60}m';
-      }
-    }
-    if (etaDisplay == null && distanceDisplay == '17.3 km total') {
-      etaDisplay = '53 mins';
-    }
-
-    final hasEscort = _currentOfferData?['hasEscort'] == true || req?['hasEscort'] == true;
-
-    final progress = (_secondsRemaining / _totalSeconds).clamp(0.0, 1.0);
-    final timerColor = _getTimerColor();
+  Widget _buildIncomingOfferCard() {
+    final offer = _currentOfferData;
+    if (offer == null) return const SizedBox.shrink();
 
     return Align(
       alignment: Alignment.bottomCenter,
@@ -1300,451 +1172,21 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
         animation: _sheetSlideAnim,
         builder: (context, child) {
           final dy = (1.0 - _sheetSlideAnim.value) * _currentSheetHeight;
-          return Transform.translate(
-            offset: Offset(0, dy),
-            child: child,
-          );
+          return Transform.translate(offset: Offset(0, dy), child: child);
         },
-        child: Container(
+        child: SizedBox(
           width: double.infinity,
-          height: _currentSheetHeight.toDouble(),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            border: Border.all(
-              color: const Color(0xFFE4E4E7),
-              width: 1.0,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.15),
-                blurRadius: 28,
-                spreadRadius: 2,
-                offset: const Offset(0, -6),
-              ),
-            ],
-          ),
-          child: SafeArea(
-            top: false,
-            bottom: true,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Top Drag Handle (Tap or swipe down to dismiss)
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: _dismissOfferLocally,
-                    onVerticalDragEnd: (details) {
-                      if (details.primaryVelocity != null && details.primaryVelocity! > 200) {
-                        _dismissOfferLocally();
-                      }
-                    },
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      alignment: Alignment.center,
-                      child: Container(
-                        width: 44,
-                        height: 5,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFCBD5E1),
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // Header with Circular Countdown Indicator & Guaranteed Rate Pill
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Circular Countdown Indicator + Text
-                      Row(
-                        children: [
-                          SizedBox(
-                            width: 44,
-                            height: 44,
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                CircularProgressIndicator(
-                                  value: progress.clamp(0.0, 1.0),
-                                  strokeWidth: 4.5,
-                                  backgroundColor: const Color(0xFFE2E8F0),
-                                  valueColor: AlwaysStoppedAnimation<Color>(timerColor),
-                                ),
-                                Text(
-                                  '$_secondsRemaining',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w900,
-                                    color: timerColor,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'INCOMING DISPATCH',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 1.1,
-                                  color: timerColor,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              const Text(
-                                'Tap accept before timer ends',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Color(0xFF64748B),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-
-                      // Guaranteed Fare Pill (Green Pill)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF16A34A).withValues(alpha: 0.14),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: const Color(0xFF16A34A).withValues(alpha: 0.4),
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              '₹ $rateStr',
-                              style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w900,
-                                color: Color(0xFF16A34A),
-                                letterSpacing: -0.5,
-                              ),
-                            ),
-                            Text(
-                              hasEscort ? 'Guaranteed Fare • Escort' : 'Guaranteed Fare',
-                              style: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF64748B),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  // Trip Details & Route Visualizer Box
-                  Expanded(
-                    child: SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      child: Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Vehicle Badge & Route Specs
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF5B42F3).withValues(alpha: 0.12),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const Icon(Icons.directions_car, size: 14, color: Color(0xFF5B42F3)),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            vehicleType,
-                                            style: const TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
-                                              color: Color(0xFF5B42F3),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    if (hasEscort) ...[
-                                      const SizedBox(width: 8),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: Colors.purple.withValues(alpha: 0.15),
-                                          borderRadius: BorderRadius.circular(8),
-                                          border: Border.all(color: Colors.purple.withValues(alpha: 0.4)),
-                                        ),
-                                        child: const Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(Icons.shield_outlined, size: 13, color: Colors.purple),
-                                            SizedBox(width: 4),
-                                            Text(
-                                              'ESCORT',
-                                              style: TextStyle(
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.w900,
-                                                color: Colors.purple,
-                                                letterSpacing: 0.5,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                                Row(
-                                  children: [
-                                    const Icon(Icons.alt_route, size: 14, color: Color(0xFF64748B)),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      distanceDisplay,
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: Color(0xFF0F172A),
-                                      ),
-                                    ),
-                                    if (etaDisplay != null) ...[
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        '• $etaDisplay',
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                          color: Color(0xFF16A34A),
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ],
-                            ),
-
-                            const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 10),
-                              child: Divider(height: 1, color: Color(0xFFE2E8F0)),
-                            ),
-
-                            // Pickup Location
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Padding(
-                                  padding: EdgeInsets.only(top: 2),
-                                  child: Icon(Icons.radio_button_checked, size: 16, color: Color(0xFF22C55E)),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        'PICKUP LOCATION',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w700,
-                                          letterSpacing: 0.8,
-                                          color: Color(0xFF64748B),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        pickup,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                          color: Color(0xFF0F172A),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-
-                            const SizedBox(height: 12),
-
-                            // Dropoff Destination
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Padding(
-                                  padding: EdgeInsets.only(top: 2),
-                                  child: Icon(Icons.location_on, size: 16, color: Color(0xFFDC2626)),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        'DROPOFF DESTINATION',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w700,
-                                          letterSpacing: 0.8,
-                                          color: Color(0xFF64748B),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        drop,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                          color: Color(0xFF0F172A),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-
-                            if (hasEscort) ...[
-                              const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 10),
-                                child: Divider(height: 1, color: Color(0xFFE2E8F0)),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: Colors.purple.withValues(alpha: 0.08),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: Colors.purple.withValues(alpha: 0.3)),
-                                ),
-                                child: const Row(
-                                  children: [
-                                    Icon(Icons.security, size: 16, color: Colors.purple),
-                                    SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        'Security Escort Required: Guard will accompany this trip.',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: Colors.purple,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  // Action Buttons: PASS vs ACCEPT TRIP
-                  Row(
-                    children: [
-                      // PASS Button
-                      Expanded(
-                        flex: 1,
-                        child: SizedBox(
-                          height: 52,
-                          child: OutlinedButton(
-                            onPressed: () => _declineCurrentOffer(),
-                            style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: Color(0xFFCBD5E1), width: 1.5),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                            ),
-                            child: const Text(
-                              'PASS',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF64748B),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      // ACCEPT TRIP Button
-                      Expanded(
-                        flex: 2,
-                        child: SizedBox(
-                          height: 52,
-                          child: ElevatedButton(
-                            onPressed: () => _acceptCurrentOffer(),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF16A34A),
-                              foregroundColor: Colors.white,
-                              elevation: 4,
-                              shadowColor: const Color(0xFF16A34A).withValues(alpha: 0.4),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                            ),
-                            child: const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.check_circle_outline, size: 20, color: Colors.white),
-                                SizedBox(width: 8),
-                                Text(
-                                  'ACCEPT TRIP',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 0.4,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                ],
-              ),
-            ),
+          child: IncomingRequirementBottomSheet(
+            key: ValueKey(offer['id'] ?? offer['offerId']),
+            offerData: offer,
+            overlayPresentation: true,
+            onOverlayAccepted: () => unawaited(_finishOverlayOffer('accepted')),
+            onOverlayDeclined: () => unawaited(_finishOverlayOffer('declined')),
+            onOverlayExpired: () => unawaited(_finishOverlayOffer('expired')),
           ),
         ),
       ),
     );
   }
+
 }

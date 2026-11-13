@@ -60,7 +60,7 @@ export default function FinanceDashboardPage() {
 
   // Chart timeframe state
   const [chartTimeframe, setChartTimeframe] = useState<TimeframeTab>('DAILY');
-  const [chartMetric, setChartMetric] = useState<'ALL' | 'ADMIN' | 'DRIVER' | 'REVENUE'>('ALL');
+  const [chartMetric, setChartMetric] = useState<'ALL' | 'DRIVER' | 'REVENUE'>('ALL');
 
   // Data state
   const [data, setData] = useState<FinanceDashboardData | null>(null);
@@ -108,12 +108,9 @@ export default function FinanceDashboardPage() {
         endDate: new Date().toISOString(),
         metrics: {
           totalRevenue: 0,
-          adminEarnings: 0,
           totalPaidToDrivers: 0,
           pendingDriverPayments: 0,
           totalTransactions: 0,
-          netProfit: 0,
-          commissionRatePercent: 10,
           totalRefunds: 0,
         },
         revenueAnalytics: {
@@ -127,21 +124,12 @@ export default function FinanceDashboardPage() {
           totalDriverEarnings: 0,
           amountPaidToDrivers: 0,
           pendingDriverPayments: 0,
-          totalCommissionDeducted: 0,
           drivers: [],
         },
         transactions: [],
         settlements: [],
         refunds: [],
         revenueBreakdown: [],
-        commissionBreakdown: [
-          {
-            label: 'Platform Commission (10%)',
-            rate: '10.0%',
-            amount: 0,
-            description: 'Platform fee retained on completed bookings',
-          },
-        ],
       });
     } finally {
       setLoading(false);
@@ -200,12 +188,9 @@ export default function FinanceDashboardPage() {
     return (
       data?.metrics || {
         totalRevenue: 0,
-        adminEarnings: 0,
         totalPaidToDrivers: 0,
         pendingDriverPayments: 0,
         totalTransactions: 0,
-        netProfit: 0,
-        commissionRatePercent: 10,
         totalRefunds: 0,
       }
     );
@@ -275,11 +260,6 @@ export default function FinanceDashboardPage() {
     return data.revenueAnalytics.daily.map((d) => d.revenue);
   }, [data]);
 
-  const commissionTrend = useMemo(() => {
-    if (!data?.revenueAnalytics?.daily || data.revenueAnalytics.daily.length === 0) return [0, 0, 0, 0];
-    return data.revenueAnalytics.daily.map((d) => d.adminCommission);
-  }, [data]);
-
   const driverTrend = useMemo(() => {
     if (!data?.revenueAnalytics?.daily || data.revenueAnalytics.daily.length === 0) return [0, 0, 0, 0];
     return data.revenueAnalytics.daily.map((d) => d.driverEarnings);
@@ -307,8 +287,7 @@ export default function FinanceDashboardPage() {
       'Driver Phone',
       'Customer / Corporate',
       'Order Amount (INR)',
-      'Admin Commission (INR)',
-      'Driver Earnings (INR)',
+      'Driver Payout (INR)',
       'Payment Status',
       'Payment Method',
       'Date & Time',
@@ -320,7 +299,6 @@ export default function FinanceDashboardPage() {
       `"${t.driverPhone || ''}"`,
       `"${t.customerName}"`,
       t.totalOrderAmount,
-      t.adminCommission,
       t.driverEarnings,
       `"${t.paymentStatus}"`,
       `"${t.paymentMethod}"`,
@@ -341,7 +319,6 @@ export default function FinanceDashboardPage() {
       'Total Earnings (INR)',
       'Amount Paid (INR)',
       'Pending Balance (INR)',
-      'Commission Deducted (INR)',
       'Bank Account',
       'IFSC',
     ];
@@ -355,7 +332,6 @@ export default function FinanceDashboardPage() {
       d.totalEarnings,
       d.amountPaid,
       d.pendingBalance,
-      d.commissionDeducted,
       `"${d.bankAccountNumber || ''}"`,
       `"${d.bankIfsc || ''}"`,
     ]);
@@ -400,17 +376,14 @@ export default function FinanceDashboardPage() {
       '',
       'KEY METRIC,VALUE',
       `Total Revenue Generated (GMV),${metrics.totalRevenue}`,
-      `Admin Total Earnings (Platform Commission),${metrics.adminEarnings}`,
       `Total Amount Paid to Drivers,${metrics.totalPaidToDrivers}`,
       `Pending Driver Payments,${metrics.pendingDriverPayments}`,
       `Total Transactions,${metrics.totalTransactions}`,
-      `Net Profit,${metrics.netProfit}`,
-      `Platform Commission Policy Rate,${metrics.commissionRatePercent}%`,
       `Refunds & Deductions,${metrics.totalRefunds || 0}`,
       '',
-      'TIME PERIOD,REVENUE (INR),ADMIN COMMISSION (INR),DRIVER EARNINGS (INR),TRANSACTIONS',
+      'TIME PERIOD,REVENUE (INR),DRIVER PAYOUT (INR),TRANSACTIONS',
       ...currentChartPoints.map(
-        (p) => `"${p.label}",${p.revenue},${p.adminCommission},${p.driverEarnings},${p.transactions}`
+        (p) => `"${p.label}",${p.revenue},${p.driverEarnings},${p.transactions}`
       ),
     ];
     downloadCsv(`adhocx_financial_summary_${dateRange}_${new Date().toISOString().slice(0, 10)}.csv`, lines.join('\n'));
@@ -423,7 +396,7 @@ export default function FinanceDashboardPage() {
        * ───────────────────────────────────────────────────────────── */}
       <PageHeader
         title="Finance & Accounting Dashboard"
-        subtitle="Real-time marketplace revenue, admin platform commissions, driver disbursements, and escrow settlements"
+        subtitle="Real-time booking revenue, driver payouts, disbursements, and escrow settlements"
         liveStatus={
           isRefreshing
             ? 'Syncing Live Telemetry...'
@@ -731,7 +704,7 @@ export default function FinanceDashboardPage() {
           </div>
         </div>
 
-        {/* Card 2: Admin Total Earnings (Platform Commission) */}
+        {/* Card 2: Driver Earnings */}
         <div
           style={{
             background: 'var(--bg-card)',
@@ -751,24 +724,24 @@ export default function FinanceDashboardPage() {
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem', gap: '0.25rem' }}>
               <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                Admin Earnings
+                Driver Earnings
               </span>
               <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'var(--brand-primary-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <DollarSign size={15} color="var(--brand-primary)" />
               </div>
             </div>
             <div style={{ fontSize: 'clamp(1.02rem, 1.15vw, 1.28rem)', fontWeight: 800, color: 'var(--brand-primary)', letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {loading ? '...' : formatINR(metrics.adminEarnings)}
+              {loading ? '...' : formatINR(data?.driverSummary?.totalDriverEarnings)}
             </div>
             <p style={{ fontSize: '0.68rem', color: 'var(--text-muted)', margin: '0.2rem 0 0 0', lineHeight: 1.25, height: '2.5em', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-              Platform commission & distance spread
+              Payouts based on the agreed rate card
             </p>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '0.65rem', paddingTop: '0.45rem', borderTop: '1px solid var(--border-subtle)', gap: '0.25rem' }}>
             <span style={{ fontSize: '0.68rem', color: 'var(--brand-primary)', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {metrics.commissionRatePercent || 10}% Commission
+              Rate-card payout
             </span>
-            <FinanceSparkline data={commissionTrend} color="var(--brand-primary)" width={68} height={24} />
+            <FinanceSparkline data={driverTrend} color="var(--brand-primary)" width={68} height={24} />
           </div>
         </div>
 
@@ -899,7 +872,7 @@ export default function FinanceDashboardPage() {
           </div>
         </div>
 
-        {/* Card 6: Net Profit */}
+        {/* Card 6: Refunds */}
         <div
           style={{
             background: 'var(--bg-card)',
@@ -919,25 +892,25 @@ export default function FinanceDashboardPage() {
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem', gap: '0.25rem' }}>
               <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                Net Profit
+                Refunds
               </span>
               <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(2, 132, 199, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <ShieldCheck size={15} color="#0284C7" />
               </div>
             </div>
             <div style={{ fontSize: 'clamp(1.02rem, 1.15vw, 1.28rem)', fontWeight: 800, color: '#0284C7', letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {loading ? '...' : formatINR(metrics.netProfit)}
+              {loading ? '...' : formatINR(metrics.totalRefunds || 0)}
             </div>
             <p style={{ fontSize: '0.68rem', color: 'var(--text-muted)', margin: '0.2rem 0 0 0', lineHeight: 1.25, height: '2.5em', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-              Admin earnings after deductions & refunds
+              Refunded customer payments
             </p>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '0.65rem', paddingTop: '0.45rem', borderTop: '1px solid var(--border-subtle)', gap: '0.25rem' }}>
             <span style={{ fontSize: '0.68rem', color: '#0284C7', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              Refunds: {formatINR(metrics.totalRefunds || 0)}
+              Refunds recorded
             </span>
             <span style={{ fontSize: '0.68rem', color: 'var(--color-success)', fontWeight: 600, whiteSpace: 'nowrap' }}>
-              Positive
+              Adjustments
             </span>
           </div>
         </div>
@@ -1056,7 +1029,7 @@ export default function FinanceDashboardPage() {
           {/* Interactive Multi-Line Area Chart */}
           <FinanceAreaChart
             points={currentChartPoints}
-            title={`${chartTimeframe} Revenue Growth & Platform Earnings`}
+            title={`${chartTimeframe} Revenue Growth & Driver Payouts`}
             selectedMetric={chartMetric}
             onMetricChange={setChartMetric}
           />
@@ -1074,7 +1047,7 @@ export default function FinanceDashboardPage() {
                 Unified Transactions Ledger
               </h3>
               <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                Complete ledger of fulfilled bookings, passenger fares, admin commission retainage, and driver earnings
+                Completed bookings, order amounts, and rate-card driver payouts
               </p>
             </div>
 
@@ -1206,15 +1179,7 @@ export default function FinanceDashboardPage() {
                 ),
               },
               {
-                header: 'ADMIN COMMISSION',
-                accessor: (t: FinanceTransactionItem) => (
-                  <span style={{ fontWeight: 700, color: 'var(--brand-primary)', fontSize: '0.84rem' }}>
-                    {formatINR(t.adminCommission)}
-                  </span>
-                ),
-              },
-              {
-                header: 'DRIVER EARNINGS',
+                header: 'DRIVER PAYOUT',
                 accessor: (t: FinanceTransactionItem) => (
                   <span style={{ fontWeight: 700, color: 'var(--color-success)', fontSize: '0.84rem' }}>
                     {formatINR(t.driverEarnings)}
@@ -1285,13 +1250,6 @@ export default function FinanceDashboardPage() {
               <div style={{ fontSize: '0.72rem', color: 'var(--color-warning)', marginTop: '0.2rem' }}>Available wallet balance awaiting payout</div>
             </div>
 
-            <div style={{ background: 'var(--bg-card)', padding: '1rem 1.25rem', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-card)' }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Commission Deducted</div>
-              <div style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--brand-primary)', marginTop: '0.3rem' }}>
-                {formatINR(data?.driverSummary?.totalCommissionDeducted)}
-              </div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--brand-primary)', marginTop: '0.2rem' }}>Platform fee retained across all drivers</div>
-            </div>
           </div>
 
           {/* Driver Fleet Table */}
@@ -1417,14 +1375,6 @@ export default function FinanceDashboardPage() {
                       }}
                     >
                       {formatINR(d.pendingBalance)}
-                    </span>
-                  ),
-                },
-                {
-                  header: 'COMMISSION DEDUCTED',
-                  accessor: (d: FinanceDriverItem) => (
-                    <span style={{ fontWeight: 600, color: 'var(--brand-primary)', fontSize: '0.84rem' }}>
-                      {formatINR(d.commissionDeducted)}
                     </span>
                   ),
                 },
@@ -1898,14 +1848,7 @@ export default function FinanceDashboardPage() {
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem' }}>
-                <span style={{ color: 'var(--brand-primary)' }}>- Admin Commission Retained:</span>
-                <span style={{ fontWeight: 700, color: 'var(--brand-primary)' }}>
-                  {formatINR(selectedTransaction.adminCommission)}
-                </span>
-              </div>
-              <div style={{ height: '1px', background: 'var(--border-subtle)', margin: '0.2rem 0' }} />
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
-                <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>Net Driver Earnings:</span>
+                <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>Driver Payout:</span>
                 <span style={{ fontWeight: 800, color: 'var(--color-success)' }}>
                   {formatINR(selectedTransaction.driverEarnings)}
                 </span>

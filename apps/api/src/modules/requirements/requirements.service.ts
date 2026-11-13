@@ -45,7 +45,7 @@ export class RequirementsService {
     private readonly dispatchService: DispatchService,
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
-    @Optional() @Inject(forwardRef(() => DistancePricingService)) private readonly distancePricing?: DistancePricingService,
+    @Inject(forwardRef(() => DistancePricingService)) private readonly distancePricing: DistancePricingService,
     @Optional() private readonly scheduler?: DispatchSchedulerService,
   ) {}
 
@@ -83,50 +83,34 @@ export class RequirementsService {
     const mode = dto.fulfillmentMode || FulfillmentMode.DIRECT_DISPATCH;
 
     let pricingSnapshotData: any;
-    if (this.distancePricing) {
-      const quoteId = dto.quoteId || dto.zonalQuoteId; // zonalQuoteId: field name sent by older app builds
-      if (quoteId) {
-        // Idempotent replay of a booking already made from this quote: return it, never a second trip.
-        const bookedRequirementId = await this.distancePricing.findBookingForQuote(quoteId, vendorUserId);
-        if (bookedRequirementId) {
-          const existing = await this.db.requirement.findUnique({ where: { id: bookedRequirementId } });
-          if (existing && existing.vendorId === vendorId) return this.mapToDto(existing);
-        }
-        pricingSnapshotData = await this.distancePricing.lockPricingSnapshotForBooking(quoteId, vendorUserId, {
+    const quoteId = dto.quoteId || dto.zonalQuoteId; // zonalQuoteId: field name sent by older app builds
+    if (quoteId) {
+      // Idempotent replay of a booking already made from this quote: return it, never a second trip.
+      const bookedRequirementId = await this.distancePricing.findBookingForQuote(quoteId, vendorUserId);
+      if (bookedRequirementId) {
+        const existing = await this.db.requirement.findUnique({ where: { id: bookedRequirementId } });
+        if (existing && existing.vendorId === vendorId) return this.mapToDto(existing);
+      }
+      pricingSnapshotData = await this.distancePricing.lockPricingSnapshotForBooking(quoteId, vendorUserId, {
+        pickup: dto.pickupLocation,
+        drop: dto.dropLocation,
+        vehicleCategory: dto.vehicleType,
+        ...(dto.hasEscort !== undefined ? { hasEscort: dto.hasEscort } : {}),
+        ...(dto.reportingTime ? { reportingTime: dto.reportingTime as any } : {}),
+      });
+    } else {
+      const autoQuote = await this.distancePricing.createVendorQuote(
+        {
           pickup: dto.pickupLocation,
           drop: dto.dropLocation,
           vehicleCategory: dto.vehicleType,
           ...(dto.hasEscort !== undefined ? { hasEscort: dto.hasEscort } : {}),
-          ...(dto.reportingTime ? { reportingTime: dto.reportingTime as any } : {}),
-        });
-      } else {
-        const autoQuote = await this.distancePricing.createVendorQuote(
-          {
-            pickup: dto.pickupLocation,
-            drop: dto.dropLocation,
-            vehicleCategory: dto.vehicleType,
-            ...(dto.hasEscort !== undefined ? { hasEscort: dto.hasEscort } : {}),
-            // Price for the trip's own reporting time (peak vs non-peak), not the moment of booking.
-            ...(dto.reportingTime ? { pickupTime: dto.reportingTime as any } : {}),
-          },
-          vendorUserId,
-        );
-        pricingSnapshotData = await this.distancePricing.lockPricingSnapshotForBooking(autoQuote.quoteId, vendorUserId);
-      }
-    }
-
-    if (!pricingSnapshotData) {
-      const rate = Number(dto.ratePerVehicle || dto.suggestedBudget || 850);
-      pricingSnapshotData = {
-        vendorPricePaise: Math.round(rate * 100),
-        driverPayoutPaise: Math.round(rate * 85),
-        grossSpreadPaise: Math.round(rate * 15),
-        distanceM: 25000,
-        planVersion: 'v1',
-        slabId: null,
-        quote: { id: null, planId: null, createdAt: new Date() },
-        isMockFallback: true,
-      };
+          // Price for the trip's own reporting time (peak vs non-peak), not the moment of booking.
+          ...(dto.reportingTime ? { pickupTime: dto.reportingTime as any } : {}),
+        },
+        vendorUserId,
+      );
+      pricingSnapshotData = await this.distancePricing.lockPricingSnapshotForBooking(autoQuote.quoteId, vendorUserId);
     }
 
     if (dto.ratePerVehicle !== undefined && dto.ratePerVehicle !== null && Number(dto.ratePerVehicle) * 100 !== pricingSnapshotData.vendorPricePaise) {
@@ -254,7 +238,7 @@ export class RequirementsService {
       });
 
       // 2b. Consume the quote and store the immutable pricing snapshot for this booking.
-      if (this.distancePricing && pricingSnapshotData.quote?.id && !pricingSnapshotData.isMockFallback) {
+      if (pricingSnapshotData.quote?.id) {
         await this.distancePricing.consumeQuote(tx, pricingSnapshotData.quote.id, req.id);
         await tx.tripPricingSnapshot.create({
           data: {
@@ -371,7 +355,7 @@ export class RequirementsService {
 
     return this.mapToDto({
       ...requirement,
-      pricingSnapshot: pricingSnapshotData.isMockFallback ? null : pricingSnapshotData,
+      pricingSnapshot: pricingSnapshotData,
     });
   }
 
@@ -909,7 +893,6 @@ export class RequirementsService {
               distanceM: snap.distanceM,
               vendorPricePaise: snap.vendorPricePaise,
               driverPayoutPaise: snap.driverPayoutPaise,
-              grossSpreadPaise: snap.grossSpreadPaise,
               hasEscort: Boolean(snap.hasEscort),
               escortFarePaise: Number(snap.escortFarePaise ?? 0),
               quotedAt: new Date(snap.quotedAt ?? Date.now()).toISOString(),

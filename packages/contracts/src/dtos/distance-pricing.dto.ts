@@ -193,16 +193,10 @@ export class DistancePricingSlabDto {
   driverPayoutPaise!: number;
   vendorPeakPricePaise?: number;
   driverPeakPayoutPaise?: number;
-  grossSpreadPaise!: number;
-  grossMarginPercent!: number;
   vendorPriceRupees!: number;
   driverPayoutRupees!: number;
   vendorPeakPriceRupees?: number;
   driverPeakPayoutRupees?: number;
-  peakGrossSpreadPaise?: number;
-  peakGrossSpreadRupees?: number;
-  peakGrossMarginPercent?: number;
-  grossSpreadRupees!: number;
   minKm!: number;
   maxKm!: number;
   displayRange!: string;

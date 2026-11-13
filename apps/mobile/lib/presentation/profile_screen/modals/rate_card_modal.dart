@@ -264,7 +264,7 @@ class _RateCardModalState extends State<RateCardModal> {
                 SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Guaranteed net payout credited to your wallet on verified OTP completion. Zero platform commission deducted from the listed rate card. Prices are loaded dynamically from database.',
+                    'The listed rate-card payout is credited to your wallet after verified OTP completion. Prices are loaded dynamically from the database.',
                     style: TextStyle(color: AppColors.success, fontSize: 11, fontWeight: FontWeight.w600),
                   ),
                 ),

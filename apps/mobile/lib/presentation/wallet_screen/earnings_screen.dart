@@ -11,7 +11,7 @@ import '../../theme/app_typography.dart';
 import '../../shared/widgets/app_adaptive_skeleton.dart';
 
 /// Screen 1: Main Earnings dashboard matching exact design mockup with live backend wallet metrics
-/// and 10% marketplace per-ride commission earnings engine.
+/// and rate-card based trip payout calculations.
 class EarningsScreen extends StatefulWidget {
   const EarningsScreen({super.key});
 
@@ -58,9 +58,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
         final st = (t['status'] ?? '').toString().toUpperCase();
         if (st == 'COMPLETED') {
           completed++;
-          final fare = (t['fare'] is num)
-              ? (t['fare'] as num).toDouble()
-              : (double.tryParse(t['fare']?.toString() ?? '0') ?? 0.0);
+          final fare = (t['fare'] is num) ? (t['fare'] as num).toDouble() : (double.tryParse(t['fare']?.toString() ?? '0') ?? 0.0);
           weekTotal += fare;
 
           final dateStr = t['createdAt'] ?? t['dropoffTime'] ?? t['pickupTime'];
@@ -127,6 +125,20 @@ class _EarningsScreenState extends State<EarningsScreen> {
                   ),
                   child: Row(
                     children: [
+                      IconButton(
+                        tooltip: context.tr('Back'),
+                        onPressed: () {
+                          if (context.canPop()) {
+                            context.pop();
+                          } else {
+                            context.go(AppRoutes.profileScreen);
+                          }
+                        },
+                        icon: Icon(
+                          Icons.arrow_back_rounded,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                        ),
+                      ),
                       Expanded(
                         child: Text(
                           context.tr('Earnings'),
@@ -156,284 +168,282 @@ class _EarningsScreenState extends State<EarningsScreen> {
                       child: ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
                         padding: const EdgeInsets.all(AppSpacing.lg),
-                      children: [
-                            // ── Available Balance Purple Hero Card ─────────────────
-                            Container(
-                              padding: const EdgeInsets.all(AppSpacing.xl),
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [AppColors.primary, AppColors.primaryHover],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                borderRadius: BorderRadius.circular(AppRadius.xl),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppColors.primary.withValues(alpha: 0.35),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
+                        children: [
+                          // ── Available Balance Purple Hero Card ─────────────────
+                          Container(
+                            padding: const EdgeInsets.all(AppSpacing.xl),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [AppColors.primary, AppColors.primaryHover],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
                               ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    context.tr('Available Balance'),
-                                    style: AppTypography.caption(
-                                      color: Colors.white.withValues(alpha: 0.8),
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Row(
-                                    children: [
-                                      Text(
-                                        _showBalance ? '₹${balance.toString()}' : '••••••',
-                                        style: AppTypography.h1(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                        ).copyWith(fontSize: 32),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      GestureDetector(
-                                        onTap: () => setState(() => _showBalance = !_showBalance),
-                                        child: Icon(
-                                          _showBalance
-                                              ? Icons.visibility_outlined
-                                              : Icons.visibility_off_outlined,
-                                          color: Colors.white.withValues(alpha: 0.9),
-                                          size: 20,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: AppSpacing.lg),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        context.tr('Min withdrawal: ₹1,000'),
-                                        style: AppTypography.caption(
-                                          color: Colors.white.withValues(alpha: 0.9),
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                      ElevatedButton(
-                                        onPressed: () => context.push(AppRoutes.earningsWithdrawScreen),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.white,
-                                          foregroundColor: AppColors.primaryHover,
-                                          elevation: 0,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(AppRadius.md),
-                                          ),
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 16,
-                                            vertical: 10,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          context.tr('WITHDRAW NOW'),
-                                          style: AppTypography.caption(
-                                            color: AppColors.primaryHover,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: AppSpacing.xl),
-
-                            // ── "This Week" Chart Card ─────────────────────────────
-                            Container(
-                              padding: const EdgeInsets.all(AppSpacing.lg),
-                              decoration: BoxDecoration(
-                                color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                                borderRadius: BorderRadius.circular(AppRadius.lg),
-                                border: Border.all(
-                                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        context.tr('This Week'),
-                                        style: AppTypography.caption(
-                                          color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 2,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.accentGreenDark.withValues(alpha: isDark ? 0.18 : 0.12),
-                                          borderRadius: BorderRadius.circular(AppRadius.full),
-                                        ),
-                                        child: Text(
-                                          _thisWeekEarned > 0 ? context.tr('Live Balance') : context.tr('Current Period'),
-                                          style: AppTypography.caption(
-                                            color: isDark ? AppColors.accentGreen : AppColors.accentGreenDark,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '₹${_thisWeekEarned.toStringAsFixed(0)}',
-                                    style: AppTypography.h1(
-                                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(height: AppSpacing.xl),
-
-                                  // Weekly Bar Chart Visualization
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      _buildBarColumn(context.tr('Mon'), _getBarHeight(1), isHigh: DateTime.now().weekday == 1, isDark: isDark),
-                                      _buildBarColumn(context.tr('Tue'), _getBarHeight(2), isHigh: DateTime.now().weekday == 2, isDark: isDark),
-                                      _buildBarColumn(context.tr('Wed'), _getBarHeight(3), isHigh: DateTime.now().weekday == 3, isDark: isDark),
-                                      _buildBarColumn(context.tr('Thu'), _getBarHeight(4), isHigh: DateTime.now().weekday == 4, isDark: isDark),
-                                      _buildBarColumn(context.tr('Fri'), _getBarHeight(5), isHigh: DateTime.now().weekday == 5, isDark: isDark),
-                                      _buildBarColumn(context.tr('Sat'), _getBarHeight(6), isHigh: DateTime.now().weekday == 6, isDark: isDark),
-                                      _buildBarColumn(context.tr('Sun'), _getBarHeight(7), isHigh: DateTime.now().weekday == 7, isDark: isDark),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: AppSpacing.lg),
-
-                            // ── Trips Summary Count Grid ───────────────────────────
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _buildCountCard(
-                                    title: context.tr('Trips'),
-                                    count: '$_tripsTotal',
-                                    icon: Icons.directions_car_outlined,
-                                    color: AppColors.primary,
-                                    isDark: isDark,
-                                  ),
-                                ),
-                                const SizedBox(width: AppSpacing.md),
-                                Expanded(
-                                  child: _buildCountCard(
-                                    title: context.tr('Completed'),
-                                    count: '$_tripsCompleted',
-                                    icon: Icons.check_circle_outline,
-                                    color: isDark ? AppColors.accentGreen : AppColors.accentGreenDark,
-                                    isDark: isDark,
-                                  ),
-                                ),
-                                const SizedBox(width: AppSpacing.md),
-                                Expanded(
-                                  child: _buildCountCard(
-                                    title: context.tr('Cancelled'),
-                                    count: '$_tripsCancelled',
-                                    icon: Icons.cancel_outlined,
-                                    color: AppColors.error,
-                                    isDark: isDark,
-                                  ),
+                              borderRadius: BorderRadius.circular(AppRadius.xl),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.primary.withValues(alpha: 0.35),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: AppSpacing.xl),
-
-                            // ── Financial Summary Breakdown Card ───────────────────
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  context.tr('Summary'),
-                                  style: AppTypography.h3(
+                                  context.tr('Available Balance'),
+                                  style: AppTypography.caption(
+                                    color: Colors.white.withValues(alpha: 0.8),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Row(
+                                  children: [
+                                    Text(
+                                      _showBalance ? '₹${balance.toString()}' : '••••••',
+                                      style: AppTypography.h1(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ).copyWith(fontSize: 32),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    GestureDetector(
+                                      onTap: () => setState(() => _showBalance = !_showBalance),
+                                      child: Icon(
+                                        _showBalance ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                                        color: Colors.white.withValues(alpha: 0.9),
+                                        size: 20,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: AppSpacing.lg),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      context.tr('Min withdrawal: ₹1,000'),
+                                      style: AppTypography.caption(
+                                        color: Colors.white.withValues(alpha: 0.9),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () => context.push(AppRoutes.earningsWithdrawScreen),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.white,
+                                        foregroundColor: AppColors.primaryHover,
+                                        elevation: 0,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(AppRadius.md),
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 10,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        context.tr('WITHDRAW NOW'),
+                                        style: AppTypography.caption(
+                                          color: AppColors.primaryHover,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.xl),
+
+                          // ── "This Week" Chart Card ─────────────────────────────
+                          Container(
+                            padding: const EdgeInsets.all(AppSpacing.lg),
+                            decoration: BoxDecoration(
+                              color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                              borderRadius: BorderRadius.circular(AppRadius.lg),
+                              border: Border.all(
+                                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      context.tr('This Week'),
+                                      style: AppTypography.caption(
+                                        color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.accentGreenDark.withValues(alpha: isDark ? 0.18 : 0.12),
+                                        borderRadius: BorderRadius.circular(AppRadius.full),
+                                      ),
+                                      child: Text(
+                                        _thisWeekEarned > 0 ? context.tr('Live Balance') : context.tr('Current Period'),
+                                        style: AppTypography.caption(
+                                          color: isDark ? AppColors.accentGreen : AppColors.accentGreenDark,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '₹${_thisWeekEarned.toStringAsFixed(0)}',
+                                  style: AppTypography.h1(
                                     color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                                GestureDetector(
-                                  onTap: () => context.push(AppRoutes.earningsTransactionsScreen),
-                                  child: Text(
-                                    context.tr('View Transactions'),
-                                    style: AppTypography.caption(
-                                      color: isDark ? AppColors.primaryLight : AppColors.primary,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
+                                const SizedBox(height: AppSpacing.xl),
+
+                                // Weekly Bar Chart Visualization
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    _buildBarColumn(context.tr('Mon'), _getBarHeight(1), isHigh: DateTime.now().weekday == 1, isDark: isDark),
+                                    _buildBarColumn(context.tr('Tue'), _getBarHeight(2), isHigh: DateTime.now().weekday == 2, isDark: isDark),
+                                    _buildBarColumn(context.tr('Wed'), _getBarHeight(3), isHigh: DateTime.now().weekday == 3, isDark: isDark),
+                                    _buildBarColumn(context.tr('Thu'), _getBarHeight(4), isHigh: DateTime.now().weekday == 4, isDark: isDark),
+                                    _buildBarColumn(context.tr('Fri'), _getBarHeight(5), isHigh: DateTime.now().weekday == 5, isDark: isDark),
+                                    _buildBarColumn(context.tr('Sat'), _getBarHeight(6), isHigh: DateTime.now().weekday == 6, isDark: isDark),
+                                    _buildBarColumn(context.tr('Sun'), _getBarHeight(7), isHigh: DateTime.now().weekday == 7, isDark: isDark),
+                                  ],
                                 ),
                               ],
                             ),
-                            const SizedBox(height: AppSpacing.md),
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
 
-                            Container(
-                              decoration: BoxDecoration(
-                                color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                                borderRadius: BorderRadius.circular(AppRadius.lg),
-                                border: Border.all(
-                                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                          // ── Trips Summary Count Grid ───────────────────────────
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildCountCard(
+                                  title: context.tr('Trips'),
+                                  count: '$_tripsTotal',
+                                  icon: Icons.directions_car_outlined,
+                                  color: AppColors.primary,
+                                  isDark: isDark,
                                 ),
                               ),
-                              child: Column(
-                                children: [
-                                  _buildSummaryRow(
-                                    icon: Icons.account_balance_wallet_outlined,
-                                    label: 'Total Earnings',
-                                    value: '₹$totalEarned',
-                                    valueColor: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                    isDark: isDark,
+                              const SizedBox(width: AppSpacing.md),
+                              Expanded(
+                                child: _buildCountCard(
+                                  title: context.tr('Completed'),
+                                  count: '$_tripsCompleted',
+                                  icon: Icons.check_circle_outline,
+                                  color: isDark ? AppColors.accentGreen : AppColors.accentGreenDark,
+                                  isDark: isDark,
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.md),
+                              Expanded(
+                                child: _buildCountCard(
+                                  title: context.tr('Cancelled'),
+                                  count: '$_tripsCancelled',
+                                  icon: Icons.cancel_outlined,
+                                  color: AppColors.error,
+                                  isDark: isDark,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: AppSpacing.xl),
+
+                          // ── Financial Summary Breakdown Card ───────────────────
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                context.tr('Summary'),
+                                style: AppTypography.h3(
+                                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () => context.push(AppRoutes.earningsTransactionsScreen),
+                                child: Text(
+                                  context.tr('View Transactions'),
+                                  style: AppTypography.caption(
+                                    color: isDark ? AppColors.primaryLight : AppColors.primary,
+                                    fontWeight: FontWeight.bold,
                                   ),
-                                  Divider(
-                                    height: 1,
-                                    color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                                  ),
-                                  _buildSummaryRow(
-                                    icon: Icons.emoji_events_outlined,
-                                    label: 'Incentives',
-                                    value: '₹0',
-                                    valueColor: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                    isDark: isDark,
-                                  ),
-                                  Divider(
-                                    height: 1,
-                                    color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                                  ),
-                                  _buildSummaryRow(
-                                    icon: Icons.unarchive_outlined,
-                                    label: 'Withdrawn',
-                                    value: '-₹$totalWithdrawn',
-                                    valueColor: AppColors.error,
-                                    onTap: () => context.push(AppRoutes.earningsWithdrawalDetailsScreen),
-                                    isDark: isDark,
-                                  ),
-                                ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+
+                          Container(
+                            decoration: BoxDecoration(
+                              color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                              borderRadius: BorderRadius.circular(AppRadius.lg),
+                              border: Border.all(
+                                color: isDark ? AppColors.borderDark : AppColors.borderLight,
                               ),
                             ),
-                          ],
-                        ),
+                            child: Column(
+                              children: [
+                                _buildSummaryRow(
+                                  icon: Icons.account_balance_wallet_outlined,
+                                  label: 'Total Earnings',
+                                  value: '₹$totalEarned',
+                                  valueColor: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                  isDark: isDark,
+                                ),
+                                Divider(
+                                  height: 1,
+                                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                                ),
+                                _buildSummaryRow(
+                                  icon: Icons.emoji_events_outlined,
+                                  label: 'Incentives',
+                                  value: '₹0',
+                                  valueColor: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                                  isDark: isDark,
+                                ),
+                                Divider(
+                                  height: 1,
+                                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                                ),
+                                _buildSummaryRow(
+                                  icon: Icons.unarchive_outlined,
+                                  label: 'Withdrawn',
+                                  value: '-₹$totalWithdrawn',
+                                  valueColor: AppColors.error,
+                                  onTap: () => context.push(AppRoutes.earningsWithdrawalDetailsScreen),
+                                  isDark: isDark,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
+                  ),
                 ),
               ],
             ),
@@ -457,9 +467,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
           width: 14,
           height: heightRatio,
           decoration: BoxDecoration(
-            color: isHigh
-                ? AppColors.primary
-                : (isDark ? AppColors.primary.withValues(alpha: 0.25) : AppColors.primaryLight.withValues(alpha: 0.35)),
+            color: isHigh ? AppColors.primary : (isDark ? AppColors.primary.withValues(alpha: 0.25) : AppColors.primaryLight.withValues(alpha: 0.35)),
             borderRadius: BorderRadius.circular(AppRadius.xs),
           ),
         ),
@@ -467,9 +475,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
         Text(
           label,
           style: AppTypography.caption(
-            color: isHigh
-                ? (isDark ? AppColors.primaryLight : AppColors.primary)
-                : (isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+            color: isHigh ? (isDark ? AppColors.primaryLight : AppColors.primary) : (isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
             fontWeight: isHigh ? FontWeight.bold : FontWeight.w500,
           ),
         ),

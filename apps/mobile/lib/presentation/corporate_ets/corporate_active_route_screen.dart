@@ -330,7 +330,7 @@ class _CorporateActiveRouteScreenState extends State<CorporateActiveRouteScreen>
         emptyTitle: 'No active corporate route',
         emptyDescription: 'When you accept a corporate route offer it appears here on the day of the duty.',
         emptyActionText: 'View corporate duties',
-        onEmptyAction: () => context.pushReplacement(AppRoutes.tripsScreen),
+        onEmptyAction: () => context.pushReplacement(AppRoutes.homeScreen),
       );
     }
 
@@ -360,8 +360,7 @@ class _CorporateActiveRouteScreenState extends State<CorporateActiveRouteScreen>
                   style: AppTypography.h4(color: CorporateSurface.text(context), fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                for (final s in route.stops)
-                  _StopRow(stop: s, isCurrent: s.stopId == current?.stopId, office: route.office),
+                for (final s in route.stops) _StopRow(stop: s, isCurrent: s.stopId == current?.stopId, office: route.office),
                 const SizedBox(height: AppSpacing.huge),
               ],
             ),
@@ -457,9 +456,8 @@ class _CorporateActiveRouteScreenState extends State<CorporateActiveRouteScreen>
       );
     }
 
-    final title = current.isDropoff
-        ? (current.employeeName != null ? 'Drop ${current.employeeName}' : 'Office drop')
-        : 'Pickup ${current.employeeName ?? 'stop ${current.sequence}'}';
+    final title =
+        current.isDropoff ? (current.employeeName != null ? 'Drop ${current.employeeName}' : 'Office drop') : 'Pickup ${current.employeeName ?? 'stop ${current.sequence}'}';
     return AppCard(
       backgroundColor: CorporateSurface.card(context),
       borderColor: AppColors.primary.withValues(alpha: 0.6),

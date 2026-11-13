@@ -3,6 +3,11 @@ import { ConfigService } from '@nestjs/config';
 import { Msg91Service } from '../src/modules/notifications/msg91.service';
 
 describe('Msg91Service', () => {
+  // fetch is mocked in every live-path test below, so opt in to the HTTP path under NODE_ENV=test.
+  beforeAll(() => { process.env.MSG91_SEND_IN_TEST = 'true'; });
+  afterAll(() => { delete process.env.MSG91_SEND_IN_TEST; });
+  afterEach(() => jest.restoreAllMocks());
+
   let service: Msg91Service;
 
   beforeEach(async () => {
@@ -132,5 +137,26 @@ describe('Msg91Service', () => {
       expect(result.success).toBe(false);
       expect(result.error).toBe('Connection timed out');
     });
+  });
+});
+
+describe('Msg91Service test-mode guard (never send real SMS from tests)', () => {
+  it('reports not configured under NODE_ENV=test even with a real-looking key, unless a test opts in', async () => {
+    const saved = { key: process.env.MSG91_AUTH_KEY, optIn: process.env.MSG91_SEND_IN_TEST };
+    process.env.MSG91_AUTH_KEY = 'looks-like-a-live-key';
+    delete process.env.MSG91_SEND_IN_TEST;
+    const fetchSpy = jest.spyOn(global, 'fetch' as any);
+    try {
+      const svc = new Msg91Service({ get: (k: string, d?: string) => process.env[k] ?? d } as any);
+      expect(process.env.NODE_ENV).toBe('test');
+      expect(svc.isConfigured()).toBe(false);
+      const res = await svc.sendOtp('+919876543210', '123456');
+      expect(res.simulated).toBe(true);
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      fetchSpy.mockRestore();
+      process.env.MSG91_AUTH_KEY = saved.key ?? '';
+      if (saved.optIn !== undefined) process.env.MSG91_SEND_IN_TEST = saved.optIn;
+    }
   });
 });

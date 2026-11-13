@@ -485,5 +485,53 @@ describe('RequirementsService Unit Tests', () => {
       expect(created.hasEscort).toBe(true);
       expect(created.escortFareRupees).toBe(300);
     });
+
+    it('does not expose pricing spread in admin requirement responses', async () => {
+      const now = new Date();
+      db.vendor.findUnique.mockResolvedValue(null);
+      db.requirement.findUnique.mockResolvedValue({
+        id: '99999999-9999-9999-9999-999999999999',
+        vendorId: 'vnd-1',
+        fulfillmentMode: 'DIRECT_DISPATCH',
+        vehicleType: VehicleType.SEDAN,
+        quantity: 1,
+        assignedQuantity: 0,
+        pickupLat: 28.6139,
+        pickupLng: 77.209,
+        pickupAddress: 'Pickup',
+        dropLat: 28.5355,
+        dropLng: 77.391,
+        dropAddress: 'Dropoff',
+        reportingTime: now,
+        ratePerVehicle: 1500,
+        suggestedBudget: null,
+        totalAmount: 1500,
+        status: RequirementStatus.POSTED,
+        notes: null,
+        createdAt: now,
+        updatedAt: now,
+        offers: [],
+        assignments: [],
+        pricingSnapshot: {
+          planVersion: '1',
+          distanceM: 22400,
+          vendorPricePaise: 150000,
+          driverPayoutPaise: 120000,
+          grossSpreadPaise: 30000,
+          hasEscort: false,
+          escortFarePaise: 0,
+          quotedAt: now,
+        },
+      });
+
+      const response = await service.getRequirementDetails('99999999-9999-9999-9999-999999999999', 'admin-user', 'ADMIN');
+
+      expect(response.pricing).toMatchObject({
+        planVersion: '1',
+        vendorPricePaise: 150000,
+        driverPayoutPaise: 120000,
+      });
+      expect(response.pricing).not.toHaveProperty('grossSpreadPaise');
+    });
   });
 });

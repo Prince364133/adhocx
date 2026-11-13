@@ -48,7 +48,7 @@ export class SubscriptionsService {
       throw new NotFoundException('Driver profile not found');
     }
 
-    // Subscriptions disabled: platform operates on 10% commission per ride. Drivers are never paywalled.
+    // Subscriptions are disabled; drivers are not paywalled.
     return {
       status: 'ACTIVE',
       canAccessPlatform: true,

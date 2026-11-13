@@ -59,7 +59,7 @@ apps/marketing/
 │   │   │   └── onboarding.html    <- Step-by-step driver onboarding guide
 │   │   ├── enterprise/            <- B2B Transport User / Corporate Fulfillment
 │   │   ├── safety/                <- Safety, Verification & Trust Standards
-│   │   ├── pricing/               <- Transparent pricing & commission models
+│   │   ├── pricing/               <- Transparent rate-card pricing
 │   │   ├── contact/               <- Inquiries & Partner support
 │   │   └── legal/                 <- Terms, Privacy Policy, Commercial Driver Agreement
 │   └── styles/                    <- tokens.css, global.css, typography.css
@@ -77,7 +77,7 @@ To rapidly scale driver supply and ensure high initial retention, the marketing 
 * **Offer:** Complete **100 verified trips** within the first 30 days of onboarding.
 * **Reward:** Instant **₹2,000 Cash Bonus** deposited directly into the driver's wallet/bank account.
 * **Supporting Driver Benefits:**
-  * Zero platform commissions during introductory period.
+  * Clear driver payouts based on the dedicated rate card.
   * Instant weekly/daily bank payouts via UPI & IMPS.
   * Transparent trip allocations with fixed guaranteed rates.
   * 24/7 dedicated driver on-road support.

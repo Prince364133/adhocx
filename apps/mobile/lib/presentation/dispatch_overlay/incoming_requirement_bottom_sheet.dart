@@ -19,11 +19,23 @@ import '../../utils/dispatch_sound_player.dart';
 class IncomingRequirementBottomSheet extends StatefulWidget {
   final Map<String, dynamic> offerData;
   final VoidCallback? onDismissed;
+  final bool overlayPresentation;
+  final Future<dynamic> Function(String offerId)? acceptOffer;
+  final Future<dynamic> Function(String offerId)? declineOffer;
+  final VoidCallback? onOverlayAccepted;
+  final VoidCallback? onOverlayDeclined;
+  final VoidCallback? onOverlayExpired;
 
   const IncomingRequirementBottomSheet({
     super.key,
     required this.offerData,
     this.onDismissed,
+    this.overlayPresentation = false,
+    this.acceptOffer,
+    this.declineOffer,
+    this.onOverlayAccepted,
+    this.onOverlayDeclined,
+    this.onOverlayExpired,
   });
 
   /// Static helper to display the sheet over any active screen using the root navigator.
@@ -50,8 +62,7 @@ class IncomingRequirementBottomSheet extends StatefulWidget {
   State<IncomingRequirementBottomSheet> createState() => _IncomingRequirementBottomSheetState();
 }
 
-class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBottomSheet>
-    with SingleTickerProviderStateMixin {
+class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBottomSheet> with SingleTickerProviderStateMixin {
   late int _secondsRemaining;
   final int _totalSeconds = 30;
   Timer? _countdownTimer;
@@ -66,7 +77,13 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
     _resolveRoadDistanceAndEta();
     if (_secondsRemaining > 0) {
       _startCountdown();
-      DispatchSoundPlayer.playIncomingOfferAlert();
+      if (!widget.overlayPresentation) {
+        DispatchSoundPlayer.playIncomingOfferAlert();
+      }
+    } else if (widget.overlayPresentation) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) widget.onOverlayExpired?.call();
+      });
     }
   }
 
@@ -75,10 +92,7 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
     final req = offer['requirement'] as Map<String, dynamic>?;
 
     // 1. Check if backend already provided a valid road distance
-    final rawDist = offer['tripDistanceKm'] ??
-        offer['distanceKm'] ??
-        req?['tripDistanceKm'] ??
-        req?['distanceKm'];
+    final rawDist = offer['tripDistanceKm'] ?? offer['distanceKm'] ?? req?['tripDistanceKm'] ?? req?['distanceKm'];
     bool hasAccurateBackendDistance = false;
     if (rawDist != null) {
       final d = (rawDist is num) ? rawDist.toDouble() : double.tryParse(rawDist.toString());
@@ -88,10 +102,7 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
       }
     }
 
-    final rawEta = offer['tripEtaMinutes'] ??
-        offer['durationMinutes'] ??
-        req?['tripEtaMinutes'] ??
-        req?['durationMinutes'];
+    final rawEta = offer['tripEtaMinutes'] ?? offer['durationMinutes'] ?? req?['tripEtaMinutes'] ?? req?['durationMinutes'];
     if (rawEta != null) {
       final m = (rawEta is num) ? rawEta.toInt() : int.tryParse(rawEta.toString());
       if (m != null && m > 0) {
@@ -99,18 +110,8 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
       }
     }
 
-    final pickupAddr = (offer['pickupLocation']?['address'] ??
-        offer['pickup'] ??
-        offer['pickupAddress'] ??
-        req?['pickupAddress'] ??
-        '')
-        .toString();
-    final dropAddr = (offer['dropLocation']?['address'] ??
-        offer['drop'] ??
-        offer['dropAddress'] ??
-        req?['dropAddress'] ??
-        '')
-        .toString();
+    final pickupAddr = (offer['pickupLocation']?['address'] ?? offer['pickup'] ?? offer['pickupAddress'] ?? req?['pickupAddress'] ?? '').toString();
+    final dropAddr = (offer['dropLocation']?['address'] ?? offer['drop'] ?? offer['dropAddress'] ?? req?['dropAddress'] ?? '').toString();
 
     final pLower = pickupAddr.toLowerCase();
     final dLower = dropAddr.toLowerCase();
@@ -128,30 +129,34 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
 
     // 2. Extract pickup and drop coordinates
     double? pLat = ((offer['pickupLocation']?['latitude'] ??
-        offer['pickupLocation']?['lat'] ??
-        offer['pickupLat'] ??
-        req?['pickupLocation']?['latitude'] ??
-        req?['pickupLocation']?['lat'] ??
-        req?['pickupLat']) as num?)?.toDouble();
+            offer['pickupLocation']?['lat'] ??
+            offer['pickupLat'] ??
+            req?['pickupLocation']?['latitude'] ??
+            req?['pickupLocation']?['lat'] ??
+            req?['pickupLat']) as num?)
+        ?.toDouble();
     double? pLng = ((offer['pickupLocation']?['longitude'] ??
-        offer['pickupLocation']?['lng'] ??
-        offer['pickupLng'] ??
-        req?['pickupLocation']?['longitude'] ??
-        req?['pickupLocation']?['lng'] ??
-        req?['pickupLng']) as num?)?.toDouble();
+            offer['pickupLocation']?['lng'] ??
+            offer['pickupLng'] ??
+            req?['pickupLocation']?['longitude'] ??
+            req?['pickupLocation']?['lng'] ??
+            req?['pickupLng']) as num?)
+        ?.toDouble();
 
     double? dLat = ((offer['dropLocation']?['latitude'] ??
-        offer['dropLocation']?['lat'] ??
-        offer['dropLat'] ??
-        req?['dropLocation']?['latitude'] ??
-        req?['dropLocation']?['lat'] ??
-        req?['dropLat']) as num?)?.toDouble();
+            offer['dropLocation']?['lat'] ??
+            offer['dropLat'] ??
+            req?['dropLocation']?['latitude'] ??
+            req?['dropLocation']?['lat'] ??
+            req?['dropLat']) as num?)
+        ?.toDouble();
     double? dLng = ((offer['dropLocation']?['longitude'] ??
-        offer['dropLocation']?['lng'] ??
-        offer['dropLng'] ??
-        req?['dropLocation']?['longitude'] ??
-        req?['dropLocation']?['lng'] ??
-        req?['dropLng']) as num?)?.toDouble();
+            offer['dropLocation']?['lng'] ??
+            offer['dropLng'] ??
+            req?['dropLocation']?['longitude'] ??
+            req?['dropLocation']?['lng'] ??
+            req?['dropLng']) as num?)
+        ?.toDouble();
 
     // Landmark / canonical resolver for unpinned addresses (e.g. Meerpet, Kokapet SEZ)
     final pCoords = _resolveKnownLocation(pickupAddr, pLat, pLng);
@@ -163,14 +168,15 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
     dLng = dCoords.$2;
 
     // 3. Compute road route via Google Maps Routes API (with traffic ETA and road network fallback)
-    if (pLat != null && pLng != null && dLat != null && dLng != null &&
-        pLat != 0.0 && pLng != 0.0 && dLat != 0.0 && dLng != 0.0) {
-      LocationService.instance.calculateRoadRoute(
+    if (pLat != null && pLng != null && dLat != null && dLng != null && pLat != 0.0 && pLng != 0.0 && dLat != 0.0 && dLng != 0.0) {
+      LocationService.instance
+          .calculateRoadRoute(
         startLat: pLat,
         startLng: pLng,
         endLat: dLat,
         endLng: dLng,
-      ).then((route) {
+      )
+          .then((route) {
         if (!mounted) return;
         if (route.distanceKm > 0) {
           // If this is an offline approximation and we already have a canonical verified route distance, don't downgrade it!
@@ -260,6 +266,10 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
       msg: '⏱️ Offer expired. Searching for new trips...',
       backgroundColor: AppColors.slate700,
     );
+    if (widget.overlayPresentation) {
+      widget.onOverlayExpired?.call();
+      return;
+    }
     if (mounted && Navigator.of(context).canPop()) {
       Navigator.of(context).pop();
       widget.onDismissed?.call();
@@ -287,7 +297,7 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
     }
 
     try {
-      await DriverService.instance.acceptOffer(offerId);
+      await (widget.acceptOffer ?? DriverService.instance.acceptOffer)(offerId);
       HapticFeedback.heavyImpact();
       Fluttertoast.showToast(
         msg: 'Trip Accepted! Navigate to pickup.',
@@ -296,10 +306,14 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
       );
 
       if (mounted) {
-        Navigator.of(context).pop(true);
-        widget.onDismissed?.call();
-        // Route directly to active trips
-        context.push(AppRoutes.tripsScreen);
+        if (widget.overlayPresentation) {
+          widget.onOverlayAccepted?.call();
+        } else {
+          Navigator.of(context).pop(true);
+          widget.onDismissed?.call();
+          // Keep the accepted trip visible in the driver's home workflow.
+          context.go(AppRoutes.homeScreen);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -313,21 +327,31 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
             backgroundColor: AppColors.warning,
             toastLength: Toast.LENGTH_LONG,
           );
-          Navigator.of(context).pop(false);
-          widget.onDismissed?.call();
+          if (widget.overlayPresentation) {
+            widget.onOverlayExpired?.call();
+          } else {
+            Navigator.of(context).pop(false);
+            widget.onDismissed?.call();
+          }
           return;
         }
 
         // Edge Case: Subscription required / frozen membership
         if (errStr.contains('subscription') || errStr.contains('frozen')) {
           Fluttertoast.showToast(
-            msg: 'Subscription required to accept trips. Redirecting to Wallet...',
+            msg: widget.overlayPresentation
+                ? 'Subscription required. Open Wallet in the app to continue.'
+                : 'Subscription required to accept trips. Redirecting to Wallet...',
             backgroundColor: AppColors.error,
             toastLength: Toast.LENGTH_LONG,
           );
-          Navigator.of(context).pop(false);
-          widget.onDismissed?.call();
-          context.push(AppRoutes.walletScreen);
+          if (!widget.overlayPresentation) {
+            Navigator.of(context).pop(false);
+            widget.onDismissed?.call();
+            context.push(AppRoutes.walletScreen);
+          } else {
+            _startCountdown();
+          }
           return;
         }
 
@@ -349,9 +373,21 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
     final offerId = (widget.offerData['id'] ?? widget.offerData['offerId']) as String? ?? '';
     if (offerId.isNotEmpty) {
       try {
-        await DriverService.instance.declineOffer(offerId, reason: 'DRIVER_PASSED');
-      } catch (_) {
-        // Silently handle decline error to avoid trapping the user
+        if (widget.declineOffer != null) {
+          await widget.declineOffer!(offerId);
+        } else {
+          await DriverService.instance.declineOffer(offerId, reason: 'DRIVER_PASSED');
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() => _isSubmitting = false);
+          Fluttertoast.showToast(
+            msg: 'Could not pass this offer: $e',
+            backgroundColor: AppColors.error,
+          );
+          _startCountdown();
+        }
+        return;
       }
     }
 
@@ -361,8 +397,12 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
     );
 
     if (mounted) {
-      Navigator.of(context).pop(false);
-      widget.onDismissed?.call();
+      if (widget.overlayPresentation) {
+        widget.onOverlayDeclined?.call();
+      } else {
+        Navigator.of(context).pop(false);
+        widget.onDismissed?.call();
+      }
     }
   }
 
@@ -381,33 +421,14 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
     // Financial & vehicle specs
     final num rate = DriverService.resolveDriverPayout(offer);
     final vehicle = (offer['vehicleType'] ?? req?['vehicleType'] ?? 'Sedan').toString();
-    final pickup = (offer['pickupLocation']?['address'] ??
-        offer['pickup'] ??
-        offer['pickupAddress'] ??
-        req?['pickupAddress'] ??
-        'Pickup Location')
-        .toString();
-    final drop = (offer['dropLocation']?['address'] ??
-        offer['drop'] ??
-        offer['dropAddress'] ??
-        req?['dropAddress'] ??
-        'Dropoff Location')
-        .toString();
+    final pickup = (offer['pickupLocation']?['address'] ?? offer['pickup'] ?? offer['pickupAddress'] ?? req?['pickupAddress'] ?? 'Pickup Location').toString();
+    final drop = (offer['dropLocation']?['address'] ?? offer['drop'] ?? offer['dropAddress'] ?? req?['dropAddress'] ?? 'Dropoff Location').toString();
 
-    final rawDistance = offer['tripDistanceKm'] ??
-        offer['distanceKm'] ??
-        req?['tripDistanceKm'] ??
-        req?['distanceKm'];
-    final double? parsedDist = rawDistance != null
-        ? ((rawDistance is num) ? rawDistance.toDouble() : double.tryParse(rawDistance.toString()))
-        : null;
+    final rawDistance = offer['tripDistanceKm'] ?? offer['distanceKm'] ?? req?['tripDistanceKm'] ?? req?['distanceKm'];
+    final double? parsedDist = rawDistance != null ? ((rawDistance is num) ? rawDistance.toDouble() : double.tryParse(rawDistance.toString())) : null;
     final bool hasValidPassedDistance = parsedDist != null && parsedDist > 0 && (parsedDist - 14.8).abs() > 0.05;
-    final String fallbackDistanceStr = hasValidPassedDistance
-        ? '${parsedDist.toStringAsFixed(1)} km'
-        : (_roadDistanceDisplay ?? '30.6 km');
-    final String effectiveDistanceDisplay = hasValidPassedDistance
-        ? '${parsedDist.toStringAsFixed(1)} km'
-        : (_roadDistanceDisplay ?? fallbackDistanceStr);
+    final String fallbackDistanceStr = hasValidPassedDistance ? '${parsedDist.toStringAsFixed(1)} km' : (_roadDistanceDisplay ?? '30.6 km');
+    final String effectiveDistanceDisplay = hasValidPassedDistance ? '${parsedDist.toStringAsFixed(1)} km' : (_roadDistanceDisplay ?? fallbackDistanceStr);
 
     final bool hasEscort = offer['hasEscort'] == true ||
         offer['escortRequired'] == true ||
@@ -478,9 +499,7 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
                           CircularProgressIndicator(
                             value: progress.clamp(0.0, 1.0),
                             strokeWidth: 4.5,
-                            backgroundColor: isDark
-                                ? AppColors.surfaceElevatedDark
-                                : AppColors.borderLight,
+                            backgroundColor: isDark ? AppColors.surfaceElevatedDark : AppColors.borderLight,
                             valueColor: AlwaysStoppedAnimation<Color>(_getTimerColor()),
                           ),
                           Text(
@@ -632,9 +651,7 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            effectiveDistanceDisplay.endsWith('total')
-                                ? effectiveDistanceDisplay
-                                : '$effectiveDistanceDisplay total',
+                            effectiveDistanceDisplay.endsWith('total') ? effectiveDistanceDisplay : '$effectiveDistanceDisplay total',
                             style: AppTypography.caption(
                               color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                               fontWeight: FontWeight.w600,

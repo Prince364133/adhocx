@@ -34,6 +34,7 @@ class GlobalDispatchOverlayService {
   static const MethodChannel _foregroundChannel = MethodChannel('com.adhocx.app/foreground');
 
   bool _isShowingOffer = false;
+  bool _isInAppOfferSheet = false;
   String? _activeOfferId;
   http.Client? _sseClient;
   StreamSubscription<String>? _sseSubscription;
@@ -418,26 +419,18 @@ class GlobalDispatchOverlayService {
               }));
             } catch (_) {}
           }
-        } else if (action == 'ACCEPT_OFFER' && offerId != null) {
-          DispatchSoundPlayer.stopAlert();
-          dismissCurrentOffer(offerId: offerId);
-          final res = await DriverService.instance.acceptOffer(offerId);
-          if (res != null) {
-            _lastOffers.removeWhere((o) => (o['id'] ?? o['offerId'])?.toString() == offerId);
-            syncOffersToBubble(_lastOffers);
-            await _bringAppToFront();
-            final navContext = rootNavigatorKey.currentContext;
-            if (navContext != null && navContext.mounted) {
-              final tripId = decoded['offerData']?['tripId'] ?? res['tripId'] ?? offerId;
-              navContext.push('/trips/$tripId');
-            }
-          }
-        } else if (action == 'DECLINE_OFFER' && offerId != null) {
-          DispatchSoundPlayer.stopAlert();
-          dismissCurrentOffer(offerId: offerId);
+        } else if (action == 'OFFER_ACTION_COMPLETED' && offerId != null) {
+          final outcome = decoded['outcome']?.toString();
           _lastOffers.removeWhere((o) => (o['id'] ?? o['offerId'])?.toString() == offerId);
+          DriverService.instance.invalidateCache(offers: true, trips: outcome == 'accepted');
           syncOffersToBubble(_lastOffers);
-          await DriverService.instance.declineOffer(offerId);
+          if (_activeOfferId == offerId) {
+            _isShowingOffer = false;
+            _isInAppOfferSheet = false;
+            _activeOfferId = null;
+            DispatchSoundPlayer.stopAlert();
+            LocalNotificationService.instance.cancelAll();
+          }
         } else if (action == 'OFFER_EXPIRED' || action == 'DISMISS_OFFER') {
           DispatchSoundPlayer.stopAlert();
           dismissCurrentOffer(offerId: offerId);
@@ -515,15 +508,22 @@ class GlobalDispatchOverlayService {
       payload: jsonEncode(payloadMap),
     );
 
-    // 3. Forward to Android Floating Overlay Window if active
+    final isAppForeground =
+        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+    var offerDeliveredToOverlay = false;
+
+    // Show one offer surface at a time: use the system overlay only while the app is backgrounded.
     try {
-      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      if (!isAppForeground &&
+          !kIsWeb &&
+          defaultTargetPlatform == TargetPlatform.android) {
         final isOverlayActive = await FlutterOverlayWindow.isActive();
         if (isOverlayActive) {
           await FlutterOverlayWindow.shareData(jsonEncode({
             'type': 'OFFER_RECEIVED',
             ...offerData,
           }));
+          offerDeliveredToOverlay = true;
         }
       }
     } catch (e) {
@@ -535,18 +535,33 @@ class GlobalDispatchOverlayService {
       unawaited(DriverService.instance.markOfferSeen(offerId));
     }
 
+    if (!isAppForeground) {
+      if (offerDeliveredToOverlay) {
+        debugPrint('ℹ️ [OverlayService] App is backgrounded: offer $offerId sent to the floating sheet');
+      } else {
+        _isShowingOffer = false;
+        _activeOfferId = null;
+        debugPrint('ℹ️ [OverlayService] App is backgrounded without an active floating overlay for offer $offerId');
+      }
+      return null;
+    }
+
     final context = rootNavigatorKey.currentContext;
     if (context == null || !context.mounted) {
-      debugPrint('ℹ️ [OverlayService] App in background: offer $offerId alerted via floating bubble & heads-up push');
+      _isShowingOffer = false;
+      _activeOfferId = null;
+      debugPrint('ℹ️ [OverlayService] No active app context for offer $offerId; relying on overlay/notification');
       return null;
     }
 
     try {
+      _isInAppOfferSheet = true;
       final result = await IncomingRequirementBottomSheet.show<bool>(
         context: context,
         offerData: offerData,
         onDismissed: () {
           _isShowingOffer = false;
+          _isInAppOfferSheet = false;
           _activeOfferId = null;
           DispatchSoundPlayer.stopAlert();
           LocalNotificationService.instance.cancelAll();
@@ -556,6 +571,7 @@ class GlobalDispatchOverlayService {
     } catch (e) {
       debugPrint('⚠️ [OverlayService] Failed to display bottom sheet: $e');
       _isShowingOffer = false;
+      _isInAppOfferSheet = false;
       _activeOfferId = null;
       DispatchSoundPlayer.stopAlert();
       return null;
@@ -579,10 +595,11 @@ class GlobalDispatchOverlayService {
     } catch (_) {}
 
     final navState = rootNavigatorKey.currentState;
-    if (navState != null && navState.canPop()) {
+    if (_isInAppOfferSheet && navState != null && navState.canPop()) {
       navState.pop();
     }
     _isShowingOffer = false;
+    _isInAppOfferSheet = false;
     _activeOfferId = null;
     DispatchSoundPlayer.stopAlert();
     LocalNotificationService.instance.cancelAll();

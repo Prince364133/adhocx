@@ -26,7 +26,6 @@ describe('PricingService (vehicle catalogue, no prices)', () => {
       systemPolicyConfig: {
         findUnique: jest.fn(async () => ({
           id: 'p',
-          commissionPercent: 10,
           driverMonthlyFee: 499,
           driverTrialDays: 15,
           minWithdrawalAmount: 1000,
@@ -93,5 +92,6 @@ describe('PricingService (vehicle catalogue, no prices)', () => {
     const initial = await svc.getPolicyConfig();
     expect(initial.escortFee).toBe(300);
     expect(initial.minWithdrawalAmount).toBe(1000);
+    expect(initial).not.toHaveProperty('commissionPercent');
   });
 });

@@ -225,7 +225,6 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
               'perKmRate': (t['perKmRate'] as num?)?.toDouble() ?? 0.0,
               'baseFare': (t['baseFare'] as num?)?.toDouble() ?? 0.0,
               'baseKm': (t['baseKm'] as num?)?.toInt() ?? 0,
-              'driverSharePercent': (t['driverSharePercent'] as num?)?.toInt() ?? 0,
               'description': t['description'] ?? '',
             };
           }).toList();

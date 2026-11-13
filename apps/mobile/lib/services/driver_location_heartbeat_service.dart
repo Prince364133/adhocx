@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 
@@ -22,6 +24,11 @@ final DriverLocationHeartbeat driverLocationHeartbeat = DriverLocationHeartbeat(
 
 DriverLocationHeartbeat? _tripPinger;
 String? _tripPingerTripId;
+final StreamController<DispatchFix> _tripLocationFixesController = StreamController<DispatchFix>.broadcast();
+DispatchFix? _latestTripLocationFix;
+
+Stream<DispatchFix> get tripLocationFixes => _tripLocationFixesController.stream;
+DispatchFix? get latestTripLocationFix => _latestTripLocationFix;
 
 /// Builds the on-trip pinger: every 10 s (and on 50 m of movement) the dispatch-quality fix is sent
 /// to `PATCH /trips/:id/location`, which feeds live tracking, the ops map and the dispatch index.
@@ -33,7 +40,13 @@ DriverLocationHeartbeat buildTripLocationPinger(
 }) {
   return DriverLocationHeartbeat(
     getFix: getFix,
-    send: (fix) => sendPing(tripId, fix),
+    send: (fix) async {
+      _latestTripLocationFix = fix;
+      if (!_tripLocationFixesController.isClosed) {
+        _tripLocationFixesController.add(fix);
+      }
+      await sendPing(tripId, fix);
+    },
     interval: const Duration(seconds: 10),
     movementTriggerFactory: movementTriggerFactory,
   );
@@ -79,4 +92,3 @@ void syncDriverLocationLoops({required bool available, String? activeTripId}) {
 }
 
 void stopDriverLocationLoops() => syncDriverLocationLoops(available: false);
-

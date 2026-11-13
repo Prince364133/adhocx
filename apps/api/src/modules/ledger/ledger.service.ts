@@ -155,7 +155,7 @@ export class LedgerService {
   }
 
   /**
-   * Release escrow to driver upon trip completion with platform commission deduction.
+   * Release escrow to the driver at the agreed payout amount.
    */
   async releaseEscrow(data: {
     vendorId: string;
@@ -164,13 +164,10 @@ export class LedgerService {
     fareAmount: number;
     tollCharges?: number;
     parkingCharges?: number;
-    commissionRate?: number; // e.g. 0.05 for 5%
-  }): Promise<{ driverEarnings: number; commission: number }> {
-    const rate = data.commissionRate !== undefined ? data.commissionRate : 0.05; // 5% default
-    const commission = Math.round(data.fareAmount * rate);
+  }): Promise<{ driverEarnings: number }> {
     const toll = data.tollCharges || 0;
     const parking = data.parkingCharges || 0;
-    const driverEarnings = data.fareAmount - commission + toll + parking;
+    const driverEarnings = data.fareAmount + toll + parking;
 
     await this.db.$transaction(async (tx) => {
       // 1. Release escrow balance from vendor
@@ -202,32 +199,14 @@ export class LedgerService {
           balanceAfter: updatedDriver.walletBalance,
           referenceType: 'ESCROW_RELEASE',
           referenceId: data.tripId,
-          description: `Payout for trip ${data.tripId.slice(-6)} (Gross: ₹${data.fareAmount}, Commission: ₹${commission}, Toll: ₹${toll}, Parking: ₹${parking})`,
+          description: `Driver payout for trip ${data.tripId.slice(-6)} (Fare: ₹${data.fareAmount}, Toll: ₹${toll}, Parking: ₹${parking})`,
         },
       });
-
-      // 4. Ledger entry: Platform commission
-      if (commission > 0) {
-        await tx.ledgerEntry.create({
-          data: {
-            accountType: 'PLATFORM',
-            accountId: data.driverId,
-            entryType: LedgerEntryType.CREDIT,
-            amount: commission,
-            balanceAfter: commission,
-            referenceType: 'PLATFORM_COMMISSION',
-            referenceId: data.tripId,
-            description: `Platform fee (${rate * 100}%) for trip ${data.tripId.slice(-6)}`,
-          },
-        });
-      }
     }, { timeout: 30000, maxWait: 10000 });
 
-    this.logger.log(
-      `Released escrow for trip ${data.tripId}: ₹${driverEarnings} to driver ${data.driverId}, ₹${commission} platform commission`,
-    );
+    this.logger.log(`Released escrow for trip ${data.tripId}: ₹${driverEarnings} to driver ${data.driverId}`);
 
-    return { driverEarnings, commission };
+    return { driverEarnings };
   }
 
   /**

@@ -127,7 +127,7 @@ export const ARTICLES_CONTENT: Record<string, ArticleData> = {
 
       <h2>Breaking Free from Aggregator Deduction Traps</h2>
       <p>
-        On conventional consumer taxi aggregators, drivers surrender a significant portion of every single trip fare in platform fees and hidden deductions.
+        On conventional consumer taxi aggregators, drivers may face unclear earnings and deductions on individual trips.
       </p>
       <p>
         AdhocX has transformed driver economics through a vendor-to-driver direct model:
@@ -253,7 +253,7 @@ export const ARTICLES_CONTENT: Record<string, ArticleData> = {
     keyTakeaways: [
       'Direct 1-hour bank payouts via automated double-entry ledger integration.',
       'Flat ₹2,000 cash bonus upon completing 100 verified trips on the platform.',
-      'Zero hidden commission deductions and full upfront visibility into trip fares and toll charges.',
+      'Rate-card payouts and full upfront visibility into trip terms.',
       'Continuous shift allocations provide predictable daily earnings for commercial fleet partners.'
     ],
     contentHtml: `
@@ -271,7 +271,7 @@ export const ARTICLES_CONTENT: Record<string, ArticleData> = {
       </p>
       <ul>
         <li><strong>1-Hour Bank Payouts:</strong> The moment a corporate trip is marked completed and digital trip telemetry is verified, the net earnings are dispatched directly to the driver's linked bank account (IMPS/UPI).</li>
-        <li><strong>Zero Hidden Commission Deductions:</strong> Drivers see the exact breakdown of fare, platform convenience fee, and incentives before accepting any trip.</li>
+        <li><strong>Rate-Card Payouts:</strong> Drivers see the agreed payout and route terms before accepting any assignment.</li>
         <li><strong>₹2,000 Milestone Bonus:</strong> To celebrate dedication, every driver who completes 100 verified trips on the AdhocX platform receives a flat ₹2,000 direct bank cash bonus.</li>
       </ul>
 

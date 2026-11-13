@@ -147,7 +147,6 @@ AdhocX financial architecture consists of:
 ```text
 User Payments
 Driver Earnings
-Platform Revenue
 Ledger
 Settlements
 Withdrawals
@@ -173,9 +172,7 @@ Create ledger entries
       ↓
 User payment
       ↓
-Driver earning
-      ↓
-Platform revenue
+Rate-card driver payout
       ↓
 Settlement
       ↓
@@ -194,9 +191,7 @@ These include:
 
 ```text
 user price
-driver earning
-platform commission
-markup
+rate-card driver payout
 tax
 cancellation charge
 no-show charge
@@ -204,9 +199,9 @@ refund
 other adjustments
 ```
 
-The exact values and formulas are **TBD**.
+Trip payout is the driver amount locked in the booking's pricing snapshot. No percentage-based platform commission is deducted from the driver payout. Other fees and adjustment rules remain subject to the applicable contract and rate card.
 
-Implementation agents must not invent them.
+Implementation agents must not invent other values or formulas.
 
 ---
 
@@ -221,7 +216,6 @@ Trip earning
 User payment
 Driver earning
 Refund
-Commission
 Withdrawal
 Adjustment
 Settlement
@@ -262,7 +256,6 @@ Financial transaction
       ↓
 ┌─────────────────────┐
 │ Driver earning      │
-│ Platform revenue    │
 │ User obligation   │
 └─────────────────────┘
 ```
@@ -292,7 +285,6 @@ Conceptual accounts may include:
 ```text
 User Payable
 Driver Payable
-Platform Revenue
 Platform Receivable
 Payment Clearing
 Refund Liability
@@ -514,7 +506,6 @@ This may include:
 base amount
 distance component
 time component
-commission
 tax
 adjustments
 final amount
@@ -1843,8 +1834,7 @@ Trip Completed
 Pricing calculation
       ↓
 User obligation = ₹1,500
-Driver earning = ₹1,200
-Platform revenue = ₹300
+Driver payout = the amount locked in the rate-card snapshot
       ↓
 Ledger transaction
       ↓
@@ -1859,7 +1849,7 @@ Driver withdrawal
 
 The numbers above are illustrative only.
 
-The actual commercial model is **TBD**.
+No percentage-based platform commission is deducted from the driver payout.
 
 ---
 
@@ -2052,7 +2042,7 @@ Any AI coding agent working on AdhocX must:
 15. Preserve financial auditability.
 16. Never hide financial corrections through mutation.
 17. Use explicit adjustment/reversal transactions.
-18. Never invent commission or pricing rules.
+18. Never invent pricing rules or percentage-based payout deductions.
 19. Keep provider-specific code behind abstractions.
 20. Add tests for financial failure and retry scenarios.
 21. Add concurrency tests for withdrawals and settlements.

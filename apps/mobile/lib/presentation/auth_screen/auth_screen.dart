@@ -44,7 +44,6 @@ class _AuthScreenState extends State<AuthScreen> {
     });
   }
 
-
   void _onVerificationSuccess(UserModel user) {
     if (user.isDriver) {
       if (user.isRejected) {
@@ -52,7 +51,7 @@ class _AuthScreenState extends State<AuthScreen> {
       } else if (user.isPending) {
         context.go(AppRoutes.kycUploadScreen);
       } else if (user.isVerified) {
-        context.go(AppRoutes.tripsScreen);
+        context.go(AppRoutes.homeScreen);
       } else {
         context.go(AppRoutes.waitlistGateScreen);
       }
@@ -118,8 +117,7 @@ class _AuthScreenState extends State<AuthScreen> {
                           ? AuthPhoneStepWidget(
                               key: const ValueKey('phone_step'),
                               initialRole: _activeRole,
-                              onRoleChanged: (role) =>
-                                  setState(() => _activeRole = role),
+                              onRoleChanged: (role) => setState(() => _activeRole = role),
                               onOtpRequested: _onOtpRequested,
                             )
                           : AuthOtpStepWidget(

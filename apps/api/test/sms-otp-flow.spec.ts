@@ -1,11 +1,11 @@
-import * as path from 'path';
-import * as dotenv from 'dotenv';
-// Load root .env file for the live integration test
-dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
-dotenv.config({ path: path.resolve(process.cwd(), '.env') });
-dotenv.config({ path: path.resolve(process.cwd(), '../../.env') });
-
+/**
+ * SMS OTP flow, end to end through Msg91Service -> NotificationsService -> AuthService.
+ *
+ * The MSG91 HTTP API is MOCKED: this suite must never send a real SMS. (It used to load the repo's
+ * .env, carry a live AuthKey in source and text +91 98765 43210 on every test run.)
+ * A real delivery check is opt-in only: set MSG91_AUTH_KEY and MSG91_LIVE_SMOKE_PHONE (your own
+ * number) to run the "live smoke" test at the bottom.
+ */
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigModule } from '@nestjs/config';
 import { Msg91Service } from '../src/modules/notifications/msg91.service';
@@ -16,7 +16,25 @@ import { RedisService } from '../src/redis/redis.service';
 import { JwtService } from '@nestjs/jwt';
 import { UserRole } from '@adhocx/contracts';
 
-describe('Live SMS OTP Dispatch & Verification Flow', () => {
+const TEST_AUTH_KEY = 'test_msg91_auth_key_flow';
+const msg91Ok = (id = 'msg91-mock-id') =>
+  ({ ok: true, status: 200, json: async () => ({ message: id, type: 'success' }) }) as any;
+
+describe('SMS OTP Dispatch & Verification Flow (MSG91 mocked)', () => {
+  let fetchSpy: jest.SpyInstance;
+  beforeAll(() => {
+    process.env.MSG91_SEND_IN_TEST = 'true'; // network is mocked below
+    process.env.MSG91_AUTH_KEY = TEST_AUTH_KEY; // fake key (test/setup.ts blanks the real one)
+  });
+  afterAll(() => {
+    delete process.env.MSG91_SEND_IN_TEST;
+    process.env.MSG91_AUTH_KEY = '';
+  });
+  beforeEach(() => {
+    fetchSpy = jest.spyOn(global, 'fetch' as any).mockResolvedValue(msg91Ok());
+  });
+  afterEach(() => fetchSpy.mockRestore());
+
   let msg91Service: Msg91Service;
   let notificationsService: NotificationsService;
   let authService: AuthService;
@@ -71,9 +89,9 @@ describe('Live SMS OTP Dispatch & Verification Flow', () => {
           isGlobal: true,
           load: [
             () => ({
-              MSG91_AUTH_KEY: process.env.MSG91_AUTH_KEY || '566812Axr8m5zl8a6aec3551P1',
-              MSG91_OTP_TEMPLATE_ID: process.env.MSG91_OTP_TEMPLATE_ID || '6aec3196704f112ad8019976',
-              MSG91_SENDER_ID: process.env.MSG91_SENDER_ID || 'ADHOCX',
+              MSG91_AUTH_KEY: TEST_AUTH_KEY,
+              MSG91_OTP_TEMPLATE_ID: '6aec3196704f112ad8019976',
+              MSG91_SENDER_ID: 'ADHOCX',
               MSG91_ENABLED: 'true',
             }),
           ],
@@ -94,14 +112,14 @@ describe('Live SMS OTP Dispatch & Verification Flow', () => {
     authService = module.get<AuthService>(AuthService);
   });
 
-  describe('Step 1: Msg91Service Live Dispatch', () => {
-    it('should be configured with the live MSG91 credentials', () => {
+  describe('Step 1: Msg91Service dispatch', () => {
+    it('is configured from config (no key in source)', () => {
       expect(msg91Service.isConfigured()).toBe(true);
       expect(['6aecb09fbde8179f65068242', '6aec3196704f112ad8019976']).toContain(msg91Service.getOtpTemplateId());
-      expect(msg91Service.getAuthKey()).toBe('566812Axr8m5zl8a6aec3551P1');
+      expect(msg91Service.getAuthKey()).toBe(TEST_AUTH_KEY);
     });
 
-    it('should dispatch live OTP to MSG91 Flow API and receive HTTP 200 messageId', async () => {
+    it('dispatches the OTP to the MSG91 Flow API and returns its messageId', async () => {
       const testPhone = '9876543210';
       const testOtp = '749201';
 
@@ -111,6 +129,10 @@ describe('Live SMS OTP Dispatch & Verification Flow', () => {
       expect(result.simulated).toBe(false);
       expect(result.messageId).toBeDefined();
       expect(result.response?.type).toBe('success');
+      expect(fetchSpy).toHaveBeenCalledWith(
+        'https://control.msg91.com/api/v5/flow/',
+        expect.objectContaining({ headers: expect.objectContaining({ authkey: TEST_AUTH_KEY }) }),
+      );
     }, 15000);
   });
 
@@ -170,4 +192,21 @@ describe('Live SMS OTP Dispatch & Verification Flow', () => {
       expect(verifyRes.user.phone).toBe('+919876543210');
     }, 20000);
   });
+});
+
+// Opt-in real delivery check. Skipped unless the owner explicitly provides a key AND their own phone.
+const LIVE_PHONE = process.env.MSG91_LIVE_SMOKE_PHONE;
+const liveDescribe = LIVE_PHONE && process.env.MSG91_AUTH_KEY ? describe : describe.skip;
+liveDescribe('MSG91 live smoke (opt-in: MSG91_LIVE_SMOKE_PHONE)', () => {
+  it('delivers one real OTP SMS to the configured phone', async () => {
+    process.env.MSG91_SEND_IN_TEST = 'true';
+    try {
+      const config = { get: (k: string, d?: string) => process.env[k] ?? d } as any;
+      const result = await new Msg91Service(config).sendOtp(LIVE_PHONE!, '000000');
+      expect(result.simulated).toBe(false);
+      expect(result.success).toBe(true);
+    } finally {
+      delete process.env.MSG91_SEND_IN_TEST;
+    }
+  }, 20000);
 });

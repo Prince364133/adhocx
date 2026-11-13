@@ -157,8 +157,8 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
       if (list.isNotEmpty) {
         if (targetId != null) {
           final matches = list.whereType<Map>().where(
-            (o) => o['id']?.toString() == targetId || o['offerId']?.toString() == targetId,
-          );
+                (o) => o['id']?.toString() == targetId || o['offerId']?.toString() == targetId,
+              );
           if (matches.isNotEmpty) {
             final updated = Map<String, dynamic>.from(matches.first);
             setState(() {
@@ -250,10 +250,10 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
         if (mounted) {
           setState(() => _isAccepting = false);
           Fluttertoast.showToast(
-            msg: 'Trip accepted! Navigating to Active Trips...',
+            msg: 'Trip accepted! Your trip is available on Home.',
             backgroundColor: AppColors.accentGreenDark,
           );
-          context.go(AppRoutes.tripsScreen);
+          context.go(AppRoutes.homeScreen);
         }
         return;
       } catch (err) {
@@ -278,7 +278,7 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
 
     if (mounted) {
       setState(() => _isAccepting = false);
-      context.go(AppRoutes.tripsScreen);
+      context.go(AppRoutes.homeScreen);
     }
   }
 
@@ -291,20 +291,14 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
   }
 
   String _formatDistance(Map<String, dynamic>? req) {
-    final raw = _activeOffer?['tripDistanceKm'] ??
-        _activeOffer?['distanceKm'] ??
-        req?['tripDistanceKm'] ??
-        req?['distanceKm'];
+    final raw = _activeOffer?['tripDistanceKm'] ?? _activeOffer?['distanceKm'] ?? req?['tripDistanceKm'] ?? req?['distanceKm'];
     final d = raw is num ? raw.toDouble() : double.tryParse(raw?.toString() ?? '');
     if (d != null && d > 0) return '${d.toStringAsFixed(1)} km';
     return '--';
   }
 
   String _formatDuration(Map<String, dynamic>? req) {
-    final raw = _activeOffer?['tripEtaMinutes'] ??
-        _activeOffer?['durationMinutes'] ??
-        req?['tripEtaMinutes'] ??
-        req?['durationMinutes'];
+    final raw = _activeOffer?['tripEtaMinutes'] ?? _activeOffer?['durationMinutes'] ?? req?['tripEtaMinutes'] ?? req?['durationMinutes'];
     final m = raw is num ? raw.round() : int.tryParse(raw?.toString() ?? '');
     if (m != null && m > 0) return '$m min';
     return '--';
@@ -329,31 +323,21 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
     final formattedSecs = (_secondsRemaining % 60).toString().padLeft(2, '0');
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bool isInactive = _isExpired || _terminalStatus != null;
-    final String? inactiveLabel = _isExpired
-        ? 'Expired'
-        : (_terminalStatus != null ? _formatTerminalStatus(_terminalStatus!) : null);
+    final String? inactiveLabel = _isExpired ? 'Expired' : (_terminalStatus != null ? _formatTerminalStatus(_terminalStatus!) : null);
     final Color bannerAccent = _isExpired
         ? AppColors.error
         : (_terminalStatus == 'ACCEPTED'
             ? AppColors.accentGreenDark
-            : (_terminalStatus != null
-                ? (isDark ? AppColors.textMutedDark : AppColors.textMutedLight)
-                : AppColors.warning));
+            : (_terminalStatus != null ? (isDark ? AppColors.textMutedDark : AppColors.textMutedLight) : AppColors.warning));
     final Color bannerBg = _isExpired
         ? AppColors.error.withValues(alpha: isDark ? 0.16 : 0.1)
-        : (_terminalStatus != null
-            ? bannerAccent.withValues(alpha: 0.12)
-            : (isDark ? AppColors.warning.withValues(alpha: 0.15) : AppColors.warningContainer));
+        : (_terminalStatus != null ? bannerAccent.withValues(alpha: 0.12) : (isDark ? AppColors.warning.withValues(alpha: 0.15) : AppColors.warningContainer));
     final Color bannerBorder = _isExpired
         ? AppColors.error.withValues(alpha: 0.35)
-        : (_terminalStatus != null
-            ? bannerAccent.withValues(alpha: 0.3)
-            : (isDark ? AppColors.warning.withValues(alpha: 0.3) : AppColors.warningContainer));
+        : (_terminalStatus != null ? bannerAccent.withValues(alpha: 0.3) : (isDark ? AppColors.warning.withValues(alpha: 0.3) : AppColors.warningContainer));
     final IconData bannerIcon = _isExpired
         ? Icons.timer_off_outlined
-        : (_terminalStatus == 'ACCEPTED'
-            ? Icons.check_circle_outline
-            : (_terminalStatus != null ? Icons.cancel_outlined : Icons.notifications_active_outlined));
+        : (_terminalStatus == 'ACCEPTED' ? Icons.check_circle_outline : (_terminalStatus != null ? Icons.cancel_outlined : Icons.notifications_active_outlined));
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
@@ -437,9 +421,7 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
                                   Text(
                                     isInactive ? 'Offer status' : 'Offer expires in',
                                     style: AppTypography.caption(
-                                      color: isInactive
-                                          ? bannerAccent
-                                          : (isDark ? AppColors.warning : AppColors.warningText),
+                                      color: isInactive ? bannerAccent : (isDark ? AppColors.warning : AppColors.warningText),
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -485,9 +467,7 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
                               width: 56,
                               height: 56,
                               decoration: BoxDecoration(
-                                color: isInactive
-                                    ? bannerAccent.withValues(alpha: 0.18)
-                                    : (isDark ? AppColors.warning.withValues(alpha: 0.2) : AppColors.warningContainer),
+                                color: isInactive ? bannerAccent.withValues(alpha: 0.18) : (isDark ? AppColors.warning.withValues(alpha: 0.2) : AppColors.warningContainer),
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(
@@ -505,10 +485,8 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
                       Builder(
                         builder: (context) {
                           final req = _activeOffer?['requirement'] as Map<String, dynamic>?;
-                          final title = _firstNonEmptyString([req?['title'], _activeOffer?['title']]) ??
-                              'Trip Requirement';
-                          final vehicle = _firstNonEmptyString([req?['vehicleType'], _activeOffer?['vehicleType']]) ??
-                              'Sedan';
+                          final title = _firstNonEmptyString([req?['title'], _activeOffer?['title']]) ?? 'Trip Requirement';
+                          final vehicle = _firstNonEmptyString([req?['vehicleType'], _activeOffer?['vehicleType']]) ?? 'Sedan';
                           final pickup = _firstNonEmptyString([
                                 req?['pickupAddress'],
                                 (req?['pickupLocation'] as Map?)?['address'],

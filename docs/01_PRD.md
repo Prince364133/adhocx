@@ -258,7 +258,7 @@ The AdhocX platform consists of five primary user surfaces, backed by a unified 
 - Requirement Posting: vendors post vehicle requirements specifying vehicle class, pickup location, drop location, passenger/cargo count, and offer price.
 - Digital Escrow: automated fare calculation with upfront escrow hold.
 - Driver Matching: nearby compliant drivers receive marketplace offers.
-- Fulfillment & Settlement: OTP verification on completion releases funds from escrow to driver wallet with platform commission deduction.
+- Fulfillment & Settlement: OTP verification on completion credits the agreed driver payout from the booking's rate-card snapshot to the driver wallet.
 
 ---
 

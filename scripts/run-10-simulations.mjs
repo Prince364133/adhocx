@@ -309,43 +309,33 @@ runSimulation('Double-Entry Ledger Escrow Lock on Direct Dispatch Acceptance', (
 });
 
 // =========================================================================
-// SIMULATION 7: Escrow Release on Trip Completion & Commission
+// SIMULATION 7: Escrow Release on Trip Completion
 // =========================================================================
-runSimulation('Escrow Release, 5% Platform Fee, Toll Reconcilement & Driver Payout', () => {
+runSimulation('Escrow Release, Toll Reconcilement & Rate-Card Driver Payout', () => {
   const vendor = { id: 'vnd-1', escrowBalance: 3200 };
   const driver = { id: 'drv-2', walletBalance: 500 };
   const ledgerEntries = [];
 
   const fare = 3200;
-  const commissionRate = 0.05; // 5%
-  const commission = Math.round(fare * commissionRate); // 160
   const tollCharges = 450;
   const parkingCharges = 100;
-  const driverNetEarnings = fare - commission + tollCharges + parkingCharges; // 3200 - 160 + 450 + 100 = 3590
+  const driverPayout = fare + tollCharges + parkingCharges; // 3200 + 450 + 100 = 3750
 
   // 1. Release from escrow
   vendor.escrowBalance = Math.max(0, vendor.escrowBalance - fare);
-  driver.walletBalance += driverNetEarnings;
+  driver.walletBalance += driverPayout;
 
   ledgerEntries.push({
     accountType: 'DRIVER',
     entryType: 'CREDIT',
-    amount: driverNetEarnings,
+    amount: driverPayout,
     balanceAfter: driver.walletBalance,
     referenceType: 'ESCROW_RELEASE',
   });
 
-  ledgerEntries.push({
-    accountType: 'PLATFORM',
-    entryType: 'CREDIT',
-    amount: commission,
-    referenceType: 'PLATFORM_COMMISSION',
-  });
-
   assert.strictEqual(vendor.escrowBalance, 0);
-  assert.strictEqual(driver.walletBalance, 500 + 3590);
-  assert.strictEqual(commission, 160);
-  assert.strictEqual(ledgerEntries.length, 2);
+  assert.strictEqual(driver.walletBalance, 500 + 3750);
+  assert.strictEqual(ledgerEntries.length, 1);
 });
 
 // =========================================================================

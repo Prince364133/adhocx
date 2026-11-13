@@ -73,7 +73,6 @@ The AI agent may not independently decide:
 ```text
 business model
 commercial pricing
-commission
 legal policy
 financial policy
 KYC policy
@@ -406,9 +405,9 @@ Never implement authoritative business rules in multiple clients.
 Bad:
 
 ```text
-Flutter calculates commission
-Admin calculates commission
-Backend calculates commission
+Flutter calculates authoritative payout
+Admin calculates authoritative payout
+Backend calculates authoritative payout
 ```
 
 Good:
@@ -507,7 +506,6 @@ DO NOT INVENT IT.
 Examples include:
 
 ```text
-commission percentage
 dispatch radius
 offer timeout
 cancellation fee
@@ -2545,7 +2543,6 @@ when they represent business configuration.
 Never silently assume:
 
 ```text
-commission
 radius
 timeout
 fee

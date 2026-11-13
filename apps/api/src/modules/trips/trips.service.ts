@@ -759,18 +759,7 @@ export class TripsService {
       ? pricingSnapshot.driverPayoutPaise / 100
       : (zonalQuote ? zonalQuote.driverFarePaise / 100 : Number(trip.driverRate));
 
-    // Dynamic platform commission from Admin Policy Config (default 10%, configurable in Admin Panel)
-    let commissionPercent = 10.0;
-    try {
-      const policy = await this.db.systemPolicyConfig.findUnique({ where: { key: 'GLOBAL_POLICY' } });
-      if (policy && policy.commissionPercent != null) {
-        commissionPercent = Number(policy.commissionPercent);
-      }
-    } catch (_) {}
-
-    // Distance engine pricing and zonal quotes have fixed net driver payout (no extra commission cut)
-    const commission = (pricingSnapshot || zonalQuote) ? 0 : Math.round(fareAmount * (commissionPercent / 100));
-    const totalDriverEarnings = fareAmount - commission + tollCharges + parkingCharges;
+    const totalDriverEarnings = fareAmount + tollCharges + parkingCharges;
     const now = new Date();
 
     const updated = await this.db.$transaction(async (tx) => {
@@ -832,26 +821,9 @@ export class TripsService {
           balanceAfter: updatedDriver.walletBalance,
           referenceType: 'TRIP_EARNINGS',
           referenceId: trip.id,
-          description: `Earnings for trip ${trip.id.slice(-6)} (Fare: ₹${fareAmount}${commission ? `, Commission (${commissionPercent}%): -₹${commission}` : ''}${tollCharges ? `, Toll: ₹${tollCharges}` : ''}${parkingCharges ? `, Parking: ₹${parkingCharges}` : ''})`,
+          description: `Driver payout for trip ${trip.id.slice(-6)} (Fare: ₹${fareAmount}${tollCharges ? `, Toll: ₹${tollCharges}` : ''}${parkingCharges ? `, Parking: ₹${parkingCharges}` : ''})`,
         },
       });
-
-      // 5. Record platform commission entry
-      if (commission > 0) {
-        await tx.ledgerEntry.create({
-          data: {
-            accountType: 'PLATFORM',
-            accountId: trip.driverId,
-            entryType: 'CREDIT',
-            amount: commission,
-            balanceAfter: commission,
-            referenceType: 'PLATFORM_COMMISSION',
-            referenceId: trip.id,
-            description: `Platform commission (${commissionPercent}%) for trip ${trip.id.slice(-6)}`,
-          },
-        });
-      }
-
 
       // 7. Distance engine platform spread and escort payable
       if (pricingSnapshot && pricingSnapshot.grossSpreadPaise > 0) {
@@ -883,22 +855,8 @@ export class TripsService {
         });
       }
 
-      // 7b. Legacy (pre-distance-engine) zonal booking: record its agreed spread and escort payable.
+      // 7b. Legacy (pre-distance-engine) zonal booking: record its escort payable.
       if (zonalQuote) {
-        if (zonalQuote.platformFeePaise > 0) {
-          await tx.ledgerEntry.create({
-            data: {
-              accountType: 'PLATFORM',
-              accountId: trip.vendorId,
-              entryType: 'CREDIT',
-              amount: zonalQuote.platformFeePaise / 100,
-              balanceAfter: zonalQuote.platformFeePaise / 100,
-              referenceType: 'ZONAL_PLATFORM_SPREAD',
-              referenceId: trip.id,
-              description: `Zonal spread for trip ${trip.id.slice(-6)} (${zonalQuote.hubId}/${zonalQuote.zoneId}, rate ${zonalQuote.rateVersion})`,
-            },
-          });
-        }
         if (zonalQuote.hasEscort && zonalQuote.escortFarePaise > 0) {
           await tx.ledgerEntry.create({
             data: {
@@ -1445,7 +1403,7 @@ function driverPayoutOf(t: any): number {
  */
 function redactForVendor<T extends Record<string, any>>(dto: T, trip: any): T {
   const out: Record<string, any> = { ...dto };
-  for (const key of ['driverRate', 'fare', 'driverEarnings', 'totalDriverEarnings', 'commission', 'netEarnings']) {
+  for (const key of ['driverRate', 'fare', 'driverEarnings', 'totalDriverEarnings', 'netEarnings']) {
     delete out[key];
   }
   const vendorRate = Number(trip?.requirement?.ratePerVehicle ?? 0);

@@ -37,7 +37,6 @@ export function calculateTierMaxSeats(vehicleType: string, seatingCapacity: stri
 }
 
 export interface PlatformPolicyConfigDto {
-  commissionPercent: number;
   driverMonthlyFee: number;
   driverTrialDays: number;
   minWithdrawalAmount: number;
@@ -54,7 +53,7 @@ const DEFAULT_CATEGORIES: Array<Pick<VehicleCategoryDto, 'vehicleType' | 'catego
   { vehicleType: VehicleType.BUS, categoryLabel: 'Coach Bus', seatingCapacity: '24 - 40 Passengers', description: '24-40 seater coaches', iconKey: 'bus' },
 ];
 
-const DEFAULT_POLICY = { commissionPercent: 10, driverMonthlyFee: 499, driverTrialDays: 15, minWithdrawalAmount: 1000, escortFee: 300 };
+const DEFAULT_POLICY = { driverMonthlyFee: 499, driverTrialDays: 15, minWithdrawalAmount: 1000, escortFee: 300 };
 
 @Injectable()
 export class PricingService implements OnModuleInit {
@@ -67,7 +66,7 @@ export class PricingService implements OnModuleInit {
     await this.seedCatalogueIfEmpty();
   }
 
-  /** First boot only: category names (no prices) and the default platform policy. */
+  /** First boot only: category names (no prices) and the default driver policy. */
   async seedCatalogueIfEmpty(): Promise<void> {
     if (!this.db) return;
     try {
@@ -165,12 +164,8 @@ export class PricingService implements OnModuleInit {
   }
 
   // ---------------------------------------------------------------------------
-  // Platform policy (subscription fee, trial, withdrawal minimum, commission on legacy trips)
+  // Driver policy (subscription fee, trial, withdrawal minimum, escort fee)
   // ---------------------------------------------------------------------------
-
-  async getPlatformCommissionRate(): Promise<number> {
-    return (await this.getPolicyConfig()).commissionPercent;
-  }
 
   async getPolicyConfig(): Promise<PlatformPolicyConfigDto> {
     if (this.db) {
@@ -178,7 +173,6 @@ export class PricingService implements OnModuleInit {
         const policy = await this.db.systemPolicyConfig.findUnique({ where: { key: 'GLOBAL_POLICY' } });
         if (policy) {
           this.policyCache = {
-            commissionPercent: Number(policy.commissionPercent ?? DEFAULT_POLICY.commissionPercent),
             driverMonthlyFee: Number(policy.driverMonthlyFee),
             driverTrialDays: policy.driverTrialDays,
             minWithdrawalAmount: Number(policy.minWithdrawalAmount),
@@ -196,7 +190,6 @@ export class PricingService implements OnModuleInit {
 
   async updatePolicyConfig(
     dto: {
-      commissionPercent?: number;
       driverMonthlyFee?: number;
       driverTrialDays?: number;
       minWithdrawalAmount?: number;
@@ -207,7 +200,6 @@ export class PricingService implements OnModuleInit {
     if (!this.db) throw new BadRequestException('Database unavailable');
     // The controller DTO validates too; this guards other callers (and NaN reaching Decimal columns).
     const limits: Record<string, { max: number; integer?: boolean }> = {
-      commissionPercent: { max: 100 },
       driverMonthlyFee: { max: 100000 },
       driverTrialDays: { max: 365, integer: true },
       minWithdrawalAmount: { max: 1000000 },
@@ -251,7 +243,6 @@ export class PricingService implements OnModuleInit {
     }
     this.logger.log(`[pricing] metric=policy_updated actor=${actor?.id ?? 'unknown'} fields=${Object.keys(data).join(',')}`);
     this.policyCache = {
-      commissionPercent: Number(res.commissionPercent),
       driverMonthlyFee: Number(res.driverMonthlyFee),
       driverTrialDays: res.driverTrialDays,
       minWithdrawalAmount: Number(res.minWithdrawalAmount),
@@ -277,7 +268,7 @@ export class PricingService implements OnModuleInit {
   }
 }
 
-/** The legacy per-km columns are NOT NULL in the database; they are written as 0 and never read. */
+/** Legacy per-km columns are NOT NULL in the database; they are written as 0 and never read. */
 function legacyZeroPrices() {
-  return { baseFare: 0, baseKm: 0, perKmRate: 0, driverSharePercent: 0, platformFeePercent: 0, surgeMultiplier: 1 };
+  return { baseFare: 0, baseKm: 0, perKmRate: 0, surgeMultiplier: 1 };
 }

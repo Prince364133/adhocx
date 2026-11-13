@@ -368,11 +368,10 @@ describe('AdminService Unit Tests', () => {
     expect(report.selectedDayTrips).toEqual([{ ...trip, createdAt: trip.createdAt.toISOString() }]);
   });
 
-  it('should calculate date-filtered booking, revenue, payout, and escrow metrics for the India business date', async () => {
+  it('should calculate date-filtered booking, payout, and escrow metrics for the India business date', async () => {
     db.payment.findMany
       .mockResolvedValueOnce([{ amount: 1000 }, { amount: 500 }])
       .mockResolvedValueOnce([{ amount: 300 }]);
-    db.ledgerEntry.findMany.mockResolvedValue([{ amount: 140 }, { amount: 85 }]);
     db.settlement.findMany.mockResolvedValue([{ amount: 100 }, { amount: 25 }]);
 
     const report = await service.getDailyFinancialReport('2026-11-10');
@@ -381,12 +380,9 @@ describe('AdminService Unit Tests', () => {
       date: '2026-11-10',
       currency: 'INR',
       grossBookingValue: 1500,
-      revenue: 225,
       expenditure: 125,
       activeEscrowHoldValue: 300,
-      grossProfit: 100,
       capturedPaymentCount: 2,
-      platformRevenueEntryCount: 2,
       settledPayoutCount: 2,
       activeEscrowHoldCount: 1,
     });
@@ -394,20 +390,6 @@ describe('AdminService Unit Tests', () => {
       where: {
         status: 'CAPTURED',
         updatedAt: {
-          gte: new Date('2026-11-09T18:30:00.000Z'),
-          lt: new Date('2026-11-10T18:30:00.000Z'),
-        },
-      },
-      select: { amount: true },
-    });
-    expect(db.ledgerEntry.findMany).toHaveBeenCalledWith({
-      where: {
-        accountType: 'PLATFORM',
-        entryType: 'CREDIT',
-        referenceType: {
-          in: ['PLATFORM_COMMISSION', 'DISTANCE_PLATFORM_SPREAD', 'ZONAL_PLATFORM_SPREAD'],
-        },
-        createdAt: {
           gte: new Date('2026-11-09T18:30:00.000Z'),
           lt: new Date('2026-11-10T18:30:00.000Z'),
         },
@@ -462,13 +444,7 @@ describe('AdminService Unit Tests', () => {
     db.payment.findMany
       .mockResolvedValueOnce([{ amount: 2400 }])
       .mockResolvedValueOnce([{ amount: 500 }]);
-    db.ledgerEntry.findMany.mockResolvedValue([
-      { amount: 180, referenceId: 'trip-v1', accountId: 'drv-1' },
-      { amount: 90, referenceId: 'trip-other', accountId: 'drv-2' },
-    ]);
-    db.trip.findMany
-      .mockResolvedValueOnce([{ driverId: 'drv-1' }])
-      .mockResolvedValueOnce([{ id: 'trip-v1' }]);
+    db.trip.findMany.mockResolvedValueOnce([{ driverId: 'drv-1' }]);
     db.settlement.findMany.mockResolvedValue([{ amount: 1200 }]);
 
     const report = await service.getDailyFinancialReport('2026-11-10', 'vendor-1', 'VENDOR');
@@ -477,12 +453,9 @@ describe('AdminService Unit Tests', () => {
       date: '2026-11-10',
       currency: 'INR',
       grossBookingValue: 2400,
-      revenue: 180,
       expenditure: 1200,
       activeEscrowHoldValue: 500,
-      grossProfit: -1020,
       capturedPaymentCount: 1,
-      platformRevenueEntryCount: 1,
       settledPayoutCount: 1,
       activeEscrowHoldCount: 1,
     });
@@ -512,12 +485,9 @@ describe('AdminService Unit Tests', () => {
       date: '2026-11-10',
       currency: 'INR',
       grossBookingValue: 1500,
-      revenue: 0,
       expenditure: 720,
       activeEscrowHoldValue: 0,
-      grossProfit: -720,
       capturedPaymentCount: 1,
-      platformRevenueEntryCount: 0,
       settledPayoutCount: 1,
       activeEscrowHoldCount: 0,
     });

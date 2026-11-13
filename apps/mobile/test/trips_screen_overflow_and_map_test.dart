@@ -35,8 +35,10 @@ void main() {
     });
 
     testWidgets('GoogleRouteMapWidget renders image and navigation tap target', (tester) async {
+      var expanded = false;
+      var navigated = false;
       await tester.pumpWidget(
-        const MaterialApp(
+        MaterialApp(
           home: Scaffold(
             body: GoogleRouteMapWidget(
               pickupLat: 17.3850,
@@ -45,6 +47,8 @@ void main() {
               dropLng: 78.3808,
               pickupAddress: 'Kokapet, Hyderabad',
               dropAddress: 'Begumpet, Hyderabad',
+              onExpand: () => expanded = true,
+              onNavigate: () => navigated = true,
               height: 160,
             ),
           ),
@@ -52,6 +56,11 @@ void main() {
       );
 
       expect(find.byType(GoogleRouteMapWidget), findsOneWidget);
+      expect(find.text('Waiting for GPS'), findsOneWidget);
+      await tester.tap(find.byTooltip('Expand map'));
+      expect(expanded, isTrue);
+      await tester.tap(find.text('Google Maps'));
+      expect(navigated, isTrue);
       expect(tester.takeException(), isNull);
     });
   });

@@ -36,8 +36,7 @@ class DriverService {
 
   final ApiClient _api = ApiClient.instance;
 
-  final StreamController<Map<String, dynamic>> _tripEventsController =
-      StreamController<Map<String, dynamic>>.broadcast();
+  final StreamController<Map<String, dynamic>> _tripEventsController = StreamController<Map<String, dynamic>>.broadcast();
 
   /// Stream of real-time and client-side trip lifecycle updates (STARTED, ARRIVED, COMPLETED, CANCELLED, ASSIGNED).
   Stream<Map<String, dynamic>> get tripEventsStream => _tripEventsController.stream;
@@ -106,10 +105,7 @@ class DriverService {
   // Profile & Availability (30s cache TTL)
   Future<dynamic> getProfile({bool forceRefresh = false}) async {
     final now = DateTime.now();
-    if (!forceRefresh &&
-        _cachedProfile != null &&
-        _lastProfileFetchTime != null &&
-        now.difference(_lastProfileFetchTime!).inSeconds < 30) {
+    if (!forceRefresh && _cachedProfile != null && _lastProfileFetchTime != null && now.difference(_lastProfileFetchTime!).inSeconds < 30) {
       return _cachedProfile;
     }
     await _ensureDriverSession();
@@ -185,10 +181,7 @@ class DriverService {
   // 100-Point Driver Performance & Trust Score (30s cache TTL)
   Future<dynamic> getTrustScore({bool forceRefresh = false}) async {
     final now = DateTime.now();
-    if (!forceRefresh &&
-        _cachedTrustScore != null &&
-        _lastTrustScoreFetchTime != null &&
-        now.difference(_lastTrustScoreFetchTime!).inSeconds < 30) {
+    if (!forceRefresh && _cachedTrustScore != null && _lastTrustScoreFetchTime != null && now.difference(_lastTrustScoreFetchTime!).inSeconds < 30) {
       return _cachedTrustScore;
     }
     await _ensureDriverSession();
@@ -218,7 +211,6 @@ class DriverService {
     invalidateCache(profile: true, offers: true);
     return result;
   }
-
 
   // KYC Document Upload (Cloudflare R2 Integration)
   Future<dynamic> uploadKycDocument({
@@ -305,10 +297,8 @@ class DriverService {
         if (dateOfBirth != null && dateOfBirth.isNotEmpty) 'dateOfBirth': dateOfBirth,
         if (gender != null && gender.isNotEmpty) 'gender': gender,
         if (address != null && address.isNotEmpty) 'address': address,
-        if (emergencyContactName != null && emergencyContactName.isNotEmpty)
-          'emergencyContactName': emergencyContactName,
-        if (emergencyContactPhone != null && emergencyContactPhone.isNotEmpty)
-          'emergencyContactPhone': emergencyContactPhone,
+        if (emergencyContactName != null && emergencyContactName.isNotEmpty) 'emergencyContactName': emergencyContactName,
+        if (emergencyContactPhone != null && emergencyContactPhone.isNotEmpty) 'emergencyContactPhone': emergencyContactPhone,
         if (dlFrontUrl != null) 'dlFrontUrl': dlFrontUrl,
         if (dlBackUrl != null) 'dlBackUrl': dlBackUrl,
         if (rcDocUrl != null) 'rcDocUrl': rcDocUrl,
@@ -323,12 +313,9 @@ class DriverService {
         if (rcNumber != null && rcNumber.isNotEmpty) 'rcNumber': rcNumber,
         if (color != null && color.isNotEmpty) 'vehicleColor': color,
         if (modelYear != null && modelYear.isNotEmpty) 'modelYear': modelYear,
-        if (insurancePolicyNumber != null && insurancePolicyNumber.isNotEmpty)
-          'insurancePolicyNumber': insurancePolicyNumber,
-        if (insuranceCompany != null && insuranceCompany.isNotEmpty)
-          'insuranceCompany': insuranceCompany,
-        if (insuranceExpiry != null && insuranceExpiry.isNotEmpty)
-          'insuranceExpiry': insuranceExpiry,
+        if (insurancePolicyNumber != null && insurancePolicyNumber.isNotEmpty) 'insurancePolicyNumber': insurancePolicyNumber,
+        if (insuranceCompany != null && insuranceCompany.isNotEmpty) 'insuranceCompany': insuranceCompany,
+        if (insuranceExpiry != null && insuranceExpiry.isNotEmpty) 'insuranceExpiry': insuranceExpiry,
       },
     );
     invalidateCache(profile: true);
@@ -349,10 +336,7 @@ class DriverService {
   // Offers (Direct Dispatch Mode with 8s cache TTL)
   Future<List<dynamic>> getOffers({bool forceRefresh = false}) async {
     final now = DateTime.now();
-    if (!forceRefresh &&
-        _cachedOffers != null &&
-        _lastOffersFetchTime != null &&
-        now.difference(_lastOffersFetchTime!).inSeconds < 8) {
+    if (!forceRefresh && _cachedOffers != null && _lastOffersFetchTime != null && now.difference(_lastOffersFetchTime!).inSeconds < 8) {
       return _cachedOffers!;
     }
     await _ensureDriverSession();
@@ -394,8 +378,13 @@ class DriverService {
   }
 
   // Trip Lifecycle (15s cache TTL)
-  Future<List<dynamic>> getTrips({String? status, bool forceRefresh = false}) async {
-    final key = status ?? 'ALL';
+  Future<List<dynamic>> getTrips({
+    String? status,
+    int page = 1,
+    int limit = 20,
+    bool forceRefresh = false,
+  }) async {
+    final key = '${status ?? 'ALL'}:$page:$limit';
     final now = DateTime.now();
     if (!forceRefresh &&
         _cachedTripsByStatus.containsKey(key) &&
@@ -409,7 +398,11 @@ class DriverService {
       _api.invalidateCache(prefix: '/trips');
     }
     await _ensureDriverSession();
-    final query = status != null ? {'status': status} : null;
+    final query = {
+      'page': page,
+      'limit': limit,
+      if (status != null) 'status': status,
+    };
     final response = await _api.get('/trips', queryParameters: query, force: forceRefresh);
     if (response is List) {
       _cachedTripsByStatus[key] = response;
@@ -555,10 +548,7 @@ class DriverService {
   // Wallet & Settlements (20s cache TTL)
   Future<dynamic> getWalletSummary({bool forceRefresh = false}) async {
     final now = DateTime.now();
-    if (!forceRefresh &&
-        _cachedWallet != null &&
-        _lastWalletFetchTime != null &&
-        now.difference(_lastWalletFetchTime!).inSeconds < 20) {
+    if (!forceRefresh && _cachedWallet != null && _lastWalletFetchTime != null && now.difference(_lastWalletFetchTime!).inSeconds < 20) {
       return _cachedWallet;
     }
     await _ensureDriverSession();
@@ -667,7 +657,7 @@ class DriverService {
     return null;
   }
 
-  /// Global platform policy config (dynamic per-ride commission %, min withdrawal, etc.)
+  /// Driver policy settings such as minimum withdrawal and escort fee.
   Future<dynamic> getPolicyConfig({bool forceRefresh = false}) async {
     try {
       return await _api.get('/pricing/policy-config', force: forceRefresh);
@@ -736,10 +726,7 @@ class DriverService {
 
   Future<List<Map<String, dynamic>>> getVehicleCategories({bool forceRefresh = false}) async {
     final now = DateTime.now();
-    if (!forceRefresh &&
-        _cachedVehicleCategories != null &&
-        _lastVehicleCategoriesFetchTime != null &&
-        now.difference(_lastVehicleCategoriesFetchTime!).inSeconds < 30) {
+    if (!forceRefresh && _cachedVehicleCategories != null && _lastVehicleCategoriesFetchTime != null && now.difference(_lastVehicleCategoriesFetchTime!).inSeconds < 30) {
       return _cachedVehicleCategories!;
     }
 

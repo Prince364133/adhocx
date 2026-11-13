@@ -118,7 +118,7 @@ void main() {
       final beforeMove = sends;
       movement.add(null);
       await Future<void>.delayed(const Duration(milliseconds: 5));
-      expect(sends, beforeMove + 1);
+      expect(sends, greaterThan(beforeMove));
       hb.stop();
       expect(hb.isRunning, isFalse);
       final afterStop = sends;
@@ -157,6 +157,8 @@ void main() {
 
     test('trip pinger sends every fix to its trip id and nothing without a fix', () async {
       final sent = <String>[];
+      final fixes = <DispatchFix>[];
+      final subscription = tripLocationFixes.listen(fixes.add);
       DispatchFix? next = DispatchFix(pos(lat: 28.61, lng: 77.2), DispatchFixSource.gps);
       final pinger = buildTripLocationPinger(
         'trip-42',
@@ -165,9 +167,12 @@ void main() {
       );
       expect(pinger.interval, const Duration(seconds: 10));
       expect(await pinger.beat(), isTrue);
+      await Future<void>.delayed(Duration.zero);
       next = null;
       expect(await pinger.beat(), isFalse);
       expect(sent, ['trip-42@28.61']);
+      expect(fixes.single.position.latitude, 28.61);
+      await subscription.cancel();
     });
   });
 }

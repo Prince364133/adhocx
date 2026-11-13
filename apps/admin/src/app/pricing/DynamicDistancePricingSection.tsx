@@ -12,7 +12,6 @@ import {
   Clock,
   Zap,
   Sun,
-  TrendingUp,
   Building2,
   Car,
   CheckCircle2,
@@ -40,7 +39,7 @@ export function DynamicDistancePricingSection() {
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Audience & Time Condition View Switcher
-  const [selectedAudience, setSelectedAudience] = useState<'VENDOR' | 'DRIVER' | 'ESCORT' | 'MARGIN'>('VENDOR');
+  const [selectedAudience, setSelectedAudience] = useState<'VENDOR' | 'DRIVER' | 'ESCORT'>('VENDOR');
   const [selectedRegime, setSelectedRegime] = useState<'NON_PEAK' | 'PEAK'>('NON_PEAK');
 
   // Security Escort Pricing Table State
@@ -836,29 +835,10 @@ export function DynamicDistancePricingSection() {
             >
               <ShieldCheck size={14} /> Security Escort Rates
             </button>
-            <button
-              type="button"
-              onClick={() => setSelectedAudience('MARGIN')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                padding: '0.4rem 0.85rem',
-                borderRadius: 'var(--radius-sm)',
-                border: 'none',
-                background: selectedAudience === 'MARGIN' ? 'var(--brand-primary)' : 'transparent',
-                color: selectedAudience === 'MARGIN' ? '#fff' : 'var(--text-secondary)',
-                fontWeight: 700,
-                fontSize: '0.8rem',
-                cursor: 'pointer',
-              }}
-            >
-              <TrendingUp size={14} /> Margin Analytics
-            </button>
           </div>
 
           {/* Time Regime Switcher */}
-          {selectedAudience !== 'MARGIN' && selectedAudience !== 'ESCORT' && (
+          {selectedAudience !== 'ESCORT' && (
             <div style={{ display: 'flex', gap: '0.4rem', background: 'var(--bg-surface-elevated)', padding: '0.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
               <button
                 type="button"
@@ -1074,76 +1054,6 @@ export function DynamicDistancePricingSection() {
               </div>
             </div>
           </div>
-        ) : selectedAudience === 'MARGIN' ? (
-          /* Real-time Margin & Profitability Studio Table */
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'left', color: 'var(--text-muted)' }}>
-                  <th style={{ padding: '0.65rem 0.5rem' }}>Distance Band</th>
-                  <th style={{ padding: '0.65rem 0.5rem' }}>Vendor Non-Peak</th>
-                  <th style={{ padding: '0.65rem 0.5rem' }}>Driver Non-Peak</th>
-                  <th style={{ padding: '0.65rem 0.5rem' }}>Non-Peak Margin</th>
-                  <th style={{ padding: '0.65rem 0.5rem' }}>Vendor Peak</th>
-                  <th style={{ padding: '0.65rem 0.5rem' }}>Driver Peak</th>
-                  <th style={{ padding: '0.65rem 0.5rem' }}>Peak Margin</th>
-                </tr>
-              </thead>
-              <tbody>
-                {activePlan.slabs.map((s, idx) => {
-                  const npSpread = s.vendorPricePaise - s.driverPayoutPaise;
-                  const npMargin = s.vendorPricePaise > 0 ? Number(((npSpread / s.vendorPricePaise) * 100).toFixed(1)) : 0;
-                  const pVendor = s.vendorPeakPricePaise ?? s.vendorPricePaise;
-                  const pDriver = s.driverPeakPayoutPaise ?? s.driverPayoutPaise;
-                  const pSpread = pVendor - pDriver;
-                  const pMargin = pVendor > 0 ? Number(((pSpread / pVendor) * 100).toFixed(1)) : 0;
-
-                  return (
-                    <tr key={s.id || idx} style={{ borderBottom: '1px solid var(--border)', background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.015)' }}>
-                      <td style={{ padding: '0.75rem 0.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                          <Route size={13} color="var(--brand-primary)" />
-                          <span>{s.displayRange}</span>
-                        </div>
-                      </td>
-                      <td style={{ padding: '0.75rem 0.5rem', fontWeight: 700 }}>{inr(s.vendorPriceRupees)}</td>
-                      <td style={{ padding: '0.75rem 0.5rem', fontWeight: 700, color: 'var(--color-success)' }}>{inr(s.driverPayoutRupees)}</td>
-                      <td style={{ padding: '0.75rem 0.5rem' }}>
-                        <span
-                          style={{
-                            padding: '0.15rem 0.45rem',
-                            borderRadius: 'var(--radius-xs)',
-                            fontSize: '0.72rem',
-                            fontWeight: 800,
-                            background: npMargin >= 20 ? 'rgba(16, 185, 129, 0.15)' : npMargin >= 10 ? 'rgba(245, 158, 11, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                            color: npMargin >= 20 ? 'var(--color-success)' : npMargin >= 10 ? 'var(--color-warning)' : 'var(--color-danger)',
-                          }}
-                        >
-                          {npMargin}% (₹{npSpread / 100})
-                        </span>
-                      </td>
-                      <td style={{ padding: '0.75rem 0.5rem', fontWeight: 700, color: '#818CF8' }}>{inr(pVendor / 100)}</td>
-                      <td style={{ padding: '0.75rem 0.5rem', fontWeight: 700, color: 'var(--color-success)' }}>{inr(pDriver / 100)}</td>
-                      <td style={{ padding: '0.75rem 0.5rem' }}>
-                        <span
-                          style={{
-                            padding: '0.15rem 0.45rem',
-                            borderRadius: 'var(--radius-xs)',
-                            fontSize: '0.72rem',
-                            fontWeight: 800,
-                            background: pMargin >= 20 ? 'rgba(16, 185, 129, 0.15)' : pMargin >= 10 ? 'rgba(245, 158, 11, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                            color: pMargin >= 20 ? 'var(--color-success)' : pMargin >= 10 ? 'var(--color-warning)' : 'var(--color-danger)',
-                          }}
-                        >
-                          {pMargin}% (₹{pSpread / 100})
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
         ) : (
           /* Cards Grid: Condition-Based Cards */
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1rem' }}>
@@ -1153,9 +1063,6 @@ export function DynamicDistancePricingSection() {
 
               const vendorPrice = isPeak ? (s.vendorPeakPricePaise ?? s.vendorPricePaise) / 100 : s.vendorPriceRupees;
               const driverPayout = isPeak ? (s.driverPeakPayoutPaise ?? s.driverPayoutPaise) / 100 : s.driverPayoutRupees;
-              const grossSpread = vendorPrice - driverPayout;
-              const marginPct = vendorPrice > 0 ? Number(((grossSpread / vendorPrice) * 100).toFixed(1)) : 0;
-
               return (
                 <div
                   key={s.id || idx}
@@ -1208,25 +1115,6 @@ export function DynamicDistancePricingSection() {
                     </div>
                   </div>
 
-                  {/* Profitability Spread & Margin */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', paddingTop: '0.4rem', borderTop: '1px solid var(--border)' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>Platform Spread:</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                      <strong style={{ color: 'var(--brand-primary)' }}>{inr(grossSpread)}</strong>
-                      <span
-                        style={{
-                          padding: '0.1rem 0.35rem',
-                          borderRadius: 'var(--radius-xs)',
-                          fontSize: '0.68rem',
-                          fontWeight: 800,
-                          background: marginPct >= 20 ? 'rgba(16, 185, 129, 0.15)' : marginPct >= 10 ? 'rgba(245, 158, 11, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                          color: marginPct >= 20 ? 'var(--color-success)' : marginPct >= 10 ? 'var(--color-warning)' : 'var(--color-danger)',
-                        }}
-                      >
-                        {marginPct}%
-                      </span>
-                    </div>
-                  </div>
                 </div>
               );
             })}
@@ -1244,7 +1132,7 @@ export function DynamicDistancePricingSection() {
             </h3>
           </div>
           <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-            Simulate exact rate resolutions, peak detection, and gross margin calculations across any distance and time of day.
+            Simulate exact rate resolutions and driver payouts across any distance and time of day.
           </p>
         </div>
 
@@ -1369,7 +1257,7 @@ export function DynamicDistancePricingSection() {
                 </span>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
                 <div style={{ background: 'var(--bg-card)', padding: '0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
                   <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Vendor Charge</div>
                   <div style={{ fontSize: '1.3rem', fontWeight: 900, color: 'var(--text-primary)', marginTop: '0.2rem' }}>
@@ -1384,19 +1272,10 @@ export function DynamicDistancePricingSection() {
                   </div>
                 </div>
 
-                <div style={{ background: 'var(--bg-card)', padding: '0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Gross Spread</div>
-                  <div style={{ fontSize: '1.3rem', fontWeight: 900, color: 'var(--brand-primary)', marginTop: '0.2rem' }}>
-                    {inr(simResult.grossSpreadRupees)}
-                  </div>
-                  <div style={{ fontSize: '0.68rem', color: 'var(--brand-primary)', fontWeight: 700, marginTop: '0.1rem' }}>
-                    {simResult.grossMarginPercent}% margin
-                  </div>
-                </div>
               </div>
 
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                🔒 Separation of Concerns: Vendor billing never exposes driver payout; driver payout never exposes vendor rate or platform spread.
+                Vendor and driver prices are managed separately through their rate cards.
               </div>
             </div>
           ) : simulating ? (

@@ -176,8 +176,6 @@ export class PricingTierDto {
   baseFare!: number;
   baseKm!: number;
   perKmRate!: number;
-  driverSharePercent!: number;
-  platformFeePercent!: number;
   surgeMultiplier!: number;
   status!: 'ACTIVE' | 'INACTIVE';
   updatedAt!: string;
@@ -222,14 +220,6 @@ export class CreatePricingTierDto {
 
   @IsOptional()
   @IsNumber()
-  driverSharePercent?: number;
-
-  @IsOptional()
-  @IsNumber()
-  platformFeePercent?: number;
-
-  @IsOptional()
-  @IsNumber()
   surgeMultiplier?: number;
 }
 
@@ -257,18 +247,6 @@ export class UpdatePricingTierDto {
 
   @IsOptional()
   nightChargeMultiplier?: number;
-
-  @IsOptional()
-  driverSharePercent?: number;
-
-  @IsOptional()
-  driverSharePercentage?: number;
-
-  @IsOptional()
-  platformFeePercent?: number;
-
-  @IsOptional()
-  platformFeePercentage?: number;
 
   @IsOptional()
   surgeMultiplier?: number;

@@ -255,18 +255,16 @@ describe('AdhocX Unified Platform: 10 Comprehensive Feature Simulations (Direct 
   });
 
   // =========================================================================
-  // SIMULATION 7: Trip Completion, Toll Addition & Platform Commission
+  // SIMULATION 7: Trip Completion and Rate-Card Payout
   // =========================================================================
-  it('Simulation 7: Driver completes trip with toll addition, receiving net payout with commission deducted', () => {
+  it('Simulation 7: Driver receives the full agreed payout plus tolls', () => {
     const vendor = state.vendors.get('vnd-1');
     const driver = state.drivers.get('drv-2');
     const trip = state.trips.get('trp-direct-1');
 
     const fare = Number(trip.driverRate); // 800
     const toll = 150;
-    const commissionRate = 0.05; // 5%
-    const commission = Math.round(fare * commissionRate); // 40
-    const driverEarnings = fare - commission + toll; // 800 - 40 + 150 = 910
+    const driverEarnings = fare + toll; // 800 + 150 = 950
 
     trip.status = TripStatus.COMPLETED;
     trip.tollCharges = toll;
@@ -288,20 +286,11 @@ describe('AdhocX Unified Platform: 10 Comprehensive Feature Simulations (Direct 
       description: `Earnings for trip ${trip.id}`,
     });
 
-    state.ledgerEntries.push({
-      id: 'led-3',
-      accountType: 'PLATFORM',
-      accountId: driver.id,
-      entryType: 'CREDIT',
-      amount: commission,
-      balanceAfter: commission,
-      referenceType: 'PLATFORM_COMMISSION',
-      referenceId: trip.id,
-      description: `Platform 5% fee for trip ${trip.id}`,
-    });
-
     expect(vendor.escrowBalance).toBe(0);
-    expect(driver.walletBalance).toBe(910);
+    expect(driver.walletBalance).toBe(950);
+    expect(state.ledgerEntries).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ referenceType: 'PLATFORM_COMMISSION' })]),
+    );
     expect(driver.availabilityStatus).toBe(DriverAvailability.AVAILABLE);
     expect(trip.status).toBe(TripStatus.COMPLETED);
   });

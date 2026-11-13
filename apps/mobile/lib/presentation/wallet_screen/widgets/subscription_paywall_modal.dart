@@ -370,7 +370,7 @@ class _SubscriptionPaywallModalState extends State<SubscriptionPaywallModal> {
               _buildBenefitItem(
                 icon: Icons.flash_on_rounded,
                 title: 'Instant ₹1,000+ Bank Withdrawals',
-                subtitle: 'Withdraw earnings to your verified bank account with zero platform fees',
+                subtitle: 'Withdraw earnings to your verified bank account',
                 isDark: isDark,
               ),
               const SizedBox(height: 8),

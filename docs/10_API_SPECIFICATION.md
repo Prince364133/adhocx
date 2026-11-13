@@ -1361,12 +1361,10 @@ POST /admin/pricing
 PATCH /admin/pricing/{pricingId}
 ```
 
-Exact pricing formula is **TBD**.
+Vendor charges and driver payouts are resolved from the active rate card. Trip payout is the driver amount locked in the booking's pricing snapshot; no percentage-based platform commission is deducted.
 
-The API must not hard-code assumptions about:
+Other unresolved pricing policies must not be hard-coded:
 
-* commission
-* markup
 * minimum fare
 * surge
 * cancellation fee

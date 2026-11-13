@@ -14,12 +14,18 @@ function safeRequire(id) {
   }
 }
 
-const dotenv = safeRequire('dotenv');
-if (dotenv && dotenv.config) {
-  dotenv.config({ path: path.resolve(__dirname, '../.env') });
-}
+// Deliberately does NOT load the repo's .env: that file can point at a live database and this
+// script writes test coupons. Only a localhost test database is accepted.
 if (!process.env.DATABASE_URL) {
   process.env.DATABASE_URL = 'postgresql://test_user:test_password@localhost:5432/adhocx_test?schema=public';
+}
+{
+  let host = '';
+  try { host = new URL(process.env.DATABASE_URL).hostname; } catch { /* invalid */ }
+  if (!['localhost', '127.0.0.1'].includes(host)) {
+    console.error('Refusing to seed test coupons: DATABASE_URL must point to a localhost test database.');
+    process.exit(1);
+  }
 }
 const { PrismaClient } = safeRequire('@prisma/client');
 const prisma = new PrismaClient();

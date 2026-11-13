@@ -84,6 +84,9 @@ export class Msg91Service {
    * Check if MSG91 is enabled and configured with an AuthKey
    */
   public isConfigured(): boolean {
+    // Never deliver real SMS from a test run, even if an AuthKey leaked into the environment.
+    // Unit tests that MOCK fetch opt in with MSG91_SEND_IN_TEST=true to exercise the HTTP path.
+    if (process.env.NODE_ENV === 'test' && process.env.MSG91_SEND_IN_TEST !== 'true') return false;
     const key = this.getAuthKey();
     const enabled =
       this.configService.get<string>('MSG91_ENABLED', 'true') !== 'false' &&

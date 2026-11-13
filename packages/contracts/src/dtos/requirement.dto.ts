@@ -109,7 +109,6 @@ export class RequirementResponseDto {
     distanceM: number;
     vendorPricePaise: number;
     driverPayoutPaise: number;
-    grossSpreadPaise: number;
     hasEscort?: boolean;
     escortFarePaise?: number;
     quotedAt: string;

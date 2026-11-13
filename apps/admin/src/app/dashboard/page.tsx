@@ -238,35 +238,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* KPI 2: Platform Take-Rate Revenue (Net Margin) */}
-        <div
-          className="stat-card"
-          style={{
-            borderTop: '2px solid var(--brand-secondary)',
-            gap: '0.55rem',
-            order: 3,
-          }}
-        >
-          <div>
-            <div style={{ marginBottom: '0.35rem' }}>
-              <span style={{ fontSize: '0.74rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                Platform Revenue (Recorded)
-              </span>
-            </div>
-            <div style={{ fontSize: '1.375rem', fontWeight: 700, color: 'var(--brand-secondary)', letterSpacing: '-0.02em', lineHeight: 1.2, fontVariantNumeric: 'tabular-nums' }}>
-              {financialReportLoading ? '…' : dailyFinancialReport ? `₹ ${dailyFinancialReport.revenue.toLocaleString('en-IN')}` : '—'}
-            </div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.22rem' }}>
-              Recorded platform commission and pricing-spread credits
-            </div>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: '0.42rem', borderTop: '1px solid var(--border-subtle)' }}>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-              {dailyFinancialReport ? `${dailyFinancialReport.platformRevenueEntryCount} platform ledger credits` : 'Recorded platform ledger data'}
-            </span>
-          </div>
-        </div>
-
         {/* KPI 3: Live Escrow In Transit */}
         <div
           className="stat-card"

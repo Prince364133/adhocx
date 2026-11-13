@@ -1662,8 +1662,7 @@ export class AdminService {
         select: { totalDriverEarnings: true, driverRate: true },
       });
 
-      const gmv = completed.reduce((acc, t) => acc + (Number(t.totalDriverEarnings || t.driverRate) || 0), 0);
-      const platformRevenue = Math.round(gmv * 0.1);
+      const driverPayouts = completed.reduce((acc, t) => acc + (Number(t.totalDriverEarnings || t.driverRate) || 0), 0);
 
       // Compute live average driver response time from assignments
       const acceptedAssignments = await this.db.assignment.findMany({
@@ -1764,9 +1763,7 @@ export class AdminService {
         fulfilledRequirements,
         fulfillmentRatePercent,
         fulfillmentRate,
-        totalGrossBookingValue: gmv,
-        platformGmv: gmv > 0 ? `₹ ${gmv.toLocaleString('en-IN')}` : '₹ 0',
-        platformRevenue,
+        totalDriverPayouts: driverPayouts,
         activeDrivers,
         activeVendors,
         averageTripRating: 5.0,
@@ -1813,9 +1810,7 @@ export class AdminService {
         fulfilledRequirements: 0,
         fulfillmentRatePercent: 0,
         fulfillmentRate: '0.0%',
-        totalGrossBookingValue: 0,
-        platformGmv: '₹ 0',
-        platformRevenue: 0,
+        totalDriverPayouts: 0,
         activeDrivers: 0,
         activeVendors: 0,
         averageTripRating: 5.0,
@@ -1863,8 +1858,7 @@ export class AdminService {
     startDate: Date,
     endDate: Date,
   ) {
-    // Collect all revenue events: { date: Date, revenue: number, adminCommission: number, driverEarnings: number }
-    const events: Array<{ date: Date; revenue: number; adminCommission: number; driverEarnings: number }> = [];
+    const events: Array<{ date: Date; revenue: number; driverEarnings: number }> = [];
 
     for (const t of trips) {
       const d = t.completedAt ? new Date(t.completedAt) : new Date(t.createdAt);
@@ -1876,42 +1870,39 @@ export class AdminService {
 
       let rev: number;
       let earn: number;
-      let comm: number;
 
       if (snapshot) {
         rev = (snapshot.vendorPricePaise || 0) / 100;
         earn = (snapshot.driverPayoutPaise || 0) / 100;
-        comm = (snapshot.grossSpreadPaise || 0) / 100;
       } else {
-        const fare = reqAmount > 0 ? reqAmount : driverRate;
-        comm = Math.round(fare * 0.1);
-        earn = fare - comm + toll + parking;
-        rev = fare + toll + parking;
+        const orderAmount = reqAmount > 0 ? reqAmount : driverRate;
+        const payout = driverRate > 0 ? driverRate : reqAmount;
+        earn = payout + toll + parking;
+        rev = orderAmount + toll + parking;
       }
       if (t.totalDriverEarnings && Number(t.totalDriverEarnings) > 0) {
         earn = Number(t.totalDriverEarnings);
       }
-      events.push({ date: d, revenue: rev, adminCommission: comm, driverEarnings: earn });
+      events.push({ date: d, revenue: rev, driverEarnings: earn });
     }
 
     for (const p of payments) {
       if (p.status === 'CAPTURED') {
         const d = new Date(p.createdAt);
         const amt = Number(p.amount || 0);
-        const comm = Math.round(amt * 0.1);
-        events.push({ date: d, revenue: amt, adminCommission: comm, driverEarnings: amt - comm });
+        events.push({ date: d, revenue: amt, driverEarnings: 0 });
       }
     }
 
     // 1. Daily Series (up to 30 days or day-by-day in range)
-    const dailyMap = new Map<string, { label: string; revenue: number; adminCommission: number; driverEarnings: number; transactions: number }>();
+    const dailyMap = new Map<string, { label: string; revenue: number; driverEarnings: number; transactions: number }>();
     const daySpan = Math.min(30, Math.max(7, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))));
 
     for (let i = daySpan - 1; i >= 0; i--) {
       const dayDate = new Date(endDate.getTime() - i * 24 * 60 * 60 * 1000);
       const key = dayDate.toISOString().slice(0, 10);
       const label = dayDate.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
-      dailyMap.set(key, { label, revenue: 0, adminCommission: 0, driverEarnings: 0, transactions: 0 });
+      dailyMap.set(key, { label, revenue: 0, driverEarnings: 0, transactions: 0 });
     }
 
     for (const ev of events) {
@@ -1919,7 +1910,6 @@ export class AdminService {
       if (dailyMap.has(key)) {
         const item = dailyMap.get(key)!;
         item.revenue += ev.revenue;
-        item.adminCommission += ev.adminCommission;
         item.driverEarnings += ev.driverEarnings;
         item.transactions += 1;
       }
@@ -1929,7 +1919,6 @@ export class AdminService {
       date,
       label: val.label,
       revenue: Math.round(val.revenue * 100) / 100,
-      adminCommission: Math.round(val.adminCommission * 100) / 100,
       driverEarnings: Math.round(val.driverEarnings * 100) / 100,
       transactions: val.transactions,
     }));
@@ -1940,11 +1929,10 @@ export class AdminService {
       const wLabel = `Week ${5 - w}`;
       const wStart = new Date(endDate.getTime() - w * 7 * 24 * 60 * 60 * 1000);
       const wEnd = new Date(endDate.getTime() - (w - 1) * 7 * 24 * 60 * 60 * 1000);
-      let wRev = 0, wComm = 0, wEarn = 0, wCount = 0;
+      let wRev = 0, wEarn = 0, wCount = 0;
       for (const ev of events) {
         if (ev.date >= wStart && ev.date <= wEnd) {
           wRev += ev.revenue;
-          wComm += ev.adminCommission;
           wEarn += ev.driverEarnings;
           wCount += 1;
         }
@@ -1953,7 +1941,6 @@ export class AdminService {
         period: wLabel,
         label: `${wStart.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} - ${wEnd.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`,
         revenue: Math.round(wRev * 100) / 100,
-        adminCommission: Math.round(wComm * 100) / 100,
         driverEarnings: Math.round(wEarn * 100) / 100,
         transactions: wCount,
       });
@@ -1966,11 +1953,10 @@ export class AdminService {
       const mDate = new Date(now.getFullYear(), now.getMonth() - m, 1);
       const nextMDate = new Date(now.getFullYear(), now.getMonth() - m + 1, 1);
       const mLabel = mDate.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
-      let mRev = 0, mComm = 0, mEarn = 0, mCount = 0;
+      let mRev = 0, mEarn = 0, mCount = 0;
       for (const ev of events) {
         if (ev.date >= mDate && ev.date < nextMDate) {
           mRev += ev.revenue;
-          mComm += ev.adminCommission;
           mEarn += ev.driverEarnings;
           mCount += 1;
         }
@@ -1979,7 +1965,6 @@ export class AdminService {
         month: mLabel,
         label: mLabel,
         revenue: Math.round(mRev * 100) / 100,
-        adminCommission: Math.round(mComm * 100) / 100,
         driverEarnings: Math.round(mEarn * 100) / 100,
         transactions: mCount,
       });
@@ -1990,11 +1975,10 @@ export class AdminService {
     const quarterly = quarters.map((qLabel, qIdx) => {
       const qStart = new Date(now.getFullYear(), qIdx * 3, 1);
       const qEnd = new Date(now.getFullYear(), (qIdx + 1) * 3, 0, 23, 59, 59);
-      let qRev = 0, qComm = 0, qEarn = 0, qCount = 0;
+      let qRev = 0, qEarn = 0, qCount = 0;
       for (const ev of events) {
         if (ev.date >= qStart && ev.date <= qEnd) {
           qRev += ev.revenue;
-          qComm += ev.adminCommission;
           qEarn += ev.driverEarnings;
           qCount += 1;
         }
@@ -2003,7 +1987,6 @@ export class AdminService {
         quarter: qLabel,
         label: `${qLabel} ${now.getFullYear()}`,
         revenue: Math.round(qRev * 100) / 100,
-        adminCommission: Math.round(qComm * 100) / 100,
         driverEarnings: Math.round(qEarn * 100) / 100,
         transactions: qCount,
       };
@@ -2013,11 +1996,10 @@ export class AdminService {
     const yearly = [now.getFullYear() - 1, now.getFullYear()].map((yr) => {
       const yStart = new Date(yr, 0, 1);
       const yEnd = new Date(yr, 11, 31, 23, 59, 59);
-      let yRev = 0, yComm = 0, yEarn = 0, yCount = 0;
+      let yRev = 0, yEarn = 0, yCount = 0;
       for (const ev of events) {
         if (ev.date >= yStart && ev.date <= yEnd) {
           yRev += ev.revenue;
-          yComm += ev.adminCommission;
           yEarn += ev.driverEarnings;
           yCount += 1;
         }
@@ -2026,7 +2008,6 @@ export class AdminService {
         year: String(yr),
         label: `FY ${yr}`,
         revenue: Math.round(yRev * 100) / 100,
-        adminCommission: Math.round(yComm * 100) / 100,
         driverEarnings: Math.round(yEarn * 100) / 100,
         transactions: yCount,
       };
@@ -2049,12 +2030,9 @@ export class AdminService {
       endDate: endDate.toISOString(),
       metrics: {
         totalRevenue: 0,
-        adminEarnings: 0,
         totalPaidToDrivers: 0,
         pendingDriverPayments: 0,
         totalTransactions: 0,
-        netProfit: 0,
-        commissionRatePercent: 10,
         totalRefunds: 0,
       },
       revenueAnalytics,
@@ -2062,21 +2040,12 @@ export class AdminService {
         totalDriverEarnings: 0,
         amountPaidToDrivers: 0,
         pendingDriverPayments: 0,
-        totalCommissionDeducted: 0,
         drivers: [],
       },
       transactions: [],
       settlements: [],
       refunds: [],
       revenueBreakdown: [],
-      commissionBreakdown: [
-        {
-          label: 'Platform Commission (10%)',
-          rate: '10.0%',
-          amount: 0,
-          description: 'Platform fee retained on completed bookings',
-        },
-      ],
     };
   }
 
@@ -2367,17 +2336,14 @@ export class AdminService {
   private formatDailyFinancialReport(params: {
     date: string;
     grossBookingValue: number;
-    revenue: number;
     expenditure: number;
     activeEscrowHoldValue: number;
     capturedPaymentCount: number;
-    platformRevenueEntryCount: number;
     settledPayoutCount: number;
     activeEscrowHoldCount: number;
   }) {
     const roundMoney = (val: number) => Math.round(val * 100) / 100;
     const grossBookingValue = roundMoney(params.grossBookingValue);
-    const revenue = roundMoney(params.revenue);
     const expenditure = roundMoney(params.expenditure);
     const activeEscrowHoldValue = roundMoney(params.activeEscrowHoldValue);
 
@@ -2385,12 +2351,9 @@ export class AdminService {
       date: params.date,
       currency: 'INR',
       grossBookingValue,
-      revenue,
       expenditure,
       activeEscrowHoldValue,
-      grossProfit: roundMoney(revenue - expenditure),
       capturedPaymentCount: params.capturedPaymentCount,
-      platformRevenueEntryCount: params.platformRevenueEntryCount,
       settledPayoutCount: params.settledPayoutCount,
       activeEscrowHoldCount: params.activeEscrowHoldCount,
     };
@@ -2503,11 +2466,9 @@ export class AdminService {
       return this.formatDailyFinancialReport({
         date: dateInput,
         grossBookingValue,
-        revenue: 0,
         expenditure,
         activeEscrowHoldValue: 0,
         capturedPaymentCount: paidInvoices.length,
-        platformRevenueEntryCount: 0,
         settledPayoutCount: paidCorporatePayouts.length,
         activeEscrowHoldCount: 0,
       });
@@ -2515,19 +2476,10 @@ export class AdminService {
 
     if (parsedCompany && resolvedCompanyType === 'VENDOR') {
       const vendorId = parsedCompany.entityId;
-      const [capturedPayments, allPlatformEntries, vendorTripDrivers, activeEscrowHolds] = await Promise.all([
+      const [capturedPayments, vendorTripDrivers, activeEscrowHolds] = await Promise.all([
         this.db.payment.findMany({
           where: { vendorId, status: 'CAPTURED', updatedAt: { gte: dayStart, lt: dayEnd } },
           select: { amount: true },
-        }),
-        this.db.ledgerEntry.findMany({
-          where: {
-            accountType: 'PLATFORM',
-            entryType: 'CREDIT',
-            referenceType: { in: ['PLATFORM_COMMISSION', 'DISTANCE_PLATFORM_SPREAD', 'ZONAL_PLATFORM_SPREAD'] },
-            createdAt: { gte: dayStart, lt: dayEnd },
-          },
-          select: { amount: true, referenceId: true, accountId: true },
         }),
         this.db.trip.findMany({
           where: { vendorId },
@@ -2543,24 +2495,6 @@ export class AdminService {
           select: { amount: true },
         }),
       ]);
-
-      const entryTripIds = [
-        ...new Set(allPlatformEntries.map((entry: any) => entry.referenceId).filter(Boolean)),
-      ];
-      const matchingVendorTrips =
-        entryTripIds.length > 0
-          ? await this.db.trip.findMany({
-              where: { id: { in: entryTripIds }, vendorId },
-              select: { id: true },
-            })
-          : [];
-      const vendorTripIdSet = new Set(matchingVendorTrips.map((trip: any) => trip.id));
-
-      const platformRevenueEntries = allPlatformEntries.filter(
-        (entry: any) =>
-          (entry.referenceId && vendorTripIdSet.has(entry.referenceId)) ||
-          entry.accountId === vendorId,
-      );
 
       const vendorDriverIds = [
         ...new Set(vendorTripDrivers.map((row: any) => row.driverId).filter(Boolean)),
@@ -2580,11 +2514,9 @@ export class AdminService {
       return this.formatDailyFinancialReport({
         date: dateInput,
         grossBookingValue: capturedPayments.reduce((total: number, payment: any) => total + Number(payment.amount), 0),
-        revenue: platformRevenueEntries.reduce((total: number, entry: any) => total + Number(entry.amount), 0),
         expenditure: settledPayouts.reduce((total: number, payout: any) => total + Number(payout.amount), 0),
         activeEscrowHoldValue: activeEscrowHolds.reduce((total: number, payment: any) => total + Number(payment.amount), 0),
         capturedPaymentCount: capturedPayments.length,
-        platformRevenueEntryCount: platformRevenueEntries.length,
         settledPayoutCount: settledPayouts.length,
         activeEscrowHoldCount: activeEscrowHolds.length,
       });
@@ -2592,7 +2524,6 @@ export class AdminService {
 
     const [
       capturedPayments,
-      platformRevenueEntries,
       settledPayouts,
       activeEscrowHolds,
       paidCorporateInvoices,
@@ -2600,15 +2531,6 @@ export class AdminService {
     ] = await Promise.all([
       this.db.payment.findMany({
         where: { status: 'CAPTURED', updatedAt: { gte: dayStart, lt: dayEnd } },
-        select: { amount: true },
-      }),
-      this.db.ledgerEntry.findMany({
-        where: {
-          accountType: 'PLATFORM',
-          entryType: 'CREDIT',
-          referenceType: { in: ['PLATFORM_COMMISSION', 'DISTANCE_PLATFORM_SPREAD', 'ZONAL_PLATFORM_SPREAD'] },
-          createdAt: { gte: dayStart, lt: dayEnd },
-        },
         select: { amount: true },
       }),
       this.db.settlement.findMany({
@@ -2651,7 +2573,6 @@ export class AdminService {
           (total: number, inv: any) => total + Number(inv.totalAmountPaise || 0) / 100,
           0,
         ),
-      revenue: platformRevenueEntries.reduce((total: number, entry: any) => total + Number(entry.amount), 0),
       expenditure:
         settledPayouts.reduce((total: number, payout: any) => total + Number(payout.amount), 0) +
         paidCorporatePayouts.reduce(
@@ -2660,7 +2581,6 @@ export class AdminService {
         ),
       activeEscrowHoldValue: activeEscrowHolds.reduce((total: number, payment: any) => total + Number(payment.amount), 0),
       capturedPaymentCount: capturedPayments.length + paidCorporateInvoices.length,
-      platformRevenueEntryCount: platformRevenueEntries.length,
       settledPayoutCount: settledPayouts.length + paidCorporatePayouts.length,
       activeEscrowHoldCount: activeEscrowHolds.length,
     });
@@ -2696,16 +2616,7 @@ export class AdminService {
     }
 
     try {
-      // 1. Fetch system commission percentage
-      let commissionPercent = 10.0;
-      try {
-        const policy = await this.db.systemPolicyConfig.findUnique({ where: { key: 'GLOBAL_POLICY' } });
-        if (policy && policy.commissionPercent != null) {
-          commissionPercent = Number(policy.commissionPercent);
-        }
-      } catch (_) {}
-
-      // 2. Fetch completed trips in date range
+      // 1. Fetch completed trips in date range
       const completedTrips = await this.db.trip.findMany({
         where: {
           status: 'COMPLETED',
@@ -2730,7 +2641,7 @@ export class AdminService {
         orderBy: { completedAt: 'desc' },
       });
 
-      // 3. Fetch customer payments in date range
+      // 2. Fetch customer payments in date range
       const payments = await this.db.payment.findMany({
         where: {
           createdAt: {
@@ -2745,7 +2656,7 @@ export class AdminService {
         orderBy: { createdAt: 'desc' },
       });
 
-      // 4. Fetch settlements in date range
+      // 3. Fetch settlements in date range
       const settlements = await this.db.settlement.findMany({
         where: {
           createdAt: {
@@ -2761,7 +2672,7 @@ export class AdminService {
         orderBy: { createdAt: 'desc' },
       });
 
-      // 5. Fetch all drivers with completed trips and settlements
+      // 4. Fetch all drivers with completed trips and settlements
       const allDrivers = await this.db.driver.findMany({
         include: {
           user: true,
@@ -2789,9 +2700,8 @@ export class AdminService {
         },
       });
 
-      // 6. Aggregate trip transactions
+      // 5. Aggregate trip transactions
       let totalTripRevenue = 0;
-      let totalAdminCommission = 0;
       let totalTripDriverEarnings = 0;
 
       const unifiedTransactions: any[] = [];
@@ -2806,17 +2716,15 @@ export class AdminService {
 
         let orderAmount = 0;
         let driverEarnings = 0;
-        let adminCommission = 0;
 
         if (pricingSnapshot) {
           orderAmount = (pricingSnapshot.vendorPricePaise || 0) / 100;
           driverEarnings = (pricingSnapshot.driverPayoutPaise || 0) / 100;
-          adminCommission = (pricingSnapshot.grossSpreadPaise || 0) / 100;
         } else {
-          const fare = reqAmount > 0 ? reqAmount : driverRate;
-          adminCommission = Math.round(fare * (commissionPercent / 100));
-          driverEarnings = fare - adminCommission + toll + parking;
-          orderAmount = fare + toll + parking;
+          const orderFare = reqAmount > 0 ? reqAmount : driverRate;
+          const driverPayout = driverRate > 0 ? driverRate : reqAmount;
+          driverEarnings = driverPayout + toll + parking;
+          orderAmount = orderFare + toll + parking;
         }
 
         if (t.totalDriverEarnings && Number(t.totalDriverEarnings) > 0) {
@@ -2824,7 +2732,6 @@ export class AdminService {
         }
 
         totalTripRevenue += orderAmount;
-        totalAdminCommission += adminCommission;
         totalTripDriverEarnings += driverEarnings;
 
         const vType = t.vehicleType || 'SEDAN';
@@ -2851,7 +2758,6 @@ export class AdminService {
           customerName,
           customerId: t.vendorId,
           totalOrderAmount: Math.round(orderAmount * 100) / 100,
-          adminCommission: Math.round(adminCommission * 100) / 100,
           driverEarnings: Math.round(driverEarnings * 100) / 100,
           paymentStatus: 'PAID',
           paymentMethod: 'ESCROW',
@@ -2862,7 +2768,7 @@ export class AdminService {
         });
       }
 
-      // 7. Aggregate payment records
+      // 6. Aggregate payment records
       let totalPaymentVolume = 0;
       let totalRefunds = 0;
       for (const p of payments) {
@@ -2874,7 +2780,7 @@ export class AdminService {
         }
       }
 
-      // 8. Aggregate settlements
+      // 7. Aggregate settlements
       let totalAmountPaidToDrivers = 0;
       let pendingSettlementVolume = 0;
       const formattedSettlements: any[] = [];
@@ -2909,7 +2815,7 @@ export class AdminService {
         });
       }
 
-      // 9. Driver Roster Aggregations
+      // 8. Driver Roster Aggregations
       let totalDriverWalletBalances = 0;
       const driverList: any[] = [];
 
@@ -2918,15 +2824,12 @@ export class AdminService {
         totalDriverWalletBalances += dWallet;
 
         let dTotalEarned = 0;
-        let dCommissionDeducted = 0;
 
         for (const dt of d.trips) {
           const dtEarn = Number(dt.totalDriverEarnings || 0);
           const dtRate = Number(dt.driverRate || 0);
           const earned = dtEarn > 0 ? dtEarn : dtRate;
           dTotalEarned += earned;
-          const comm = Math.round((earned / (1 - commissionPercent / 100)) * (commissionPercent / 100));
-          dCommissionDeducted += comm;
         }
 
         let dAmountPaid = 0;
@@ -2947,7 +2850,6 @@ export class AdminService {
           totalEarnings: Math.round(dTotalEarned * 100) / 100,
           amountPaid: Math.round(dAmountPaid * 100) / 100,
           pendingBalance: Math.round(dWallet * 100) / 100,
-          commissionDeducted: Math.round(dCommissionDeducted * 100) / 100,
           bankAccountName: kyc.bankAccountName || d.fullName || '—',
           bankAccountNumber: kyc.bankAccountNumber ? `••••${kyc.bankAccountNumber.slice(-4)}` : '—',
           bankIfsc: kyc.bankIfsc || '—',
@@ -2957,7 +2859,6 @@ export class AdminService {
       driverList.sort((a, b) => b.totalEarnings - a.totalEarnings);
 
       const pendingDriverPayments = pendingSettlementVolume + totalDriverWalletBalances;
-      const netProfit = Math.max(0, totalAdminCommission - totalRefunds);
       const totalTransactions = completedTrips.length + payments.filter((p) => p.status === 'CAPTURED').length;
       const totalRevenue = totalTripRevenue > 0 ? totalTripRevenue : totalPaymentVolume;
 
@@ -2969,21 +2870,6 @@ export class AdminService {
         count: info.count,
         percentage: totalRevenue > 0 ? Math.round((info.revenue / totalRevenue) * 100) : 0,
       }));
-
-      const commissionBreakdown = [
-        {
-          label: `Platform Commission (${commissionPercent}%)`,
-          rate: `${commissionPercent}%`,
-          amount: Math.round(totalAdminCommission * 100) / 100,
-          description: 'Marketplace platform fee retained on fulfilled on-demand trips',
-        },
-        {
-          label: 'Dynamic Spread & Tariff Optimization',
-          rate: 'Algorithmic Slab',
-          amount: Math.round(totalAdminCommission * 0.28 * 100) / 100,
-          description: 'Retained margin from zonal routing and distance corridor engine',
-        },
-      ];
 
       const refundsList: any[] = payments
         .filter((p) => p.status === 'REFUNDED')
@@ -3007,12 +2893,9 @@ export class AdminService {
         endDate: endDate.toISOString(),
         metrics: {
           totalRevenue: Math.round(totalRevenue * 100) / 100,
-          adminEarnings: Math.round(totalAdminCommission * 100) / 100,
           totalPaidToDrivers: Math.round(totalAmountPaidToDrivers * 100) / 100,
           pendingDriverPayments: Math.round(pendingDriverPayments * 100) / 100,
           totalTransactions,
-          netProfit: Math.round(netProfit * 100) / 100,
-          commissionRatePercent: commissionPercent,
           totalRefunds: Math.round(totalRefunds * 100) / 100,
         },
         revenueAnalytics,
@@ -3020,14 +2903,12 @@ export class AdminService {
           totalDriverEarnings: Math.round(totalTripDriverEarnings * 100) / 100,
           amountPaidToDrivers: Math.round(totalAmountPaidToDrivers * 100) / 100,
           pendingDriverPayments: Math.round(pendingDriverPayments * 100) / 100,
-          totalCommissionDeducted: Math.round(totalAdminCommission * 100) / 100,
           drivers: driverList,
         },
         transactions: unifiedTransactions,
         settlements: formattedSettlements,
         refunds: refundsList,
         revenueBreakdown,
-        commissionBreakdown,
       };
     } catch (err: any) {
       this.logger.warn(`Finance dashboard aggregation notice: ${err.message}`);

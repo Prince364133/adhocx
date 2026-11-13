@@ -716,8 +716,6 @@ model VehiclePricingTier {
   baseFare           Decimal  @map("base_fare") @db.Decimal(10, 2)
   baseKm             Decimal  @map("base_km") @db.Decimal(10, 2)
   perKmRate          Decimal  @map("per_km_rate") @db.Decimal(10, 2)
-  driverSharePercent Decimal  @default(90.00) @map("driver_share_percent") @db.Decimal(5, 2)
-  platformFeePercent Decimal  @default(10.00) @map("platform_fee_percent") @db.Decimal(5, 2)
   surgeMultiplier    Decimal  @default(1.00) @map("surge_multiplier") @db.Decimal(4, 2)
   isActive           Boolean  @default(true) @map("is_active")
   updatedAt          DateTime @updatedAt @map("updated_at")
@@ -729,7 +727,6 @@ model VehiclePricingTier {
 model SystemPolicyConfig {
   id                  String   @id @default(uuid()) @db.Uuid
   key                 String   @unique
-  commissionPercent   Decimal  @default(10.00) @map("commission_percent") @db.Decimal(5, 2)
   driverMonthlyFee    Decimal  @default(499.00) @map("driver_monthly_fee") @db.Decimal(10, 2)
   driverTrialDays     Int      @default(15) @map("driver_trial_days")
   minWithdrawalAmount Decimal  @default(1000.00) @map("min_withdrawal_amount") @db.Decimal(10, 2)
@@ -876,7 +873,6 @@ model ZonalQuoteSnapshot {
   escortFarePaise   Int       @default(0) @map("escort_fare_paise")
   totalFarePaise    Int       @map("total_fare_paise")
   driverFarePaise   Int       @map("driver_fare_paise")
-  platformFeePaise  Int       @map("platform_fee_paise")
   expiresAt         DateTime  @map("expires_at")
   createdAt         DateTime  @default(now()) @map("created_at")
 

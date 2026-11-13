@@ -157,6 +157,81 @@ void main() {
       );
       expect(acceptButton.onPressed, isNull);
     });
+
+    testWidgets('overlay acceptance keeps the shared sheet available after a request failure', (tester) async {
+      var attempts = 0;
+      var accepted = false;
+      final offer = <String, dynamic>{
+        'id': 'overlay-retry-offer',
+        'offeredRate': 1100,
+        'vehicleType': 'SEDAN',
+        'pickupAddress': 'Meerpet, Hyderabad',
+        'dropAddress': 'Kokapet, Hyderabad',
+        'expiresInSeconds': '20',
+      };
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: IncomingRequirementBottomSheet(
+              offerData: offer,
+              overlayPresentation: true,
+              acceptOffer: (offerId) async {
+                expect(offerId, 'overlay-retry-offer');
+                attempts++;
+                throw Exception('network unavailable');
+              },
+              onOverlayAccepted: () => accepted = true,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.tap(find.text('ACCEPT TRIP'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(attempts, 1);
+      expect(accepted, isFalse);
+      expect(find.text('ACCEPT TRIP'), findsOneWidget);
+
+      final acceptButton = tester.widget<ElevatedButton>(
+        find.ancestor(
+          of: find.text('ACCEPT TRIP'),
+          matching: find.byType(ElevatedButton),
+        ),
+      );
+      expect(acceptButton.onPressed, isNotNull);
+    });
+
+    testWidgets('overlay acceptance invokes completion only after a successful request', (tester) async {
+      var accepted = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: IncomingRequirementBottomSheet(
+              offerData: <String, dynamic>{
+                'id': 'overlay-success-offer',
+                'offeredRate': 1100,
+                'vehicleType': 'SEDAN',
+                'pickupAddress': 'Meerpet, Hyderabad',
+                'dropAddress': 'Kokapet, Hyderabad',
+                'expiresInSeconds': '20',
+              },
+              overlayPresentation: true,
+              acceptOffer: (offerId) async {},
+              onOverlayAccepted: () => accepted = true,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.tap(find.text('ACCEPT TRIP'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(accepted, isTrue);
+    });
   });
 
   group('NotificationsFeedScreen delete & clear all', () {

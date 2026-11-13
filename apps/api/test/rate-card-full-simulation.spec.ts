@@ -332,27 +332,19 @@ describe('Condition-Based Rate Card Engine — Full Lifecycle & Simulation Suite
       expect((slab1 as any).vendorPriceRupees).toBeUndefined();
     });
 
-    it('calculates gross spread (₹) and gross margin (%) correctly across all slabs', async () => {
+    it('returns vendor and driver rates without platform spread metrics', async () => {
       const plan = await svc.getPlanById(activePlanId);
 
-      // Slab 1: Vendor ₹500, Driver ₹380 -> Spread ₹120, Margin = 120/500 = 24.00%
       const s1 = plan.slabs[0];
-      expect(s1.grossSpreadPaise).toBe(12000);
-      expect(s1.grossSpreadRupees).toBe(120);
-      expect(s1.grossMarginPercent).toBe(24);
+      expect(s1.vendorPriceRupees).toBe(500);
+      expect(s1.driverPayoutRupees).toBe(380);
+      expect(s1).not.toHaveProperty('grossSpreadPaise');
+      expect(s1).not.toHaveProperty('grossMarginPercent');
 
-      // Slab 3: Vendor ₹1000, Driver ₹740 -> Spread ₹260, Margin = 260/1000 = 26.00%
       const s3 = plan.slabs[2];
-      expect(s3.grossSpreadPaise).toBe(26000);
-      expect(s3.grossSpreadRupees).toBe(260);
-      expect(s3.grossMarginPercent).toBe(26);
-
-      // Peak Rates: Slab 3 Peak: Vendor ₹1200, Driver ₹880 -> Spread ₹320, Margin = 320/1200 = 26.67%
       expect(s3.vendorPeakPricePaise).toBe(120000);
       expect(s3.driverPeakPayoutPaise).toBe(88000);
-      const peakSpread = s3.vendorPeakPricePaise! - s3.driverPeakPayoutPaise!;
-      expect(peakSpread).toBe(32000);
-      expect(Number(((peakSpread / s3.vendorPeakPricePaise!) * 100).toFixed(2))).toBe(26.67);
+      expect(s3).not.toHaveProperty('peakGrossSpreadPaise');
     });
   });
 
@@ -441,20 +433,16 @@ describe('Condition-Based Rate Card Engine — Full Lifecycle & Simulation Suite
       expect(simPeak.activeWindowLabel).toBe('Morning Rush');
       expect(simPeak.vendorPriceRupees).toBe(1100);
       expect(simPeak.driverPayoutRupees).toBe(820);
-      expect(simPeak.grossSpreadRupees).toBe(280);
-      expect(simPeak.grossMarginPercent).toBe(25.45); // (280/1100) * 100
+      expect(simPeak).not.toHaveProperty('grossSpreadRupees');
+      expect(simPeak).not.toHaveProperty('grossMarginPercent');
 
       // Side-by-side standard breakdown is also returned for admin comparison
       expect(simPeak.standard.vendorPriceRupees).toBe(900);
       expect(simPeak.standard.driverPayoutRupees).toBe(680);
-      expect(simPeak.standard.grossSpreadRupees).toBe(220);
-      expect(simPeak.standard.grossMarginPercent).toBe(24.44); // (220/900) * 100
 
       // Side-by-side peak breakdown
       expect(simPeak.peak.vendorPriceRupees).toBe(1100);
       expect(simPeak.peak.driverPayoutRupees).toBe(820);
-      expect(simPeak.peak.grossSpreadRupees).toBe(280);
-      expect(simPeak.peak.grossMarginPercent).toBe(25.45);
     });
 
     it('rejects trips exceeding the maximum configured distance (e.g. 110 km on 100 km cap)', async () => {

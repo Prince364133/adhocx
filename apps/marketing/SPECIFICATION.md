@@ -12,7 +12,7 @@
 
 The AdhocX Marketing Web App serves as the top-of-funnel discovery and conversion engine for the AdhocX platform. It directly targets two distinct user cohorts with tailor-made conversion funnels:
 
-1. **Driver Supply & Fleet Operators:** Acquire verified commercial drivers with strong earning incentives (specifically the **₹2,000 Milestone Bonus for 100 Rides**, transparent payouts, zero commission guarantee).
+1. **Driver Supply & Fleet Operators:** Acquire verified commercial drivers with strong earning incentives (specifically the **₹2,000 Milestone Bonus for 100 Rides** and transparent rate-card payouts).
 2. **Corporate Demand & Transport Users:** Provide corporate logistics and mobility managers with instant proof of automated vehicle fulfillment, compliance standards, 99.9% SLA guarantees, and enterprise booking workflows.
 
 ---
@@ -26,7 +26,7 @@ The AdhocX Marketing Web App serves as the top-of-funnel discovery and conversio
 | `/drivers/calculator` | **Driver Earnings Simulator** | Show potential weekly & monthly earnings + milestone bonuses | Prospective Drivers | "Start Onboarding" |
 | `/enterprise` | **Corporate & User Portal** | Convert corporate transport users looking to source commercial cabs | Corporate Logistics & HR | "Schedule Enterprise Demo / Get Started" |
 | `/safety` | **Trust & Safety Standards** | Showcase driver background checks, GPS tracking, vehicle audits | All / Risk Teams | "Read Safety Charter" |
-| `/pricing` | **Pricing & Transparency** | Explain transparent commission, fixed rates, billing & invoicing | Users & Drivers | "View Rate Card" |
+| `/pricing` | **Pricing & Transparency** | Explain rate-card payouts, fixed rates, billing & invoicing | Users & Drivers | "View Rate Card" |
 | `/about` | **About AdhocX** | Company mission, leadership, vision, and contact channels | Investors & Partners | "Contact Us" |
 | `/contact` | **Enterprise Inquiries** | Lead capture form for high-volume enterprise contracts | B2B Decision Makers | "Submit Inquiry" |
 

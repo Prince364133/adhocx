@@ -20,7 +20,7 @@ import 'package:adhocx/user/requirements/requirement_draft_provider.dart';
 import 'package:adhocx/user/requirements/user_create_requirement_screen.dart';
 import 'package:adhocx/user/requirements/user_review_requirement_screen.dart';
 import 'package:adhocx/user/widgets/user_app_scaffold.dart';
-import 'package:adhocx/widgets/app_navigation.dart';
+import 'package:adhocx/widgets/app_scaffold.dart';
 
 UserModel _verifiedVendor({String role = 'VENDOR'}) => UserModel(
       id: 'vendor-1',
@@ -84,8 +84,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() {
-    final messenger =
-        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     messenger.setMockMethodCallHandler(
       const MethodChannel('PonnamKarthik/fluttertoast'),
       (MethodCall call) async => true,
@@ -171,15 +170,12 @@ void main() {
       );
     });
 
-    testWidgets(
-        'UserAppNavigation hides Payments tab for Vendor while keeping Home, Requirements, Trips, and Profile functional',
-        (tester) async {
+    testWidgets('UserAppNavigation hides Payments tab for Vendor while keeping Home, Requirements, Trips, and Profile functional', (tester) async {
       final router = GoRouter(
         initialLocation: AppRoutes.userHomeScreen,
         routes: [
           StatefulShellRoute.indexedStack(
-            builder: (context, state, navigationShell) =>
-                UserAppScaffold(navigationShell: navigationShell),
+            builder: (context, state, navigationShell) => UserAppScaffold(navigationShell: navigationShell),
             branches: [
               StatefulShellBranch(
                 routes: [
@@ -247,50 +243,41 @@ void main() {
       expect(find.text('Vendor Profile'), findsOneWidget);
     });
 
-    testWidgets('Driver AppNavigation still shows Earnings tab when Vendor wallet is hidden',
-        (tester) async {
+    testWidgets('Driver pages have no bottom navigation and Profile returns to Home', (tester) async {
       final router = GoRouter(
         initialLocation: AppRoutes.homeScreen,
         routes: [
-          StatefulShellRoute.indexedStack(
-            builder: (context, state, navigationShell) => Scaffold(
-              body: navigationShell,
-              bottomNavigationBar: AppNavigation(navigationShell: navigationShell),
+          GoRoute(
+            path: AppRoutes.homeScreen,
+            builder: (context, state) => AppScaffold(
+              child: Scaffold(
+                body: Center(
+                  child: TextButton(
+                    onPressed: () => context.push(AppRoutes.profileScreen),
+                    child: const Text('Open Profile'),
+                  ),
+                ),
+              ),
             ),
-            branches: [
-              StatefulShellBranch(
-                routes: [
-                  GoRoute(
-                    path: AppRoutes.homeScreen,
-                    builder: (_, __) => const Center(child: Text('Driver Home')),
+          ),
+          GoRoute(
+            path: AppRoutes.profileScreen,
+            builder: (context, state) => AppScaffold(
+              child: Scaffold(
+                body: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('Driver Profile'),
+                      IconButton(
+                        onPressed: () => context.pop(),
+                        icon: const Icon(Icons.arrow_back),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-              StatefulShellBranch(
-                routes: [
-                  GoRoute(
-                    path: AppRoutes.tripsScreen,
-                    builder: (_, __) => const Center(child: Text('Driver Trips')),
-                  ),
-                ],
-              ),
-              StatefulShellBranch(
-                routes: [
-                  GoRoute(
-                    path: AppRoutes.walletScreen,
-                    builder: (_, __) => const Center(child: Text('Driver Earnings')),
-                  ),
-                ],
-              ),
-              StatefulShellBranch(
-                routes: [
-                  GoRoute(
-                    path: AppRoutes.profileScreen,
-                    builder: (_, __) => const Center(child: Text('Driver Profile')),
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
         ],
       );
@@ -303,14 +290,19 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Earnings'), findsOneWidget);
-      await tester.tap(find.text('Earnings'));
+      expect(find.byType(BottomNavigationBar), findsNothing);
+      expect(find.byType(BottomAppBar), findsNothing);
+      expect(find.text('Open Profile'), findsOneWidget);
+
+      await tester.tap(find.text('Open Profile'));
       await tester.pumpAndSettle();
-      expect(find.text('Driver Earnings'), findsOneWidget);
+      expect(find.text('Driver Profile'), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.arrow_back));
+      await tester.pumpAndSettle();
+      expect(find.text('Open Profile'), findsOneWidget);
     });
 
-    testWidgets('UserCreateRequirementScreen hides inline Wallet balance and Top Up UI',
-        (tester) async {
+    testWidgets('UserCreateRequirementScreen hides inline Wallet balance and Top Up UI', (tester) async {
       tester.view.physicalSize = const Size(430, 900);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -336,8 +328,7 @@ void main() {
       expect(find.text('Review & Deploy (1)'), findsOneWidget);
     });
 
-    testWidgets('UserReviewRequirementScreen hides AdhocX Wallet card and Top Up button',
-        (tester) async {
+    testWidgets('UserReviewRequirementScreen hides AdhocX Wallet card and Top Up button', (tester) async {
       tester.view.physicalSize = const Size(600, 900);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -358,8 +349,7 @@ void main() {
       expect(find.text('Deploy Fleet Dispatch'), findsOneWidget);
     });
 
-    testWidgets('/wallet and /coupons redirect Vendors to /user/home and Drivers to /wallet-screen',
-        (tester) async {
+    testWidgets('/wallet and /coupons redirect Vendors to /user/home and Drivers to /wallet-screen', (tester) async {
       final router = GoRouter(
         initialLocation: AppRoutes.userHomeScreen,
         routes: [
@@ -373,21 +363,15 @@ void main() {
           ),
           GoRoute(
             path: '/wallet',
-            redirect: (context, state) =>
-                AuthService.instance.currentUser?.isDriver == false
-                    ? (FeatureFlags.isVendorWalletEnabled
-                        ? AppRoutes.userPaymentsScreen
-                        : AppRoutes.userHomeScreen)
-                    : AppRoutes.walletScreen,
+            redirect: (context, state) => AuthService.instance.currentUser?.isDriver == false
+                ? (FeatureFlags.isVendorWalletEnabled ? AppRoutes.userPaymentsScreen : AppRoutes.userHomeScreen)
+                : AppRoutes.walletScreen,
           ),
           GoRoute(
             path: '/coupons',
-            redirect: (context, state) =>
-                AuthService.instance.currentUser?.isDriver == false
-                    ? (FeatureFlags.isVendorWalletEnabled
-                        ? AppRoutes.userPaymentsScreen
-                        : AppRoutes.userHomeScreen)
-                    : AppRoutes.walletScreen,
+            redirect: (context, state) => AuthService.instance.currentUser?.isDriver == false
+                ? (FeatureFlags.isVendorWalletEnabled ? AppRoutes.userPaymentsScreen : AppRoutes.userHomeScreen)
+                : AppRoutes.walletScreen,
           ),
         ],
       );
@@ -412,8 +396,7 @@ void main() {
     });
 
     test('AppToast maps Vendor wallet error to payment gateway pending message while preserving Driver alerts', () {
-      const vendorWalletMsg =
-          'Insufficient AdhocX Wallet balance: required ₹1250, available ₹0. Please top up your wallet before posting requirements.';
+      const vendorWalletMsg = 'Insufficient AdhocX Wallet balance: required ₹1250, available ₹0. Please top up your wallet before posting requirements.';
       expect(
         AppToast.cleanErrorMessage(
           ApiException(message: vendorWalletMsg, statusCode: 400),
@@ -421,8 +404,7 @@ void main() {
         FeatureFlags.vendorPaymentGatewayPendingMessage,
       );
 
-      const driverWithdrawalMsg =
-          'Insufficient balance. Available: ₹0.00, Requested: ₹500.00';
+      const driverWithdrawalMsg = 'Insufficient balance. Available: ₹0.00, Requested: ₹500.00';
       expect(
         AppToast.cleanErrorMessage(
           ApiException(message: driverWithdrawalMsg, statusCode: 400),
@@ -439,8 +421,7 @@ void main() {
       );
     });
 
-    testWidgets('UserCreateRequirementScreen shows Waiting for payment gateway API instead of wallet balance error',
-        (tester) async {
+    testWidgets('UserCreateRequirementScreen shows Waiting for payment gateway API instead of wallet balance error', (tester) async {
       tester.view.physicalSize = const Size(600, 900);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -450,8 +431,7 @@ void main() {
         if (request.url.path.endsWith('/requirements') && request.method == 'POST') {
           return http.Response(
             jsonEncode({
-              'message':
-                  'Insufficient AdhocX Wallet balance: required ₹1250, available ₹0. Please top up your wallet before posting requirements.',
+              'message': 'Insufficient AdhocX Wallet balance: required ₹1250, available ₹0. Please top up your wallet before posting requirements.',
             }),
             400,
           );
@@ -491,8 +471,7 @@ void main() {
       }, () => client);
     });
 
-    testWidgets('UserReviewRequirementScreen shows Waiting for payment gateway API instead of wallet balance error',
-        (tester) async {
+    testWidgets('UserReviewRequirementScreen shows Waiting for payment gateway API instead of wallet balance error', (tester) async {
       tester.view.physicalSize = const Size(600, 900);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -502,8 +481,7 @@ void main() {
         if (request.url.path.endsWith('/requirements') && request.method == 'POST') {
           return http.Response(
             jsonEncode({
-              'message':
-                  'Insufficient AdhocX Wallet balance: required ₹1250, available ₹0. Please top up your wallet before posting requirements.',
+              'message': 'Insufficient AdhocX Wallet balance: required ₹1250, available ₹0. Please top up your wallet before posting requirements.',
             }),
             400,
           );
@@ -551,4 +529,3 @@ void main() {
     });
   });
 }
-

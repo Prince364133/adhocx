@@ -103,6 +103,7 @@ class AppRoutes {
       });
     }
   }
+
   static const String initial = '/';
   static const String splashScreen = '/splash';
   static const String languageSelectionScreen = '/language';
@@ -153,7 +154,7 @@ class AppRoutes {
 
   // 4 Earnings & Financial Screens
   static const String corporateEarningsScreen = walletScreen;
-  static const String corporateDutiesScreen = tripsScreen;
+  static const String corporateDutiesScreen = homeScreen;
   static const String earningsTransactionsScreen = '/earnings/transactions';
   static const String earningsWithdrawScreen = '/earnings/withdraw';
   static const String earningsWithdrawalDetailsScreen = '/earnings/withdrawal-details';
@@ -295,8 +296,7 @@ class AppRoutes {
   static const String vendorTicketDetailsResolvedScreen = userTicketDetailsResolvedScreen;
   static const String vendorAppSettingsScreen = userAppSettingsScreen;
 
-  static bool isVendorWalletPath(String path) =>
-      path == userPaymentsScreen || path.startsWith('$userPaymentsScreen/');
+  static bool isVendorWalletPath(String path) => path == userPaymentsScreen || path.startsWith('$userPaymentsScreen/');
 
   /// Centralized Deep Link & Notification Route Resolver
   /// Maps incoming REST-style notification routes (/offers/:id, /trips/:id, /requirements/:id, /wallet)
@@ -312,8 +312,7 @@ class AppRoutes {
           data['path']?.toString().trim();
       final type = data['type']?.toString().toUpperCase();
       final offerId = data['offerId']?.toString() ?? data['id']?.toString();
-      final tripId = data['tripId']?.toString() ??
-          (type != null && type.startsWith('TRIP') && !type.contains('OFFER') ? data['id']?.toString() : null);
+      final tripId = data['tripId']?.toString() ?? (type != null && type.startsWith('TRIP') && !type.contains('OFFER') ? data['id']?.toString() : null);
       final requirementId = data['requirementId']?.toString();
       final isDriver = AuthService.instance.currentUser?.isDriver ?? true;
 
@@ -357,9 +356,7 @@ class AppRoutes {
           offerExtra['offerId'] = resolvedOfferId;
         }
         if (isDriver) {
-          final routeUrl = (resolvedOfferId != null && resolvedOfferId.isNotEmpty)
-              ? '/offers/$resolvedOfferId'
-              : AppRoutes.opportunityOfferScreen;
+          final routeUrl = (resolvedOfferId != null && resolvedOfferId.isNotEmpty) ? '/offers/$resolvedOfferId' : AppRoutes.opportunityOfferScreen;
           context.push(routeUrl, extra: offerExtra);
         } else {
           context.push(AppRoutes.userHomeScreen);
@@ -386,16 +383,18 @@ class AppRoutes {
             context.push('/trips/$resolvedTripId', extra: tripExtra);
           }
         } else {
-          context.push(isDriver ? AppRoutes.tripsScreen : AppRoutes.userTripsScreen, extra: tripExtra);
+          context.go(isDriver ? AppRoutes.homeScreen : AppRoutes.userTripsScreen);
         }
         return;
       }
 
       // 5. General Trips screen (/trips, /user/trips, /trips-screen)
-      if (rawTargetRoute == '/trips' ||
-          rawTargetRoute == AppRoutes.tripsScreen ||
-          rawTargetRoute == AppRoutes.userTripsScreen ||
-          (type != null && type.startsWith('TRIP_'))) {
+      if (type != null && type.startsWith('TRIP_')) {
+        context.go(isDriver ? AppRoutes.homeScreen : AppRoutes.userTripsScreen);
+        return;
+      }
+
+      if (rawTargetRoute == '/trips' || rawTargetRoute == AppRoutes.tripsScreen || rawTargetRoute == AppRoutes.userTripsScreen) {
         context.push(isDriver ? AppRoutes.tripsScreen : AppRoutes.userTripsScreen);
         return;
       }
@@ -519,11 +518,7 @@ class AppRoutes {
     // Automatic redirect from legacy /vendor/* paths to /user/*
     if (currentPath.startsWith('/vendor/')) {
       final rewritten = currentPath.replaceFirst('/vendor/', '/user/');
-      if (user != null &&
-          user.isVerified &&
-          user.isUser &&
-          !FeatureFlags.isVendorWalletEnabled &&
-          isVendorWalletPath(rewritten)) {
+      if (user != null && user.isVerified && user.isUser && !FeatureFlags.isVendorWalletEnabled && isVendorWalletPath(rewritten)) {
         return userHomeScreen;
       }
       return rewritten;
@@ -665,6 +660,7 @@ class AppRoutes {
     // Users / Corporate bookers cannot access driver dashboard & opportunities
     const driverOnlyRoutes = {
       homeScreen,
+      profileScreen,
       tripsScreen,
       opportunitiesScreen,
       opportunityDetailsScreen,
@@ -679,9 +675,7 @@ class AppRoutes {
     }
 
     // Hide Wallet / Payments routes from Vendor (User) access while keeping Driver Earnings untouched
-    if (user.isUser &&
-        !FeatureFlags.isVendorWalletEnabled &&
-        isVendorWalletPath(currentPath)) {
+    if (user.isUser && !FeatureFlags.isVendorWalletEnabled && isVendorWalletPath(currentPath)) {
       return userHomeScreen;
     }
 
@@ -908,10 +902,9 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => OpportunityOfferScreen(offer: state.extra as Map<String, dynamic>?),
     ),
 
-    // ── User / Booker Operations Shell (Home, Requirements, Trips, Payments, Profile) 
+    // ── User / Booker Operations Shell (Home, Requirements, Trips, Payments, Profile)
     StatefulShellRoute.indexedStack(
-      builder: (context, state, navigationShell) =>
-          UserAppScaffold(navigationShell: navigationShell),
+      builder: (context, state, navigationShell) => UserAppScaffold(navigationShell: navigationShell),
       branches: [
         StatefulShellBranch(
           routes: [
@@ -1127,9 +1120,7 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) {
         final offerId = state.pathParameters['id'];
         final rawExtra = state.extra;
-        final extraMap = rawExtra is Map<String, dynamic>
-            ? rawExtra
-            : (rawExtra is Map ? Map<String, dynamic>.from(rawExtra) : null);
+        final extraMap = rawExtra is Map<String, dynamic> ? rawExtra : (rawExtra is Map ? Map<String, dynamic>.from(rawExtra) : null);
         return OpportunityOfferScreen(
           offer: extraMap ?? {'id': offerId, 'offerId': offerId},
         );
@@ -1140,9 +1131,7 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) {
         final offerId = state.uri.queryParameters['id'] ?? state.uri.queryParameters['offerId'];
         final rawExtra = state.extra;
-        final extraMap = rawExtra is Map<String, dynamic>
-            ? rawExtra
-            : (rawExtra is Map ? Map<String, dynamic>.from(rawExtra) : null);
+        final extraMap = rawExtra is Map<String, dynamic> ? rawExtra : (rawExtra is Map ? Map<String, dynamic>.from(rawExtra) : null);
         return OpportunityOfferScreen(
           offer: extraMap ?? (offerId != null ? {'id': offerId, 'offerId': offerId} : null),
         );
@@ -1153,9 +1142,7 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) {
         final tripId = state.pathParameters['id'];
         final rawExtra = state.extra;
-        final extraMap = rawExtra is Map<String, dynamic>
-            ? rawExtra
-            : (rawExtra is Map ? Map<String, dynamic>.from(rawExtra) : null);
+        final extraMap = rawExtra is Map<String, dynamic> ? rawExtra : (rawExtra is Map ? Map<String, dynamic>.from(rawExtra) : null);
         final isDriver = AuthService.instance.currentUser?.isDriver ?? false;
         if (isDriver) {
           return TripDetailsScreen(
@@ -1174,9 +1161,7 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) {
         final reqId = state.pathParameters['id'];
         final rawExtra = state.extra;
-        final extraMap = rawExtra is Map<String, dynamic>
-            ? rawExtra
-            : (rawExtra is Map ? Map<String, dynamic>.from(rawExtra) : null);
+        final extraMap = rawExtra is Map<String, dynamic> ? rawExtra : (rawExtra is Map ? Map<String, dynamic>.from(rawExtra) : null);
         return UserActiveTripScreen(
           requirementId: reqId,
           initialData: extraMap,
@@ -1185,58 +1170,38 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/trips',
-      redirect: (context, state) =>
-          AuthService.instance.currentUser?.isDriver == false
-              ? AppRoutes.userTripsScreen
-              : AppRoutes.tripsScreen,
+      redirect: (context, state) => AuthService.instance.currentUser?.isDriver == false ? AppRoutes.userTripsScreen : AppRoutes.tripsScreen,
     ),
     GoRoute(
       path: '/requirements',
-      redirect: (context, state) =>
-          AuthService.instance.currentUser?.isDriver == false
-              ? AppRoutes.userRequirementsScreen
-              : AppRoutes.opportunitiesScreen,
+      redirect: (context, state) => AuthService.instance.currentUser?.isDriver == false ? AppRoutes.userRequirementsScreen : AppRoutes.opportunitiesScreen,
     ),
     GoRoute(
       path: '/wallet',
-      redirect: (context, state) =>
-          AuthService.instance.currentUser?.isDriver == false
-              ? (FeatureFlags.isVendorWalletEnabled
-                  ? AppRoutes.userPaymentsScreen
-                  : AppRoutes.userHomeScreen)
-              : AppRoutes.walletScreen,
+      redirect: (context, state) => AuthService.instance.currentUser?.isDriver == false
+          ? (FeatureFlags.isVendorWalletEnabled ? AppRoutes.userPaymentsScreen : AppRoutes.userHomeScreen)
+          : AppRoutes.walletScreen,
     ),
     GoRoute(
       path: '/verifications',
-      redirect: (context, state) =>
-          AuthService.instance.currentUser?.isDriver == false
-              ? AppRoutes.userAccountStatusScreen
-              : AppRoutes.kycVerificationScreen,
+      redirect: (context, state) => AuthService.instance.currentUser?.isDriver == false ? AppRoutes.userAccountStatusScreen : AppRoutes.kycVerificationScreen,
     ),
     GoRoute(
       path: '/coupons',
-      redirect: (context, state) =>
-          AuthService.instance.currentUser?.isDriver == false
-              ? (FeatureFlags.isVendorWalletEnabled
-                  ? AppRoutes.userPaymentsScreen
-                  : AppRoutes.userHomeScreen)
-              : AppRoutes.walletScreen,
+      redirect: (context, state) => AuthService.instance.currentUser?.isDriver == false
+          ? (FeatureFlags.isVendorWalletEnabled ? AppRoutes.userPaymentsScreen : AppRoutes.userHomeScreen)
+          : AppRoutes.walletScreen,
     ),
     GoRoute(
       path: '/support',
-      redirect: (context, state) =>
-          AuthService.instance.currentUser?.isDriver == false
-              ? AppRoutes.userSupportCenterScreen
-              : AppRoutes.helpSupportScreen,
+      redirect: (context, state) => AuthService.instance.currentUser?.isDriver == false ? AppRoutes.userSupportCenterScreen : AppRoutes.helpSupportScreen,
     ),
     GoRoute(
       path: '/trips/:id/chat',
       builder: (context, state) {
         final tripId = state.pathParameters['id'];
         final rawExtra = state.extra;
-        final extraMap = rawExtra is Map<String, dynamic>
-            ? Map<String, dynamic>.from(rawExtra)
-            : (rawExtra is Map ? Map<String, dynamic>.from(rawExtra) : <String, dynamic>{});
+        final extraMap = rawExtra is Map<String, dynamic> ? Map<String, dynamic>.from(rawExtra) : (rawExtra is Map ? Map<String, dynamic>.from(rawExtra) : <String, dynamic>{});
         extraMap['tripId'] = tripId;
         return TripChatScreen(params: extraMap);
       },
@@ -1381,44 +1346,22 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const GlobalStateGalleryScreen(),
     ),
 
-    // ── Core Operations Shell (Home, Trips, Earnings, Profile) 
-    StatefulShellRoute.indexedStack(
-      builder: (context, state, navigationShell) =>
-          AppScaffold(navigationShell: navigationShell),
-      branches: [
-        StatefulShellBranch(
-          routes: [
-            GoRoute(
-              path: AppRoutes.homeScreen,
-              builder: (context, state) => const HomeScreen(),
-            ),
-          ],
-        ),
-        StatefulShellBranch(
-          routes: [
-            GoRoute(
-              path: AppRoutes.tripsScreen,
-              builder: (context, state) => const TripsScreen(),
-            ),
-          ],
-        ),
-        StatefulShellBranch(
-          routes: [
-            GoRoute(
-              path: AppRoutes.walletScreen,
-              builder: (context, state) => const EarningsScreen(),
-            ),
-          ],
-        ),
-        StatefulShellBranch(
-          routes: [
-            GoRoute(
-              path: AppRoutes.profileScreen,
-              builder: (context, state) => const ProfileScreen(),
-            ),
-          ],
-        ),
-      ],
+    GoRoute(
+      path: AppRoutes.tripsScreen,
+      builder: (context, state) => const TripsScreen(),
+    ),
+    GoRoute(
+      path: AppRoutes.walletScreen,
+      builder: (context, state) => const EarningsScreen(),
+    ),
+
+    GoRoute(
+      path: AppRoutes.homeScreen,
+      builder: (context, state) => const AppScaffold(child: HomeScreen()),
+    ),
+    GoRoute(
+      path: AppRoutes.profileScreen,
+      builder: (context, state) => const AppScaffold(child: ProfileScreen()),
     ),
   ],
 );

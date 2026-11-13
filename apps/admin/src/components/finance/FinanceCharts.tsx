@@ -66,19 +66,19 @@ export const FinanceSparkline: React.FC<{
 export const FinanceAreaChart: React.FC<{
   points: FinanceTimeSeriesPoint[];
   title?: string;
-  selectedMetric?: 'ALL' | 'ADMIN' | 'DRIVER' | 'REVENUE';
-  onMetricChange?: (metric: 'ALL' | 'ADMIN' | 'DRIVER' | 'REVENUE') => void;
-}> = ({ points = [], title = 'Revenue & Commission Trajectory', selectedMetric = 'ALL', onMetricChange }) => {
+  selectedMetric?: 'ALL' | 'DRIVER' | 'REVENUE';
+  onMetricChange?: (metric: 'ALL' | 'DRIVER' | 'REVENUE') => void;
+}> = ({ points = [], title = 'Revenue & Driver Payouts', selectedMetric = 'ALL', onMetricChange }) => {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
   const safePoints = points && points.length > 0 ? points : [
-    { label: 'Day 1', revenue: 0, adminCommission: 0, driverEarnings: 0, transactions: 0 },
-    { label: 'Day 2', revenue: 0, adminCommission: 0, driverEarnings: 0, transactions: 0 },
-    { label: 'Day 3', revenue: 0, adminCommission: 0, driverEarnings: 0, transactions: 0 },
+    { label: 'Day 1', revenue: 0, driverEarnings: 0, transactions: 0 },
+    { label: 'Day 2', revenue: 0, driverEarnings: 0, transactions: 0 },
+    { label: 'Day 3', revenue: 0, driverEarnings: 0, transactions: 0 },
   ];
 
   const maxVal = Math.max(
-    ...safePoints.map((p) => Math.max(p.revenue || 0, p.adminCommission || 0, p.driverEarnings || 0)),
+    ...safePoints.map((p) => Math.max(p.revenue || 0, p.driverEarnings || 0)),
     100
   );
 
@@ -113,15 +113,12 @@ export const FinanceAreaChart: React.FC<{
   };
 
   const revCoords = safePoints.map((p, i) => getCoordinates(p.revenue || 0, i));
-  const adminCoords = safePoints.map((p, i) => getCoordinates(p.adminCommission || 0, i));
   const driverCoords = safePoints.map((p, i) => getCoordinates(p.driverEarnings || 0, i));
 
   const revPath = toSmoothPath(revCoords);
-  const adminPath = toSmoothPath(adminCoords);
   const driverPath = toSmoothPath(driverCoords);
 
   const revArea = `${revPath} L ${revCoords[revCoords.length - 1].x},${paddingTop + chartHeight} L ${revCoords[0].x},${paddingTop + chartHeight} Z`;
-  const adminArea = `${adminPath} L ${adminCoords[adminCoords.length - 1].x},${paddingTop + chartHeight} L ${adminCoords[0].x},${paddingTop + chartHeight} Z`;
   const driverArea = `${driverPath} L ${driverCoords[driverCoords.length - 1].x},${paddingTop + chartHeight} L ${driverCoords[0].x},${paddingTop + chartHeight} Z`;
 
   const hoveredPoint = hoverIndex !== null && safePoints[hoverIndex] ? safePoints[hoverIndex] : null;
@@ -145,7 +142,7 @@ export const FinanceAreaChart: React.FC<{
             {title}
           </h3>
           <p style={{ fontSize: '0.73rem', color: 'var(--text-muted)', margin: '0.15rem 0 0 0' }}>
-            Interactive financial trajectory comparing Gross Revenue, Platform Commission, and Driver Net Pay
+            Interactive view of booking revenue and rate-card driver payouts
           </p>
         </div>
 
@@ -155,7 +152,6 @@ export const FinanceAreaChart: React.FC<{
               [
                 { id: 'ALL', label: 'All Streams' },
                 { id: 'REVENUE', label: 'Gross GMV' },
-                { id: 'ADMIN', label: 'Admin Commission' },
                 { id: 'DRIVER', label: 'Driver Earnings' },
               ] as const
             ).map((btn) => (
@@ -193,10 +189,6 @@ export const FinanceAreaChart: React.FC<{
             <linearGradient id="grad-revenue" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#2563EB" stopOpacity="0.22" />
               <stop offset="100%" stopColor="#2563EB" stopOpacity="0.0" />
-            </linearGradient>
-            <linearGradient id="grad-admin" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#5728B2" stopOpacity="0.28" />
-              <stop offset="100%" stopColor="#5728B2" stopOpacity="0.0" />
             </linearGradient>
             <linearGradient id="grad-driver" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#16A34A" stopOpacity="0.22" />
@@ -247,14 +239,6 @@ export const FinanceAreaChart: React.FC<{
             <>
               <path d={driverArea} fill="url(#grad-driver)" />
               <path d={driverPath} fill="none" stroke="#16A34A" strokeWidth="2.2" strokeLinecap="round" />
-            </>
-          )}
-
-          {/* Area & Line for Admin Commission */}
-          {(selectedMetric === 'ALL' || selectedMetric === 'ADMIN') && (
-            <>
-              <path d={adminArea} fill="url(#grad-admin)" />
-              <path d={adminPath} fill="none" stroke="#5728B2" strokeWidth="2.8" strokeLinecap="round" />
             </>
           )}
 
@@ -312,9 +296,6 @@ export const FinanceAreaChart: React.FC<{
               {(selectedMetric === 'ALL' || selectedMetric === 'REVENUE') && (
                 <circle cx={revCoords[hoverIndex].x} cy={revCoords[hoverIndex].y} r="5" fill="#2563EB" stroke="#ffffff" strokeWidth="2" />
               )}
-              {(selectedMetric === 'ALL' || selectedMetric === 'ADMIN') && (
-                <circle cx={adminCoords[hoverIndex].x} cy={adminCoords[hoverIndex].y} r="6" fill="#5728B2" stroke="#ffffff" strokeWidth="2" />
-              )}
               {(selectedMetric === 'ALL' || selectedMetric === 'DRIVER') && (
                 <circle cx={driverCoords[hoverIndex].x} cy={driverCoords[hoverIndex].y} r="5" fill="#16A34A" stroke="#ffffff" strokeWidth="2" />
               )}
@@ -351,10 +332,6 @@ export const FinanceAreaChart: React.FC<{
               <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{formatINR(hoveredPoint.revenue)}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', gap: '0.5rem' }}>
-              <span style={{ color: '#5728B2', fontWeight: 600 }}>● Admin Commission:</span>
-              <span style={{ fontWeight: 700, color: 'var(--brand-primary)' }}>{formatINR(hoveredPoint.adminCommission)}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', gap: '0.5rem' }}>
               <span style={{ color: '#16A34A', fontWeight: 600 }}>● Driver Payouts:</span>
               <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>{formatINR(hoveredPoint.driverEarnings)}</span>
             </div>
@@ -375,10 +352,6 @@ export const FinanceAreaChart: React.FC<{
           <span>Gross Booking Value (GMV)</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#5728B2', display: 'inline-block' }} />
-          <span>Admin Platform Commission</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
           <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#16A34A', display: 'inline-block' }} />
           <span>Driver Net Disbursements</span>
         </div>
@@ -390,16 +363,16 @@ export const FinanceAreaChart: React.FC<{
 export const FinanceBarComparisonChart: React.FC<{
   points: FinanceTimeSeriesPoint[];
   title?: string;
-}> = ({ points = [], title = 'Admin Earnings vs Driver Payouts' }) => {
+}> = ({ points = [], title = 'Booking Revenue vs Driver Payouts' }) => {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
   const safePoints = points && points.length > 0 ? points : [
-    { label: 'P1', revenue: 0, adminCommission: 0, driverEarnings: 0, transactions: 0 },
-    { label: 'P2', revenue: 0, adminCommission: 0, driverEarnings: 0, transactions: 0 },
+    { label: 'P1', revenue: 0, driverEarnings: 0, transactions: 0 },
+    { label: 'P2', revenue: 0, driverEarnings: 0, transactions: 0 },
   ];
 
   const maxVal = Math.max(
-    ...safePoints.map((p) => Math.max(p.adminCommission || 0, p.driverEarnings || 0)),
+    ...safePoints.map((p) => Math.max(p.revenue || 0, p.driverEarnings || 0)),
     100
   );
 
@@ -433,7 +406,7 @@ export const FinanceBarComparisonChart: React.FC<{
           {title}
         </h3>
         <p style={{ fontSize: '0.73rem', color: 'var(--text-muted)', margin: '0.15rem 0 0 0' }}>
-          Side-by-side volume distribution between retained platform commission and driver settlements
+          Side-by-side booking revenue and rate-card driver payouts
         </p>
       </div>
 
@@ -476,9 +449,9 @@ export const FinanceBarComparisonChart: React.FC<{
           {/* Bar Groups */}
           {safePoints.map((pt, idx) => {
             const groupX = paddingLeft + idx * groupWidth + (groupWidth - barWidth * 2 - 4) / 2;
-            const adminHeight = maxVal > 0 ? (pt.adminCommission / maxVal) * chartHeight : 0;
+            const revenueHeight = maxVal > 0 ? (pt.revenue / maxVal) * chartHeight : 0;
             const driverHeight = maxVal > 0 ? (pt.driverEarnings / maxVal) * chartHeight : 0;
-            const adminY = paddingTop + chartHeight - adminHeight;
+            const revenueY = paddingTop + chartHeight - revenueHeight;
             const driverY = paddingTop + chartHeight - driverHeight;
             const isHovered = hoverIndex === idx;
 
@@ -488,14 +461,14 @@ export const FinanceBarComparisonChart: React.FC<{
                 onMouseEnter={() => setHoverIndex(idx)}
                 style={{ cursor: 'pointer' }}
               >
-                {/* Admin Bar */}
+                {/* Revenue Bar */}
                 <rect
                   x={groupX}
-                  y={adminY}
+                  y={revenueY}
                   width={barWidth}
-                  height={Math.max(2, adminHeight)}
+                  height={Math.max(2, revenueHeight)}
                   rx="3"
-                  fill="var(--brand-primary)"
+                  fill="#2563EB"
                   opacity={isHovered ? 1 : 0.88}
                 />
                 {/* Driver Bar */}
@@ -544,8 +517,8 @@ export const FinanceBarComparisonChart: React.FC<{
             <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
               {safePoints[hoverIndex].label}:
             </span>
-            <span style={{ color: 'var(--brand-primary)', fontWeight: 600 }}>
-              Admin: {formatINR(safePoints[hoverIndex].adminCommission)}
+            <span style={{ color: '#2563EB', fontWeight: 600 }}>
+              Revenue: {formatINR(safePoints[hoverIndex].revenue)}
             </span>
             <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>
               Driver: {formatINR(safePoints[hoverIndex].driverEarnings)}
@@ -556,8 +529,8 @@ export const FinanceBarComparisonChart: React.FC<{
 
       <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center', alignItems: 'center', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
-          <span style={{ width: '10px', height: '10px', borderRadius: '2px', background: 'var(--brand-primary)', display: 'inline-block' }} />
-          <span>Admin Platform Commission</span>
+          <span style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#2563EB', display: 'inline-block' }} />
+          <span>Booking Revenue</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
           <span style={{ width: '10px', height: '10px', borderRadius: '2px', background: 'var(--color-success)', display: 'inline-block' }} />

@@ -54,7 +54,7 @@ export class AdminPricingController {
   }
 
   @Get('plans/:id')
-  @ApiOperation({ summary: 'Get pricing plan details with all slabs, gross spreads and boundaries' })
+  @ApiOperation({ summary: 'Get pricing plan details with vendor and driver rates and distance boundaries' })
   @SwaggerResponse({ status: 200, type: DistancePricingPlanDto })
   async getPlan(@Param('id', ParseUUIDPipe) id: string) {
     return this.distancePricing.getPlanById(id);

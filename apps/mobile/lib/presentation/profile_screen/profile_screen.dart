@@ -396,9 +396,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               : (AuthService.instance.currentUser?.phone?.isNotEmpty == true ? AuthService.instance.currentUser!.phone! : '—')),
       'vehicle': (_driverProfile['vehicle'] != null && _driverProfile['vehicle'].toString().isNotEmpty)
           ? _driverProfile['vehicle'].toString()
-          : (onboarding.registrationNumber.isNotEmpty
-              ? '${onboarding.registrationNumber} · ${onboarding.vehicleType}'
-              : 'Verified Commercial Fleet'),
+          : (onboarding.registrationNumber.isNotEmpty ? '${onboarding.registrationNumber} · ${onboarding.vehicleType}' : 'Verified Commercial Fleet'),
       'is_verified': _driverProfile['is_verified'] ?? true,
       'rating': _driverProfile['rating'] ?? '5.0',
       'total_trips': _driverProfile['total_trips'] ?? '0',
@@ -420,9 +418,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 AppSpacing.lg,
                 AppSpacing.lg,
                 AppSpacing.lg,
-                100,
+                AppSpacing.xl,
               ),
               children: [
+                Row(
+                  children: [
+                    IconButton(
+                      tooltip: context.tr('Back'),
+                      onPressed: () {
+                        if (context.canPop()) {
+                          context.pop();
+                        } else {
+                          context.go(AppRoutes.homeScreen);
+                        }
+                      },
+                      icon: Icon(
+                        Icons.arrow_back_rounded,
+                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    Text(
+                      context.tr('Profile'),
+                      style: AppTypography.h2(
+                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
                 // ── Hero Profile Card ──────────────────────────────────
                 ProfileDriverCardWidget(
                   profile: effectiveProfile,
@@ -456,6 +481,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _buildCardGroup(
                   isDark: isDark,
                   children: [
+                    ProfileMenuItemWidget(
+                      icon: Icons.account_balance_wallet_outlined,
+                      iconColor: AppColors.accentGreen,
+                      label: context.tr('Earnings'),
+                      subtitle: context.tr('Wallet balance, transactions & withdrawals'),
+                      onTap: () => context.push(AppRoutes.walletScreen),
+                    ),
+                    _divider(isDark),
+                    ProfileMenuItemWidget(
+                      icon: Icons.history_rounded,
+                      iconColor: AppColors.info,
+                      label: context.tr('Completed Trips'),
+                      subtitle: context.tr('Review your completed rides'),
+                      onTap: () => context.push(AppRoutes.tripsScreen),
+                    ),
+                    _divider(isDark),
                     ProfileMenuItemWidget(
                       icon: Icons.receipt_long_outlined,
                       iconColor: AppColors.primary,
@@ -502,138 +543,132 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 const SizedBox(height: AppSpacing.xl),
 
-                      // ── Section 4: Support & Security ─────────────────────
-                      _buildSectionTitle('SUPPORT & SECURITY', isDark),
-                      const SizedBox(height: AppSpacing.xs),
-                      _buildCardGroup(
-                        isDark: isDark,
-                        children: [
-                          ProfileMenuItemWidget(
-                            icon: Icons.headset_mic_outlined,
-                            iconColor: AppColors.primaryLight,
-                            label: context.tr('Help & 24/7 Support'),
-                            subtitle: context.tr('Driver helpline & incident support'),
-                            onTap: () => context.push(AppRoutes.helpSupportScreen),
-                          ),
-                          _divider(isDark),
-                          ProfileMenuItemWidget(
-                            icon: Icons.delete_forever_outlined,
-                            iconColor: AppColors.error,
-                            label: context.tr('Delete Account'),
-                            subtitle: context.tr('Permanently remove account & all data'),
-                            onTap: _confirmDeleteAccount,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: AppSpacing.xl),
+                // ── Section 4: Support & Security ─────────────────────
+                _buildSectionTitle('SUPPORT & SECURITY', isDark),
+                const SizedBox(height: AppSpacing.xs),
+                _buildCardGroup(
+                  isDark: isDark,
+                  children: [
+                    ProfileMenuItemWidget(
+                      icon: Icons.headset_mic_outlined,
+                      iconColor: AppColors.primaryLight,
+                      label: context.tr('Help & 24/7 Support'),
+                      subtitle: context.tr('Driver helpline & incident support'),
+                      onTap: () => context.push(AppRoutes.helpSupportScreen),
+                    ),
+                    _divider(isDark),
+                    ProfileMenuItemWidget(
+                      icon: Icons.delete_forever_outlined,
+                      iconColor: AppColors.error,
+                      label: context.tr('Delete Account'),
+                      subtitle: context.tr('Permanently remove account & all data'),
+                      onTap: _confirmDeleteAccount,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.xl),
 
-                      // ── Section 5: Legal & Policies ─────────────────────────
-                      _buildSectionTitle('LEGAL & POLICIES', isDark),
-                      const SizedBox(height: AppSpacing.xs),
-                      _buildCardGroup(
-                        isDark: isDark,
-                        children: [
-                          ProfileMenuItemWidget(
-                            icon: Icons.gavel_rounded,
-                            iconColor: AppColors.warning,
-                            label: context.tr('Terms & Conditions'),
-                            subtitle: context.tr('Driver partner agreements & operating terms'),
-                            onTap: () {
-                              showModalBottomSheet(
-                                context: context,
-                                useRootNavigator: true,
-                                isScrollControlled: true,
-                                backgroundColor: Colors.transparent,
-                                builder: (_) => const SingleChildScrollView(child: TermsModal()),
-                              );
-                            },
-                          ),
-                          _divider(isDark),
-                          ProfileMenuItemWidget(
-                            icon: Icons.privacy_tip_outlined,
-                            iconColor: AppColors.primary,
-                            label: context.tr('Privacy Policy'),
-                            subtitle: context.tr('Data protection & location privacy policies'),
-                            onTap: () {
-                              showModalBottomSheet(
-                                context: context,
-                                useRootNavigator: true,
-                                isScrollControlled: true,
-                                backgroundColor: Colors.transparent,
-                                builder: (_) => const SingleChildScrollView(child: PrivacyModal()),
-                              );
-                            },
-                          ),
-                          _divider(isDark),
-                          ProfileMenuItemWidget(
-                            icon: Icons.info_outline_rounded,
-                            iconColor: AppColors.info,
-                            label: context.tr('About Us'),
-                            subtitle: context.tr('Company information & operating entity'),
-                            onTap: () {
-                              showModalBottomSheet(
-                                context: context,
-                                useRootNavigator: true,
-                                isScrollControlled: true,
-                                backgroundColor: Colors.transparent,
-                                builder: (_) => const SingleChildScrollView(child: AboutModal()),
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: AppSpacing.xxl),
+                // ── Section 5: Legal & Policies ─────────────────────────
+                _buildSectionTitle('LEGAL & POLICIES', isDark),
+                const SizedBox(height: AppSpacing.xs),
+                _buildCardGroup(
+                  isDark: isDark,
+                  children: [
+                    ProfileMenuItemWidget(
+                      icon: Icons.gavel_rounded,
+                      iconColor: AppColors.warning,
+                      label: context.tr('Terms & Conditions'),
+                      subtitle: context.tr('Driver partner agreements & operating terms'),
+                      onTap: () {
+                        showModalBottomSheet(
+                          context: context,
+                          useRootNavigator: true,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (_) => const SingleChildScrollView(child: TermsModal()),
+                        );
+                      },
+                    ),
+                    _divider(isDark),
+                    ProfileMenuItemWidget(
+                      icon: Icons.privacy_tip_outlined,
+                      iconColor: AppColors.primary,
+                      label: context.tr('Privacy Policy'),
+                      subtitle: context.tr('Data protection & location privacy policies'),
+                      onTap: () {
+                        showModalBottomSheet(
+                          context: context,
+                          useRootNavigator: true,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (_) => const SingleChildScrollView(child: PrivacyModal()),
+                        );
+                      },
+                    ),
+                    _divider(isDark),
+                    ProfileMenuItemWidget(
+                      icon: Icons.info_outline_rounded,
+                      iconColor: AppColors.info,
+                      label: context.tr('About Us'),
+                      subtitle: context.tr('Company information & operating entity'),
+                      onTap: () {
+                        showModalBottomSheet(
+                          context: context,
+                          useRootNavigator: true,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (_) => const SingleChildScrollView(child: AboutModal()),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.xxl),
 
-                      // ── Sign Out Button ────────────────────────────────────
-                      _buildSignOutButton(isDark),
+                // ── Sign Out Button ────────────────────────────────────
+                _buildSignOutButton(isDark),
 
-                      const SizedBox(height: AppSpacing.xl),
+                const SizedBox(height: AppSpacing.xl),
 
-                      // ── App Version Footer ─────────────────────────────────
-                      Center(
-                        child: Column(
-                          children: [
-                            Text(
-                              'AdhocX Driver • Enterprise Edition',
-                              style: AppTypography.caption(
-                                color: isDark
-                                    ? AppColors.textMutedDark
-                                    : AppColors.textMutedLight,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            AppVersionLabel(
-                              style: AppTypography.micro(
-                                color: isDark
-                                    ? AppColors.textMutedDark.withValues(alpha: 0.7)
-                                    : AppColors.textMutedLight.withValues(alpha: 0.7),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 24),
-                              child: Text(
-                                kAdhocxOperatorStatement,
-                                textAlign: TextAlign.center,
-                                style: AppTypography.micro(
-                                  color: isDark
-                                      ? AppColors.textMutedDark.withValues(alpha: 0.85)
-                                      : AppColors.textMutedLight.withValues(alpha: 0.85),
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                          ],
+                // ── App Version Footer ─────────────────────────────────
+                Center(
+                  child: Column(
+                    children: [
+                      Text(
+                        'AdhocX Driver • Enterprise Edition',
+                        style: AppTypography.caption(
+                          color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
+                      const SizedBox(height: 2),
+                      AppVersionLabel(
+                        style: AppTypography.micro(
+                          color: isDark ? AppColors.textMutedDark.withValues(alpha: 0.7) : AppColors.textMutedLight.withValues(alpha: 0.7),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Text(
+                          kAdhocxOperatorStatement,
+                          textAlign: TextAlign.center,
+                          style: AppTypography.micro(
+                            color: isDark ? AppColors.textMutedDark.withValues(alpha: 0.85) : AppColors.textMutedLight.withValues(alpha: 0.85),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
                     ],
                   ),
                 ),
-              ),
+              ],
             ),
-          );
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildSectionTitle(String title, bool isDark) {
@@ -663,9 +698,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         boxShadow: [
           BoxShadow(
-            color: isDark
-                ? Colors.black.withValues(alpha: 0.15)
-                : AppColors.textSecondaryLight.withValues(alpha: 0.05),
+            color: isDark ? Colors.black.withValues(alpha: 0.15) : AppColors.textSecondaryLight.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -724,14 +757,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         icon: const Icon(Icons.logout_rounded, size: 18),
         label: Text(context.tr('Sign Out')),
         style: OutlinedButton.styleFrom(
-          backgroundColor: isDark
-              ? AppColors.errorContainer.withValues(alpha: 0.15)
-              : AppColors.errorContainer.withValues(alpha: 0.4),
+          backgroundColor: isDark ? AppColors.errorContainer.withValues(alpha: 0.15) : AppColors.errorContainer.withValues(alpha: 0.4),
           foregroundColor: isDark ? AppColors.error : AppColors.error,
           side: BorderSide(
-            color: isDark
-                ? AppColors.error.withValues(alpha: 0.4)
-                : AppColors.error.withValues(alpha: 0.3),
+            color: isDark ? AppColors.error.withValues(alpha: 0.4) : AppColors.error.withValues(alpha: 0.3),
             width: 1,
           ),
           shape: RoundedRectangleBorder(
@@ -859,14 +888,10 @@ class _ThemeSelectorSheetState extends State<_ThemeSelectorSheet> {
                   vertical: AppSpacing.md,
                 ),
                 decoration: BoxDecoration(
-                  color: isSelected
-                      ? AppColors.primary.withValues(alpha: isDark ? 0.18 : 0.08)
-                      : (isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceElevatedLight),
+                  color: isSelected ? AppColors.primary.withValues(alpha: isDark ? 0.18 : 0.08) : (isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceElevatedLight),
                   borderRadius: BorderRadius.circular(AppRadius.md),
                   border: Border.all(
-                    color: isSelected
-                        ? AppColors.primary
-                        : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                    color: isSelected ? AppColors.primary : (isDark ? AppColors.borderDark : AppColors.borderLight),
                     width: isSelected ? 1.5 : 1,
                   ),
                 ),
@@ -876,16 +901,12 @@ class _ThemeSelectorSheetState extends State<_ThemeSelectorSheet> {
                       width: 42,
                       height: 42,
                       decoration: BoxDecoration(
-                        color: isSelected
-                            ? AppColors.primary.withValues(alpha: isDark ? 0.3 : 0.15)
-                            : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                        color: isSelected ? AppColors.primary.withValues(alpha: isDark ? 0.3 : 0.15) : (isDark ? AppColors.borderDark : AppColors.borderLight),
                         borderRadius: BorderRadius.circular(AppRadius.md),
                       ),
                       child: Icon(
                         opt.icon,
-                        color: isSelected
-                            ? AppColors.primary
-                            : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+                        color: isSelected ? AppColors.primary : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
                         size: 20,
                       ),
                     ),
@@ -1017,23 +1038,17 @@ class _LanguageSelectorSheet extends StatelessWidget {
               return Container(
                 margin: const EdgeInsets.only(bottom: AppSpacing.sm),
                 decoration: BoxDecoration(
-                  color: isSelected
-                      ? AppColors.primary.withValues(alpha: isDark ? 0.2 : 0.1)
-                      : (isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceLight),
+                  color: isSelected ? AppColors.primary.withValues(alpha: isDark ? 0.2 : 0.1) : (isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceLight),
                   borderRadius: BorderRadius.circular(AppRadius.md),
                   border: Border.all(
-                    color: isSelected
-                        ? AppColors.primary
-                        : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                    color: isSelected ? AppColors.primary : (isDark ? AppColors.borderDark : AppColors.borderLight),
                     width: isSelected ? 1.5 : 1,
                   ),
                 ),
                 child: ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 2),
                   leading: CircleAvatar(
-                    backgroundColor: isSelected
-                        ? AppColors.primary
-                        : (isDark ? AppColors.surfaceDark : AppColors.surfaceElevatedLight),
+                    backgroundColor: isSelected ? AppColors.primary : (isDark ? AppColors.surfaceDark : AppColors.surfaceElevatedLight),
                     radius: 18,
                     child: Text(
                       lang.code.toUpperCase(),
@@ -1059,9 +1074,7 @@ class _LanguageSelectorSheet extends StatelessWidget {
                       color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                     ),
                   ),
-                  trailing: isSelected
-                      ? const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 22)
-                      : null,
+                  trailing: isSelected ? const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 22) : null,
                   onTap: () {
                     languageProvider.setLanguage(lang.code);
                     Navigator.of(context).pop();

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:adhocx/presentation/trips_screen/trip_details_screen.dart';
 import 'package:adhocx/presentation/trips_screen/trip_chat_screen.dart';
 import 'package:adhocx/shared/widgets/google_route_map_widget.dart';
+import 'package:adhocx/services/dispatch_location.dart';
+import 'package:adhocx/services/driver_location_heartbeat_service.dart';
 import 'package:adhocx/services/location_service.dart';
 
 void main() {
@@ -111,8 +114,104 @@ void main() {
 
       // GoogleRouteMapWidget should be present in the widget tree
       expect(find.byType(GoogleRouteMapWidget), findsOneWidget);
-      expect(find.text('GPS Tracking Active'), findsOneWidget);
+      expect(find.text('Waiting for GPS'), findsOneWidget);
       expect(find.text('Google Maps'), findsOneWidget);
+    });
+
+    testWidgets('shows the live driver location when a trip fix arrives', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: TripDetailsScreen(
+            initialTrip: {...sampleTrip, 'status': 'IN_PROGRESS'},
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.tap(find.byTooltip('Expand map'));
+      await tester.pump();
+
+      final pinger = buildTripLocationPinger(
+        'trip-map-live-location',
+        getFix: () async => DispatchFix(
+          Position(
+            latitude: 17.4,
+            longitude: 78.4,
+            timestamp: DateTime.now(),
+            accuracy: 8,
+            altitude: 0,
+            altitudeAccuracy: 0,
+            heading: 0,
+            headingAccuracy: 0,
+            speed: 0,
+            speedAccuracy: 0,
+          ),
+          DispatchFixSource.gps,
+        ),
+        sendPing: (_, __) async {},
+      );
+
+      await pinger.beat();
+      await tester.pump();
+
+      expect(find.text('Live driver location'), findsNWidgets(2));
+      expect(find.text('Waiting for GPS'), findsNothing);
+      await tester.pageBack();
+      await tester.pump();
+    });
+
+    testWidgets('expands the trip map into a back-navigable full-screen view', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(home: TripDetailsScreen(initialTrip: sampleTrip)),
+      );
+      await tester.pump();
+      await tester.tap(find.byTooltip('Expand map'));
+      await tester.pump();
+
+      expect(find.text('Trip Map'), findsOneWidget);
+      expect(find.byTooltip('Expand map'), findsOneWidget);
+
+      await tester.pageBack();
+      await tester.pump();
+      expect(find.text('Trip Map'), findsNothing);
+    });
+
+    testWidgets('prefers the normalized requester name over legacy user-name fields', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final trip = {
+        ...sampleTrip,
+        'requesterName': 'Asha Rao',
+        'userName': 'Test ID',
+        'passengerName': 'Wrong Legacy Name',
+      };
+
+      await tester.pumpWidget(
+        MaterialApp(home: TripDetailsScreen(initialTrip: trip)),
+      );
+      await tester.pump();
+
+      expect(find.text('User: Asha Rao'), findsOneWidget);
+      expect(find.text('User: Test ID'), findsNothing);
+      expect(find.text('User: Wrong Legacy Name'), findsNothing);
     });
 
     testWidgets('renders real dynamic distance, duration, and earnings (> 0)', (tester) async {

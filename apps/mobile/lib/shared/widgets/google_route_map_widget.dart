@@ -6,9 +6,8 @@ import '../theme/app_colors.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_typography.dart';
 
-/// Interactive Google Maps Route Widget rendering real Google Maps route imagery
-/// with pickup (Green P), dropoff (Red D), driver live location (Blue C),
-/// and an interactive direct link to open Google Maps turn-by-turn navigation.
+/// Google Maps route preview with pickup/dropoff pins, a live driver marker,
+/// map expansion, and a direct link to turn-by-turn navigation.
 class GoogleRouteMapWidget extends StatelessWidget {
   final double pickupLat;
   final double pickupLng;
@@ -19,6 +18,8 @@ class GoogleRouteMapWidget extends StatelessWidget {
   final String? pickupAddress;
   final String? dropAddress;
   final VoidCallback? onNavigate;
+  final VoidCallback? onExpand;
+  final bool driverLocationIsLive;
   final double height;
 
   const GoogleRouteMapWidget({
@@ -32,6 +33,8 @@ class GoogleRouteMapWidget extends StatelessWidget {
     this.pickupAddress,
     this.dropAddress,
     this.onNavigate,
+    this.onExpand,
+    this.driverLocationIsLive = false,
     this.height = 200,
   });
 
@@ -72,6 +75,7 @@ class GoogleRouteMapWidget extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
 
     final hasValidCoordinates = _hasPickup || _hasDrop;
+    final hasLiveDriverLocation = driverLocationIsLive && driverLat != null && driverLng != null;
     // Never invent a point: if one pin is missing, draw only the known one.
     final pLat = _hasPickup ? pickupLat : dropLat;
     final pLng = _hasPickup ? pickupLng : dropLng;
@@ -148,7 +152,7 @@ class GoogleRouteMapWidget extends StatelessWidget {
             ),
           ),
 
-          // ── Live GPS Beacon Pill ──────────────────────────────────────────
+          // ── Driver location status ────────────────────────────────────────
           Positioned(
             top: 12,
             left: 12,
@@ -171,14 +175,14 @@ class GoogleRouteMapWidget extends StatelessWidget {
                   Container(
                     width: 8,
                     height: 8,
-                    decoration: const BoxDecoration(
-                      color: AppColors.accentGreenDark,
+                    decoration: BoxDecoration(
+                      color: hasLiveDriverLocation ? AppColors.accentGreenDark : AppColors.warning,
                       shape: BoxShape.circle,
                     ),
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    'GPS Tracking Active',
+                    hasLiveDriverLocation ? 'Live driver location' : 'Waiting for GPS',
                     style: AppTypography.caption(
                       color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                       fontWeight: FontWeight.bold,
@@ -188,6 +192,24 @@ class GoogleRouteMapWidget extends StatelessWidget {
               ),
             ),
           ),
+
+          if (onExpand != null)
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Material(
+                color: (isDark ? AppColors.surfaceDark : Colors.white).withValues(alpha: 0.94),
+                shape: const CircleBorder(),
+                child: IconButton(
+                  tooltip: 'Expand map',
+                  onPressed: onExpand,
+                  icon: Icon(
+                    Icons.fullscreen_rounded,
+                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                  ),
+                ),
+              ),
+            ),
 
           // ── Open in Google Maps Button ────────────────────────────────────
           Positioned(

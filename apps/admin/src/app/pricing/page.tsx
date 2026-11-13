@@ -121,7 +121,7 @@ export default function PricingPage() {
 
       <PageHeader
         title="Pricing"
-        subtitle="Condition-based rate cards for vendors and drivers with peak-hour configurations, distance step generators, and real-time margin analytics."
+        subtitle="Condition-based rate cards for vendors and drivers with peak-hour configurations and distance step generators."
       />
 
       <SegmentedTabs

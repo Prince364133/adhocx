@@ -63,12 +63,11 @@ export const KpiSparkline: React.FC<{
 };
 
 /* ─────────────────────────────────────────────────────────────
- * 1. Revenue & Financial Income Chart (Real Ledger Data)
+ * 1. Booking Volume & Driver Payout Chart
  * ───────────────────────────────────────────────────────────── */
 interface RevenueDataPoint {
   label: string;
   gmv: number;
-  revenue: number;
   payouts: number;
 }
 
@@ -119,7 +118,6 @@ export const RevenueIncomeChart: React.FC<{
   };
 
   const gmvPoints = data.map((d, i) => getCoordinates(d.gmv, i));
-  const revenuePoints = data.map((d, i) => getCoordinates(d.revenue, i));
   const payoutPoints = data.map((d, i) => getCoordinates(d.payouts, i));
 
   const toSvgPath = (points: { x: number; y: number }[]) => {
@@ -135,12 +133,10 @@ export const RevenueIncomeChart: React.FC<{
   };
 
   const gmvPath = toSvgPath(gmvPoints);
-  const revenuePath = toSvgPath(revenuePoints);
   const payoutPath = toSvgPath(payoutPoints);
   const gmvAreaPath = `${gmvPath} L ${gmvPoints[gmvPoints.length - 1].x},${paddingTop + chartHeight} L ${gmvPoints[0].x},${paddingTop + chartHeight} Z`;
 
   const totalPeriodGmv = data.reduce((acc, d) => acc + d.gmv, 0);
-  const totalPeriodRev = data.reduce((acc, d) => acc + d.revenue, 0);
   const totalPeriodPayouts = data.reduce((acc, d) => acc + d.payouts, 0);
 
   const activePoint = hoverIndex !== null ? data[hoverIndex] : data[data.length - 1];
@@ -180,7 +176,7 @@ export const RevenueIncomeChart: React.FC<{
               }}
             />
             <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-              Platform Revenue & Income
+              Booking Volume & Driver Payouts
             </h3>
             <span
               style={{
@@ -197,7 +193,7 @@ export const RevenueIncomeChart: React.FC<{
             </span>
           </div>
           <p style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', margin: 0 }}>
-            Gross booking value, platform ledger credits, and settled payouts
+            Gross booking value and settled driver payouts
           </p>
         </div>
 
@@ -256,14 +252,6 @@ export const RevenueIncomeChart: React.FC<{
           </div>
           <div style={{ fontSize: '1.08rem', fontWeight: 800, color: 'var(--brand-primary)', marginTop: '0.15rem' }}>
             ₹ {totalPeriodGmv.toLocaleString('en-IN')}
-          </div>
-        </div>
-        <div>
-          <div style={{ fontSize: '0.67rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
-            Platform Revenue
-          </div>
-          <div style={{ fontSize: '1.08rem', fontWeight: 800, color: 'var(--brand-secondary)', marginTop: '0.15rem' }}>
-            ₹ {totalPeriodRev.toLocaleString('en-IN')}
           </div>
         </div>
         <div>
@@ -330,7 +318,6 @@ export const RevenueIncomeChart: React.FC<{
 
           {/* Lines */}
           <path d={gmvPath} fill="none" stroke="#5B42F3" strokeWidth="2.5" strokeLinecap="round" />
-          <path d={revenuePath} fill="none" stroke="#FF6200" strokeWidth="2" strokeLinecap="round" />
           <path d={payoutPath} fill="none" stroke="#16A34A" strokeWidth="2" strokeLinecap="round" strokeDasharray="3 3" />
 
           {/* X Axis Labels & Interactive triggers */}
@@ -351,7 +338,6 @@ export const RevenueIncomeChart: React.FC<{
                   />
                 )}
                 <circle cx={pt.x} cy={pt.y} r={isHovered ? 5 : 3} fill="#5B42F3" />
-                <circle cx={revenuePoints[i].x} cy={revenuePoints[i].y} r={isHovered ? 5 : 2.5} fill="#FF6200" />
                 <circle cx={payoutPoints[i].x} cy={payoutPoints[i].y} r={isHovered ? 5 : 2.5} fill="#16A34A" />
 
                 <text
@@ -408,10 +394,6 @@ export const RevenueIncomeChart: React.FC<{
               <span>Booking volume:</span>
               <span>₹ {activePoint.gmv.toLocaleString('en-IN')}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', color: '#FF6200', fontWeight: 700 }}>
-              <span>Platform revenue:</span>
-              <span>₹ {activePoint.revenue.toLocaleString('en-IN')}</span>
-            </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', color: '#16A34A', fontWeight: 700 }}>
               <span>Settled payouts:</span>
               <span>₹ {activePoint.payouts.toLocaleString('en-IN')}</span>
@@ -425,10 +407,6 @@ export const RevenueIncomeChart: React.FC<{
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
           <span style={{ width: '12px', height: '3px', background: '#5B42F3', borderRadius: '2px', display: 'inline-block' }} />
           <span>Gross Booking Value (GMV)</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-          <span style={{ width: '12px', height: '3px', background: '#FF6200', borderRadius: '2px', display: 'inline-block' }} />
-          <span>Recorded platform revenue</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
           <span style={{ width: '12px', height: '3px', background: '#16A34A', borderRadius: '2px', display: 'inline-block' }} />
