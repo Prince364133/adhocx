@@ -31,7 +31,7 @@ import {
 import { CorporateRouteDirectionsService } from './corporate-route-directions.service';
 import { generateSampleCsv, generateSampleExcelBuffer } from './sample-roster-generator';
 import { DatabaseService } from '../../../database/database.service';
-import { RouteOptimizationOptions } from './routing.types';
+import { RouteOptimizationOptions, VEHICLE_CAPACITY } from './routing.types';
 import { JwtAuthGuard } from '../../../common/guards/auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { CorporateAccessGuard } from '../../../common/guards/corporate-access.guard';
@@ -356,9 +356,9 @@ export class CorporateRoutingController {
       throw new BadRequestException('LOGOUT optimization requires a valid logoutTime value (HH:mm)');
     }
     for (const [field, value, min, max] of [
-      ['sedanCapacity', body.sedanCapacity, 1, 3],
-      ['suvCapacity', body.suvCapacity, 1, 6],
-      ['maxCapacity', body.maxCapacity, 1, 6],
+      ['sedanCapacity', body.sedanCapacity, 1, VEHICLE_CAPACITY.SEDAN],
+      ['suvCapacity', body.suvCapacity, 1, VEHICLE_CAPACITY.SUV],
+      ['maxCapacity', body.maxCapacity, 1, VEHICLE_CAPACITY.SUV],
       ['stopDwellMinutes', body.stopDwellMinutes, 1, 10],
     ] as const) {
       if (value !== undefined && (!Number.isInteger(value) || value < min || value > max)) {
@@ -377,10 +377,10 @@ export class CorporateRoutingController {
     if (body.maxCapacity !== undefined) {
       const maxSelectedCapacity =
         body.vehicleCategory === 'SUV'
-          ? body.suvCapacity ?? 6
+          ? body.suvCapacity ?? VEHICLE_CAPACITY.SUV
           : body.vehicleCategory === 'SEDAN'
-            ? body.sedanCapacity ?? 3
-            : Math.max(body.sedanCapacity ?? 3, body.suvCapacity ?? 6);
+            ? body.sedanCapacity ?? VEHICLE_CAPACITY.SEDAN
+            : Math.max(body.sedanCapacity ?? VEHICLE_CAPACITY.SEDAN, body.suvCapacity ?? VEHICLE_CAPACITY.SUV);
       if (body.maxCapacity > maxSelectedCapacity) {
         throw new BadRequestException('maxCapacity cannot exceed the selected vehicle category capacity');
       }

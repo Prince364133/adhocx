@@ -1,4 +1,8 @@
-export const VEHICLE_CAPACITY = Object.freeze({ SEDAN: 3, SUV: 6 });
+/**
+ * Max passengers per cab (business rule: sedan 4, SUV 6; each company may set a lower
+ * defaultCapacity in its tenant policy). Single source for solver, planner, policy and API bounds.
+ */
+export const VEHICLE_CAPACITY = Object.freeze({ SEDAN: 4, SUV: 6 });
 
 export type VehicleCategory = 'SEDAN' | 'SUV' | 'BOTH';
 
