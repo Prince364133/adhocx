@@ -122,10 +122,18 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: const EmployeeAppBar(),
+      // Body shrinks when the native keyboard opens; the CTA stays above it.
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-          child: Column(
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
@@ -262,17 +270,20 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                 ),
               ),
 
-              const Spacer(),
-              // "Verify & Continue" Pill Button
-              EmployeePrimaryButton(
+            ],
+                ),
+              ),
+            ),
+            // "Verify & Continue" — pinned directly above the native keyboard.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+              child: EmployeePrimaryButton(
                 label: 'Verify & Continue',
-                isLoading: authProvider.isLoading,
+                isLoading: authProvider.isLoading || _isVerifying,
                 onPressed: _otpCode.length == 6 ? _handleVerify : null,
               ),
-
-              const SizedBox(height: 16),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
