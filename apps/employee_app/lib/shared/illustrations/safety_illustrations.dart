@@ -13,14 +13,14 @@ class SafetyCenterShieldBadge extends StatelessWidget {
       width: 80,
       height: 80,
       decoration: BoxDecoration(
-        color: AppColors.primaryBlueLight.withValues(alpha: 0.4),
+        color: AppColors.primarySubtle.withValues(alpha: 0.4),
         shape: BoxShape.circle,
         border: Border.all(
-            color: AppColors.primaryBlue.withValues(alpha: 0.3), width: 2),
+            color: AppColors.primary.withValues(alpha: 0.3), width: 2),
       ),
       child: const Center(
         child:
-            Icon(Icons.shield_rounded, size: 44, color: AppColors.primaryBlue),
+            Icon(Icons.shield_rounded, size: 44, color: AppColors.primary),
       ),
     );
   }
@@ -36,7 +36,7 @@ class SosSirenBadge extends StatelessWidget {
       width: 180,
       height: 180,
       decoration: BoxDecoration(
-        color: const Color(0xFFEF4444).withValues(alpha: 0.18),
+        color: AppColors.error.withValues(alpha: 0.18),
         shape: BoxShape.circle,
       ),
       child: Center(
@@ -44,11 +44,11 @@ class SosSirenBadge extends StatelessWidget {
           width: 140,
           height: 140,
           decoration: BoxDecoration(
-            color: const Color(0xFFDC2626),
+            color: AppColors.error,
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFFDC2626).withValues(alpha: 0.4),
+                color: AppColors.error.withValues(alpha: 0.4),
                 blurRadius: 24,
                 spreadRadius: 4,
                 offset: const Offset(0, 8),
@@ -88,7 +88,7 @@ class SafetyCallPulseAvatar extends StatelessWidget {
       width: 160,
       height: 160,
       decoration: BoxDecoration(
-        color: AppColors.primaryBlue.withValues(alpha: 0.15),
+        color: AppColors.primary.withValues(alpha: 0.15),
         shape: BoxShape.circle,
       ),
       child: Center(
@@ -96,7 +96,7 @@ class SafetyCallPulseAvatar extends StatelessWidget {
           width: 120,
           height: 120,
           decoration: BoxDecoration(
-            color: AppColors.primaryBlue.withValues(alpha: 0.3),
+            color: AppColors.primary.withValues(alpha: 0.3),
             shape: BoxShape.circle,
           ),
           child: Center(
@@ -104,7 +104,7 @@ class SafetyCallPulseAvatar extends StatelessWidget {
               width: 84,
               height: 84,
               decoration: const BoxDecoration(
-                color: AppColors.primaryBlue,
+                color: AppColors.primary,
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -130,14 +130,14 @@ class LostPropertyBadge extends StatelessWidget {
       width: 100,
       height: 90,
       decoration: BoxDecoration(
-        color: const Color(0xFFEFF6FF),
+        color: AppColors.primarySubtle,
         borderRadius: BorderRadius.circular(22),
       ),
       child: const Center(
         child: Icon(
           Icons.backpack_rounded,
           size: 52,
-          color: AppColors.primaryBlue,
+          color: AppColors.primary,
         ),
       ),
     );
@@ -152,19 +152,19 @@ class TicketStatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Color bg = const Color(0xFFF1F5F9);
-    Color fg = AppColors.textSecondary;
+    Color bg = AppColors.slate100;
+    Color fg = AppColors.textSecondaryLight;
 
     final lower = status.toLowerCase();
     if (lower.contains('resolved') || lower.contains('closed')) {
-      bg = AppColors.successLight;
+      bg = AppColors.successContainer;
       fg = AppColors.success;
     } else if (lower.contains('progress') || lower.contains('review')) {
-      bg = AppColors.warningLight;
+      bg = AppColors.warningContainer;
       fg = AppColors.warning;
     } else if (lower.contains('open')) {
-      bg = AppColors.primaryBlueLight.withValues(alpha: 0.5);
-      fg = AppColors.primaryBlueDark;
+      bg = AppColors.primarySubtle.withValues(alpha: 0.5);
+      fg = AppColors.primaryHover;
     }
 
     return Container(

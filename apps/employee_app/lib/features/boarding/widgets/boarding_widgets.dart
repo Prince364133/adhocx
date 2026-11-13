@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
-import 'package:adhocx_employee/theme/app_radius.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';

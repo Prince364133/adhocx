@@ -13,9 +13,9 @@ class EmptyScheduleIllustration extends StatelessWidget {
       width: 130,
       height: 120,
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
+        color: AppColors.slate100,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border, width: 1.5),
+        border: Border.all(color: AppColors.borderLight, width: 1.5),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -31,7 +31,7 @@ class EmptyScheduleIllustration extends StatelessWidget {
           const Icon(
             Icons.calendar_month_rounded,
             size: 64,
-            color: AppColors.primaryBlueLight,
+            color: AppColors.primarySubtle,
           ),
           Positioned(
             bottom: -8,
@@ -66,7 +66,7 @@ class CarArrivedIllustration extends StatelessWidget {
       width: 140,
       height: 110,
       decoration: BoxDecoration(
-        color: const Color(0xFFEFF6FF),
+        color: AppColors.primarySubtle,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Stack(
@@ -77,7 +77,7 @@ class CarArrivedIllustration extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(6),
               decoration: const BoxDecoration(
-                color: AppColors.secondaryOrange,
+                color: AppColors.brandOrange,
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -92,7 +92,7 @@ class CarArrivedIllustration extends StatelessWidget {
             child: Icon(
               Icons.directions_car_filled_rounded,
               size: 54,
-              color: AppColors.primaryBlueDark,
+              color: AppColors.primaryHover,
             ),
           ),
         ],
@@ -111,7 +111,7 @@ class BoardedSeatIllustration extends StatelessWidget {
       width: 120,
       height: 110,
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
+        color: AppColors.slate100,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Stack(
@@ -120,7 +120,7 @@ class BoardedSeatIllustration extends StatelessWidget {
           const Icon(
             Icons.airline_seat_recline_extra_rounded,
             size: 56,
-            color: AppColors.primaryBlue,
+            color: AppColors.primary,
           ),
           Positioned(
             bottom: 12,
@@ -154,9 +154,9 @@ class InProgressMapIllustration extends StatelessWidget {
       height: 200,
       width: double.infinity,
       decoration: BoxDecoration(
-        color: const Color(0xFFE2E8F0),
+        color: AppColors.slate200,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.borderLight),
       ),
       child: Stack(
         children: [
@@ -199,7 +199,7 @@ class InProgressMapIllustration extends StatelessWidget {
               child: const Icon(
                 Icons.directions_car_filled_rounded,
                 size: 20,
-                color: AppColors.primaryBlue,
+                color: AppColors.primary,
               ),
             ),
           ),
@@ -210,7 +210,7 @@ class InProgressMapIllustration extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(8),
               decoration: const BoxDecoration(
-                color: AppColors.primaryBlue,
+                color: AppColors.primary,
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.apartment_rounded,
@@ -233,7 +233,7 @@ class _InProgressRoadPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     final routePaint = Paint()
-      ..color = AppColors.primaryBlue
+      ..color = AppColors.primary
       ..strokeWidth = 4
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
@@ -261,9 +261,9 @@ class TripCompletedBadge extends StatelessWidget {
       width: 80,
       height: 80,
       decoration: BoxDecoration(
-        color: AppColors.successLight,
+        color: AppColors.successContainer,
         shape: BoxShape.circle,
-        border: Border.all(color: AppColors.successBorder, width: 2),
+        border: Border.all(color: AppColors.accentGreenLight, width: 2),
       ),
       child: const Center(
         child: Icon(Icons.check_rounded, size: 44, color: AppColors.success),
@@ -282,9 +282,9 @@ class TripCancelledBadge extends StatelessWidget {
       width: 80,
       height: 80,
       decoration: BoxDecoration(
-        color: AppColors.errorLight,
+        color: AppColors.errorContainer,
         shape: BoxShape.circle,
-        border: Border.all(color: AppColors.errorBorder, width: 2),
+        border: Border.all(color: AppColors.errorContainer, width: 2),
       ),
       child: const Center(
         child: Icon(Icons.close_rounded, size: 44, color: AppColors.error),
@@ -303,13 +303,13 @@ class TripUnservedBadge extends StatelessWidget {
       width: 80,
       height: 80,
       decoration: BoxDecoration(
-        color: AppColors.warningLight,
+        color: AppColors.warningContainer,
         shape: BoxShape.circle,
-        border: Border.all(color: const Color(0xFFFDE68A), width: 2),
+        border: Border.all(color: AppColors.warningContainer, width: 2),
       ),
       child: const Center(
         child: Icon(Icons.warning_amber_rounded,
-            size: 44, color: Color(0xFFD97706)),
+            size: 44, color: AppColors.warning),
       ),
     );
   }

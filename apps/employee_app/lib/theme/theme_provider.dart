@@ -4,10 +4,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Copied from the Driver app (apps/mobile/lib/shared/theme/theme_provider.dart).
 /// Only difference: the driver-only dispatch-bubble theme sync is removed.
 class ThemeProvider extends ChangeNotifier {
-  /// Dark mode is wired end-to-end but only switched on for users once every
-  /// employee screen reads colours from the theme (design migration Phase 3).
-  /// Until then the app always renders light, whatever is stored.
-  static const bool darkModeReady = false;
+  /// Kill switch for dark mode. All employee screens read colours from the
+  /// Driver theme tokens (migration complete), so the user's Light / Dark /
+  /// System choice in Settings is honoured. Set to false to force light.
+  static const bool darkModeReady = true;
 
   static const String _themeKey = 'app_theme_mode';
 

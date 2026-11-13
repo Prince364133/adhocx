@@ -15,6 +15,9 @@ const migratedFolders = <String>[
   'lib/features/schedule',
   'lib/features/safety_support',
   'lib/features/profile_settings',
+  // Phase 4: shared code is on the Driver system too.
+  'lib/shared',
+  'lib/widgets',
 ];
 
 /// Old employee-only colour names (temporary aliases in AppColors).

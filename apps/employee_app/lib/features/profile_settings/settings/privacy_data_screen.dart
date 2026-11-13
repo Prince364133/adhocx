@@ -39,18 +39,18 @@ class PrivacyDataScreen extends StatelessWidget {
           children: [
             // Policy documents aren't published in-app yet: shown as
             // "coming soon" instead of rows that silently did nothing.
-            EmployeeNavTile(
+            const EmployeeNavTile(
               icon: Icons.policy_outlined,
               title: 'Privacy Policy',
               subtitle: 'Coming soon',
-              trailing: const SizedBox.shrink(),
+              trailing: SizedBox.shrink(),
             ),
             gap(),
-            EmployeeNavTile(
+            const EmployeeNavTile(
               icon: Icons.article_outlined,
               title: 'Terms & Conditions',
               subtitle: 'Coming soon',
-              trailing: const SizedBox.shrink(),
+              trailing: SizedBox.shrink(),
             ),
             gap(),
             EmployeeNavTile(

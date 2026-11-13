@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
-import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_radius.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';

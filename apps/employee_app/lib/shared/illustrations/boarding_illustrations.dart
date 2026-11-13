@@ -31,7 +31,7 @@ class BoardingQrFrame extends StatelessWidget {
           const Icon(
             Icons.qr_code_2_rounded,
             size: 180,
-            color: AppColors.textPrimary,
+            color: AppColors.textPrimaryLight,
           ),
 
           // Scan line overlay (Primary blue horizontal indicator)
@@ -40,11 +40,11 @@ class BoardingQrFrame extends StatelessWidget {
               width: 190,
               height: 3,
               decoration: BoxDecoration(
-                color: AppColors.primaryBlue,
+                color: AppColors.primary,
                 borderRadius: BorderRadius.circular(2),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.primaryBlue.withValues(alpha: 0.6),
+                    color: AppColors.primary.withValues(alpha: 0.6),
                     blurRadius: 6,
                     spreadRadius: 1,
                   ),
@@ -76,21 +76,21 @@ class VerifyingBoardingSpinner extends StatelessWidget {
             height: 110,
             child: CircularProgressIndicator(
               strokeWidth: 4,
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryBlue),
-              backgroundColor: Color(0xFFE2E8F0),
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+              backgroundColor: AppColors.slate200,
             ),
           ),
           // Center car icon
           Container(
             padding: const EdgeInsets.all(16),
             decoration: const BoxDecoration(
-              color: Color(0xFFEFF6FF),
+              color: AppColors.primarySubtle,
               shape: BoxShape.circle,
             ),
             child: const Icon(
               Icons.directions_car_filled_rounded,
               size: 38,
-              color: AppColors.primaryBlue,
+              color: AppColors.primary,
             ),
           ),
         ],
@@ -109,9 +109,9 @@ class BoardingSuccessBadge extends StatelessWidget {
       width: 90,
       height: 90,
       decoration: BoxDecoration(
-        color: AppColors.successLight,
+        color: AppColors.successContainer,
         shape: BoxShape.circle,
-        border: Border.all(color: AppColors.successBorder, width: 2),
+        border: Border.all(color: AppColors.accentGreenLight, width: 2),
       ),
       child: const Center(
         child: Icon(Icons.check_rounded, size: 52, color: AppColors.success),
@@ -130,9 +130,9 @@ class InvalidOtpBadge extends StatelessWidget {
       width: 84,
       height: 84,
       decoration: BoxDecoration(
-        color: AppColors.errorLight,
+        color: AppColors.errorContainer,
         shape: BoxShape.circle,
-        border: Border.all(color: AppColors.errorBorder, width: 2),
+        border: Border.all(color: AppColors.errorContainer, width: 2),
       ),
       child: const Center(
         child: Icon(Icons.close_rounded, size: 48, color: AppColors.error),
@@ -151,9 +151,9 @@ class BoardingIssueBadge extends StatelessWidget {
       width: 84,
       height: 84,
       decoration: BoxDecoration(
-        color: AppColors.warningLight,
+        color: AppColors.warningContainer,
         shape: BoxShape.circle,
-        border: Border.all(color: AppColors.warningBorder, width: 2),
+        border: Border.all(color: AppColors.warningContainer, width: 2),
       ),
       child: const Center(
         child: Icon(Icons.warning_amber_rounded,
@@ -173,13 +173,13 @@ class SafeReachShieldBadge extends StatelessWidget {
       width: 88,
       height: 88,
       decoration: BoxDecoration(
-        color: const Color(0xFFEFF6FF),
+        color: AppColors.primarySubtle,
         shape: BoxShape.circle,
-        border: Border.all(color: const Color(0xFFBFDBFE), width: 2),
+        border: Border.all(color: AppColors.infoContainer, width: 2),
       ),
       child: const Center(
         child:
-            Icon(Icons.shield_outlined, size: 48, color: AppColors.primaryBlue),
+            Icon(Icons.shield_outlined, size: 48, color: AppColors.primary),
       ),
     );
   }
@@ -195,7 +195,7 @@ class PostTripFinishGraphic extends StatelessWidget {
       width: 140,
       height: 90,
       decoration: BoxDecoration(
-        color: const Color(0xFFEFF6FF),
+        color: AppColors.primarySubtle,
         borderRadius: BorderRadius.circular(24),
       ),
       child: const Stack(
@@ -204,7 +204,7 @@ class PostTripFinishGraphic extends StatelessWidget {
           Icon(
             Icons.directions_car_filled_rounded,
             size: 58,
-            color: AppColors.primaryBlue,
+            color: AppColors.primary,
           ),
           Positioned(
             right: 20,
@@ -212,7 +212,7 @@ class PostTripFinishGraphic extends StatelessWidget {
             child: Icon(
               Icons.sports_score_rounded,
               size: 28,
-              color: AppColors.textPrimary,
+              color: AppColors.textPrimaryLight,
             ),
           ),
         ],

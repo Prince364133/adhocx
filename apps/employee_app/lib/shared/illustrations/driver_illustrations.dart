@@ -13,9 +13,9 @@ class CabReassignedBadge extends StatelessWidget {
       width: 84,
       height: 84,
       decoration: BoxDecoration(
-        color: AppColors.warningLight,
+        color: AppColors.warningContainer,
         shape: BoxShape.circle,
-        border: Border.all(color: AppColors.warningBorder, width: 2),
+        border: Border.all(color: AppColors.warningContainer, width: 2),
       ),
       child: const Center(
         child: Icon(Icons.sync_rounded, size: 44, color: AppColors.warning),
@@ -34,9 +34,9 @@ class AssignmentDelayedBadge extends StatelessWidget {
       width: 84,
       height: 84,
       decoration: BoxDecoration(
-        color: AppColors.warningLight,
+        color: AppColors.warningContainer,
         shape: BoxShape.circle,
-        border: Border.all(color: AppColors.warningBorder, width: 2),
+        border: Border.all(color: AppColors.warningContainer, width: 2),
       ),
       child: const Center(
         child:
@@ -56,14 +56,14 @@ class DriverReplacedBadge extends StatelessWidget {
       width: 84,
       height: 84,
       decoration: BoxDecoration(
-        color: AppColors.primaryBlueLight.withValues(alpha: 0.4),
+        color: AppColors.primarySubtle.withValues(alpha: 0.4),
         shape: BoxShape.circle,
         border: Border.all(
-            color: AppColors.primaryBlue.withValues(alpha: 0.3), width: 2),
+            color: AppColors.primary.withValues(alpha: 0.3), width: 2),
       ),
       child: const Center(
         child: Icon(Icons.swap_horiz_rounded,
-            size: 44, color: AppColors.primaryBlue),
+            size: 44, color: AppColors.primary),
       ),
     );
   }
@@ -79,7 +79,7 @@ class DriverDelayGraphic extends StatelessWidget {
       width: 110,
       height: 80,
       decoration: BoxDecoration(
-        color: const Color(0xFFEFF6FF),
+        color: AppColors.primarySubtle,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Stack(
@@ -89,7 +89,7 @@ class DriverDelayGraphic extends StatelessWidget {
           const Icon(
             Icons.directions_car_filled_rounded,
             size: 54,
-            color: AppColors.primaryBlue,
+            color: AppColors.primary,
           ),
           Positioned(
             right: 14,
@@ -124,9 +124,9 @@ class VehicleIssueBadge extends StatelessWidget {
       width: 84,
       height: 84,
       decoration: BoxDecoration(
-        color: AppColors.errorLight,
+        color: AppColors.errorContainer,
         shape: BoxShape.circle,
-        border: Border.all(color: AppColors.errorBorder, width: 2),
+        border: Border.all(color: AppColors.errorContainer, width: 2),
       ),
       child: const Center(
         child:
@@ -146,7 +146,7 @@ class NoCabAvailableGraphic extends StatelessWidget {
       width: 110,
       height: 80,
       decoration: BoxDecoration(
-        color: const Color(0xFFEFF6FF),
+        color: AppColors.primarySubtle,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Stack(
@@ -156,7 +156,7 @@ class NoCabAvailableGraphic extends StatelessWidget {
           const Icon(
             Icons.directions_car_filled_rounded,
             size: 54,
-            color: AppColors.primaryBlue,
+            color: AppColors.primary,
           ),
           Positioned(
             right: 14,
@@ -205,14 +205,14 @@ class DriverAvatarCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.borderLight),
       ),
       child: Row(
         children: [
           const CircleAvatar(
             radius: 26,
-            backgroundColor: AppColors.primaryBlueLight,
-            child: Icon(Icons.person, color: AppColors.primaryBlue, size: 30),
+            backgroundColor: AppColors.primarySubtle,
+            child: Icon(Icons.person, color: AppColors.primary, size: 30),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -224,14 +224,14 @@ class DriverAvatarCard extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
+                    color: AppColors.textPrimaryLight,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Row(
                   children: [
                     const Icon(Icons.star_rounded,
-                        size: 16, color: Color(0xFFF59E0B)),
+                        size: 16, color: AppColors.starAmber),
                     const SizedBox(width: 4),
                     Text(
                       tripsCount != null
@@ -240,7 +240,7 @@ class DriverAvatarCard extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.textSecondary,
+                        color: AppColors.textSecondaryLight,
                       ),
                     ),
                   ],
@@ -251,7 +251,7 @@ class DriverAvatarCard extends StatelessWidget {
           if (onCall != null)
             IconButton(
               icon: const Icon(Icons.phone_in_talk_rounded,
-                  color: AppColors.primaryBlue),
+                  color: AppColors.primary),
               onPressed: onCall,
             ),
         ],

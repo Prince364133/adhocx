@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
+import 'package:adhocx_employee/theme/app_typography.dart';
 
 /// Vector illustrations and metric cards for Batch 08 (History, Notifications & Profile)
 
@@ -26,7 +26,7 @@ class AnalyticsStatTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.borderLight),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -36,7 +36,7 @@ class AnalyticsStatTile extends StatelessWidget {
             children: [
               Text(
                 value,
-                style: GoogleFonts.inter(
+                style: AppTypography.body().copyWith(
                   fontSize: 26,
                   fontWeight: FontWeight.w800,
                   color: color,
@@ -48,10 +48,10 @@ class AnalyticsStatTile extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             label,
-            style: GoogleFonts.inter(
+            style: AppTypography.body().copyWith(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
+              color: AppColors.textSecondaryLight,
             ),
           ),
         ],
@@ -70,12 +70,12 @@ class SignOutConfirmBadge extends StatelessWidget {
       width: 84,
       height: 84,
       decoration: BoxDecoration(
-        color: const Color(0xFFFEE2E2),
+        color: AppColors.errorContainer,
         shape: BoxShape.circle,
-        border: Border.all(color: const Color(0xFFFCA5A5), width: 2),
+        border: Border.all(color: AppColors.errorContainer, width: 2),
       ),
       child: const Center(
-        child: Icon(Icons.logout_rounded, size: 44, color: Color(0xFFDC2626)),
+        child: Icon(Icons.logout_rounded, size: 44, color: AppColors.error),
       ),
     );
   }
@@ -91,12 +91,12 @@ class DeleteAccountDangerBadge extends StatelessWidget {
       width: 84,
       height: 84,
       decoration: BoxDecoration(
-        color: const Color(0xFFFEE2E2),
+        color: AppColors.errorContainer,
         shape: BoxShape.circle,
-        border: Border.all(color: const Color(0xFFFCA5A5), width: 2),
+        border: Border.all(color: AppColors.errorContainer, width: 2),
       ),
       child: const Center(
-        child: Icon(Icons.delete_forever_rounded, size: 44, color: Color(0xFFDC2626)),
+        child: Icon(Icons.delete_forever_rounded, size: 44, color: AppColors.error),
       ),
     );
   }

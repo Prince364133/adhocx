@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
+import 'package:adhocx_employee/theme/app_typography.dart';
 
 /// Clean, scalable vector illustrations crafted for the AdhocX Employee App.
 /// Matches the Batch 01 visual mockup exactly without requiring external assets.
@@ -20,8 +20,8 @@ class WelcomeIllustration extends StatelessWidget {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            const Color(0xFFE8F1FD),
-            const Color(0xFFF3F7FD).withValues(alpha: 0.8),
+            AppColors.infoContainer,
+            AppColors.infoContainer.withValues(alpha: 0.8),
             Colors.white,
           ],
         ),
@@ -39,7 +39,7 @@ class WelcomeIllustration extends StatelessWidget {
               height: 90,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFFD6E6FD).withValues(alpha: 0.4),
+                color: AppColors.infoContainer.withValues(alpha: 0.4),
               ),
             ),
           ),
@@ -51,7 +51,7 @@ class WelcomeIllustration extends StatelessWidget {
               height: 110,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFFD6E6FD).withValues(alpha: 0.4),
+                color: AppColors.infoContainer.withValues(alpha: 0.4),
               ),
             ),
           ),
@@ -62,17 +62,17 @@ class WelcomeIllustration extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                _buildBuilding(38, 90, const Color(0xFFBFD7FC)),
+                _buildBuilding(38, 90, AppColors.infoContainer),
                 const SizedBox(width: 4),
-                _buildBuilding(50, 120, const Color(0xFF9BBBFC),
+                _buildBuilding(50, 120, AppColors.accentBlue,
                     hasWindows: true),
                 const SizedBox(width: 4),
-                _buildBuilding(54, 135, const Color(0xFF6F9EFA),
+                _buildBuilding(54, 135, AppColors.accentBlue,
                     hasWindows: true),
                 const SizedBox(width: 4),
-                _buildBuilding(44, 105, const Color(0xFF9BBBFC)),
+                _buildBuilding(44, 105, AppColors.accentBlue),
                 const SizedBox(width: 4),
-                _buildBuilding(34, 75, const Color(0xFFBFD7FC)),
+                _buildBuilding(34, 75, AppColors.infoContainer),
               ],
             ),
           ),
@@ -84,7 +84,7 @@ class WelcomeIllustration extends StatelessWidget {
             child: Container(
               height: 4,
               decoration: BoxDecoration(
-                color: const Color(0xFFCBD5E1),
+                color: AppColors.slate300,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -97,10 +97,10 @@ class WelcomeIllustration extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFCEE0FD), width: 1.5),
+                border: Border.all(color: AppColors.infoContainer, width: 1.5),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.primaryBlue.withValues(alpha: 0.12),
+                    color: AppColors.primary.withValues(alpha: 0.12),
                     blurRadius: 16,
                     offset: const Offset(0, 8),
                   ),
@@ -112,15 +112,15 @@ class WelcomeIllustration extends StatelessWidget {
                   const Icon(
                     Icons.directions_car_filled,
                     size: 26,
-                    color: AppColors.primaryBlue,
+                    color: AppColors.primary,
                   ),
                   const SizedBox(width: 8),
                   Text(
                     'Corporate Commute',
-                    style: GoogleFonts.inter(
+                    style: AppTypography.body().copyWith(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.primaryBlueDark,
+                      color: AppColors.primaryHover,
                     ),
                   ),
                 ],
@@ -204,7 +204,7 @@ class CitySilhouetteIllustration extends StatelessWidget {
       width: w,
       height: h,
       decoration: const BoxDecoration(
-        color: AppColors.primaryBlue,
+        color: AppColors.primary,
         borderRadius: BorderRadius.vertical(top: Radius.circular(3)),
       ),
     );
@@ -224,12 +224,12 @@ class CompanySsoBadge extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFFE0ECFD), Color(0xFFC7DEFC)],
+          colors: [AppColors.infoContainer, AppColors.infoContainer],
         ),
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: AppColors.primaryBlue.withValues(alpha: 0.18),
+            color: AppColors.primary.withValues(alpha: 0.18),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -239,7 +239,7 @@ class CompanySsoBadge extends StatelessWidget {
         child: Icon(
           Icons.apartment_rounded,
           size: 44,
-          color: AppColors.primaryBlue,
+          color: AppColors.primary,
         ),
       ),
     );
@@ -257,9 +257,9 @@ class VerifiedAccountBadge extends StatelessWidget {
       width: 80,
       height: 80,
       decoration: BoxDecoration(
-        color: AppColors.successLight,
+        color: AppColors.successContainer,
         shape: BoxShape.circle,
-        border: Border.all(color: AppColors.successBorder, width: 2),
+        border: Border.all(color: AppColors.accentGreenLight, width: 2),
         boxShadow: [
           BoxShadow(
             color: AppColors.success.withValues(alpha: 0.18),
@@ -357,8 +357,8 @@ class PermissionBadge extends StatelessWidget {
   const PermissionBadge({
     super.key,
     required this.icon,
-    this.iconColor = AppColors.primaryBlue,
-    this.backgroundColor = const Color(0xFFEFF6FF),
+    this.iconColor = AppColors.primary,
+    this.backgroundColor = AppColors.primarySubtle,
   });
 
   @override
@@ -396,10 +396,10 @@ class CalendarScheduleIllustration extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border, width: 1.5),
+        border: Border.all(color: AppColors.borderLight, width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primaryBlue.withValues(alpha: 0.12),
+            color: AppColors.primary.withValues(alpha: 0.12),
             blurRadius: 24,
             offset: const Offset(0, 10),
           ),
@@ -412,7 +412,7 @@ class CalendarScheduleIllustration extends StatelessWidget {
           Container(
             height: 42,
             decoration: const BoxDecoration(
-              color: AppColors.primaryBlue,
+              color: AppColors.primary,
               borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -426,7 +426,7 @@ class CalendarScheduleIllustration extends StatelessWidget {
                         color: Colors.white, shape: BoxShape.circle)),
                 Text(
                   'ROSTER',
-                  style: GoogleFonts.inter(
+                  style: AppTypography.body().copyWith(
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
@@ -460,19 +460,19 @@ class CalendarScheduleIllustration extends StatelessWidget {
                 return Container(
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? AppColors.secondaryOrange
-                        : const Color(0xFFF1F5F9),
+                        ? AppColors.brandOrange
+                        : AppColors.slate100,
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Center(
                     child: Text(
                       '${index + 1}',
-                      style: GoogleFonts.inter(
+                      style: AppTypography.body().copyWith(
                         fontSize: 10,
                         fontWeight:
                             isSelected ? FontWeight.w800 : FontWeight.w500,
                         color:
-                            isSelected ? Colors.white : AppColors.textSecondary,
+                            isSelected ? Colors.white : AppColors.textSecondaryLight,
                       ),
                     ),
                   ),
@@ -488,12 +488,12 @@ class CalendarScheduleIllustration extends StatelessWidget {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: AppColors.secondaryOrange,
+                color: AppColors.brandOrange,
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: 3),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.secondaryOrange.withValues(alpha: 0.35),
+                    color: AppColors.brandOrange.withValues(alpha: 0.35),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -522,12 +522,12 @@ class RouteMapIllustration extends StatelessWidget {
       width: 170,
       height: 150,
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: AppColors.slate50,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border, width: 1.5),
+        border: Border.all(color: AppColors.borderLight, width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primaryBlue.withValues(alpha: 0.12),
+            color: AppColors.primary.withValues(alpha: 0.12),
             blurRadius: 24,
             offset: const Offset(0, 10),
           ),
@@ -549,12 +549,12 @@ class RouteMapIllustration extends StatelessWidget {
               width: 14,
               height: 14,
               decoration: BoxDecoration(
-                color: AppColors.primaryBlue,
+                color: AppColors.primary,
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: 2.5),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.primaryBlue.withValues(alpha: 0.35),
+                    color: AppColors.primary.withValues(alpha: 0.35),
                     blurRadius: 6,
                   ),
                 ],
@@ -581,7 +581,7 @@ class RouteMapIllustration extends StatelessWidget {
               child: const Icon(
                 Icons.directions_car_rounded,
                 size: 18,
-                color: AppColors.primaryBlue,
+                color: AppColors.primary,
               ),
             ),
           ),
@@ -593,12 +593,12 @@ class RouteMapIllustration extends StatelessWidget {
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: AppColors.secondaryOrange,
+                color: AppColors.brandOrange,
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: 2.5),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.secondaryOrange.withValues(alpha: 0.4),
+                    color: AppColors.brandOrange.withValues(alpha: 0.4),
                     blurRadius: 8,
                     offset: const Offset(0, 4),
                   ),
@@ -621,13 +621,13 @@ class _MapRoutePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final roadPaint = Paint()
-      ..color = const Color(0xFFE2E8F0)
+      ..color = AppColors.slate200
       ..strokeWidth = 12
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
     final routePaint = Paint()
-      ..color = AppColors.primaryBlue
+      ..color = AppColors.primary
       ..strokeWidth = 4
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
@@ -657,11 +657,11 @@ class SosShieldIllustration extends StatelessWidget {
       width: 140,
       height: 140,
       decoration: BoxDecoration(
-        color: AppColors.secondaryOrangeLight,
+        color: AppColors.warningContainer,
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: AppColors.secondaryOrange.withValues(alpha: 0.25),
+            color: AppColors.brandOrange.withValues(alpha: 0.25),
             blurRadius: 28,
             offset: const Offset(0, 12),
           ),
@@ -671,17 +671,9 @@ class SosShieldIllustration extends StatelessWidget {
         child: Container(
           width: 96,
           height: 104,
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Color(0xFFFF7E39),
-                AppColors.secondaryOrange,
-                Color(0xFFE04E00),
-              ],
-            ),
-            borderRadius: BorderRadius.only(
+          decoration: BoxDecoration(
+            color: AppColors.brandOrange,
+            borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(24),
               topRight: Radius.circular(24),
               bottomLeft: Radius.circular(48),
@@ -689,16 +681,16 @@ class SosShieldIllustration extends StatelessWidget {
             ),
             boxShadow: [
               BoxShadow(
-                color: Color(0x40FF5F09),
+                color: AppColors.brandOrange.withAlpha(64),
                 blurRadius: 16,
-                offset: Offset(0, 8),
+                offset: const Offset(0, 8),
               ),
             ],
           ),
           child: Center(
             child: Text(
               'SOS',
-              style: GoogleFonts.inter(
+              style: AppTypography.body().copyWith(
                 fontSize: 26,
                 fontWeight: FontWeight.w900,
                 color: Colors.white,
@@ -722,9 +714,9 @@ class AllSetIllustration extends StatelessWidget {
       width: 110,
       height: 110,
       decoration: BoxDecoration(
-        color: AppColors.successLight,
+        color: AppColors.successContainer,
         shape: BoxShape.circle,
-        border: Border.all(color: AppColors.successBorder, width: 2),
+        border: Border.all(color: AppColors.accentGreenLight, width: 2),
         boxShadow: [
           BoxShadow(
             color: AppColors.success.withValues(alpha: 0.24),
@@ -754,9 +746,9 @@ class AccessUnavailableBadge extends StatelessWidget {
       width: 90,
       height: 90,
       decoration: BoxDecoration(
-        color: AppColors.errorLight,
+        color: AppColors.errorContainer,
         shape: BoxShape.circle,
-        border: Border.all(color: AppColors.errorBorder, width: 2),
+        border: Border.all(color: AppColors.errorContainer, width: 2),
         boxShadow: [
           BoxShadow(
             color: AppColors.error.withValues(alpha: 0.2),
