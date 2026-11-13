@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:adhocx_employee/theme/app_colors.dart';
-import 'package:adhocx_employee/widgets/employee_app_bar.dart';
-import 'package:adhocx_employee/widgets/employee_primary_button.dart';
-import 'package:adhocx_employee/state/employee_auth_provider.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
+import 'package:adhocx_employee/shared/components/components.dart';
+import 'package:adhocx_employee/state/employee_auth_provider.dart';
+import 'package:adhocx_employee/theme/app_colors.dart';
+import 'package:adhocx_employee/theme/app_radius.dart';
+import 'package:adhocx_employee/theme/app_spacing.dart';
+import 'package:adhocx_employee/theme/app_typography.dart';
+import 'package:adhocx_employee/theme/employee_palette.dart';
 
 /// Screen: Enter Indian Mobile Number (+91) for Corporate Commuter Authentication.
 /// Email and Google auth completely removed as per SMS phone authentication mandate.
@@ -73,14 +75,13 @@ class _MobileNumberScreenState extends State<MobileNumberScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final p = EmployeePalette.of(context);
     final authProvider = context.watch<EmployeeAuthProvider>();
-    final digits = _inputController.text;
-    final isReady = digits.length == 10;
+    final isReady = _inputController.text.length == 10;
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
-      // Default, stated explicitly: the body shrinks when the keyboard opens,
-      // which keeps the pinned CTA right above the keyboard.
+      backgroundColor: p.background,
+      // Body shrinks when the keyboard opens, keeping the CTA above it.
       resizeToAvoidBottomInset: true,
       appBar: EmployeeAppBar(
         onBack: () {
@@ -98,47 +99,36 @@ class _MobileNumberScreenState extends State<MobileNumberScreen> {
               child: SingleChildScrollView(
                 keyboardDismissBehavior:
                     ScrollViewKeyboardDismissBehavior.onDrag,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.xxl,
+                  vertical: AppSpacing.sm,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Enter Mobile Number',
-                      style: GoogleFonts.inter(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                        letterSpacing: -0.4,
-                      ),
+                      style: AppTypography.h2(color: p.textPrimary),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppSpacing.sm),
                     Text(
                       "We'll send a 6-digit SMS OTP to verify your Indian mobile number via MSG91.",
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        color: AppColors.textSecondary,
-                        height: 1.45,
-                      ),
+                      style: AppTypography.body(color: p.textSecondary),
                     ),
-                    const SizedBox(height: 24),
-                    _buildPhoneField(digits),
+                    const SizedBox(height: AppSpacing.xxl),
+                    _buildPhoneField(p),
                     if (authProvider.errorMessage != null) ...[
-                      const SizedBox(height: 12),
+                      const SizedBox(height: AppSpacing.md),
                       Row(
                         children: [
                           const Icon(Icons.error_outline,
-                              size: 16, color: AppColors.error),
-                          const SizedBox(width: 6),
+                              size: 16, color: AppColors.errorText),
+                          const SizedBox(width: AppSpacing.xs + 2),
                           Expanded(
                             child: Text(
                               authProvider.errorMessage!,
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                color: AppColors.error,
-                                fontWeight: FontWeight.w500,
-                              ),
+                              style:
+                                  AppTypography.small(color: AppColors.errorText),
                             ),
                           ),
                         ],
@@ -151,7 +141,12 @@ class _MobileNumberScreenState extends State<MobileNumberScreen> {
 
             // Pinned CTA — sits directly above the native keyboard.
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.xxl,
+                AppSpacing.sm,
+                AppSpacing.xxl,
+                AppSpacing.lg,
+              ),
               child: EmployeePrimaryButton(
                 label: 'Send SMS OTP',
                 isLoading: authProvider.isLoading,
@@ -164,106 +159,103 @@ class _MobileNumberScreenState extends State<MobileNumberScreen> {
     );
   }
 
-  /// Phone Input Field (+91 India) using the phone's native number keyboard.
-  Widget _buildPhoneField(String digits) {
-    final hasText = digits.isNotEmpty;
+  /// Visually identical to the Driver app's AppPhoneField (caption label,
+  /// phone icon + "+91" prefix with divider, surface fill, 8px radius, 1.2px
+  /// border, 1.8px brand focus border) — but with the native-keyboard
+  /// behaviour this screen needs: autofocus, phone autofill, "Done" submits,
+  /// and +91/0 normalisation of pasted or autofilled numbers.
+  Widget _buildPhoneField(EmployeePalette p) {
+    final hasText = _inputController.text.isNotEmpty;
 
-    return Container(
-      padding: const EdgeInsets.only(left: 14, right: 4, top: 2, bottom: 2),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: hasText || _inputFocus.hasFocus
-              ? AppColors.primaryBlue
-              : AppColors.border,
-          width: hasText ? 2.0 : 1.5,
+    OutlineInputBorder border(Color color, double width) => OutlineInputBorder(
+          borderRadius: AppRadius.borderMd,
+          borderSide: BorderSide(color: color, width: width),
+        );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'Mobile Number',
+          style: AppTypography.caption(
+            color: p.textSecondary,
+            fontWeight: FontWeight.w600,
+          ),
         ),
-      ),
-      child: Row(
-        children: [
-          ExcludeSemantics(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('🇮🇳', style: TextStyle(fontSize: 16)),
-                const SizedBox(width: 5),
-                Text(
-                  '+91',
-                  style: GoogleFonts.inter(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
+        const SizedBox(height: AppSpacing.xs),
+        TextField(
+          controller: _inputController,
+          focusNode: _inputFocus,
+          autofocus: true,
+          keyboardType: TextInputType.phone,
+          textInputAction: TextInputAction.done,
+          autofillHints: const [
+            AutofillHints.telephoneNumberNational,
+            AutofillHints.telephoneNumber,
+          ],
+          inputFormatters: [IndianMobileNumberFormatter()],
+          enableSuggestions: false,
+          autocorrect: false,
+          onSubmitted: (_) {
+            if (_inputController.text.length == 10) _handleSendOtp();
+          },
+          cursorColor: p.accent,
+          style: AppTypography.body(color: p.textPrimary)
+              .copyWith(letterSpacing: 0.6),
+          decoration: InputDecoration(
+            hintText: '98765 43210',
+            hintStyle: AppTypography.body(color: p.textMuted),
+            prefixIcon: Container(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              margin: const EdgeInsets.only(right: AppSpacing.sm),
+              decoration: BoxDecoration(
+                border: Border(
+                  right: BorderSide(color: p.border, width: 1.2),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.phone_iphone_rounded,
+                    size: 18,
+                    color: p.textSecondary,
                   ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            height: 24,
-            width: 1,
-            color: AppColors.border,
-            margin: const EdgeInsets.symmetric(horizontal: 10),
-          ),
-          Expanded(
-            child: TextField(
-              controller: _inputController,
-              focusNode: _inputFocus,
-              autofocus: true,
-              keyboardType: TextInputType.phone,
-              textInputAction: TextInputAction.done,
-              autofillHints: const [
-                AutofillHints.telephoneNumberNational,
-                AutofillHints.telephoneNumber,
-              ],
-              inputFormatters: [IndianMobileNumberFormatter()],
-              enableSuggestions: false,
-              autocorrect: false,
-              onSubmitted: (_) {
-                if (_inputController.text.length == 10) _handleSendOtp();
-              },
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-                letterSpacing: 0.6,
-              ),
-              decoration: InputDecoration(
-                hintText: '98765 43210',
-                hintStyle: GoogleFonts.inter(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w400,
-                  color: AppColors.textMuted,
-                  letterSpacing: 0,
-                ),
-                semanticCounterText: '',
-                filled: false,
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                disabledBorder: InputBorder.none,
-                errorBorder: InputBorder.none,
-                focusedErrorBorder: InputBorder.none,
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(
+                    '+91',
+                    style: AppTypography.body(
+                      color: p.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-          if (hasText)
-            IconButton(
-              tooltip: 'Clear number',
-              onPressed: () {
-                _inputController.clear();
-                _inputFocus.requestFocus();
-              },
-              icon: const Icon(
-                Icons.cancel,
-                size: 18,
-                color: AppColors.textMuted,
-              ),
+            suffixIcon: hasText
+                ? IconButton(
+                    tooltip: 'Clear number',
+                    onPressed: () {
+                      _inputController.clear();
+                      _inputFocus.requestFocus();
+                    },
+                    icon: Icon(Icons.cancel, size: 18, color: p.textMuted),
+                  )
+                : null,
+            filled: true,
+            fillColor: p.isDark ? AppColors.surfaceElevatedDark : p.surface,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.md,
             ),
-        ],
-      ),
+            enabledBorder: border(p.border, 1.2),
+            focusedBorder: border(p.accent, 1.8),
+            errorBorder: border(AppColors.error, 1.2),
+            focusedErrorBorder: border(AppColors.error, 1.8),
+          ),
+        ),
+      ],
     );
   }
 }

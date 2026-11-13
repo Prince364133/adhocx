@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:adhocx_employee/theme/app_colors.dart';
-import 'package:adhocx_employee/widgets/employee_brand_logo.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
+import 'package:adhocx_employee/theme/app_colors.dart';
+import 'package:adhocx_employee/theme/app_radius.dart';
+import 'package:adhocx_employee/theme/app_spacing.dart';
+import 'package:adhocx_employee/theme/app_typography.dart';
+import 'package:adhocx_employee/widgets/employee_brand_logo.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -35,18 +37,26 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.primaryDark,
       body: Container(
         width: double.infinity,
         height: double.infinity,
+        // Brand surface: Driver primary scale (dark → hover → primary).
         decoration: const BoxDecoration(
-          gradient: AppColors.splashGradient,
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppColors.primaryDark,
+              AppColors.primaryHover,
+              AppColors.primary,
+            ],
+          ),
         ),
         child: SafeArea(
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const SizedBox(height: 40),
-              // Center Logo & Subtitle
+              const SizedBox(height: AppSpacing.xxxl + AppSpacing.sm),
               const Expanded(
                 child: Center(
                   child: Column(
@@ -57,39 +67,38 @@ class _SplashScreenState extends State<SplashScreen> {
                         logoTheme: LogoTheme.dark,
                         subtitle: 'Corporate Employee Transportation',
                       ),
-                      SizedBox(height: 24),
-                      // Subtle Loading Indicator
+                      SizedBox(height: AppSpacing.xxl),
                       SizedBox(
                         width: 24,
                         height: 24,
                         child: CircularProgressIndicator(
                           strokeWidth: 2.0,
                           valueColor: AlwaysStoppedAnimation<Color>(
-                              AppColors.primaryBlueLight),
+                            AppColors.primarySubtle,
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
               ),
-
-              // Bottom Car & Skyline Graphic Area
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.xxl,
+                  vertical: AppSpacing.xl,
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Stylized Sedan Car on curved highway graphic
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 12),
+                        horizontal: AppSpacing.xl,
+                        vertical: AppSpacing.md,
+                      ),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.18),
-                        ),
+                        color: Colors.white.withAlpha(20),
+                        borderRadius: AppRadius.borderPill,
+                        border: Border.all(color: Colors.white.withAlpha(46)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -97,27 +106,26 @@ class _SplashScreenState extends State<SplashScreen> {
                           const Icon(
                             Icons.directions_car_filled,
                             color: Colors.white,
-                            size: 24,
+                            size: 22,
                           ),
-                          const SizedBox(width: 10),
-                          Text(
-                            'Safe • Scheduled • Enterprise Mobility',
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white.withValues(alpha: 0.9),
-                              letterSpacing: 0.3,
+                          const SizedBox(width: AppSpacing.sm + 2),
+                          Flexible(
+                            child: Text(
+                              'Safe • Scheduled • Enterprise Mobility',
+                              style: AppTypography.caption(
+                                color: Colors.white.withAlpha(230),
+                                fontWeight: FontWeight.w600,
+                              ).copyWith(letterSpacing: 0.3),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppSpacing.md),
                     Text(
                       'v1.0 • Telangana & Regional Hubs',
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        color: Colors.white.withValues(alpha: 0.5),
+                      style: AppTypography.micro(
+                        color: Colors.white.withAlpha(128),
                         fontWeight: FontWeight.w400,
                       ),
                     ),
