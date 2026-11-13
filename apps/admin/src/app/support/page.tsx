@@ -9,14 +9,10 @@ import {
   Building2,
   User,
   Car,
-  AlertCircle,
   MessageSquare,
   Send,
   RefreshCw,
   RotateCcw,
-  ShieldCheck,
-  Tag,
-  AlertTriangle,
 } from 'lucide-react';
 import { adminApi } from '../../lib/api/client';
 import {
@@ -24,7 +20,6 @@ import {
   CorporateSupportTicket,
   CorporateTicketMessage,
   CorporateTicketStatus,
-  CorporateTicketPriority,
 } from '../../lib/api/types';
 import {
   PageHeader,

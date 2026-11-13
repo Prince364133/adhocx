@@ -70,6 +70,7 @@ import {
   CorporateCompanyUser,
   InviteCorporateCompanyUserInput,
   DistancePricingPlan,
+  PlatformPolicyConfig,
   CreateDistancePricingPlanPayload,
   CreatePricingSlabInput,
   PeakHourWindow,
@@ -835,6 +836,14 @@ export const adminApi = {
 
   // Vehicle category catalogue (no prices) & platform policy
   getPricingTiers: () => apiClient<VehicleCategory[]>('/pricing/tiers'),
+
+  getPolicyConfig: () => apiClient<PlatformPolicyConfig>('/pricing/policy-config'),
+
+  updatePolicyConfig: (data: Partial<PlatformPolicyConfig>) =>
+    apiClient<PlatformPolicyConfig>('/pricing/admin/policy-config', {
+      method: 'PATCH',
+      body: data,
+    }),
 
   createPricingTier: (data: CreateVehicleCategoryPayload) =>
     apiClient<VehicleCategory>('/pricing/admin/tiers', {

@@ -9,12 +9,14 @@ import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
+import '../../shared/widgets/osm_map_picker_widget.dart';
 
 class UniversalLocationPickerScreen extends StatefulWidget {
   final String title;
   final String? initialAddress;
   final double? initialLat;
   final double? initialLng;
+  final bool startOnMap;
 
   const UniversalLocationPickerScreen({
     super.key,
@@ -22,6 +24,7 @@ class UniversalLocationPickerScreen extends StatefulWidget {
     this.initialAddress,
     this.initialLat,
     this.initialLng,
+    this.startOnMap = false,
   });
 
   @override
@@ -45,6 +48,14 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
   bool _hasLocationPermission = false;
   String _selectedCategory = 'All';
   Timer? _debounceTimer;
+
+  // Map Mode State (Pinpoint on Google Maps)
+  bool _isMapMode = false;
+  double _mapPinLat = 17.4435;
+  double _mapPinLng = 78.3772;
+  String _mapPinAddress = '';
+  bool _isGeocodingPin = false;
+  Timer? _mapDebounceTimer;
 
   String? _currentCity;
   double? _currentLat;
@@ -70,25 +81,97 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
         ? widget.initialAddress!
         : 'Select Location';
 
+    _mapPinLat = (widget.initialLat != null && widget.initialLat != 0.0) ? widget.initialLat! : 17.4435;
+    _mapPinLng = (widget.initialLng != null && widget.initialLng != 0.0) ? widget.initialLng! : 78.3772;
+    _mapPinAddress = (widget.initialAddress != null && widget.initialAddress!.isNotEmpty) ? widget.initialAddress! : '';
+    _isMapMode = widget.startOnMap;
+
     _selectedLocation = LocationModel(
       title: defaultAddress.split(',').first.trim(),
       fullAddress: defaultAddress,
-      latitude: widget.initialLat ?? 17.4435,
-      longitude: widget.initialLng ?? 78.3772,
+      latitude: _mapPinLat,
+      longitude: _mapPinLng,
       category: 'SAVED',
       icon: LocationService.getIconForCategory('SAVED', defaultAddress),
     );
 
     _searchController.addListener(_onSearchChanged);
     _detectLocationAndLoadData();
+
+    if (_isMapMode && _mapPinAddress.isEmpty) {
+      _reverseGeocodePin(_mapPinLat, _mapPinLng);
+    }
   }
 
   @override
   void dispose() {
     _debounceTimer?.cancel();
+    _mapDebounceTimer?.cancel();
     _searchController.dispose();
     _searchFocus.dispose();
     super.dispose();
+  }
+
+  void _onMapPositionChanged(double lat, double lng) {
+    setState(() {
+      _mapPinLat = lat;
+      _mapPinLng = lng;
+      _isGeocodingPin = true;
+    });
+    _mapDebounceTimer?.cancel();
+    _mapDebounceTimer = Timer(const Duration(milliseconds: 500), () async {
+      await _reverseGeocodePin(lat, lng);
+    });
+  }
+
+  Future<void> _reverseGeocodePin(double lat, double lng) async {
+    try {
+      final loc = await _locationService.reverseGeocode(lat, lng);
+      if (mounted) {
+        setState(() {
+          _mapPinAddress = loc.fullAddress;
+          _isGeocodingPin = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _mapPinAddress = 'Pinpoint (${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)})';
+          _isGeocodingPin = false;
+        });
+      }
+    }
+  }
+
+  void _confirmMapPinLocation() {
+    final title = _mapPinAddress.isNotEmpty
+        ? _mapPinAddress.split(',').first.trim()
+        : 'Pinpoint Location';
+    final full = _mapPinAddress.isNotEmpty
+        ? _mapPinAddress
+        : 'Lat: ${_mapPinLat.toStringAsFixed(5)}, Lng: ${_mapPinLng.toStringAsFixed(5)}';
+    final loc = LocationModel(
+      title: title,
+      fullAddress: full,
+      latitude: _mapPinLat,
+      longitude: _mapPinLng,
+      category: 'PINPOINT',
+      icon: Icons.pin_drop_rounded,
+    );
+    _selectLocation(loc);
+  }
+
+  void _switchToMapMode() {
+    setState(() {
+      _isMapMode = true;
+      if (_currentLat != null && _currentLat != 0.0 && _mapPinLat == 17.4435) {
+        _mapPinLat = _currentLat!;
+        _mapPinLng = _currentLng ?? 78.3772;
+      }
+      if (_mapPinAddress.isEmpty) {
+        _reverseGeocodePin(_mapPinLat, _mapPinLng);
+      }
+    });
   }
 
   Future<void> _detectLocationAndLoadData() async {
@@ -345,73 +428,327 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
       body: SafeArea(
         child: Column(
           children: [
-            // Search Bar Input Field (Live Google Maps Places Search)
+            // Mode Switcher: Search Address vs Pinpoint on Map
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 6),
               child: Container(
                 decoration: BoxDecoration(
-                  color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                  border: Border.all(
-                    color: _searchFocus.hasFocus ? AppColors.primary : (isDark ? AppColors.borderDark : AppColors.borderLight),
-                    width: _searchFocus.hasFocus ? 2 : 1,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
+                  color: isDark ? AppColors.surfaceDark : AppColors.slate100,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        onTap: () => setState(() => _isMapMode = false),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: !_isMapMode ? AppColors.primary : Colors.transparent,
+                            borderRadius: BorderRadius.circular(AppRadius.md),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.search_rounded,
+                                size: 16,
+                                color: !_isMapMode ? Colors.white : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Search Address',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: !_isMapMode ? Colors.white : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        onTap: _switchToMapMode,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: _isMapMode ? AppColors.primary : Colors.transparent,
+                            borderRadius: BorderRadius.circular(AppRadius.md),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.pin_drop_rounded,
+                                size: 16,
+                                color: _isMapMode ? Colors.white : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Pinpoint on Map',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: _isMapMode ? Colors.white : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
                   ],
-                ),
-                child: TextField(
-                  controller: _searchController,
-                  focusNode: _searchFocus,
-                  autofocus: widget.initialAddress == null || widget.initialAddress!.isEmpty,
-                  decoration: InputDecoration(
-                    hintText: 'Search city, landmark, or street via Google Maps...',
-                    hintStyle: TextStyle(
-                      fontSize: 13,
-                      color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                    ),
-                    prefixIcon: Icon(Icons.search_rounded, color: AppColors.primary),
-                    suffixIcon: _isLoadingSearch
-                        ? const Padding(
-                            padding: EdgeInsets.all(12),
-                            child: SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          )
-                        : _searchController.text.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(Icons.cancel_rounded, size: 18),
-                                onPressed: () {
-                                  _searchController.clear();
-                                  setState(() {
-                                    _isSearching = false;
-                                    _searchResults = [];
-                                  });
-                                },
-                              )
-                            : null,
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
                 ),
               ),
             ),
 
-            // Content Body
-            Expanded(
-              child: _isSearching
-                  ? _buildSearchResultsList(isDark)
-                  : _buildExploreAndRecentView(isDark),
-            ),
+            if (_isMapMode)
+              Expanded(child: _buildMapPickerView(isDark))
+            else ...[
+              // Search Bar Input Field (Live Google Maps Places Search)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                    border: Border.all(
+                      color: _searchFocus.hasFocus ? AppColors.primary : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                      width: _searchFocus.hasFocus ? 2 : 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: TextField(
+                    controller: _searchController,
+                    focusNode: _searchFocus,
+                    autofocus: widget.initialAddress == null || widget.initialAddress!.isEmpty,
+                    decoration: InputDecoration(
+                      hintText: 'Search city, landmark, or street via Google Maps...',
+                      hintStyle: TextStyle(
+                        fontSize: 13,
+                        color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                      ),
+                      prefixIcon: Icon(Icons.search_rounded, color: AppColors.primary),
+                      suffixIcon: _isLoadingSearch
+                          ? const Padding(
+                              padding: EdgeInsets.all(12),
+                              child: SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                            )
+                          : _searchController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.cancel_rounded, size: 18),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    setState(() {
+                                      _isSearching = false;
+                                      _searchResults = [];
+                                    });
+                                  },
+                                )
+                              : null,
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                  ),
+                ),
+              ),
+
+              // Content Body
+              Expanded(
+                child: _isSearching
+                    ? _buildSearchResultsList(isDark)
+                    : _buildExploreAndRecentView(isDark),
+              ),
+            ],
           ],
         ),
       ),
+    );
+  }
+
+  /// Interactive Map Pinpoint Picker View (Google Maps)
+  Widget _buildMapPickerView(bool isDark) {
+    return Column(
+      children: [
+        // Helper hint banner
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 8),
+          color: AppColors.primary.withValues(alpha: 0.1),
+          child: Row(
+            children: [
+              Icon(Icons.touch_app_rounded, size: 16, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Pan and zoom the map to place the pin at the exact gate or entrance',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Interactive Google Maps Area
+        Expanded(
+          child: Stack(
+            children: [
+              GoogleMapPickerWidget(
+                initialLat: _mapPinLat,
+                initialLng: _mapPinLng,
+                onPositionChanged: _onMapPositionChanged,
+                label: widget.title,
+              ),
+
+              // Re-center on GPS button
+              Positioned(
+                right: 16,
+                bottom: 16,
+                child: FloatingActionButton.small(
+                  heroTag: 'map_picker_gps_btn',
+                  backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
+                  foregroundColor: AppColors.primary,
+                  onPressed: _fetchCurrentGpsLocation,
+                  tooltip: 'Current GPS Location',
+                  child: _isFetchingGps
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.my_location_rounded, size: 20),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Bottom Selected Location Confirmation Sheet
+        Container(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.12),
+                blurRadius: 10,
+                offset: const Offset(0, -3),
+              ),
+            ],
+            border: Border(
+              top: BorderSide(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+            ),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEA4335).withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.location_on, color: Color(0xFFEA4335), size: 20),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                'SELECTED PINPOINT LOCATION',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                              if (_isGeocodingPin) ...[
+                                const SizedBox(width: 8),
+                                const SizedBox(
+                                  width: 10,
+                                  height: 10,
+                                  child: CircularProgressIndicator(strokeWidth: 1.5),
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _isGeocodingPin
+                                ? 'Resolving exact street address...'
+                                : (_mapPinAddress.isNotEmpty ? _mapPinAddress : 'Selected Map Coordinates'),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Lat: ${_mapPinLat.toStringAsFixed(5)}, Lng: ${_mapPinLng.toStringAsFixed(5)}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontFamily: 'monospace',
+                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+                ElevatedButton.icon(
+                  onPressed: _confirmMapPinLocation,
+                  icon: const Icon(Icons.check_circle_rounded, size: 20),
+                  label: const Text(
+                    'Confirm Pinpoint Location',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -565,6 +902,21 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
               onTap: _fetchCurrentGpsLocation,
               isDark: isDark,
               isLoading: _isFetchingGps,
+            ),
+          ),
+
+          const SizedBox(height: AppSpacing.xs),
+
+          // Quick Action - Pinpoint Location on Map
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: _buildQuickActionButton(
+              icon: Icons.pin_drop_rounded,
+              label: 'Choose / Pinpoint on Map',
+              subtitle: 'Manually select exact pickup or drop point on Google Maps',
+              color: const Color(0xFFEA4335),
+              onTap: _switchToMapMode,
+              isDark: isDark,
             ),
           ),
 

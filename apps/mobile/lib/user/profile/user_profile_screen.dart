@@ -16,6 +16,9 @@ import '../../shared/theme/app_typography.dart';
 import '../../shared/widgets/app_profile_avatar.dart';
 import '../requirements/requirement_draft_provider.dart';
 import 'modals/vendor_rate_card_modal.dart';
+import '../../presentation/profile_screen/modals/terms_modal.dart';
+import '../../presentation/profile_screen/modals/privacy_modal.dart';
+import '../../presentation/profile_screen/modals/about_modal.dart';
 
 class UserProfileScreen extends StatelessWidget {
   const UserProfileScreen({super.key});
@@ -46,6 +49,9 @@ class UserProfileScreen extends StatelessWidget {
       {'icon': Icons.corporate_fare_outlined, 'title': 'Organization Information', 'route': AppRoutes.userOrganizationInformationScreen},
       {'icon': Icons.notifications_none_outlined, 'title': 'Notification Settings', 'route': AppRoutes.userNotificationSettingsScreen},
       {'icon': Icons.help_outline, 'title': 'Support Center', 'route': AppRoutes.userSupportCenterScreen},
+      {'icon': Icons.gavel_rounded, 'title': 'Terms & Conditions', 'action': 'terms'},
+      {'icon': Icons.privacy_tip_outlined, 'title': 'Privacy Policy', 'action': 'privacy'},
+      {'icon': Icons.info_outline_rounded, 'title': 'About Us', 'action': 'about'},
     ];
 
     return Scaffold(
@@ -164,6 +170,36 @@ class UserProfileScreen extends StatelessWidget {
                               );
                               return;
                             }
+                            if (item['action'] == 'terms') {
+                              showModalBottomSheet(
+                                context: context,
+                                useRootNavigator: true,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.transparent,
+                                builder: (_) => const SingleChildScrollView(child: TermsModal()),
+                              );
+                              return;
+                            }
+                            if (item['action'] == 'privacy') {
+                              showModalBottomSheet(
+                                context: context,
+                                useRootNavigator: true,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.transparent,
+                                builder: (_) => const SingleChildScrollView(child: PrivacyModal()),
+                              );
+                              return;
+                            }
+                            if (item['action'] == 'about') {
+                              showModalBottomSheet(
+                                context: context,
+                                useRootNavigator: true,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.transparent,
+                                builder: (_) => const SingleChildScrollView(child: AboutModal()),
+                              );
+                              return;
+                            }
                             final route = item['route'] as String?;
                             if (route != null && route.isNotEmpty) {
                               context.push(route);
@@ -238,6 +274,44 @@ class UserProfileScreen extends StatelessWidget {
                     'Delete Account Permanently',
                     style: TextStyle(color: AppColors.error, fontSize: 13, fontWeight: FontWeight.w600),
                   ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              Center(
+                child: Column(
+                  children: [
+                    Text(
+                      'AdhocX Corporate • Enterprise Edition',
+                      style: AppTypography.caption(
+                        color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'v1.4.2 • Build 204 • Made for Logistics Excellence',
+                      style: AppTypography.micro(
+                        color: isDark
+                            ? AppColors.textMutedDark.withValues(alpha: 0.7)
+                            : AppColors.textMutedLight.withValues(alpha: 0.7),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Text(
+                        'AdhocX is operated by Estemporaneo Technologies Private Limited.',
+                        textAlign: TextAlign.center,
+                        style: AppTypography.micro(
+                          color: isDark
+                              ? AppColors.textMutedDark.withValues(alpha: 0.85)
+                              : AppColors.textMutedLight.withValues(alpha: 0.85),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                 ),
               ),
             ],

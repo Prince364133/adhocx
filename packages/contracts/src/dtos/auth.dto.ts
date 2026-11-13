@@ -156,6 +156,9 @@ export class AuthUserDto {
   isOnboarded?: boolean;
   vendorProfile?: any;
   driverProfile?: any;
+  corporateTenantId?: string;
+  corporateRole?: string;
+  corporateOfficeIds?: string[];
 }
 
 export class AuthResponseDto {

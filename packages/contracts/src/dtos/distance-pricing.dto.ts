@@ -226,6 +226,8 @@ export class DistancePricingPlanDto {
   updatedAt!: string;
   peakWindows?: PeakHourWindowDto[];
   config?: RateCardConfigDto | null;
+  escortFeePaise?: number;
+  escortFeeRupees?: number;
   slabs!: DistancePricingSlabDto[];
   slabCount?: number;
 }

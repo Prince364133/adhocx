@@ -1270,8 +1270,19 @@ export interface DistancePricingPlan {
     driverPeakSurchargePercent?: number;
     vendorPeakSurchargePercent?: number;
   };
+  escortFeePaise?: number;
+  escortFeeRupees?: number;
   slabs: DistancePricingSlab[];
   slabCount?: number;
+}
+
+export interface PlatformPolicyConfig {
+  commissionPercent: number;
+  driverMonthlyFee: number;
+  driverTrialDays: number;
+  minWithdrawalAmount: number;
+  escortFee: number;
+  updatedAt: string;
 }
 
 export interface CreatePricingSlabInput {

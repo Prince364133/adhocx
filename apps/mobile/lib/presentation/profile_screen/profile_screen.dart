@@ -16,6 +16,9 @@ import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../theme/theme_provider.dart';
 import './modals/rate_card_modal.dart';
+import './modals/terms_modal.dart';
+import './modals/privacy_modal.dart';
+import './modals/about_modal.dart';
 import './widgets/profile_driver_card_widget.dart';
 import '../language_selection_widget.dart';
 import './widgets/profile_menu_item_widget.dart';
@@ -521,6 +524,63 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ],
                       ),
+                      const SizedBox(height: AppSpacing.xl),
+
+                      // ── Section 5: Legal & Policies ─────────────────────────
+                      _buildSectionTitle('LEGAL & POLICIES', isDark),
+                      const SizedBox(height: AppSpacing.xs),
+                      _buildCardGroup(
+                        isDark: isDark,
+                        children: [
+                          ProfileMenuItemWidget(
+                            icon: Icons.gavel_rounded,
+                            iconColor: AppColors.warning,
+                            label: context.tr('Terms & Conditions'),
+                            subtitle: context.tr('Driver partner agreements & operating terms'),
+                            onTap: () {
+                              showModalBottomSheet(
+                                context: context,
+                                useRootNavigator: true,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.transparent,
+                                builder: (_) => const SingleChildScrollView(child: TermsModal()),
+                              );
+                            },
+                          ),
+                          _divider(isDark),
+                          ProfileMenuItemWidget(
+                            icon: Icons.privacy_tip_outlined,
+                            iconColor: AppColors.primary,
+                            label: context.tr('Privacy Policy'),
+                            subtitle: context.tr('Data protection & location privacy policies'),
+                            onTap: () {
+                              showModalBottomSheet(
+                                context: context,
+                                useRootNavigator: true,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.transparent,
+                                builder: (_) => const SingleChildScrollView(child: PrivacyModal()),
+                              );
+                            },
+                          ),
+                          _divider(isDark),
+                          ProfileMenuItemWidget(
+                            icon: Icons.info_outline_rounded,
+                            iconColor: AppColors.info,
+                            label: context.tr('About Us'),
+                            subtitle: context.tr('Company information & operating entity'),
+                            onTap: () {
+                              showModalBottomSheet(
+                                context: context,
+                                useRootNavigator: true,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.transparent,
+                                builder: (_) => const SingleChildScrollView(child: AboutModal()),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: AppSpacing.xxl),
 
                       // ── Sign Out Button ────────────────────────────────────
@@ -550,6 +610,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     : AppColors.textMutedLight.withValues(alpha: 0.7),
                               ),
                             ),
+                            const SizedBox(height: 8),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 24),
+                              child: Text(
+                                'AdhocX is operated by Estemporaneo Technologies Private Limited.',
+                                textAlign: TextAlign.center,
+                                style: AppTypography.micro(
+                                  color: isDark
+                                      ? AppColors.textMutedDark.withValues(alpha: 0.85)
+                                      : AppColors.textMutedLight.withValues(alpha: 0.85),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
                           ],
                         ),
                       ),

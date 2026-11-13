@@ -112,7 +112,7 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
     }
   }
 
-  Future<void> _pick({required bool isPickup}) async {
+  Future<void> _pick({required bool isPickup, bool startOnMap = false}) async {
     final result = await context.push<Map<String, dynamic>>(
       AppRoutes.universalLocationSearchScreen,
       extra: {
@@ -120,6 +120,7 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
         'initialAddress': isPickup ? _pickupAddress : _dropAddress,
         'initialLat': isPickup ? _pickupLat : _dropLat,
         'initialLng': isPickup ? _pickupLng : _dropLng,
+        'startOnMap': startOnMap,
       },
     );
     if (result == null || !mounted) return;
@@ -212,43 +213,70 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          InkWell(
-            onTap: () => _pick(isPickup: isPickup),
-            child: Row(
-              children: [
-                Icon(isPickup ? Icons.trip_origin_rounded : Icons.location_on_rounded, color: color, size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
+            children: [
+              Expanded(
+                child: InkWell(
+                  onTap: () => _pick(isPickup: isPickup, startOnMap: false),
+                  child: Row(
                     children: [
-                      Text(isPickup ? 'PICKUP' : 'DROP',
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color)),
-                      const SizedBox(height: 2),
-                      Text(
-                        address.isNotEmpty ? address : (isPickup ? 'Choose pickup location' : 'Choose drop location'),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: address.isNotEmpty ? FontWeight.w600 : FontWeight.normal,
-                          color: address.isNotEmpty ? primaryText : muted,
+                      Icon(isPickup ? Icons.trip_origin_rounded : Icons.location_on_rounded, color: color, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(isPickup ? 'PICKUP' : 'DROP',
+                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color)),
+                            const SizedBox(height: 2),
+                            Text(
+                              address.isNotEmpty ? address : (isPickup ? 'Choose pickup location' : 'Choose drop location'),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: address.isNotEmpty ? FontWeight.w600 : FontWeight.normal,
+                                color: address.isNotEmpty ? primaryText : muted,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
                 ),
-                Icon(Icons.edit_location_alt_outlined, color: muted, size: 18),
-              ],
-            ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.pin_drop_rounded, color: Color(0xFFEA4335), size: 22),
+                tooltip: 'Pinpoint on Map',
+                onPressed: () => _pick(isPickup: isPickup, startOnMap: true),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
-          FilterChip(
-            label: Text(isOffice ? 'Office' : 'Mark as office', style: const TextStyle(fontSize: 11)),
-            avatar: Icon(Icons.business_rounded, size: 14, color: isOffice ? AppColors.primary : muted),
-            selected: isOffice,
-            onSelected: onOfficeChanged,
-            visualDensity: VisualDensity.compact,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              FilterChip(
+                label: Text(isOffice ? 'Office' : 'Mark as office', style: const TextStyle(fontSize: 11)),
+                avatar: Icon(Icons.business_rounded, size: 14, color: isOffice ? AppColors.primary : muted),
+                selected: isOffice,
+                onSelected: onOfficeChanged,
+                visualDensity: VisualDensity.compact,
+              ),
+              TextButton.icon(
+                onPressed: () => _pick(isPickup: isPickup, startOnMap: true),
+                icon: const Icon(Icons.map_outlined, size: 14, color: AppColors.primary),
+                label: const Text(
+                  'Pin on Map',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
+                ),
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                ),
+              ),
+            ],
           ),
         ],
       ),

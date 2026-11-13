@@ -57,14 +57,31 @@ export class PricingController {
   }
 
   /**
-   * Read-only platform policy. The admin editor (PATCH) is decommissioned, but shipped mobile builds
-   * still read the escort fee and driver fee/trial from here. Must stay above ':vehicleType', or
-   * this path would be matched as a vehicle category.
+   * Platform policy config (read-only for clients, editable by admin).
+   * Mobile builds read the escort fee, driver fee/trial from here.
+   * Must stay above ':vehicleType', or this path would be matched as a vehicle category.
    */
   @Get('policy-config')
-  @ApiOperation({ summary: 'Platform policy (read-only): escort fee, driver monthly fee, trial days, minimum withdrawal' })
+  @ApiOperation({ summary: 'Platform policy: escort fee, driver monthly fee, trial days, minimum withdrawal' })
   async getPolicyConfig() {
     return this.pricingService.getPolicyConfig();
+  }
+
+  @Patch('admin/policy-config')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Update platform policy settings (escort fee, driver monthly fee, etc.)' })
+  async updatePolicyConfig(
+    @Body() dto: {
+      commissionPercent?: number;
+      driverMonthlyFee?: number;
+      driverTrialDays?: number;
+      minWithdrawalAmount?: number;
+      escortFee?: number;
+    },
+  ) {
+    return this.pricingService.updatePolicyConfig(dto);
   }
 
   @Get(':vehicleType')

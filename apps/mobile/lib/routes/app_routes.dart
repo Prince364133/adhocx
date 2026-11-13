@@ -966,6 +966,7 @@ final GoRouter appRouter = GoRouter(
           initialAddress: extra['initialAddress'] as String?,
           initialLat: (extra['initialLat'] as num?)?.toDouble(),
           initialLng: (extra['initialLng'] as num?)?.toDouble(),
+          startOnMap: extra['startOnMap'] as bool? ?? false,
         );
       },
     ),
@@ -978,6 +979,7 @@ final GoRouter appRouter = GoRouter(
           initialAddress: extra['initialAddress'] as String?,
           initialLat: (extra['initialLat'] as num?)?.toDouble(),
           initialLng: (extra['initialLng'] as num?)?.toDouble(),
+          startOnMap: extra['startOnMap'] as bool? ?? false,
         );
       },
     ),

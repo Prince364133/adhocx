@@ -456,6 +456,39 @@ export class AuthService implements OnModuleInit {
         }
       } catch (_) {}
 
+      // Fallback: Check if there is an active CorporateTenant matching this contact phone number or email
+      if (!existingUser) {
+        try {
+          const tenant = await this.db.corporateTenant.findFirst({
+            where: {
+              OR: [
+                ...(phoneVariants && phoneVariants.length > 0 ? [{ primaryContactPhone: { in: phoneVariants } }] : []),
+                { primaryContactPhone: value },
+                ...(isEmail ? [{ primaryContactEmail: { equals: value, mode: 'insensitive' as const } }] : []),
+              ],
+              status: 'ACTIVE',
+            },
+          });
+          if (tenant) {
+            existingUser = await this.db.user.create({
+              data: {
+                phone: !isEmail ? value : (tenant.primaryContactPhone || undefined),
+                email: isEmail ? value : (tenant.primaryContactEmail || undefined),
+                fullName: tenant.primaryContactName || `${tenant.name} Administrator`,
+                role: UserRole.CORPORATE_ADMIN,
+                corporateRole: 'CORP_SUPER_ADMIN',
+                corporateTenantId: tenant.id,
+                corporateOfficeIds: [],
+                status: 'ACTIVE',
+              },
+            });
+            this.logger.log(`Auto-provisioned corporate admin user ${existingUser.id} (${value}) for tenant ${tenant.name}`);
+          }
+        } catch (provErr: any) {
+          this.logger.warn(`Could not auto-provision corporate user for ${value}: ${provErr.message}`);
+        }
+      }
+
       if (!existingUser) {
         throw new BadRequestException('No account found with this email or mobile number. Please check your details or sign up.');
       }
@@ -646,6 +679,34 @@ export class AuthService implements OnModuleInit {
       throw new BadRequestException('Failed to authenticate with database.');
     }
 
+    if (user && !user.corporateTenantId) {
+      try {
+        const phoneNorm = user.phone ? this.normalizeIdentifier(user.phone) : null;
+        const tenant = await this.db.corporateTenant.findFirst({
+          where: {
+            OR: [
+              ...(phoneNorm?.phoneVariants ? [{ primaryContactPhone: { in: phoneNorm.phoneVariants } }] : []),
+              ...(user.phone ? [{ primaryContactPhone: user.phone }] : []),
+              ...(user.email ? [{ primaryContactEmail: { equals: user.email, mode: 'insensitive' as const } }] : []),
+            ],
+            status: 'ACTIVE',
+          },
+        });
+        if (tenant) {
+          user = await this.db.user.update({
+            where: { id: user.id },
+            data: {
+              corporateTenantId: tenant.id,
+              role: UserRole.CORPORATE_ADMIN,
+              corporateRole: 'CORP_SUPER_ADMIN',
+            },
+            include: { vendor: true, driver: true },
+          });
+          this.logger.log(`Linked user ${user.id} to corporate tenant ${tenant.name} (${tenant.code})`);
+        }
+      } catch (_) {}
+    }
+
     await this.verifyAccountActiveAndClearStaleRevocation(user);
 
     return this.generateAuthResponse(user);
@@ -799,6 +860,34 @@ export class AuthService implements OnModuleInit {
         }
         await new Promise((resolve) => setTimeout(resolve, 500 * retries));
       }
+    }
+
+    if (user && !user.corporateTenantId) {
+      try {
+        const phoneNorm = user.phone ? this.normalizeIdentifier(user.phone) : null;
+        const tenant = await this.db.corporateTenant.findFirst({
+          where: {
+            OR: [
+              ...(phoneNorm?.phoneVariants ? [{ primaryContactPhone: { in: phoneNorm.phoneVariants } }] : []),
+              ...(user.phone ? [{ primaryContactPhone: user.phone }] : []),
+              ...(user.email ? [{ primaryContactEmail: { equals: user.email, mode: 'insensitive' as const } }] : []),
+            ],
+            status: 'ACTIVE',
+          },
+        });
+        if (tenant) {
+          user = await this.db.user.update({
+            where: { id: user.id },
+            data: {
+              corporateTenantId: tenant.id,
+              role: UserRole.CORPORATE_ADMIN,
+              corporateRole: 'CORP_SUPER_ADMIN',
+            },
+            include: { vendor: true, driver: true },
+          });
+          this.logger.log(`Linked user ${user.id} to corporate tenant ${tenant.name} (${tenant.code})`);
+        }
+      } catch (_) {}
     }
 
     await this.verifyAccountActiveAndClearStaleRevocation(user);
@@ -1066,6 +1155,9 @@ export class AuthService implements OnModuleInit {
         isApproved,
         hasPassword,
         isOnboarded,
+        corporateTenantId: user?.corporateTenantId || undefined,
+        corporateRole: user?.corporateRole || undefined,
+        corporateOfficeIds: user?.corporateOfficeIds || undefined,
         vendorProfile: user.vendor
           ? {
               id: user.vendor.id,
@@ -1344,6 +1436,9 @@ export class AuthService implements OnModuleInit {
         isApproved,
         hasPassword,
         isOnboarded,
+        corporateTenantId: user?.corporateTenantId || undefined,
+        corporateRole: user?.corporateRole || undefined,
+        corporateOfficeIds: user?.corporateOfficeIds || undefined,
         vendorProfile: user?.vendor
           ? {
               id: user.vendor.id,
