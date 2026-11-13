@@ -30,6 +30,9 @@ class EmployeeCenteredLayout extends StatelessWidget {
   /// Gap between the illustration and the title.
   final double illustrationGap;
 
+  /// Optional extra block under the message (checklist, progress bar…).
+  final Widget? content;
+
   const EmployeeCenteredLayout({
     super.key,
     this.appBar,
@@ -38,6 +41,7 @@ class EmployeeCenteredLayout extends StatelessWidget {
     this.message,
     this.actions = const [],
     this.illustrationGap = AppSpacing.xxxl,
+    this.content,
   });
 
   @override
@@ -86,6 +90,10 @@ class EmployeeCenteredLayout extends StatelessWidget {
                           style: AppTypography.body(color: p.textSecondary),
                         ),
                       ),
+                    ],
+                    if (content != null) ...[
+                      const SizedBox(height: AppSpacing.xxxl),
+                      content!,
                     ],
                     const Spacer(),
                     const SizedBox(height: AppSpacing.xxl),

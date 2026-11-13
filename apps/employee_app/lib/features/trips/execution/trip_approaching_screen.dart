@@ -6,7 +6,7 @@ import 'package:adhocx_employee/shared/components/components.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
-import '../widgets/trip_widgets.dart';
+import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
 
 class TripApproachingScreen extends StatelessWidget {
   const TripApproachingScreen({super.key});

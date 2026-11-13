@@ -409,6 +409,93 @@ class TripDestinationTile extends StatelessWidget {
   }
 }
 
+/// Read-only boarding OTP shown as one box per digit.
+class TripOtpDigits extends StatelessWidget {
+  final String otp;
+
+  const TripOtpDigits({super.key, required this.otp});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = EmployeePalette.of(context);
+
+    return Semantics(
+      label: 'Boarding code ${otp.split('').join(' ')}',
+      excludeSemantics: true,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          for (final digit in otp.split(''))
+            Flexible(
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+                constraints: const BoxConstraints(maxWidth: 40),
+                height: 48,
+                decoration: BoxDecoration(
+                  color: p.surfaceElevated,
+                  borderRadius: AppRadius.borderMd,
+                  border: Border.all(color: p.accent.withAlpha(77), width: 1.2),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  digit,
+                  style: AppTypography.h2(
+                    color: p.accent,
+                    fontWeight: FontWeight.w800,
+                    overflow: null,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Icon + label on the left, bold value on the right.
+class TripMetricRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const TripMetricRow({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final p = EmployeePalette.of(context);
+
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: p.textSecondary),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(
+          child: Text(
+            label,
+            style: AppTypography.small(
+              color: p.textSecondary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Text(
+          value,
+          style: AppTypography.bodyMedium(
+            color: p.textPrimary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// Muted information note with a leading info icon.
 class TripInfoNote extends StatelessWidget {
   final String text;

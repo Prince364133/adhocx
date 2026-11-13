@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
-import '../widgets/trip_widgets.dart';
+import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
 
 class TripAssignedScreen extends StatelessWidget {
   const TripAssignedScreen({super.key});

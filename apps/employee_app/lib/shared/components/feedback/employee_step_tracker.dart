@@ -15,7 +15,15 @@ enum TripStep { planning, assigned, approaching, arrived, boarded }
 class EmployeeStepTracker extends StatelessWidget {
   final dynamic currentStep;
 
-  const EmployeeStepTracker({super.key, required this.currentStep});
+  /// Custom milestone labels (e.g. Pickup / Boarded / In Progress / Drop).
+  /// When null the 5 [TripStep] lifecycle labels are used.
+  final List<String>? labels;
+
+  const EmployeeStepTracker({
+    super.key,
+    required this.currentStep,
+    this.labels,
+  });
 
   static const List<TripStep> _steps = TripStep.values;
 
@@ -37,11 +45,15 @@ class EmployeeStepTracker extends StatelessWidget {
     final textMuted =
         isDark ? AppColors.textMutedDark : AppColors.textMutedLight;
 
+    final names =
+        labels ?? [for (final step in _steps) _labels[step]!];
+    final count = names.length;
+
     final int activeIndex;
     if (currentStep is TripStep) {
-      activeIndex = _steps.indexOf(currentStep as TripStep);
+      activeIndex = _steps.indexOf(currentStep as TripStep).clamp(0, count - 1);
     } else if (currentStep is int) {
-      activeIndex = (currentStep as int).clamp(0, _steps.length - 1);
+      activeIndex = (currentStep as int).clamp(0, count - 1);
     } else {
       activeIndex = 0;
     }
@@ -60,8 +72,8 @@ class EmployeeStepTracker extends StatelessWidget {
         );
 
     return Semantics(
-      label: 'Trip progress: ${_labels[_steps[activeIndex]]}, '
-          'step ${activeIndex + 1} of ${_steps.length}',
+      label: 'Trip progress: ${names[activeIndex]}, '
+          'step ${activeIndex + 1} of $count',
       excludeSemantics: true,
       child: Container(
         padding: const EdgeInsets.symmetric(
@@ -74,8 +86,7 @@ class EmployeeStepTracker extends StatelessWidget {
           border: Border.all(color: track, width: 1.2),
         ),
         child: Row(
-          children: List.generate(_steps.length, (i) {
-            final step = _steps[i];
+          children: List.generate(count, (i) {
             final isCompleted = i < activeIndex;
             final isCurrent = i == activeIndex;
 
@@ -86,7 +97,8 @@ class EmployeeStepTracker extends StatelessWidget {
               dotChild =
                   const Icon(Icons.check, size: 10, color: Colors.white);
             } else if (isCurrent) {
-              dotColor = step == TripStep.planning
+              // Lifecycle "Planning" is shown in brand orange (not yet assigned).
+              dotColor = labels == null && i == 0
                   ? AppColors.brandOrange
                   : AppColors.primary;
               dotChild = Container(
@@ -124,7 +136,7 @@ class EmployeeStepTracker extends StatelessWidget {
                         ),
                         // Right half: segment to the next step.
                         connector(
-                          visible: i < _steps.length - 1,
+                          visible: i < count - 1,
                           done: i < activeIndex,
                         ),
                       ],
@@ -134,7 +146,7 @@ class EmployeeStepTracker extends StatelessWidget {
                   FittedBox(
                     fit: BoxFit.scaleDown,
                     child: Text(
-                      _labels[step]!,
+                      names[i],
                       maxLines: 1,
                       style: AppTypography.micro(
                         fontSize: 9,

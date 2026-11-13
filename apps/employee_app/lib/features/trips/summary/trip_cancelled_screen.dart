@@ -7,7 +7,7 @@ import 'package:adhocx_employee/shared/illustrations/trip_illustrations.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
-import '../widgets/trip_widgets.dart';
+import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
 
 class TripCancelledScreen extends StatelessWidget {
   const TripCancelledScreen({super.key});

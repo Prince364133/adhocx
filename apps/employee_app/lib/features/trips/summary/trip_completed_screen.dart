@@ -5,7 +5,7 @@ import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
 import 'package:adhocx_employee/shared/illustrations/trip_illustrations.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
-import '../widgets/trip_widgets.dart';
+import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
 
 class TripCompletedScreen extends StatelessWidget {
   const TripCompletedScreen({super.key});

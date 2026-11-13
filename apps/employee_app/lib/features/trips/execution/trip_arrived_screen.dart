@@ -8,7 +8,7 @@ import 'package:adhocx_employee/theme/app_radius.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
-import '../widgets/trip_widgets.dart';
+import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
 
 class TripArrivedScreen extends StatelessWidget {
   const TripArrivedScreen({super.key});

@@ -1,166 +1,118 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:adhocx_employee/theme/app_colors.dart';
-import 'package:adhocx_employee/widgets/batch_05_illustrations.dart';
 import 'package:adhocx_employee/services/mock_data_service.dart';
+import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
+import 'package:adhocx_employee/shared/illustrations/tracking_illustrations.dart';
+import 'package:adhocx_employee/theme/app_spacing.dart';
+import 'package:adhocx_employee/theme/app_typography.dart';
+import 'package:adhocx_employee/theme/employee_palette.dart';
+import '../widgets/map_overlay.dart';
 
 /// Screen 2: Trip Live Map (Full)
-class TripLiveMapFullScreen extends StatefulWidget {
+class TripLiveMapFullScreen extends StatelessWidget {
   const TripLiveMapFullScreen({super.key});
 
   @override
-  State<TripLiveMapFullScreen> createState() => _TripLiveMapFullScreenState();
-}
-
-class _TripLiveMapFullScreenState extends State<TripLiveMapFullScreen> {
-  Map<String, dynamic>? _liveState;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadData();
-  }
-
-  Future<void> _loadData() async {
-    final tracking = await MockDataService.getLiveTracking();
-    if (mounted) {
-      setState(() {
-        _liveState = tracking['liveState'] as Map<String, dynamic>?;
-      });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final arrivingIn = _liveState?['arrivingIn'] ?? '6 min';
-    final distance = _liveState?['distance'] ?? '2.4 km towards your pickup';
+    return TripDataBuilder(
+      load: () async =>
+          (await MockDataService.getLiveTracking())['liveState']
+              as Map<String, dynamic>?,
+      builder: (context, data) {
+        final p = EmployeePalette.of(context);
+        final arrivingIn = data['arrivingIn'] ?? '6 min';
+        final distance = data['distance'] ?? '2.4 km towards your pickup';
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          // Full Screen Vector Map Canvas
-          const Positioned.fill(
-            child: VectorLiveMapCanvas(
-              height: double.infinity,
-              showControls: false,
-            ),
-          ),
+        return Scaffold(
+          backgroundColor: p.background,
+          body: Stack(
+            children: [
+              const Positioned.fill(
+                child: VectorLiveMapCanvas(
+                  height: double.infinity,
+                  showControls: false,
+                ),
+              ),
 
-          // Top Floating Navigation Bar
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  CircleAvatar(
-                    backgroundColor: Colors.white,
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                          size: 16, color: AppColors.textPrimary),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
+              // Floating top bar
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.lg,
+                    vertical: AppSpacing.sm,
                   ),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.08),
-                          blurRadius: 10,
-                          offset: const Offset(0, 3),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      MapOverlayButton(
+                        icon: Icons.arrow_back,
+                        tooltip: 'Back',
+                        onPressed: () => Navigator.of(context).maybePop(),
+                      ),
+                      const MapOverlayTitle(title: 'Live Tracking'),
+                      // Map layer switching isn't implemented yet; shown
+                      // disabled rather than as a dead tap target.
+                      const MapOverlayButton(
+                        icon: Icons.layers_rounded,
+                        tooltip: 'Map layers (coming soon)',
+                        onPressed: null,
+                        accent: true,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Floating status card
+              Positioned(
+                left: AppSpacing.xl,
+                right: AppSpacing.xl,
+                bottom: AppSpacing.xxxl,
+                child: SafeArea(
+                  child: MapFloatingCard(
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          decoration: BoxDecoration(
+                            color: p.accentTint,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(Icons.directions_car_filled_rounded,
+                              color: p.accent, size: 24),
+                        ),
+                        const SizedBox(width: AppSpacing.lg),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Arriving in $arrivingIn',
+                                style: AppTypography.h3(
+                                  color: p.textPrimary,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                distance,
+                                style: AppTypography.small(
+                                  color: p.textSecondary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
-                    child: Text(
-                      'Live Tracking',
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
                   ),
-                  CircleAvatar(
-                    backgroundColor: Colors.white,
-                    child: IconButton(
-                      icon: const Icon(Icons.layers_rounded,
-                          size: 20, color: AppColors.primaryBlue),
-                      onPressed: () {},
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Bottom Floating Status Card
-          Positioned(
-            left: 20,
-            right: 20,
-            bottom: 30,
-            child: SafeArea(
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.12),
-                      blurRadius: 20,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color:
-                            AppColors.primaryBlueLight.withValues(alpha: 0.4),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.directions_car_filled_rounded,
-                          color: AppColors.primaryBlue, size: 24),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Arriving in $arrivingIn',
-                            style: GoogleFonts.inter(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            distance,
-                            style: GoogleFonts.inter(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
                 ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
