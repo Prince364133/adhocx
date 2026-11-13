@@ -7,6 +7,7 @@ import 'services/employee_api_client.dart';
 import 'services/mock_data_service.dart';
 import 'state/employee_auth_provider.dart';
 import 'state/employee_permission_provider.dart';
+import 'theme/theme_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,6 +32,7 @@ void main() async {
         ChangeNotifierProvider(
           create: (_) => EmployeePermissionProvider(),
         ),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
       child: const EmployeeApp(),
     ),
