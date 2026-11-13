@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:adhocx_employee/theme/app_colors.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
-import 'package:adhocx_employee/widgets/employee_secondary_button.dart';
-import 'package:adhocx_employee/widgets/employee_bottom_nav_bar.dart';
-import 'package:adhocx_employee/widgets/batch_02_illustrations.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
-import 'package:adhocx_employee/shared/components/navigation/employee_app_bar.dart';
+import 'package:adhocx_employee/services/mock_data_service.dart';
+import 'package:adhocx_employee/shared/components/components.dart';
+import 'package:adhocx_employee/shared/illustrations/trip_illustrations.dart';
+import 'package:adhocx_employee/theme/app_spacing.dart';
+import 'package:adhocx_employee/theme/app_typography.dart';
+import 'package:adhocx_employee/theme/employee_palette.dart';
 
 class HomeNoUpcomingTripScreen extends StatefulWidget {
   const HomeNoUpcomingTripScreen({super.key});
@@ -39,82 +38,74 @@ class _HomeNoUpcomingTripScreenState extends State<HomeNoUpcomingTripScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(
-        body: Center(
-            child: CircularProgressIndicator(color: AppColors.primaryBlue)),
-      );
-    }
+    if (_isLoading) return const EmployeeLoadingScaffold();
 
+    final p = EmployeePalette.of(context);
     final name = _profile?['name'] ?? 'Ravi Kumar';
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: p.background,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Column(
-            children: [
-              EmployeeGreetingHeader(
-                name: name,
-                unreadNotificationsCount: 1,
-                onNotificationTap: () =>
-                    context.push(AppRoutes.notificationsCenter),
-                onSosTap: () => context.push(AppRoutes.safetySos),
-                onProfileTap: () => context.push(AppRoutes.profileDetails),
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.xl,
+              vertical: AppSpacing.lg,
+            ),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: constraints.maxHeight - AppSpacing.lg * 2,
               ),
-
-              const SizedBox(height: 24),
-
-              const Spacer(),
-
-              // Empty Calendar Graphic
-              const EmptyScheduleIllustration(),
-
-              const SizedBox(height: 28),
-
-              Text(
-                'No Upcoming Trips',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                  letterSpacing: -0.4,
+              child: IntrinsicHeight(
+                child: Column(
+                  children: [
+                    EmployeeGreetingHeader(
+                      name: name,
+                      unreadNotificationsCount: 1,
+                      onNotificationTap: () =>
+                          context.push(AppRoutes.notificationsCenter),
+                      onSosTap: () => context.push(AppRoutes.safetySos),
+                      onProfileTap: () =>
+                          context.push(AppRoutes.profileDetails),
+                    ),
+                    const SizedBox(height: AppSpacing.xxl),
+                    const Spacer(),
+                    const EmptyScheduleIllustration(),
+                    const SizedBox(height: AppSpacing.xxl + 4),
+                    Text(
+                      'No Upcoming Trips',
+                      textAlign: TextAlign.center,
+                      style: AppTypography.h2(color: p.textPrimary),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.xxl,
+                      ),
+                      child: Text(
+                        "You don't have any scheduled transport for today.",
+                        textAlign: TextAlign.center,
+                        style: AppTypography.body(color: p.textSecondary),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xxl + 4),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.xxxl,
+                      ),
+                      child: EmployeeSecondaryButton(
+                        label: 'View Schedule',
+                        icon: Icons.calendar_month_outlined,
+                        textColor: p.accent,
+                        borderColor: p.accent,
+                        onPressed: () => context.go(AppRoutes.scheduleToday),
+                      ),
+                    ),
+                    const Spacer(),
+                  ],
                 ),
               ),
-
-              const SizedBox(height: 8),
-
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Text(
-                  "You don't have any scheduled transport for today.",
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
-                    height: 1.45,
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 28),
-
-              // View Schedule Button
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
-                child: EmployeeSecondaryButton(
-                  label: 'View Schedule',
-                  icon: Icons.calendar_month_outlined,
-                  textColor: AppColors.primaryBlue,
-                  borderColor: AppColors.primaryBlue,
-                  onPressed: () => context.push(AppRoutes.homeUpcomingPickup),
-                ),
-              ),
-
-              const Spacer(),
-            ],
+            ),
           ),
         ),
       ),

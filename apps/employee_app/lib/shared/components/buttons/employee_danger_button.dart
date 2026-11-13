@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../theme/app_colors.dart';
-import '../feedback/employee_press_scale.dart';
+import 'employee_primary_button.dart';
+import 'employee_secondary_button.dart';
 
-/// Destructive / Danger Action Button (for SOS, Cancel Trip, Logout, Delete Account).
+/// Destructive action button (SOS, Cancel Trip, Logout, Delete Account).
+/// Driver app design: AppPrimaryButton(variant: danger) when filled, and the
+/// outlined secondary button in error colour when [isOutlined].
 class EmployeeDangerButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
@@ -19,7 +21,7 @@ class EmployeeDangerButton extends StatelessWidget {
     required this.onPressed,
     this.isLoading = false,
     this.isOutlined = false,
-    this.height = 52,
+    this.height = 48,
     this.width,
     this.icon,
   });
@@ -27,83 +29,25 @@ class EmployeeDangerButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (isOutlined) {
-      return SizedBox(
-        width: width ?? double.infinity,
+      return EmployeeSecondaryButton(
+        label: label,
+        onPressed: onPressed,
+        isLoading: isLoading,
         height: height,
-        child: EmployeePressScale(
-          enabled: onPressed != null && !isLoading,
-          borderRadius: height / 2,
-          shadowColor: AppColors.error,
-          child: OutlinedButton(
-            onPressed: isLoading ? null : onPressed,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.error,
-              side: const BorderSide(color: AppColors.errorBorder, width: 1.5),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(height / 2),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-            ),
-            child: _buildChild(AppColors.error),
-          ),
-        ),
+        width: width,
+        icon: icon,
+        textColor: AppColors.error,
+        borderColor: AppColors.error.withAlpha(110),
       );
     }
-
-    return SizedBox(
-      width: width ?? double.infinity,
+    return EmployeePrimaryButton(
+      label: label,
+      onPressed: onPressed,
+      isLoading: isLoading,
       height: height,
-      child: EmployeePressScale(
-        enabled: onPressed != null && !isLoading,
-        borderRadius: height / 2,
-        shadowColor: AppColors.error,
-        child: ElevatedButton(
-          onPressed: isLoading ? null : onPressed,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.error,
-            foregroundColor: Colors.white,
-            disabledBackgroundColor: AppColors.error.withValues(alpha: 0.5),
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(height / 2),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-          ),
-          child: _buildChild(Colors.white),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildChild(Color color) {
-    if (isLoading) {
-      return SizedBox(
-        width: 20,
-        height: 20,
-        child: CircularProgressIndicator(
-          strokeWidth: 2,
-          valueColor: AlwaysStoppedAnimation<Color>(color),
-        ),
-      );
-    }
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        if (icon != null) ...[
-          Icon(icon, size: 20, color: color),
-          const SizedBox(width: 8),
-        ],
-        Text(
-          label,
-          style: GoogleFonts.inter(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: color,
-          ),
-        ),
-      ],
+      width: width,
+      icon: icon,
+      backgroundColor: AppColors.error,
     );
   }
 }

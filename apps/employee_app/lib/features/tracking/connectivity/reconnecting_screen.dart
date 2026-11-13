@@ -1,102 +1,32 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:adhocx_employee/shared/illustrations/tracking_illustrations.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
-import 'package:adhocx_employee/widgets/batch_05_illustrations.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
+import 'package:adhocx_employee/theme/app_radius.dart';
+import 'package:adhocx_employee/theme/employee_palette.dart';
+import '../widgets/connectivity_issue_view.dart';
 
 /// Screen 12: Reconnecting...
-class ReconnectingScreen extends StatefulWidget {
+class ReconnectingScreen extends StatelessWidget {
   const ReconnectingScreen({super.key});
 
   @override
-  State<ReconnectingScreen> createState() => _ReconnectingScreenState();
-}
-
-class _ReconnectingScreenState extends State<ReconnectingScreen> {
-  Map<String, dynamic>? _exception;
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadData();
-  }
-
-  Future<void> _loadData() async {
-    final tracking = await MockDataService.getLiveTracking();
-    if (mounted) {
-      final exceptions = tracking['exceptions'] as Map<String, dynamic>?;
-      setState(() {
-        _exception = exceptions?['reconnecting'] as Map<String, dynamic>?;
-        _isLoading = false;
-      });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final title = _exception?['title'] ?? 'Reconnecting...';
-    final message = _exception?['message'] ??
-        'Trying to restore live tracking for your trip.';
+    final p = EmployeePalette.of(context);
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.textPrimary),
-          onPressed: () => Navigator.of(context).pop(),
+    return ConnectivityIssueView(
+      exceptionKey: 'reconnecting',
+      illustration: const ReconnectingSpinnerGraphic(),
+      fallbackTitle: 'Reconnecting...',
+      fallbackMessage: 'Trying to restore live tracking for your trip.',
+      content: ClipRRect(
+        borderRadius: AppRadius.borderPill,
+        child: LinearProgressIndicator(
+          minHeight: 6,
+          backgroundColor: p.border,
+          valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+          semanticsLabel: 'Reconnecting',
         ),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 36),
-                    const ReconnectingSpinnerGraphic(),
-                    const SizedBox(height: 24),
-                    Text(
-                      title,
-                      style: GoogleFonts.inter(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      message,
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        color: AppColors.textSecondary,
-                        height: 1.45,
-                      ),
-                    ),
-                    const SizedBox(height: 36),
-
-                    // Progress bar
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: const LinearProgressIndicator(
-                        minHeight: 6,
-                        backgroundColor: Color(0xFFE2E8F0),
-                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryBlue),
-                      ),
-                    ),
-
-                    const Spacer(),
-                  ],
-                ),
-              ),
-            ),
     );
   }
 }
-
-
-

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:adhocx_employee/theme/app_colors.dart';
-import 'package:adhocx_employee/widgets/batch_06_illustrations.dart';
-import 'package:adhocx_employee/widgets/employee_primary_button.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
+import 'package:adhocx_employee/shared/components/components.dart';
+import 'package:adhocx_employee/shared/illustrations/boarding_illustrations.dart';
+import 'package:adhocx_employee/theme/app_colors.dart';
+import 'package:adhocx_employee/theme/app_spacing.dart';
+import 'package:adhocx_employee/theme/app_typography.dart';
+import 'package:adhocx_employee/theme/employee_palette.dart';
+import '../widgets/boarding_widgets.dart';
 
 /// Screen 12: Post-Trip Feedback
 class PostTripFeedbackScreen extends StatefulWidget {
@@ -16,6 +18,8 @@ class PostTripFeedbackScreen extends StatefulWidget {
 }
 
 class _PostTripFeedbackScreenState extends State<PostTripFeedbackScreen> {
+  static const _maxLength = 200;
+
   Map<String, dynamic>? _feedbackData;
   bool _isLoading = true;
   int _selectedRating = 5;
@@ -24,15 +28,17 @@ class _PostTripFeedbackScreenState extends State<PostTripFeedbackScreen> {
   @override
   void initState() {
     super.initState();
+    // Keeps the "n/200" counter in sync while typing (it never updated before).
+    _feedbackController.addListener(() => setState(() {}));
     _loadData();
   }
 
   Future<void> _loadData() async {
-    final boarding = await MockDataService.getBoardingData();
+    final data = await loadBoardingSection('feedback');
     if (mounted) {
       setState(() {
-        _feedbackData = boarding['feedback'] as Map<String, dynamic>?;
-        _selectedRating = _feedbackData?['defaultRating'] ?? 5;
+        _feedbackData = data;
+        _selectedRating = data?['defaultRating'] ?? 5;
         _isLoading = false;
       });
     }
@@ -44,134 +50,116 @@ class _PostTripFeedbackScreenState extends State<PostTripFeedbackScreen> {
     super.dispose();
   }
 
+  void _finish({required bool submitted}) {
+    if (submitted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Thank you! Your feedback has been recorded.')),
+      );
+    }
+    context.go(AppRoutes.homeUpcomingPickup);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final title = _feedbackData?['title'] ?? 'Trip Completed';
-    final subtitle = _feedbackData?['subtitle'] ?? 'How was your trip?';
+    if (_isLoading) {
+      return const EmployeeLoadingScaffold(appBar: EmployeeAppBar());
+    }
+    final p = EmployeePalette.of(context);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.textPrimary),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SafeArea(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      backgroundColor: p.background,
+      appBar: const EmployeeAppBar(),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xxl,
+            vertical: AppSpacing.xl,
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: AppSpacing.md),
+              const PostTripFinishGraphic(),
+              const SizedBox(height: AppSpacing.xl),
+              Text(
+                _feedbackData?['title'] ?? 'Trip Completed',
+                style: AppTypography.h2(color: p.textPrimary),
+              ),
+              const SizedBox(height: AppSpacing.xs + 2),
+              Text(
+                _feedbackData?['subtitle'] ?? 'How was your trip?',
+                style: AppTypography.bodyLarge(
+                  color: p.textSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xxl),
+
+              // 5-star rating
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (index) {
+                  final star = index + 1;
+                  final isFilled = star <= _selectedRating;
+                  return IconButton(
+                    iconSize: 38,
+                    tooltip: 'Rate $star ${star == 1 ? 'star' : 'stars'}',
+                    isSelected: star == _selectedRating,
+                    icon: Icon(
+                      isFilled ? Icons.star_rounded : Icons.star_border_rounded,
+                      color: AppColors.starAmber,
+                    ),
+                    onPressed: () => setState(() => _selectedRating = star),
+                  );
+                }),
+              ),
+              const SizedBox(height: AppSpacing.xxl),
+
+              AppCard(
+                width: double.infinity,
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    const SizedBox(height: 12),
-                    const PostTripFinishGraphic(),
-                    const SizedBox(height: 20),
+                    TextField(
+                      controller: _feedbackController,
+                      maxLines: 4,
+                      maxLength: _maxLength,
+                      textCapitalization: TextCapitalization.sentences,
+                      style: AppTypography.body(color: p.textPrimary),
+                      cursorColor: p.accent,
+                      decoration: InputDecoration(
+                        hintText: 'Share your feedback (optional)',
+                        hintStyle: AppTypography.body(color: p.textMuted),
+                        filled: false,
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        counterText: '',
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
                     Text(
-                      title,
-                      style: GoogleFonts.inter(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      subtitle,
-                      style: GoogleFonts.inter(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // 5-Star Rating Selector
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(5, (index) {
-                        final starIndex = index + 1;
-                        final isFilled = starIndex <= _selectedRating;
-                        return IconButton(
-                          iconSize: 38,
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          icon: Icon(
-                            isFilled ? Icons.star_rounded : Icons.star_border_rounded,
-                            color: const Color(0xFFF59E0B),
-                          ),
-                          onPressed: () {
-                            setState(() => _selectedRating = starIndex);
-                          },
-                        );
-                      }),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Feedback Text Field
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          TextField(
-                            controller: _feedbackController,
-                            maxLines: 4,
-                            maxLength: 200,
-                            decoration: const InputDecoration(
-                              hintText: 'Share your feedback (optional)',
-                              border: InputBorder.none,
-                              counterText: '',
-                            ),
-                            style: GoogleFonts.inter(fontSize: 14, color: AppColors.textPrimary),
-                          ),
-                          Text(
-                            '${_feedbackController.text.length}/200',
-                            style: GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 40),
-
-                    // Primary Button: Submit Feedback
-                    EmployeePrimaryButton(
-                      label: 'Submit Feedback',
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Thank you! Your feedback has been recorded.')),
-                        );
-                        context.go(AppRoutes.homeUpcomingPickup);
-                      },
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Text Button: Maybe Later
-                    TextButton(
-                      onPressed: () => context.go(AppRoutes.homeUpcomingPickup),
-                      child: Text(
-                        'Maybe Later',
-                        style: GoogleFonts.inter(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textMuted,
-                        ),
-                      ),
+                      '${_feedbackController.text.length}/$_maxLength',
+                      style: AppTypography.micro(color: p.textMuted),
                     ),
                   ],
                 ),
               ),
-            ),
+              const SizedBox(height: AppSpacing.xxxl + AppSpacing.sm),
+              EmployeePrimaryButton(
+                label: 'Submit Feedback',
+                onPressed: () => _finish(submitted: true),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              EmployeeTextLink(
+                label: 'Maybe Later',
+                emphasised: false,
+                onPressed: () => _finish(submitted: false),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
-
-
-

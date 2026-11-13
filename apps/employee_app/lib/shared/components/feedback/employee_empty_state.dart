@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../theme/app_colors.dart';
+import '../../../theme/app_spacing.dart';
+import '../../../theme/app_typography.dart';
 import '../buttons/employee_primary_button.dart';
 
-/// Standardized Empty State View for AdhocX.
-/// Used for No Trips, Empty Schedule, No Notifications, and Search results.
+/// Empty state (No Trips, Empty Schedule, No Notifications, Search results).
+/// Driver app design (AppEmptyState): tinted circle icon, h3 bold title,
+/// muted body description, optional primary action.
 class EmployeeEmptyState extends StatelessWidget {
   final Widget? illustration;
   final IconData? icon;
@@ -12,6 +14,7 @@ class EmployeeEmptyState extends StatelessWidget {
   final String description;
   final String? actionLabel;
   final VoidCallback? onActionPressed;
+  final EdgeInsetsGeometry padding;
 
   const EmployeeEmptyState({
     super.key,
@@ -21,55 +24,60 @@ class EmployeeEmptyState extends StatelessWidget {
     required this.description,
     this.actionLabel,
     this.onActionPressed,
+    this.padding = AppSpacing.paddingXl,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+        padding: padding,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (illustration != null)
               illustration!
-            else if (icon != null)
+            else
               Container(
-                width: 90,
-                height: 90,
-                decoration: const BoxDecoration(
-                  color: AppColors.primaryBlueSoft,
+                padding: AppSpacing.paddingLg,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, size: 44, color: AppColors.primaryBlue),
+                child: Icon(
+                  icon ?? Icons.inbox_outlined,
+                  size: 56,
+                  color: AppColors.primary,
+                ),
               ),
-            const SizedBox(height: 20),
+            const SizedBox(height: AppSpacing.lg),
             Text(
               title,
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+              style: AppTypography.h3(
+                color: isDark
+                    ? AppColors.textPrimaryDark
+                    : AppColors.textPrimaryLight,
+                fontWeight: FontWeight.bold,
+                overflow: null,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               description,
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-                height: 1.45,
+              style: AppTypography.body(
+                color:
+                    isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
               ),
             ),
             if (actionLabel != null && onActionPressed != null) ...[
-              const SizedBox(height: 24),
+              const SizedBox(height: AppSpacing.xl),
               EmployeePrimaryButton(
                 label: actionLabel!,
                 onPressed: onActionPressed,
-                width: 200,
-                height: 46,
               ),
             ],
           ],
@@ -78,4 +86,3 @@ class EmployeeEmptyState extends StatelessWidget {
     );
   }
 }
-

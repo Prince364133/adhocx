@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_typography.dart';
 
 enum LogoTheme { light, dark }
 
+/// "AdhocX" wordmark: brand primary "Adhoc" + brand orange "X".
+/// [LogoTheme.light] is for light surfaces; it switches to white automatically
+/// when the app runs in dark mode. [LogoTheme.dark] is for brand/dark surfaces.
 class EmployeeBrandLogo extends StatelessWidget {
   final double fontSize;
   final LogoTheme logoTheme;
@@ -18,37 +21,34 @@ class EmployeeBrandLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final adhocColor = logoTheme == LogoTheme.light
-        ? AppColors.primaryBlue
-        : AppColors.textLight;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final onDarkSurface = logoTheme == LogoTheme.dark || isDark;
+    final adhocColor = onDarkSurface ? Colors.white : AppColors.primary;
+
+    final wordStyle = AppTypography.display(
+      fontSize: fontSize,
+      fontWeight: FontWeight.w800,
+      color: adhocColor,
+      overflow: null,
+    ).copyWith(letterSpacing: -0.5);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        RichText(
-          textAlign: TextAlign.center,
-          text: TextSpan(
-            children: [
-              TextSpan(
-                text: 'Adhoc',
-                style: GoogleFonts.inter(
-                  fontSize: fontSize,
-                  fontWeight: FontWeight.w800,
-                  color: adhocColor,
-                  letterSpacing: -0.5,
+        Semantics(
+          label: 'AdhocX',
+          excludeSemantics: true,
+          child: Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(text: 'Adhoc', style: wordStyle),
+                TextSpan(
+                  text: 'X',
+                  style: wordStyle.copyWith(color: AppColors.brandOrange),
                 ),
-              ),
-              TextSpan(
-                text: 'X',
-                style: GoogleFonts.inter(
-                  fontSize: fontSize,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.secondaryOrange,
-                  letterSpacing: -0.5,
-                ),
-              ),
-            ],
+              ],
+            ),
+            textAlign: TextAlign.center,
           ),
         ),
         if (subtitle != null) ...[
@@ -56,18 +56,18 @@ class EmployeeBrandLogo extends StatelessWidget {
           Text(
             subtitle!,
             textAlign: TextAlign.center,
-            style: GoogleFonts.inter(
+            style: AppTypography.small(
               fontSize: (fontSize * 0.42).clamp(11.0, 14.0),
               fontWeight: FontWeight.w500,
-              color: logoTheme == LogoTheme.light
-                  ? AppColors.textSecondary
-                  : AppColors.primaryBlueLight,
-              letterSpacing: 0.1,
-            ),
+              color: onDarkSurface
+                  ? Colors.white.withAlpha(204)
+                  : (isDark
+                      ? AppColors.textSecondaryDark
+                      : AppColors.textSecondaryLight),
+            ).copyWith(letterSpacing: 0.1),
           ),
         ],
       ],
     );
   }
 }
-

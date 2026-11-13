@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:adhocx_employee/services/language_preference_service.dart';
+import 'package:adhocx_employee/shared/components/components.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
-import 'package:adhocx_employee/widgets/employee_primary_button.dart';
+import 'package:adhocx_employee/theme/app_radius.dart';
+import 'package:adhocx_employee/theme/app_spacing.dart';
+import 'package:adhocx_employee/theme/app_typography.dart';
+import 'package:adhocx_employee/theme/employee_palette.dart';
 
-/// Screen 9: Select Language
 class SelectLanguageScreen extends StatefulWidget {
   const SelectLanguageScreen({super.key});
 
@@ -13,9 +15,7 @@ class SelectLanguageScreen extends StatefulWidget {
 }
 
 class _SelectLanguageScreenState extends State<SelectLanguageScreen> {
-  String _selectedLang = 'English';
-
-  final List<String> _languages = [
+  static const _languages = [
     'English',
     'Hindi',
     'Telugu',
@@ -23,6 +23,7 @@ class _SelectLanguageScreenState extends State<SelectLanguageScreen> {
     'Kannada',
     'Marathi',
   ];
+  String _selected = 'English';
 
   @override
   void initState() {
@@ -33,127 +34,128 @@ class _SelectLanguageScreenState extends State<SelectLanguageScreen> {
   Future<void> _loadSelectedLanguage() async {
     final language = await LanguagePreferenceService.getSelectedLanguage();
     if (mounted && _languages.contains(language)) {
-      setState(() => _selectedLang = language);
+      setState(() => _selected = language);
     }
   }
 
-  Future<void> _saveSelectedLanguage() async {
-    await LanguagePreferenceService.setSelectedLanguage(_selectedLang);
+  Future<void> _save() async {
+    await LanguagePreferenceService.setSelectedLanguage(_selected);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Language set to $_selectedLang.')),
+      SnackBar(content: Text('Language set to $_selected.')),
     );
-    Navigator.of(context).pop();
+    Navigator.of(context).maybePop();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              size: 18, color: AppColors.textPrimary),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          'Select Language',
-          style: GoogleFonts.inter(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          child: Column(
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Column(
-                  children: List.generate(_languages.length, (index) {
-                    final lang = _languages[index];
-                    final isSelected = _selectedLang == lang;
-                    final isLast = index == _languages.length - 1;
+    final p = EmployeePalette.of(context);
 
-                    return Column(
+    return Scaffold(
+      backgroundColor: p.background,
+      appBar: const EmployeeAppBar(title: 'Select Language'),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.all(AppSpacing.xxl),
+                children: [
+                  Material(
+                    color: p.surface,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: AppRadius.borderLg,
+                      side: BorderSide(color: p.border, width: 1.2),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
                       children: [
-                        ListTile(
-                          onTap: () => setState(() => _selectedLang = lang),
-                          title: AnimatedDefaultTextStyle(
-                            duration: const Duration(milliseconds: 180),
-                            curve: Curves.easeOutCubic,
-                            style: GoogleFonts.inter(
-                              fontSize: 15,
-                              fontWeight: isSelected
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
-                              color: isSelected
-                                  ? AppColors.primaryBlue
-                                  : AppColors.textPrimary,
-                            ),
-                            child: Text(lang),
+                        for (var i = 0; i < _languages.length; i++) ...[
+                          if (i > 0) Divider(height: 1, color: p.border),
+                          _LanguageRow(
+                            label: _languages[i],
+                            selected: _selected == _languages[i],
+                            onTap: () =>
+                                setState(() => _selected = _languages[i]),
                           ),
-                          trailing: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            curve: Curves.easeOutCubic,
-                            width: 22,
-                            height: 22,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: isSelected
-                                  ? AppColors.primaryBlue
-                                  : Colors.transparent,
-                              border: Border.all(
-                                color: isSelected
-                                    ? AppColors.primaryBlue
-                                    : const Color(0xFFCBD5E1),
-                                width: 2,
-                              ),
-                            ),
-                            child: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 160),
-                              transitionBuilder: (child, animation) =>
-                                  ScaleTransition(
-                                scale: animation,
-                                child: FadeTransition(
-                                  opacity: animation,
-                                  child: child,
-                                ),
-                              ),
-                              child: isSelected
-                                  ? const Center(
-                                      key: ValueKey('selected-language'),
-                                      child: Icon(Icons.check,
-                                          size: 14, color: Colors.white),
-                                    )
-                                  : const SizedBox.shrink(
-                                      key: ValueKey('unselected-language'),
-                                    ),
-                            ),
-                          ),
-                        ),
-                        if (!isLast) const Divider(height: 1),
+                        ],
                       ],
-                    );
-                  }),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.xxl,
+                0,
+                AppSpacing.xxl,
+                AppSpacing.lg,
+              ),
+              child: EmployeePrimaryButton(label: 'Continue', onPressed: _save),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LanguageRow extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _LanguageRow({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final p = EmployeePalette.of(context);
+
+    return Semantics(
+      inMutuallyExclusiveGroup: true,
+      checked: selected,
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.md + 2,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: AppTypography.bodyMedium(
+                    color: selected ? p.accent : p.textPrimary,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  ),
                 ),
               ),
-              const Spacer(),
-              EmployeePrimaryButton(
-                label: 'Continue',
-                onPressed: _saveSelectedLanguage,
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: selected ? AppColors.primary : Colors.transparent,
+                  border: Border.all(
+                    color: selected ? AppColors.primary : p.borderSubtle,
+                    width: 2,
+                  ),
+                ),
+                child: selected
+                    ? const Icon(Icons.check, size: 14, color: Colors.white)
+                    : null,
               ),
-              const SizedBox(height: 16),
             ],
           ),
         ),

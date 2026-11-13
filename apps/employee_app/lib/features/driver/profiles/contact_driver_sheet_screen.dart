@@ -5,7 +5,7 @@ import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
 
 /// Screen: Contact Driver Sheet
-/// Uses design system components: EmployeeBottomSheetContainer, EmployeeDriverContactSheet.
+/// Uses the Driver app's AppBottomSheet + EmployeeDriverContactSheet.
 class ContactDriverSheetScreen extends StatefulWidget {
   const ContactDriverSheetScreen({super.key});
 
@@ -51,7 +51,7 @@ class _ContactDriverSheetScreenState extends State<ContactDriverSheetScreen> {
     return Scaffold(
       backgroundColor: Colors.black54,
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primaryBlue))
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
           : GestureDetector(
               onTap: () => Navigator.of(context).pop(),
               child: Container(
@@ -59,7 +59,7 @@ class _ContactDriverSheetScreenState extends State<ContactDriverSheetScreen> {
                 alignment: Alignment.bottomCenter,
                 child: GestureDetector(
                   onTap: () {}, // Prevent dismissal on inner click
-                  child: EmployeeBottomSheetContainer(
+                  child: AppBottomSheet(
                     title: 'Contact Driver',
                     child: Column(
                       mainAxisSize: MainAxisSize.min,

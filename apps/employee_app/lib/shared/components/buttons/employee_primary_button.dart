@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../theme/app_colors.dart';
-import '../feedback/employee_press_scale.dart';
+import '../../../theme/app_radius.dart';
+import '../../../theme/app_spacing.dart';
+import '../../../theme/app_typography.dart';
 
-/// Primary Brand Action Button for AdhocX.
-/// Uses the canonical AdhocX rounded-pill design with optional icon and loading spinner.
+/// Primary action button — Driver app design (AppPrimaryButton):
+/// 48px tall, 8px radius, flat, Inter 15/w600, 110/150 alpha disabled state.
+///
+/// Kept as an employee wrapper (same public API as before) so screens can
+/// override the fill colour; visually identical to the driver button.
 class EmployeePrimaryButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
@@ -14,7 +18,6 @@ class EmployeePrimaryButton extends StatelessWidget {
   final IconData? icon;
   final Color? backgroundColor;
   final Color? foregroundColor;
-  final Gradient? gradient;
   final double borderRadius;
 
   const EmployeePrimaryButton({
@@ -22,91 +25,68 @@ class EmployeePrimaryButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.isLoading = false,
-    this.height = 52,
+    this.height = 48,
     this.width,
     this.icon,
     this.backgroundColor,
     this.foregroundColor,
-    this.gradient,
-    this.borderRadius = 26,
+    this.borderRadius = AppRadius.md,
   });
 
   @override
   Widget build(BuildContext context) {
-    final effectiveBg = backgroundColor ?? AppColors.primaryBlue;
-    final effectiveFg = foregroundColor ?? AppColors.textLight;
-    final isEnabled = onPressed != null && !isLoading;
+    final bgColor = backgroundColor ?? AppColors.primary;
+    final textColor = foregroundColor ?? Colors.white;
+
+    final child = isLoading
+        ? SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.2,
+              valueColor: AlwaysStoppedAnimation<Color>(textColor),
+            ),
+          )
+        : Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 18, color: textColor),
+                const SizedBox(width: AppSpacing.sm),
+              ],
+              Flexible(
+                child: Text(
+                  label,
+                  style: AppTypography.button(color: textColor),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
+          );
 
     return SizedBox(
       width: width ?? double.infinity,
       height: height,
-      child: EmployeePressScale(
-        enabled: isEnabled,
-        borderRadius: borderRadius,
-        shadowColor: effectiveBg,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: (gradient != null && isEnabled) ? gradient : null,
-            borderRadius: BorderRadius.circular(borderRadius),
-            boxShadow: isEnabled
-                ? [
-                    BoxShadow(
-                      color: effectiveBg.withValues(alpha: 0.22),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ]
-                : null,
+      child: ElevatedButton(
+        onPressed: isLoading ? null : onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: bgColor,
+          foregroundColor: textColor,
+          disabledBackgroundColor: bgColor.withAlpha(110),
+          disabledForegroundColor: textColor.withAlpha(150),
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.sm,
           ),
-          child: ElevatedButton(
-            onPressed: isLoading ? null : onPressed,
-            style: ElevatedButton.styleFrom(
-              backgroundColor:
-                  gradient != null ? Colors.transparent : effectiveBg,
-              foregroundColor: effectiveFg,
-              disabledBackgroundColor: effectiveBg.withValues(alpha: 0.55),
-              disabledForegroundColor: effectiveFg.withValues(alpha: 0.75),
-              elevation: 0,
-              shadowColor: Colors.transparent,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(borderRadius),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-            ),
-            child: isLoading
-                ? SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      valueColor: AlwaysStoppedAnimation<Color>(effectiveFg),
-                    ),
-                  )
-                : Row(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (icon != null) ...[
-                        Icon(icon, size: 20, color: effectiveFg),
-                        const SizedBox(width: 8),
-                      ],
-                      Flexible(
-                        child: Text(
-                          label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.inter(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: effectiveFg,
-                            letterSpacing: 0.1,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(borderRadius),
           ),
         ),
+        child: child,
       ),
     );
   }

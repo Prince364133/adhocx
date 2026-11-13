@@ -1,185 +1,152 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:adhocx_employee/theme/app_colors.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
+import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
+import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
+import 'package:adhocx_employee/theme/app_colors.dart';
+import 'package:adhocx_employee/theme/app_spacing.dart';
+import 'package:adhocx_employee/theme/app_typography.dart';
+import 'package:adhocx_employee/theme/employee_palette.dart';
 
-/// Screen: Notifications Center
-/// Uses design system components: EmployeeAppBar, EmployeePillFilter.
 class NotificationsCenterScreen extends StatefulWidget {
   const NotificationsCenterScreen({super.key});
 
   @override
-  State<NotificationsCenterScreen> createState() => _NotificationsCenterScreenState();
+  State<NotificationsCenterScreen> createState() =>
+      _NotificationsCenterScreenState();
 }
 
 class _NotificationsCenterScreenState extends State<NotificationsCenterScreen> {
-  List<dynamic> _notifications = [];
-  bool _isLoading = true;
-  int _selectedFilter = 0; // 0: All, 1: Trips, 2: Updates, 3: Support
+  static const _filters = ['All', 'Trips', 'Updates', 'Support'];
+  static const _types = [null, 'trips', 'updates', 'support'];
+  int _selectedFilter = 0;
 
-  final List<String> _filters = ['All', 'Trips', 'Updates', 'Support'];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadNotifications();
-  }
-
-  Future<void> _loadNotifications() async {
-    final hp = await MockDataService.getHistoryProfileData();
-    if (mounted) {
-      setState(() {
-        _notifications = hp['notifications'] as List<dynamic>? ?? [];
-        _isLoading = false;
-      });
+  static (IconData, Color) _style(String type) {
+    switch (type) {
+      case 'trips':
+        return (Icons.directions_car_filled_rounded, AppColors.primary);
+      case 'updates':
+        return (Icons.update_rounded, AppColors.brandOrange);
+      case 'support':
+        return (Icons.headset_mic_rounded, AppColors.success);
+      default:
+        return (Icons.notifications_rounded, AppColors.accentPurple);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final filtered = _notifications.where((n) {
-      if (_selectedFilter == 0) return true;
-      final type = (n['type'] ?? '').toString().toLowerCase();
-      if (_selectedFilter == 1) return type == 'trips';
-      if (_selectedFilter == 2) return type == 'updates';
-      if (_selectedFilter == 3) return type == 'support';
-      return true;
-    }).toList();
+    return TripDataBuilder(
+      load: () async => {
+        'items': (await MockDataService.getHistoryProfileData())['notifications'],
+      },
+      builder: (context, data) {
+        final p = EmployeePalette.of(context);
+        final wanted = _types[_selectedFilter];
+        final items = ((data['items'] as List<dynamic>?) ?? const [])
+            .cast<Map<String, dynamic>>()
+            .where((n) =>
+                wanted == null || '${n['type'] ?? ''}'.toLowerCase() == wanted)
+            .toList();
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: EmployeeAppBar(
-        title: 'Notifications',
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined, color: AppColors.textPrimary),
-            onPressed: () => context.push(AppRoutes.notificationPreferences),
-          ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primaryBlue))
-          : SafeArea(
-              child: Column(
-                children: [
-                  // Reusable Segmented Pill Filter
-                  EmployeePillFilter(
-                    options: _filters,
-                    selectedIndex: _selectedFilter,
-                    onSelected: (index) => setState(() => _selectedFilter = index),
-                  ),
-
-                  // Notifications list
-                  Expanded(
-                    child: filtered.isEmpty
-                        ? const EmployeeEmptyState(
-                            icon: Icons.notifications_off_outlined,
-                            title: 'No Notifications',
-                            description: 'You are all caught up on your commute updates!',
-                          )
-                        : ListView.builder(
-                            padding: const EdgeInsets.all(20),
-                            itemCount: filtered.length,
-                            itemBuilder: (context, index) {
-                              final n = filtered[index] as Map<String, dynamic>;
-                              final title = n['title'] ?? '';
-                              final body = n['body'] ?? '';
-                              final time = n['time'] ?? '';
-                              final type = n['type'] ?? '';
-
-                              IconData icon = Icons.notifications_rounded;
-                              Color iconColor = AppColors.primaryPurple;
-                              if (type == 'trips') {
-                                icon = Icons.directions_car_filled_rounded;
-                                iconColor = AppColors.primaryBlue;
-                              } else if (type == 'updates') {
-                                icon = Icons.update_rounded;
-                                iconColor = AppColors.secondaryOrange;
-                              } else if (type == 'support') {
-                                icon = Icons.headset_mic_rounded;
-                                iconColor = AppColors.success;
-                              }
-
-                              return Container(
-                                margin: const EdgeInsets.only(bottom: 12),
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: AppColors.border),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.02),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(10),
-                                      decoration: BoxDecoration(
-                                        color: iconColor.withValues(alpha: 0.12),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Icon(icon, color: iconColor, size: 20),
-                                    ),
-                                    const SizedBox(width: 14),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Expanded(
-                                                child: Text(
-                                                  title,
-                                                  style: GoogleFonts.inter(
-                                                    fontSize: 14,
-                                                    fontWeight: FontWeight.w700,
-                                                    color: AppColors.textPrimary,
-                                                  ),
-                                                ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Text(
-                                                time,
-                                                style: GoogleFonts.inter(
-                                                  fontSize: 11,
-                                                  color: AppColors.textMuted,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            body,
-                                            style: GoogleFonts.inter(
-                                              fontSize: 13,
-                                              color: AppColors.textSecondary,
-                                              height: 1.35,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                  ),
-                ],
+        return Scaffold(
+          backgroundColor: p.background,
+          appBar: EmployeeAppBar(
+            title: 'Notifications',
+            actions: [
+              IconButton(
+                tooltip: 'Notification preferences',
+                icon: Icon(Icons.settings_outlined, color: p.textPrimary),
+                onPressed: () =>
+                    context.push(AppRoutes.notificationPreferences),
               ),
+            ],
+          ),
+          body: SafeArea(
+            child: Column(
+              children: [
+                EmployeePillFilter(
+                  options: _filters,
+                  selectedIndex: _selectedFilter,
+                  onSelected: (i) => setState(() => _selectedFilter = i),
+                ),
+                Expanded(
+                  child: items.isEmpty
+                      ? const EmployeeEmptyState(
+                          icon: Icons.notifications_off_outlined,
+                          title: 'No Notifications',
+                          description:
+                              'You are all caught up on your commute updates!',
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.all(AppSpacing.xl),
+                          itemCount: items.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: AppSpacing.md),
+                          itemBuilder: (context, index) {
+                            final n = items[index];
+                            final (icon, color) = _style('${n['type'] ?? ''}');
+                            return AppCard(
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    padding:
+                                        const EdgeInsets.all(AppSpacing.sm + 2),
+                                    decoration: BoxDecoration(
+                                      color: color.withAlpha(p.isDark ? 46 : 31),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(icon, color: color, size: 20),
+                                  ),
+                                  const SizedBox(width: AppSpacing.md + 2),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                '${n['title'] ?? ''}',
+                                                style: AppTypography.bodyMedium(
+                                                  color: p.textPrimary,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: AppSpacing.sm),
+                                            Text(
+                                              '${n['time'] ?? ''}',
+                                              style: AppTypography.micro(
+                                                color: p.textMuted,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: AppSpacing.xs),
+                                        Text(
+                                          '${n['body'] ?? ''}',
+                                          style: AppTypography.small(
+                                            color: p.textSecondary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
             ),
+          ),
+        );
+      },
     );
   }
 }
-

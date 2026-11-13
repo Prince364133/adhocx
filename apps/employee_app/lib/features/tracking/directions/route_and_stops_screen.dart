@@ -1,179 +1,147 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:adhocx_employee/theme/app_colors.dart';
-import 'package:adhocx_employee/widgets/employee_primary_button.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
+import 'package:adhocx_employee/services/mock_data_service.dart';
+import 'package:adhocx_employee/shared/components/components.dart';
+import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
+import 'package:adhocx_employee/theme/app_colors.dart';
+import 'package:adhocx_employee/theme/app_spacing.dart';
+import 'package:adhocx_employee/theme/app_typography.dart';
+import 'package:adhocx_employee/theme/employee_palette.dart';
 
 /// Screen 8: Route & Stops
-class RouteAndStopsScreen extends StatefulWidget {
+class RouteAndStopsScreen extends StatelessWidget {
   const RouteAndStopsScreen({super.key});
 
   @override
-  State<RouteAndStopsScreen> createState() => _RouteAndStopsScreenState();
-}
-
-class _RouteAndStopsScreenState extends State<RouteAndStopsScreen> {
-  List<dynamic> _stops = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadData();
-  }
-
-  Future<void> _loadData() async {
-    final tracking = await MockDataService.getLiveTracking();
-    if (mounted) {
-      setState(() {
-        _stops = tracking['routeAndStops'] as List<dynamic>? ?? [];
-        _isLoading = false;
-      });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.textPrimary),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          'Trip Route',
-          style: GoogleFonts.inter(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                child: Column(
-                  children: [
-                    Container(
+    return TripDataBuilder(
+      load: () async => {
+        'stops': (await MockDataService.getLiveTracking())['routeAndStops'],
+      },
+      builder: (context, data) {
+        final p = EmployeePalette.of(context);
+        final stops = (data['stops'] as List<dynamic>?) ?? const [];
+
+        return Scaffold(
+          backgroundColor: p.background,
+          appBar: const EmployeeAppBar(title: 'Trip Route'),
+          body: SafeArea(
+            child: Column(
+              children: [
+                // Scrolls so long routes never overflow the screen.
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(AppSpacing.xl),
+                    child: AppCard(
                       width: double.infinity,
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: AppColors.border),
-                      ),
+                      padding: AppSpacing.paddingXl,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             'Active Passenger Manifest',
-                            style: GoogleFonts.inter(
+                            style: AppTypography.h4(
+                              color: p.textPrimary,
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
                             ),
                           ),
-                          const SizedBox(height: 20),
-
-                          ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: _stops.length,
-                            itemBuilder: (context, index) {
-                              final stop = _stops[index] as Map<String, dynamic>;
-                              final name = stop['name'] ?? '';
-                              final time = stop['time'] ?? '';
-                              final location = stop['location'] ?? '';
-                              final status = stop['status'] ?? '';
-                              final isDrop = stop['isDrop'] == true;
-                              final isLast = index == _stops.length - 1;
-
-                              return Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Column(
-                                    children: [
-                                      Container(
-                                        width: 22,
-                                        height: 22,
-                                        decoration: BoxDecoration(
-                                          color: isDrop ? AppColors.secondaryOrange : AppColors.success,
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: Center(
-                                          child: Icon(
-                                            isDrop ? Icons.business_rounded : Icons.check,
-                                            size: 13,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                      ),
-                                      if (!isLast)
-                                        Container(
-                                          width: 2,
-                                          height: 52,
-                                          color: const Color(0xFFCBD5E1),
-                                        ),
-                                    ],
-                                  ),
-                                  const SizedBox(width: 14),
-                                  Expanded(
-                                    child: Padding(
-                                      padding: const EdgeInsets.only(bottom: 24),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            name,
-                                            style: GoogleFonts.inter(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w700,
-                                              color: AppColors.textPrimary,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            isDrop ? 'ETA $time' : '$time • $status ($location)',
-                                            style: GoogleFonts.inter(
-                                              fontSize: 12,
-                                              color: AppColors.textSecondary,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
+                          const SizedBox(height: AppSpacing.xl),
+                          for (var i = 0; i < stops.length; i++)
+                            _StopRow(
+                              stop: stops[i] as Map<String, dynamic>,
+                              isLast: i == stops.length - 1,
+                            ),
                         ],
                       ),
                     ),
-
-                    const Spacer(),
-
-                    EmployeePrimaryButton(
-                      label: 'View on Map',
-                      icon: Icons.map_rounded,
-                      onPressed: () => context.push(AppRoutes.tripLiveMapFull),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
+                  ),
                 ),
-              ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.xl,
+                    0,
+                    AppSpacing.xl,
+                    AppSpacing.lg,
+                  ),
+                  child: EmployeePrimaryButton(
+                    label: 'View on Map',
+                    icon: Icons.map_rounded,
+                    onPressed: () => context.push(AppRoutes.tripLiveMapFull),
+                  ),
+                ),
+              ],
             ),
+          ),
+        );
+      },
     );
   }
 }
 
+class _StopRow extends StatelessWidget {
+  final Map<String, dynamic> stop;
+  final bool isLast;
 
+  const _StopRow({required this.stop, required this.isLast});
 
+  @override
+  Widget build(BuildContext context) {
+    final p = EmployeePalette.of(context);
+    final isDrop = stop['isDrop'] == true;
+    final time = stop['time'] ?? '';
+
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Column(
+            children: [
+              Container(
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  color: isDrop ? AppColors.brandOrange : AppColors.success,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  isDrop ? Icons.business_rounded : Icons.check,
+                  size: 13,
+                  color: Colors.white,
+                ),
+              ),
+              if (!isLast)
+                Expanded(child: Container(width: 2, color: p.borderSubtle)),
+            ],
+          ),
+          const SizedBox(width: AppSpacing.md + 2),
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(bottom: isLast ? 0 : AppSpacing.xxl),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    stop['name'] ?? '',
+                    style: AppTypography.bodyMedium(
+                      color: p.textPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    isDrop
+                        ? 'ETA $time'
+                        : '$time • ${stop['status'] ?? ''} (${stop['location'] ?? ''})',
+                    style: AppTypography.caption(color: p.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

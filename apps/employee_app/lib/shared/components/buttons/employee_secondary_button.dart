@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../theme/app_colors.dart';
-import '../feedback/employee_press_scale.dart';
+import '../../../theme/app_radius.dart';
+import '../../../theme/app_spacing.dart';
+import '../../../theme/app_typography.dart';
 
-/// Outlined / Secondary Action Button for AdhocX.
+/// Outlined secondary button — Driver app design (AppSecondaryButton.outline):
+/// 48px tall, 8px radius, 1.2px border, surface fill, light/dark aware.
+///
+/// Screens may override [borderColor] / [textColor] / [backgroundColor]
+/// (e.g. a red "Cancel trip" outline); defaults follow the driver tokens.
 class EmployeeSecondaryButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
@@ -21,72 +26,77 @@ class EmployeeSecondaryButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.isLoading = false,
-    this.height = 52,
+    this.height = 48,
     this.width,
     this.icon,
     this.borderColor,
     this.textColor,
     this.backgroundColor,
-    this.borderRadius = 26,
+    this.borderRadius = AppRadius.md,
   });
 
   @override
   Widget build(BuildContext context) {
-    final effectiveBorder = borderColor ?? AppColors.border;
-    final effectiveText = textColor ?? AppColors.textPrimary;
-    final effectiveBg = backgroundColor ?? Colors.white;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final effectiveText = textColor ??
+        (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight);
+    final effectiveBorder =
+        borderColor ?? (isDark ? AppColors.borderDark : AppColors.borderLight);
+    final effectiveBg = backgroundColor ??
+        (isDark ? AppColors.surfaceDark : AppColors.surfaceLight);
+
+    final child = isLoading
+        ? SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondaryLight,
+              ),
+            ),
+          )
+        : Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 18, color: effectiveText),
+                const SizedBox(width: AppSpacing.sm),
+              ],
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.button(color: effectiveText),
+                ),
+              ),
+            ],
+          );
 
     return SizedBox(
       width: width ?? double.infinity,
       height: height,
-      child: EmployeePressScale(
-        enabled: onPressed != null && !isLoading,
-        borderRadius: borderRadius,
-        shadowColor: effectiveText,
-        child: OutlinedButton(
-          onPressed: isLoading ? null : onPressed,
-          style: OutlinedButton.styleFrom(
-            backgroundColor: effectiveBg,
-            foregroundColor: effectiveText,
-            side: BorderSide(color: effectiveBorder, width: 1.5),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(borderRadius),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            elevation: 0,
+      child: OutlinedButton(
+        onPressed: isLoading ? null : onPressed,
+        style: OutlinedButton.styleFrom(
+          backgroundColor: effectiveBg,
+          foregroundColor: effectiveText,
+          side: effectiveBorder == Colors.transparent
+              ? BorderSide.none
+              : BorderSide(color: effectiveBorder, width: 1.2),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.sm,
           ),
-          child: isLoading
-              ? SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(effectiveText),
-                  ),
-                )
-              : Row(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (icon != null) ...[
-                      Icon(icon, size: 20, color: effectiveText),
-                      const SizedBox(width: 8),
-                    ],
-                    Flexible(
-                      child: Text(
-                        label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: effectiveText,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(borderRadius),
+          ),
         ),
+        child: child,
       ),
     );
   }

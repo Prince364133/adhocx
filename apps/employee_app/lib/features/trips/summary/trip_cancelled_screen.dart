@@ -1,213 +1,68 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:adhocx_employee/theme/app_colors.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
-import 'package:adhocx_employee/widgets/employee_app_bar.dart';
-import 'package:adhocx_employee/widgets/employee_secondary_button.dart';
-import 'package:adhocx_employee/widgets/batch_02_illustrations.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
+import 'package:adhocx_employee/services/mock_data_service.dart';
+import 'package:adhocx_employee/shared/components/components.dart';
+import 'package:adhocx_employee/shared/illustrations/trip_illustrations.dart';
+import 'package:adhocx_employee/theme/app_colors.dart';
+import 'package:adhocx_employee/theme/app_spacing.dart';
+import 'package:adhocx_employee/theme/employee_palette.dart';
+import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
 
-class TripCancelledScreen extends StatefulWidget {
+class TripCancelledScreen extends StatelessWidget {
   const TripCancelledScreen({super.key});
 
   @override
-  State<TripCancelledScreen> createState() => _TripCancelledScreenState();
-}
-
-class _TripCancelledScreenState extends State<TripCancelledScreen> {
-  Map<String, dynamic>? _tripData;
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadJsonData();
-  }
-
-  Future<void> _loadJsonData() async {
-    final trip = await MockDataService.getTrip('cancelled');
-    if (mounted) {
-      setState(() {
-        _tripData = trip;
-        _isLoading = false;
-      });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(
-        body: Center(
-            child: CircularProgressIndicator(color: AppColors.primaryBlue)),
-      );
-    }
+    return TripDataBuilder(
+      load: () => MockDataService.getTrip('cancelled'),
+      builder: (context, trip) {
+        final p = EmployeePalette.of(context);
 
-    final message = _tripData?['message'] ??
-        'Your this trip has been cancelled as per your request.';
-    final pickupPoint = _tripData?['pickupPoint'] ?? 'Home - Hitech City';
-    final scheduledTime = _tripData?['scheduledTime'] ?? '8:15 AM';
-    final cancelledAt = _tripData?['cancelledAt'] ?? 'Today, 7:42 AM';
-
-    return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: const EmployeeAppBar(),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(
-                "Today's Pickup",
-                style: GoogleFonts.inter(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
+        return TripStageScaffold(
+          title: "Today's Pickup",
+          statusLabel: 'Cancelled',
+          statusVariant: BadgeVariant.cancelled,
+          children: [
+            const SizedBox(height: AppSpacing.sm),
+            const TripCancelledBadge(),
+            const SizedBox(height: AppSpacing.xxl),
+            TripHeadline(
+              title: 'Trip Cancelled',
+              subtitle: trip['message'] ??
+                  'This trip has been cancelled as per your request.',
+            ),
+            const SizedBox(height: AppSpacing.xxxl),
+            TripInfoCard(
+              items: [
+                TripInfoItem(
+                  icon: Icons.location_on_outlined,
+                  label: 'Pickup Point',
+                  value: trip['pickupPoint'] ?? 'Home - Hitech City',
                 ),
-              ),
-              const SizedBox(height: 12),
-
-              // Cancelled Status Pill
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppColors.errorLight,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppColors.errorBorder),
+                TripInfoItem(
+                  icon: Icons.access_time_rounded,
+                  label: 'Scheduled Time',
+                  value: trip['scheduledTime'] ?? '8:15 AM',
                 ),
-                child: Text(
-                  'Cancelled',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.error,
-                  ),
+                TripInfoItem(
+                  icon: Icons.cancel_outlined,
+                  label: 'Cancelled At',
+                  value: trip['cancelledAt'] ?? 'Today, 7:42 AM',
+                  valueColor: AppColors.error,
                 ),
-              ),
-
-              const SizedBox(height: 28),
-
-              // Cancelled Cross Badge
-              const TripCancelledBadge(),
-
-              const SizedBox(height: 24),
-
-              Text(
-                'Trip Cancelled',
-                style: GoogleFonts.inter(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-
-              const SizedBox(height: 6),
-
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                  height: 1.45,
-                ),
-              ),
-
-              const SizedBox(height: 32),
-
-              // Cancelled Details Card
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.border),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    _buildRow(
-                      icon: Icons.location_on_outlined,
-                      label: 'Pickup Point',
-                      value: pickupPoint,
-                    ),
-                    const Divider(color: AppColors.border, height: 28),
-                    _buildRow(
-                      icon: Icons.access_time_rounded,
-                      label: 'Scheduled Time',
-                      value: scheduledTime,
-                    ),
-                    const Divider(color: AppColors.border, height: 28),
-                    _buildRow(
-                      icon: Icons.cancel_outlined,
-                      label: 'Cancelled At',
-                      value: cancelledAt,
-                      valueColor: AppColors.error,
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 36),
-
-              // Back to Home Button
-              EmployeeSecondaryButton(
-                label: 'Back to Home',
-                textColor: AppColors.primaryBlue,
-                borderColor: AppColors.primaryBlue,
-                onPressed: () => context.go(AppRoutes.homeUpcomingPickup),
-              ),
-
-              const SizedBox(height: 24),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRow({
-    required IconData icon,
-    required String label,
-    required String value,
-    Color? valueColor,
-  }) {
-    return Row(
-      children: [
-        Icon(icon, size: 20, color: AppColors.textMuted),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style:
-                    GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: valueColor ?? AppColors.textPrimary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xxxl + 4),
+            EmployeeSecondaryButton(
+              label: 'Back to Home',
+              textColor: p.accent,
+              borderColor: p.accent,
+              onPressed: () => context.go(AppRoutes.homeUpcomingPickup),
+            ),
+          ],
+        );
+      },
     );
   }
 }

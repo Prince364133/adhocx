@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:adhocx_employee/shared/components/components.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
-import 'package:adhocx_employee/widgets/employee_app_bar.dart';
-import 'package:adhocx_employee/widgets/employee_primary_button.dart';
-import 'package:adhocx_employee/widgets/employee_otp_input.dart';
+import 'package:adhocx_employee/theme/app_spacing.dart';
+import 'package:adhocx_employee/theme/app_typography.dart';
+import 'package:adhocx_employee/theme/employee_palette.dart';
 import 'package:adhocx_employee/state/employee_auth_provider.dart';
 import 'package:adhocx_employee/models/auth_state.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
@@ -95,7 +95,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('A new 6-digit OTP code has been sent.'),
-          backgroundColor: AppColors.primaryBlue,
+          backgroundColor: AppColors.primary,
           duration: Duration(seconds: 2),
         ),
       );
@@ -118,36 +118,37 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
         : 'your registered number';
     final countdown = authProvider.resendCountdown;
     final countdownFormatted = '00:${countdown.toString().padLeft(2, '0')}';
+    final p = EmployeePalette.of(context);
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: p.background,
       appBar: const EmployeeAppBar(),
+      // Body shrinks when the native keyboard opens; the CTA stays above it.
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-          child: Column(
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.xxl,
+                  vertical: AppSpacing.sm,
+                ),
+                child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'Verify OTP',
-                style: GoogleFonts.inter(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                  letterSpacing: -0.4,
-                ),
+                style: AppTypography.h2(color: p.textPrimary),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               Text(
                 'Enter the 6-digit code sent to\n$phone',
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w400,
-                  color: AppColors.textSecondary,
-                  height: 1.45,
-                ),
+                style: AppTypography.body(color: p.textSecondary),
               ),
-              const SizedBox(height: 36),
+              const SizedBox(height: AppSpacing.xxxl + 4),
 
               // 6-digit OTP boxes
               EmployeeOtpInput(
@@ -168,7 +169,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                 },
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.lg),
 
               // Error banner if invalid (Screen 14)
               AnimatedSize(
@@ -195,22 +196,21 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                   child: _hasError && _errorMessage != null
                       ? Padding(
                           key: ValueKey(_errorMessage),
-                          padding: const EdgeInsets.only(bottom: 16),
+                          padding: const EdgeInsets.only(bottom: AppSpacing.lg),
                           child: Row(
                             children: [
                               const Icon(
                                 Icons.error_outline_rounded,
-                                color: AppColors.error,
+                                color: AppColors.errorText,
                                 size: 16,
                               ),
-                              const SizedBox(width: 6),
+                              const SizedBox(width: AppSpacing.xs + 2),
                               Expanded(
                                 child: Text(
                                   _errorMessage!,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 13,
+                                  style: AppTypography.small(
+                                    color: AppColors.errorText,
                                     fontWeight: FontWeight.w500,
-                                    color: AppColors.error,
                                   ),
                                 ),
                               ),
@@ -235,10 +235,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                       ? Text(
                           'Resend OTP in $countdownFormatted',
                           key: const ValueKey('otp-countdown'),
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
+                          style: AppTypography.small(
+                            color: p.textSecondary,
                             fontWeight: FontWeight.w500,
-                            color: AppColors.primaryBlue,
                           ),
                         )
                       : TextButton(
@@ -246,33 +245,36 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                           onPressed: authProvider.isLoading || _isResending
                               ? null
                               : _handleResend,
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 8),
-                          ),
                           child: Text(
                             'Resend OTP',
-                            style: GoogleFonts.inter(
-                              fontSize: 13,
+                            style: AppTypography.label(
+                              color: p.accent,
                               fontWeight: FontWeight.w700,
-                              color: AppColors.primaryBlue,
                             ),
                           ),
                         ),
                 ),
               ),
 
-              const Spacer(),
-              // "Verify & Continue" Pill Button
-              EmployeePrimaryButton(
+            ],
+                ),
+              ),
+            ),
+            // "Verify & Continue" — pinned directly above the native keyboard.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.xxl,
+                AppSpacing.sm,
+                AppSpacing.xxl,
+                AppSpacing.lg,
+              ),
+              child: EmployeePrimaryButton(
                 label: 'Verify & Continue',
-                isLoading: authProvider.isLoading,
+                isLoading: authProvider.isLoading || _isVerifying,
                 onPressed: _otpCode.length == 6 ? _handleVerify : null,
               ),
-
-              const SizedBox(height: 16),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:adhocx_employee/theme/app_colors.dart';
-import 'package:adhocx_employee/widgets/employee_primary_button.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
+import 'package:adhocx_employee/shared/components/components.dart';
+import 'package:adhocx_employee/theme/app_spacing.dart';
+import 'package:adhocx_employee/theme/app_typography.dart';
+import 'package:adhocx_employee/theme/employee_palette.dart';
+import '../widgets/boarding_widgets.dart';
 
-/// Screen 2: Boarding OTP Input
+/// Screen 2: Boarding OTP Input.
+///
+/// The employee types the 6-digit code shown by the driver with the phone's
+/// native keyboard (previously the screen only *displayed* the mock code and
+/// had no input at all). A matching code continues to verification; anything
+/// else opens the Invalid OTP state.
 class BoardingOtpInputScreen extends StatefulWidget {
   const BoardingOtpInputScreen({super.key});
 
@@ -15,177 +21,129 @@ class BoardingOtpInputScreen extends StatefulWidget {
 }
 
 class _BoardingOtpInputScreenState extends State<BoardingOtpInputScreen> {
-  Map<String, dynamic>? _options;
-  bool _isLoading = true;
-  final TextEditingController _otpController =
-      TextEditingController(text: '583271');
+  late final Future<Map<String, dynamic>?> _data =
+      loadBoardingSection('verification_options');
+  String _code = '';
 
-  @override
-  void initState() {
-    super.initState();
-    _loadData();
-  }
-
-  Future<void> _loadData() async {
-    final boarding = await MockDataService.getBoardingData();
-    if (mounted) {
-      setState(() {
-        _options = boarding['verification_options'] as Map<String, dynamic>?;
-        _isLoading = false;
-      });
-    }
-  }
-
-  @override
-  void dispose() {
-    _otpController.dispose();
-    super.dispose();
+  void _verify(String? expected) {
+    if (_code.length != 6) return;
+    final ok = expected == null || expected.isEmpty || _code == expected;
+    context.push(ok ? AppRoutes.verifyingBoarding : AppRoutes.wrongOtp);
   }
 
   @override
   Widget build(BuildContext context) {
-    final otpStr = _options?['otp']?.toString() ?? '';
-    final expiresIn = _options?['otpExpiresIn'] ?? '02:58';
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: _data,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const EmployeeLoadingScaffold(appBar: EmployeeAppBar());
+        }
+        final p = EmployeePalette.of(context);
+        final data = snapshot.data ?? const {};
+        final expected = data['otp']?.toString();
+        final expiresIn = data['otpExpiresIn'] ?? '02:58';
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              size: 18, color: AppColors.textPrimary),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SafeArea(
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 12),
-                    Text(
-                      'Enter Boarding OTP',
-                      style: GoogleFonts.inter(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                      ),
+        return Scaffold(
+          backgroundColor: p.background,
+          appBar: const EmployeeAppBar(),
+          resizeToAvoidBottomInset: true,
+          body: SafeArea(
+            child: Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.xxl,
+                      vertical: AppSpacing.lg,
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Enter the 6-digit OTP shown by your driver.',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 36),
-
-                    // 6-digit OTP Box Display
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: otpStr.split('').map<Widget>((digit) {
-                        return Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 5),
-                          width: 44,
-                          height: 52,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                                color: AppColors.primaryBlue, width: 1.5),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.primaryBlue
-                                    .withValues(alpha: 0.08),
-                                blurRadius: 6,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Center(
-                            child: Text(
-                              digit,
-                              style: GoogleFonts.inter(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Countdown Timer
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.access_time_rounded,
-                            size: 16, color: AppColors.textMuted),
-                        const SizedBox(width: 6),
-                        Text(
-                          'OTP expires in $expiresIn',
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primaryBlue,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // Resend Link
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    child: Column(
                       children: [
                         Text(
-                          "Didn't receive OTP? ",
-                          style: GoogleFonts.inter(
-                              fontSize: 13, color: AppColors.textMuted),
+                          'Enter Boarding OTP',
+                          style: AppTypography.h2(color: p.textPrimary),
                         ),
-                        GestureDetector(
-                          onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text(
-                                      'A fresh boarding OTP has been generated.')),
-                            );
+                        const SizedBox(height: AppSpacing.sm),
+                        Text(
+                          'Enter the 6-digit OTP shown by your driver.',
+                          textAlign: TextAlign.center,
+                          style: AppTypography.body(color: p.textSecondary),
+                        ),
+                        const SizedBox(height: AppSpacing.xxxl + 4),
+                        EmployeeOtpInput(
+                          onChanged: (value) => setState(() => _code = value),
+                          onCompleted: (value) {
+                            _code = value;
+                            _verify(expected);
                           },
-                          child: Text(
-                            'Resend',
-                            style: GoogleFonts.inter(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.primaryBlue,
+                        ),
+                        const SizedBox(height: AppSpacing.xxl),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.access_time_rounded,
+                                size: 16, color: p.textMuted),
+                            const SizedBox(width: AppSpacing.xs + 2),
+                            Text(
+                              'OTP expires in $expiresIn',
+                              style: AppTypography.small(
+                                color: p.accent,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                          ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        Wrap(
+                          alignment: WrapAlignment.center,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(
+                              "Didn't receive OTP?",
+                              style: AppTypography.small(color: p.textMuted),
+                            ),
+                            TextButton(
+                              onPressed: () =>
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                      'A fresh boarding OTP has been generated.'),
+                                ),
+                              ),
+                              child: Text(
+                                'Resend',
+                                style: AppTypography.label(
+                                  color: p.accent,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-
-                    const Spacer(),
-
-                    // Primary Button: Verify Boarding
-                    EmployeePrimaryButton(
-                      label: 'Verify Boarding',
-                      onPressed: () =>
-                          context.push(AppRoutes.verifyingBoarding),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
+                  ),
                 ),
-              ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.xxl,
+                    AppSpacing.sm,
+                    AppSpacing.xxl,
+                    AppSpacing.lg,
+                  ),
+                  child: EmployeePrimaryButton(
+                    label: 'Verify Boarding',
+                    onPressed:
+                        _code.length == 6 ? () => _verify(expected) : null,
+                  ),
+                ),
+              ],
             ),
+          ),
+        );
+      },
     );
   }
 }

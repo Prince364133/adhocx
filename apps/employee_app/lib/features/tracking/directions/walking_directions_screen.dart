@@ -1,187 +1,151 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:adhocx_employee/theme/app_colors.dart';
-import 'package:adhocx_employee/widgets/batch_05_illustrations.dart';
 import 'package:adhocx_employee/services/mock_data_service.dart';
+import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
+import 'package:adhocx_employee/shared/illustrations/tracking_illustrations.dart';
+import 'package:adhocx_employee/theme/app_colors.dart';
+import 'package:adhocx_employee/theme/app_radius.dart';
+import 'package:adhocx_employee/theme/app_spacing.dart';
+import 'package:adhocx_employee/theme/app_typography.dart';
+import 'package:adhocx_employee/theme/employee_palette.dart';
+import '../widgets/map_overlay.dart';
 
 /// Screen 4: Walking Directions
-class WalkingDirectionsScreen extends StatefulWidget {
+class WalkingDirectionsScreen extends StatelessWidget {
   const WalkingDirectionsScreen({super.key});
 
   @override
-  State<WalkingDirectionsScreen> createState() =>
-      _WalkingDirectionsScreenState();
-}
-
-class _WalkingDirectionsScreenState extends State<WalkingDirectionsScreen> {
-  Map<String, dynamic>? _walkingData;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadData();
-  }
-
-  Future<void> _loadData() async {
-    final tracking = await MockDataService.getLiveTracking();
-    if (mounted) {
-      setState(() {
-        _walkingData = tracking['walkingDirections'] as Map<String, dynamic>?;
-      });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final instruction = _walkingData?['instruction'] ?? 'Turn right in 100 m';
-    final subInstruction =
-        _walkingData?['subInstruction'] ?? 'Green Meadows Main Road';
-    final distance = _walkingData?['distance'] ?? '220 m (3 min)';
-    final target = _walkingData?['target'] ?? 'To your pickup point';
+    return TripDataBuilder(
+      load: () async =>
+          (await MockDataService.getLiveTracking())['walkingDirections']
+              as Map<String, dynamic>?,
+      builder: (context, data) {
+        final p = EmployeePalette.of(context);
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          // Background Walkway Simulation Canvas
-          const Positioned.fill(
-            child: WalkingPathGraphic(),
-          ),
+        return Scaffold(
+          backgroundColor: p.background,
+          body: Stack(
+            children: [
+              const Positioned.fill(child: WalkingPathGraphic()),
 
-          // Top Turn-by-Turn Instruction Banner
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    backgroundColor: Colors.white,
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                          size: 16, color: AppColors.textPrimary),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
+              // Turn-by-turn banner (high-contrast, as in navigation apps)
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.lg,
+                    vertical: AppSpacing.md,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0F172A),
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.2),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
+                  child: Row(
+                    children: [
+                      MapOverlayButton(
+                        icon: Icons.arrow_back,
+                        tooltip: 'Back',
+                        onPressed: () => Navigator.of(context).maybePop(),
                       ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.turn_right_rounded,
-                              color: Colors.white, size: 28),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  instruction,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                Text(
-                                  subInstruction,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    color: Colors.white70,
-                                  ),
-                                ),
-                              ],
-                            ),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.lg,
+                            vertical: AppSpacing.md,
                           ),
-                        ],
+                          decoration: BoxDecoration(
+                            color: p.isDark
+                                ? AppColors.surfaceElevatedDark
+                                : AppColors.slate900,
+                            borderRadius: AppRadius.borderXxl,
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.turn_right_rounded,
+                                  color: Colors.white, size: 28),
+                              const SizedBox(width: AppSpacing.md),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      data['instruction'] ??
+                                          'Turn right in 100 m',
+                                      style: AppTypography.bodyMedium(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    Text(
+                                      data['subInstruction'] ??
+                                          'Green Meadows Main Road',
+                                      style: AppTypography.caption(
+                                        color: Colors.white.withAlpha(179),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
-              ),
-            ),
-          ),
-
-          // Bottom Info Banner
-          Positioned(
-            left: 20,
-            right: 20,
-            bottom: 30,
-            child: SafeArea(
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.12),
-                      blurRadius: 18,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color:
-                            AppColors.primaryBlueLight.withValues(alpha: 0.4),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.directions_walk_rounded,
-                          color: AppColors.primaryBlue, size: 22),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            distance,
-                            style: GoogleFonts.inter(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          Text(
-                            target,
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.map_rounded,
-                          color: AppColors.primaryBlue),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                  ],
                 ),
               ),
-            ),
+
+              // Bottom distance card
+              Positioned(
+                left: AppSpacing.xl,
+                right: AppSpacing.xl,
+                bottom: AppSpacing.xxxl,
+                child: SafeArea(
+                  child: MapFloatingCard(
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(AppSpacing.sm + 2),
+                          decoration: BoxDecoration(
+                            color: p.accentTint,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(Icons.directions_walk_rounded,
+                              color: p.accent, size: 22),
+                        ),
+                        const SizedBox(width: AppSpacing.md + 2),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                data['distance'] ?? '220 m (3 min)',
+                                style: AppTypography.h4(
+                                  color: p.textPrimary,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              Text(
+                                data['target'] ?? 'To your pickup point',
+                                style: AppTypography.caption(
+                                  color: p.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Back to map',
+                          icon: Icon(Icons.map_rounded, color: p.accent),
+                          onPressed: () => Navigator.of(context).maybePop(),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

@@ -1,23 +1,31 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../theme/app_colors.dart';
+import '../../../theme/app_radius.dart';
+import '../../../theme/app_spacing.dart';
+import '../../../theme/app_typography.dart';
 
 enum TripStep { planning, assigned, approaching, arrived, boarded }
 
-/// Reusable Step Tracker for AdhocX Trip Lifecycle.
-/// Supports both enum [TripStep] and zero-based [int] step indices.
+/// Trip lifecycle step tracker (Planning → Boarded) on Driver tokens.
+/// Accepts a [TripStep] or a zero-based int index.
+///
+/// Layout: five equal-width cells, each holding its dot, the two half
+/// connectors either side, and its label — so labels stay centred under their
+/// dots and long/translated labels scale down instead of overflowing.
 class EmployeeStepTracker extends StatelessWidget {
   final dynamic currentStep;
 
-  const EmployeeStepTracker({super.key, required this.currentStep});
+  /// Custom milestone labels (e.g. Pickup / Boarded / In Progress / Drop).
+  /// When null the 5 [TripStep] lifecycle labels are used.
+  final List<String>? labels;
 
-  static const List<TripStep> _steps = [
-    TripStep.planning,
-    TripStep.assigned,
-    TripStep.approaching,
-    TripStep.arrived,
-    TripStep.boarded,
-  ];
+  const EmployeeStepTracker({
+    super.key,
+    required this.currentStep,
+    this.labels,
+  });
+
+  static const List<TripStep> _steps = TripStep.values;
 
   static const Map<TripStep, String> _labels = {
     TripStep.planning: 'Planning',
@@ -30,158 +38,131 @@ class EmployeeStepTracker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    int activeIndex;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final track = isDark ? AppColors.borderDark : AppColors.borderLight;
+    final textPrimary =
+        isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight;
+    final textMuted =
+        isDark ? AppColors.textMutedDark : AppColors.textMutedLight;
+
+    final names =
+        labels ?? [for (final step in _steps) _labels[step]!];
+    final count = names.length;
+
+    final int activeIndex;
     if (currentStep is TripStep) {
-      activeIndex = _steps.indexOf(currentStep as TripStep);
+      activeIndex = _steps.indexOf(currentStep as TripStep).clamp(0, count - 1);
     } else if (currentStep is int) {
-      activeIndex = (currentStep as int).clamp(0, _steps.length - 1);
+      activeIndex = (currentStep as int).clamp(0, count - 1);
     } else {
       activeIndex = 0;
     }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceMuted,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: List.generate(_steps.length * 2 - 1, (index) {
-          if (index.isOdd) {
-            final prevStepIndex = index ~/ 2;
-            final isCompleted = prevStepIndex < activeIndex;
-            return Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) => SizedBox(
-                  height: 18,
-                  child: Stack(
-                    alignment: Alignment.centerLeft,
-                    children: [
-                      Container(
-                        width: constraints.maxWidth,
-                        height: 2.5,
-                        color: AppColors.border,
-                      ),
-                      TweenAnimationBuilder<double>(
-                        tween: Tween<double>(
-                          begin: 0,
-                          end: isCompleted ? 1 : 0,
-                        ),
-                        duration: reduceMotion
-                            ? Duration.zero
-                            : const Duration(milliseconds: 360),
-                        curve: Curves.easeOutCubic,
-                        builder: (context, value, child) => Container(
-                          width: constraints.maxWidth * value,
-                          height: 2.5,
-                          color: AppColors.primaryBlue,
-                        ),
-                      ),
-                    ],
-                  ),
+    final duration =
+        reduceMotion ? Duration.zero : const Duration(milliseconds: 260);
+
+    Widget connector({required bool visible, required bool done}) => Expanded(
+          child: AnimatedContainer(
+            duration: duration,
+            height: 2.5,
+            color: !visible
+                ? Colors.transparent
+                : (done ? AppColors.primary : track),
+          ),
+        );
+
+    return Semantics(
+      label: 'Trip progress: ${names[activeIndex]}, '
+          'step ${activeIndex + 1} of $count',
+      excludeSemantics: true,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xs,
+          vertical: AppSpacing.md,
+        ),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+          borderRadius: AppRadius.borderLg,
+          border: Border.all(color: track, width: 1.2),
+        ),
+        child: Row(
+          children: List.generate(count, (i) {
+            final isCompleted = i < activeIndex;
+            final isCurrent = i == activeIndex;
+
+            final Color dotColor;
+            final Widget dotChild;
+            if (isCompleted) {
+              dotColor = AppColors.primary;
+              dotChild =
+                  const Icon(Icons.check, size: 10, color: Colors.white);
+            } else if (isCurrent) {
+              // Lifecycle "Planning" is shown in brand orange (not yet assigned).
+              dotColor = labels == null && i == 0
+                  ? AppColors.brandOrange
+                  : AppColors.primary;
+              dotChild = Container(
+                width: 6,
+                height: 6,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
                 ),
-              ),
-            );
-          }
+              );
+            } else {
+              dotColor = track;
+              dotChild = const SizedBox.shrink();
+            }
 
-          final stepIndex = index ~/ 2;
-          final step = _steps[stepIndex];
-          final isCompleted = stepIndex < activeIndex;
-          final isCurrent = stepIndex == activeIndex;
-
-          Color dotColor;
-          Widget dotChild;
-
-          if (isCompleted) {
-            dotColor = AppColors.primaryBlue;
-            dotChild = const Icon(Icons.check, size: 10, color: Colors.white);
-          } else if (isCurrent) {
-            dotColor = (step == TripStep.planning)
-                ? AppColors.secondaryOrange
-                : AppColors.primaryBlue;
-            dotChild = Container(
-              width: 6,
-              height: 6,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-              ),
-            );
-          } else {
-            dotColor = AppColors.border;
-            dotChild = const SizedBox.shrink();
-          }
-
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AnimatedScale(
-                scale: isCurrent ? 1.08 : 1,
-                duration: reduceMotion
-                    ? Duration.zero
-                    : const Duration(milliseconds: 220),
-                curve: Curves.easeOutBack,
-                child: AnimatedContainer(
-                  duration: reduceMotion
-                      ? Duration.zero
-                      : const Duration(milliseconds: 260),
-                  width: 18,
-                  height: 18,
-                  decoration: BoxDecoration(
-                    color: dotColor,
-                    shape: BoxShape.circle,
-                    boxShadow: isCurrent && !reduceMotion
-                        ? [
-                            BoxShadow(
-                              color: dotColor.withValues(alpha: 0.24),
-                              blurRadius: 6,
-                              spreadRadius: 1,
-                            ),
-                          ]
-                        : null,
+            return Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    height: 18,
+                    child: Row(
+                      children: [
+                        // Left half: segment from the previous step.
+                        connector(visible: i > 0, done: i <= activeIndex),
+                        AnimatedContainer(
+                          duration: duration,
+                          width: 18,
+                          height: 18,
+                          decoration: BoxDecoration(
+                            color: dotColor,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(child: dotChild),
+                        ),
+                        // Right half: segment to the next step.
+                        connector(
+                          visible: i < count - 1,
+                          done: i < activeIndex,
+                        ),
+                      ],
+                    ),
                   ),
-                  child: Center(
-                    child: AnimatedSwitcher(
-                      duration: reduceMotion
-                          ? Duration.zero
-                          : const Duration(milliseconds: 180),
-                      transitionBuilder: (child, animation) => ScaleTransition(
-                        scale: animation,
-                        child: FadeTransition(opacity: animation, child: child),
-                      ),
-                      child: KeyedSubtree(
-                        key: ValueKey(stepIndex < activeIndex
-                            ? 'completed'
-                            : isCurrent
-                                ? 'current'
-                                : 'future'),
-                        child: dotChild,
+                  const SizedBox(height: AppSpacing.xs),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      names[i],
+                      maxLines: 1,
+                      style: AppTypography.micro(
+                        fontSize: 9,
+                        fontWeight:
+                            isCurrent ? FontWeight.w700 : FontWeight.w500,
+                        color: isCurrent
+                            ? textPrimary
+                            : (isCompleted ? AppColors.primary : textMuted),
                       ),
                     ),
                   ),
-                ),
+                ],
               ),
-              const SizedBox(height: 5),
-              AnimatedDefaultTextStyle(
-                duration: reduceMotion
-                    ? Duration.zero
-                    : const Duration(milliseconds: 220),
-                curve: Curves.easeOutCubic,
-                style: GoogleFonts.inter(
-                  fontSize: 9,
-                  fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w500,
-                  color: isCurrent
-                      ? AppColors.textPrimary
-                      : (isCompleted
-                          ? AppColors.primaryBlueDark
-                          : AppColors.textMuted),
-                ),
-                child: Text(_labels[step]!),
-              ),
-            ],
-          );
-        }),
+            );
+          }),
+        ),
       ),
     );
   }

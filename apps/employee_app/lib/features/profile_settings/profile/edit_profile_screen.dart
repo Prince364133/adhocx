@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:adhocx_employee/theme/app_colors.dart';
-import 'package:adhocx_employee/widgets/employee_primary_button.dart';
 import 'package:adhocx_employee/services/mock_data_service.dart';
+import 'package:adhocx_employee/shared/components/components.dart';
+import 'package:adhocx_employee/theme/app_colors.dart';
+import 'package:adhocx_employee/theme/app_radius.dart';
+import 'package:adhocx_employee/theme/app_spacing.dart';
+import 'package:adhocx_employee/theme/app_typography.dart';
+import 'package:adhocx_employee/theme/employee_palette.dart';
 
-/// Screen 7: Edit Profile
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
 
@@ -13,14 +15,10 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
-  final TextEditingController _nameController =
-      TextEditingController(text: 'Ravi Kumar');
-  final TextEditingController _phoneController =
-      TextEditingController(text: '+91 98765 43210');
-  final TextEditingController _emailController =
-      TextEditingController(text: 'ravi.kumar@hitec.com');
-  final TextEditingController _addressController =
-      TextEditingController(text: 'Kondapur, Hyderabad');
+  final _name = TextEditingController(text: 'Ravi Kumar');
+  final _phone = TextEditingController(text: '+91 98765 43210');
+  final _email = TextEditingController(text: 'ravi.kumar@hitec.com');
+  final _address = TextEditingController(text: 'Kondapur, Hyderabad');
   bool _isLoading = true;
 
   @override
@@ -31,148 +29,155 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Future<void> _loadProfile() async {
     final hp = await MockDataService.getHistoryProfileData();
-    if (mounted) {
-      final p = hp['profile'] as Map<String, dynamic>?;
-      if (p != null) {
-        _nameController.text = p['fullName'] ?? 'Ravi Kumar';
-        _phoneController.text = p['phone'] ?? '+91 98765 43210';
-        _emailController.text = p['email'] ?? 'ravi.kumar@hitec.com';
-        _addressController.text = p['address'] ?? 'Kondapur, Hyderabad';
-      }
-      setState(() => _isLoading = false);
+    if (!mounted) return;
+    final profile = hp['profile'] as Map<String, dynamic>?;
+    if (profile != null) {
+      _name.text = profile['fullName'] ?? _name.text;
+      _phone.text = profile['phone'] ?? _phone.text;
+      _email.text = profile['email'] ?? _email.text;
+      _address.text = profile['address'] ?? _address.text;
     }
+    setState(() => _isLoading = false);
   }
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _phoneController.dispose();
-    _emailController.dispose();
-    _addressController.dispose();
+    _name.dispose();
+    _phone.dispose();
+    _email.dispose();
+    _address.dispose();
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              size: 18, color: AppColors.textPrimary),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          'Edit Profile',
-          style: GoogleFonts.inter(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SafeArea(
-              child: SingleChildScrollView(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                child: Column(
-                  children: [
-                    // Avatar with Camera Badge
-                    Center(
-                      child: Stack(
-                        alignment: Alignment.bottomRight,
-                        children: [
-                          const CircleAvatar(
-                            radius: 46,
-                            backgroundColor: AppColors.primaryBlueLight,
-                            child: Icon(Icons.person,
-                                size: 54, color: AppColors.primaryBlue),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: const BoxDecoration(
-                              color: AppColors.primaryBlue,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.camera_alt_rounded,
-                                size: 14, color: Colors.white),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 28),
+  Widget _field(
+    String label,
+    TextEditingController controller, {
+    bool locked = false,
+    TextInputType? keyboardType,
+    List<String>? autofill,
+    TextCapitalization capitalization = TextCapitalization.none,
+  }) {
+    final p = EmployeePalette.of(context);
+    OutlineInputBorder border(Color c, [double w = 1.2]) => OutlineInputBorder(
+          borderRadius: AppRadius.borderMd,
+          borderSide: BorderSide(color: c, width: w),
+        );
 
-                    _buildTextField('Full Name', _nameController),
-                    const SizedBox(height: 18),
-                    _buildTextField('Phone Number', _phoneController,
-                        isLocked: true),
-                    const SizedBox(height: 18),
-                    _buildTextField('Email', _emailController),
-                    const SizedBox(height: 18),
-                    _buildTextField('Address', _addressController),
-
-                    const SizedBox(height: 40),
-
-                    EmployeePrimaryButton(
-                      label: 'Save Changes',
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Profile updated successfully.')),
-                        );
-                        Navigator.of(context).pop();
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                ),
-              ),
-            ),
-    );
-  }
-
-  Widget _buildTextField(String label, TextEditingController controller,
-      {bool isLocked = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: GoogleFonts.inter(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary),
-        ),
-        const SizedBox(height: 6),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: isLocked ? const Color(0xFFF8FAFC) : Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.border),
+          style: AppTypography.caption(
+            color: p.textSecondary,
+            fontWeight: FontWeight.w600,
           ),
-          child: TextField(
-            controller: controller,
-            enabled: !isLocked,
-            decoration: InputDecoration(
-              border: InputBorder.none,
-              suffixIcon: isLocked
-                  ? const Icon(Icons.lock_outline_rounded,
-                      size: 18, color: AppColors.textMuted)
-                  : null,
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        TextField(
+          controller: controller,
+          enabled: !locked,
+          keyboardType: keyboardType,
+          autofillHints: autofill,
+          textCapitalization: capitalization,
+          cursorColor: p.accent,
+          style: AppTypography.body(
+            color: locked ? p.textSecondary : p.textPrimary,
+          ),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: locked ? p.surfaceElevated : p.surface,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.md,
             ),
-            style: GoogleFonts.inter(
-                fontSize: 14,
-                color:
-                    isLocked ? AppColors.textSecondary : AppColors.textPrimary),
+            suffixIcon: locked
+                ? Icon(Icons.lock_outline_rounded, size: 18, color: p.textMuted)
+                : null,
+            enabledBorder: border(p.border),
+            disabledBorder: border(p.border),
+            focusedBorder: border(p.accent, 1.8),
           ),
         ),
       ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const EmployeeLoadingScaffold(
+        appBar: EmployeeAppBar(title: 'Edit Profile'),
+      );
+    }
+    final p = EmployeePalette.of(context);
+
+    return Scaffold(
+      backgroundColor: p.background,
+      appBar: const EmployeeAppBar(title: 'Edit Profile'),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xxl,
+            vertical: AppSpacing.xl,
+          ),
+          child: AutofillGroup(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Stack(
+                    alignment: Alignment.bottomRight,
+                    children: [
+                      CircleAvatar(
+                        radius: 46,
+                        backgroundColor: p.accentTint,
+                        child: Icon(Icons.person, size: 54, color: p.accent),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.all(AppSpacing.xs + 2),
+                        decoration: const BoxDecoration(
+                          color: AppColors.primary,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.camera_alt_rounded,
+                            size: 14, color: Colors.white),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xxl + 4),
+                _field('Full Name', _name,
+                    autofill: const [AutofillHints.name],
+                    capitalization: TextCapitalization.words),
+                const SizedBox(height: AppSpacing.lg + 2),
+                _field('Phone Number', _phone, locked: true),
+                const SizedBox(height: AppSpacing.lg + 2),
+                _field('Email', _email,
+                    keyboardType: TextInputType.emailAddress,
+                    autofill: const [AutofillHints.email]),
+                const SizedBox(height: AppSpacing.lg + 2),
+                _field('Address', _address,
+                    keyboardType: TextInputType.streetAddress,
+                    autofill: const [AutofillHints.fullStreetAddress],
+                    capitalization: TextCapitalization.words),
+                const SizedBox(height: AppSpacing.xxxl + AppSpacing.sm),
+                EmployeePrimaryButton(
+                  label: 'Save Changes',
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('Profile updated successfully.')),
+                    );
+                    Navigator.of(context).maybePop();
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

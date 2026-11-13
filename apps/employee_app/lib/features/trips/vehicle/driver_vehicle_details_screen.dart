@@ -1,280 +1,165 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/services/mock_data_service.dart';
-import 'package:adhocx_employee/widgets/employee_app_bar.dart';
-import 'package:adhocx_employee/shared/components/feedback/employee_entrance.dart';
+import 'package:adhocx_employee/shared/components/components.dart';
+import 'package:adhocx_employee/theme/app_colors.dart';
+import 'package:adhocx_employee/theme/app_radius.dart';
+import 'package:adhocx_employee/theme/app_spacing.dart';
+import 'package:adhocx_employee/theme/app_typography.dart';
+import 'package:adhocx_employee/theme/employee_palette.dart';
+import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
 
-class DriverVehicleDetailsScreen extends StatefulWidget {
+class DriverVehicleDetailsScreen extends StatelessWidget {
   const DriverVehicleDetailsScreen({super.key});
 
   @override
-  State<DriverVehicleDetailsScreen> createState() =>
-      _DriverVehicleDetailsScreenState();
-}
-
-class _DriverVehicleDetailsScreenState
-    extends State<DriverVehicleDetailsScreen> {
-  Map<String, dynamic>? _assignmentData;
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadJsonData();
-  }
-
-  Future<void> _loadJsonData() async {
-    final assignment = await MockDataService.getDriverAssignment();
-    if (mounted) {
-      setState(() {
-        _assignmentData = assignment;
-        _isLoading = false;
-      });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(
-        body: Center(
-            child: CircularProgressIndicator(color: AppColors.primaryBlue)),
-      );
-    }
+    return TripDataBuilder(
+      load: MockDataService.getDriverAssignment,
+      builder: (context, assignment) {
+        final p = EmployeePalette.of(context);
+        final driver = assignment['driver'] as Map<String, dynamic>?;
+        final vehicle = assignment['vehicle'] as Map<String, dynamic>?;
+        final rating = (driver?['rating'] ?? 4.8).toString();
+        final tripsCount = (driver?['tripsCompleted'] ?? 412).toString();
+        final color = vehicle?['color'] ?? 'White';
+        final seating = vehicle?['seating'] ?? '7 Seater';
 
-    final driver = _assignmentData?['driver'] as Map<String, dynamic>?;
-    final driverName = driver?['name'] ?? 'Suresh R';
-    final rating = (driver?['rating'] ?? 4.8).toString();
-    final tripsCount = (driver?['tripsCompleted'] ?? 412).toString();
-
-    final vehicle = _assignmentData?['vehicle'] as Map<String, dynamic>?;
-    final model = vehicle?['model'] ?? 'Maruti Ertiga';
-    final plate = vehicle?['plateNumber'] ?? 'TS09UB7845';
-    final color = vehicle?['color'] ?? 'White';
-    final seating = vehicle?['seating'] ?? '7 Seater';
-
-    return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: const EmployeeAppBar(),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(
-                'Driver & Vehicle',
-                style: GoogleFonts.inter(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                ),
+        return Scaffold(
+          backgroundColor: p.background,
+          appBar: const EmployeeAppBar(),
+          body: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.xxl,
+                AppSpacing.sm,
+                AppSpacing.xxl,
+                AppSpacing.xxl,
               ),
-
-              const SizedBox(height: 24),
-
-              // Driver Profile Card
-              EmployeeEntrance(
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.border),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+              child: Column(
+                children: [
+                  Text(
+                    'Driver & Vehicle',
+                    style: AppTypography.h2(color: p.textPrimary),
                   ),
-                  child: Row(
-                    children: [
-                      const CircleAvatar(
-                        radius: 30,
-                        backgroundColor: AppColors.primaryBlueLight,
-                        child: Icon(Icons.person,
-                            size: 36, color: AppColors.primaryBlue),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              driverName,
-                              style: GoogleFonts.inter(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.textPrimary,
-                              ),
+                  const SizedBox(height: AppSpacing.xxl),
+                  EmployeeEntrance(
+                    child: TripDriverRow(
+                      name: driver?['name'] ?? 'Suresh R',
+                      rating: '$rating ($tripsCount trips)',
+                      avatarRadius: 30,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  EmployeeEntrance(
+                    delay: const Duration(milliseconds: 100),
+                    child: AppCard(
+                      width: double.infinity,
+                      padding: AppSpacing.paddingXl,
+                      backgroundColor: p.surfaceElevated,
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 120,
+                            height: 70,
+                            decoration: BoxDecoration(
+                              color: p.surface,
+                              borderRadius: AppRadius.borderXxl,
+                              border: Border.all(color: p.border),
                             ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                const Icon(Icons.star_rounded,
-                                    color: Color(0xFFF59E0B), size: 18),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '$rating ($tripsCount trips)',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 13,
+                            child: Icon(
+                              Icons.directions_car_filled_rounded,
+                              color: p.accent,
+                              size: 48,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.md + 2),
+                          Text(
+                            vehicle?['model'] ?? 'Maruti Ertiga',
+                            style: AppTypography.h4(
+                              color: p.textPrimary,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.md,
+                              vertical: AppSpacing.xs,
+                            ),
+                            decoration: BoxDecoration(
+                              color: p.surface,
+                              borderRadius: AppRadius.borderMd,
+                              border: Border.all(color: p.border),
+                            ),
+                            child: Text(
+                              vehicle?['plateNumber'] ?? 'TS09UB7845',
+                              style: AppTypography.bodyMedium(
+                                color: p.accent,
+                                fontWeight: FontWeight.w800,
+                              ).copyWith(letterSpacing: 1.0),
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(
+                            '$color • $seating',
+                            style: AppTypography.small(
+                              color: p.textSecondary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xxl),
+                  AppCard(
+                    width: double.infinity,
+                    padding: AppSpacing.paddingXl,
+                    child: Column(
+                      children: [
+                        for (final (i, label) in const [
+                          'Driver Verified',
+                          'Vehicle Verified',
+                          'Commercial Permit',
+                        ].indexed) ...[
+                          if (i > 0)
+                            Divider(color: p.border, height: AppSpacing.xxl),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  label,
+                                  style: AppTypography.bodyMedium(
+                                    color: p.textPrimary,
                                     fontWeight: FontWeight.w600,
-                                    color: AppColors.textSecondary,
                                   ),
                                 ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color:
-                              AppColors.primaryBlueLight.withValues(alpha: 0.4),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.phone,
-                            color: AppColors.primaryBlue, size: 22),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // Vehicle Details Card
-              EmployeeEntrance(
-                delay: const Duration(milliseconds: 100),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceMuted,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 120,
-                        height: 70,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: AppColors.border),
-                        ),
-                        child: const Icon(
-                          Icons.directions_car_filled_rounded,
-                          color: AppColors.primaryBlue,
-                          size: 48,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Text(
-                        model,
-                        style: GoogleFonts.inter(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: AppColors.border),
-                        ),
-                        child: Text(
-                          plate,
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1.0,
-                            color: AppColors.primaryBlueDark,
+                              ),
+                              Container(
+                                padding: const EdgeInsets.all(AppSpacing.xs),
+                                decoration: const BoxDecoration(
+                                  color: AppColors.successContainer,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.check,
+                                  size: 16,
+                                  color: AppColors.successText,
+                                  semanticLabel: 'Verified',
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        '$color • $seating',
-                        style: GoogleFonts.inter(
-                          fontSize: 13,
-                          color: AppColors.textSecondary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // Compliance Verification Checklist
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.border),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
+                        ],
+                      ],
                     ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    _buildCheckItem('Driver Verified', isVerified: true),
-                    const Divider(color: AppColors.border, height: 24),
-                    _buildCheckItem('Vehicle Verified', isVerified: true),
-                    const Divider(color: AppColors.border, height: 24),
-                    _buildCheckItem('Commercial Permit', isVerified: true),
-                  ],
-                ),
+                  ),
+                ],
               ),
-
-              const SizedBox(height: 24),
-            ],
+            ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCheckItem(String label, {required bool isVerified}) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: GoogleFonts.inter(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.all(4),
-          decoration: const BoxDecoration(
-            color: AppColors.successLight,
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(Icons.check, size: 16, color: AppColors.success),
-        ),
-      ],
+        );
+      },
     );
   }
 }

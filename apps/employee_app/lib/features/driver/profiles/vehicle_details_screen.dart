@@ -1,248 +1,169 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/services/mock_data_service.dart';
+import 'package:adhocx_employee/shared/components/components.dart';
+import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
+import 'package:adhocx_employee/theme/app_colors.dart';
+import 'package:adhocx_employee/theme/app_radius.dart';
+import 'package:adhocx_employee/theme/app_spacing.dart';
+import 'package:adhocx_employee/theme/app_typography.dart';
+import 'package:adhocx_employee/theme/employee_palette.dart';
 
 /// Screen 4: Vehicle Details
-class VehicleDetailsScreen extends StatefulWidget {
+class VehicleDetailsScreen extends StatelessWidget {
   const VehicleDetailsScreen({super.key});
 
   @override
-  State<VehicleDetailsScreen> createState() => _VehicleDetailsScreenState();
-}
-
-class _VehicleDetailsScreenState extends State<VehicleDetailsScreen> {
-  Map<String, dynamic>? _vehicle;
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadVehicle();
-  }
-
-  Future<void> _loadVehicle() async {
-    final assignment = await MockDataService.getDriverAssignment();
-    if (mounted) {
-      setState(() {
-        _vehicle = assignment['vehicle'] as Map<String, dynamic>?;
-        _isLoading = false;
-      });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final model = _vehicle?['model'] ?? 'Maruti Ertiga';
-    final plateNumber = _vehicle?['plateNumber'] ?? 'TS09UB7845';
-    final color = _vehicle?['color'] ?? 'White';
-    final seating = _vehicle?['seating'] ?? '7 Seater';
-    final fuel = _vehicle?['fuel'] ?? 'CNG';
-    final rc = _vehicle?['registrationRc'] ?? 'Verified';
-    final insurance = _vehicle?['insurance'] ?? 'Valid';
-    final permit = _vehicle?['fitnessPermit'] ?? 'Valid';
+    return TripDataBuilder(
+      load: () async => (await MockDataService.getDriverAssignment())['vehicle']
+          as Map<String, dynamic>?,
+      builder: (context, vehicle) {
+        final p = EmployeePalette.of(context);
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              size: 18, color: AppColors.textPrimary),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          'Vehicle Details',
-          style: GoogleFonts.inter(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SafeArea(
-              child: SingleChildScrollView(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                child: Column(
-                  children: [
-                    // Vehicle Illustration Graphic
-                    Container(
-                      width: double.infinity,
-                      height: 160,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(18),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFEFF6FF),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.directions_car_filled_rounded,
-                              size: 64,
-                              color: AppColors.primaryBlue,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Verified Commercial Fleet',
-                            style: GoogleFonts.inter(
-                              fontSize: 11,
-                              color: AppColors.textMuted,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
+        Widget specPill(IconData icon, String text) => Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm + 2,
+                vertical: AppSpacing.xs + 2,
+              ),
+              decoration: BoxDecoration(
+                color: p.surfaceElevated,
+                borderRadius: AppRadius.borderLg,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 14, color: p.textSecondary),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(
+                    text,
+                    style: AppTypography.caption(
+                      color: p.textSecondary,
+                      fontWeight: FontWeight.w600,
                     ),
-                    const SizedBox(height: 18),
+                  ),
+                ],
+              ),
+            );
 
-                    // Model Name
-                    Text(
-                      model,
-                      style: GoogleFonts.inter(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                      ),
+        Widget verification(String title, String status) => Row(
+              children: [
+                const Icon(Icons.check_circle_rounded,
+                    size: 20, color: AppColors.success),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: AppTypography.bodyMedium(
+                      color: p.textPrimary,
+                      fontWeight: FontWeight.w600,
                     ),
-                    const SizedBox(height: 8),
+                  ),
+                ),
+                Text(
+                  status,
+                  style: AppTypography.small(
+                    color: AppColors.successText,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            );
 
-                    // Plate Number Tag
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFEF3C7),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                            color: const Color(0xFFF59E0B), width: 1.5),
-                      ),
-                      child: Text(
-                        plateNumber,
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF92400E),
-                          letterSpacing: 1.0,
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 18),
-
-                    // 3 Specs Pills
-                    Row(
+        return Scaffold(
+          backgroundColor: p.background,
+          appBar: const EmployeeAppBar(title: 'Vehicle Details'),
+          body: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.xxl,
+                vertical: AppSpacing.xl,
+              ),
+              child: Column(
+                children: [
+                  AppCard(
+                    width: double.infinity,
+                    padding: AppSpacing.paddingXl,
+                    child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _buildSpecPill(Icons.palette_outlined, '$color Color'),
-                        const SizedBox(width: 8),
-                        _buildSpecPill(
-                            Icons.airline_seat_recline_normal_rounded, seating),
-                        const SizedBox(width: 8),
-                        _buildSpecPill(
-                            Icons.local_gas_station_rounded, '$fuel Fuel'),
+                        Container(
+                          padding: const EdgeInsets.all(AppSpacing.lg + 2),
+                          decoration: BoxDecoration(
+                            color: p.accentTint,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(Icons.directions_car_filled_rounded,
+                              size: 56, color: p.accent),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        Text(
+                          'Verified Commercial Fleet',
+                          style: AppTypography.micro(color: p.textMuted),
+                        ),
                       ],
                     ),
-
-                    const SizedBox(height: 28),
-
-                    // Legal & Safety Verification Card
-                    Container(
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Column(
-                        children: [
-                          _buildVerificationRow(
-                            title: 'Registration (RC)',
-                            status: rc,
-                          ),
-                          const Divider(height: 24),
-                          _buildVerificationRow(
-                            title: 'Insurance',
-                            status: insurance,
-                          ),
-                          const Divider(height: 24),
-                          _buildVerificationRow(
-                            title: 'Fitness / Permit',
-                            status: permit,
-                          ),
-                        ],
-                      ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg + 2),
+                  Text(
+                    vehicle['model'] ?? 'Maruti Ertiga',
+                    style: AppTypography.h2(color: p.textPrimary),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  // Number plate (Indian commercial plates are yellow)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md + 2,
+                      vertical: AppSpacing.xs + 2,
                     ),
-                  ],
-                ),
+                    decoration: BoxDecoration(
+                      color: AppColors.warningContainer,
+                      borderRadius: AppRadius.borderMd,
+                      border: Border.all(color: AppColors.starAmber, width: 1.5),
+                    ),
+                    child: Text(
+                      vehicle['plateNumber'] ?? 'TS09UB7845',
+                      style: AppTypography.bodyMedium(
+                        color: AppColors.warningText,
+                        fontWeight: FontWeight.w800,
+                      ).copyWith(letterSpacing: 1.0),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg + 2),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: AppSpacing.sm,
+                    runSpacing: AppSpacing.sm,
+                    children: [
+                      specPill(Icons.palette_outlined,
+                          '${vehicle['color'] ?? 'White'} Color'),
+                      specPill(Icons.airline_seat_recline_normal_rounded,
+                          vehicle['seating'] ?? '7 Seater'),
+                      specPill(Icons.local_gas_station_rounded,
+                          '${vehicle['fuel'] ?? 'CNG'} Fuel'),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.xxl + 4),
+                  AppCard(
+                    width: double.infinity,
+                    child: Column(
+                      children: [
+                        verification('Registration (RC)',
+                            vehicle['registrationRc'] ?? 'Verified'),
+                        Divider(color: p.border, height: AppSpacing.xxl),
+                        verification(
+                            'Insurance', vehicle['insurance'] ?? 'Valid'),
+                        Divider(color: p.border, height: AppSpacing.xxl),
+                        verification('Fitness / Permit',
+                            vehicle['fitnessPermit'] ?? 'Valid'),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-    );
-  }
-
-  Widget _buildSpecPill(IconData icon, String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: AppColors.textSecondary),
-          const SizedBox(width: 4),
-          Text(
-            text,
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
-            ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildVerificationRow(
-      {required String title, required String status}) {
-    return Row(
-      children: [
-        const Icon(Icons.check_circle_rounded,
-            size: 20, color: AppColors.success),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            title,
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
-            ),
-          ),
-        ),
-        Text(
-          status,
-          style: GoogleFonts.inter(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: AppColors.success,
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
 }

@@ -1,86 +1,101 @@
 import 'package:flutter/material.dart';
 
-/// Centralized color palette for the AdhocX Employee Mobile App.
-/// Adheres strictly to the AdhocX Design System (docs/04_DESIGN_SYSTEM.md):
-/// - Primary Brand Blue: #5728B2
-/// - Secondary Brand Orange: #FF5F09
-/// - Warm Amber Gold Accent: #EE9811
-/// - Midnight Navy: #010D2D
+/// Centralized color tokens for AdhocX Mobile according to docs/04_DESIGN_SYSTEM.md.
 class AppColors {
   AppColors._();
 
-  // Primary Brand Blue
-  static const Color primaryBlue = Color(0xFF5728B2);
-  static const Color primary = primaryBlue;
-  static const Color primaryBlueDark = Color(0xFF431E8E);
-  static const Color primaryBlueDarker = Color(0xFF2D145E);
-  static const Color primaryBlueLight = Color(0xFFF3E8FF);
-  static const Color primaryBlueSoft = Color(0xFFFAF5FF);
+  // ── Primary Royal Purple Brand (Auth, Hero & Main Actions) ───────────────
+  static const Color primary = Color(0xFF5728B2); // Main Brand Royal Purple
+  static const Color primaryHover = Color(0xFF431E8E); // Deep Purple
+  static const Color primaryDark = Color(0xFF2D145E); // Dark Purple
+  static const Color primaryLight = Color(0xFF733DD9); // Light Purple Accent
+  static const Color primarySubtle = Color(0xFFEEF2FF); // Purple 50 tint
+  static const Color primaryGradientStart = Color(0xFF5728B2);
+  static const Color primaryGradientEnd = Color(0xFF431E8E);
 
-  // Secondary Brand Orange (AdhocX Logo "X" Accent & Secondary Color)
-  static const Color secondaryOrange = Color(0xFFFF5F09);
-  static const Color secondaryOrangeHover = Color(0xFFE04E00);
-  static const Color secondaryOrangeLight = Color(0xFFFFEADF);
+  // ── Secondary & Enterprise Status Accents ─────────────────────────────────
+  static const Color accentGreen = Color(0xFF22C55E); // Green 500
+  static const Color accentGreenLight = Color(0xFF4ADE80); // Green 400
+  static const Color accentGreenDark = Color(0xFF16A34A); // Green 600
+  static const Color accentBlue = Color(0xFF2563EB); // Blue 600
 
-  // Warm Amber Gold Accent
-  static const Color accentAmber = Color(0xFFEE9811);
-  static const Color accentAmberLight = Color(0xFFFFFBF7);
-  static const Color accentAmberBorder = Color(0xFFFEC98E);
+  // ── Light Surfaces (Enterprise Clean) ─────────────────────────────────────
+  static const Color bgLight = Color(0xFFF8FAFC); // Application background
+  static const Color surfaceLight = Color(0xFFFFFFFF); // Pure White Card
+  static const Color surfaceElevatedLight = Color(0xFFF1F5F9); // Muted secondary
+  static const Color surfaceLightElevated = surfaceElevatedLight;
+  static const Color borderLight = Color(0xFFE2E8F0); // Light border
+  static const Color borderSubtleLight = Color(0xFFCBD5E1); // Emphasized border
 
-  // Midnight Navy (Enterprise Contrast)
-  static const Color darkNavy = Color(0xFF010D2D);
-  static const Color darkNavyCard = Color(0xFF07193F);
+  // ── Dark Surfaces (Pure Black OLED & Neutral Gray Architecture) ───────────
+  static const Color bgDark = Color(0xFF000000); // Pure OLED Black (#000000)
+  static const Color surfaceDark = Color(0xFF121212); // Clean dark gray card surface
+  static const Color surfaceElevatedDark = Color(0xFF1E1E1E); // Elevated panel / input container
+  static const Color surfaceDarkElevated = surfaceElevatedDark;
+  static const Color borderDark = Color(0xFF262626); // Neutral dark gray border
+  static const Color borderSubtleDark = Color(0xFF333333); // Subtle dark divider
 
-  // Surfaces & Backgrounds
-  static const Color background = Color(0xFFF8FAFC);
-  static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceMuted = Color(0xFFF1F5F9);
-  static const Color surfacePill = Color(0xFFE2E8F0);
+  // ── Typography Colors ─────────────────────────────────────────────────────
+  static const Color textPrimaryLight = Color(0xFF0F172A); // Slate 900
+  static const Color textSecondaryLight = Color(0xFF64748B); // Slate 500
+  static const Color textMutedLight = Color(0xFF94A3B8); // Slate 400
 
-  // Typography Neutrals
-  static const Color textPrimary = Color(0xFF191B1C);
-  static const Color textSecondary = Color(0xFF595F61);
-  static const Color textMuted = Color(0xFF8A9295);
-  static const Color textLight = Color(0xFFFFFFFF);
+  static const Color textPrimaryDark = Color(0xFFFFFFFF); // Crisp Pure White
+  static const Color textSecondaryDark = Color(0xFFA1A1AA); // Clean Neutral Gray (Zinc/Gray 400)
+  static const Color textMutedDark = Color(0xFF71717A); // Neutral Gray (Zinc/Gray 500)
 
-  // Borders & Dividers
-  static const Color border = Color(0xFFE2E8F0);
-  static const Color borderSubtle = Color(0xFFEEF2F6);
-  static const Color borderFocused = Color(0xFF5728B2);
+  // ── Semantic Feedback ────────────────────────────────────────────────────
+  static const Color success = Color(0xFF16A34A); // Success 600
+  static const Color successContainer = Color(0xFFDCFCE7); // Light green container
+  static const Color successDarkContainer = Color(0xFF052E16); // Dark green container
+  static const Color successText = Color(0xFF15803D); // Green text
 
-  // Semantic Status
-  static const Color success = Color(0xFF16A34A);
-  static const Color successLight = Color(0xFFDCFCE7);
-  static const Color successBorder = Color(0xFF86EFAC);
+  static const Color warning = Color(0xFFD97706); // Amber 600
+  static const Color warningContainer = Color(0xFFFEF3C7); // Light amber container
+  static const Color warningText = Color(0xFFB45309); // Amber text
 
-  static const Color error = Color(0xFFDC2626);
-  static const Color errorLight = Color(0xFFFEE2E2);
-  static const Color errorBorder = Color(0xFFFCA5A5);
+  static const Color error = Color(0xFFDC2626); // Red 600
+  static const Color errorContainer = Color(0xFFFEE2E2); // Light red container
+  static const Color errorText = Color(0xFFB91C1C); // Red text
 
-  static const Color warning = Color(0xFFF59E0B);
-  static const Color warningLight = Color(0xFFFEF3C7);
-  static const Color warningBorder = Color(0xFFFDE68A);
+  static const Color info = Color(0xFF0284C7); // Sky 600
+  static const Color infoContainer = Color(0xFFE0F2FE); // Light sky container
+  static const Color infoText = Color(0xFF0369A1); // Sky text
 
-  // Purple accents (Notifications, Analytics)
-  static const Color primaryPurple = Color(0xFF7C3AED);
-  static const Color primaryPurpleLight = Color(0xFFEDE9FE);
+  // ── Brand & Feature Accents ──────────────────────────────────────────────
+  static const Color brandOrange = Color(0xFFFF6200); // AdhocX Brand Orange Accent
+  static const Color accentPurple = Color(0xFFA855F7); // Purple 500
+  static const Color starAmber = Color(0xFFF59E0B); // Amber 500 for rating stars
 
-  // Gradients
-  static const LinearGradient primaryGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [primaryBlue, primaryBlueDark],
-  );
+  // ── Social Auth Palette ──────────────────────────────────────────────────
+  static const Color googleBlue = Color(0xFF4285F4);
+  static const Color googleGreen = Color(0xFF34A853);
+  static const Color googleYellow = Color(0xFFFBBC05);
+  static const Color googleRed = Color(0xFFEA4335);
 
-  static const LinearGradient splashGradient = LinearGradient(
-    begin: Alignment.topCenter,
-    end: Alignment.bottomCenter,
-    colors: [darkNavy, Color(0xFF032258), Color(0xFF063378)],
-  );
+  // ── Extended Slate Scale ─────────────────────────────────────────────────
+  static const Color slate50 = Color(0xFFF8FAFC);
+  static const Color slate100 = Color(0xFFF1F5F9);
+  static const Color slate200 = Color(0xFFE2E8F0);
+  static const Color slate300 = Color(0xFFCBD5E1);
+  static const Color slate400 = Color(0xFF94A3B8);
+  static const Color slate500 = Color(0xFF64748B);
+  static const Color slate600 = Color(0xFF475569);
+  static const Color slate700 = Color(0xFF334155);
+  static const Color slate800 = Color(0xFF1E293B);
+  static const Color slate900 = Color(0xFF0F172A);
 
-  static const LinearGradient orangeGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [secondaryOrange, Color(0xFFFF7E39)],
-  );
+  // ── Neutral Gray Scale (Modern Dark Mode) ─────────────────────────────────
+  static const Color gray50 = Color(0xFFFAFAFA);
+  static const Color gray100 = Color(0xFFF4F4F5);
+  static const Color gray200 = Color(0xFFE4E4E7);
+  static const Color gray300 = Color(0xFFD4D4D8);
+  static const Color gray400 = Color(0xFFA1A1AA);
+  static const Color gray500 = Color(0xFF71717A);
+  static const Color gray600 = Color(0xFF52525B);
+  static const Color gray700 = Color(0xFF3F3F46);
+  static const Color gray800 = Color(0xFF27272A);
+  static const Color gray900 = Color(0xFF18181B);
+  static const Color gray950 = Color(0xFF09090B);
 }
+

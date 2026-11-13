@@ -22,9 +22,9 @@ class VectorLiveMapCanvas extends StatelessWidget {
       width: double.infinity,
       height: height,
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9), // Map background
+        color: AppColors.slate100, // Map background
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.borderLight),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(18),
@@ -59,7 +59,7 @@ class VectorLiveMapCanvas extends StatelessWidget {
               right: 48,
               top: 36,
               child: _MapPinBadge(
-                color: AppColors.secondaryOrange,
+                color: AppColors.brandOrange,
                 icon: Icons.business_rounded,
               ),
             ),
@@ -73,11 +73,11 @@ class VectorLiveMapCanvas extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppColors.primaryBlue,
+                    color: AppColors.primary,
                     borderRadius: BorderRadius.circular(14),
                     boxShadow: [
                       BoxShadow(
-                        color: AppColors.primaryBlue.withValues(alpha: 0.35),
+                        color: AppColors.primary.withValues(alpha: 0.35),
                         blurRadius: 8,
                         offset: const Offset(0, 3),
                       ),
@@ -132,7 +132,7 @@ class VectorLiveMapCanvas extends StatelessWidget {
             ),
           ],
         ),
-        child: Icon(icon, size: 18, color: AppColors.textPrimary),
+        child: Icon(icon, size: 18, color: AppColors.textPrimaryLight),
       ),
     );
   }
@@ -147,7 +147,7 @@ class _MapGridRoutePainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     final minorStreetPaint = Paint()
-      ..color = const Color(0xFFE2E8F0)
+      ..color = AppColors.slate200
       ..strokeWidth = 3;
 
     // Background road grid lines
@@ -168,7 +168,7 @@ class _MapGridRoutePainter extends CustomPainter {
 
     // Active Route Polyline (Blue)
     final routePaint = Paint()
-      ..color = AppColors.primaryBlue
+      ..color = AppColors.primary
       ..strokeWidth = 4.5
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
@@ -233,7 +233,7 @@ class _CabMarkerBadge extends StatelessWidget {
         ],
       ),
       child: const Icon(Icons.directions_car_filled_rounded,
-          size: 18, color: AppColors.primaryBlue),
+          size: 18, color: AppColors.primary),
     );
   }
 }
@@ -248,7 +248,7 @@ class WalkingPathGraphic extends StatelessWidget {
       width: double.infinity,
       height: 280,
       decoration: BoxDecoration(
-        color: const Color(0xFFE2E8F0),
+        color: AppColors.slate200,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Stack(
@@ -261,7 +261,7 @@ class WalkingPathGraphic extends StatelessWidget {
               gradient: const LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Color(0xFFCBD5E1), Color(0xFFF1F5F9)],
+                colors: [AppColors.slate300, AppColors.slate100],
               ),
             ),
           ),
@@ -276,7 +276,7 @@ class WalkingPathGraphic extends StatelessWidget {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Color(0xFF94A3B8), Color(0xFF64748B)],
+                  colors: [AppColors.slate400, AppColors.slate500],
                 ),
                 borderRadius: BorderRadius.only(
                   topLeft: Radius.circular(24),
@@ -287,9 +287,9 @@ class WalkingPathGraphic extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   Icon(Icons.keyboard_arrow_up_rounded,
-                      size: 36, color: AppColors.primaryBlueLight),
+                      size: 36, color: AppColors.primarySubtle),
                   Icon(Icons.keyboard_arrow_up_rounded,
-                      size: 42, color: AppColors.primaryBlue),
+                      size: 42, color: AppColors.primary),
                   Icon(Icons.keyboard_arrow_up_rounded,
                       size: 48, color: Colors.white),
                 ],
@@ -303,10 +303,10 @@ class WalkingPathGraphic extends StatelessWidget {
             top: 40,
             child: Row(
               children: [
-                Icon(Icons.park_rounded, size: 32, color: Color(0xFF16A34A)),
+                Icon(Icons.park_rounded, size: 32, color: AppColors.success),
                 SizedBox(width: 8),
                 Icon(Icons.apartment_rounded,
-                    size: 36, color: Color(0xFF64748B)),
+                    size: 36, color: AppColors.slate500),
               ],
             ),
           ),
@@ -316,9 +316,9 @@ class WalkingPathGraphic extends StatelessWidget {
             child: Row(
               children: [
                 Icon(Icons.apartment_rounded,
-                    size: 36, color: Color(0xFF64748B)),
+                    size: 36, color: AppColors.slate500),
                 SizedBox(width: 8),
-                Icon(Icons.park_rounded, size: 32, color: Color(0xFF16A34A)),
+                Icon(Icons.park_rounded, size: 32, color: AppColors.success),
               ],
             ),
           ),
@@ -338,9 +338,9 @@ class SatelliteGpsBadge extends StatelessWidget {
       width: 84,
       height: 84,
       decoration: BoxDecoration(
-        color: AppColors.warningLight,
+        color: AppColors.warningContainer,
         shape: BoxShape.circle,
-        border: Border.all(color: AppColors.warningBorder, width: 2),
+        border: Border.all(color: AppColors.warningContainer, width: 2),
       ),
       child: const Center(
         child: Icon(Icons.satellite_alt_rounded,
@@ -360,16 +360,16 @@ class StaleLocationBadge extends StatelessWidget {
       width: 84,
       height: 84,
       decoration: BoxDecoration(
-        color: const Color(0xFFEFF6FF),
+        color: AppColors.primarySubtle,
         shape: BoxShape.circle,
         border: Border.all(
-            color: AppColors.primaryBlue.withValues(alpha: 0.3), width: 2),
+            color: AppColors.primary.withValues(alpha: 0.3), width: 2),
       ),
       child: const Stack(
         alignment: Alignment.center,
         children: [
           Icon(Icons.location_on_rounded,
-              size: 44, color: AppColors.primaryBlue),
+              size: 44, color: AppColors.primary),
           Positioned(
             right: 14,
             bottom: 14,
@@ -392,9 +392,9 @@ class PoorNetworkBadge extends StatelessWidget {
       width: 84,
       height: 84,
       decoration: BoxDecoration(
-        color: AppColors.errorLight,
+        color: AppColors.errorContainer,
         shape: BoxShape.circle,
-        border: Border.all(color: AppColors.errorBorder, width: 2),
+        border: Border.all(color: AppColors.errorContainer, width: 2),
       ),
       child: const Center(
         child: Icon(Icons.signal_cellular_connected_no_internet_4_bar_rounded,
@@ -414,12 +414,12 @@ class ReconnectingSpinnerGraphic extends StatelessWidget {
       width: 90,
       height: 90,
       decoration: BoxDecoration(
-        color: const Color(0xFFEFF6FF),
+        color: AppColors.primarySubtle,
         shape: BoxShape.circle,
-        border: Border.all(color: AppColors.primaryBlueLight, width: 2),
+        border: Border.all(color: AppColors.primarySubtle, width: 2),
       ),
       child: const Center(
-        child: Icon(Icons.sync_rounded, size: 48, color: AppColors.primaryBlue),
+        child: Icon(Icons.sync_rounded, size: 48, color: AppColors.primary),
       ),
     );
   }

@@ -1,426 +1,68 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:adhocx_employee/theme/app_colors.dart';
-import 'package:adhocx_employee/widgets/employee_brand_logo.dart';
-import 'package:adhocx_employee/widgets/employee_secondary_button.dart';
-import 'package:adhocx_employee/widgets/employee_bottom_nav_bar.dart';
-import 'package:adhocx_employee/shared/components/cards/employee_driver_card.dart';
-import 'package:adhocx_employee/state/employee_auth_provider.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
-import 'package:adhocx_employee/shared/components/feedback/employee_entrance.dart';
-import 'package:adhocx_employee/shared/components/feedback/employee_press_scale.dart';
+import 'package:adhocx_employee/shared/components/components.dart';
+import 'package:adhocx_employee/state/employee_auth_provider.dart';
+import 'package:adhocx_employee/theme/app_colors.dart';
+import 'package:adhocx_employee/theme/app_radius.dart';
+import 'package:adhocx_employee/theme/app_spacing.dart';
+import 'package:adhocx_employee/theme/app_typography.dart';
+import 'package:adhocx_employee/theme/employee_palette.dart';
+import 'package:adhocx_employee/widgets/employee_brand_logo.dart';
 
+/// Main home dashboard (`/home`): welcome banner, next trip, assigned driver,
+/// quick actions, quick services and the 24/7 transport desk banner.
 class HomeScreenPlaceholder extends StatelessWidget {
   const HomeScreenPlaceholder({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = context.watch<EmployeeAuthProvider>();
-    final user = authProvider.currentUser;
+    final p = EmployeePalette.of(context);
+    final user = context.watch<EmployeeAuthProvider>().currentUser;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: const EmployeeBrandLogo(
-          fontSize: 22,
-          logoTheme: LogoTheme.light,
-        ),
+      backgroundColor: p.background,
+      appBar: EmployeeAppBar(
+        showBackButton: false,
+        centerTitle: false,
+        titleWidget: const EmployeeBrandLogo(fontSize: 22),
         actions: [
-          InkWell(
-            onTap: () => context.push(AppRoutes.safetySos),
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFDC2626),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.notifications_active_rounded,
-                      color: Colors.white,
-                      size: 17,
-                    ),
-                  ),
-                  Text(
-                    'SOS',
-                    style: GoogleFonts.inter(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFFDC2626),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          EmployeeSosButton(
+            size: EmployeeSosButton.compactSize,
+            onPressed: () => context.push(AppRoutes.safetySos),
           ),
-          const SizedBox(width: 4),
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.notifications_none_rounded,
-                    color: AppColors.textPrimary),
-                onPressed: () => context.push(AppRoutes.notificationsCenter),
-              ),
-              Positioned(
-                top: 10,
-                right: 10,
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: AppColors.error,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-            ],
+          const SizedBox(width: AppSpacing.xs),
+          EmployeeNotificationBell(
+            unreadCount: 1,
+            onPressed: () => context.push(AppRoutes.notificationsCenter),
           ),
-          Semantics(
-            button: true,
-            label: 'SOS emergency',
-            child: InkWell(
-              onTap: () => context.push(AppRoutes.safetySos),
-              borderRadius: BorderRadius.circular(18),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.sos_rounded,
-                        color: AppColors.error, size: 22),
-                    Text(
-                      'SOS',
-                      style: GoogleFonts.inter(
-                        color: AppColors.error,
-                        fontSize: 9,
-                        height: 1,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.lg),
         ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xl,
+            vertical: AppSpacing.lg,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // User Greeting Banner
               EmployeeEntrance(
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    gradient: AppColors.primaryGradient,
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primaryBlue.withValues(alpha: 0.24),
-                        blurRadius: 18,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Welcome back,',
-                            style: GoogleFonts.inter(
-                              fontSize: 13,
-                              color: Colors.white.withValues(alpha: 0.85),
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              user?.employeeId ?? 'EMP10294',
-                              style: GoogleFonts.inter(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        user?.fullName ?? 'Ravi Kumar',
-                        style: GoogleFonts.inter(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        '${user?.organization ?? "Estemporaneo Tech Pvt. Ltd."} • ${user?.office ?? "HITEC City Office, Hyderabad"}',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: AppColors.primaryBlueLight,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
+                child: _WelcomeBanner(
+                  employeeId: user?.employeeId ?? 'EMP10294',
+                  name: user?.fullName ?? 'Ravi Kumar',
+                  subtitle:
+                      '${user?.organization ?? "Estemporaneo Tech Pvt. Ltd."} • ${user?.office ?? "HITEC City Office, Hyderabad"}',
                 ),
               ),
-
-              const SizedBox(height: 20),
-
-              // Upcoming Pickup Hero Card
-              EmployeeEntrance(
-                delay: const Duration(milliseconds: 90),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: AppColors.border),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Badge & Shift Type Row
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(
-                                  color: AppColors.primaryBlueLight
-                                      .withValues(alpha: 0.3),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.directions_car_filled_rounded,
-                                  size: 16,
-                                  color: AppColors.primaryBlue,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Office Pickup (Login)',
-                                style: GoogleFonts.inter(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFDCFCE7),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              'Next Trip • Confirmed',
-                              style: GoogleFonts.inter(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: const Color(0xFF16A34A),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 14),
-
-                      // Time & ETA Banner
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.access_time_filled_rounded,
-                                size: 18, color: AppColors.primaryBlue),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Today • 08:15 AM',
-                              style: GoogleFonts.inter(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                            const Spacer(),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppColors.primaryBlue
-                                    .withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                'ETA ~6 mins',
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.primaryBlue,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // Route Points
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Column(
-                            children: [
-                              const Icon(Icons.radio_button_checked,
-                                  size: 16, color: Color(0xFF16A34A)),
-                              Container(
-                                  width: 2,
-                                  height: 26,
-                                  color: AppColors.border),
-                              const Icon(Icons.location_on,
-                                  size: 16, color: AppColors.primaryBlue),
-                            ],
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Pickup: Flat 402, Green Glen Layout',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'Drop: HITEC City Office, Tower B',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 18),
-
-                      // Actions Row
-                      Row(
-                        children: [
-                          Expanded(
-                            flex: 2,
-                            child: ElevatedButton.icon(
-                              onPressed: () =>
-                                  context.push(AppRoutes.tripAssigned),
-                              icon: const Icon(Icons.navigation_rounded,
-                                  size: 18),
-                              label: Text(
-                                'Track Cab',
-                                style: GoogleFonts.inter(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primaryBlue,
-                                foregroundColor: Colors.white,
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 12),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                elevation: 0,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            flex: 1,
-                            child: OutlinedButton(
-                              onPressed: () =>
-                                  context.push(AppRoutes.tripDetails),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: AppColors.textPrimary,
-                                side: const BorderSide(color: AppColors.border),
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 12),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child: Text(
-                                'Details',
-                                style: GoogleFonts.inter(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
+              const SizedBox(height: AppSpacing.xl),
+              const EmployeeEntrance(
+                delay: Duration(milliseconds: 90),
+                child: _NextTripCard(),
               ),
-
-              const SizedBox(height: 18),
-
-              // Assigned Driver Card
+              const SizedBox(height: AppSpacing.lg),
               EmployeeDriverCard(
                 name: 'Suresh R',
                 vehicleNumber: 'TS09UB7845',
@@ -431,10 +73,7 @@ class HomeScreenPlaceholder extends StatelessWidget {
                 onChat: () => context.push(AppRoutes.contactDriverSheet),
                 onViewDetails: () => context.push(AppRoutes.driverDetails),
               ),
-
-              const SizedBox(height: 14),
-
-              // Quick Change & Cancel Buttons
+              const SizedBox(height: AppSpacing.md),
               Row(
                 children: [
                   Expanded(
@@ -444,237 +83,428 @@ class HomeScreenPlaceholder extends StatelessWidget {
                       onPressed: () => context.push(AppRoutes.tripPlanning),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: EmployeeSecondaryButton(
                       label: 'Cancel Trip',
                       icon: Icons.cancel_outlined,
                       textColor: AppColors.error,
-                      borderColor: AppColors.errorBorder,
+                      borderColor: AppColors.error.withAlpha(110),
                       onPressed: () => context.push(AppRoutes.cancelTrip),
                     ),
                   ),
                 ],
               ),
-
-              const SizedBox(height: 24),
-
-              // Quick Services Section
-              Text(
-                'Quick Services',
-                style: GoogleFonts.inter(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                ),
+              const SizedBox(height: AppSpacing.xxl),
+              const EmployeeSectionHeader(
+                title: 'Quick Services',
+                padding: EdgeInsets.zero,
               ),
-              const SizedBox(height: 12),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildServiceCard(
-                      context,
-                      icon: Icons.calendar_month_rounded,
-                      iconColor: AppColors.primaryBlue,
-                      bgColor: const Color(0xFFEFF6FF),
-                      title: 'My Schedule',
-                      subtitle: 'Shifts & Roster',
-                      route: AppRoutes.scheduleToday,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildServiceCard(
-                      context,
-                      icon: Icons.shield_rounded,
-                      iconColor: const Color(0xFFDC2626),
-                      bgColor: const Color(0xFFFEF2F2),
-                      title: 'Safety Center',
-                      subtitle: 'SOS & 24/7 Helpline',
-                      route: AppRoutes.safetyOverview,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildServiceCard(
-                      context,
-                      icon: Icons.history_rounded,
-                      iconColor: const Color(0xFF0D9488),
-                      bgColor: const Color(0xFFF0FDFA),
-                      title: 'Trip History',
-                      subtitle: 'Past rides & receipts',
-                      route: AppRoutes.historyOverview,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildServiceCard(
-                      context,
-                      icon: Icons.headset_mic_rounded,
-                      iconColor: const Color(0xFF7C3AED),
-                      bgColor: const Color(0xFFF5F3FF),
-                      title: 'Support Desk',
-                      subtitle: 'Live chat & tickets',
-                      route: AppRoutes.safetyLiveChat,
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 20),
-
-              // 24x7 Safety Helpline Notice Banner
-              InkWell(
+              const SizedBox(height: AppSpacing.md),
+              const _ServicesGrid(),
+              const SizedBox(height: AppSpacing.xl),
+              _HelplineBanner(
                 onTap: () => context.push(AppRoutes.safetyOverview),
-                borderRadius: BorderRadius.circular(14),
-                child: Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFFBEB),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFFDE68A)),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color:
-                              const Color(0xFFF59E0B).withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.support_agent_rounded,
-                          color: Color(0xFFB45309),
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '24/7 Corporate Transport Desk',
-                              style: GoogleFonts.inter(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: const Color(0xFF92400E),
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Emergency Hotline: 1800-419-7000',
-                              style: GoogleFonts.inter(
-                                fontSize: 11,
-                                color: const Color(0xFFB45309),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Icon(Icons.arrow_forward_ios_rounded,
-                          size: 14, color: Color(0xFFB45309)),
-                    ],
-                  ),
-                ),
               ),
-
-              const SizedBox(height: 24),
+              const SizedBox(height: AppSpacing.xxl),
             ],
           ),
         ),
       ),
-      bottomNavigationBar: EmployeeBottomNavBar(
-        currentIndex: 0,
-        onTap: (index) {
-          switch (index) {
-            case 0:
-              // Already on home
-              break;
-            case 1:
-              context.push(AppRoutes.scheduleToday);
-              break;
-            case 2:
-              context.push(AppRoutes.historyOverview);
-              break;
-            case 3:
-              context.push(AppRoutes.profileDetails);
-              break;
-          }
-        },
+      bottomNavigationBar: const EmployeeBottomNavBar(currentIndex: 0),
+    );
+  }
+}
+
+/// Brand gradient banner with the employee's name, id and office.
+class _WelcomeBanner extends StatelessWidget {
+  final String employeeId;
+  final String name;
+  final String subtitle;
+
+  const _WelcomeBanner({
+    required this.employeeId,
+    required this.name,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: AppSpacing.paddingXl,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.primaryGradientStart, AppColors.primaryGradientEnd],
+        ),
+        borderRadius: AppRadius.borderXxl,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Welcome back,',
+                  style: AppTypography.small(color: Colors.white.withAlpha(217)),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm + 2,
+                  vertical: AppSpacing.xs,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withAlpha(51),
+                  borderRadius: AppRadius.borderPill,
+                ),
+                child: Text(
+                  employeeId,
+                  style: AppTypography.micro(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(name, style: AppTypography.h2(color: Colors.white)),
+          const SizedBox(height: AppSpacing.xs + 2),
+          Text(
+            subtitle,
+            style: AppTypography.caption(
+              color: AppColors.primarySubtle,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }
+}
 
-  Widget _buildServiceCard(
-    BuildContext context, {
-    required IconData icon,
-    required Color iconColor,
-    required Color bgColor,
-    required String title,
-    required String subtitle,
-    required String route,
-  }) {
-    return EmployeePressScale(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => context.push(route),
-          borderRadius: BorderRadius.circular(14),
-          child: Container(
-            padding: const EdgeInsets.all(14),
+/// Next trip summary: type + status, time / ETA, route and actions.
+class _NextTripCard extends StatelessWidget {
+  const _NextTripCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final p = EmployeePalette.of(context);
+
+    return AppCard(
+      width: double.infinity,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.xs + 2),
+                decoration: BoxDecoration(
+                  color: p.accentTint,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.directions_car_filled_rounded,
+                  size: 16,
+                  color: p.accent,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  'Office Pickup (Login)',
+                  maxLines: 1,
+                  style: AppTypography.h4(
+                    color: p.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              const EmployeeStatusBadge(
+                label: 'Confirmed',
+                variant: BadgeVariant.approved,
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+
+          // Time & ETA
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.sm + 2,
+            ),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.border),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.02),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
+              color: p.surfaceElevated,
+              borderRadius: AppRadius.borderMd,
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.access_time_filled_rounded,
+                    size: 18, color: p.accent),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    'Today • 08:15 AM',
+                    style: AppTypography.bodyMedium(
+                      color: p.textPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: p.accentTint,
+                    borderRadius: AppRadius.borderSm,
+                  ),
+                  child: Text(
+                    'ETA ~6 mins',
+                    style: AppTypography.caption(
+                      color: p.accent,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
               ],
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: bgColor,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(icon, color: iconColor, size: 20),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+
+          // Route
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Column(
+                children: [
+                  const Icon(Icons.radio_button_checked,
+                      size: 16, color: AppColors.success),
+                  Container(width: 2, height: 26, color: p.border),
+                  Icon(Icons.location_on, size: 16, color: p.accent),
+                ],
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Pickup: Flat 402, Green Glen Layout',
+                      style: AppTypography.small(
+                        color: p.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    Text(
+                      'Drop: HITEC City Office, Tower B',
+                      style: AppTypography.small(
+                        color: p.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 10),
-                Text(
-                  title,
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+
+          // Actions
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: EmployeePrimaryButton(
+                  label: 'Track Cab',
+                  icon: Icons.navigation_rounded,
+                  onPressed: () => context.push(AppRoutes.tripAssigned),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w400,
-                  ),
-                  maxLines: 1,
+              ),
+              const SizedBox(width: AppSpacing.sm + 2),
+              Expanded(
+                child: EmployeeSecondaryButton(
+                  label: 'Details',
+                  onPressed: () => context.push(AppRoutes.tripDetails),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 2×2 grid of quick service shortcuts.
+class _ServicesGrid extends StatelessWidget {
+  const _ServicesGrid();
+
+  @override
+  Widget build(BuildContext context) {
+    final p = EmployeePalette.of(context);
+
+    Widget tile({
+      required IconData icon,
+      required Color color,
+      required String title,
+      required String subtitle,
+      required String route,
+    }) {
+      return Expanded(
+        child: AppCard(
+          padding: const EdgeInsets.all(AppSpacing.md + 2),
+          onTap: () => context.push(route),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: color.withAlpha(p.isDark ? 46 : 26),
+                  borderRadius: AppRadius.borderLg,
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              const SizedBox(height: AppSpacing.sm + 2),
+              Text(
+                title,
+                maxLines: 1,
+                style: AppTypography.small(
+                  color: p.textPrimary,
+                  fontWeight: FontWeight.w700,
                   overflow: TextOverflow.ellipsis,
                 ),
-              ],
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                maxLines: 1,
+                style: AppTypography.micro(
+                  color: p.textSecondary,
+                  fontWeight: FontWeight.w400,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        Row(
+          children: [
+            tile(
+              icon: Icons.calendar_month_rounded,
+              color: AppColors.primary,
+              title: 'My Schedule',
+              subtitle: 'Shifts & Roster',
+              route: AppRoutes.scheduleToday,
             ),
+            const SizedBox(width: AppSpacing.md),
+            tile(
+              icon: Icons.shield_rounded,
+              color: AppColors.error,
+              title: 'Safety Center',
+              subtitle: 'SOS & 24/7 Helpline',
+              route: AppRoutes.safetyOverview,
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Row(
+          children: [
+            tile(
+              icon: Icons.history_rounded,
+              color: AppColors.info,
+              title: 'Trip History',
+              subtitle: 'Past rides & receipts',
+              route: AppRoutes.historyOverview,
+            ),
+            const SizedBox(width: AppSpacing.md),
+            tile(
+              icon: Icons.headset_mic_rounded,
+              color: AppColors.accentPurple,
+              title: 'Support Desk',
+              subtitle: 'Live chat & tickets',
+              route: AppRoutes.safetyLiveChat,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// Amber notice linking to the Safety Center / 24×7 transport desk.
+class _HelplineBanner extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _HelplineBanner({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: AppRadius.borderLg,
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.md + 2),
+          decoration: BoxDecoration(
+            color: AppColors.warningContainer,
+            borderRadius: AppRadius.borderLg,
+            border: Border.all(color: AppColors.warning.withAlpha(90)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withAlpha(38),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.support_agent_rounded,
+                  color: AppColors.warningText,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '24/7 Corporate Transport Desk',
+                      style: AppTypography.small(
+                        color: AppColors.warningText,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Emergency Hotline: 1800-419-7000',
+                      style: AppTypography.micro(color: AppColors.warningText),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.arrow_forward_ios_rounded,
+                  size: 14, color: AppColors.warningText),
+            ],
           ),
         ),
       ),

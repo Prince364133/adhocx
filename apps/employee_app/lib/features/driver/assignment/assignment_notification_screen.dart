@@ -1,52 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:adhocx_employee/theme/app_colors.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
+import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
+import 'package:adhocx_employee/theme/app_colors.dart';
+import 'package:adhocx_employee/theme/app_radius.dart';
+import 'package:adhocx_employee/theme/app_spacing.dart';
+import 'package:adhocx_employee/theme/app_typography.dart';
+import 'package:adhocx_employee/theme/employee_palette.dart';
+import '../widgets/driver_widgets.dart';
 
-/// Screen 1: Assignment Notification (Simulated Lock Screen Banner)
-class AssignmentNotificationScreen extends StatefulWidget {
+/// Screen 1: Assignment Notification (simulated phone lock screen).
+///
+/// The lock-screen wallpaper is a fixed dark brand gradient in both modes;
+/// the notification card follows the app theme.
+class AssignmentNotificationScreen extends StatelessWidget {
   const AssignmentNotificationScreen({super.key});
 
   @override
-  State<AssignmentNotificationScreen> createState() =>
-      _AssignmentNotificationScreenState();
-}
-
-class _AssignmentNotificationScreenState
-    extends State<AssignmentNotificationScreen> {
-  Map<String, dynamic>? _notificationData;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadNotification();
-  }
-
-  Future<void> _loadNotification() async {
-    final assignment = await MockDataService.getDriverAssignment();
-    if (mounted) {
-      setState(() {
-        _notificationData = assignment['notification'] as Map<String, dynamic>?;
-      });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final timeStr = _notificationData?['time'] ?? '8:10';
-    final dateStr = _notificationData?['date'] ?? 'Tue, 09 Dec';
-    final appName = _notificationData?['app'] ?? 'AdhocX';
-    final title = _notificationData?['title'] ?? 'Cab Assigned';
-    final body = _notificationData?['message'] ??
-        'Your login trip (8:15 AM) has been assigned to driver Suresh R.';
+    return TripDataBuilder(
+      load: () => loadAssignmentSection('notification'),
+      builder: (context, data) {
+        final p = EmployeePalette.of(context);
+        void open() => context.push(AppRoutes.cabAssignedOverview);
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          // Elegant Lock Screen Wallpaper
-          Container(
+        return Scaffold(
+          backgroundColor: AppColors.slate900,
+          body: Container(
             width: double.infinity,
             height: double.infinity,
             decoration: const BoxDecoration(
@@ -54,165 +34,156 @@ class _AssignmentNotificationScreenState
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Color(0xFF0F172A),
-                  Color(0xFF1E1B4B),
-                  Color(0xFF312E81),
+                  AppColors.slate900,
+                  AppColors.primaryDark,
+                  AppColors.primaryHover,
                 ],
               ),
             ),
-          ),
-
-          SafeArea(
-            child: Column(
-              children: [
-                // Top Lock Icon & Clock
-                const SizedBox(height: 40),
-                const Icon(
-                  Icons.lock_rounded,
-                  color: Colors.white70,
-                  size: 20,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  timeStr,
-                  style: GoogleFonts.inter(
-                    fontSize: 72,
-                    fontWeight: FontWeight.w200,
-                    color: Colors.white,
-                    letterSpacing: -2,
+            child: SafeArea(
+              child: Column(
+                children: [
+                  const SizedBox(height: AppSpacing.xxxl + AppSpacing.sm),
+                  Icon(Icons.lock_rounded,
+                      color: Colors.white.withAlpha(179), size: 20),
+                  const SizedBox(height: AppSpacing.md),
+                  Text(
+                    data['time'] ?? '8:10',
+                    style: AppTypography.display(
+                      color: Colors.white,
+                      fontSize: 72,
+                      fontWeight: FontWeight.w200,
+                      overflow: null,
+                    ).copyWith(letterSpacing: -2),
                   ),
-                ),
-                Text(
-                  dateStr,
-                  style: GoogleFonts.inter(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.white.withValues(alpha: 0.85),
+                  Text(
+                    data['date'] ?? 'Tue, 09 Dec',
+                    style: AppTypography.h3(
+                      color: Colors.white.withAlpha(217),
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                ),
-
-                const SizedBox(height: 48),
-
-                // Push Notification Card
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: InkWell(
-                    onTap: () => context.push(AppRoutes.cabAssignedOverview),
-                    borderRadius: BorderRadius.circular(18),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.95),
-                        borderRadius: BorderRadius.circular(18),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.2),
-                            blurRadius: 20,
-                            offset: const Offset(0, 10),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
+                  const SizedBox(height: AppSpacing.huge),
+                  Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                    child: Material(
+                      color: p.surface,
+                      borderRadius: AppRadius.borderXxl,
+                      elevation: 6,
+                      shadowColor: Colors.black45,
+                      child: InkWell(
+                        onTap: open,
+                        borderRadius: AppRadius.borderXxl,
+                        child: Padding(
+                          padding: AppSpacing.paddingLg,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(
-                                  color: AppColors.primaryPurple,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  'A',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w900,
-                                    color: Colors.white,
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 24,
+                                    height: 24,
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary,
+                                      borderRadius: AppRadius.borderMd,
+                                    ),
+                                    child: Text(
+                                      'A',
+                                      style: AppTypography.caption(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                  const SizedBox(width: AppSpacing.sm),
+                                  Expanded(
+                                    child: Text(
+                                      data['app'] ?? 'AdhocX',
+                                      style: AppTypography.small(
+                                        color: p.textPrimary,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                  Text('now',
+                                      style: AppTypography.caption(
+                                          color: p.textMuted)),
+                                ],
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(height: AppSpacing.sm + 2),
                               Text(
-                                appName,
-                                style: GoogleFonts.inter(
-                                  fontSize: 13,
+                                data['title'] ?? 'Cab Assigned',
+                                style: AppTypography.h4(
+                                  color: p.textPrimary,
+                                  fontSize: 15,
                                   fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary,
                                 ),
                               ),
-                              const Spacer(),
+                              const SizedBox(height: AppSpacing.xs),
                               Text(
-                                'now',
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  color: AppColors.textMuted,
+                                data['message'] ??
+                                    'Your login trip (8:15 AM) has been assigned to driver Suresh R.',
+                                style: AppTypography.small(
+                                  color: p.textSecondary,
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 10),
-                          Text(
-                            title,
-                            style: GoogleFonts.inter(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            body,
-                            style: GoogleFonts.inter(
-                              fontSize: 13,
-                              color: AppColors.textSecondary,
-                              height: 1.35,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-
-                const Spacer(),
-
-                // Bottom unlock action pill
-                GestureDetector(
-                  onTap: () => context.push(AppRoutes.cabAssignedOverview),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 12),
-                    margin: const EdgeInsets.only(bottom: 24),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(30),
-                      border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.25)),
+                  const Spacer(),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.xl,
+                      0,
+                      AppSpacing.xl,
+                      AppSpacing.xxl,
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.touch_app_rounded,
-                            color: Colors.white, size: 18),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Tap notification to open app',
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
+                    child: Material(
+                      color: Colors.white.withAlpha(38),
+                      shape: StadiumBorder(
+                        side: BorderSide(color: Colors.white.withAlpha(64)),
+                      ),
+                      child: InkWell(
+                        customBorder: const StadiumBorder(),
+                        onTap: open,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.xxl,
+                            vertical: AppSpacing.md,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.touch_app_rounded,
+                                  color: Colors.white, size: 18),
+                              const SizedBox(width: AppSpacing.sm),
+                              Flexible(
+                                child: Text(
+                                  'Tap notification to open app',
+                                  style: AppTypography.small(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

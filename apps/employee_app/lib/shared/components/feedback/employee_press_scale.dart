@@ -16,7 +16,7 @@ class EmployeePressScale extends StatefulWidget {
     this.pressedScale = 0.94,
     this.hoveredScale = 1.015,
     this.borderRadius = 16,
-    this.shadowColor = AppColors.primaryBlue,
+    this.shadowColor = AppColors.primary,
   });
 
   @override

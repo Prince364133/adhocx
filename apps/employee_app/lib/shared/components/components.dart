@@ -1,10 +1,17 @@
-/// AdhocX Employee Design System - Shared Component Library
-/// Atomic Design Taxonomy: Badges, Buttons, Cards, Feedback, Inputs, Navigation, Sheets.
+/// AdhocX Employee component library.
+///
+/// Everything here is built on the Driver app design system (exact copies in
+/// `lib/theme/` and `lib/widgets/common/`). Prefer the driver widgets
+/// directly (`widgets/common/common.dart`) for generic UI; these wrappers add
+/// employee-specific variants (trip/driver cards, trip status, step tracker,
+/// greeting header, bottom navigation).
 library;
+
+// Driver app shared widgets (exact copies)
+export '../../widgets/common/common.dart';
 
 // Badges
 export 'badges/employee_status_badge.dart';
-export 'badges/employee_live_pulse.dart';
 
 // Buttons
 export 'buttons/employee_primary_button.dart';
@@ -16,10 +23,8 @@ export 'buttons/employee_pill_filter.dart';
 export 'cards/employee_hero_trip_card.dart';
 export 'cards/employee_trip_card.dart';
 export 'cards/employee_driver_card.dart';
-export 'cards/employee_stat_card.dart';
 
 // Sheets
-export 'sheets/employee_bottom_sheet.dart';
 export 'sheets/employee_confirmation_sheet.dart';
 
 // Navigation
@@ -35,3 +40,7 @@ export 'feedback/employee_step_tracker.dart';
 
 // Inputs
 export 'inputs/employee_otp_input.dart';
+
+// Layout
+export 'layout/employee_centered_layout.dart';
+export 'layout/employee_nav_tile.dart';
