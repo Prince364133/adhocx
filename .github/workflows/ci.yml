@@ -175,4 +175,6 @@ jobs:
       - name: Run Live Dispatch & Fulfillment E2E Test Suite
         env:
           API_URL: http://localhost:7001/api/v1
+          # Test DB only: the suite stands in for the admin KYC approval of its fresh driver.
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/adhocx_test?schema=public
         run: node scripts/test_live_dispatch_e2e.js

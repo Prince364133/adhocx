@@ -5,6 +5,38 @@
 
 const BASE_URL = process.env.API_URL || 'http://localhost:7001/api/v1';
 
+/**
+ * Admin KYC approval stand-in. Drivers can only go online after an admin verifies their KYC
+ * (drivers.service updateAvailability). This suite has no admin login, so it approves the fresh
+ * test driver directly in the test database, exactly what the admin "Verify" action persists.
+ * Safety: only ever runs against a localhost database (CI service container / local test DB).
+ */
+async function approveDriverKycForTest(userId) {
+  const url = process.env.DATABASE_URL || '';
+  let host = '';
+  try { host = new URL(url).hostname; } catch { /* invalid */ }
+  if (!['localhost', '127.0.0.1'].includes(host)) {
+    throw new Error('DATABASE_URL must point to a localhost test database to approve the test driver');
+  }
+  const path = require('path');
+  let PrismaClient;
+  try {
+    ({ PrismaClient } = require('@prisma/client'));
+  } catch {
+    ({ PrismaClient } = require(require.resolve('@prisma/client', { paths: [path.resolve(__dirname, '../apps/api')] })));
+  }
+  const prisma = new PrismaClient({ datasources: { db: { url } } });
+  try {
+    const res = await prisma.driver.updateMany({
+      where: { userId },
+      data: { verificationStatus: 'VERIFIED', rejectionReason: null },
+    });
+    if (res.count !== 1) throw new Error(`Expected one driver profile for user ${userId}, found ${res.count}`);
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
 async function request(path, options = {}) {
   const url = `${BASE_URL}${path}`;
   const headers = {
@@ -131,6 +163,9 @@ async function runVerification() {
       vehiclePlate: `DL01${timestamp}`,
     }),
   });
+
+  await approveDriverKycForTest(driverAuth.user.id);
+  console.log('✓ Driver KYC approved (admin verification stand-in, test DB only)');
 
   const availability = await request('/drivers/availability', {
     method: 'PATCH',
