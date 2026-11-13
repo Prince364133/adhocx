@@ -7,7 +7,7 @@ import {
 
 describe('Corporate tenant vehicle capacity policy', () => {
   it.each([
-    ['SEDAN', 3],
+    ['SEDAN', 4],
     ['SUV', 6],
   ])('accepts the canonical %s capacity boundary', (defaultVehicleCategory, defaultCapacity) => {
     expect(() =>
@@ -16,7 +16,7 @@ describe('Corporate tenant vehicle capacity policy', () => {
   });
 
   it.each([
-    ['SEDAN', 4],
+    ['SEDAN', 5],
     ['SUV', 7],
   ])('rejects %s capacities above the vehicle limit', (defaultVehicleCategory, defaultCapacity) => {
     expect(() =>
@@ -24,13 +24,13 @@ describe('Corporate tenant vehicle capacity policy', () => {
     ).toThrow(BadRequestException);
   });
 
-  it('caps legacy persisted Sedan capacity when reading an existing policy', async () => {
+  it('caps an out-of-range persisted Sedan capacity to the 4-seat limit when reading a policy', async () => {
     const policy = {
       ...DEFAULT_TENANT_POLICY,
       version: 1,
       effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
       defaultVehicleCategory: 'SEDAN',
-      defaultCapacity: 4,
+      defaultCapacity: 6,
     };
     const database = {
       corporateTenantPolicy: { findFirst: jest.fn().mockResolvedValue(policy) },
@@ -39,7 +39,7 @@ describe('Corporate tenant vehicle capacity policy', () => {
 
     const result = await service.getEffectivePolicy('tenant-1', new Date('2026-11-12T00:00:00.000Z'));
 
-    expect(result.defaultCapacity).toBe(3);
+    expect(result.defaultCapacity).toBe(4);
     expect(result.defaultVehicleCategory).toBe('SEDAN');
   });
 

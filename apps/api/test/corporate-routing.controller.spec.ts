@@ -42,7 +42,7 @@ describe('CorporateRoutingController route optimization validation', () => {
     [{ stopDwellMinutes: 0 }, /stopDwellMinutes/],
     [{ stopDwellMinutes: 11 }, /stopDwellMinutes/],
     [{ sedanCapacity: 0 }, /sedanCapacity/],
-    [{ sedanCapacity: 4 }, /sedanCapacity/],
+    [{ sedanCapacity: 5 }, /sedanCapacity/], // sedan max is 4
     [{ suvCapacity: 7 }, /suvCapacity/],
     [{ routingPreference: 'SHORTEST' }, /routingPreference/],
   ])('rejects invalid optimization request values %#', async (overrides, message) => {

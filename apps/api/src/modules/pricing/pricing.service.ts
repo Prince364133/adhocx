@@ -194,31 +194,62 @@ export class PricingService implements OnModuleInit {
     return this.policyCache ?? { ...DEFAULT_POLICY, updatedAt: new Date().toISOString() };
   }
 
-  async updatePolicyConfig(dto: {
-    commissionPercent?: number;
-    driverMonthlyFee?: number;
-    driverTrialDays?: number;
-    minWithdrawalAmount?: number;
-    escortFee?: number;
-  }): Promise<PlatformPolicyConfigDto> {
+  async updatePolicyConfig(
+    dto: {
+      commissionPercent?: number;
+      driverMonthlyFee?: number;
+      driverTrialDays?: number;
+      minWithdrawalAmount?: number;
+      escortFee?: number;
+    },
+    actor?: { id?: string; name?: string },
+  ): Promise<PlatformPolicyConfigDto> {
     if (!this.db) throw new BadRequestException('Database unavailable');
-    const data: any = {};
-    if (dto.commissionPercent !== undefined) data.commissionPercent = Number(dto.commissionPercent);
-    if (dto.driverMonthlyFee !== undefined) data.driverMonthlyFee = Number(dto.driverMonthlyFee);
-    if (dto.driverTrialDays !== undefined) data.driverTrialDays = Number(dto.driverTrialDays);
-    if (dto.minWithdrawalAmount !== undefined) data.minWithdrawalAmount = Number(dto.minWithdrawalAmount);
-    if (dto.escortFee !== undefined) {
-      const fee = Number(dto.escortFee);
-      if (!Number.isFinite(fee) || fee < 0) {
-        throw new BadRequestException('escortFee must be a non-negative number');
+    // The controller DTO validates too; this guards other callers (and NaN reaching Decimal columns).
+    const limits: Record<string, { max: number; integer?: boolean }> = {
+      commissionPercent: { max: 100 },
+      driverMonthlyFee: { max: 100000 },
+      driverTrialDays: { max: 365, integer: true },
+      minWithdrawalAmount: { max: 1000000 },
+      escortFee: { max: 100000 },
+    };
+    const data: Record<string, number> = {};
+    for (const [field, rule] of Object.entries(limits)) {
+      const raw = (dto as Record<string, unknown>)[field];
+      if (raw === undefined || raw === null) continue;
+      const value = Number(raw);
+      if (!Number.isFinite(value) || value < 0 || value > rule.max || (rule.integer && !Number.isInteger(value))) {
+        throw new BadRequestException(
+          `${field} must be ${rule.integer ? 'a whole number' : 'a number'} between 0 and ${rule.max}`,
+        );
       }
-      data.escortFee = fee;
+      data[field] = value;
     }
+    if (Object.keys(data).length === 0) {
+      throw new BadRequestException('No policy fields to update');
+    }
+    const before = await this.getPolicyConfig();
     const res = await this.db.systemPolicyConfig.upsert({
       where: { key: 'GLOBAL_POLICY' },
       create: { key: 'GLOBAL_POLICY', ...DEFAULT_POLICY, ...data },
       update: data,
     });
+    try {
+      await this.db.pricingAudit.create({
+        data: {
+          actorId: actor?.id ?? null,
+          actorName: actor?.name ?? null,
+          action: 'UPDATE_POLICY',
+          entityType: 'PLATFORM_POLICY',
+          entityId: 'GLOBAL_POLICY',
+          oldValueJson: Object.fromEntries(Object.keys(data).map((k) => [k, (before as any)[k]])) as any,
+          newValueJson: data as any,
+        },
+      });
+    } catch (err: any) {
+      this.logger.warn(`Policy updated but audit row failed: ${err?.message ?? err}`);
+    }
+    this.logger.log(`[pricing] metric=policy_updated actor=${actor?.id ?? 'unknown'} fields=${Object.keys(data).join(',')}`);
     this.policyCache = {
       commissionPercent: Number(res.commissionPercent),
       driverMonthlyFee: Number(res.driverMonthlyFee),

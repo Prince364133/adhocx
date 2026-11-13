@@ -87,6 +87,8 @@ describe('Corporate ETS Workstream C: Rider Self-Service API, SOS FSM & Support 
 
     mockRedis = {
       getClient: jest.fn(() => mockRedisClient),
+      // Support tickets are rate-limited per user; always allow in these lifecycle tests.
+      checkRateLimit: jest.fn(async () => ({ allowed: true, remaining: 99, resetAfter: 0 })),
     };
 
     mockNotifications = {
@@ -131,7 +133,18 @@ describe('Corporate ETS Workstream C: Rider Self-Service API, SOS FSM & Support 
       corporateRoute: {
         findUnique: jest.fn(),
       },
+      // Ticket creation now writes the ticket, its activity row and attachments in one transaction.
+      corporateSupportTicketActivity: { create: jest.fn(async ({ data }: any) => ({ id: 'act-1', ...data })) },
+      corporateSupportTicketAttachment: { createMany: jest.fn(async () => ({ count: 0 })) },
     };
+    // No idempotency hit; after create the service re-reads the ticket by id.
+    mockDb.corporateSupportTicket.findUnique = jest.fn(async ({ where }: any) => {
+      if (!where?.id) return null;
+      const results = mockDb.corporateSupportTicket.create.mock.results;
+      const last = results.length ? await results[results.length - 1].value : null;
+      return last && last.id === where.id ? { ...last, attachments: [], comments: [], activities: [] } : null;
+    });
+    mockDb.$transaction = jest.fn(async (arg: any) => (typeof arg === 'function' ? arg(mockDb) : Promise.all(arg)));
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [

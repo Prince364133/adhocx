@@ -19,6 +19,7 @@ import 'modals/vendor_rate_card_modal.dart';
 import '../../presentation/profile_screen/modals/terms_modal.dart';
 import '../../presentation/profile_screen/modals/privacy_modal.dart';
 import '../../presentation/profile_screen/modals/about_modal.dart';
+import '../../shared/widgets/app_version_label.dart';
 
 class UserProfileScreen extends StatelessWidget {
   const UserProfileScreen({super.key});
@@ -176,7 +177,7 @@ class UserProfileScreen extends StatelessWidget {
                                 useRootNavigator: true,
                                 isScrollControlled: true,
                                 backgroundColor: Colors.transparent,
-                                builder: (_) => const SingleChildScrollView(child: TermsModal()),
+                                builder: (_) => const SingleChildScrollView(child: TermsModal(forVendor: true)),
                               );
                               return;
                             }
@@ -186,7 +187,7 @@ class UserProfileScreen extends StatelessWidget {
                                 useRootNavigator: true,
                                 isScrollControlled: true,
                                 backgroundColor: Colors.transparent,
-                                builder: (_) => const SingleChildScrollView(child: PrivacyModal()),
+                                builder: (_) => const SingleChildScrollView(child: PrivacyModal(forVendor: true)),
                               );
                               return;
                             }
@@ -288,8 +289,7 @@ class UserProfileScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 2),
-                    Text(
-                      'v1.4.2 • Build 204 • Made for Logistics Excellence',
+                    AppVersionLabel(
                       style: AppTypography.micro(
                         color: isDark
                             ? AppColors.textMutedDark.withValues(alpha: 0.7)
@@ -300,7 +300,7 @@ class UserProfileScreen extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24),
                       child: Text(
-                        'AdhocX is operated by Estemporaneo Technologies Private Limited.',
+                        kAdhocxOperatorStatement,
                         textAlign: TextAlign.center,
                         style: AppTypography.micro(
                           color: isDark

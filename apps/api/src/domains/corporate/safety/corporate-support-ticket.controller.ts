@@ -246,11 +246,20 @@ export class CorporateSupportTicketController {
     }
   }
 
+  // Single POST :id/reopen. There used to be two handlers on this path; Nest only ever reached the
+  // first, so admin/ops reopen (which sends a reason) got 403.
   @Post(':id/reopen')
-  @Roles(UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER, UserRole.EMPLOYEE)
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER, UserRole.EMPLOYEE)
   @CorporateResource('ticket', 'id')
-  public async reopen(@Param('id') id: string, @Req() req: any) {
-    return this.tickets.updateTicketStatus(id, CorporateTicketStatus.REOPENED, actorFromRequest(req));
+  @ApiOperation({ summary: 'Reopen a resolved or closed ticket (with a reason), or a resolved one via the legacy reasonless call' })
+  @ApiBody({ schema: { type: 'object', properties: { reason: { type: 'string' } } } })
+  public async reopen(@Param('id') id: string, @Req() req: any, @Body() dto?: ReopenCorporateTicketDto) {
+    const actor = actorFromRequest(req);
+    if (dto?.reason?.trim()) {
+      return this.tickets.reopenTicket(id, dto, actor);
+    }
+    // Legacy rider/corporate clients send no body: plain RESOLVED -> REOPENED transition.
+    return this.tickets.updateTicketStatus(id, CorporateTicketStatus.REOPENED, actor);
   }
 
   @Patch(':id/status')
@@ -338,23 +347,6 @@ export class CorporateSupportTicketController {
     return this.tickets.createMessage(id, dto, resolveActor(req));
   }
 
-  @Post(':id/reopen')
-  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
-  @CorporateResource('ticket', 'id')
-  @ApiOperation({ summary: 'Reopen an eligible resolved or closed support ticket' })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        reason: { type: 'string' },
-      },
-      required: ['reason'],
-    },
-  })
-  public async reopenTicket(@Param('id') id: string, @Body() dto: ReopenCorporateTicketDto, @Req() req: any) {
-    return this.tickets.reopenTicket(id, dto, resolveActor(req));
-  }
-
   @Get(':id/activity')
   @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
   @CorporateResource('ticket', 'id')
@@ -366,7 +358,9 @@ export class CorporateSupportTicketController {
 
 @ApiTags('OPS - Support Tickets')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
+// CorporateAccessGuard is required on every corporate controller (corporate-access-control.spec);
+// these handlers are OPS-only, so it passes them through and only adds defence in depth.
+@UseGuards(JwtAuthGuard, RolesGuard, CorporateAccessGuard)
 @Controller('ops/support/tickets')
 export class OpsSupportTicketController {
   constructor(private readonly tickets: CorporateSupportTicketService) {}

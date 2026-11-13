@@ -47,27 +47,20 @@ void main() {
       expect(find.text('Get Started'), findsOneWidget);
     });
 
-    testWidgets('Screen 3: Sign In Screen renders mobile login with SMS OTP and password',
+    // Sign-in is mobile + password; OTP is used for sign-up and Forgot Password (759b1e0).
+    testWidgets('Screen 3: Sign In Screen renders mobile + password login',
         (WidgetTester tester) async {
       await tester.pumpWidget(createTestApp(const SignInScreen()));
 
       expect(find.text('Welcome back!'), findsOneWidget);
       expect(find.text('Mobile Number (India) *'), findsOneWidget);
-      expect(find.text('Continue with SMS OTP'), findsOneWidget);
-      expect(find.text('Sign in with password instead'), findsOneWidget);
+      expect(find.text('Password *'), findsOneWidget);
+      expect(find.text('Sign In'), findsOneWidget);
+      expect(find.text('Forgot Password?'), findsOneWidget);
       expect(find.text("Don't have an account? "), findsOneWidget);
-      // Ensure Email Address and Google options are NOT present on Sign In
+      // Email Address and Google options are NOT present on Sign In
       expect(find.text('Email Address'), findsNothing);
       expect(find.text('Continue with Google'), findsNothing);
-
-      // Switch to password mode
-      await tester.tap(find.text('Sign in with password instead'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Password'), findsNWidgets(2));
-      expect(find.text('Sign In with Password'), findsOneWidget);
-      expect(find.text('Sign in with SMS OTP instead'), findsOneWidget);
-      expect(find.text('Forgot Password?'), findsOneWidget);
     });
 
     testWidgets('Screen 5: Sign Up Screen renders mobile registration with SMS OTP and terms checkbox',

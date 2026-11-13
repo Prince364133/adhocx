@@ -50,7 +50,7 @@ describe('local /uploads documents', () => {
 });
 
 describe('GET /uploads/:filename', () => {
-  const ctrl = new UploadsController();
+  const ctrl = new UploadsController(new StorageService());
   const res: any = { setHeader: jest.fn(), sendFile: jest.fn() };
 
   it('refuses a link whose signature is wrong or expired', async () => {

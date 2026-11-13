@@ -47,6 +47,7 @@ export function DynamicDistancePricingSection() {
   const [escortFee, setEscortFee] = useState<number>(300);
   const [editingEscortFee, setEditingEscortFee] = useState<string>('300');
   const [savingEscortFee, setSavingEscortFee] = useState<boolean>(false);
+  const [escortUpdatedAt, setEscortUpdatedAt] = useState<string | null>(null);
 
   // Peak Hours Configuration State
   const [peakWindows, setPeakWindows] = useState<PeakHourWindow[]>([]);
@@ -109,6 +110,7 @@ export function DynamicDistancePricingSection() {
       if (policy && policy.escortFee !== undefined) {
         setEscortFee(policy.escortFee);
         setEditingEscortFee(String(policy.escortFee));
+        setEscortUpdatedAt(policy.updatedAt ?? null);
       } else if (data.length > 0 && (data[0] as any).escortFeeRupees !== undefined) {
         setEscortFee((data[0] as any).escortFeeRupees);
         setEditingEscortFee(String((data[0] as any).escortFeeRupees));
@@ -129,19 +131,29 @@ export function DynamicDistancePricingSection() {
   }, []);
 
   const handleSaveEscortFee = async () => {
-    const val = Number(editingEscortFee);
-    if (!Number.isFinite(val) || val < 0) {
-      setAlert({ type: 'error', message: 'Escort fee must be a non-negative number in ₹.' });
+    const trimmed = editingEscortFee.trim();
+    const val = Number(trimmed);
+    if (trimmed === '' || !Number.isFinite(val) || val < 0 || val > 100000) {
+      setAlert({ type: 'error', message: 'Escort fee must be a number between ₹0 and ₹1,00,000.' });
+      return;
+    }
+    const rounded = Math.round(val * 100) / 100;
+    if (rounded === escortFee) {
+      setAlert({ type: 'success', message: `Security escort fee is already ₹${rounded} per trip.` });
+      return;
+    }
+    if (typeof window !== 'undefined' && !window.confirm(`Change the security escort fee from ₹${escortFee} to ₹${rounded} per trip? New vendor quotes will use it immediately.`)) {
       return;
     }
     setSavingEscortFee(true);
     try {
-      const updated = await adminApi.updatePolicyConfig({ escortFee: val });
+      const updated = await adminApi.updatePolicyConfig({ escortFee: rounded });
       setEscortFee(updated.escortFee);
       setEditingEscortFee(String(updated.escortFee));
+      setEscortUpdatedAt(updated.updatedAt ?? null);
       setAlert({
         type: 'success',
-        message: `Security Escort Rate updated to ₹${updated.escortFee} per trip. Automatically reflected across Vendor and Driver apps.`,
+        message: `Security escort fee saved: ₹${updated.escortFee} per trip. New vendor quotes use it from now on.`,
       });
     } catch (err: any) {
       setAlert({ type: 'error', message: err.message || 'Failed to update security escort fee' });
@@ -899,7 +911,7 @@ export function DynamicDistancePricingSection() {
         </div>
 
         {/* Content: Condition-Based Slabs Grid */}
-        {!activePlan || activePlan.slabs.length === 0 ? (
+        {selectedAudience !== 'ESCORT' && (!activePlan || activePlan.slabs.length === 0) ? (
           <div style={{ padding: '3rem 1rem', textAlign: 'center', color: 'var(--text-muted)' }}>
             No distance rate cards configured. Click Customize as Draft to initialize bands.
           </div>
@@ -940,7 +952,9 @@ export function DynamicDistancePricingSection() {
                   </span>
                 </div>
                 <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                  Statutory corporate mobility safety rates. Automatically added to Vendor trip quotes when a security escort is requested, or when female employees commute during night shifts (20:00 – 06:00).
+                  Flat per-trip add-on charged to the vendor when they switch on &ldquo;Security Escort&rdquo; while booking.
+                  It is added on top of the distance-slab fare (standard or peak) and is not part of the driver payout.
+                  Changes apply to every new quote immediately; quotes and bookings already created keep the fee they were priced with.
                 </p>
               </div>
 
@@ -979,147 +993,83 @@ export function DynamicDistancePricingSection() {
               </div>
             </div>
 
-            {/* Escort Rates Table */}
+            {/* Escort Rates Table — mirrors exactly what the quote engine charges (one flat fee, both time regimes) */}
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'left', color: 'var(--text-muted)' }}>
-                    <th style={{ padding: '0.75rem 0.6rem' }}>Escort Service Tier</th>
-                    <th style={{ padding: '0.75rem 0.6rem' }}>Trigger Window / Policy</th>
+                    <th style={{ padding: '0.75rem 0.6rem' }}>Charge</th>
+                    <th style={{ padding: '0.75rem 0.6rem' }}>Time Regime</th>
                     <th style={{ padding: '0.75rem 0.6rem' }}>Billing Model</th>
-                    <th style={{ padding: '0.75rem 0.6rem' }}>Platform Escort Rate</th>
-                    <th style={{ padding: '0.75rem 0.6rem' }}>Vendor Quotation Fare</th>
-                    <th style={{ padding: '0.75rem 0.6rem' }}>Driver App Alert</th>
+                    <th style={{ padding: '0.75rem 0.6rem' }}>Vendor Pays (added to fare)</th>
+                    <th style={{ padding: '0.75rem 0.6rem' }}>Driver Payout Impact</th>
                     <th style={{ padding: '0.75rem 0.6rem' }}>Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    <td style={{ padding: '0.85rem 0.6rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <Shield size={16} color="var(--brand-primary)" />
-                        <div>
-                          <div>Mandatory Night-Shift Female Commuter Escort</div>
-                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 400 }}>
-                            Section 66 POSH & State Factories Safety Mandate
+                  {[
+                    { key: 'NON_PEAK', label: 'Standard (Non-Peak) Hours', color: 'var(--color-success)' },
+                    { key: 'PEAK', label: 'Peak Hours', color: '#F59E0B' },
+                  ].map((regime) => (
+                    <tr key={regime.key} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td style={{ padding: '0.85rem 0.6rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <Shield size={16} color="var(--brand-primary)" />
+                          <div>
+                            <div>Security Escort Add-on</div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 400 }}>
+                              Vendor turns on &ldquo;Security Escort&rdquo; for a cab while booking
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </td>
-                    <td style={{ padding: '0.85rem 0.6rem' }}>
-                      <span style={{ fontWeight: 600, color: '#818CF8' }}>20:00 – 06:00</span>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Auto-triggered when 1st pickup or last drop is female</div>
-                    </td>
-                    <td style={{ padding: '0.85rem 0.6rem' }}>Per Trip Flat Rate</td>
-                    <td style={{ padding: '0.85rem 0.6rem', fontWeight: 800, color: 'var(--text-primary)', fontSize: '0.9rem' }}>
-                      {inr(escortFee)}
-                    </td>
-                    <td style={{ padding: '0.85rem 0.6rem', color: 'var(--color-success)', fontWeight: 700 }}>
-                      + {inr(escortFee)} added to trip
-                    </td>
-                    <td style={{ padding: '0.85rem 0.6rem' }}>
-                      <span style={{ padding: '0.2rem 0.45rem', borderRadius: 'var(--radius-xs)', background: 'rgba(99, 102, 241, 0.15)', color: '#818CF8', fontSize: '0.72rem', fontWeight: 700 }}>
-                        ESCORT REQUIRED
-                      </span>
-                    </td>
-                    <td style={{ padding: '0.85rem 0.6rem' }}>
-                      <StatusBadge status="ACTIVE" />
-                    </td>
-                  </tr>
-
-                  <tr style={{ borderBottom: '1px solid var(--border)', background: 'rgba(255,255,255,0.015)' }}>
-                    <td style={{ padding: '0.85rem 0.6rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <ShieldCheck size={16} color="var(--color-success)" />
-                        <div>
-                          <div>On-Demand Corporate Security Guard</div>
-                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 400 }}>
-                            Selected explicitly by Vendor / Corporate Admin during booking
-                          </div>
+                      </td>
+                      <td style={{ padding: '0.85rem 0.6rem' }}>
+                        <span style={{ fontWeight: 600, color: regime.color }}>{regime.label}</span>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                          {regime.key === 'PEAK' ? 'Same flat fee — escort is not peak-adjusted' : 'Outside the configured peak windows'}
                         </div>
-                      </div>
-                    </td>
-                    <td style={{ padding: '0.85rem 0.6rem' }}>
-                      <span style={{ fontWeight: 600, color: 'var(--color-success)' }}>24x7 Anytime</span>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>User requested toggle in booking sheet</div>
-                    </td>
-                    <td style={{ padding: '0.85rem 0.6rem' }}>Per Trip Flat Rate</td>
-                    <td style={{ padding: '0.85rem 0.6rem', fontWeight: 800, color: 'var(--text-primary)', fontSize: '0.9rem' }}>
-                      {inr(escortFee)}
-                    </td>
-                    <td style={{ padding: '0.85rem 0.6rem', color: 'var(--color-success)', fontWeight: 700 }}>
-                      + {inr(escortFee)} added to trip
-                    </td>
-                    <td style={{ padding: '0.85rem 0.6rem' }}>
-                      <span style={{ padding: '0.2rem 0.45rem', borderRadius: 'var(--radius-xs)', background: 'rgba(16, 185, 129, 0.15)', color: 'var(--color-success)', fontSize: '0.72rem', fontWeight: 700 }}>
-                        GUARD ONBOARD
-                      </span>
-                    </td>
-                    <td style={{ padding: '0.85rem 0.6rem' }}>
-                      <StatusBadge status="ACTIVE" />
-                    </td>
-                  </tr>
-
-                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    <td style={{ padding: '0.85rem 0.6rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <Shield size={16} color="#F59E0B" />
-                        <div>
-                          <div>VIP / Armed High-Risk Security Escort</div>
-                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 400 }}>
-                            Custom corporate transit for executive / cash-in-transit movements
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td style={{ padding: '0.85rem 0.6rem' }}>
-                      <span style={{ fontWeight: 600, color: 'var(--color-warning)' }}>Scheduled / Enterprise</span>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Enterprise Master Service Agreement</div>
-                    </td>
-                    <td style={{ padding: '0.85rem 0.6rem' }}>Per Guard Shift (8h)</td>
-                    <td style={{ padding: '0.85rem 0.6rem', fontWeight: 800, color: 'var(--text-primary)', fontSize: '0.9rem' }}>
-                      {inr(escortFee * 3)}
-                    </td>
-                    <td style={{ padding: '0.85rem 0.6rem', color: 'var(--text-secondary)', fontWeight: 700 }}>
-                      Custom SLA Billing
-                    </td>
-                    <td style={{ padding: '0.85rem 0.6rem' }}>
-                      <span style={{ padding: '0.2rem 0.45rem', borderRadius: 'var(--radius-xs)', background: 'rgba(245, 158, 11, 0.15)', color: '#F59E0B', fontSize: '0.72rem', fontWeight: 700 }}>
-                        ARMED ESCORT
-                      </span>
-                    </td>
-                    <td style={{ padding: '0.85rem 0.6rem' }}>
-                      <StatusBadge status="SCHEDULED" />
-                    </td>
-                  </tr>
+                      </td>
+                      <td style={{ padding: '0.85rem 0.6rem' }}>Flat, per trip</td>
+                      <td style={{ padding: '0.85rem 0.6rem', fontWeight: 800, color: 'var(--text-primary)', fontSize: '0.9rem' }}>
+                        + {inr(escortFee)}
+                      </td>
+                      <td style={{ padding: '0.85rem 0.6rem', color: 'var(--text-secondary)' }}>None (driver payout unchanged)</td>
+                      <td style={{ padding: '0.85rem 0.6rem' }}>
+                        <StatusBadge status="ACTIVE" />
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
 
-            {/* Regulatory Compliance Cards */}
+            {/* Where the rate shows up */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem', marginTop: '0.5rem' }}>
               <div style={{ padding: '1rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-surface-elevated)', border: '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, fontSize: '0.82rem', color: 'var(--brand-primary)', marginBottom: '0.35rem' }}>
-                  <ShieldCheck size={14} /> Zero-Trust Verified Guards
-                </div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                  Every security guard is biometric verified, Aadhaar linked, and police verification cleared prior to fleet assignment.
-                </div>
-              </div>
-              <div style={{ padding: '1rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-surface-elevated)', border: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, fontSize: '0.82rem', color: 'var(--color-success)', marginBottom: '0.35rem' }}>
-                  <Zap size={14} /> Real-Time Engine Sync
+                  <Zap size={14} /> Vendor App
                 </div>
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                  Any update to the rate card above immediately applies to all future trip quotes requested by corporate vendors and mobile clients.
+                  Shown as &ldquo;+{inr(escortFee)}&rdquo; on the Security Escort toggle, in the quote breakdown
+                  (base fare + escort) and on the vendor rate card. Every new quote uses the saved value.
                 </div>
               </div>
               <div style={{ padding: '1rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-surface-elevated)', border: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, fontSize: '0.82rem', color: '#818CF8', marginBottom: '0.35rem' }}>
-                  <Car size={14} /> Driver App Integration
+                  <Car size={14} /> Driver App
                 </div>
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                  Drivers receive clear badges and sight-of-entry instructions when an escort accompanies the trip, ensuring safe boarding and drop verification.
+                  Trip offers for escorted bookings carry an &ldquo;Escort Included&rdquo; badge. The fee itself is
+                  not shown to or paid to the driver.
+                </div>
+              </div>
+              <div style={{ padding: '1rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-surface-elevated)', border: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, fontSize: '0.82rem', color: 'var(--brand-primary)', marginBottom: '0.35rem' }}>
+                  <ShieldCheck size={14} /> Change History
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                  Each save is recorded in the pricing audit trail with the previous and new value.
+                  {escortUpdatedAt ? ` Last changed ${new Date(escortUpdatedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST.` : ''}
                 </div>
               </div>
             </div>

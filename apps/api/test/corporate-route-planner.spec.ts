@@ -196,7 +196,7 @@ describe('Corporate ETS - Route Planner Engine & Spatial Clustering Suite', () =
   });
 
   describe('Automatic vehicle assignment', () => {
-    it.each([1, 2, 3])('assigns %i riders to a sedan', (passengers) => {
+    it.each([1, 2, 3, 4])('assigns %i riders to a sedan', (passengers) => {
       expect(selectCheapestCab(20, passengers, DEFAULT_PRICING_CONFIG)?.name).toBe('sedan');
     });
 
@@ -392,7 +392,8 @@ describe('Corporate ETS - Route Planner Engine & Spatial Clustering Suite', () =
       });
     });
 
-    it.each([4, 5, 6])('assigns %i riders to an SUV', (passengers) => {
+    // Sedan seats 4 (business rule), so a 4th rider no longer forces an SUV.
+    it.each([5, 6])('assigns %i riders to an SUV', (passengers) => {
       expect(selectCheapestCab(20, passengers, DEFAULT_PRICING_CONFIG)?.name).toBe('suv');
     });
 

@@ -61,7 +61,7 @@ describe('Corporate Route Capacity Solver (CVRPTW)', () => {
   });
 
   describe('Sedan Capacity & 5-Minute Dwell Buffer (LOGIN Commute)', () => {
-    it('should split 8 passengers into Sedan routes of 3 passengers max and enforce 300s dwell buffer', async () => {
+    it('should split 8 passengers into Sedan routes of 4 passengers max and enforce 300s dwell buffer', async () => {
       // 8 employees along the same corridor (Kondapur / Gachibowli towards HITEC City)
       const mockRequests = Array.from({ length: 8 }).map((_, idx) => ({
         id: `req-${idx + 1}`,
@@ -91,25 +91,25 @@ describe('Corporate Route Capacity Solver (CVRPTW)', () => {
         shiftDate: '2026-11-10',
         shiftTime: '08:00',
         direction: 'LOGIN',
-        vehicleCategory: 'SEDAN', // max 3 pax
+        vehicleCategory: 'SEDAN', // max 4 pax
       });
 
-      expect(result.routesCreated).toBe(3);
+      expect(result.routesCreated).toBe(2);
       expect(result.passengersAssigned).toBe(8);
       expect(result.unassignedRequests).toBe(0);
-      expect(result.averagePassengersPerRoute).toBeCloseTo(8 / 3);
+      expect(result.averagePassengersPerRoute).toBeCloseTo(8 / 2);
 
-      // Verify each created route has capacity <= 3
+      // Verify each created route has capacity <= 4
       for (const route of result.routes) {
-        expect(route.passengerCount).toBeLessThanOrEqual(3);
-        expect(route.maxCapacity).toBe(3);
+        expect(route.passengerCount).toBeLessThanOrEqual(4);
+        expect(route.maxCapacity).toBe(4);
       }
 
-      // Verify DB transaction calls: corporateRoute.create should be called three times
-      expect(mockDb.corporateRoute.create).toHaveBeenCalledTimes(3);
+      // Verify DB transaction calls: corporateRoute.create should be called twice
+      expect(mockDb.corporateRoute.create).toHaveBeenCalledTimes(2);
 
-      // 8 employee pickups + 3 office dropoffs
-      expect(mockDb.corporateRouteStop.create).toHaveBeenCalledTimes(11);
+      // 8 employee pickups + 2 office dropoffs
+      expect(mockDb.corporateRouteStop.create).toHaveBeenCalledTimes(10);
 
       // Verify stops for Route 1 have 300s dwell buffer for employee pickups
       const firstRouteStopCalls = mockDb.corporateRouteStop.create.mock.calls;

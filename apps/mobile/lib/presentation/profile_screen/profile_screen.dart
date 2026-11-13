@@ -19,6 +19,7 @@ import './modals/rate_card_modal.dart';
 import './modals/terms_modal.dart';
 import './modals/privacy_modal.dart';
 import './modals/about_modal.dart';
+import '../../shared/widgets/app_version_label.dart';
 import './widgets/profile_driver_card_widget.dart';
 import '../language_selection_widget.dart';
 import './widgets/profile_menu_item_widget.dart';
@@ -602,8 +603,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                             ),
                             const SizedBox(height: 2),
-                            Text(
-                              'v1.4.2 • Build 204 • Made for Logistics Excellence',
+                            AppVersionLabel(
                               style: AppTypography.micro(
                                 color: isDark
                                     ? AppColors.textMutedDark.withValues(alpha: 0.7)
@@ -614,7 +614,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 24),
                               child: Text(
-                                'AdhocX is operated by Estemporaneo Technologies Private Limited.',
+                                kAdhocxOperatorStatement,
                                 textAlign: TextAlign.center,
                                 style: AppTypography.micro(
                                   color: isDark

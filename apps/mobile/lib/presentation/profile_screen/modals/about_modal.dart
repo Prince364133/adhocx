@@ -1,6 +1,9 @@
 import '../../../shared/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
+/// Legal declaration required at the bottom of every profile screen and in About Us.
+const String kAdhocxOperatorStatement = 'AdhocX is operated by Estemporaneo Technologies Private Limited.';
+
 class _ModalShell extends StatelessWidget {
   final String title;
   final IconData icon;
@@ -89,27 +92,20 @@ class AboutModal extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const _AboutSection(
-            title: 'Platform Overview',
+            title: 'What AdhocX Does',
             body:
-                'AdhocX is an advanced enterprise mobility and on-demand transit platform engineered to empower corporate vendors, logistics coordinators, and driver partners with transparent pricing, automated routing, and zero-trust safety protocols.',
+                'AdhocX connects businesses that need cabs for their people with verified driver partners. Vendors book trips with exact pickup and drop pins and see the fare before confirming; drivers receive trip offers, navigate to the pinned points and are paid per trip.',
           ),
           const SizedBox(height: 16),
           const _AboutSection(
-            title: 'Operating Entity',
+            title: 'Safety',
             body:
-                'AdhocX is operated by Estemporaneo Technologies Private Limited, an Indian technology company committed to revolutionizing commercial employee transport and logistics orchestration.',
+                'Driver partners complete document and identity verification before they can take trips. Trips start and end with a passenger OTP, and an optional security escort can be added to a booking.',
           ),
           const SizedBox(height: 16),
           const _AboutSection(
-            title: 'Safety & Compliance Standards',
-            body:
-                'All operations comply strictly with statutory workplace safety mandates, featuring automated DigiLocker driver document verification, real-time GPS telemetry, SOS emergency response, and verified security escorts for night shifts.',
-          ),
-          const SizedBox(height: 16),
-          const _AboutSection(
-            title: 'Support & Inquiries',
-            body:
-                'For customer care, corporate partnerships, or driver partner onboarding inquiries, contact support@adhocx.com or call our 24/7 dedicated control tower helpline.',
+            title: 'Support',
+            body: 'For help with bookings, payments or your account, use Support in the app or email support@adhocx.com.',
           ),
           const SizedBox(height: 20),
           Container(
@@ -124,7 +120,7 @@ class AboutModal extends StatelessWidget {
             ),
             child: Center(
               child: Text(
-                'AdhocX is operated by Estemporaneo Technologies Private Limited.',
+                kAdhocxOperatorStatement,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12,

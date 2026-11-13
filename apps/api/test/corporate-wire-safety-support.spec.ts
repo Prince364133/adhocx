@@ -527,7 +527,7 @@ describe('wire/safety-support: SOS lifecycle, escalation scheduler, support tick
       guard = new CorporateAccessGuard(new Reflector(), db);
     });
 
-    it('route metadata: guarded controller; create/list tenant-scoped for corporate roles; status change ADMIN-only; get by id is resource-scoped incl. EMPLOYEE', () => {
+    it('route metadata: guarded controller; create/list tenant-scoped for corporate roles; status change ADMIN/OPS-only; get by id is resource-scoped incl. EMPLOYEE', () => {
       expect(Reflect.getMetadata('path', CorporateSupportTicketController)).toBe('corporate/support/tickets');
       expect(Reflect.getMetadata(GUARDS_METADATA, CorporateSupportTicketController)).toEqual([
         JwtAuthGuard,
@@ -540,7 +540,8 @@ describe('wire/safety-support: SOS lifecycle, escalation scheduler, support tick
           expect.arrayContaining([UserRole.ADMIN, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER]),
         );
       }
-      expect(meta(CorporateSupportTicketController, 'updateStatus', ROLES_KEY)).toEqual([UserRole.ADMIN]);
+      // Platform roles only: the ops Support Desk also moves tickets through the workflow.
+      expect(meta(CorporateSupportTicketController, 'updateStatus', ROLES_KEY)).toEqual([UserRole.ADMIN, UserRole.OPS]);
       expect(meta(CorporateSupportTicketController, 'getTicket', ROLES_KEY)).toContain(UserRole.EMPLOYEE);
       expect(meta(CorporateSupportTicketController, 'getTicket', CORPORATE_RESOURCE_KEY)).toEqual(
         expect.objectContaining({ kind: 'ticket', param: 'id' }),

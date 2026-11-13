@@ -21,7 +21,7 @@ const day = (d: string) => new Date(`${d}T00:00:00.000Z`);
 
 function seedTenant(db: FakeDb, status = 'ACTIVE') {
   db.corporateTenant.rows.set(TENANT, { id: TENANT, code: 'ACME', name: 'Acme', status });
-  db.corporateOffice.rows.set(OFFICE.id, { ...OFFICE });
+  db.corporateOffice.rows.set(OFFICE.id, { ...OFFICE, isActive: true }); // schema default; FakeDb applies no defaults
 }
 
 /** n APPROVED requests for one shift, employees spread around the office. */

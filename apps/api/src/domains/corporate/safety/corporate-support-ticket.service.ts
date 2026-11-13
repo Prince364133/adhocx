@@ -664,6 +664,10 @@ export class CorporateSupportTicketService {
     if (allowedStatuses && !allowedStatuses.includes(toStatus)) throw new ForbiddenException('OPS cannot set this ticket status');
     const from = ticket.status as CorporateTicketStatus;
 
+    // CLOSED is terminal: no transitions and no "same status" note edits either.
+    if (from === CorporateTicketStatus.CLOSED) {
+      throw new ConflictException('Ticket is closed and can no longer be changed');
+    }
     if (!TICKET_ALLOWED_TRANSITIONS[from]?.includes(toStatus) && from !== toStatus) {
       throw new ConflictException(`Illegal ticket transition ${from} -> ${toStatus}`);
     }

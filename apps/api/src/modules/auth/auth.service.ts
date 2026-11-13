@@ -412,6 +412,55 @@ export class AuthService implements OnModuleInit {
   /**
    * Request OTP for Phone or Email Authentication
    */
+  /**
+   * Links a signed-in user to the ACTIVE corporate tenant whose primary contact phone/email they own,
+   * making them that tenant's super admin.
+   *
+   * Never applies to an account that already has another job on the platform: a driver or vendor
+   * (with or without a profile row), a platform ADMIN/OPS, or an EMPLOYEE / CORPORATE_MANAGER.
+   * Rewriting those roles would lock a live driver out of dispatch or demote a platform admin just
+   * because their number was typed in as a company contact.
+   */
+  async linkCorporateTenantContact(user: any): Promise<any> {
+    if (!user || user.corporateTenantId) return user;
+    const protectedRoles: string[] = [
+      UserRole.DRIVER,
+      UserRole.VENDOR,
+      UserRole.ADMIN,
+      UserRole.OPS,
+      UserRole.EMPLOYEE,
+      UserRole.CORPORATE_MANAGER,
+    ];
+    if (user.driver || user.vendor || protectedRoles.includes(user.role)) return user;
+    try {
+      const phoneNorm = user.phone ? this.normalizeIdentifier(user.phone) : null;
+      const contactMatch = [
+        ...(phoneNorm?.phoneVariants ? [{ primaryContactPhone: { in: phoneNorm.phoneVariants } }] : []),
+        ...(user.phone ? [{ primaryContactPhone: user.phone }] : []),
+        ...(user.email ? [{ primaryContactEmail: { equals: user.email, mode: 'insensitive' as const } }] : []),
+      ];
+      if (contactMatch.length === 0) return user;
+      const tenant = await this.db.corporateTenant.findFirst({
+        where: { OR: contactMatch, status: 'ACTIVE' },
+      });
+      if (!tenant) return user;
+      const linked = await this.db.user.update({
+        where: { id: user.id },
+        data: {
+          corporateTenantId: tenant.id,
+          role: UserRole.CORPORATE_ADMIN,
+          corporateRole: 'CORP_SUPER_ADMIN',
+        },
+        include: { vendor: true, driver: true },
+      });
+      this.logger.log(`Linked user ${linked.id} to corporate tenant ${tenant.name} (${tenant.code})`);
+      return linked;
+    } catch (err: any) {
+      this.logger.warn(`Corporate tenant link skipped for user ${user.id}: ${err?.message ?? err}`);
+      return user;
+    }
+  }
+
   async requestOtp(dto: RequestOtpDto): Promise<RequestOtpResponseDto> {
     const rawPhone = dto.phone?.trim();
     const rawEmail = dto.email?.trim().toLowerCase();
@@ -679,33 +728,7 @@ export class AuthService implements OnModuleInit {
       throw new BadRequestException('Failed to authenticate with database.');
     }
 
-    if (user && !user.corporateTenantId) {
-      try {
-        const phoneNorm = user.phone ? this.normalizeIdentifier(user.phone) : null;
-        const tenant = await this.db.corporateTenant.findFirst({
-          where: {
-            OR: [
-              ...(phoneNorm?.phoneVariants ? [{ primaryContactPhone: { in: phoneNorm.phoneVariants } }] : []),
-              ...(user.phone ? [{ primaryContactPhone: user.phone }] : []),
-              ...(user.email ? [{ primaryContactEmail: { equals: user.email, mode: 'insensitive' as const } }] : []),
-            ],
-            status: 'ACTIVE',
-          },
-        });
-        if (tenant) {
-          user = await this.db.user.update({
-            where: { id: user.id },
-            data: {
-              corporateTenantId: tenant.id,
-              role: UserRole.CORPORATE_ADMIN,
-              corporateRole: 'CORP_SUPER_ADMIN',
-            },
-            include: { vendor: true, driver: true },
-          });
-          this.logger.log(`Linked user ${user.id} to corporate tenant ${tenant.name} (${tenant.code})`);
-        }
-      } catch (_) {}
-    }
+    user = await this.linkCorporateTenantContact(user);
 
     await this.verifyAccountActiveAndClearStaleRevocation(user);
 
@@ -862,33 +885,7 @@ export class AuthService implements OnModuleInit {
       }
     }
 
-    if (user && !user.corporateTenantId) {
-      try {
-        const phoneNorm = user.phone ? this.normalizeIdentifier(user.phone) : null;
-        const tenant = await this.db.corporateTenant.findFirst({
-          where: {
-            OR: [
-              ...(phoneNorm?.phoneVariants ? [{ primaryContactPhone: { in: phoneNorm.phoneVariants } }] : []),
-              ...(user.phone ? [{ primaryContactPhone: user.phone }] : []),
-              ...(user.email ? [{ primaryContactEmail: { equals: user.email, mode: 'insensitive' as const } }] : []),
-            ],
-            status: 'ACTIVE',
-          },
-        });
-        if (tenant) {
-          user = await this.db.user.update({
-            where: { id: user.id },
-            data: {
-              corporateTenantId: tenant.id,
-              role: UserRole.CORPORATE_ADMIN,
-              corporateRole: 'CORP_SUPER_ADMIN',
-            },
-            include: { vendor: true, driver: true },
-          });
-          this.logger.log(`Linked user ${user.id} to corporate tenant ${tenant.name} (${tenant.code})`);
-        }
-      } catch (_) {}
-    }
+    user = await this.linkCorporateTenantContact(user);
 
     await this.verifyAccountActiveAndClearStaleRevocation(user);
 

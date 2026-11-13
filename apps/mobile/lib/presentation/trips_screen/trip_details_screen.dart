@@ -115,22 +115,28 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
 
     final pLat = (trip['pickupLocation']?['latitude'] as num?)?.toDouble() ??
         (req['pickupLat'] as num?)?.toDouble() ??
-        17.3850;
+        0.0;
     final pLng = (trip['pickupLocation']?['longitude'] as num?)?.toDouble() ??
         (req['pickupLng'] as num?)?.toDouble() ??
-        78.4867;
+        0.0;
     final dLat = (trip['dropLocation']?['latitude'] as num?)?.toDouble() ??
         (req['dropLat'] as num?)?.toDouble() ??
-        17.4435;
+        0.0;
     final dLng = (trip['dropLocation']?['longitude'] as num?)?.toDouble() ??
         (req['dropLng'] as num?)?.toDouble() ??
-        78.3808;
+        0.0;
 
     final targetLat = isDropTarget ? dLat : pLat;
     final targetLng = isDropTarget ? dLng : pLng;
     final targetAddress = isDropTarget
         ? (trip['dropLocation']?['address'] ?? req['dropAddress'] ?? 'Drop Location')
         : (trip['pickupLocation']?['address'] ?? req['pickupAddress'] ?? 'Pickup Location');
+
+    if (targetLat == 0.0 || targetLng == 0.0) {
+      // No pinned coordinate for this leg: don't send the driver to an invented point.
+      Fluttertoast.showToast(msg: 'Exact location is missing for $targetAddress. Please call the customer.');
+      return;
+    }
 
     // 1. Android Google Navigation Intent (direct turn-by-turn navigation from live GPS location)
     final navUri = Uri.parse('google.navigation:q=$targetLat,$targetLng&mode=d');
@@ -236,20 +242,21 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
 
     final pLat = (trip['pickupLocation']?['latitude'] as num?)?.toDouble() ??
         (req['pickupLat'] as num?)?.toDouble() ??
-        17.3850;
+        0.0;
     final pLng = (trip['pickupLocation']?['longitude'] as num?)?.toDouble() ??
         (req['pickupLng'] as num?)?.toDouble() ??
-        78.4867;
+        0.0;
     final dLat = (trip['dropLocation']?['latitude'] as num?)?.toDouble() ??
         (req['dropLat'] as num?)?.toDouble() ??
-        17.4435;
+        0.0;
     final dLng = (trip['dropLocation']?['longitude'] as num?)?.toDouble() ??
         (req['dropLng'] as num?)?.toDouble() ??
-        78.3808;
+        0.0;
 
     final num? rawDist = trip['distanceKm'] ?? trip['tripDistanceKm'] ?? req['distanceKm'];
     double computedDistance = rawDist != null ? rawDist.toDouble() : 0.0;
-    if (computedDistance <= 0.0 || (computedDistance > 14.5 && computedDistance < 15.0)) {
+    final hasBothPins = pLat != 0.0 && pLng != 0.0 && dLat != 0.0 && dLng != 0.0;
+    if (hasBothPins && (computedDistance <= 0.0 || (computedDistance > 14.5 && computedDistance < 15.0))) {
       computedDistance = LocationService.estimateRoadDistanceKm(pLat, pLng, dLat, dLng);
     }
     final distanceStr = '${computedDistance.toStringAsFixed(1)} km';

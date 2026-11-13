@@ -35,7 +35,8 @@ describe('GoogleMapsService.computeDriverEtaMatrix', () => {
     expect(post).toHaveBeenCalledTimes(1);
     expect(post.mock.calls[0][1]).toBe('/distanceMatrix/v2:computeRouteMatrix');
     expect(post.mock.calls[0][4]).toBe(1500); // hard wall-clock deadline
-    expect(res[0]).toEqual({ etaMinutes: 3, distanceKm: 0.9, isRealRoad: true });
+    // durationSeconds feeds dispatch's exact-ETA ranking (dispatch.service etaExactMinutes).
+    expect(res[0]).toEqual({ etaMinutes: 3, distanceKm: 0.9, isRealRoad: true, durationSeconds: 180 });
     // River crossing: aerially close, but 25 minutes by road -> ranks below the far driver
     expect(res[1].etaMinutes).toBe(25);
     expect(res[2].etaMinutes).toBe(22);

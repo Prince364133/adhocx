@@ -254,8 +254,12 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
             ],
           ),
           const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // Wrap, not Row: on narrow phones the chip + button would overflow.
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 4,
             children: [
               FilterChip(
                 label: Text(isOffice ? 'Office' : 'Mark as office', style: const TextStyle(fontSize: 11)),

@@ -425,7 +425,7 @@ beforeEach(async () => {
   redis = new FakeRedis();
   notifications = { emitEvent: jest.fn() };
   audit = { log: jest.fn().mockResolvedValue(undefined) };
-  db.tables.corporateOffice.set(OFFICE.id, { id: OFFICE.id, tenantId: TENANT, latitude: OFFICE.lat, longitude: OFFICE.lng });
+  db.tables.corporateOffice.set(OFFICE.id, { id: OFFICE.id, tenantId: TENANT, latitude: OFFICE.lat, longitude: OFFICE.lng, isActive: true });
 
   const moduleRef = await Test.createTestingModule({
     controllers: [CorporateTripExecutionController],
