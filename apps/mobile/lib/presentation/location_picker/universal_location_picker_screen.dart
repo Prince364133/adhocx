@@ -56,6 +56,12 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
   String _mapPinAddress = '';
   bool _isGeocodingPin = false;
   Timer? _mapDebounceTimer;
+  // Increments on every pin move so a slow reverse-geocode can't overwrite a newer pin's address.
+  int _geocodeSeq = 0;
+  // True once the vendor has moved the pin themselves; GPS auto-centering must not override that.
+  bool _pinMovedByUser = false;
+  // True while the pin still sits on the hard-coded fallback (no initial coordinates, no GPS yet).
+  bool _pinOnFallback = false;
 
   String? _currentCity;
   double? _currentLat;
@@ -81,6 +87,7 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
         ? widget.initialAddress!
         : 'Select Location';
 
+    _pinOnFallback = widget.initialLat == null || widget.initialLat == 0.0 || widget.initialLng == null || widget.initialLng == 0.0;
     _mapPinLat = (widget.initialLat != null && widget.initialLat != 0.0) ? widget.initialLat! : 17.4435;
     _mapPinLng = (widget.initialLng != null && widget.initialLng != 0.0) ? widget.initialLng! : 78.3772;
     _mapPinAddress = (widget.initialAddress != null && widget.initialAddress!.isNotEmpty) ? widget.initialAddress! : '';
@@ -113,37 +120,43 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
   }
 
   void _onMapPositionChanged(double lat, double lng) {
+    _pinMovedByUser = true;
+    _pinOnFallback = false;
+    _movePin(lat, lng);
+  }
+
+  /// Moves the pin and (debounced) resolves its street address. The address shown is always
+  /// for the current pin: older lookups that finish late are discarded.
+  void _movePin(double lat, double lng, {Duration debounce = const Duration(milliseconds: 500)}) {
+    final seq = ++_geocodeSeq;
     setState(() {
       _mapPinLat = lat;
       _mapPinLng = lng;
       _isGeocodingPin = true;
     });
     _mapDebounceTimer?.cancel();
-    _mapDebounceTimer = Timer(const Duration(milliseconds: 500), () async {
-      await _reverseGeocodePin(lat, lng);
+    _mapDebounceTimer = Timer(debounce, () => _reverseGeocodePin(lat, lng, seq: seq));
+  }
+
+  Future<void> _reverseGeocodePin(double lat, double lng, {int? seq}) async {
+    final mySeq = seq ?? ++_geocodeSeq;
+    if (mounted && !_isGeocodingPin) setState(() => _isGeocodingPin = true);
+    String address;
+    try {
+      final loc = await _locationService.reverseGeocode(lat, lng);
+      address = loc.fullAddress;
+    } catch (_) {
+      address = '';
+    }
+    if (!mounted || mySeq != _geocodeSeq) return;
+    setState(() {
+      _mapPinAddress = address;
+      _isGeocodingPin = false;
     });
   }
 
-  Future<void> _reverseGeocodePin(double lat, double lng) async {
-    try {
-      final loc = await _locationService.reverseGeocode(lat, lng);
-      if (mounted) {
-        setState(() {
-          _mapPinAddress = loc.fullAddress;
-          _isGeocodingPin = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _mapPinAddress = 'Pinpoint (${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)})';
-          _isGeocodingPin = false;
-        });
-      }
-    }
-  }
-
   void _confirmMapPinLocation() {
+    if (_isGeocodingPin) return;
     final title = _mapPinAddress.isNotEmpty
         ? _mapPinAddress.split(',').first.trim()
         : 'Pinpoint Location';
@@ -161,17 +174,49 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
     _selectLocation(loc);
   }
 
-  void _switchToMapMode() {
-    setState(() {
-      _isMapMode = true;
-      if (_currentLat != null && _currentLat != 0.0 && _mapPinLat == 17.4435) {
-        _mapPinLat = _currentLat!;
-        _mapPinLng = _currentLng ?? 78.3772;
+  void _switchToMapMode({String? hint}) {
+    FocusScope.of(context).unfocus();
+    setState(() => _isMapMode = true);
+    if (_pinOnFallback && !_pinMovedByUser && _currentLat != null && _currentLat != 0.0 && _currentLng != null) {
+      _pinOnFallback = false;
+      _movePin(_currentLat!, _currentLng!, debounce: Duration.zero);
+    } else if (_mapPinAddress.isEmpty) {
+      _reverseGeocodePin(_mapPinLat, _mapPinLng);
+    }
+    if (hint != null && hint.isNotEmpty && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Drag the map so the pin sits exactly on "$hint", then confirm.'),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
+  }
+
+  /// Map mode only: move the pin to the device's GPS fix instead of closing the picker.
+  Future<void> _centerPinOnGps() async {
+    if (_isFetchingGps) return;
+    setState(() => _isFetchingGps = true);
+    try {
+      final pos = await PermissionService.instance.getCurrentPosition(requestIfDenied: true);
+      if (!mounted) return;
+      if (pos == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not get your GPS location. Check location permission and GPS.')),
+        );
+        return;
       }
-      if (_mapPinAddress.isEmpty) {
-        _reverseGeocodePin(_mapPinLat, _mapPinLng);
-      }
-    });
+      _currentLat = pos.latitude;
+      _currentLng = pos.longitude;
+      _hasLocationPermission = true;
+      _pinOnFallback = false;
+      _pinMovedByUser = true;
+      _movePin(pos.latitude, pos.longitude, debounce: Duration.zero);
+    } catch (e) {
+      debugPrint('GPS centre error: $e');
+    } finally {
+      if (mounted) setState(() => _isFetchingGps = false);
+    }
   }
 
   Future<void> _detectLocationAndLoadData() async {
@@ -188,6 +233,10 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
           _hasLocationPermission = true;
           _currentLat = pos.latitude;
           _currentLng = pos.longitude;
+          if (mounted && _isMapMode && _pinOnFallback && !_pinMovedByUser) {
+            _pinOnFallback = false;
+            _movePin(pos.latitude, pos.longitude, debounce: Duration.zero);
+          }
           final rev = await _locationService.reverseGeocode(pos.latitude, pos.longitude);
           if (rev.city != null && rev.city!.isNotEmpty) {
             _currentCity = rev.city;
@@ -410,7 +459,7 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
         ),
         actions: [
           IconButton(
-            onPressed: _isFetchingGps ? null : _fetchCurrentGpsLocation,
+            onPressed: _isFetchingGps ? null : (_isMapMode ? _centerPinOnGps : _fetchCurrentGpsLocation),
             icon: _isFetchingGps
                 ? SizedBox(
                     width: 18,
@@ -628,8 +677,8 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
                   heroTag: 'map_picker_gps_btn',
                   backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
                   foregroundColor: AppColors.primary,
-                  onPressed: _fetchCurrentGpsLocation,
-                  tooltip: 'Current GPS Location',
+                  onPressed: _centerPinOnGps,
+                  tooltip: 'Move pin to my GPS location',
                   child: _isFetchingGps
                       ? const SizedBox(
                           width: 18,
@@ -731,7 +780,7 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
                 ),
                 const SizedBox(height: AppSpacing.md),
                 ElevatedButton.icon(
-                  onPressed: _confirmMapPinLocation,
+                  onPressed: _isGeocodingPin ? null : _confirmMapPinLocation,
                   icon: const Icon(Icons.check_circle_rounded, size: 20),
                   label: const Text(
                     'Confirm Pinpoint Location',
@@ -792,20 +841,13 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
               ),
               if (_searchController.text.trim().isNotEmpty) ...[
                 const SizedBox(height: 16),
+                // A typed address with no search hit has no real coordinates: make the vendor pin it,
+                // otherwise the driver would be sent to the phone's GPS spot or a default city point.
                 ElevatedButton.icon(
-                  onPressed: () {
-                    final query = _searchController.text.trim();
-                    _selectLocation(LocationModel(
-                      title: query.split(',').first.trim(),
-                      fullAddress: query,
-                      latitude: _currentLat ?? 17.4435,
-                      longitude: _currentLng ?? 78.3772,
-                      category: 'CUSTOM',
-                    ));
-                  },
-                  icon: const Icon(Icons.check_circle_outline_rounded, size: 18),
+                  onPressed: () => _switchToMapMode(hint: _searchController.text.trim()),
+                  icon: const Icon(Icons.pin_drop_rounded, size: 18),
                   label: Text(
-                    'Use "${_searchController.text.trim()}"',
+                    'Pin "${_searchController.text.trim()}" on the map',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),

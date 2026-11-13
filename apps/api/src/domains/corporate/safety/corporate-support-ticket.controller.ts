@@ -366,7 +366,9 @@ export class CorporateSupportTicketController {
 
 @ApiTags('OPS - Support Tickets')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
+// CorporateAccessGuard is required on every corporate controller (corporate-access-control.spec);
+// these handlers are OPS-only, so it passes them through and only adds defence in depth.
+@UseGuards(JwtAuthGuard, RolesGuard, CorporateAccessGuard)
 @Controller('ops/support/tickets')
 export class OpsSupportTicketController {
   constructor(private readonly tickets: CorporateSupportTicketService) {}

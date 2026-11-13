@@ -79,6 +79,17 @@ class _ModalShell extends StatelessWidget {
 class RateCardModal extends StatefulWidget {
   const RateCardModal({super.key});
 
+  /// "08:00–11:00, 17:00–21:00 IST" from the plan's peak windows; null when none are configured.
+  static String? peakWindowsLabel(dynamic windows) {
+    if (windows is! List || windows.isEmpty) return null;
+    final parts = windows.whereType<Map>().map((w) {
+      final start = (w['start'] ?? w['startTime'] ?? '').toString();
+      final end = (w['end'] ?? w['endTime'] ?? '').toString();
+      return start.isNotEmpty && end.isNotEmpty ? '$start–$end' : '';
+    }).where((e) => e.isNotEmpty).toList();
+    return parts.isEmpty ? null : '${parts.join(', ')} IST';
+  }
+
   @override
   State<RateCardModal> createState() => _RateCardModalState();
 }
@@ -88,6 +99,7 @@ class _RateCardModalState extends State<RateCardModal> {
   String _selectedVehicle = 'SEDAN';
   List<Map<String, dynamic>> _databaseSlabs = [];
   String? _rateVersion;
+  String? _peakWindowsLabel;
 
   @override
   void initState() {
@@ -107,10 +119,13 @@ class _RateCardModalState extends State<RateCardModal> {
           final range = m['range']?.toString() ?? '${m['minKm']}–${m['maxKm']} km';
           final payout = (m['driverPayoutRupees'] as num?)?.toInt() ??
               ((m['driverPayoutPaise'] as num?) != null ? ((m['driverPayoutPaise'] as num) / 100).round() : 0);
+          final peakPayout = (m['driverPeakPayoutRupees'] as num?)?.toInt() ??
+              ((m['driverPeakPayoutPaise'] as num?) != null ? ((m['driverPeakPayoutPaise'] as num) / 100).round() : payout);
           final desc = m['desc']?.toString() ?? 'Distance band';
           return {
             'range': range,
             'payout': payout,
+            'peakPayout': peakPayout,
             'desc': desc,
           };
         }).toList();
@@ -119,6 +134,7 @@ class _RateCardModalState extends State<RateCardModal> {
           setState(() {
             _databaseSlabs = slabsList;
             _rateVersion = res['version']?.toString();
+            _peakWindowsLabel = RateCardModal.peakWindowsLabel(res['peakWindows']);
             _isLoading = false;
           });
           return;
@@ -195,6 +211,21 @@ class _RateCardModalState extends State<RateCardModal> {
               ),
             ],
           ),
+          if (_peakWindowsLabel != null) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                const Icon(Icons.bolt_rounded, size: 14, color: AppColors.warning),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    'Peak hours: $_peakWindowsLabel',
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.warning),
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 14),
 
           // Distance Slabs Table
@@ -257,6 +288,7 @@ class _RateCardModalState extends State<RateCardModal> {
           final i = entry.key;
           final slab = entry.value;
           final payout = slab['payout'];
+          final peakPayout = slab['peakPayout'];
 
           return Column(
             children: [
@@ -285,13 +317,27 @@ class _RateCardModalState extends State<RateCardModal> {
                         ),
                       ],
                     ),
-                    Text(
-                      '₹$payout Net',
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          '₹$payout Net',
+                          style: const TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (peakPayout != null && peakPayout != payout)
+                          Text(
+                            'Peak ₹$peakPayout',
+                            style: const TextStyle(
+                              color: AppColors.warning,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                      ],
                     ),
                   ],
                 ),

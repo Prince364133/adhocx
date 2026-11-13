@@ -35,16 +35,32 @@ class GoogleRouteMapWidget extends StatelessWidget {
     this.height = 200,
   });
 
+  bool get _hasPickup => pickupLat != 0.0 && pickupLng != 0.0;
+  bool get _hasDrop => dropLat != 0.0 && dropLng != 0.0;
+
+  /// Directions URL that goes through the vendor's exact pickup pin and ends at the exact drop pin.
+  /// If only one pin is known, navigates straight to it. Null when neither is known.
+  static Uri? directionsUri({
+    required double pickupLat,
+    required double pickupLng,
+    required double dropLat,
+    required double dropLng,
+  }) {
+    final hasPickup = pickupLat != 0.0 && pickupLng != 0.0;
+    final hasDrop = dropLat != 0.0 && dropLng != 0.0;
+    if (!hasPickup && !hasDrop) return null;
+    final dest = hasDrop ? '$dropLat,$dropLng' : '$pickupLat,$pickupLng';
+    final via = hasPickup && hasDrop ? '&waypoints=$pickupLat,$pickupLng' : '';
+    return Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$dest$via&travelmode=driving');
+  }
+
   Future<void> _launchGoogleMaps() async {
     if (onNavigate != null) {
       onNavigate!();
       return;
     }
-
-    // Default: Open Google Maps directions to drop (or pickup)
-    final targetLat = dropLat != 0.0 ? dropLat : pickupLat;
-    final targetLng = dropLng != 0.0 ? dropLng : pickupLng;
-    final uri = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$targetLat,$targetLng&travelmode=driving');
+    final uri = directionsUri(pickupLat: pickupLat, pickupLng: pickupLng, dropLat: dropLat, dropLng: dropLng);
+    if (uri == null) return;
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
@@ -55,11 +71,12 @@ class GoogleRouteMapWidget extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    final hasValidCoordinates = (pickupLat != 0.0 && pickupLng != 0.0) || (dropLat != 0.0 && dropLng != 0.0);
-    final pLat = pickupLat != 0.0 ? pickupLat : 17.3850;
-    final pLng = pickupLng != 0.0 ? pickupLng : 78.4867;
-    final dLat = dropLat != 0.0 ? dropLat : 17.4435;
-    final dLng = dropLng != 0.0 ? dropLng : 78.3808;
+    final hasValidCoordinates = _hasPickup || _hasDrop;
+    // Never invent a point: if one pin is missing, draw only the known one.
+    final pLat = _hasPickup ? pickupLat : dropLat;
+    final pLng = _hasPickup ? pickupLng : dropLng;
+    final dLat = _hasDrop ? dropLat : pickupLat;
+    final dLng = _hasDrop ? dropLng : pickupLng;
 
     final mapUrl = LocationService.getStaticRouteMapUrl(
       pickupLat: pLat,

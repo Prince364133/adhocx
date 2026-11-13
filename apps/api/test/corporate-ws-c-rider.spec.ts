@@ -87,6 +87,8 @@ describe('Corporate ETS Workstream C: Rider Self-Service API, SOS FSM & Support 
 
     mockRedis = {
       getClient: jest.fn(() => mockRedisClient),
+      // Support tickets are rate-limited per user; always allow in these lifecycle tests.
+      checkRateLimit: jest.fn(async () => ({ allowed: true, remaining: 99, resetAfter: 0 })),
     };
 
     mockNotifications = {

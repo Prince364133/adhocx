@@ -9,6 +9,7 @@ import {
 } from '@adhocx/contracts';
 import { JwtAuthGuard, RolesGuard, Roles, CurrentUser } from '../../common';
 import { PricingService } from './pricing.service';
+import { UpdatePolicyConfigDto } from './update-policy-config.dto';
 
 /**
  * Vehicle category catalogue and platform policy settings.
@@ -72,16 +73,8 @@ export class PricingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Update platform policy settings (escort fee, driver monthly fee, etc.)' })
-  async updatePolicyConfig(
-    @Body() dto: {
-      commissionPercent?: number;
-      driverMonthlyFee?: number;
-      driverTrialDays?: number;
-      minWithdrawalAmount?: number;
-      escortFee?: number;
-    },
-  ) {
-    return this.pricingService.updatePolicyConfig(dto);
+  async updatePolicyConfig(@Body() dto: UpdatePolicyConfigDto, @CurrentUser() admin: AuthUserDto) {
+    return this.pricingService.updatePolicyConfig(dto, { id: admin?.id, name: admin?.fullName });
   }
 
   @Get(':vehicleType')

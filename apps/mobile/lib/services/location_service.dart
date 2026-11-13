@@ -141,6 +141,7 @@ class LocationService {
     int width = 600,
     int height = 380,
     bool isDark = false,
+    bool showMarker = true,
   }) {
     final darkStyle = isDark
         ? '&style=element:geometry%7Ccolor:0x242f3e'
@@ -167,7 +168,7 @@ class LocationService {
         '&scale=2'
         '&maptype=roadmap'
         '$darkStyle'
-        '&markers=color:red%7C$lat,$lng'
+        '${showMarker ? '&markers=color:red%7C$lat,$lng' : ''}'
         '&key=$googleMapsApiKey';
   }
 
