@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:adhocx_employee/theme/app_colors.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
-import 'package:adhocx_employee/widgets/employee_app_bar.dart';
-import 'package:adhocx_employee/widgets/employee_primary_button.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
-import 'package:adhocx_employee/shared/components/feedback/employee_entrance.dart';
+import 'package:adhocx_employee/services/mock_data_service.dart';
+import 'package:adhocx_employee/shared/components/components.dart';
+import 'package:adhocx_employee/theme/app_radius.dart';
+import 'package:adhocx_employee/theme/app_spacing.dart';
+import 'package:adhocx_employee/theme/app_typography.dart';
+import 'package:adhocx_employee/theme/employee_palette.dart';
 
+/// Details for the change chosen on the previous screen (route `extra`,
+/// e.g. "Change Drop Time"); defaults to "Change Pickup Location".
 class ChangeRequestDetailsScreen extends StatefulWidget {
-  const ChangeRequestDetailsScreen({super.key});
+  final String? changeType;
+
+  const ChangeRequestDetailsScreen({super.key, this.changeType});
 
   @override
   State<ChangeRequestDetailsScreen> createState() =>
@@ -18,10 +22,8 @@ class ChangeRequestDetailsScreen extends StatefulWidget {
 
 class _ChangeRequestDetailsScreenState
     extends State<ChangeRequestDetailsScreen> {
-  final TextEditingController _reasonController = TextEditingController(
-    text: 'Temporary change due to home renovation',
-  );
-  final FocusNode _reasonFocusNode = FocusNode();
+  // Empty: the old pre-filled "home renovation" text looked like user input.
+  final TextEditingController _reasonController = TextEditingController();
   String _address = 'Flat 402, Green Meadows, Kondapur, Hyderabad';
   bool _isLoading = true;
 
@@ -35,8 +37,7 @@ class _ChangeRequestDetailsScreenState
     final profile = await MockDataService.getEmployeeProfile();
     if (mounted) {
       setState(() {
-        _address = profile['homeAddress'] ??
-            'Flat 402, Green Meadows, Kondapur, Hyderabad';
+        _address = profile['homeAddress'] ?? _address;
         _isLoading = false;
       });
     }
@@ -45,159 +46,123 @@ class _ChangeRequestDetailsScreenState
   @override
   void dispose() {
     _reasonController.dispose();
-    _reasonFocusNode.dispose();
     super.dispose();
+  }
+
+  String _resolveChangeType(BuildContext context) {
+    if (widget.changeType != null) return widget.changeType!;
+    try {
+      final extra = GoRouterState.of(context).extra;
+      if (extra is String && extra.isNotEmpty) return extra;
+    } catch (_) {
+      // Not under GoRouter (e.g. widget tests) — fall through.
+    }
+    return 'Change Pickup Location';
   }
 
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(
-            child: CircularProgressIndicator(color: AppColors.primaryBlue)),
-      );
+      return const EmployeeLoadingScaffold(appBar: EmployeeAppBar());
     }
+    final p = EmployeePalette.of(context);
+    final changeType = _resolveChangeType(context);
+    final isTime = changeType.endsWith('Time');
+    final fieldLabel = changeType.replaceFirst('Change ', 'New ');
+    final currentValue = isTime
+        ? (changeType.contains('Drop') ? '6:30 PM' : '8:15 AM')
+        : _address;
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: p.background,
       appBar: const EmployeeAppBar(),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.xxl,
+            AppSpacing.sm,
+            AppSpacing.xxl,
+            AppSpacing.xxl,
+          ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Center(
-                child: Text(
-                  'Change Pickup Location',
-                  style: GoogleFonts.inter(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 28),
-
               Text(
-                'New Pickup Location',
-                style: GoogleFonts.inter(
-                  fontSize: 14,
+                changeType,
+                textAlign: TextAlign.center,
+                style: AppTypography.h2(color: p.textPrimary, fontSize: 20),
+              ),
+              const SizedBox(height: AppSpacing.xxl + 4),
+              Text(
+                fieldLabel,
+                style: AppTypography.bodyMedium(
+                  color: p.textPrimary,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
                 ),
               ),
-
-              const SizedBox(height: 10),
-
-              // Location Selector Card
+              const SizedBox(height: AppSpacing.sm + 2),
               EmployeeEntrance(
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.border, width: 1.5),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
+                child: AppCard(
                   child: Row(
                     children: [
-                      const Icon(Icons.location_on_rounded,
-                          color: AppColors.primaryBlue, size: 22),
-                      const SizedBox(width: 12),
+                      Icon(
+                        isTime
+                            ? Icons.access_time_rounded
+                            : Icons.location_on_rounded,
+                        color: p.accent,
+                        size: 22,
+                      ),
+                      const SizedBox(width: AppSpacing.md),
                       Expanded(
                         child: Text(
-                          _address,
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
+                          currentValue,
+                          style: AppTypography.small(
+                            color: p.textPrimary,
                             fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary,
-                            height: 1.4,
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.chevron_right_rounded,
-                          color: AppColors.textMuted, size: 22),
+                      const SizedBox(width: AppSpacing.sm),
+                      Icon(Icons.chevron_right_rounded,
+                          color: p.textMuted, size: 22),
                     ],
                   ),
                 ),
               ),
-
-              const SizedBox(height: 28),
-
+              const SizedBox(height: AppSpacing.xxl + 4),
               Text(
                 'Reason (Optional)',
-                style: GoogleFonts.inter(
-                  fontSize: 14,
+                style: AppTypography.bodyMedium(
+                  color: p.textPrimary,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
                 ),
               ),
-
-              const SizedBox(height: 10),
-
-              // Reason Textarea
-              AnimatedBuilder(
-                animation: _reasonFocusNode,
-                builder: (context, child) => AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  curve: Curves.easeOutCubic,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: _reasonFocusNode.hasFocus
-                        ? [
-                            BoxShadow(
-                              color:
-                                  AppColors.primaryBlue.withValues(alpha: 0.1),
-                              blurRadius: 10,
-                              offset: const Offset(0, 2),
-                            ),
-                          ]
-                        : null,
+              const SizedBox(height: AppSpacing.sm + 2),
+              TextField(
+                controller: _reasonController,
+                maxLines: 4,
+                maxLength: 200,
+                textCapitalization: TextCapitalization.sentences,
+                style: AppTypography.body(color: p.textPrimary),
+                cursorColor: p.accent,
+                decoration: InputDecoration(
+                  hintText: 'e.g. Temporary change due to home renovation',
+                  hintStyle: AppTypography.body(color: p.textMuted),
+                  counterStyle: AppTypography.micro(color: p.textMuted),
+                  filled: true,
+                  fillColor: p.surfaceElevated,
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: AppRadius.borderXl,
+                    borderSide: BorderSide(color: p.border),
                   ),
-                  child: child,
-                ),
-                child: TextField(
-                  controller: _reasonController,
-                  focusNode: _reasonFocusNode,
-                  maxLines: 4,
-                  maxLength: 200,
-                  style: GoogleFonts.inter(
-                      fontSize: 14, color: AppColors.textPrimary),
-                  decoration: InputDecoration(
-                    hintText: 'Enter reason for change...',
-                    counterStyle: GoogleFonts.inter(
-                        fontSize: 11, color: AppColors.textMuted),
-                    filled: true,
-                    fillColor: AppColors.surfaceMuted,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: AppColors.border),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: AppColors.border),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(
-                          color: AppColors.primaryBlue, width: 1.5),
-                    ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: AppRadius.borderXl,
+                    borderSide: BorderSide(color: p.accent, width: 1.5),
                   ),
                 ),
               ),
-
-              const SizedBox(height: 36),
-
-              // Submit Request Button
+              const SizedBox(height: AppSpacing.xxxl),
               EmployeeEntrance(
                 delay: const Duration(milliseconds: 120),
                 child: EmployeePrimaryButton(
@@ -205,8 +170,6 @@ class _ChangeRequestDetailsScreenState
                   onPressed: () => context.push(AppRoutes.changeSubmitted),
                 ),
               ),
-
-              const SizedBox(height: 24),
             ],
           ),
         ),

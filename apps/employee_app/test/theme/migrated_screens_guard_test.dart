@@ -12,6 +12,7 @@ const migratedFolders = <String>[
   'lib/features/tracking',
   'lib/features/boarding',
   'lib/features/driver',
+  'lib/features/schedule',
 ];
 
 /// Old employee-only colour names (temporary aliases in AppColors).

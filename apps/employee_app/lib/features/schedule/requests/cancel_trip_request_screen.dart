@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:adhocx_employee/theme/app_colors.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
-import 'package:adhocx_employee/widgets/employee_app_bar.dart';
-import 'package:adhocx_employee/widgets/employee_primary_button.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
+import 'package:adhocx_employee/shared/components/components.dart';
+import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
+import 'package:adhocx_employee/theme/app_colors.dart';
+import 'package:adhocx_employee/theme/app_radius.dart';
+import 'package:adhocx_employee/theme/app_spacing.dart';
+import 'package:adhocx_employee/theme/app_typography.dart';
+import 'package:adhocx_employee/theme/employee_palette.dart';
+import '../widgets/schedule_widgets.dart';
 
 class CancelTripRequestScreen extends StatefulWidget {
   const CancelTripRequestScreen({super.key});
@@ -16,14 +19,7 @@ class CancelTripRequestScreen extends StatefulWidget {
 }
 
 class _CancelTripRequestScreenState extends State<CancelTripRequestScreen> {
-  String _selectedReason = 'Work from home';
-  final TextEditingController _notesController = TextEditingController(
-    text: "I'll be working from home tomorrow.",
-  );
-  Map<String, dynamic>? _todaySchedule;
-  bool _isLoading = true;
-
-  final List<String> _cancellationReasons = [
+  static const _reasons = [
     'Work from home',
     'Personal emergency',
     'Shift rescheduled',
@@ -31,21 +27,10 @@ class _CancelTripRequestScreenState extends State<CancelTripRequestScreen> {
     'Other reason',
   ];
 
-  @override
-  void initState() {
-    super.initState();
-    _loadJsonData();
-  }
-
-  Future<void> _loadJsonData() async {
-    final schedules = await MockDataService.getSchedules();
-    if (mounted) {
-      setState(() {
-        _todaySchedule = schedules['today'] as Map<String, dynamic>?;
-        _isLoading = false;
-      });
-    }
-  }
+  late final Future<Map<String, dynamic>?> _today = loadScheduleSection('today');
+  String _selectedReason = _reasons.first;
+  // Empty: the old pre-filled note looked like something the user typed.
+  final TextEditingController _notesController = TextEditingController();
 
   @override
   void dispose() {
@@ -53,198 +38,144 @@ class _CancelTripRequestScreenState extends State<CancelTripRequestScreen> {
     super.dispose();
   }
 
-  void _handleCancelTrip() {
-    context.push(AppRoutes.tripCancelled);
+  /// Cancelling is destructive, so confirm first (Driver confirmation pattern).
+  void _confirmCancel() {
+    AppBottomSheet.show<void>(
+      context: context,
+      title: 'Cancel this trip?',
+      child: Builder(
+        builder: (sheetContext) => EmployeeConfirmationSheet(
+          title: 'Your cab will be released',
+          description:
+              'Reason: $_selectedReason. You can schedule transport again from My Schedule.',
+          confirmLabel: 'Yes, Cancel Trip',
+          cancelLabel: 'Keep Trip',
+          onConfirm: () {
+            Navigator.pop(sheetContext);
+            context.push(AppRoutes.tripCancelled);
+          },
+          onCancel: () => Navigator.pop(sheetContext),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(
-        body: Center(
-            child: CircularProgressIndicator(color: AppColors.primaryBlue)),
-      );
-    }
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: _today,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const EmployeeLoadingScaffold(appBar: EmployeeAppBar());
+        }
+        final p = EmployeePalette.of(context);
+        final today = snapshot.data ?? const {};
+        final drop = today['drop'] as Map<String, dynamic>?;
 
-    final date = _todaySchedule?['date'] ?? 'Tue, 09 Dec 2026';
-    final drop = _todaySchedule?['drop'] as Map<String, dynamic>?;
-    final dropTime = drop?['time'] ?? '6:30 PM';
+        OutlineInputBorder border(Color color, [double width = 1]) =>
+            OutlineInputBorder(
+              borderRadius: AppRadius.borderXl,
+              borderSide: BorderSide(color: color, width: width),
+            );
 
-    return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: const EmployeeAppBar(),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Text(
-                  'Cancel Trip',
-                  style: GoogleFonts.inter(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
+        Text label(String text) => Text(
+              text,
+              style: AppTypography.small(
+                color: p.textPrimary,
+                fontWeight: FontWeight.w700,
+              ),
+            );
+
+        return Scaffold(
+          backgroundColor: p.background,
+          appBar: const EmployeeAppBar(),
+          body: SafeArea(
+            child: SingleChildScrollView(
+              keyboardDismissBehavior:
+                  ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.xxl,
+                AppSpacing.sm,
+                AppSpacing.xxl,
+                AppSpacing.xxl,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Cancel Trip',
+                    textAlign: TextAlign.center,
+                    style: AppTypography.h2(color: p.textPrimary),
                   ),
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // Selected Trip Summary Card
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFEF3C7).withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFFDE68A)),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.apartment_rounded,
-                        color: Color(0xFFD97706),
-                        size: 22,
-                      ),
+                  const SizedBox(height: AppSpacing.xxl),
+                  AppCard(
+                    backgroundColor: AppColors.warningContainer,
+                    borderColor: AppColors.warning.withAlpha(90),
+                    child: ScheduleLegRow(
+                      isDrop: true,
+                      time: drop?['time'] ?? '6:30 PM',
+                      route: today['date'] ?? 'Tue, 09 Dec 2026',
                     ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Logout (Drop)',
-                            style: GoogleFonts.inter(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '$date • $dropTime',
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 28),
-
-              // Reason Dropdown Label
-              Text(
-                'Reason for cancellation *',
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-
-              const SizedBox(height: 8),
-
-              // Dropdown Input Box
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceMuted,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _selectedReason,
+                  ),
+                  const SizedBox(height: AppSpacing.xxl + 4),
+                  label('Reason for cancellation *'),
+                  const SizedBox(height: AppSpacing.sm),
+                  DropdownButtonFormField<String>(
+                    initialValue: _selectedReason,
                     isExpanded: true,
-                    icon: const Icon(Icons.keyboard_arrow_down_rounded,
-                        color: AppColors.textSecondary),
-                    items: _cancellationReasons.map((r) {
-                      return DropdownMenuItem<String>(
-                        value: r,
-                        child: Text(
-                          r,
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      );
-                    }).toList(),
+                    dropdownColor: p.surface,
+                    icon: Icon(Icons.keyboard_arrow_down_rounded,
+                        color: p.textSecondary),
+                    style: AppTypography.bodyMedium(color: p.textPrimary),
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: p.surfaceElevated,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.lg,
+                        vertical: AppSpacing.md,
+                      ),
+                      enabledBorder: border(p.border),
+                      focusedBorder: border(p.accent, 1.5),
+                    ),
+                    items: [
+                      for (final r in _reasons)
+                        DropdownMenuItem(value: r, child: Text(r)),
+                    ],
                     onChanged: (val) {
                       if (val != null) setState(() => _selectedReason = val);
                     },
                   ),
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // Additional Details Textarea
-              Text(
-                'Additional details (Optional)',
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-
-              const SizedBox(height: 8),
-
-              TextField(
-                controller: _notesController,
-                maxLines: 4,
-                maxLength: 200,
-                style: GoogleFonts.inter(
-                    fontSize: 14, color: AppColors.textPrimary),
-                decoration: InputDecoration(
-                  counterStyle: GoogleFonts.inter(
-                      fontSize: 11, color: AppColors.textMuted),
-                  filled: true,
-                  fillColor: AppColors.surfaceMuted,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppColors.border),
+                  const SizedBox(height: AppSpacing.xxl),
+                  label('Additional details (Optional)'),
+                  const SizedBox(height: AppSpacing.sm),
+                  TextField(
+                    controller: _notesController,
+                    maxLines: 4,
+                    maxLength: 200,
+                    textCapitalization: TextCapitalization.sentences,
+                    style: AppTypography.body(color: p.textPrimary),
+                    cursorColor: p.accent,
+                    decoration: InputDecoration(
+                      hintText: "e.g. I'll be working from home tomorrow.",
+                      hintStyle: AppTypography.body(color: p.textMuted),
+                      counterStyle: AppTypography.micro(color: p.textMuted),
+                      filled: true,
+                      fillColor: p.surfaceElevated,
+                      enabledBorder: border(p.border),
+                      focusedBorder: border(p.accent, 1.5),
+                    ),
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppColors.border),
+                  const SizedBox(height: AppSpacing.xxxl),
+                  EmployeeDangerButton(
+                    label: 'Cancel Trip',
+                    onPressed: _confirmCancel,
                   ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(
-                        color: AppColors.primaryBlue, width: 1.5),
-                  ),
-                ),
+                ],
               ),
-
-              const SizedBox(height: 36),
-
-              // Red "Cancel Trip" Button
-              EmployeePrimaryButton(
-                label: 'Cancel Trip',
-                backgroundColor: AppColors.error,
-                onPressed: _handleCancelTrip,
-              ),
-
-              const SizedBox(height: 24),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
