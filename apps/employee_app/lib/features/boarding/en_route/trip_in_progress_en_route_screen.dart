@@ -81,21 +81,10 @@ class TripInProgressEnRouteScreen extends StatelessWidget {
                     AppSpacing.xxl,
                     AppSpacing.sm,
                   ),
-                  child: Column(
-                    children: [
-                      EmployeePrimaryButton(
-                        label: 'View Live Tracking',
-                        icon: Icons.my_location_rounded,
-                        onPressed: () => context.push(AppRoutes.tripLiveMapFull),
-                      ),
-                      // DEMO ONLY: advances the mock flow; remove before release
-                      // when real trip events drive navigation.
-                      EmployeeTextLink(
-                        label: 'Simulate Arrival at Office',
-                        emphasised: false,
-                        onPressed: () => context.push(AppRoutes.dropReached),
-                      ),
-                    ],
+                  child: EmployeePrimaryButton(
+                    label: 'View Live Tracking',
+                    icon: Icons.my_location_rounded,
+                    onPressed: () => context.push(AppRoutes.tripLiveMapFull),
                   ),
                 ),
               ],

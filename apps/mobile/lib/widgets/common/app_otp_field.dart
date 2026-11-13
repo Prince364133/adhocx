@@ -4,13 +4,23 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_typography.dart';
 
-
-/// Centralized 6-Digit OTP Input Field for AdhocX Mobile.
+/// Centralized OTP input for AdhocX Mobile.
+///
+/// One real (invisible) [TextField] sits over [length] display boxes and is
+/// driven by the phone's native number keyboard. The previous version used
+/// one TextField per box, which broke on soft keyboards: typing into a filled
+/// box was treated as a paste and scrambled the code, and backspace could not
+/// move to the previous box (soft keyboards don't send key events for it).
+/// A single field fixes both and enables SMS one-time-code autofill / paste.
 class AppOtpField extends StatefulWidget {
   final int length;
   final ValueChanged<String> onCompleted;
   final ValueChanged<String>? onChanged;
   final bool autofocus;
+
+  /// Always use the dark styling (for panels that sit on a dark surface
+  /// regardless of the app theme).
+  final bool forceDark;
 
   const AppOtpField({
     super.key,
@@ -18,6 +28,7 @@ class AppOtpField extends StatefulWidget {
     required this.onCompleted,
     this.onChanged,
     this.autofocus = true,
+    this.forceDark = false,
   });
 
   @override
@@ -25,130 +36,113 @@ class AppOtpField extends StatefulWidget {
 }
 
 class _AppOtpFieldState extends State<AppOtpField> {
-  late List<TextEditingController> _controllers;
-  late List<FocusNode> _focusNodes;
+  final TextEditingController _controller = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
+  String? _lastCompleted;
 
   @override
   void initState() {
     super.initState();
-    _controllers = List.generate(
-      widget.length,
-      (_) => TextEditingController(),
-    );
-    _focusNodes = List.generate(
-      widget.length,
-      (_) => FocusNode(),
-    );
+    _focusNode.addListener(_rebuild);
+  }
+
+  void _rebuild() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
-    for (final c in _controllers) {
-      c.dispose();
-    }
-    for (final f in _focusNodes) {
-      f.dispose();
-    }
+    _focusNode
+      ..removeListener(_rebuild)
+      ..dispose();
+    _controller.dispose();
     super.dispose();
   }
 
-  String get _currentOtp => _controllers.map((c) => c.text).join();
-
-  void _onDigitChanged(int index, String value) {
-    if (value.length > 1) {
-      // Handle paste
-      final cleanDigits = value.replaceAll(RegExp(r'\D'), '');
-      for (int i = 0; i < widget.length; i++) {
-        if (i < cleanDigits.length) {
-          _controllers[i].text = cleanDigits[i];
-        }
-      }
-      final otp = _currentOtp;
-      widget.onChanged?.call(otp);
-      if (otp.length == widget.length) {
-        widget.onCompleted(otp);
-        _focusNodes.last.unfocus();
-      }
-      return;
-    }
-
-    if (value.isNotEmpty) {
-      if (index < widget.length - 1) {
-        _focusNodes[index + 1].requestFocus();
-      } else {
-        _focusNodes[index].unfocus();
-      }
-    }
-
-    final otp = _currentOtp;
+  void _onChanged(String raw) {
+    final otp = raw.replaceAll(RegExp(r'\D'), '');
+    setState(() {});
     widget.onChanged?.call(otp);
-    if (otp.length == widget.length) {
+    if (otp.length < widget.length) {
+      _lastCompleted = null;
+    } else if (otp != _lastCompleted) {
+      _lastCompleted = otp;
+      _focusNode.unfocus();
       widget.onCompleted(otp);
-    }
-  }
-
-  void _onKeyDown(int index, KeyEvent event) {
-    if (event is KeyDownEvent &&
-        event.logicalKey == LogicalKeyboardKey.backspace &&
-        _controllers[index].text.isEmpty &&
-        index > 0) {
-      _focusNodes[index - 1].requestFocus();
-      _controllers[index - 1].text = '';
-      widget.onChanged?.call(_currentOtp);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark =
+        widget.forceDark || Theme.of(context).brightness == Brightness.dark;
+    final otp = _controller.text;
+    final activeIndex =
+        otp.length < widget.length ? otp.length : widget.length - 1;
 
-    return Row(
+    final row = Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: List.generate(widget.length, (index) {
-        return SizedBox(
+        final isActive = _focusNode.hasFocus && index == activeIndex;
+        return Container(
           width: 46,
           height: 54,
-          child: KeyboardListener(
-            focusNode: FocusNode(),
-            onKeyEvent: (event) => _onKeyDown(index, event),
-            child: TextFormField(
-              controller: _controllers[index],
-              focusNode: _focusNodes[index],
-              autofocus: widget.autofocus && index == 0,
-              keyboardType: TextInputType.number,
-              textAlign: TextAlign.center,
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(widget.length), // Allow paste
-              ],
-              cursorColor: isDark ? AppColors.primaryLight : AppColors.primary,
-              style: AppTypography.h2(
-                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-              ),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceLight,
-                contentPadding: EdgeInsets.zero,
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: AppRadius.borderMd,
-                  borderSide: BorderSide(
-                    color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                    width: 1.2,
-                  ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: AppRadius.borderMd,
-                  borderSide: BorderSide(
-                    color: isDark ? AppColors.primaryLight : AppColors.primary,
-                    width: 2.0,
-                  ),
-                ),
-              ),
-              onChanged: (val) => _onDigitChanged(index, val),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceLight,
+            borderRadius: AppRadius.borderMd,
+            border: Border.all(
+              color: isActive
+                  ? (isDark ? AppColors.primaryLight : AppColors.primary)
+                  : (isDark ? AppColors.borderDark : AppColors.borderLight),
+              width: isActive ? 2.0 : 1.2,
+            ),
+          ),
+          child: Text(
+            index < otp.length ? otp[index] : '',
+            key: ValueKey('app-otp-digit-$index'),
+            style: AppTypography.h2(
+              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
             ),
           ),
         );
       }),
+    );
+
+    return Semantics(
+      label: 'One-time password, ${widget.length} digits',
+      child: Stack(
+        children: [
+          ExcludeSemantics(child: row),
+          Positioned.fill(
+            child: TextField(
+              controller: _controller,
+              focusNode: _focusNode,
+              autofocus: widget.autofocus,
+              keyboardType: TextInputType.number,
+              textInputAction: TextInputAction.done,
+              autofillHints: const [AutofillHints.oneTimeCode],
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(widget.length),
+              ],
+              showCursor: false,
+              enableSuggestions: false,
+              autocorrect: false,
+              expands: true,
+              maxLines: null,
+              minLines: null,
+              style: const TextStyle(
+                color: Colors.transparent,
+                fontSize: 1,
+                height: 1,
+              ),
+              decoration: const InputDecoration.collapsed(hintText: null),
+              onChanged: _onChanged,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

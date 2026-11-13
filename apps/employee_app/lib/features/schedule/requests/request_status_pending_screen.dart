@@ -106,17 +106,12 @@ class RequestStatusPendingScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xxxl),
-                  // DEMO ONLY: preview the review outcomes in the mock flow;
-                  // remove before release when the backend pushes the result.
-                  EmployeeTextLink(
-                    label: 'Simulate Approval Result →',
-                    emphasised: false,
-                    onPressed: () => context.push(AppRoutes.requestApproved),
-                  ),
-                  EmployeeTextLink(
-                    label: 'Simulate Rejection Result →',
-                    emphasised: false,
-                    onPressed: () => context.push(AppRoutes.requestRejected),
+                  EmployeeSecondaryButton(
+                    label: 'Back to My Schedule',
+                    icon: Icons.calendar_month_outlined,
+                    textColor: p.accent,
+                    borderColor: p.accent,
+                    onPressed: () => context.go(AppRoutes.scheduleDaily),
                   ),
                 ],
               ),

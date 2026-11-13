@@ -130,12 +130,6 @@ class RequestDetailsTrackingScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: AppSpacing.xxl),
-              // DEMO ONLY: preview the resolved state; remove before release.
-              EmployeeTextLink(
-                label: 'Preview Resolved State',
-                onPressed: () => context.push(AppRoutes.requestResolved),
-              ),
             ],
           ),
         ),
