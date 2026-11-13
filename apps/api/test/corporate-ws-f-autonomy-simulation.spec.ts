@@ -57,7 +57,7 @@ describe(`WS-F simulation: 500-employee roster -> approve -> publish -> autonomo
 
   beforeAll(() => {
     db.corporateTenant.rows.set(TENANT, { id: TENANT, code: 'SIM', name: 'Sim Corp', status: 'ACTIVE' });
-    db.corporateOffice.rows.set(OFFICE.id, { ...OFFICE });
+    db.corporateOffice.rows.set(OFFICE.id, { ...OFFICE, isActive: true }); // schema default; FakeDb applies no defaults
   });
 
   it('step 1: uploads the 500-employee roster as a DRAFT version (no demand yet)', async () => {

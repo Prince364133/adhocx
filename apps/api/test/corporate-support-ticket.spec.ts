@@ -400,9 +400,12 @@ describe('CorporateSupportTicketService & Controller (SCRUM-24 Phase 1)', () => 
       expect(assignRoles).toContain(UserRole.OPS);
       expect(assignRoles).not.toContain(UserRole.CORPORATE_ADMIN);
 
-      const reopenRoles = Reflect.getMetadata(ROLES_KEY, controller.reopenTicket);
+      // One POST :id/reopen handler (a second one on the same path was unreachable).
+      const reopenRoles = Reflect.getMetadata(ROLES_KEY, controller.reopen);
       expect(reopenRoles).toContain(UserRole.ADMIN);
+      expect(reopenRoles).toContain(UserRole.OPS);
       expect(reopenRoles).toContain(UserRole.CORPORATE_ADMIN);
+      expect(reopenRoles).toContain(UserRole.EMPLOYEE);
     });
   });
 });
