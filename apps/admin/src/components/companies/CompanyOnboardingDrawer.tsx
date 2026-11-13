@@ -211,7 +211,8 @@ export function CompanyOnboardingDrawer({
             <Field label="Company website" name="website" value={draft.website ?? ''} onChange={changeField} type="url" placeholder="https://example.com" />
             <Field label="Primary contact name" name="primaryContactName" value={draft.primaryContactName ?? ''} onChange={changeField} required maxLength={120} />
             <Field label="Primary contact email" name="primaryContactEmail" value={draft.primaryContactEmail ?? ''} onChange={changeField} required type="email" maxLength={254} />
-            <Field label="Primary contact phone" name="primaryContactPhone" value={draft.primaryContactPhone ?? ''} onChange={changeField} required type="tel" pattern="[+0-9() .-]{7,24}" maxLength={24} />
+            <Field label="Company phone number (Corporate login)" name="primaryContactPhone" value={draft.primaryContactPhone ?? ''} onChange={changeField} required type="tel" pattern="[+0-9() .-]{7,24}" maxLength={24} placeholder="+91 98765 43210" />
+            <Field label="Registered office address" name="registeredAddress" value={draft.registeredAddress ?? ''} onChange={changeField} placeholder="Building, Street, Area" maxLength={250} />
             <Field label="City" name="city" value={draft.city ?? ''} onChange={changeField} required maxLength={100} />
             <Field label="State" name="state" value={draft.state ?? ''} onChange={changeField} required maxLength={100} />
             <Field label="PIN code" name="pinCode" value={draft.pinCode ?? ''} onChange={changeField} required maxLength={12} />

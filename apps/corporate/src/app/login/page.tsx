@@ -28,7 +28,7 @@ function LoginContent() {
   const [phone, setPhone] = useState('');
   const [loginIdentifier, setLoginIdentifier] = useState('');
   const [password, setPassword] = useState('');
-  const [authMode, setAuthMode] = useState<'otp' | 'password'>('password');
+  const [authMode, setAuthMode] = useState<'otp' | 'password'>('otp');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -421,6 +421,78 @@ function LoginContent() {
             <div style={{ fontWeight: 500, flex: 1 }}>{errorMessage}</div>
           </div>
         )}
+
+        {/* Auth Mode Tabs */}
+        <div
+          role="tablist"
+          style={{
+            display: 'flex',
+            backgroundColor: 'var(--bg-surface-muted, #F1F5F9)',
+            padding: '4px',
+            borderRadius: '10px',
+            marginBottom: '1.25rem',
+            gap: '4px',
+          }}
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={authMode === 'otp'}
+            onClick={() => {
+              setAuthMode('otp');
+              setErrorMessage(null);
+            }}
+            style={{
+              flex: 1,
+              padding: '0.5rem 0.75rem',
+              borderRadius: '7px',
+              border: 'none',
+              backgroundColor: authMode === 'otp' ? 'var(--bg-surface, #FFFFFF)' : 'transparent',
+              color: authMode === 'otp' ? '#5728B2' : 'var(--text-secondary, #64748B)',
+              fontWeight: authMode === 'otp' ? 700 : 500,
+              fontSize: '0.8rem',
+              cursor: 'pointer',
+              boxShadow: authMode === 'otp' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <KeyRound size={14} />
+            <span>Company Phone OTP</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={authMode === 'password'}
+            onClick={() => {
+              setAuthMode('password');
+              setErrorMessage(null);
+            }}
+            style={{
+              flex: 1,
+              padding: '0.5rem 0.75rem',
+              borderRadius: '7px',
+              border: 'none',
+              backgroundColor: authMode === 'password' ? 'var(--bg-surface, #FFFFFF)' : 'transparent',
+              color: authMode === 'password' ? '#5728B2' : 'var(--text-secondary, #64748B)',
+              fontWeight: authMode === 'password' ? 700 : 500,
+              fontSize: '0.8rem',
+              cursor: 'pointer',
+              boxShadow: authMode === 'password' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <Lock size={14} />
+            <span>Password</span>
+          </button>
+        </div>
 
         {/* SMS OTP Authentication Flow (Primary) */}
         {authMode === 'otp' && (

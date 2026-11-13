@@ -222,6 +222,11 @@ export class CorporateOnboardingService {
           legalEntityName,
           gstin,
           status: status as any,
+          primaryContactName: adminName,
+          primaryContactEmail: adminEmail,
+          primaryContactPhone: adminPhone,
+          registeredAddress: officeAddress,
+          registeredBusinessAddress: officeAddress,
         },
       });
 

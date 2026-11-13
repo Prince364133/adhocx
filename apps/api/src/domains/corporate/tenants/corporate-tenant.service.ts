@@ -5,6 +5,7 @@ import {
   ConflictException,
   BadRequestException,
   ForbiddenException,
+  Optional,
 } from '@nestjs/common';
 import { DatabaseService } from '../../../database/database.service';
 import { AuditService } from '../../../modules/audit/audit.service';
@@ -19,20 +20,23 @@ import {
   UpdateCorporateEmployeeDto,
   CreateEmployeeLocationDto,
   CorporateTenantStatus,
+  UserRole,
 } from '@adhocx/contracts';
+import { normalizeIndianPhone, getPhoneVariants } from '../../../common/utils/uniqueness.util';
+import { CorporateRole } from './corporate-permissions';
+import { GoogleGeocodingAdapter } from '../routing/google-geocoding.adapter';
 
 @Injectable()
 export class CorporateTenantService {
   private readonly logger = new Logger(CorporateTenantService.name);
 
   // Fallback Hyderabad coordinates for pilot geocoding when external API is unreachable
-  private readonly HYDERABAD_CENTROID_LAT = 17.385044;
-  private readonly HYDERABAD_CENTROID_LNG = 78.486671;
 
   constructor(
     private readonly db: DatabaseService,
     private readonly audit: AuditService,
     private readonly h3Service: H3Service,
+    @Optional() private readonly geocoder?: GoogleGeocodingAdapter,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -67,6 +71,103 @@ export class CorporateTenantService {
     });
 
     this.logger.log(`Created corporate tenant ${tenant.name} (${tenant.code})`);
+
+    // 1. Provision or link initial Corporate Portal admin user using company phone number
+    const contactPhone = dto.primaryContactPhone?.trim() || null;
+    const normalizedPhone = contactPhone ? normalizeIndianPhone(contactPhone) : undefined;
+    if (normalizedPhone) {
+      try {
+        const variants = getPhoneVariants(normalizedPhone);
+        const existingUser = await this.db.user.findFirst({
+          where: {
+            phone: { in: variants.length > 0 ? variants : [normalizedPhone] },
+          },
+          include: { driver: { select: { id: true } }, vendor: { select: { id: true } } },
+        });
+
+        if (existingUser) {
+          // Never repurpose an account that already has another job on the platform (a driver
+          // would drop out of dispatch, a vendor would lose bookings, staff would lose access).
+          const protectedRoles: string[] = [
+            UserRole.ADMIN, UserRole.OPS, UserRole.DRIVER, UserRole.VENDOR, UserRole.EMPLOYEE, UserRole.CORPORATE_MANAGER,
+          ];
+          const alreadyOtherTenant = existingUser.corporateTenantId && existingUser.corporateTenantId !== tenant.id;
+          if (protectedRoles.includes(existingUser.role) || existingUser.driver || existingUser.vendor || alreadyOtherTenant) {
+            this.logger.warn(
+              `Company phone ${normalizedPhone} belongs to existing ${existingUser.role} account ${existingUser.id}; not converting it to a corporate admin for ${tenant.name}`,
+            );
+          } else {
+            await this.db.user.update({
+              where: { id: existingUser.id },
+              data: {
+                corporateTenantId: tenant.id,
+                role: UserRole.CORPORATE_ADMIN,
+                corporateRole: CorporateRole.CORP_SUPER_ADMIN,
+                corporateOfficeIds: [],
+                status: 'ACTIVE',
+                ...(existingUser.fullName ? {} : { fullName: dto.primaryContactName?.trim() || `${tenant.name} Admin` }),
+                ...(existingUser.email ? {} : { email: dto.primaryContactEmail?.trim().toLowerCase() || undefined }),
+              },
+            });
+            this.logger.log(`Linked existing user ${existingUser.id} (${normalizedPhone}) to tenant ${tenant.name} as CORP_SUPER_ADMIN`);
+          }
+        } else {
+          const newUser = await this.db.user.create({
+            data: {
+              phone: normalizedPhone,
+              email: dto.primaryContactEmail?.trim().toLowerCase() || undefined,
+              fullName: dto.primaryContactName?.trim() || `${tenant.name} Admin`,
+              role: UserRole.CORPORATE_ADMIN,
+              corporateRole: CorporateRole.CORP_SUPER_ADMIN,
+              corporateTenantId: tenant.id,
+              corporateOfficeIds: [],
+              status: 'ACTIVE',
+            },
+          });
+          this.logger.log(`Provisioned corporate admin user ${newUser.id} (${normalizedPhone}) for tenant ${tenant.name}`);
+        }
+      } catch (userErr: any) {
+        this.logger.warn(`Could not provision corporate admin user for tenant ${tenant.code}: ${userErr.message}`);
+      }
+    }
+
+    // 2. Ensure initial primary campus/office exists for corporate operations
+    try {
+      const officeAddress =
+        dto.registeredAddress?.trim() ||
+        (dto.city ? `${dto.city.trim()}${dto.state ? `, ${dto.state.trim()}` : ''}` : `${tenant.name} Headquarters`);
+      const officeCode = `${tenant.code}-HQ`.slice(0, 32);
+      // Locate the HQ from its address. If that is not possible the office is NOT created: an
+      // invented point would become every employee's drop/pickup. Admins add it under Offices.
+      const geocodeQuery = [dto.registeredAddress, dto.city, dto.state, dto.pinCode, dto.country || 'India']
+        .map((part) => part?.trim())
+        .filter(Boolean)
+        .join(', ');
+      const hq = await this.geocodeStrict(geocodeQuery);
+      const h3Res8 = this.h3Service.latLngToCell(hq.latitude, hq.longitude, 8);
+      await this.db.corporateOffice.create({
+        data: {
+          tenantId: tenant.id,
+          code: officeCode,
+          name: `${tenant.name} HQ`,
+          addressText: officeAddress,
+          city: dto.city?.trim() || null,
+          state: dto.state?.trim() || null,
+          pinCode: dto.pinCode?.trim() || null,
+          country: dto.country?.trim() || 'India',
+          contactName: dto.primaryContactName?.trim() || null,
+          contactEmail: dto.primaryContactEmail?.trim() || null,
+          contactPhone: normalizedPhone || null,
+          latitude: hq.latitude,
+          longitude: hq.longitude,
+          h3Res8Index: h3Res8,
+          isActive: true,
+        },
+      });
+      this.logger.log(`Provisioned primary office ${officeCode} for tenant ${tenant.name}`);
+    } catch (officeErr: any) {
+      this.logger.warn(`Could not create initial primary office for tenant ${tenant.code}: ${officeErr.message}`);
+    }
 
     await this.audit.log({
       action: 'CORPORATE_TENANT_CREATED',
@@ -540,7 +641,7 @@ export class CorporateTenantService {
     let lng = dto.longitude ? Number(dto.longitude) : 0;
 
     if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
-      const resolved = await this.resolveAddressCoordinates(dto.homeAddress, office.latitude.toNumber(), office.longitude.toNumber());
+      const resolved = await this.geocodeStrict(dto.homeAddress);
       lat = resolved.latitude;
       lng = resolved.longitude;
     }
@@ -816,34 +917,26 @@ export class CorporateTenantService {
   }
 
   /**
-   * Geocoding Fallback: Resolves a textual address to geographic coordinates.
-   * If external geocoding is unavailable or rate-limited, safely uses an offset relative to office/Hyderabad.
+   * Address -> coordinates via the shared GoogleGeocodingAdapter, which owns the agreed policy:
+   * synthetic coordinates only outside production or with CORPORATE_GEOCODE_FALLBACK=true; in
+   * production a failed geocode is an error. (Previously this method hashed the address text into a
+   * point ~1.5 km from the office, so a cab could be sent to an invented home address.)
    */
-  private async resolveAddressCoordinates(
-    addressText: string,
-    fallbackLat?: number,
-    fallbackLng?: number,
-  ): Promise<{ latitude: number; longitude: number }> {
+  private async geocodeStrict(addressText: string): Promise<{ latitude: number; longitude: number }> {
+    const address = addressText?.trim();
+    if (!address) {
+      throw new BadRequestException('An address is required to locate this place on the map');
+    }
+    if (!this.geocoder) {
+      throw new BadRequestException(`Could not locate "${address}". Please provide latitude and longitude.`);
+    }
     try {
-      // In production, integrate Nominatim or Google Geocoding API with fetch
-      // For resilience and zero downtime, provide deterministic fallback:
-      const baseLat = fallbackLat || this.HYDERABAD_CENTROID_LAT;
-      const baseLng = fallbackLng || this.HYDERABAD_CENTROID_LNG;
-
-      // Deterministic slight hash offset within ~2km based on address text length
-      const hash = addressText.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-      const latOffset = ((hash % 100) - 50) * 0.0003;
-      const lngOffset = (((hash * 7) % 100) - 50) * 0.0003;
-
-      return {
-        latitude: parseFloat((baseLat + latOffset).toFixed(7)),
-        longitude: parseFloat((baseLng + lngOffset).toFixed(7)),
-      };
-    } catch {
-      return {
-        latitude: this.HYDERABAD_CENTROID_LAT,
-        longitude: this.HYDERABAD_CENTROID_LNG,
-      };
+      const result = await this.geocoder.geocode(address);
+      return { latitude: result.lat, longitude: result.lng };
+    } catch (err: any) {
+      throw new BadRequestException(
+        `Could not locate "${address}" on the map (${err?.message ?? 'geocoding failed'}). Please provide latitude and longitude.`,
+      );
     }
   }
 

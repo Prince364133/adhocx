@@ -1164,7 +1164,7 @@ export default function CompanyProfilePage() {
                           }
                         />
                         <Field
-                          label="Primary contact phone"
+                          label="Company phone number (Corporate login)"
                           type="tel"
                           value={organizationDraft.primaryContactPhone}
                           onChange={(primaryContactPhone) =>
@@ -1279,7 +1279,7 @@ export default function CompanyProfilePage() {
                           )}
                         />
                         <Detail
-                          label="Contact phone"
+                          label="Company phone number"
                           value={valueWithSample(
                             profileTenant.primaryContactPhone,
                             SAMPLE_ORGANIZATION.primaryContactPhone,
