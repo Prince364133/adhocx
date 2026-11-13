@@ -2,8 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../theme/app_colors.dart';
+import '../../../theme/app_radius.dart';
+import '../../../theme/app_typography.dart';
 
 /// Production-ready OTP / Verification PIN input widget.
 ///
@@ -249,22 +250,24 @@ class _EmployeeOtpInputState extends State<EmployeeOtpInput> {
     required double height,
     required bool reduceMotion,
   }) {
-    final hasValue = digit.isNotEmpty;
+    // Driver app AppOtpField look: surface fill, 8px radius, 1.2px border,
+    // 2px brand border on the active box, h2 digits.
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = isDark ? AppColors.primaryLight : AppColors.primary;
 
-    Color borderColor = AppColors.border;
-    double borderWidth = 1.5;
+    Color borderColor = isDark ? AppColors.borderDark : AppColors.borderLight;
+    double borderWidth = 1.2;
     if (widget.hasError) {
       borderColor = AppColors.error;
+      borderWidth = 1.5;
     } else if (isActive) {
-      borderColor = AppColors.primaryBlue;
+      borderColor = accent;
       borderWidth = 2;
-    } else if (hasValue) {
-      borderColor = AppColors.primaryBlueLight;
     }
 
     final fillColor = widget.hasError
-        ? AppColors.errorLight
-        : (isActive ? AppColors.primaryBlueSoft : AppColors.surface);
+        ? (isDark ? AppColors.surfaceElevatedDark : AppColors.errorContainer)
+        : (isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceLight);
 
     return SizedBox(
       width: width,
@@ -275,17 +278,8 @@ class _EmployeeOtpInputState extends State<EmployeeOtpInput> {
         curve: Curves.easeOutCubic,
         decoration: BoxDecoration(
           color: fillColor,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: AppRadius.borderMd,
           border: Border.all(color: borderColor, width: borderWidth),
-          boxShadow: isActive
-              ? [
-                  BoxShadow(
-                    color: AppColors.primaryBlue.withValues(alpha: 0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
         ),
         child: Stack(
           alignment: Alignment.center,
@@ -310,10 +304,7 @@ class _EmployeeOtpInputState extends State<EmployeeOtpInput> {
                   height: width,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(
-                      color: AppColors.primaryBlue,
-                      width: 1.2,
-                    ),
+                    border: Border.all(color: accent, width: 1.2),
                   ),
                 ),
               ),
@@ -326,101 +317,19 @@ class _EmployeeOtpInputState extends State<EmployeeOtpInput> {
               child: Text(
                 digit,
                 key: ValueKey('otp-digit-$index'),
-                style: GoogleFonts.inter(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
+                style: AppTypography.h2(
                   color: widget.hasError
                       ? AppColors.error
-                      : AppColors.textPrimary,
+                      : (isDark
+                          ? AppColors.textPrimaryDark
+                          : AppColors.textPrimaryLight),
+                  overflow: null,
                 ),
               ),
             ),
           ],
         ),
       ),
-    );
-  }
-}
-
-/// Standard Outlined Text Form Field for forms and filters.
-class EmployeeTextField extends StatelessWidget {
-  final String? label;
-  final String? hintText;
-  final TextEditingController? controller;
-  final ValueChanged<String>? onChanged;
-  final IconData? prefixIcon;
-  final Widget? suffix;
-  final bool obscureText;
-  final TextInputType? keyboardType;
-  final int maxLines;
-  final String? errorText;
-
-  const EmployeeTextField({
-    super.key,
-    this.label,
-    this.hintText,
-    this.controller,
-    this.onChanged,
-    this.prefixIcon,
-    this.suffix,
-    this.obscureText = false,
-    this.keyboardType,
-    this.maxLines = 1,
-    this.errorText,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (label != null) ...[
-          Text(
-            label!,
-            style: GoogleFonts.inter(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 6),
-        ],
-        TextField(
-          controller: controller,
-          onChanged: onChanged,
-          obscureText: obscureText,
-          keyboardType: keyboardType,
-          maxLines: maxLines,
-          style: GoogleFonts.inter(fontSize: 14, color: AppColors.textPrimary),
-          decoration: InputDecoration(
-            hintText: hintText,
-            hintStyle:
-                GoogleFonts.inter(fontSize: 14, color: AppColors.textMuted),
-            prefixIcon: prefixIcon != null
-                ? Icon(prefixIcon, size: 20, color: AppColors.textMuted)
-                : null,
-            suffixIcon: suffix,
-            errorText: errorText,
-            filled: true,
-            fillColor: Colors.white,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: AppColors.border, width: 1.2),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide:
-                  const BorderSide(color: AppColors.primaryBlue, width: 1.8),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: AppColors.error, width: 1.2),
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

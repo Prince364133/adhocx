@@ -1,21 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../theme/app_colors.dart';
+import '../../../theme/app_spacing.dart';
+import '../../../theme/app_typography.dart';
 
-/// Production-ready Standard AppBar for AdhocX Employee Application.
-/// Handles back navigation, centered or aligned typography, and action lists.
+/// Standard screen AppBar — Driver app pattern:
+/// page-background fill (bgLight / bgDark), no elevation, `arrow_back` icon,
+/// title in AppTypography.h3 bold, light/dark aware.
 class EmployeeAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String? title;
   final Widget? titleWidget;
-  final bool centerTitle;
+
+  /// `null` keeps the platform default, like the Driver app.
+  final bool? centerTitle;
   final VoidCallback? onBack;
   final bool showBackButton;
   final List<Widget>? actions;
   final Widget? trailing;
   final Color? iconColor;
-  final Color backgroundColor;
-  final Color foregroundColor;
+  final Color? backgroundColor;
+  final Color? foregroundColor;
   final double elevation;
   final Widget? leading;
 
@@ -23,33 +27,40 @@ class EmployeeAppBar extends StatelessWidget implements PreferredSizeWidget {
     super.key,
     this.title,
     this.titleWidget,
-    this.centerTitle = true,
+    this.centerTitle,
     this.onBack,
     this.showBackButton = true,
     this.actions,
     this.trailing,
     this.iconColor,
-    this.backgroundColor = Colors.white,
-    this.foregroundColor = AppColors.textPrimary,
+    this.backgroundColor,
+    this.foregroundColor,
     this.elevation = 0,
     this.leading,
   });
 
   @override
   Widget build(BuildContext context) {
-    final effectiveFg = iconColor ?? foregroundColor;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final effectiveFg = iconColor ??
+        foregroundColor ??
+        (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight);
+    final effectiveBg =
+        backgroundColor ?? (isDark ? AppColors.bgDark : AppColors.bgLight);
     final effectiveActions = actions ?? (trailing != null ? [trailing!] : null);
 
     return AppBar(
-      backgroundColor: backgroundColor,
+      backgroundColor: effectiveBg,
+      surfaceTintColor: Colors.transparent,
       elevation: elevation,
+      scrolledUnderElevation: 0,
       centerTitle: centerTitle,
       automaticallyImplyLeading: false,
       leading: leading ??
           (showBackButton
               ? IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-                  color: effectiveFg,
+                  tooltip: 'Back',
+                  icon: Icon(Icons.arrow_back, color: effectiveFg),
                   onPressed: onBack ??
                       () {
                         if (context.canPop()) {
@@ -64,10 +75,9 @@ class EmployeeAppBar extends StatelessWidget implements PreferredSizeWidget {
           (title != null
               ? Text(
                   title!,
-                  style: GoogleFonts.inter(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
+                  style: AppTypography.h3(
                     color: effectiveFg,
+                    fontWeight: FontWeight.bold,
                   ),
                 )
               : null),
@@ -79,8 +89,7 @@ class EmployeeAppBar extends StatelessWidget implements PreferredSizeWidget {
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 }
 
-/// Standard Greeting Header for Home and Overview Screens.
-/// Displays user avatar / greeting ("Good Morning, Ravi Kumar 👋") and notification bell with badge.
+/// Home / overview greeting header with SOS shortcut and notification bell.
 class EmployeeGreetingHeader extends StatelessWidget {
   final String name;
   final String greeting;
@@ -101,119 +110,118 @@ class EmployeeGreetingHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary =
+        isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight;
+    final textSecondary =
+        isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight;
+
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        GestureDetector(
-          onTap: onProfileTap,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                greeting,
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
+        Expanded(
+          child: InkWell(
+            onTap: onProfileTap,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(greeting, style: AppTypography.body(color: textSecondary)),
+                const SizedBox(height: 2),
+                Text(
+                  '$name 👋',
+                  style: AppTypography.h2(color: textPrimary, fontSize: 20),
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                '$name 👋',
-                style: GoogleFonts.inter(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (onSosTap != null) ...[
-              Semantics(
-                button: true,
-                label: 'SOS emergency',
-                child: InkWell(
-                  onTap: onSosTap,
-                  borderRadius: BorderRadius.circular(18),
-                  child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: AppColors.error,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.sos_rounded,
-                              color: Colors.white, size: 20),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'SOS',
-                          style: GoogleFonts.inter(
-                            color: AppColors.error,
-                            fontSize: 9,
-                            height: 1,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-            ],
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                InkWell(
-                  onTap: onNotificationTap,
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: const Icon(
-                      Icons.notifications_none_rounded,
-                      color: AppColors.textPrimary,
-                      size: 22,
-                    ),
-                  ),
-                ),
-                if (unreadNotificationsCount > 0)
-                  Positioned(
-                    right: 3,
-                    top: 3,
-                    child: Container(
-                      width: 9,
-                      height: 9,
+        if (onSosTap != null) ...[
+          Semantics(
+            button: true,
+            label: 'SOS emergency',
+            child: InkWell(
+              onTap: onSosTap,
+              customBorder: const CircleBorder(),
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.xs),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
                       decoration: const BoxDecoration(
                         color: AppColors.error,
                         shape: BoxShape.circle,
                       ),
+                      child: const Icon(Icons.sos_rounded,
+                          color: Colors.white, size: 20),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'SOS',
+                      style: AppTypography.micro(
+                        color: AppColors.error,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+        ],
+        Semantics(
+          button: true,
+          label: unreadNotificationsCount > 0
+              ? 'Notifications, $unreadNotificationsCount unread'
+              : 'Notifications',
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              InkWell(
+                onTap: onNotificationTap,
+                customBorder: const CircleBorder(),
+                child: Container(
+                  padding: const EdgeInsets.all(AppSpacing.sm + 2),
+                  decoration: BoxDecoration(
+                    color:
+                        isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isDark ? AppColors.borderDark : AppColors.borderLight,
                     ),
                   ),
-              ],
-            ),
-          ],
+                  child: Icon(
+                    Icons.notifications_none_rounded,
+                    color: textPrimary,
+                    size: 22,
+                  ),
+                ),
+              ),
+              if (unreadNotificationsCount > 0)
+                Positioned(
+                  right: 4,
+                  top: 4,
+                  child: Container(
+                    width: 9,
+                    height: 9,
+                    decoration: const BoxDecoration(
+                      color: AppColors.error,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ],
     );
   }
 }
 
-/// Section Header with title and optional action link ("View All", "See Schedule").
+/// Section header with an optional action link ("View All").
 class EmployeeSectionHeader extends StatelessWidget {
   final String title;
   final String? actionLabel;
@@ -225,11 +233,13 @@ class EmployeeSectionHeader extends StatelessWidget {
     required this.title,
     this.actionLabel,
     this.onActionTap,
-    this.padding = const EdgeInsets.symmetric(vertical: 8),
+    this.padding = const EdgeInsets.symmetric(vertical: AppSpacing.sm),
   });
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Padding(
       padding: padding,
       child: Row(
@@ -237,26 +247,21 @@ class EmployeeSectionHeader extends StatelessWidget {
         children: [
           Text(
             title,
-            style: GoogleFonts.inter(
-              fontSize: 16,
+            style: AppTypography.h4(
+              color: isDark
+                  ? AppColors.textPrimaryDark
+                  : AppColors.textPrimaryLight,
               fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
             ),
           ),
           if (actionLabel != null && onActionTap != null)
             TextButton(
               onPressed: onActionTap,
-              style: TextButton.styleFrom(
-                padding: EdgeInsets.zero,
-                minimumSize: const Size(50, 30),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
               child: Text(
                 actionLabel!,
-                style: GoogleFonts.inter(
-                  fontSize: 13,
+                style: AppTypography.label(
+                  color: AppColors.primary,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.primaryBlue,
                 ),
               ),
             ),

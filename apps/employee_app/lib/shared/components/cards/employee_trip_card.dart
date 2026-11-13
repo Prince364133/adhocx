@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../theme/app_colors.dart';
+import '../../../theme/app_radius.dart';
+import '../../../theme/app_spacing.dart';
+import '../../../theme/app_typography.dart';
+import '../../../widgets/common/app_card.dart';
 import '../badges/employee_status_badge.dart';
 import '../feedback/employee_entrance.dart';
-import '../feedback/employee_press_scale.dart';
 
-/// Standard Trip List Item Card for AdhocX.
-/// Used across Trip History, Daily Schedule, and Overview screens.
+/// Trip list item (Trip History, Daily Schedule, Overview).
+/// Built on the Driver app's AppCard: flat surface, 10px radius, 1.2px border.
 class EmployeeTripCard extends StatelessWidget {
   final String title;
   final String date;
@@ -31,132 +33,105 @@ class EmployeeTripCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return EmployeeEntrance(
-      child: EmployeePressScale(
-        enabled: onTap != null,
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.02),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(16),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // Direction Icon Badge
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: isDrop
-                            ? const Color(0xFFFFEDD5)
-                            : AppColors.primaryBlueSoft,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        isDrop
-                            ? Icons.business_rounded
-                            : Icons.directions_car_filled_rounded,
-                        color: isDrop
-                            ? AppColors.secondaryOrange
-                            : AppColors.primaryBlue,
-                        size: 22,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary =
+        isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight;
+    final textSecondary =
+        isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight;
+    final textMuted =
+        isDark ? AppColors.textMutedDark : AppColors.textMutedLight;
+    final accent = isDrop ? AppColors.brandOrange : AppColors.primary;
 
-                    // Main Info
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+    return EmployeeEntrance(
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: AppSpacing.md),
+        child: AppCard(
+          onTap: onTap,
+          child: Row(
+            children: [
+              // Direction icon
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.sm + 2),
+                decoration: BoxDecoration(
+                  color: accent.withAlpha(isDark ? 46 : 26),
+                  borderRadius: AppRadius.borderMd,
+                ),
+                child: Icon(
+                  isDrop
+                      ? Icons.business_rounded
+                      : Icons.directions_car_filled_rounded,
+                  color: accent,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+
+              // Main info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            title,
+                            maxLines: 1,
+                            style: AppTypography.h4(
+                              color: textPrimary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        if (status != null) ...[
+                          const SizedBox(width: AppSpacing.sm),
+                          EmployeeStatusBadge.fromString(status),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text.rich(
+                      TextSpan(
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  title,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                              ),
-                              if (status != null) ...[
-                                const SizedBox(width: 8),
-                                EmployeeStatusBadge.fromString(status),
-                              ],
-                            ],
+                          TextSpan(
+                            text: date,
+                            style: AppTypography.caption(color: textMuted),
                           ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Text(
-                                date,
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  color: AppColors.textMuted,
-                                ),
-                              ),
-                              if (time != null) ...[
-                                Text(
-                                  ' • $time',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                          if (route != null) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              route!,
-                              style: GoogleFonts.inter(
-                                fontSize: 11,
-                                color: AppColors.textSecondary,
+                          if (time != null)
+                            TextSpan(
+                              text: ' • $time',
+                              style: AppTypography.caption(
+                                color: textSecondary,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
-                          ],
                         ],
                       ),
                     ),
-
-                    // Trailing Action / Chevron
-                    if (trailing != null) ...[
-                      const SizedBox(width: 8),
-                      trailing!,
-                    ] else if (onTap != null) ...[
-                      const SizedBox(width: 8),
-                      const Icon(
-                        Icons.chevron_right_rounded,
-                        size: 20,
-                        color: AppColors.textMuted,
+                    if (route != null) ...[
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        route!,
+                        style: AppTypography.micro(
+                          color: textSecondary,
+                          fontWeight: FontWeight.w400,
+                        ),
                       ),
                     ],
                   ],
                 ),
               ),
-            ),
+
+              // Trailing action / chevron
+              if (trailing != null) ...[
+                const SizedBox(width: AppSpacing.sm),
+                trailing!,
+              ] else if (onTap != null) ...[
+                const SizedBox(width: AppSpacing.sm),
+                Icon(Icons.chevron_right_rounded, size: 20, color: textMuted),
+              ],
+            ],
           ),
         ),
       ),

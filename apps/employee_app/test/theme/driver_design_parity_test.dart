@@ -63,8 +63,11 @@ void main() {
       'app_badge',
       'app_bottom_sheet',
       'app_card',
+      'app_phone_field',
       'app_primary_button',
       'app_secondary_button',
+      'app_segmented_control',
+      'app_stepper_header',
       'app_text_field',
     ]) {
       test('widgets/common/$name.dart is identical', () {

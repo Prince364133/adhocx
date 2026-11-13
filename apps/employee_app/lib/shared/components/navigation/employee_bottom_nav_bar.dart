@@ -1,10 +1,14 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../theme/app_colors.dart';
 
-/// Reusable bottom navigation bar for the AdhocX Employee Mobile App.
-/// Tabs: 0: Home, 1: Schedule, 2: Trips, 3: Profile
-class EmployeeBottomNavBar extends StatefulWidget {
+/// Bottom navigation — same design as the Driver app's rider navigation
+/// (apps/mobile/lib/user/widgets/user_app_navigation.dart): frosted surface,
+/// 20px top radius, top hairline border, tinted pill behind the active
+/// outlined/filled icon, 10px labels. Tabs: 0 Home, 1 Schedule, 2 Trips,
+/// 3 Profile.
+class EmployeeBottomNavBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int>? onTap;
 
@@ -14,163 +18,123 @@ class EmployeeBottomNavBar extends StatefulWidget {
     this.onTap,
   });
 
-  @override
-  State<EmployeeBottomNavBar> createState() => _EmployeeBottomNavBarState();
-}
-
-class _EmployeeBottomNavBarState extends State<EmployeeBottomNavBar> {
-  int? _hoveredIndex;
+  static const List<_TabSpec> _tabs = [
+    _TabSpec('Home', Icons.home_outlined, Icons.home),
+    _TabSpec('Schedule', Icons.calendar_month_outlined, Icons.calendar_month),
+    _TabSpec('Trips', Icons.directions_car_outlined, Icons.directions_car),
+    _TabSpec('Profile', Icons.person_outline, Icons.person),
+  ];
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    const activeColor = AppColors.primary;
+    final idleColor =
+        isDark ? AppColors.textMutedDark : AppColors.textMutedLight;
+    Duration d(int ms) =>
+        reduceMotion ? Duration.zero : Duration(milliseconds: ms);
 
-    return Container(
-      color: AppColors.background,
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
+    return SafeArea(
+      top: false,
+      child: ClipRRect(
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
           child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+            height: 64,
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(22),
+              color: isDark
+                  ? AppColors.surfaceElevatedDark.withValues(alpha: 0.92)
+                  : Colors.white.withValues(alpha: 0.95),
+              border: Border(
+                top: BorderSide(
+                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                  width: 1,
+                ),
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 18,
-                  offset: const Offset(0, 5),
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 10,
+                  offset: const Offset(0, -2),
                 ),
               ],
             ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildNavItem(0, Icons.home_rounded, 'Home', reduceMotion),
-                _buildNavItem(
-                    1, Icons.calendar_month_rounded, 'Schedule', reduceMotion),
-                _buildNavItem(2, Icons.directions_car_filled_rounded, 'Trips',
-                    reduceMotion),
-                _buildNavItem(3, Icons.person_rounded, 'Profile', reduceMotion),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+              children: List.generate(_tabs.length, (i) {
+                final tab = _tabs[i];
+                final isActive = i == currentIndex;
+                final color = isActive ? activeColor : idleColor;
 
-  Widget _buildNavItem(
-    int index,
-    IconData icon,
-    String label,
-    bool reduceMotion,
-  ) {
-    final isActive = widget.currentIndex == index;
-    final color = isActive ? AppColors.primaryBlue : AppColors.textMuted;
-    final isHovered = _hoveredIndex == index && !reduceMotion;
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hoveredIndex = index),
-      onExit: (_) {
-        if (_hoveredIndex == index) setState(() => _hoveredIndex = null);
-      },
-      cursor: SystemMouseCursors.click,
-      child: Semantics(
-        button: true,
-        selected: isActive,
-        label: label,
-        child: InkWell(
-          onTap: () => widget.onTap?.call(index),
-          borderRadius: BorderRadius.circular(18),
-          child: SizedBox(
-            width: 64,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 2),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  AnimatedSlide(
-                    offset: isActive ? const Offset(0, -0.08) : Offset.zero,
-                    duration: reduceMotion
-                        ? Duration.zero
-                        : const Duration(milliseconds: 220),
-                    curve: Curves.easeOutCubic,
-                    child: AnimatedScale(
-                      scale: isHovered ? 1.12 : (isActive ? 1.04 : 1),
-                      duration: reduceMotion
-                          ? Duration.zero
-                          : const Duration(milliseconds: 200),
-                      curve: Curves.easeOutBack,
-                      child: AnimatedContainer(
-                        duration: reduceMotion
-                            ? Duration.zero
-                            : const Duration(milliseconds: 220),
-                        curve: Curves.easeOutCubic,
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: isActive
-                              ? AppColors.primaryBlue
-                              : Colors.transparent,
-                          shape: BoxShape.circle,
-                          boxShadow: isActive || isHovered
-                              ? [
-                                  BoxShadow(
-                                    color: AppColors.primaryBlue
-                                        .withValues(alpha: 0.22),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ]
-                              : null,
-                        ),
-                        child: Center(
-                          child: AnimatedSwitcher(
-                            duration: reduceMotion
-                                ? Duration.zero
-                                : const Duration(milliseconds: 180),
-                            switchInCurve: Curves.easeOutBack,
-                            switchOutCurve: Curves.easeIn,
-                            transitionBuilder: (child, animation) =>
-                                ScaleTransition(
-                              scale: animation,
-                              child: FadeTransition(
-                                opacity: animation,
-                                child: child,
+                return Expanded(
+                  child: Semantics(
+                    button: true,
+                    selected: isActive,
+                    label: tab.label,
+                    excludeSemantics: true,
+                    child: GestureDetector(
+                      onTap: () => onTap?.call(i),
+                      behavior: HitTestBehavior.opaque,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            AnimatedContainer(
+                              duration: d(200),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isActive
+                                    ? activeColor.withValues(alpha: 0.12)
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Icon(
+                                isActive ? tab.selectedIcon : tab.icon,
+                                color: color,
+                                size: 22,
                               ),
                             ),
-                            child: Icon(
-                              icon,
-                              key: ValueKey('${index}_$isActive'),
-                              size: 22,
-                              color: isActive ? Colors.white : color,
+                            const SizedBox(height: 2),
+                            AnimatedDefaultTextStyle(
+                              duration: d(180),
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight:
+                                    isActive ? FontWeight.w700 : FontWeight.w500,
+                                color: color,
+                              ),
+                              child: Text(
+                                tab.label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                          ),
+                          ],
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 3),
-                  AnimatedDefaultTextStyle(
-                    duration: reduceMotion
-                        ? Duration.zero
-                        : const Duration(milliseconds: 180),
-                    curve: Curves.easeOutCubic,
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                      color: color,
-                    ),
-                    child: Text(label),
-                  ),
-                ],
-              ),
+                );
+              }),
             ),
           ),
         ),
       ),
     );
   }
+}
+
+class _TabSpec {
+  final String label;
+  final IconData icon;
+  final IconData selectedIcon;
+  const _TabSpec(this.label, this.icon, this.selectedIcon);
 }

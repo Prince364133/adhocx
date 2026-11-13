@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../theme/app_colors.dart';
+import '../../../theme/app_radius.dart';
+import '../../../theme/app_spacing.dart';
+import '../../../theme/app_typography.dart';
 import '../buttons/employee_danger_button.dart';
 import '../buttons/employee_primary_button.dart';
 import '../buttons/employee_secondary_button.dart';
 
-/// Confirmation Bottom Sheet for destructive or critical actions:
-/// - Sign Out Confirmation
-/// - Trip Cancellation Confirmation
-/// - Delete Account Confirmation
+/// Confirmation sheet body for critical actions (Sign out, Cancel trip,
+/// Delete account). Driver tokens; light/dark aware.
 class EmployeeConfirmationSheet extends StatelessWidget {
   final String title;
   final String description;
@@ -35,33 +35,36 @@ class EmployeeConfirmationSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         if (illustration != null) ...[
           illustration!,
-          const SizedBox(height: 20),
+          const SizedBox(height: AppSpacing.xl),
         ],
         Text(
           title,
           textAlign: TextAlign.center,
-          style: GoogleFonts.inter(
+          style: AppTypography.h2(
+            color:
+                isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
             fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
+            overflow: null,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         Text(
           description,
           textAlign: TextAlign.center,
-          style: GoogleFonts.inter(
-            fontSize: 14,
-            color: AppColors.textSecondary,
-            height: 1.4,
+          style: AppTypography.body(
+            color: isDark
+                ? AppColors.textSecondaryDark
+                : AppColors.textSecondaryLight,
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: AppSpacing.xxl),
         if (isDestructive)
           EmployeeDangerButton(
             label: confirmLabel,
@@ -74,20 +77,20 @@ class EmployeeConfirmationSheet extends StatelessWidget {
             isLoading: isLoading,
             onPressed: onConfirm,
           ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         EmployeeSecondaryButton(
           label: cancelLabel,
           onPressed: onCancel ?? () => Navigator.of(context).pop(),
           borderColor: Colors.transparent,
           backgroundColor: Colors.transparent,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
       ],
     );
   }
 }
 
-/// Standardized Driver Contact Bottom Sheet with direct call and in-app chat options.
+/// Driver contact sheet body: masked call and in-app chat options.
 class EmployeeDriverContactSheet extends StatelessWidget {
   final String driverName;
   final double rating;
@@ -108,112 +111,127 @@ class EmployeeDriverContactSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary =
+        isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight;
+    final textSecondary =
+        isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Driver Profile Header
-        const CircleAvatar(
+        CircleAvatar(
           radius: 34,
-          backgroundColor: AppColors.primaryBlueLight,
-          child: Icon(Icons.person, color: AppColors.primaryBlue, size: 38),
+          backgroundColor: AppColors.primary.withAlpha(26),
+          child: const Icon(Icons.person, color: AppColors.primary, size: 38),
         ),
-        const SizedBox(height: 10),
-        Text(
-          driverName,
-          style: GoogleFonts.inter(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppSpacing.sm + 2),
+        Text(driverName, style: AppTypography.h3(color: textPrimary)),
+        const SizedBox(height: AppSpacing.xs),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.star_rounded,
-                size: 16, color: AppColors.accentAmber),
-            const SizedBox(width: 4),
+            const Icon(Icons.star_rounded, size: 16, color: AppColors.starAmber),
+            const SizedBox(width: AppSpacing.xs),
             Text(
               rating.toStringAsFixed(1),
-              style:
-                  GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700),
+              style: AppTypography.small(
+                color: textPrimary,
+                fontWeight: FontWeight.w700,
+              ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpacing.sm),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: 2,
+              ),
               decoration: BoxDecoration(
-                color: AppColors.surfaceMuted,
-                borderRadius: BorderRadius.circular(6),
+                color: isDark
+                    ? AppColors.surfaceElevatedDark
+                    : AppColors.surfaceElevatedLight,
+                borderRadius: AppRadius.borderSm,
               ),
               child: Text(
                 vehicleNumber,
-                style: GoogleFonts.inter(
-                  fontSize: 11,
+                style: AppTypography.micro(
+                  color: textSecondary,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textSecondary,
                 ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 24),
-
-        // Action Options
-        ListTile(
+        const SizedBox(height: AppSpacing.xxl),
+        _ContactOption(
+          icon: Icons.phone_rounded,
+          iconColor: AppColors.success,
+          iconBg: AppColors.successContainer,
+          title: 'Call Driver',
+          subtitle: 'Virtual masked call via AdhocX PBX',
           onTap: onCall,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: AppColors.border),
-          ),
-          leading: Container(
-            padding: const EdgeInsets.all(10),
-            decoration: const BoxDecoration(
-              color: AppColors.successLight,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.phone_rounded,
-                color: AppColors.success, size: 20),
-          ),
-          title: Text(
-            'Call Driver',
-            style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14),
-          ),
-          subtitle: Text(
-            'Virtual masked call via AdhocX PBX',
-            style: GoogleFonts.inter(fontSize: 12, color: AppColors.textMuted),
-          ),
-          trailing: const Icon(Icons.chevron_right_rounded,
-              color: AppColors.textMuted),
         ),
-        const SizedBox(height: 12),
-        ListTile(
+        const SizedBox(height: AppSpacing.md),
+        _ContactOption(
+          icon: Icons.chat_bubble_outline_rounded,
+          iconColor: AppColors.primary,
+          iconBg: AppColors.primary.withAlpha(26),
+          title: 'In-App Chat',
+          subtitle: 'Quick messages & canned responses',
           onTap: onChat,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: AppColors.border),
-          ),
-          leading: Container(
-            padding: const EdgeInsets.all(10),
-            decoration: const BoxDecoration(
-              color: AppColors.primaryBlueSoft,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.chat_bubble_outline_rounded,
-                color: AppColors.primaryBlue, size: 20),
-          ),
-          title: Text(
-            'In-App Chat',
-            style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14),
-          ),
-          subtitle: Text(
-            'Quick messages & canned responses',
-            style: GoogleFonts.inter(fontSize: 12, color: AppColors.textMuted),
-          ),
-          trailing: const Icon(Icons.chevron_right_rounded,
-              color: AppColors.textMuted),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.lg),
       ],
+    );
+  }
+}
+
+class _ContactOption extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final Color iconBg;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _ContactOption({
+    required this.icon,
+    required this.iconColor,
+    required this.iconBg,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textMuted =
+        isDark ? AppColors.textMutedDark : AppColors.textMutedLight;
+
+    return ListTile(
+      onTap: onTap,
+      shape: RoundedRectangleBorder(
+        borderRadius: AppRadius.borderLg,
+        side: BorderSide(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          width: 1.2,
+        ),
+      ),
+      leading: Container(
+        padding: const EdgeInsets.all(AppSpacing.sm + 2),
+        decoration: BoxDecoration(color: iconBg, shape: BoxShape.circle),
+        child: Icon(icon, color: iconColor, size: 20),
+      ),
+      title: Text(
+        title,
+        style: AppTypography.bodyMedium(
+          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      subtitle: Text(subtitle, style: AppTypography.caption(color: textMuted)),
+      trailing: Icon(Icons.chevron_right_rounded, color: textMuted),
     );
   }
 }

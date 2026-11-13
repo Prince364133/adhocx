@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../theme/app_colors.dart';
-import '../feedback/employee_entrance.dart';
+import '../../../theme/app_radius.dart';
+import '../../../theme/app_spacing.dart';
+import '../../../theme/app_typography.dart';
 
 enum BadgeVariant {
   upcoming,
@@ -20,8 +21,16 @@ enum BadgeVariant {
   neutral,
 }
 
-/// Unified Status Badge for AdhocX Employee Application.
-/// Renders consistent semantic status pills across Trip, Schedule, Driver, and Support views.
+/// Unified status pill for trips, schedule, requests and support tickets.
+///
+/// Driver app design (AppBadge): pill radius, semantic container fill,
+/// semantic text colour, 1px border at the text colour's alpha 50,
+/// caption 11 / w600. Mapping of employee states onto driver semantics:
+/// - success: completed, approved, active
+/// - error:   cancelled, rejected
+/// - warning: delayed, pending
+/// - info:    upcoming, assigned, approaching, arrived, boarded, in progress
+/// - neutral: anything else ("Scheduled")
 class EmployeeStatusBadge extends StatelessWidget {
   final String? label;
   final BadgeVariant variant;
@@ -35,10 +44,13 @@ class EmployeeStatusBadge extends StatelessWidget {
     this.variant = BadgeVariant.neutral,
     this.showDot = false,
     this.icon,
-    this.padding = const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+    this.padding = const EdgeInsets.symmetric(
+      horizontal: AppSpacing.sm + 2,
+      vertical: AppSpacing.xs,
+    ),
   });
 
-  /// Factory helper to build badge directly from string status
+  /// Builds a badge from a free-text status string.
   factory EmployeeStatusBadge.fromString(
     String? status, {
     Key? key,
@@ -84,63 +96,74 @@ class EmployeeStatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final config = _getStyleConfig();
-    final displayText = label ?? _getDefaultLabel();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final (bgColor, textColor) = _colors(isDark);
+    final displayText = label ?? _defaultLabel();
 
-    return EmployeeEntrance(
-      duration: const Duration(milliseconds: 280),
-      beginOffset: const Offset(0, 0.02),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOutCubic,
-        padding: padding,
-        decoration: BoxDecoration(
-          color: config.backgroundColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: config.borderColor, width: 1.0),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            if (showDot) ...[
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 220),
-                width: 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  color: config.textColor,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 6),
-            ],
-            if (icon != null) ...[
-              Icon(icon, size: 12, color: config.textColor),
-              const SizedBox(width: 4),
-            ],
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 180),
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeInCubic,
-              child: Text(
-                displayText,
-                key: ValueKey(displayText),
-                style: GoogleFonts.inter(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: config.textColor,
-                  letterSpacing: 0.2,
-                ),
+    return Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: AppRadius.borderPill,
+        border: Border.all(color: textColor.withAlpha(50), width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (showDot) ...[
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(
+                color: textColor,
+                shape: BoxShape.circle,
               ),
             ),
+            const SizedBox(width: AppSpacing.xs + 2),
           ],
-        ),
+          if (icon != null) ...[
+            Icon(icon, size: 12, color: textColor),
+            const SizedBox(width: AppSpacing.xs),
+          ],
+          Text(
+            displayText,
+            style: AppTypography.caption(color: textColor).copyWith(
+              fontWeight: FontWeight.w600,
+              fontSize: 11,
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  String _getDefaultLabel() {
+  (Color, Color) _colors(bool isDark) {
+    switch (variant) {
+      case BadgeVariant.completed:
+      case BadgeVariant.approved:
+      case BadgeVariant.active:
+        return (AppColors.successContainer, AppColors.successText);
+      case BadgeVariant.cancelled:
+      case BadgeVariant.rejected:
+        return (AppColors.errorContainer, AppColors.errorText);
+      case BadgeVariant.delayed:
+      case BadgeVariant.pending:
+        return (AppColors.warningContainer, AppColors.warningText);
+      case BadgeVariant.upcoming:
+      case BadgeVariant.assigned:
+      case BadgeVariant.approaching:
+      case BadgeVariant.arrived:
+      case BadgeVariant.boarded:
+      case BadgeVariant.inProgress:
+        return (AppColors.infoContainer, AppColors.infoText);
+      case BadgeVariant.neutral:
+        return isDark
+            ? (AppColors.surfaceElevatedDark, AppColors.textSecondaryDark)
+            : (AppColors.surfaceElevatedLight, AppColors.textSecondaryLight);
+    }
+  }
+
+  String _defaultLabel() {
     switch (variant) {
       case BadgeVariant.upcoming:
         return 'Upcoming';
@@ -172,60 +195,4 @@ class EmployeeStatusBadge extends StatelessWidget {
         return 'Scheduled';
     }
   }
-
-  _BadgeStyle _getStyleConfig() {
-    switch (variant) {
-      case BadgeVariant.completed:
-      case BadgeVariant.approved:
-      case BadgeVariant.active:
-        return const _BadgeStyle(
-          backgroundColor: AppColors.successLight,
-          textColor: AppColors.success,
-          borderColor: AppColors.successBorder,
-        );
-      case BadgeVariant.cancelled:
-      case BadgeVariant.rejected:
-        return const _BadgeStyle(
-          backgroundColor: AppColors.errorLight,
-          textColor: AppColors.error,
-          borderColor: AppColors.errorBorder,
-        );
-      case BadgeVariant.delayed:
-      case BadgeVariant.pending:
-        return const _BadgeStyle(
-          backgroundColor: AppColors.warningLight,
-          textColor: AppColors.warning,
-          borderColor: AppColors.warningBorder,
-        );
-      case BadgeVariant.upcoming:
-      case BadgeVariant.assigned:
-      case BadgeVariant.approaching:
-      case BadgeVariant.arrived:
-      case BadgeVariant.boarded:
-      case BadgeVariant.inProgress:
-        return const _BadgeStyle(
-          backgroundColor: AppColors.primaryBlueSoft,
-          textColor: AppColors.primaryBlue,
-          borderColor: AppColors.primaryBlueLight,
-        );
-      case BadgeVariant.neutral:
-        return const _BadgeStyle(
-          backgroundColor: AppColors.surfaceMuted,
-          textColor: AppColors.textSecondary,
-          borderColor: AppColors.border,
-        );
-    }
-  }
-}
-
-class _BadgeStyle {
-  final Color backgroundColor;
-  final Color textColor;
-  final Color borderColor;
-
-  const _BadgeStyle({
-    required this.backgroundColor,
-    required this.textColor,
-    required this.borderColor,
-  });
 }
