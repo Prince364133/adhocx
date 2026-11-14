@@ -61,6 +61,9 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
             'account_number': p['bankAccountNumber'] ?? p['bank_account_number'] ?? '',
             'ifsc': p['bankIfsc'] ?? p['bank_ifsc'] ?? '',
             'upi_id': p['upiId'] ?? p['upi_id'] ?? '',
+            'bankVerificationStatus':
+                p['bankVerificationStatus'] ?? 'NOT_SUBMITTED',
+            'bankVerificationReason': p['bankVerificationReason'],
           };
         });
       }
@@ -130,6 +133,18 @@ class _EarningsWithdrawScreenState extends State<EarningsWithdrawScreen> {
         backgroundColor: AppColors.warning,
       );
       _openBankDetailsModal();
+      return;
+    }
+
+    final bankVerificationStatus =
+        (_bankDetails['bankVerificationStatus'] ?? 'NOT_SUBMITTED')
+            .toString()
+            .toUpperCase();
+    if (bankVerificationStatus != 'VERIFIED') {
+      final message = bankVerificationStatus == 'REJECTED'
+          ? 'Your bank details were rejected. Update them and submit for review.'
+          : 'Your bank details are awaiting manual verification.';
+      AppToast.showError(message, context: context);
       return;
     }
 

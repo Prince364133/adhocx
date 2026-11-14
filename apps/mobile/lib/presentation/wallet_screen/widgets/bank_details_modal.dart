@@ -129,6 +129,8 @@ class _BankDetailsModalState extends State<BankDetailsModal> {
         'bankIfsc': ifsc,
         'bankName': bank,
         'upiId': upi,
+        'bankVerificationStatus': 'PENDING',
+        'bankVerificationReason': null,
         // Legacy keys for cross-compatibility
         'account_holder': holder,
         'account_number': acc,

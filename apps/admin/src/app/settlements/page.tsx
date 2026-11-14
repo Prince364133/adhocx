@@ -26,7 +26,7 @@ const STATUS_TABS = [
 ];
 
 export default function SettlementsPage() {
-  const [activeModule, setActiveModule] = useState<'CORPORATE_BATCHES' | 'ON_DEMAND'>('CORPORATE_BATCHES');
+  const [activeModule, setActiveModule] = useState<'CORPORATE_BATCHES' | 'ON_DEMAND'>('ON_DEMAND');
   const [activeTab, setActiveTab] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [settlements, setSettlements] = useState<SettlementListItem[]>([]);
