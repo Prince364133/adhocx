@@ -446,50 +446,6 @@ class _BankDetailsModalState extends State<BankDetailsModal> {
                           return null;
                         },
                       ),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton.icon(
-                          onPressed: () async {
-                            final vpa = _upiCtrl.text.trim().toLowerCase();
-                            if (!vpa.contains('@')) {
-                              AppToast.showError(
-                                  'Enter a valid UPI ID (e.g. name@upi) to verify',
-                                  context: context);
-                              return;
-                            }
-                            try {
-                              final res =
-                                  await DigioService.instance.verifyUpiVpa(
-                                vpa: vpa,
-                                name: _holderNameCtrl.text.trim(),
-                                saveToDriverProfile: false,
-                              );
-                              if (context.mounted) {
-                                if (res['verified'] == true) {
-                                  AppToast.showSuccess(
-                                    'UPI verified${res['verifiedName'] != null ? ': ${res['verifiedName']}' : ''}',
-                                    context: context,
-                                  );
-                                } else {
-                                  AppToast.showError(
-                                      'UPI handle could not be verified',
-                                      context: context);
-                                }
-                              }
-                            } catch (e) {
-                              if (context.mounted) {
-                                AppToast.showError(
-                                    AppToast.cleanErrorMessage(e),
-                                    context: context);
-                              }
-                            }
-                          },
-                          icon: const Icon(Icons.qr_code_scanner_rounded,
-                              size: 15),
-                          label: const Text('Verify UPI ID',
-                              style: TextStyle(fontSize: 12)),
-                        ),
-                      ),
                       const SizedBox(height: 20),
 
                       // Security / Compliance badge
