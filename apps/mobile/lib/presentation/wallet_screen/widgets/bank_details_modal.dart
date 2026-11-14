@@ -144,7 +144,7 @@ class _BankDetailsModalState extends State<BankDetailsModal> {
       if (mounted) {
         Fluttertoast.showToast(
           msg: 'Bank details submitted for manual verification.',
-          backgroundColor: AppColors.accentGreenDark,
+          backgroundColor: AppColors.warning,
         );
         Navigator.of(context).pop(updatedMap);
       }
@@ -436,7 +436,7 @@ class _BankDetailsModalState extends State<BankDetailsModal> {
                         style: _fieldTextStyle(isDark),
                         decoration: _fieldDecoration(
                           isDark,
-                          hint: 'e.g. 7893545818@upi or name@okhdfcbank',
+                          hint: 'e.g. mobile@upi or name@provider',
                           icon: Icons.qr_code_2_rounded,
                         ),
                         validator: (val) {

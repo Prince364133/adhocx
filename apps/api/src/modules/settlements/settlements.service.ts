@@ -9,6 +9,7 @@ import {
   WithdrawalRequestDto,
   SettlementResponseDto,
   AdminProcessSettlementDto,
+  NotificationType,
   SettlementStatus,
   UserRole,
 } from '@adhocx/contracts';
@@ -60,28 +61,38 @@ export class SettlementsService {
     }
 
     const kyc = (driver.kycDocuments as Record<string, any>) || {};
-    const bankAccountName = dto.bankAccountName || kyc.bankAccountName || driver.fullName;
-    const bankAccountNumber = dto.bankAccountNumber || kyc.bankAccountNumber;
-    const bankIfsc = (dto.bankIfsc || kyc.bankIfsc || '').toUpperCase();
-    const bankName = dto.bankName || kyc.bankName || this.inferBankName(bankIfsc);
+    const bankAccountName = (dto.bankAccountName || kyc.bankAccountName || driver.fullName).trim();
+    const bankAccountNumber = String(dto.bankAccountNumber || kyc.bankAccountNumber || '').trim();
+    const bankIfsc = String(dto.bankIfsc || kyc.bankIfsc || '').trim().toUpperCase();
+    const bankName = String(dto.bankName || kyc.bankName || '').trim();
 
     if (!bankAccountNumber || !bankIfsc) {
       throw new BadRequestException('A valid bank account number and IFSC code are required for bank payout');
     }
+    if (!bankName) {
+      throw new BadRequestException('Bank name is required for bank payout');
+    }
 
-    // Persist bank details into driver's profile/KYC if missing or explicitly provided
-    if (bankAccountNumber && (!kyc.bankAccountNumber || dto.bankName)) {
+    const bankDetailsChanged =
+      kyc.bankAccountName !== bankAccountName ||
+      kyc.bankAccountNumber !== bankAccountNumber ||
+      String(kyc.bankIfsc || '').toUpperCase() !== bankIfsc ||
+      String(kyc.bankName || '') !== bankName;
+    if (bankDetailsChanged || kyc.bankVerificationStatus !== 'VERIFIED') {
       const updatedKyc = {
         ...kyc,
         bankAccountName,
         bankAccountNumber,
         bankIfsc,
         bankName,
+        bankVerificationStatus: 'PENDING',
+        bankVerificationReason: null,
+        bankVerificationSubmittedAt: new Date().toISOString(),
       };
       await this.db.driver.update({
         where: { id: driver.id },
         data: { kycDocuments: updatedKyc },
-      }).catch(() => null);
+      });
       driver.kycDocuments = updatedKyc;
     }
 
@@ -107,6 +118,7 @@ export class SettlementsService {
           bankAccountName,
           bankAccountNumber,
           bankIfsc,
+          bankName,
         },
       });
 
@@ -170,12 +182,25 @@ export class SettlementsService {
     const now = new Date();
 
     if (dto.status === SettlementStatus.SETTLED) {
+      const kyc = (settlement.driver.kycDocuments as Record<string, any>) || {};
+      if (
+        kyc.bankVerificationStatus !== 'VERIFIED' ||
+        kyc.bankAccountNumber !== settlement.bankAccountNumber ||
+        String(kyc.bankIfsc || '').toUpperCase() !== String(settlement.bankIfsc || '').toUpperCase()
+      ) {
+        throw new BadRequestException('The payout bank account must be manually verified before payment.');
+      }
+      const transactionRef = dto.transactionRef?.trim();
+      if (!transactionRef) {
+        throw new BadRequestException('Bank UTR / transaction reference is required to confirm payment.');
+      }
+
       const updated = await this.db.settlement.update({
         where: { id },
         data: {
           status: SettlementStatus.SETTLED,
           processedAt: now,
-          transactionRef: dto.transactionRef || `payout_${Date.now()}`,
+          transactionRef,
         },
       });
 
@@ -183,6 +208,20 @@ export class SettlementsService {
         settlementId: id,
         amount: Number(settlement.amount),
         transactionRef: updated.transactionRef,
+      });
+      this.notifications.sendPushToUser(settlement.driver.userId, {
+        title: 'Payout completed',
+        body: `Your withdrawal of ₹${Number(settlement.amount).toLocaleString('en-IN')} was paid. UTR: ${transactionRef}`,
+        type: NotificationType.SYSTEM,
+        data: {
+          settlementId: id,
+          status: SettlementStatus.SETTLED,
+          amount: Number(settlement.amount),
+          transactionRef,
+        },
+        saveInApp: true,
+      }).catch((error) => {
+        this.logger.warn(`Driver payout notification failed for settlement ${id}: ${error.message}`);
       });
 
       await this.audit.log({
@@ -194,7 +233,7 @@ export class SettlementsService {
       });
 
       this.logger.log(`Settlement ${id} marked SETTLED by admin ${adminUserId}`);
-      return this.mapToDto(updated);
+      return this.mapToDto(updated, settlement.driver, true);
     }
 
     if (
@@ -230,7 +269,9 @@ export class SettlementsService {
         return tx.settlement.update({
           where: { id },
           data: {
-            status: SettlementStatus.CANCELLED,
+            status: dto.status === SettlementStatus.FAILED
+              ? SettlementStatus.FAILED
+              : SettlementStatus.CANCELLED,
             processedAt: now,
             transactionRef: dto.failureReason || 'Rejected by Admin',
           },
@@ -242,6 +283,20 @@ export class SettlementsService {
         amount: Number(settlement.amount),
         reason: dto.failureReason || 'Payout rejected. Funds refunded to wallet.',
       });
+      this.notifications.sendPushToUser(settlement.driver.userId, {
+        title: 'Payout could not be completed',
+        body: `Your withdrawal of ₹${Number(settlement.amount).toLocaleString('en-IN')} was returned to your wallet. ${dto.failureReason || ''}`.trim(),
+        type: NotificationType.SYSTEM,
+        data: {
+          settlementId: id,
+          status: dto.status,
+          amount: Number(settlement.amount),
+          reason: dto.failureReason,
+        },
+        saveInApp: true,
+      }).catch((error) => {
+        this.logger.warn(`Driver payout failure notification failed for settlement ${id}: ${error.message}`);
+      });
 
       await this.audit.log({
         userId: adminUserId,
@@ -252,10 +307,83 @@ export class SettlementsService {
       });
 
       this.logger.warn(`Settlement ${id} cancelled and refunded to driver ${settlement.driverId}: ${dto.failureReason}`);
-      return this.mapToDto(updated);
+      return this.mapToDto(updated, settlement.driver);
     }
 
     throw new BadRequestException('Invalid settlement processing status');
+  }
+
+  async reviewBankDetails(
+    settlementId: string,
+    adminUserId: string,
+    status: 'VERIFIED' | 'REJECTED',
+    reason?: string,
+  ): Promise<{ settlementId: string; bankVerificationStatus: string }> {
+    if (status !== 'VERIFIED' && status !== 'REJECTED') {
+      throw new BadRequestException('Bank review status must be VERIFIED or REJECTED.');
+    }
+
+    const settlement = await this.db.settlement.findUnique({
+      where: { id: settlementId },
+      include: { driver: true },
+    });
+    if (!settlement) {
+      throw new NotFoundException('Settlement record not found');
+    }
+    if (settlement.status !== SettlementStatus.PENDING) {
+      throw new BadRequestException('Bank details can only be reviewed before the payout is processed.');
+    }
+
+    const currentKyc = (settlement.driver.kycDocuments as Record<string, any>) || {};
+    if (status === 'VERIFIED') {
+      const bankDetailsMatch =
+        currentKyc.bankAccountName === settlement.bankAccountName &&
+        currentKyc.bankAccountNumber === settlement.bankAccountNumber &&
+        String(currentKyc.bankIfsc || '').toUpperCase() === String(settlement.bankIfsc || '').toUpperCase() &&
+        (!settlement.bankName || currentKyc.bankName === settlement.bankName);
+      if (!bankDetailsMatch) {
+        throw new BadRequestException(
+          'The driver bank details changed after this payout request. Ask the driver to submit a new request.',
+        );
+      }
+    } else if (!reason?.trim()) {
+      throw new BadRequestException('A reason is required when rejecting bank details.');
+    }
+
+    const verificationReason = status === 'REJECTED' ? reason!.trim() : null;
+    await this.db.driver.update({
+      where: { id: settlement.driverId },
+      data: {
+        kycDocuments: {
+          ...currentKyc,
+          bankVerificationStatus: status,
+          bankVerificationReason: verificationReason,
+          bankVerificationUpdatedAt: new Date().toISOString(),
+        },
+      },
+    });
+
+    await this.audit.log({
+      userId: adminUserId,
+      action: status === 'VERIFIED' ? 'BANK_DETAILS_VERIFIED' : 'BANK_DETAILS_REJECTED',
+      entityType: 'DRIVER',
+      entityId: settlement.driverId,
+      metadata: { settlementId, reason: verificationReason },
+    });
+
+    this.notifications.sendPushToUser(settlement.driver.userId, {
+      title: status === 'VERIFIED' ? 'Bank account verified' : 'Bank details need an update',
+      body: status === 'VERIFIED'
+        ? 'Your bank account has been verified. You can receive payouts.'
+        : `Your bank details were not approved. ${verificationReason}`,
+      type: NotificationType.SYSTEM,
+      data: { settlementId, bankVerificationStatus: status, reason: verificationReason },
+      saveInApp: true,
+    }).catch((error) => {
+      this.logger.warn(`Driver bank review notification failed for settlement ${settlementId}: ${error.message}`);
+    });
+
+    return { settlementId, bankVerificationStatus: status };
   }
 
   /**
@@ -292,7 +420,7 @@ export class SettlementsService {
       throw new ForbiddenException('You are not authorized to view this settlement');
     }
 
-    return this.mapToDto(settlement, settlement.driver);
+    return this.mapToDto(settlement, settlement.driver, role === UserRole.ADMIN);
   }
 
   /**
@@ -323,7 +451,7 @@ export class SettlementsService {
     });
 
     return settlements.map((s) => ({
-      ...this.mapToDto(s, s.driver),
+      ...this.mapToDto(s, s.driver, true),
       driverName: s.driver?.fullName || 'Driver',
       driverPhone: s.driver?.phone || '—',
       driverVehicle: s.driver?.vehicleType ? `${s.driver.vehicleType} (${s.driver.vehiclePlate || '—'})` : '—',
@@ -331,47 +459,17 @@ export class SettlementsService {
     }));
   }
 
-  inferBankName(ifsc?: string): string {
-    if (!ifsc || ifsc.length < 4) return 'Bank Account';
-    const prefix = ifsc.substring(0, 4).toUpperCase();
-    const bankMap: Record<string, string> = {
-      HDFC: 'HDFC Bank',
-      SBIN: 'State Bank of India',
-      ICIC: 'ICICI Bank',
-      UTIB: 'Axis Bank',
-      KKBK: 'Kotak Mahindra Bank',
-      PUNB: 'Punjab National Bank',
-      BARB: 'Bank of Baroda',
-      CNRB: 'Canara Bank',
-      UBIN: 'Union Bank of India',
-      BKID: 'Bank of India',
-      IBKL: 'IDBI Bank',
-      YESB: 'Yes Bank',
-      INDB: 'IndusInd Bank',
-      FDRL: 'Federal Bank',
-      IDFB: 'IDFC First Bank',
-      SCBL: 'Standard Chartered Bank',
-      HSBC: 'HSBC Bank',
-      RBLN: 'RBL Bank',
-      BDBL: 'Bandhan Bank',
-      SIBL: 'South Indian Bank',
-      IDIB: 'Indian Bank',
-      CBIN: 'Central Bank of India',
-      UCBA: 'UCO Bank',
-      AIRP: 'Airtel Payments Bank',
-      PYTM: 'Paytm Payments Bank',
-      IPOS: 'India Post Payments Bank',
-    };
-    return bankMap[prefix] || 'Bank Account';
-  }
-
-  private mapToDto(s: any, driver?: any): SettlementResponseDto {
+  private mapToDto(s: any, driver?: any, includeSensitive = false): SettlementResponseDto {
     const kyc = (driver?.kycDocuments as Record<string, any>) || {};
     const ifsc = s.bankIfsc || kyc.bankIfsc || '';
-    const bankName = kyc.bankName || (ifsc ? this.inferBankName(ifsc) : undefined);
+    const bankName = s.bankName || kyc.bankName || undefined;
     const bankAccountName = s.bankAccountName || kyc.bankAccountName || driver?.fullName || undefined;
     const rawAcc = s.bankAccountNumber || kyc.bankAccountNumber;
-    const bankAccountNumber = rawAcc ? `•••• ${rawAcc.slice(-4)}` : undefined;
+    const bankAccountNumber = rawAcc
+      ? includeSensitive
+        ? rawAcc
+        : `•••• ${rawAcc.slice(-4)}`
+      : undefined;
 
     return {
       id: s.id,
@@ -382,6 +480,7 @@ export class SettlementsService {
       bankAccountNumber,
       bankIfsc: ifsc || undefined,
       bankName,
+      bankVerificationStatus: kyc.bankVerificationStatus || 'NOT_SUBMITTED',
       transactionRef: s.transactionRef || undefined,
       processedAt: s.processedAt ? (s.processedAt instanceof Date ? s.processedAt.toISOString() : String(s.processedAt)) : undefined,
       createdAt: s.createdAt instanceof Date ? s.createdAt.toISOString() : String(s.createdAt),

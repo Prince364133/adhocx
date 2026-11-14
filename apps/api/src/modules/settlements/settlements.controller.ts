@@ -83,4 +83,16 @@ export class SettlementsController {
   ) {
     return this.settlementsService.processSettlement(id, admin.id, dto);
   }
+
+  @Post(':id/bank-review')
+  @Roles(UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Admin manually approves or rejects the bank details for a pending payout' })
+  async reviewBankDetails(
+    @Param('id') id: string,
+    @CurrentUser() admin: AuthUserDto,
+    @Body() dto: { status: 'VERIFIED' | 'REJECTED'; reason?: string },
+  ) {
+    return this.settlementsService.reviewBankDetails(id, admin.id, dto.status, dto.reason);
+  }
 }

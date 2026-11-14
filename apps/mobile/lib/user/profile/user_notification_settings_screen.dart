@@ -20,7 +20,6 @@ class _UserNotificationSettingsScreenState extends State<UserNotificationSetting
   // Channels
   bool _pushEnabled = true;
   bool _emailEnabled = true;
-  bool _smsEnabled = true;
   bool _whatsappEnabled = true;
 
   // Booking & Requirements
@@ -62,7 +61,6 @@ class _UserNotificationSettingsScreenState extends State<UserNotificationSetting
         setState(() {
           if (prefs.containsKey('pushEnabled')) _pushEnabled = prefs['pushEnabled'] == true;
           if (prefs.containsKey('emailEnabled')) _emailEnabled = prefs['emailEnabled'] == true;
-          if (prefs.containsKey('smsEnabled')) _smsEnabled = prefs['smsEnabled'] == true;
           if (prefs.containsKey('whatsappEnabled')) _whatsappEnabled = prefs['whatsappEnabled'] == true;
           if (prefs.containsKey('tripAlerts')) _tripAlerts = prefs['tripAlerts'] == true;
           if (prefs.containsKey('marketingPromos')) _marketingPromos = prefs['marketingPromos'] == true;
@@ -86,7 +84,6 @@ class _UserNotificationSettingsScreenState extends State<UserNotificationSetting
       final payload = {
         'pushEnabled': _pushEnabled,
         'emailEnabled': _emailEnabled,
-        'smsEnabled': _smsEnabled,
         'tripAlerts': _tripAlerts,
         'marketingPromos': _marketingPromos,
         if (_quietHoursEnabled) 'quietHoursStart': _quietHoursStart,
@@ -153,15 +150,6 @@ class _UserNotificationSettingsScreenState extends State<UserNotificationSetting
                             icon: Icons.notifications_active_outlined,
                             val: _pushEnabled,
                             onChanged: (v) => _onToggle(() => _pushEnabled = v),
-                            isDark: isDark,
-                          ),
-                          const Divider(height: 1),
-                          _buildSwitch(
-                            title: 'SMS Alerts',
-                            subtitle: 'Security OTPs and driver contact details sent to registered phone',
-                            icon: Icons.sms_outlined,
-                            val: _smsEnabled,
-                            onChanged: (v) => _onToggle(() => _smsEnabled = v),
                             isDark: isDark,
                           ),
                           const Divider(height: 1),

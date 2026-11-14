@@ -40,7 +40,7 @@ class LocalNotificationService {
     }
 
     try {
-      const androidSettings = AndroidInitializationSettings('notification_icon');
+      const androidSettings = AndroidInitializationSettings('adhocx_notification_mark');
       const darwinSettings = DarwinInitializationSettings(
         requestAlertPermission: true,
         requestBadgePermission: true,
@@ -212,9 +212,9 @@ class LocalNotificationService {
         _urgentDispatchChannelId,
         _urgentDispatchChannelName,
         channelDescription: _urgentDispatchChannelDesc,
-        icon: 'notification_icon',
+        icon: 'adhocx_notification_mark',
         largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
-        color: const Color(0xFF5B42F3),
+        color: const Color(0xFF5728B2),
         importance: Importance.max,
         priority: Priority.high,
         enableVibration: true,
@@ -270,9 +270,9 @@ class LocalNotificationService {
         _updatesChannelId,
         _updatesChannelName,
         channelDescription: _updatesChannelDesc,
-        icon: 'notification_icon',
+        icon: 'adhocx_notification_mark',
         largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
-        color: Color(0xFF5B42F3),
+        color: Color(0xFF5728B2),
         importance: Importance.defaultImportance,
         priority: Priority.defaultPriority,
         playSound: true,

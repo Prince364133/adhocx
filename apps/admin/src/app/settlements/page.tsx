@@ -36,6 +36,8 @@ export default function SettlementsPage() {
   const [transactionRef, setTransactionRef] = useState('');
   const [failureReason, setFailureReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [bankReviewLoading, setBankReviewLoading] = useState(false);
+  const [bankReviewReason, setBankReviewReason] = useState('');
   const [confirmActionOpen, setConfirmActionOpen] = useState(false);
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -87,6 +89,10 @@ export default function SettlementsPage() {
 
   function requestActionConfirm() {
     if (!selectedSettlement || !actionType) return;
+    if (actionType === 'SETTLED' && selectedSettlement.bankVerificationStatus !== 'VERIFIED') {
+      setAlert({ type: 'error', message: 'Manually verify the driver bank details before marking this payout as paid.' });
+      return;
+    }
     if (actionType === 'SETTLED' && !transactionRef.trim()) {
       setAlert({ type: 'error', message: 'Bank UTR / Transaction Reference is required to settle.' });
       return;
@@ -96,6 +102,38 @@ export default function SettlementsPage() {
       return;
     }
     setConfirmActionOpen(true);
+  }
+
+  async function handleBankReview(status: 'VERIFIED' | 'REJECTED') {
+    if (!selectedSettlement) return;
+    if (status === 'REJECTED' && !bankReviewReason.trim()) {
+      setAlert({ type: 'error', message: 'A reason is required when rejecting bank details.' });
+      return;
+    }
+
+    setBankReviewLoading(true);
+    try {
+      const result = await adminApi.reviewSettlementBank(selectedSettlement.id, {
+        status,
+        ...(status === 'REJECTED' ? { reason: bankReviewReason.trim() } : {}),
+      });
+      setSelectedSettlement({
+        ...selectedSettlement,
+        bankVerificationStatus: result.bankVerificationStatus,
+      });
+      setBankReviewReason('');
+      setAlert({
+        type: 'success',
+        message: status === 'VERIFIED'
+          ? 'Bank details verified. This payout can now be marked as paid after transfer.'
+          : 'Bank details rejected. The driver has been notified.',
+      });
+      await loadSettlements(activeTab);
+    } catch (err: any) {
+      setAlert({ type: 'error', message: err.message || 'Bank review failed' });
+    } finally {
+      setBankReviewLoading(false);
+    }
   }
 
   async function handleExecuteAction() {
@@ -280,7 +318,7 @@ export default function SettlementsPage() {
             accessor: (s) => <StatusBadge status={s.status} />,
           },
           {
-            header: 'UTR / REFERENCE',
+            header: 'PAYMENT PROOF (UTR)',
             accessor: (s) => (
               <span style={{ fontFamily: 'monospace', fontSize: '0.8125rem', color: s.transactionRef ? 'var(--text-primary)' : 'var(--text-muted)' }}>
                 {s.transactionRef || '—'}
@@ -455,6 +493,42 @@ export default function SettlementsPage() {
                 <span style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--brand-primary)' }}>{selectedSettlement.bankIfsc}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Bank Name:</span>
+                <span style={{ color: 'var(--text-primary)' }}>{selectedSettlement.bankName || '—'}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Bank Verification:</span>
+                <span style={{ color: 'var(--text-primary)' }}>{selectedSettlement.bankVerificationStatus || 'NOT_SUBMITTED'}</span>
+              </div>
+              {selectedSettlement.bankVerificationStatus !== 'VERIFIED' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <input
+                    value={bankReviewReason}
+                    onChange={(event) => setBankReviewReason(event.target.value)}
+                    placeholder="Reason if rejecting bank details"
+                    aria-label="Bank review rejection reason"
+                  />
+                  <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      disabled={bankReviewLoading}
+                      onClick={() => handleBankReview('REJECTED')}
+                    >
+                      Reject bank details
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      isLoading={bankReviewLoading}
+                      onClick={() => handleBankReview('VERIFIED')}
+                    >
+                      Verify bank details
+                    </Button>
+                  </div>
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
                 <span style={{ color: 'var(--text-muted)' }}>Driver ID:</span>
                 <span style={{ fontFamily: 'monospace', color: 'var(--text-secondary)' }}>{selectedSettlement.driverId}</span>
               </div>
@@ -509,7 +583,7 @@ export default function SettlementsPage() {
                     }}
                   />
                   <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.375rem' }}>
-                    Entering the bank UTR reference marks this payout as settled and triggers a push confirmation to the driver app.
+                    Enter the bank UTR as payment proof after the transfer. This marks the payout complete and notifies the driver in the app.
                   </p>
                 </div>
               </div>

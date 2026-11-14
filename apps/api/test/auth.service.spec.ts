@@ -41,7 +41,6 @@ describe('AuthService Unit Tests', () => {
 
     notifications = {
       sendOtp: jest.fn().mockResolvedValue({ success: true, channel: 'SMS', messageId: 'msg_1' }),
-      sendSms: jest.fn().mockResolvedValue({ success: true }),
       sendEmail: jest.fn().mockResolvedValue({ success: true }),
       sendPush: jest.fn().mockResolvedValue({ success: true }),
     };
@@ -75,7 +74,11 @@ describe('AuthService Unit Tests', () => {
   });
 
   it('should request OTP and return request ID and expiry', async () => {
-    const result = await service.requestOtp({ phone: '+919876543210' });
+    const result = await service.requestOtp({
+      phone: '+919876543210',
+      role: 'DRIVER',
+      isRegister: true,
+    });
     expect(result).toBeDefined();
     expect(result.requestId).toBeDefined();
     expect(result.retryAfterSeconds).toBe(30);
@@ -85,10 +88,12 @@ describe('AuthService Unit Tests', () => {
   });
 
   it('should request SMS OTP with separate country code and phone number', async () => {
+    db.user.findFirst.mockResolvedValue({ role: UserRole.DRIVER });
     const result = await service.requestOtp({
       countryCode: '+91',
       phone: '9876543210',
       channel: 'SMS',
+      isRegister: false,
     });
     expect(result).toBeDefined();
     expect(notifications.sendOtp).toHaveBeenCalledWith(
@@ -99,13 +104,50 @@ describe('AuthService Unit Tests', () => {
     );
   });
 
+  it('should reject SMS OTP for roles outside the allowed app authentication flows', async () => {
+    db.user.findFirst.mockResolvedValue({ role: UserRole.ADMIN });
+
+    await expect(service.requestOtp({
+      phone: '+919876543210',
+      channel: 'SMS',
+      isRegister: false,
+    })).rejects.toThrow(BadRequestException);
+
+    expect(notifications.sendOtp).not.toHaveBeenCalled();
+  });
+
+  it('should keep email OTP available for other account roles', async () => {
+    db.user.findFirst.mockResolvedValue({ role: UserRole.ADMIN });
+
+    await service.requestOtp({
+      email: 'admin@example.com',
+      channel: 'EMAIL',
+      isRegister: false,
+    });
+
+    expect(notifications.sendOtp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: 'admin@example.com',
+        channel: 'EMAIL',
+      }),
+    );
+  });
+
   it('should reject OTP request when rate limit is exceeded', async () => {
     redis.checkRateLimit.mockResolvedValueOnce({ allowed: false, remaining: 0, resetAfter: 600 });
-    await expect(service.requestOtp({ phone: '+919876543210' })).rejects.toThrow(BadRequestException);
+    await expect(service.requestOtp({
+      phone: '+919876543210',
+      role: 'DRIVER',
+      isRegister: true,
+    })).rejects.toThrow(BadRequestException);
   });
 
   it('should verify OTP and create new user if not exists', async () => {
-    const otpRes = await service.requestOtp({ phone: '+919876543210' });
+    const otpRes = await service.requestOtp({
+      phone: '+919876543210',
+      role: 'DRIVER',
+      isRegister: true,
+    });
     const sentOtp = (notifications.sendOtp as jest.Mock).mock.calls[0][0].otp;
     redis.get.mockResolvedValue(sentOtp);
 
@@ -131,7 +173,11 @@ describe('AuthService Unit Tests', () => {
   });
 
   it('should reject incorrect OTP', async () => {
-    const otpRes = await service.requestOtp({ phone: '+919876543210' });
+    const otpRes = await service.requestOtp({
+      phone: '+919876543210',
+      role: 'DRIVER',
+      isRegister: true,
+    });
     redis.get.mockResolvedValueOnce('123456');
 
     await expect(

@@ -34,6 +34,7 @@ export class SettlementResponseDto {
   bankAccountNumber?: string;
   bankIfsc?: string;
   bankName?: string;
+  bankVerificationStatus?: 'NOT_SUBMITTED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
   transactionRef?: string;
   processedAt?: string;
   createdAt!: string;

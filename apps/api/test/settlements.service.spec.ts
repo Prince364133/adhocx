@@ -38,6 +38,7 @@ describe('SettlementsService Unit Tests', () => {
 
     notifications = {
       emitEvent: jest.fn(),
+      sendPushToUser: jest.fn().mockResolvedValue(undefined),
     };
 
     audit = {
@@ -79,6 +80,7 @@ describe('SettlementsService Unit Tests', () => {
             bankAccountName: 'Driver Ram',
             bankAccountNumber: '987654321012',
             bankIfsc: 'HDFC0001234',
+            bankName: 'HDFC Bank',
             createdAt: now,
             updatedAt: now,
           }),
@@ -95,6 +97,7 @@ describe('SettlementsService Unit Tests', () => {
       bankAccountName: 'Driver Ram',
       bankAccountNumber: '987654321012',
       bankIfsc: 'HDFC0001234',
+      bankName: 'HDFC Bank',
     });
 
     expect(result.id).toBe('set-1');
@@ -123,6 +126,7 @@ describe('SettlementsService Unit Tests', () => {
         bankAccountName: 'Driver Ram',
         bankAccountNumber: '987654321012',
         bankIfsc: 'HDFC0001234',
+        bankName: 'HDFC Bank',
       }),
     ).rejects.toThrow(BadRequestException);
   });
@@ -140,6 +144,7 @@ describe('SettlementsService Unit Tests', () => {
         bankAccountName: 'Driver Ram',
         bankAccountNumber: '987654321012',
         bankIfsc: 'HDFC0001234',
+        bankName: 'HDFC Bank',
       }),
     ).rejects.toThrow(BadRequestException);
   });
@@ -151,6 +156,22 @@ describe('SettlementsService Unit Tests', () => {
       driverId: 'drv-1',
       amount: 500,
       status: SettlementStatus.PENDING,
+      bankAccountName: 'Driver Ram',
+      bankAccountNumber: '987654321012',
+      bankIfsc: 'HDFC0001234',
+      bankName: 'HDFC Bank',
+      driver: {
+        id: 'drv-1',
+        userId: 'usr-drv-1',
+        fullName: 'Driver Ram',
+        kycDocuments: {
+          bankVerificationStatus: 'VERIFIED',
+          bankAccountName: 'Driver Ram',
+          bankAccountNumber: '987654321012',
+          bankIfsc: 'HDFC0001234',
+          bankName: 'HDFC Bank',
+        },
+      },
     });
 
     db.settlement.update.mockResolvedValue({
@@ -175,8 +196,92 @@ describe('SettlementsService Unit Tests', () => {
       'SETTLEMENT_SETTLED',
       expect.anything(),
     );
+    expect(notifications.sendPushToUser).toHaveBeenCalledWith(
+      'usr-drv-1',
+      expect.objectContaining({
+        title: 'Payout completed',
+        data: expect.objectContaining({
+          settlementId: 'set-1',
+          transactionRef: 'bank_utr_123456',
+        }),
+        saveInApp: true,
+      }),
+    );
     expect(audit.log).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'SETTLEMENT_SETTLED' }),
+    );
+  });
+
+  it('should require verified bank details and a UTR before marking a payout paid', async () => {
+    db.settlement.findUnique.mockResolvedValue({
+      id: 'set-1',
+      driverId: 'drv-1',
+      amount: 500,
+      status: SettlementStatus.PENDING,
+      bankAccountName: 'Driver Ram',
+      bankAccountNumber: '987654321012',
+      bankIfsc: 'HDFC0001234',
+      driver: {
+        id: 'drv-1',
+        userId: 'usr-drv-1',
+        kycDocuments: {
+          bankVerificationStatus: 'PENDING',
+          bankAccountName: 'Driver Ram',
+          bankAccountNumber: '987654321012',
+          bankIfsc: 'HDFC0001234',
+        },
+      },
+    });
+
+    await expect(service.processSettlement('set-1', 'usr-adm-1', {
+      status: SettlementStatus.SETTLED,
+      transactionRef: 'bank_utr_123456',
+    })).rejects.toThrow('manually verified');
+
+    expect(db.settlement.update).not.toHaveBeenCalled();
+    expect(notifications.sendPushToUser).not.toHaveBeenCalled();
+  });
+
+  it('should persist manual bank review and notify the driver in-app', async () => {
+    db.settlement.findUnique.mockResolvedValue({
+      id: 'set-1',
+      driverId: 'drv-1',
+      status: SettlementStatus.PENDING,
+      bankAccountName: 'Driver Ram',
+      bankAccountNumber: '987654321012',
+      bankIfsc: 'HDFC0001234',
+      bankName: 'HDFC Bank',
+      driver: {
+        id: 'drv-1',
+        userId: 'usr-drv-1',
+        kycDocuments: {
+          bankAccountName: 'Driver Ram',
+          bankAccountNumber: '987654321012',
+          bankIfsc: 'HDFC0001234',
+          bankName: 'HDFC Bank',
+          bankVerificationStatus: 'PENDING',
+        },
+      },
+    });
+
+    const result = await service.reviewBankDetails('set-1', 'usr-adm-1', 'VERIFIED');
+
+    expect(result).toEqual({ settlementId: 'set-1', bankVerificationStatus: 'VERIFIED' });
+    expect(db.driver.update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'drv-1' },
+      data: {
+        kycDocuments: expect.objectContaining({
+          bankVerificationStatus: 'VERIFIED',
+          bankVerificationReason: null,
+        }),
+      },
+    }));
+    expect(notifications.sendPushToUser).toHaveBeenCalledWith(
+      'usr-drv-1',
+      expect.objectContaining({
+        title: 'Bank account verified',
+        saveInApp: true,
+      }),
     );
   });
 
@@ -187,6 +292,22 @@ describe('SettlementsService Unit Tests', () => {
       driverId: 'drv-1',
       amount: 500,
       status: SettlementStatus.PENDING,
+      bankAccountName: 'Driver Ram',
+      bankAccountNumber: '987654321012',
+      bankIfsc: 'HDFC0001234',
+      bankName: 'HDFC Bank',
+      driver: {
+        id: 'drv-1',
+        userId: 'usr-drv-1',
+        fullName: 'Driver Ram',
+        kycDocuments: {
+          bankVerificationStatus: 'PENDING',
+          bankAccountName: 'Driver Ram',
+          bankAccountNumber: '987654321012',
+          bankIfsc: 'HDFC0001234',
+          bankName: 'HDFC Bank',
+        },
+      },
     });
 
     db.$transaction.mockImplementation(async (callback: any) => {

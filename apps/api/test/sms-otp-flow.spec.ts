@@ -149,16 +149,6 @@ describe('SMS OTP Dispatch & Verification Flow (MSG91 mocked)', () => {
       expect(result.messageId).toBeDefined();
     }, 15000);
 
-    it('should route general transactional SMS notification', async () => {
-      const result = await notificationsService.sendSms(
-        '9876543210',
-        '852963',
-        { templateId: '6aec3196704f112ad8019976', variables: { num: '852963' } },
-      );
-
-      expect(result.success).toBe(true);
-      expect(result.messageId).toBeDefined();
-    }, 15000);
   });
 
   describe('Step 3: End-to-End AuthService OTP Request and Verification', () => {
@@ -169,6 +159,7 @@ describe('SMS OTP Dispatch & Verification Flow (MSG91 mocked)', () => {
         phone: '9876543210',
         channel: 'SMS',
         role: 'DRIVER',
+        isRegister: true,
       });
 
       expect(requestRes.requestId).toBeDefined();

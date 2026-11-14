@@ -252,6 +252,8 @@ export class DriverProfileDto {
   bankAccountNumber?: string;
   bankIfsc?: string;
   bankName?: string;
+  bankVerificationStatus?: 'NOT_SUBMITTED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
+  bankVerificationReason?: string;
   upiId?: string;
   documents?: any;
   createdAt!: string;

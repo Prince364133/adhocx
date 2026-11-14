@@ -86,7 +86,7 @@
         <!-- Firebase Cloud Messaging Default Notification Icon, Color & Channel -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
-            android:resource="@drawable/notification_icon" />
+            android:resource="@drawable/adhocx_notification_mark" />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_color"
             android:resource="@color/primary" />

@@ -220,7 +220,7 @@ describe('Corporate Mobile Bridge & Driver/Employee Flow Verification', () => {
         CorporateSupportTicketService,
         { provide: DatabaseService, useValue: mockDb },
         { provide: RedisService, useValue: mockRedis },
-        { provide: NotificationsService, useValue: { sendSms: jest.fn(), sendPush: jest.fn(), emitEvent: jest.fn() } },
+        { provide: NotificationsService, useValue: { sendPush: jest.fn(), emitEvent: jest.fn() } },
         { provide: AuditService, useValue: { log: jest.fn() } },
         {
           provide: CorporateRiderNotifier,

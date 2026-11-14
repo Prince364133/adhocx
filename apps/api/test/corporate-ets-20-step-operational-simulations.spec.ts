@@ -151,7 +151,6 @@ describe('Corporate Managed ETS: 20-Step Comprehensive Operational Simulations',
       emittedEvents.push({ channel, event, payload });
     }),
     sendPushToUser: jest.fn().mockResolvedValue(true),
-    sendTripOtp: jest.fn().mockResolvedValue(true),
   };
 
   const mockAudit = {

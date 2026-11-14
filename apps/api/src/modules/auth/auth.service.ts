@@ -490,9 +490,9 @@ export class AuthService implements OnModuleInit {
       }
     }
 
+    let existingUser: any = null;
     // If explicit login or password recovery (isRegister === false), verify user exists and matches role
     if (dto.isRegister === false) {
-      let existingUser: any = null;
       try {
         if (isEmail) {
           existingUser = await this.db.user.findFirst({
@@ -541,6 +541,24 @@ export class AuthService implements OnModuleInit {
       if (!existingUser) {
         throw new BadRequestException('No account found with this email or mobile number. Please check your details or sign up.');
       }
+    }
+
+    const smsChannel = !isEmail;
+    const smsRole = (
+      dto.isRegister === true ? dto.role : existingUser?.role
+    )?.toUpperCase();
+    const allowedSmsRoles = new Set([
+      'DRIVER',
+      'VENDOR',
+      'USER',
+      'EMPLOYEE',
+      'CORPORATE_ADMIN',
+      'CORPORATE_MANAGER',
+    ]);
+    if (smsChannel && (!smsRole || !allowedSmsRoles.has(smsRole))) {
+      throw new BadRequestException(
+        'SMS OTP is available only for driver, vendor, corporate, and employee authentication.',
+      );
     }
 
     // Rate limiting: max 5 requests per 10 minutes

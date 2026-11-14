@@ -604,8 +604,8 @@ export class NotificationsService implements OnModuleInit {
           notification: {
             title,
             body,
-            icon: 'notification_icon',
-            color: '#5b42f3',
+            icon: 'adhocx_notification_mark',
+            color: '#5728b2',
             sound: isUrgentDispatch ? 'adhocx_dispatch_alert' : 'default',
             channelId: isUrgentDispatch ? 'adhocx_trip_dispatch_urgent' : 'adhocx_operational_alerts',
             clickAction: 'FLUTTER_NOTIFICATION_CLICK',
@@ -1539,72 +1539,6 @@ export class NotificationsService implements OnModuleInit {
     }
 
     throw new Error('Either phone or email must be provided to send OTP');
-  }
-
-  // ─── Trip OTP (Driver Arrival OTP sent to vendor) ────────────────────────────
-
-  /**
-   * Send trip verification OTP to vendor when driver arrives at pickup.
-   */
-
-  /**
-   * Send transactional SMS notification via MSG91
-   */
-  async sendSms(
-    phone: string,
-    message: string,
-    options?: { userId?: string; templateId?: string; variables?: Record<string, string> },
-  ): Promise<{ success: boolean; messageId: string }> {
-    // Check if user has disabled SMS notifications in their preferences
-    if (options?.userId && this.db) {
-      try {
-        const pref = await this.db.notificationPreference.findUnique({
-          where: { userId: options.userId },
-        });
-        if (pref && !pref.smsEnabled) {
-          this.logger.log(`🔇 [SMS SKIPPED] User ${options.userId} has disabled SMS notifications`);
-          return { success: true, messageId: 'sms_disabled_by_user' };
-        }
-      } catch (_) {}
-    }
-
-    if (this.msg91Service) {
-      if (options?.templateId) {
-        const result = await this.msg91Service.sendFlow(phone, options.templateId, options.variables || {});
-        return { success: result.success, messageId: result.messageId };
-      }
-      const result = await this.msg91Service.sendOtp(phone, message);
-      return { success: result.success, messageId: result.messageId };
-    }
-
-    const messageId = `msg_${Date.now()}`;
-    this.logger.log(`📱 [SMS NOTIFICATION DISPATCH] To: ${phone} | Body: "${message}" | MsgID: ${messageId}`);
-    return { success: true, messageId };
-  }
-
-  async sendTripOtp(phone: string, otp: string): Promise<void> {
-    if (this.msg91Service) {
-      await this.msg91Service.sendOtp(phone, otp);
-      return;
-    }
-    const smsText = `[AdhocX] Trip OTP: ${otp}. Share this code with the driver to confirm pickup.`;
-    this.logger.log(
-      `📱 [NOTIFICATION - TRIP OTP] To: ${phone} | Body: "${smsText}"`,
-    );
-  }
-
-  /**
-   * Admin test method to verify MSG91 SMS dispatch
-   */
-  async sendTestSms(phone: string, customOtp?: string): Promise<{ success: boolean; messageId: string; phone: string; otp: string }> {
-    const otp = customOtp || Math.floor(100000 + Math.random() * 900000).toString();
-    const result = await this.sendOtp({ phone, otp, channel: 'SMS' });
-    return {
-      success: result.success,
-      messageId: result.messageId,
-      phone,
-      otp,
-    };
   }
 
   // ─── KYC Status Alerts ──────────────────────────────────────────────────────

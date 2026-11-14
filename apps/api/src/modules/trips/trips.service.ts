@@ -481,12 +481,6 @@ export class TripsService {
       },
     });
 
-    // Send OTP SMS to vendor/passenger
-    const vendorPhone = updated.requirement.vendor.phone || updated.requirement.vendor.user?.phone;
-    if (vendorPhone) {
-      await this.notifications.sendTripOtp(vendorPhone, updated.otp);
-    }
-
     // Notify vendor in real-time
     this.notifications.emitEvent(`vendor:${updated.vendorId}`, 'TRIP_DRIVER_ARRIVED', {
       tripId: id,

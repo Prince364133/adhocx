@@ -225,6 +225,8 @@ export class DriversService {
         bankAccountNumber: kyc.bankAccountNumber || undefined,
         bankIfsc: kyc.bankIfsc || undefined,
         bankName: kyc.bankName || undefined,
+        bankVerificationStatus: kyc.bankVerificationStatus || 'NOT_SUBMITTED',
+        bankVerificationReason: kyc.bankVerificationReason || undefined,
         upiId: kyc.upiId || undefined,
         documents: Array.isArray(driver.kycDocuments) ? driver.kycDocuments : docsList,
         createdAt: driver.createdAt.toISOString(),
@@ -423,13 +425,19 @@ export class DriversService {
     }
 
     const currentKyc = (driver.kycDocuments as Record<string, any>) || {};
+    const bankAccountName = dto.bankAccountName.trim();
+    const bankAccountNumber = dto.bankAccountNumber.trim();
+    const bankIfsc = dto.bankIfsc.trim().toUpperCase();
     const updatedKyc = {
       ...currentKyc,
-      bankAccountName: dto.bankAccountName.trim(),
-      bankAccountNumber: dto.bankAccountNumber.trim(),
-      bankIfsc: dto.bankIfsc.trim().toUpperCase(),
+      bankAccountName,
+      bankAccountNumber,
+      bankIfsc,
       ...(dto.bankName !== undefined ? { bankName: dto.bankName.trim() } : {}),
       ...(dto.upiId !== undefined ? { upiId: dto.upiId.trim() } : {}),
+      bankVerificationStatus: 'PENDING',
+      bankVerificationReason: null,
+      bankVerificationSubmittedAt: new Date().toISOString(),
     };
 
     await this.db.driver.update({

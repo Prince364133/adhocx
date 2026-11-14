@@ -53,7 +53,6 @@ describe('TripsService Unit Tests', () => {
 
     notifications = {
       emitEvent: jest.fn(),
-      sendTripOtp: jest.fn().mockResolvedValue(undefined),
       sendPushToUser: jest.fn().mockResolvedValue({ success: true }),
     };
 
@@ -114,7 +113,6 @@ describe('TripsService Unit Tests', () => {
     const result = await service.markArrived('trip-1', 'usr-drv-1');
 
     expect(result.status).toBe(TripStatus.ARRIVED);
-    expect(notifications.sendTripOtp).toHaveBeenCalledWith('+919999988888', '5678');
     expect(db.tripEvent.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ eventType: 'DRIVER_ARRIVED' }),
