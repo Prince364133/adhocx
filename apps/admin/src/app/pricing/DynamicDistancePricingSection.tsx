@@ -645,25 +645,37 @@ export function DynamicDistancePricingSection() {
     if (!activePlan) return;
     setSavingSlabs(true);
     try {
-      const bKm = options?.baseKm ?? genBaseKm;
-      const sKm = options?.stepKm ?? genStepKm;
-      const mKm = options?.maxKm ?? genMaxKm;
-      const bVendor = options?.baseVendor ?? genBaseVendor;
-      const sVendor = options?.stepVendor ?? genStepVendor;
-      const bDriver = options?.baseDriver ?? genBaseDriver;
-      const sDriver = options?.stepDriver ?? genStepDriver;
-      const vpBase = options?.vendorPeakExtraBase ?? genVendorPeakExtraBase;
-      const vpStep = options?.vendorPeakExtraStep ?? genVendorPeakExtraStep;
-      const dpBase = options?.driverPeakExtraBase ?? genDriverPeakExtraBase;
-      const dpStep = options?.driverPeakExtraStep ?? genDriverPeakExtraStep;
-      const ebVendor = options?.escortBaseVendor ?? genEscortBaseVendor;
-      const esVendor = options?.escortStepVendor ?? genEscortStepVendor;
-      const ebDriver = options?.escortBaseDriver ?? genEscortBaseDriver;
-      const esDriver = options?.escortStepDriver ?? genEscortStepDriver;
+      const bKm = Math.max(1, Number(options?.baseKm ?? genBaseKm) || 1);
+      const sKm = Math.max(1, Number(options?.stepKm ?? genStepKm) || 1);
+      const mKm = Math.max(bKm + sKm, Number(options?.maxKm ?? genMaxKm) || 50);
+      const bVendor = Number(options?.baseVendor ?? genBaseVendor) || 0;
+      const sVendor = Number(options?.stepVendor ?? genStepVendor) || 0;
+      const bDriver = Number(options?.baseDriver ?? genBaseDriver) || 0;
+      const sDriver = Number(options?.stepDriver ?? genStepDriver) || 0;
+      const vpBase = Number(options?.vendorPeakExtraBase ?? genVendorPeakExtraBase) || 0;
+      const vpStep = Number(options?.vendorPeakExtraStep ?? genVendorPeakExtraStep) || 0;
+      const dpBase = Number(options?.driverPeakExtraBase ?? genDriverPeakExtraBase) || 0;
+      const dpStep = Number(options?.driverPeakExtraStep ?? genDriverPeakExtraStep) || 0;
+      const ebVendor = Number(options?.escortBaseVendor ?? genEscortBaseVendor) || 0;
+      const esVendor = Number(options?.escortStepVendor ?? genEscortStepVendor) || 0;
+      const ebDriver = Number(options?.escortBaseDriver ?? genEscortBaseDriver) || 0;
+      const esDriver = Number(options?.escortStepDriver ?? genEscortStepDriver) || 0;
       const windows = options?.windows ?? editingWindows;
       const surges = options?.vehicleSurges ?? vehiclePeakSurges;
 
       // Anti-Collapse & Margin Guard
+      if (bVendor <= 0) {
+        throw new Error('Vendor Base Fare must be greater than ₹0.');
+      }
+      if (sVendor <= 0) {
+        throw new Error('Vendor Step Increment must be greater than ₹0.');
+      }
+      if (bDriver <= 0) {
+        throw new Error('Driver Base Payout must be greater than ₹0.');
+      }
+      if (sDriver <= 0) {
+        throw new Error('Driver Step Payout must be greater than ₹0.');
+      }
       if (bVendor < bDriver) {
         throw new Error(`Vendor Base Fare (₹${bVendor}) cannot be less than Driver Base Payout (₹${bDriver}).`);
       }
@@ -681,9 +693,9 @@ export function DynamicDistancePricingSection() {
       }
 
       // Automatically construct contiguous distance slabs
-      const baseM = bKm * 1000;
-      const stepM = sKm * 1000;
-      const maxM = mKm * 1000;
+      const baseM = Math.round(bKm * 1000);
+      const stepM = Math.round(sKm * 1000);
+      const maxM = Math.round(mKm * 1000);
       const newSlabs: CreatePricingSlabInput[] = [];
 
       // Base band
