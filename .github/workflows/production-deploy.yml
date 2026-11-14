@@ -181,6 +181,8 @@ jobs:
           JWT_REFRESH_EXPIRES_IN=90d
           OTP_EXPIRY_SECONDS=300
           OTP_RESEND_DELAY_SECONDS=30
+          ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL || 'admin@adhocx.com' }}
+          ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD || 'Admin@AdhocX2026!' }}
           ENV_EOF"
 
           echo "🚀 Pulling latest container images and launching services..."
