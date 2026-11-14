@@ -88,6 +88,18 @@ export class RateCardConfigDto {
 
   @IsOptional() @IsNumber() @Min(0) @Max(200)
   driverPeakSurchargePercent?: number;
+
+  @IsOptional() @IsNumber() @Min(0)
+  vendorPeakExtraBaseRupees?: number;
+
+  @IsOptional() @IsNumber() @Min(0)
+  vendorPeakExtraStepRupees?: number;
+
+  @IsOptional() @IsNumber() @Min(0)
+  driverPeakExtraBaseRupees?: number;
+
+  @IsOptional() @IsNumber() @Min(0)
+  driverPeakExtraStepRupees?: number;
 }
 
 export class CreatePricingSlabInputDto {

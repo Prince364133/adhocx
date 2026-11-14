@@ -41,9 +41,8 @@ export function DynamicDistancePricingSection() {
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  // Audience & Time Condition View Switcher
-  const [selectedAudience, setSelectedAudience] = useState<'VENDOR' | 'DRIVER' | 'ESCORT'>('VENDOR');
-  const [selectedRegime, setSelectedRegime] = useState<'NON_PEAK' | 'PEAK'>('NON_PEAK');
+  // Audience Switcher
+  const [selectedAudience, setSelectedAudience] = useState<'UNIFIED' | 'ESCORT'>('UNIFIED');
 
   // Security Escort Pricing Table State
   const [escortFee, setEscortFee] = useState<number>(300);
@@ -61,16 +60,18 @@ export function DynamicDistancePricingSection() {
   const [savingSlabs, setSavingSlabs] = useState(false);
   const [slabEditReason, setSlabEditReason] = useState('');
 
-  // Step Generator State
-  const [genBaseKm, setGenBaseKm] = useState<number>(5);
+  // Step Generator State (Base Tier + Step Increment + Flat Peak Extra)
+  const [genBaseKm, setGenBaseKm] = useState<number>(10);
   const [genStepKm, setGenStepKm] = useState<number>(5);
   const [genMaxKm, setGenMaxKm] = useState<number>(50);
-  const [genBaseVendor, setGenBaseVendor] = useState<number>(200);
+  const [genBaseVendor, setGenBaseVendor] = useState<number>(400);
   const [genStepVendor, setGenStepVendor] = useState<number>(100);
-  const [genBaseDriver, setGenBaseDriver] = useState<number>(150);
+  const [genBaseDriver, setGenBaseDriver] = useState<number>(300);
   const [genStepDriver, setGenStepDriver] = useState<number>(70);
-  const [genVendorPeakUpliftPct, setGenVendorPeakUpliftPct] = useState<number>(20);
-  const [genDriverPeakUpliftPct, setGenDriverPeakUpliftPct] = useState<number>(15);
+  const [genVendorPeakExtraBase, setGenVendorPeakExtraBase] = useState<number>(80);
+  const [genVendorPeakExtraStep, setGenVendorPeakExtraStep] = useState<number>(60);
+  const [genDriverPeakExtraBase, setGenDriverPeakExtraBase] = useState<number>(50);
+  const [genDriverPeakExtraStep, setGenDriverPeakExtraStep] = useState<number>(40);
 
   // Retire (deactivate) State
   const [isRetireOpen, setIsRetireOpen] = useState(false);
@@ -205,10 +206,59 @@ export function DynamicDistancePricingSection() {
       if (typeof cfg.baseDriverRupees === 'number') setGenBaseDriver(cfg.baseDriverRupees);
       if (typeof cfg.stepVendorRupees === 'number') setGenStepVendor(cfg.stepVendorRupees);
       if (typeof cfg.stepDriverRupees === 'number') setGenStepDriver(cfg.stepDriverRupees);
-      if (typeof cfg.vendorPeakSurchargePercent === 'number') setGenVendorPeakUpliftPct(cfg.vendorPeakSurchargePercent);
-      if (typeof cfg.driverPeakSurchargePercent === 'number') setGenDriverPeakUpliftPct(cfg.driverPeakSurchargePercent);
+      if (typeof cfg.vendorPeakExtraBaseRupees === 'number') setGenVendorPeakExtraBase(cfg.vendorPeakExtraBaseRupees);
+      if (typeof cfg.vendorPeakExtraStepRupees === 'number') setGenVendorPeakExtraStep(cfg.vendorPeakExtraStepRupees);
+      if (typeof cfg.driverPeakExtraBaseRupees === 'number') setGenDriverPeakExtraBase(cfg.driverPeakExtraBaseRupees);
+      if (typeof cfg.driverPeakExtraStepRupees === 'number') setGenDriverPeakExtraStep(cfg.driverPeakExtraStepRupees);
     }
   }, [activePlan]);
+
+  // Derived high-level rules for master overview cards
+  const derivedRules = useMemo(() => {
+    if (!activePlan?.slabs || activePlan.slabs.length === 0) {
+      return {
+        baseKm: genBaseKm,
+        stepKm: genStepKm,
+        vendorBaseStd: genBaseVendor,
+        vendorBasePeak: genBaseVendor + genVendorPeakExtraBase,
+        vendorStepStd: genStepVendor,
+        vendorStepPeak: genStepVendor + genVendorPeakExtraStep,
+        driverBaseStd: genBaseDriver,
+        driverBasePeak: genBaseDriver + genDriverPeakExtraBase,
+        driverStepStd: genStepDriver,
+        driverStepPeak: genStepDriver + genDriverPeakExtraStep,
+      };
+    }
+    const s0 = activePlan.slabs[0];
+    const s1 = activePlan.slabs[1];
+    const baseKm = Math.round(s0.maxDistanceMInclusive / 1000);
+    const stepKm = s1 ? Math.round((s1.maxDistanceMInclusive - s1.minDistanceMExclusive) / 1000) : genStepKm;
+    const vendorBaseStd = s0.vendorPriceRupees;
+    const vendorBasePeak = Math.round((s0.vendorPeakPricePaise ?? s0.vendorPricePaise) / 100);
+    const driverBaseStd = s0.driverPayoutRupees;
+    const driverBasePeak = Math.round((s0.driverPeakPayoutPaise ?? s0.driverPayoutPaise) / 100);
+
+    const vendorStepStd = s1 ? s1.vendorPriceRupees - s0.vendorPriceRupees : genStepVendor;
+    const s1VendorPeak = s1 ? (s1.vendorPeakPricePaise ?? s1.vendorPricePaise) / 100 : vendorBasePeak + genVendorPeakExtraStep;
+    const vendorStepPeak = Math.max(0, s1VendorPeak - vendorBasePeak);
+
+    const driverStepStd = s1 ? s1.driverPayoutRupees - s0.driverPayoutRupees : genStepDriver;
+    const s1DriverPeak = s1 ? (s1.driverPeakPayoutPaise ?? s1.driverPayoutPaise) / 100 : driverBasePeak + genDriverPeakExtraStep;
+    const driverStepPeak = Math.max(0, s1DriverPeak - driverBasePeak);
+
+    return {
+      baseKm,
+      stepKm,
+      vendorBaseStd,
+      vendorBasePeak,
+      vendorStepStd,
+      vendorStepPeak,
+      driverBaseStd,
+      driverBasePeak,
+      driverStepStd,
+      driverStepPeak,
+    };
+  }, [activePlan, genBaseKm, genStepKm, genBaseVendor, genVendorPeakExtraBase, genStepVendor, genVendorPeakExtraStep, genBaseDriver, genDriverPeakExtraBase, genStepDriver, genDriverPeakExtraStep]);
 
   const livePlans = useMemo(() => plans.filter((p) => p.status === 'ACTIVE'), [plans]);
   const isEditable = activePlan?.status === 'DRAFT';
@@ -328,8 +378,8 @@ export function DynamicDistancePricingSection() {
     // Initial Base Tier (0 to baseKm)
     const vBaseStd = Math.round(genBaseVendor * 100);
     const dBaseStd = Math.round(genBaseDriver * 100);
-    const vBasePeak = Math.round(vBaseStd * (1 + genVendorPeakUpliftPct / 100));
-    const dBasePeak = Math.round(dBaseStd * (1 + genDriverPeakUpliftPct / 100));
+    const vBasePeak = Math.round((genBaseVendor + genVendorPeakExtraBase) * 100);
+    const dBasePeak = Math.round((genBaseDriver + genDriverPeakExtraBase) * 100);
 
     newSlabs.push({
       minDistanceMExclusive: 0,
@@ -348,8 +398,8 @@ export function DynamicDistancePricingSection() {
       const nextMax = Math.min(currentMin + stepMeters, maxMeters);
       const vStd = Math.round((genBaseVendor + stepIndex * genStepVendor) * 100);
       const dStd = Math.round((genBaseDriver + stepIndex * genStepDriver) * 100);
-      const vPeak = Math.round(vStd * (1 + genVendorPeakUpliftPct / 100));
-      const dPeak = Math.round(dStd * (1 + genDriverPeakUpliftPct / 100));
+      const vPeak = Math.round((genBaseVendor + genVendorPeakExtraBase + stepIndex * (genStepVendor + genVendorPeakExtraStep)) * 100);
+      const dPeak = Math.round((genBaseDriver + genDriverPeakExtraBase + stepIndex * (genStepDriver + genDriverPeakExtraStep)) * 100);
 
       newSlabs.push({
         minDistanceMExclusive: currentMin,
@@ -368,25 +418,28 @@ export function DynamicDistancePricingSection() {
     setEditingSlabs(newSlabs);
     setAlert({
       type: 'success',
-      message: `Generated ${newSlabs.length} slabs: Base 0-${genBaseKm} km (₹${genBaseVendor}/₹${genBaseDriver}), then +${genStepKm} km steps (+₹${genStepVendor}/+₹${genStepDriver}) up to ${genMaxKm} km with +${genVendorPeakUpliftPct}% / +${genDriverPeakUpliftPct}% peak surges.`,
+      message: `Generated ${newSlabs.length} slabs: Base 0-${genBaseKm} km (₹${genBaseVendor}/₹${genBaseDriver}, peak +₹${genVendorPeakExtraBase}/+₹${genDriverPeakExtraBase}), then +${genStepKm} km steps (+₹${genStepVendor}/+₹${genStepDriver}, peak extra +₹${genVendorPeakExtraStep}/+₹${genDriverPeakExtraStep}) up to ${genMaxKm} km.`,
     });
   }
 
-  // One-click decoupled peak surcharge multiplier for current slabs
+  // One-click peak surcharge addition for current slabs
   function handleApplyPeakUpliftToExisting() {
     if (editingSlabs.length === 0) return;
-    const vFactor = 1 + genVendorPeakUpliftPct / 100;
-    const dFactor = 1 + genDriverPeakUpliftPct / 100;
     setEditingSlabs(
-      editingSlabs.map((s) => ({
-        ...s,
-        vendorPeakPricePaise: Math.round(s.vendorPricePaise * vFactor),
-        driverPeakPayoutPaise: Math.round(s.driverPayoutPaise * dFactor),
-      })),
+      editingSlabs.map((s, idx) => {
+        const isBase = idx === 0;
+        const vPeak = isBase ? s.vendorPricePaise + Math.round(genVendorPeakExtraBase * 100) : s.vendorPricePaise + Math.round(genVendorPeakExtraBase * 100 + genVendorPeakExtraStep * 100 * idx);
+        const dPeak = isBase ? s.driverPayoutPaise + Math.round(genDriverPeakExtraBase * 100) : s.driverPayoutPaise + Math.round(genDriverPeakExtraBase * 100 + genDriverPeakExtraStep * 100 * idx);
+        return {
+          ...s,
+          vendorPeakPricePaise: vPeak,
+          driverPeakPayoutPaise: dPeak,
+        };
+      }),
     );
     setAlert({
       type: 'success',
-      message: `Applied +${genVendorPeakUpliftPct}% vendor and +${genDriverPeakUpliftPct}% driver peak uplift to all ${editingSlabs.length} slabs.`,
+      message: `Applied peak extra charges (+₹${genVendorPeakExtraStep} vendor / +₹${genDriverPeakExtraStep} driver per step) to all ${editingSlabs.length} slabs.`,
     });
   }
 
@@ -398,10 +451,10 @@ export function DynamicDistancePricingSection() {
         {
           minDistanceMExclusive: 0,
           maxDistanceMInclusive: stepM,
-          vendorPricePaise: 30000,
-          driverPayoutPaise: 24000,
-          vendorPeakPricePaise: 36000,
-          driverPeakPayoutPaise: 28800,
+          vendorPricePaise: genBaseVendor * 100,
+          driverPayoutPaise: genBaseDriver * 100,
+          vendorPeakPricePaise: (genBaseVendor + genVendorPeakExtraBase) * 100,
+          driverPeakPayoutPaise: (genBaseDriver + genDriverPeakExtraBase) * 100,
           active: true,
         },
       ]);
@@ -410,8 +463,11 @@ export function DynamicDistancePricingSection() {
     const last = editingSlabs[editingSlabs.length - 1];
     const newMin = last.maxDistanceMInclusive;
     const newMax = newMin + stepM;
-    const vPaise = last.vendorPricePaise + Math.round((stepKm * 12) * 100);
-    const dPaise = last.driverPayoutPaise + Math.round((stepKm * 9) * 100);
+    const stepFactor = stepKm / (genStepKm > 0 ? genStepKm : 5);
+    const vPaise = last.vendorPricePaise + Math.round(genStepVendor * stepFactor * 100);
+    const dPaise = last.driverPayoutPaise + Math.round(genStepDriver * stepFactor * 100);
+    const vPeakPaise = (last.vendorPeakPricePaise ?? last.vendorPricePaise) + Math.round((genStepVendor + genVendorPeakExtraStep) * stepFactor * 100);
+    const dPeakPaise = (last.driverPeakPayoutPaise ?? last.driverPayoutPaise) + Math.round((genStepDriver + genDriverPeakExtraStep) * stepFactor * 100);
 
     setEditingSlabs([
       ...editingSlabs,
@@ -420,8 +476,8 @@ export function DynamicDistancePricingSection() {
         maxDistanceMInclusive: newMax,
         vendorPricePaise: vPaise,
         driverPayoutPaise: dPaise,
-        vendorPeakPricePaise: Math.round(vPaise * 1.2),
-        driverPeakPayoutPaise: Math.round(dPaise * 1.2),
+        vendorPeakPricePaise: vPeakPaise,
+        driverPeakPayoutPaise: dPeakPaise,
         active: true,
       },
     ]);
@@ -493,8 +549,10 @@ export function DynamicDistancePricingSection() {
           stepVendorRupees: genStepVendor,
           stepDriverRupees: genStepDriver,
           maxDistanceKm: genMaxKm,
-          vendorPeakSurchargePercent: genVendorPeakUpliftPct,
-          driverPeakSurchargePercent: genDriverPeakUpliftPct,
+          vendorPeakExtraBaseRupees: genVendorPeakExtraBase,
+          vendorPeakExtraStepRupees: genVendorPeakExtraStep,
+          driverPeakExtraBaseRupees: genDriverPeakExtraBase,
+          driverPeakExtraStepRupees: genDriverPeakExtraStep,
         },
       };
 
@@ -845,13 +903,13 @@ export function DynamicDistancePricingSection() {
 
       {/* CARD 2: Condition-Based Rate Cards Dashboard */}
       <Card>
-        {/* Top Filter Tabs: Audience & Time Window */}
+        {/* Top Filter Tabs: Audience Switcher */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem', marginBottom: '1.25rem' }}>
           {/* Audience Switcher */}
           <div style={{ display: 'flex', gap: '0.4rem', background: 'var(--bg-surface-elevated)', padding: '0.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
             <button
               type="button"
-              onClick={() => setSelectedAudience('VENDOR')}
+              onClick={() => setSelectedAudience('UNIFIED')}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -859,33 +917,14 @@ export function DynamicDistancePricingSection() {
                 padding: '0.4rem 0.85rem',
                 borderRadius: 'var(--radius-sm)',
                 border: 'none',
-                background: selectedAudience === 'VENDOR' ? 'var(--brand-primary)' : 'transparent',
-                color: selectedAudience === 'VENDOR' ? '#fff' : 'var(--text-secondary)',
+                background: selectedAudience === 'UNIFIED' ? 'var(--brand-primary)' : 'transparent',
+                color: selectedAudience === 'UNIFIED' ? '#fff' : 'var(--text-secondary)',
                 fontWeight: 700,
                 fontSize: '0.8rem',
                 cursor: 'pointer',
               }}
             >
-              <Building2 size={14} /> Vendor Rate Cards
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelectedAudience('DRIVER')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                padding: '0.4rem 0.85rem',
-                borderRadius: 'var(--radius-sm)',
-                border: 'none',
-                background: selectedAudience === 'DRIVER' ? 'var(--brand-primary)' : 'transparent',
-                color: selectedAudience === 'DRIVER' ? '#fff' : 'var(--text-secondary)',
-                fontWeight: 700,
-                fontSize: '0.8rem',
-                cursor: 'pointer',
-              }}
-            >
-              <Car size={14} /> Driver Rate Cards
+              <Route size={14} /> Unified Rate Cards & Slabs
             </button>
             <button
               type="button"
@@ -907,50 +946,6 @@ export function DynamicDistancePricingSection() {
               <ShieldCheck size={14} /> Security Escort Rates
             </button>
           </div>
-
-          {/* Time Regime Switcher */}
-          {selectedAudience !== 'ESCORT' && (
-            <div style={{ display: 'flex', gap: '0.4rem', background: 'var(--bg-surface-elevated)', padding: '0.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
-              <button
-                type="button"
-                onClick={() => setSelectedRegime('NON_PEAK')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.35rem',
-                  padding: '0.4rem 0.85rem',
-                  borderRadius: 'var(--radius-sm)',
-                  border: 'none',
-                  background: selectedRegime === 'NON_PEAK' ? 'rgba(16, 185, 129, 0.18)' : 'transparent',
-                  color: selectedRegime === 'NON_PEAK' ? 'var(--color-success)' : 'var(--text-secondary)',
-                  fontWeight: 700,
-                  fontSize: '0.8rem',
-                  cursor: 'pointer',
-                }}
-              >
-                <Sun size={14} /> Non-Peak Hours
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedRegime('PEAK')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.35rem',
-                  padding: '0.4rem 0.85rem',
-                  borderRadius: 'var(--radius-sm)',
-                  border: 'none',
-                  background: selectedRegime === 'PEAK' ? 'rgba(99, 102, 241, 0.22)' : 'transparent',
-                  color: selectedRegime === 'PEAK' ? '#818CF8' : 'var(--text-secondary)',
-                  fontWeight: 700,
-                  fontSize: '0.8rem',
-                  cursor: 'pointer',
-                }}
-              >
-                <Zap size={14} /> Peak Hours
-              </button>
-            </div>
-          )}
 
           {selectedAudience !== 'ESCORT' && (
             <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -1126,69 +1121,301 @@ export function DynamicDistancePricingSection() {
             </div>
           </div>
         ) : (
-          /* Cards Grid: Condition-Based Cards */
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1rem' }}>
-            {activePlan.slabs.map((s, idx) => {
-              const isPeak = selectedRegime === 'PEAK';
-              const isDriver = selectedAudience === 'DRIVER';
-
-              const vendorPrice = isPeak ? (s.vendorPeakPricePaise ?? s.vendorPricePaise) / 100 : s.vendorPriceRupees;
-              const driverPayout = isPeak ? (s.driverPeakPayoutPaise ?? s.driverPayoutPaise) / 100 : s.driverPayoutRupees;
-              return (
-                <div
-                  key={s.id || idx}
-                  style={{
-                    background: 'var(--bg-surface-elevated)',
-                    borderRadius: 'var(--radius-lg)',
-                    border: '1px solid var(--border)',
-                    padding: '1.1rem',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.85rem',
-                    position: 'relative',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
-                      <Route size={15} color="var(--brand-primary)" />
-                      <span>{s.displayRange}</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            {/* Master Rule Overview: Dual Cards for Vendor Billing & Driver Payout */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1.25rem' }}>
+              {/* Card 1: Vendor Rate Structure (Client Billing) */}
+              <div
+                style={{
+                  background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(99, 102, 241, 0.02) 100%)',
+                  borderRadius: 'var(--radius-lg)',
+                  border: '1px solid rgba(99, 102, 241, 0.25)',
+                  padding: '1.25rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '1rem',
+                  position: 'relative',
+                }}
+              >
+                {/* Card Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                    <div style={{ width: '38px', height: '38px', borderRadius: 'var(--radius-md)', background: 'rgba(99, 102, 241, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Building2 size={20} color="var(--brand-primary)" />
                     </div>
-                    <span
-                      style={{
-                        padding: '0.15rem 0.45rem',
-                        borderRadius: 'var(--radius-xs)',
-                        fontSize: '0.68rem',
-                        fontWeight: 800,
-                        background: isPeak ? 'rgba(99, 102, 241, 0.15)' : 'rgba(16, 185, 129, 0.15)',
-                        color: isPeak ? '#818CF8' : 'var(--color-success)',
-                      }}
-                    >
-                      {isPeak ? '⚡ PEAK' : '🌤️ NON-PEAK'}
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                          Vendor Rate Card
+                        </h4>
+                        <span style={{ fontSize: '0.68rem', fontWeight: 800, padding: '0.15rem 0.5rem', borderRadius: 'var(--radius-xs)', background: 'rgba(99, 102, 241, 0.2)', color: '#818CF8' }}>
+                          CLIENT BILLING
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
+                        What enterprise clients are billed for trips
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Dual Rule Highlights */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                  {/* Base Tier Box */}
+                  <div style={{ background: 'var(--bg-card)', padding: '0.9rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
+                      Initial Base Fare (0 - {derivedRules.baseKm} km)
+                    </div>
+                    <div style={{ marginTop: '0.35rem', display: 'flex', alignItems: 'baseline', gap: '0.4rem' }}>
+                      <span style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--text-primary)' }}>
+                        {inr(derivedRules.vendorBaseStd)}
+                      </span>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>standard</span>
+                    </div>
+                    <div style={{ marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.78rem', color: '#818CF8', fontWeight: 700 }}>
+                      <Zap size={13} /> Peak: {inr(derivedRules.vendorBasePeak)}
+                      <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                        (+{inr(derivedRules.vendorBasePeak - derivedRules.vendorBaseStd)} extra)
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Step Increment Box */}
+                  <div style={{ background: 'var(--bg-card)', padding: '0.9rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
+                      Distance Steps (+{derivedRules.stepKm} km)
+                    </div>
+                    <div style={{ marginTop: '0.35rem', display: 'flex', alignItems: 'baseline', gap: '0.4rem' }}>
+                      <span style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--text-primary)' }}>
+                        +{inr(derivedRules.vendorStepStd)}
+                      </span>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>/ step</span>
+                    </div>
+                    <div style={{ marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.78rem', color: '#818CF8', fontWeight: 700 }}>
+                      <Zap size={13} /> Peak: +{inr(derivedRules.vendorStepPeak)}
+                      <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                        (+{inr(derivedRules.vendorStepPeak - derivedRules.vendorStepStd)} extra)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Formula Footnote */}
+                <div style={{ fontSize: '0.73rem', color: 'var(--text-muted)', background: 'rgba(0,0,0,0.15)', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+                  <strong>Pricing Formula:</strong> Standard = ₹{derivedRules.vendorBaseStd} base + ₹{derivedRules.vendorStepStd} per {derivedRules.stepKm}km step. Peak = ₹{derivedRules.vendorBasePeak} base + ₹{derivedRules.vendorStepPeak} per {derivedRules.stepKm}km step.
+                </div>
+              </div>
+
+              {/* Card 2: Driver Rate Structure (Driver Payout) */}
+              <div
+                style={{
+                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(16, 185, 129, 0.02) 100%)',
+                  borderRadius: 'var(--radius-lg)',
+                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                  padding: '1.25rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '1rem',
+                  position: 'relative',
+                }}
+              >
+                {/* Card Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                    <div style={{ width: '38px', height: '38px', borderRadius: 'var(--radius-md)', background: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Car size={20} color="var(--color-success)" />
+                    </div>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                          Driver Rate Card
+                        </h4>
+                        <span style={{ fontSize: '0.68rem', fontWeight: 800, padding: '0.15rem 0.5rem', borderRadius: 'var(--radius-xs)', background: 'rgba(16, 185, 129, 0.2)', color: 'var(--color-success)' }}>
+                          DRIVER PAYOUT
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
+                        Guaranteed trip earnings credited to driver partners
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Dual Rule Highlights */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                  {/* Base Tier Box */}
+                  <div style={{ background: 'var(--bg-card)', padding: '0.9rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
+                      Initial Base Payout (0 - {derivedRules.baseKm} km)
+                    </div>
+                    <div style={{ marginTop: '0.35rem', display: 'flex', alignItems: 'baseline', gap: '0.4rem' }}>
+                      <span style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--color-success)' }}>
+                        {inr(derivedRules.driverBaseStd)}
+                      </span>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>standard</span>
+                    </div>
+                    <div style={{ marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.78rem', color: '#818CF8', fontWeight: 700 }}>
+                      <Zap size={13} /> Peak: {inr(derivedRules.driverBasePeak)}
+                      <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                        (+{inr(derivedRules.driverBasePeak - derivedRules.driverBaseStd)} extra)
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Step Increment Box */}
+                  <div style={{ background: 'var(--bg-card)', padding: '0.9rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
+                      Distance Steps (+{derivedRules.stepKm} km)
+                    </div>
+                    <div style={{ marginTop: '0.35rem', display: 'flex', alignItems: 'baseline', gap: '0.4rem' }}>
+                      <span style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--color-success)' }}>
+                        +{inr(derivedRules.driverStepStd)}
+                      </span>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>/ step</span>
+                    </div>
+                    <div style={{ marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.78rem', color: '#818CF8', fontWeight: 700 }}>
+                      <Zap size={13} /> Peak: +{inr(derivedRules.driverStepPeak)}
+                      <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                        (+{inr(derivedRules.driverStepPeak - derivedRules.driverStepStd)} extra)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Formula Footnote */}
+                <div style={{ fontSize: '0.73rem', color: 'var(--text-muted)', background: 'rgba(0,0,0,0.15)', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+                  <strong>Payout Formula:</strong> Standard = ₹{derivedRules.driverBaseStd} base + ₹{derivedRules.driverStepStd} per {derivedRules.stepKm}km step. Peak = ₹{derivedRules.driverBasePeak} base + ₹{derivedRules.driverStepPeak} per {derivedRules.stepKm}km step.
+                </div>
+              </div>
+            </div>
+
+            {/* Unified Distance Slabs Progression Table */}
+            <div style={{ background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', overflow: 'hidden' }}>
+              <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Route size={16} color="var(--brand-primary)" />
+                    <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                      Distance Slabs Progression Table
+                    </h4>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: 'var(--radius-xs)', background: 'rgba(99, 102, 241, 0.15)', color: '#818CF8' }}>
+                      {activePlan.slabs.length} Bands Active
                     </span>
                   </div>
-
-                  <div style={{ background: 'var(--bg-card)', padding: '0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
-                      {isDriver ? 'Driver Payout' : 'Vendor Charge'}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: '1.4rem',
-                        fontWeight: 900,
-                        color: isDriver ? 'var(--color-success)' : 'var(--text-primary)',
-                        marginTop: '0.2rem',
-                      }}
-                    >
-                      {inr(isDriver ? driverPayout : vendorPrice)}
-                    </div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                      {isDriver ? `Charged to Vendor: ${inr(vendorPrice)}` : `Paid to Driver: ${inr(driverPayout)}`}
-                    </div>
-                  </div>
-
+                  <p style={{ margin: 0, marginTop: '0.2rem', fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                    Continuous distance bands showing side-by-side Vendor billing, Driver payout, and Platform Net Margin.
+                  </p>
                 </div>
-              );
-            })}
+              </div>
+
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'left' }}>
+                  <thead>
+                    <tr style={{ background: 'rgba(0,0,0,0.2)', borderBottom: '1px solid var(--border)', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.68rem', letterSpacing: '0.04em' }}>
+                      <th style={{ padding: '0.75rem 1rem' }}>Distance Band</th>
+                      <th style={{ padding: '0.75rem 1rem', borderLeft: '1px solid var(--border)' }}>Vendor Std (₹)</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Vendor Peak ⚡ (₹)</th>
+                      <th style={{ padding: '0.75rem 1rem', borderLeft: '1px solid var(--border)' }}>Driver Std (₹)</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Driver Peak ⚡ (₹)</th>
+                      <th style={{ padding: '0.75rem 1rem', borderLeft: '1px solid var(--border)' }}>Margin Std (₹ / %)</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Margin Peak ⚡ (₹ / %)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {activePlan.slabs.map((s, idx) => {
+                      const vStd = s.vendorPriceRupees;
+                      const vPeak = Math.round((s.vendorPeakPricePaise ?? s.vendorPricePaise) / 100);
+                      const dStd = s.driverPayoutRupees;
+                      const dPeak = Math.round((s.driverPeakPayoutPaise ?? s.driverPayoutPaise) / 100);
+
+                      const marginStd = vStd - dStd;
+                      const marginStdPct = vStd > 0 ? ((marginStd / vStd) * 100).toFixed(1) : '0.0';
+
+                      const marginPeak = vPeak - dPeak;
+                      const marginPeakPct = vPeak > 0 ? ((marginPeak / vPeak) * 100).toFixed(1) : '0.0';
+
+                      const isBase = idx === 0;
+
+                      return (
+                        <tr
+                          key={s.id || idx}
+                          style={{
+                            borderBottom: '1px solid var(--border)',
+                            background: isBase ? 'rgba(99, 102, 241, 0.03)' : 'transparent',
+                            transition: 'background 0.15s ease',
+                          }}
+                        >
+                          {/* Distance Band */}
+                          <td style={{ padding: '0.85rem 1rem', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                              <Route size={14} color="var(--brand-primary)" />
+                              <span>{s.displayRange}</span>
+                              {isBase && (
+                                <span style={{ fontSize: '0.65rem', fontWeight: 800, padding: '0.1rem 0.4rem', borderRadius: '3px', background: 'rgba(99, 102, 241, 0.2)', color: '#818CF8' }}>
+                                  BASE
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Vendor Std */}
+                          <td style={{ padding: '0.85rem 1rem', borderLeft: '1px solid var(--border)', fontWeight: 800, color: 'var(--text-primary)', fontSize: '0.9rem' }}>
+                            {inr(vStd)}
+                          </td>
+
+                          {/* Vendor Peak */}
+                          <td style={{ padding: '0.85rem 1rem', fontWeight: 800, color: '#818CF8', fontSize: '0.9rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                              <Zap size={13} />
+                              <span>{inr(vPeak)}</span>
+                              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                                (+{inr(vPeak - vStd)})
+                              </span>
+                            </div>
+                          </td>
+
+                          {/* Driver Std */}
+                          <td style={{ padding: '0.85rem 1rem', borderLeft: '1px solid var(--border)', fontWeight: 800, color: 'var(--color-success)', fontSize: '0.9rem' }}>
+                            {inr(dStd)}
+                          </td>
+
+                          {/* Driver Peak */}
+                          <td style={{ padding: '0.85rem 1rem', fontWeight: 800, color: '#34D399', fontSize: '0.9rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                              <Zap size={13} />
+                              <span>{inr(dPeak)}</span>
+                              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                                (+{inr(dPeak - dStd)})
+                              </span>
+                            </div>
+                          </td>
+
+                          {/* Margin Std */}
+                          <td style={{ padding: '0.85rem 1rem', borderLeft: '1px solid var(--border)', fontWeight: 700 }}>
+                            <span style={{ color: marginStd >= 0 ? 'var(--color-success)' : 'var(--color-danger)' }}>
+                              +{inr(marginStd)}
+                            </span>
+                            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginLeft: '0.35rem' }}>
+                              ({marginStdPct}%)
+                            </span>
+                          </td>
+
+                          {/* Margin Peak */}
+                          <td style={{ padding: '0.85rem 1rem', fontWeight: 700 }}>
+                            <span style={{ color: marginPeak >= 0 ? '#818CF8' : 'var(--color-danger)' }}>
+                              +{inr(marginPeak)}
+                            </span>
+                            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginLeft: '0.35rem' }}>
+                              ({marginPeakPct}%)
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         )}
       </Card>
@@ -1540,6 +1767,26 @@ export function DynamicDistancePricingSection() {
                 />
               </div>
               <div>
+                <label style={{ fontSize: '0.7rem', color: '#818CF8', fontWeight: 600 }}>Vendor Peak Extra Base (+₹)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={genVendorPeakExtraBase}
+                  onChange={(e) => setGenVendorPeakExtraBase(Number(e.target.value))}
+                  style={{ width: '100%', marginTop: '0.2rem', padding: '0.35rem 0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: '#818CF8', fontSize: '0.78rem', fontWeight: 700 }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.7rem', color: '#818CF8', fontWeight: 600 }}>Vendor Peak Extra Step (+₹)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={genVendorPeakExtraStep}
+                  onChange={(e) => setGenVendorPeakExtraStep(Number(e.target.value))}
+                  style={{ width: '100%', marginTop: '0.2rem', padding: '0.35rem 0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: '#818CF8', fontSize: '0.78rem', fontWeight: 700 }}
+                />
+              </div>
+              <div>
                 <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>Driver Base (₹)</label>
                 <input
                   type="number"
@@ -1560,31 +1807,29 @@ export function DynamicDistancePricingSection() {
                 />
               </div>
               <div>
-                <label style={{ fontSize: '0.7rem', color: '#818CF8', fontWeight: 600 }}>Vendor Peak (+%)</label>
+                <label style={{ fontSize: '0.7rem', color: 'var(--color-success)', fontWeight: 600 }}>Driver Peak Extra Base (+₹)</label>
                 <input
                   type="number"
                   min="0"
-                  max="150"
-                  value={genVendorPeakUpliftPct}
-                  onChange={(e) => setGenVendorPeakUpliftPct(Number(e.target.value))}
-                  style={{ width: '100%', marginTop: '0.2rem', padding: '0.35rem 0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: '#818CF8', fontSize: '0.78rem', fontWeight: 700 }}
+                  value={genDriverPeakExtraBase}
+                  onChange={(e) => setGenDriverPeakExtraBase(Number(e.target.value))}
+                  style={{ width: '100%', marginTop: '0.2rem', padding: '0.35rem 0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--color-success)', fontSize: '0.78rem', fontWeight: 700 }}
                 />
               </div>
               <div>
-                <label style={{ fontSize: '0.7rem', color: 'var(--color-success)', fontWeight: 600 }}>Driver Peak (+%)</label>
+                <label style={{ fontSize: '0.7rem', color: 'var(--color-success)', fontWeight: 600 }}>Driver Peak Extra Step (+₹)</label>
                 <input
                   type="number"
                   min="0"
-                  max="150"
-                  value={genDriverPeakUpliftPct}
-                  onChange={(e) => setGenDriverPeakUpliftPct(Number(e.target.value))}
+                  value={genDriverPeakExtraStep}
+                  onChange={(e) => setGenDriverPeakExtraStep(Number(e.target.value))}
                   style={{ width: '100%', marginTop: '0.2rem', padding: '0.35rem 0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--color-success)', fontSize: '0.78rem', fontWeight: 700 }}
                 />
               </div>
             </div>
             <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', flexWrap: 'wrap' }}>
               <Button variant="outline" size="sm" onClick={handleApplyPeakUpliftToExisting}>
-                Apply Peak (+{genVendorPeakUpliftPct}% / +{genDriverPeakUpliftPct}%) to Current Slabs
+                Apply Peak Extras (+₹{genVendorPeakExtraStep} / +₹{genDriverPeakExtraStep}) to Current Slabs
               </Button>
               <Button variant="primary" size="sm" onClick={handleGenerateSteps}>
                 Generate Contiguous Slabs
