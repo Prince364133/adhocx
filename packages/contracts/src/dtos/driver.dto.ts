@@ -1,6 +1,6 @@
 import { IsDateString, IsEnum, IsIn, IsLatitude, IsLongitude, IsNumber, IsOptional, IsString, Max, Min, ValidateNested } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
-import { DriverAvailability, VerificationStatus, VehicleType } from '../enums';
+import { DriverAvailability, VerificationStatus } from '../enums';
 import { GeoLocationDto } from './common.dto';
 
 export class UpdateAvailabilityDto {
@@ -216,7 +216,7 @@ export class DriverProfileDto {
   phone!: string;
   verificationStatus!: VerificationStatus;
   availabilityStatus!: DriverAvailability;
-  vehicleType?: VehicleType;
+  vehicleType?: string;
   vehicleModel?: string;
   vehiclePlate?: string;
   walletBalance!: number;

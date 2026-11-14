@@ -13,6 +13,7 @@ import { NotificationsService } from '../../../modules/notifications/notificatio
 import { AuditService } from '../../../modules/audit/audit.service';
 import { withdrawCorporateRouteOffer } from '../dispatch/corporate-dispatch.service';
 import { TripEventRecorder } from '../tracking/trip-event-recorder.service';
+import { calculateTierMaxSeats } from '../../../modules/pricing/pricing.service';
 import {
   evaluateCutoff,
   formatIst,
@@ -114,8 +115,6 @@ const SEQUENCE_PARKING_OFFSET = 1000;
 export class CorporateReplanningService {
   private readonly logger = new Logger(CorporateReplanningService.name);
 
-  readonly DEFAULT_VEHICLE_CATEGORY = 'SEDAN';
-  readonly DEFAULT_SEDAN_CAPACITY = 4;
   readonly MAX_INSERTION_DETOUR_METERS = 5000;
   readonly MAX_ROUTE_DURATION_SECONDS = 2 * 3600;
   /** LOGIN: inserting a passenger must not move an existing pickup earlier by more than this. */
@@ -329,6 +328,7 @@ export class CorporateReplanningService {
         target.passengers = best.order;
       } else {
         createdNewRoute = true;
+        const vehicle = await this.resolveVehicleForNewRoute(req.tenantId);
         const shiftInstant = istWallClockToUtc(targetDay, newShiftTime);
         target = {
           id: null,
@@ -339,8 +339,8 @@ export class CorporateReplanningService {
               ? shiftInstant
               : new Date(shiftInstant.getTime() - OFFICE_ARRIVAL_BUFFER_MINUTES * 60_000),
           direction: req.direction,
-          maxCapacity: this.DEFAULT_SEDAN_CAPACITY,
-          vehicleCategory: this.DEFAULT_VEHICLE_CATEGORY,
+          maxCapacity: vehicle.maxCapacity,
+          vehicleCategory: vehicle.vehicleCategory,
           meta: { tenantId: req.tenantId, officeId: office.officeId, shiftDate: targetDate, shiftTime: newShiftTime },
           passengers: [passenger],
           rebuild: true,
@@ -522,6 +522,48 @@ export class CorporateReplanningService {
       })) ?? [];
     const byId = new Map(rows.map((r) => [r.id, r.gender]));
     for (const w of routes) for (const p of w.passengers) if (!p.gender && p.employeeId) p.gender = byId.get(p.employeeId);
+  }
+
+  private async resolveVehicleForNewRoute(
+    tenantId: string,
+  ): Promise<{ vehicleCategory: string; maxCapacity: number }> {
+    const categories = await this.db.vehiclePricingTier.findMany({
+      where: { isActive: true },
+      orderBy: { vehicleType: 'asc' },
+      select: { vehicleType: true, seatingCapacity: true },
+    });
+    const available = categories
+      .filter((category) => category.vehicleType?.trim())
+      .map((category) => ({
+        vehicleType: category.vehicleType.trim().toUpperCase(),
+        maxSeats: calculateTierMaxSeats(category.vehicleType, category.seatingCapacity),
+      }));
+    if (available.length === 0) {
+      throw new BadRequestException('No active vehicle categories are configured');
+    }
+
+    const policy = await this.db.corporateTenantPolicy.findFirst({
+      where: { tenantId },
+      orderBy: [{ effectiveFrom: 'desc' }, { version: 'desc' }],
+      select: { defaultVehicleCategory: true, defaultCapacity: true },
+    });
+    const policyCategory = String(policy?.defaultVehicleCategory ?? 'ALL').trim().toUpperCase();
+    const requestedCategory =
+      policyCategory === 'ALL'
+        ? available.filter((category) => category.maxSeats >= 1).sort((left, right) => left.maxSeats - right.maxSeats)[0]
+        : available.find((category) => category.vehicleType === policyCategory);
+    if (!requestedCategory) {
+      throw new BadRequestException(`Tenant vehicle category '${policyCategory}' is not active in the vehicle catalogue`);
+    }
+
+    const policyCapacity = Number(policy?.defaultCapacity);
+    return {
+      vehicleCategory: requestedCategory.vehicleType,
+      maxCapacity:
+        Number.isInteger(policyCapacity) && policyCapacity > 0
+          ? Math.min(requestedCategory.maxSeats, policyCapacity)
+          : requestedCategory.maxSeats,
+    };
   }
 
   private async planMerge(

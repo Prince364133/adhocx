@@ -25,7 +25,7 @@ import {
   complianceBlockersFromError,
   OVERRIDE_REASON_MIN_LENGTH,
 } from '../../lib/api/client';
-import { DriverListItem, DriverDetail } from '../../lib/api/types';
+import { DriverListItem, DriverDetail, VehicleCategory } from '../../lib/api/types';
 import {
   PageHeader,
   FilterBar,
@@ -45,16 +45,6 @@ const STATUS_TABS = [
   { id: 'VERIFIED', label: 'Verified' },
   { id: 'REJECTED', label: 'Rejected' },
   { id: 'SUSPENDED', label: 'Suspended' },
-];
-
-const VEHICLE_TYPE_OPTIONS = [
-  'SEDAN',
-  'SUV',
-  'HATCHBACK',
-  'PRIME_SEDAN',
-  'EV',
-  'MINIVAN',
-  'STANDARD',
 ];
 
 /** Driver is paused from new offers by the anti-cherry-picking cooldown. */
@@ -285,6 +275,8 @@ export default function DriversPage() {
   const [activeTab, setActiveTab] = useState('ALL');
   const [search, setSearch] = useState('');
   const [drivers, setDrivers] = useState<DriverListItem[]>([]);
+  const [vehicleCategories, setVehicleCategories] = useState<VehicleCategory[]>([]);
+  const [vehicleCategoriesLoading, setVehicleCategoriesLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [selectedDriver, setSelectedDriver] = useState<DriverDetail | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -304,12 +296,34 @@ export default function DriversPage() {
     phone: '',
     vehiclePlate: '',
     vehicleModel: '',
-    vehicleType: 'SEDAN',
+    vehicleType: '',
   });
 
   useEffect(() => {
     loadDrivers(activeTab);
   }, [activeTab]);
+
+  useEffect(() => {
+    let cancelled = false;
+    adminApi.getPricingTiers()
+      .then((categories) => {
+        if (!cancelled) setVehicleCategories(categories.filter((category) => category.isActive));
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setAlert({
+            type: 'error',
+            message: `Could not load active vehicle categories: ${error instanceof Error ? error.message : String(error)}`,
+          });
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setVehicleCategoriesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function loadDrivers(status: string) {
     setLoading(true);
@@ -410,7 +424,9 @@ export default function DriversPage() {
       phone: driver.phone || '',
       vehiclePlate: driver.vehiclePlate || '',
       vehicleModel: driver.vehicleModel || '',
-      vehicleType: driver.vehicleType || 'SEDAN',
+      vehicleType: vehicleCategories.some((category) => category.vehicleType === driver.vehicleType)
+        ? driver.vehicleType || ''
+        : '',
     });
     handleOpenDetails(driver).then(() => {
       setIsEditModalOpen(true);
@@ -424,13 +440,19 @@ export default function DriversPage() {
       phone: selectedDriver.phone || '',
       vehiclePlate: selectedDriver.vehiclePlate || '',
       vehicleModel: selectedDriver.vehicleModel || '',
-      vehicleType: selectedDriver.vehicleType || 'SEDAN',
+      vehicleType: vehicleCategories.some((category) => category.vehicleType === selectedDriver.vehicleType)
+        ? selectedDriver.vehicleType || ''
+        : '',
     });
     setIsEditModalOpen(true);
   }
 
   async function handleSaveEditDriver() {
     if (!selectedDriver) return;
+    if (!vehicleCategories.some((category) => category.vehicleType === editFormData.vehicleType)) {
+      setAlert({ type: 'error', message: 'Select an active vehicle category from Pricing before saving.' });
+      return;
+    }
     setActionLoading(true);
     try {
       await adminApi.updateDriver(selectedDriver.id, {
@@ -1898,14 +1920,19 @@ export default function DriversPage() {
               <select
                 className="form-select"
                 value={editFormData.vehicleType}
+                disabled={vehicleCategoriesLoading || vehicleCategories.length === 0}
                 onChange={(e) => setEditFormData({ ...editFormData, vehicleType: e.target.value })}
               >
-                {VEHICLE_TYPE_OPTIONS.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
+                <option value="">Select an active category</option>
+                {vehicleCategories.map((category) => (
+                  <option key={category.vehicleType} value={category.vehicleType}>
+                    {category.categoryLabel}
                   </option>
                 ))}
               </select>
+              {vehicleCategories.length === 0 && !vehicleCategoriesLoading && (
+                <small className="form-hint">Add an active category in Pricing before editing vehicle types.</small>
+              )}
             </div>
           </div>
         </Drawer>

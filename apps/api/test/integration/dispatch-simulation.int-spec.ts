@@ -29,7 +29,6 @@ import {
   RequirementStatus,
   TripStatus,
   UserRole,
-  VehicleType,
   VerificationStatus,
 } from '@adhocx/contracts';
 import { DatabaseService } from '../../src/database/database.service';
@@ -108,7 +107,7 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
     },
   };
 
-  const drivers = new Map<string, { id: string; userId: string; type: VehicleType; lat: number; lng: number }>();
+  const drivers = new Map<string, { id: string; userId: string; type: string; lat: number; lng: number }>();
   const vendors: { id: string; userId: string }[] = [];
   let ridesBooked = 0;
 
@@ -123,7 +122,7 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
     }
   };
 
-  const seedDriver = async (key: string, type: VehicleType, lat: number, lng: number, opts: Partial<{ trust: number; rating: number; trips: number; noGps: boolean }> = {}) => {
+  const seedDriver = async (key: string, type: string, lat: number, lng: number, opts: Partial<{ trust: number; rating: number; trips: number; noGps: boolean }> = {}) => {
     const user = await prisma.user.create({
       data: { phone: `+9190000${String(drivers.size).padStart(5, '0')}`, fullName: key, role: 'DRIVER', status: 'ACTIVE' },
     });
@@ -152,7 +151,7 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
   const D = (key: string) => drivers.get(key)!;
   const keyOf = (driverId: string) => Array.from(drivers.entries()).find(([, v]) => v.id === driverId)?.[0] ?? driverId;
 
-  const book = async (vendorIdx: number, vehicleType: VehicleType, quantity = 1) => {
+  const book = async (vendorIdx: number, vehicleType: string, quantity = 1) => {
     const res = await requirements.createRequirement(vendors[vendorIdx].userId, {
       vehicleType,
       quantity,
@@ -219,7 +218,7 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
     reviews.createReview(vendors[vendorIdx].userId, { tripId, rating, feedback: `sim rating ${rating}` } as any);
 
   /** Book -> first live offer accepted -> ride completed -> customer reviews. */
-  const happyRide = async (vendorIdx: number, vehicleType: VehicleType, rating = 5) => {
+  const happyRide = async (vendorIdx: number, vehicleType: string, rating = 5) => {
     const reqId = await book(vendorIdx, vehicleType);
     const [first] = await liveOffers(reqId);
     expect(first).toBeDefined();
@@ -244,7 +243,7 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
     return !d.cooldownUntil || d.cooldownUntil.getTime() <= Date.now();
   };
 
-  const sedanKeys = () => Array.from(drivers.entries()).filter(([, v]) => v.type === VehicleType.SEDAN).map(([k]) => k);
+  const sedanKeys = () => Array.from(drivers.entries()).filter(([, v]) => v.type === 'SEDAN').map(([k]) => k);
 
   const assertInvariants = async () => {
     const reqs = await prisma.requirement.findMany({ include: { trips: true, offers: { include: { driver: true } } } });
@@ -337,24 +336,24 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
 
     // Supply around Cyber Hub (pickup). sedan-2 is aerially the closest sedan but across a
     // barrier: 40 minutes by road.
-    await seedDriver('sedan-1', VehicleType.SEDAN, 28.4625, 77.03, { trust: 96 });
-    await seedDriver('sedan-2', VehicleType.SEDAN, 28.4598, 77.0269, { trust: 97 });
-    await seedDriver('sedan-3', VehicleType.SEDAN, 28.468, 77.04, { trust: 92 });
-    await seedDriver('sedan-4', VehicleType.SEDAN, 28.475, 77.045, { trust: 90 });
-    await seedDriver('sedan-5', VehicleType.SEDAN, 28.49, 77.06, { trust: 88 });
-    await seedDriver('sedan-rookie', VehicleType.SEDAN, 28.465, 77.035, { trust: 100, trips: 3 });
-    await seedDriver('suv-1', VehicleType.SUV, 28.4605, 77.028, { trust: 98 });
-    await seedDriver('suv-2', VehicleType.SUV, 28.47, 77.04, { trust: 94 });
-    await seedDriver('suv-3', VehicleType.SUV, 28.485, 77.055, { trust: 91 });
-    await seedDriver('suv-4', VehicleType.SUV, 28.51, 77.075, { trust: 86 });
-    await seedDriver('hatch-1', VehicleType.HATCHBACK, 28.461, 77.028, { trust: 96 });
+    await seedDriver('sedan-1', 'SEDAN', 28.4625, 77.03, { trust: 96 });
+    await seedDriver('sedan-2', 'SEDAN', 28.4598, 77.0269, { trust: 97 });
+    await seedDriver('sedan-3', 'SEDAN', 28.468, 77.04, { trust: 92 });
+    await seedDriver('sedan-4', 'SEDAN', 28.475, 77.045, { trust: 90 });
+    await seedDriver('sedan-5', 'SEDAN', 28.49, 77.06, { trust: 88 });
+    await seedDriver('sedan-rookie', 'SEDAN', 28.465, 77.035, { trust: 100, trips: 3 });
+    await seedDriver('suv-1', 'SUV', 28.4605, 77.028, { trust: 98 });
+    await seedDriver('suv-2', 'SUV', 28.47, 77.04, { trust: 94 });
+    await seedDriver('suv-3', 'SUV', 28.485, 77.055, { trust: 91 });
+    await seedDriver('suv-4', 'SUV', 28.51, 77.075, { trust: 86 });
+    await seedDriver('hatch-1', 'HATCHBACK', 28.461, 77.028, { trust: 96 });
     // ~1.75 km: inside the 2 km first ring (wave 1 = maxPickupRadius 10 km / 5 waves), so the
     // 1-seat race in rides 31-33 really has two drivers.
-    await seedDriver('hatch-2', VehicleType.HATCHBACK, 28.470, 77.040, { trust: 93 });
-    await seedDriver('hatch-3', VehicleType.HATCHBACK, 28.495, 77.065, { trust: 89 });
-    await seedDriver('sedan-offline', VehicleType.SEDAN, 28.4596, 77.0267);
+    await seedDriver('hatch-2', 'HATCHBACK', 28.470, 77.040, { trust: 93 });
+    await seedDriver('hatch-3', 'HATCHBACK', 28.495, 77.065, { trust: 89 });
+    await seedDriver('sedan-offline', 'SEDAN', 28.4596, 77.0267);
     await setOnline(['sedan-offline'], false);
-    const unverified = await seedDriver('sedan-unverified', VehicleType.SEDAN, 28.4597, 77.0268);
+    const unverified = await seedDriver('sedan-unverified', 'SEDAN', 28.4597, 77.0268);
     await prisma.driver.update({ where: { id: unverified.id }, data: { verificationStatus: VerificationStatus.PENDING } });
 
     routing.overrides.set('28.4598,77.0269', 40);
@@ -391,13 +390,13 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
 
   it('Rides 1-10: sedan bookings reach only sedans; road ETA beats aerial distance; full lifecycle + review', async () => {
     for (let ride = 1; ride <= 10; ride++) {
-      const reqId = await book(ride - 1, VehicleType.SEDAN);
+      const reqId = await book(ride - 1, 'SEDAN');
       const wave = await liveOffers(reqId);
       const offeredKeys = wave.map((o) => keyOf(o.driverId));
 
       expect(wave.length).toBeGreaterThan(0);
       expect(wave.length).toBeLessThanOrEqual(2); // remaining * 2 oversubscription
-      for (const k of offeredKeys) expect(D(k).type).toBe(VehicleType.SEDAN);
+      for (const k of offeredKeys) expect(D(k).type).toBe('SEDAN');
       expect(offeredKeys).not.toContain('sedan-offline');
       expect(offeredKeys).not.toContain('sedan-unverified');
       // Aerially closest sedan is 40 min away by road -> never in a 2-driver wave 1
@@ -425,10 +424,10 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
   it('Rides 11-15: SUV bookings never reach the nearer sedans/hatchbacks; customer cancels before pickup', async () => {
     for (let ride = 11; ride <= 15; ride++) {
       const vendorIdx = ride - 11;
-      const reqId = await book(vendorIdx, VehicleType.SUV);
+      const reqId = await book(vendorIdx, 'SUV');
       const wave = await liveOffers(reqId);
       expect(wave.length).toBeGreaterThan(0);
-      for (const o of wave) expect(D(keyOf(o.driverId)).type).toBe(VehicleType.SUV);
+      for (const o of wave) expect(D(keyOf(o.driverId)).type).toBe('SUV');
 
       if (ride <= 13) {
         // Accept, then customer cancels the trip before pickup -> capacity reopens, replacement wave is SUV-only
@@ -444,7 +443,7 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
         expect(req.assignedQuantity).toBe(0);
         const replacement = await liveOffers(reqId);
         for (const o of replacement) {
-          expect(D(keyOf(o.driverId)).type).toBe(VehicleType.SUV);
+          expect(D(keyOf(o.driverId)).type).toBe('SUV');
           expect(o.driverId).not.toBe(wave[0].driverId);
         }
       }
@@ -466,7 +465,7 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
   it('Rides 16-25: wave 1 times out -> wave 2 goes to NEW same-type drivers; only seen nearby skips are penalized', async () => {
     for (let ride = 16; ride <= 25; ride++) {
       const vendorIdx = (ride - 16) % 10;
-      const reqId = await book(vendorIdx, VehicleType.SEDAN);
+      const reqId = await book(vendorIdx, 'SEDAN');
       const wave1 = await liveOffers(reqId);
       expect(wave1.length).toBeGreaterThan(0);
 
@@ -499,7 +498,7 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
       const wave1Drivers = new Set(wave1.map((o) => o.driverId));
       for (const o of wave2) {
         expect(wave1Drivers.has(o.driverId)).toBe(false);
-        expect(D(keyOf(o.driverId)).type).toBe(VehicleType.SEDAN);
+        expect(D(keyOf(o.driverId)).type).toBe('SEDAN');
         expect(o.waveNumber).toBe(2);
       }
 
@@ -521,13 +520,13 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
     await advanceMinutes(60);
     // sedan-1 may carry a skip streak from earlier timeouts; an accepted ride resets it (streaks
     // intentionally persist across rides until the driver accepts or serves a cooldown)
-    const warmup = await happyRide(9, VehicleType.SEDAN);
+    const warmup = await happyRide(9, 'SEDAN');
     expect(keyOf(warmup.driverId)).toBe('sedan-1');
     const start = await prisma.driver.findUniqueOrThrow({ where: { id: D('sedan-1').id } });
     expect(start.consecutiveDeclines).toBe(0);
 
     for (let ride = 26; ride <= 28; ride++) {
-      const reqId = await book(ride - 26, VehicleType.SEDAN);
+      const reqId = await book(ride - 26, 'SEDAN');
       const [offer] = await liveOffers(reqId);
       expect(keyOf(offer.driverId)).toBe('sedan-1');
       await offers.declineOffer(offer.id, D('sedan-1').userId, 'too short');
@@ -545,7 +544,7 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
     expect(events.some((e) => e.channel === `driver:${D('sedan-1').id}` && e.event === 'DRIVER_COOLDOWN')).toBe(true);
 
     // Ride 29: sedan-1 is in cooldown -> skipped even though it is the only sedan online
-    const r29 = await book(3, VehicleType.SEDAN);
+    const r29 = await book(3, 'SEDAN');
     expect(await liveOffers(r29)).toHaveLength(0);
     // Supply comes back online; customer retries -> another driver gets it
     await setOnline(others, true);
@@ -568,7 +567,7 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
     expect(await dispatchableNow('sedan-1')).toBe(false); // still cooling one minute before expiry
     await advanceMinutes(1);
     await setOnline(others, false);
-    const r30 = await book(4, VehicleType.SEDAN);
+    const r30 = await book(4, 'SEDAN');
     const [o30] = await liveOffers(r30);
     expect(keyOf(o30.driverId)).toBe('sedan-1');
     await accept(o30.id, o30.driverId);
@@ -585,7 +584,7 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
     // Rides 31-33: two drivers race for a 1-seat ride
     for (let ride = 31; ride <= 33; ride++) {
       const vendorIdx = ride - 31 + 5;
-      const reqId = await book(vendorIdx, VehicleType.HATCHBACK);
+      const reqId = await book(vendorIdx, 'HATCHBACK');
       const wave = await liveOffers(reqId);
       expect(wave.length).toBe(2);
       const results = await Promise.allSettled(wave.map((o) => accept(o.id, o.driverId)));
@@ -601,7 +600,7 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
     }
 
     // Ride 34: 2-cab booking, 4 offers, all 4 drivers accept at once -> exactly 2 trips, assignedQuantity 2
-    const r34 = await book(8, VehicleType.SEDAN, 2);
+    const r34 = await book(8, 'SEDAN', 2);
     const w34 = await liveOffers(r34);
     expect(w34.length).toBe(4);
     const res34 = await Promise.allSettled(w34.map((o) => accept(o.id, o.driverId)));
@@ -617,8 +616,8 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
     // Ride 35: one driver holds offers for two different rides and accepts both simultaneously
     const suvOthers = ['suv-2', 'suv-3', 'suv-4'];
     await setOnline(suvOthers, false);
-    const r35a = await book(9, VehicleType.SUV);
-    const r35b = await book(0, VehicleType.SUV);
+    const r35a = await book(9, 'SUV');
+    const r35b = await book(0, 'SUV');
     const [oa] = await liveOffers(r35a);
     const [ob] = await liveOffers(r35b);
     expect(oa.driverId).toBe(D('suv-1').id);
@@ -639,7 +638,7 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
 
   it('Rides 36-40: driver cancellation, cancel-vs-accept race, and the wave cap', async () => {
     // Ride 36: driver cancels after assignment -> -5 trust, replacement wave excludes them
-    const r36 = await book(1, VehicleType.SEDAN);
+    const r36 = await book(1, 'SEDAN');
     const [o36] = await liveOffers(r36);
     await accept(o36.id, o36.driverId);
     const before36 = await prisma.driver.findUniqueOrThrow({ where: { id: o36.driverId } });
@@ -660,7 +659,7 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
     // Rides 37-38: customer cancels while a driver accepts at the same moment -> exactly one wins
     for (let ride = 37; ride <= 38; ride++) {
       const vIdx = ride - 35;
-      const reqId = await book(vIdx, VehicleType.HATCHBACK);
+      const reqId = await book(vIdx, 'HATCHBACK');
       const [o] = await liveOffers(reqId);
       const [cancelRes, acceptRes] = await Promise.allSettled([
         requirements.cancelRequirement(reqId, vendors[vIdx].userId, { reason: 'race' } as any),
@@ -685,7 +684,7 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
 
     // Ride 39: offers keep timing out -> after DISPATCH_MAX_WAVES the booking stops spamming drivers
     process.env.DISPATCH_MAX_WAVES = '2';
-    const r39 = await book(4, VehicleType.SEDAN);
+    const r39 = await book(4, 'SEDAN');
     await lapseWave(r39); // wave 1 -> wave 2
     expect((await liveOffers(r39)).every((o) => o.waveNumber === 2)).toBe(true);
     await lapseWave(r39); // wave 2 lapses -> cap reached
@@ -709,7 +708,7 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
   it('Rides 41-45: mandatory review gate (block, multi-cab chain, rating impact, cutoff)', async () => {
     await advanceMinutes(60);
     // Ride 41: completed but NOT reviewed
-    const r41 = await book(2, VehicleType.SEDAN);
+    const r41 = await book(2, 'SEDAN');
     const [o41] = await liveOffers(r41);
     await accept(o41.id, o41.driverId);
     const t41 = await tripFor(r41, o41.driverId);
@@ -717,7 +716,7 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
 
     // Ride 42 attempt is blocked with a structured 403; no money moves
     const balanceBefore = (await prisma.vendor.findUniqueOrThrow({ where: { id: vendors[2].id } })).escrowBalance;
-    const err = await book(2, VehicleType.SEDAN).catch((e) => e);
+    const err = await book(2, 'SEDAN').catch((e) => e);
     ridesBooked--; // blocked attempt created nothing
     expect(err).toBeInstanceOf(ForbiddenException);
     expect(err.getResponse()).toEqual(
@@ -737,7 +736,7 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
     await expect(review(2, t41.id, 5)).rejects.toThrow('already submitted');
 
     // Ride 42 (now allowed): a 2-cab booking -> two reviews owed, oldest first, one at a time
-    const r42 = await book(2, VehicleType.SEDAN, 2);
+    const r42 = await book(2, 'SEDAN', 2);
     const w42 = await liveOffers(r42);
     await accept(w42[0].id, w42[0].driverId);
     await accept(w42[1].id, w42[1].driverId);
@@ -746,7 +745,7 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
     const p42 = await trips.getPendingReview(vendors[2].userId);
     expect(p42.pendingCount).toBe(2);
     await review(2, p42.trip.id, 5);
-    const blocked = await book(2, VehicleType.SEDAN).catch((e) => e);
+    const blocked = await book(2, 'SEDAN').catch((e) => e);
     ridesBooked--;
     expect(blocked).toBeInstanceOf(ForbiddenException);
     expect(blocked.getResponse().details.pendingCount).toBe(1);
@@ -754,12 +753,12 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
     await review(2, p42b.trip.id, 4);
 
     // Ride 43: unblocked after both reviews
-    const r43 = await happyRide(2, VehicleType.HATCHBACK);
+    const r43 = await happyRide(2, 'HATCHBACK');
     expect(r43.reqId).toBeDefined();
 
     // Ride 44: a trip completed BEFORE the gate launch never blocks (historical customers)
     process.env.REVIEW_GATE_START_AT = new Date(Date.now() + 1000).toISOString();
-    const r44 = await book(6, VehicleType.SEDAN);
+    const r44 = await book(6, 'SEDAN');
     const [o44] = await liveOffers(r44);
     await accept(o44.id, o44.driverId);
     const t44 = await tripFor(r44, o44.driverId);
@@ -768,7 +767,7 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
     expect((await trips.getPendingReview(vendors[6].userId)).pending).toBe(false);
 
     // Ride 45: the same customer books again without being blocked
-    const r45 = await happyRide(6, VehicleType.SUV);
+    const r45 = await happyRide(6, 'SUV');
     expect(r45.reqId).toBeDefined();
     process.env.REVIEW_GATE_START_AT = '2020-01-01T00:00:00.000Z';
     await review(6, t44.id, 5); // tidy up so later rides are not blocked under the old cutoff
@@ -777,7 +776,7 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
   it('Rides 46-50: restart mid-wave, duplicate reapers, Google outage, no-GPS driver, rookie fairness', async () => {
     await advanceMinutes(60);
     // Ride 46: API restarts while wave 1 counts down (in-memory jobs lost) -> rehydration restores the timer
-    const r46 = await book(7, VehicleType.SEDAN);
+    const r46 = await book(7, 'SEDAN');
     const w46 = await liveOffers(r46);
     scheduler = new DispatchSchedulerService(undefined);
     scheduler.registerHandler((m) => dispatch.handleScheduledJob(m));
@@ -793,7 +792,7 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
     await review(7, t46.id, 5);
 
     // Ride 47: two API instances reap the same expired wave at the same instant -> processed once
-    const r47 = await book(8, VehicleType.HATCHBACK);
+    const r47 = await book(8, 'HATCHBACK');
     const w47 = await liveOffers(r47);
     await driversSeeOffers(r47);
     const declinedBefore = await prisma.driver.findMany({ where: { id: { in: w47.map((o) => o.driverId) } } });
@@ -822,15 +821,15 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
 
     // Ride 48: Google routing is down -> dispatch still succeeds on road-factor estimates
     routing.outage = true;
-    const r48 = await happyRide(9, VehicleType.SEDAN);
+    const r48 = await happyRide(9, 'SEDAN');
     expect(r48.reqId).toBeDefined();
     routing.outage = false;
 
     // Ride 49: a driver with no GPS fix is NEVER dispatched (pickup-radius invariant, 2026-11-10:
     // offers need a known, fresh location within the radius; unknown is never "0 km away").
-    await seedDriver('suv-nogps', VehicleType.SUV, 0, 0, { noGps: true, trust: 100 });
+    await seedDriver('suv-nogps', 'SUV', 0, 0, { noGps: true, trust: 100 });
     await setOnline(['suv-1', 'suv-2', 'suv-3', 'suv-4'], false);
-    const r49 = await book(5, VehicleType.SUV);
+    const r49 = await book(5, 'SUV');
     const nogpsOffers = await prisma.offer.count({ where: { requirementId: r49, driverId: D('suv-nogps').id } });
     expect(nogpsOffers).toBe(0);
     expect(await liveOffers(r49)).toHaveLength(0);
@@ -847,7 +846,7 @@ describeSim('Dispatch simulation: 50 rides on real Postgres', () => {
     // Ride 50: rookie exploration — the rookie appears in the wave despite a lower composite score.
     // Share = 1 makes the (otherwise 15 %, id-hashed) exploration slot deterministic for this ride.
     process.env.DISPATCH_ROOKIE_SHARE = '1';
-    const r50 = await book(0, VehicleType.SEDAN);
+    const r50 = await book(0, 'SEDAN');
     const w50 = await liveOffers(r50);
     delete process.env.DISPATCH_ROOKIE_SHARE;
     expect(w50.map((o) => keyOf(o.driverId))).toContain('sedan-rookie');

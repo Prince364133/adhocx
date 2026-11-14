@@ -4,6 +4,7 @@ import {
   IsEnum,
   IsInt,
   IsNumber,
+  IsNotEmpty,
   IsOptional,
   IsString,
   IsUUID,
@@ -11,7 +12,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { RequirementStatus, VehicleType, FulfillmentMode } from '../enums';
+import { RequirementStatus, FulfillmentMode } from '../enums';
 import { GeoLocationDto } from './common.dto';
 
 export class CreateRequirementDto {
@@ -19,8 +20,9 @@ export class CreateRequirementDto {
   @IsEnum(FulfillmentMode, { message: 'Invalid fulfillment mode' })
   fulfillmentMode?: FulfillmentMode = FulfillmentMode.DIRECT_DISPATCH;
 
-  @IsEnum(VehicleType, { message: 'Invalid vehicle type' })
-  vehicleType!: VehicleType;
+  @IsString()
+  @IsNotEmpty({ message: 'Vehicle type is required' })
+  vehicleType!: string;
 
   @Type(() => Number)
   @IsInt()
@@ -88,7 +90,7 @@ export class RequirementResponseDto {
   id!: string;
   vendorId!: string;
   fulfillmentMode!: FulfillmentMode;
-  vehicleType!: VehicleType;
+  vehicleType!: string;
   quantity!: number;
   assignedQuantity!: number;
   pickupLocation!: GeoLocationDto;
@@ -141,8 +143,8 @@ export class RequirementQueryDto {
   status?: RequirementStatus;
 
   @IsOptional()
-  @IsEnum(VehicleType)
-  vehicleType?: VehicleType;
+  @IsString()
+  vehicleType?: string;
 }
 
 export class RequirementDetailResponseDto extends RequirementResponseDto {

@@ -76,7 +76,8 @@ export function parseInstant(value: unknown, field: string): Date {
 }
 
 export function normalizeCategory(value: unknown): string {
-  const cat = String(value ?? 'SEDAN').trim().toUpperCase();
+  const cat = String(value ?? '').trim().toUpperCase();
+  if (!cat) throw new BadRequestException('vehicleCategory is required');
   if (!/^[A-Z0-9_]{2,16}$/.test(cat)) throw new BadRequestException('vehicleCategory must be 2-16 chars [A-Z0-9_]');
   return cat;
 }

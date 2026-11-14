@@ -555,7 +555,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> with WidgetsBindingObse
                           final int qty = (req['quantity'] ?? 1) as int;
                           final int assigned = (req['assignedQuantity'] ?? 0) as int;
                           final String status = req['status'] ?? 'POSTED';
-                          final String vehicle = req['vehicleType'] ?? 'Sedan';
+                          final String vehicle = req['vehicleType'] ?? 'Vehicle category unavailable';
 
                           Color statusColor = AppColors.info;
                           if (status == 'FULFILLED' || status == 'COMPLETED') statusColor = AppColors.success;
@@ -751,7 +751,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> with WidgetsBindingObse
     final String pickup = (req['pickupAddress'] ?? req['pickupLocation']?['address'] ?? 'Pickup Location').toString();
     final String drop = (req['dropAddress'] ?? req['dropLocation']?['address'] ?? 'Drop Location').toString();
     final int qty = (req['quantity'] ?? req['requiredQuantity'] ?? 1) as int;
-    final String vehicle = (req['vehicleType'] ?? 'Sedan').toString();
+    final String vehicle = (req['vehicleType'] ?? 'Vehicle category unavailable').toString();
     final String reportingTimeStr = (req['reportingTime'] ?? req['scheduledPickupTime'] ?? '').toString();
     final DateTime? reportingTime = DateTime.tryParse(reportingTimeStr);
     final String formattedTime = reportingTime != null ? _formatScheduleDateTime(reportingTime.toLocal()) : 'Scheduled';

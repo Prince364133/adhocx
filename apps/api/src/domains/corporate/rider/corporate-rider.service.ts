@@ -190,7 +190,7 @@ export class CorporateRiderService {
           : null,
         pickupAddress: defaultAddress,
         officeAddress: route?.office?.addressText ?? emp.office.addressText,
-        vehicleCategory: route?.vehicleCategory ?? 'SEDAN',
+        vehicleCategory: route?.vehicleCategory ?? '',
         canCancel: canModify,
         canReschedule: canModify,
         pickupAt: pickupAt.toISOString(),
@@ -296,7 +296,7 @@ export class CorporateRiderService {
                 plateNumber: nonEmpty(assignedVehicle?.registrationNumber) ?? (driver.vehiclePlate as string),
                 model: nonEmpty(assignedVehicle?.model) ?? nonEmpty(driver.vehicleModel) ?? '',
                 color: nonEmpty((driver as any).vehicleColor),
-                category: route.vehicleCategory || 'SEDAN',
+                category: route.vehicleCategory || '',
               }
             : null,
         noShowReason: (s as any).noShowReason ?? null,
@@ -530,7 +530,7 @@ export class CorporateRiderService {
                 nonEmpty((route as any).vehicle?.registrationNumber) ?? (route.driver.vehiclePlate as string),
               model: nonEmpty((route as any).vehicle?.model) ?? nonEmpty(route.driver.vehicleModel) ?? '',
               color: nonEmpty((route.driver as any).vehicleColor),
-              category: route.vehicleCategory || 'SEDAN',
+              category: route.vehicleCategory || '',
             }
           : null,
       activeSosAlert: activeSos

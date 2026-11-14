@@ -79,7 +79,7 @@ This legacy workflow introduces:
 AdhocX's proprietary **Direct Dispatch & Instant Fulfillment System** turns the traditional spot cab booking model on its head:
 
 ### 1. Direct Requirements Broadcast
-When a verified corporate vendor posts a requirement (e.g., 5 Sedan cabs from Madhapur to RGIA Airport at 02:00 AM), the requirement is instantly broadcast to pre-verified commercial drivers within a 15km geofence.
+When a verified corporate vendor posts a requirement (e.g., 5 vehicles from a configured fleet category for a route), the requirement is instantly broadcast to pre-verified commercial drivers within a 15km geofence.
 
 ### 2. Algorithmic Tiered Dispatch Waves
 Drivers and fleet partners view fixed, transparent rate-card parameters and receive automated sequential dispatch offers. In high-density corridors, this transparent system reduces fare overhead by **up to 28%** compared to fixed broker tariffs.
@@ -133,7 +133,7 @@ Optimizing corporate transit is no longer just about hiring more vendor cabs; it
         content: `
 ## The Liquidity Crisis in Commercial Driving
 
-For commercial drivers operating yellow-plate Sedans, SUVs, and Tempo Travellers in urban metropolitan areas, cash flow is daily oxygen. Fuel expenses (CNG/Diesel), toll charges, and vehicle EMI installments occur daily, yet traditional aggregator platforms hold driver payouts for 7 to 14 days or impose opaque penalty deductions.
+For commercial fleet drivers in urban metropolitan areas, cash flow is daily oxygen. Fuel expenses (CNG/Diesel), toll charges, and vehicle EMI installments occur daily, yet traditional aggregator platforms hold driver payouts for 7 to 14 days or impose opaque penalty deductions.
 
 This creates extreme churn, driver dissatisfaction, and high ride-cancellation rates that degrade customer trust.
 

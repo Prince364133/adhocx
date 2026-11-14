@@ -555,6 +555,12 @@ describe('GoogleTravelTimeMatrixAdapter', () => {
 describe('RouteSolverService with an injected travel-time matrix', () => {
   function mockDb(requests: any[]) {
     const db: any = {
+      vehiclePricingTier: {
+        findMany: jest.fn().mockResolvedValue([
+          { vehicleType: 'SEDAN', seatingCapacity: '4 seats', isActive: true },
+          { vehicleType: 'SUV', seatingCapacity: '6 seats', isActive: true },
+        ]),
+      },
       corporateOffice: { findFirst: jest.fn().mockResolvedValue({ id: 'off', ...OFFICE }) },
       corporateTransportRequest: { findMany: jest.fn().mockResolvedValue(requests), update: jest.fn() },
       corporateRoute: { create: jest.fn((a: any) => ({ id: `route-${db.corporateRoute.create.mock.calls.length}`, ...a.data })) },
@@ -674,7 +680,7 @@ describe('RouteSolverService with an injected travel-time matrix', () => {
     expect(summary.passengersAssigned).toBe(1);
   });
 
-  it('assigns both sedan and SUV routes based on the configured mixed-mode capacities', async () => {
+  it('assigns routes using custom active database categories and their stored capacities', async () => {
     const requests = Array.from({ length: 7 }, (_, index) => ({
       id: `request-${index}`,
       employeeId: `employee-${index}`,
@@ -685,6 +691,10 @@ describe('RouteSolverService with an injected travel-time matrix', () => {
       employee: { gender: 'MALE', officeId: 'off' },
     }));
     const db = mockDb(requests);
+    db.vehiclePricingTier.findMany.mockResolvedValue([
+      { vehicleType: 'BASIC', seatingCapacity: '3 seats', isActive: true },
+      { vehicleType: 'XL', seatingCapacity: '6 seats', isActive: true },
+    ]);
     const svc = new RouteSolverService(db, { log: jest.fn() } as any, new GridPort());
 
     const summary = await svc.optimizeAndCreateRoutes({
@@ -693,19 +703,16 @@ describe('RouteSolverService with an injected travel-time matrix', () => {
       shiftDate: '2026-11-10',
       shiftTime: '08:00',
       direction: 'LOGIN',
-      vehicleCategory: 'BOTH',
-      sedanCapacity: 3,
-      suvCapacity: 6,
+      vehicleCategory: 'ALL',
     });
 
     if ('plans' in summary) throw new Error('Expected a single-direction summary');
     expect(summary.routesCreated).toBe(2);
-    expect(summary.sedanRoutesCreated).toBe(1);
-    expect(summary.suvRoutesCreated).toBe(1);
+    expect(summary.vehicleCategoryCounts).toEqual({ BASIC: 1, XL: 1 });
     expect(summary.passengersAssigned).toBe(7);
     expect(summary.unassignedRequests).toBe(0);
     const persistedRoutes = db.corporateRoute.create.mock.calls.map(([{ data }]: any) => data);
-    expect(persistedRoutes.map(({ vehicleCategory }: any) => vehicleCategory).sort()).toEqual(['SEDAN', 'SUV']);
+    expect(persistedRoutes.map(({ vehicleCategory }: any) => vehicleCategory).sort()).toEqual(['BASIC', 'XL']);
     expect(persistedRoutes.every((route: any) => route.assignedPassengerCount <= route.maxCapacity)).toBe(true);
   });
 

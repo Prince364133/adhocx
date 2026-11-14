@@ -45,21 +45,12 @@ describe('PricingService (vehicle catalogue, no prices)', () => {
     return { svc: new PricingService(db), db };
   }
 
-  it('first boot seeds category names only; responses carry no price fields', async () => {
+  it('does not seed vehicle categories on first boot', async () => {
     const { svc, db } = build();
-    await svc.seedCatalogueIfEmpty();
-    const seeded = db.vehiclePricingTier.create.mock.calls.map((c: any[]) => c[0].data);
-    expect(seeded.length).toBeGreaterThan(0);
-    for (const row of seeded) {
-      expect(row).toMatchObject({ baseFare: 0, baseKm: 0, perKmRate: 0 });
-    }
+    await svc.seedPolicyIfMissing();
+    expect(db.vehiclePricingTier.create).not.toHaveBeenCalled();
     const list = await svc.getAllPricingTiers();
-    for (const cat of list) {
-      expect(cat).not.toHaveProperty('baseFare');
-      expect(cat).not.toHaveProperty('perKmRate');
-      expect(cat).not.toHaveProperty('driverSharePercent');
-      expect(cat.maxSeats).toBeGreaterThan(0);
-    }
+    expect(list).toEqual([]);
   });
 
   it('admins add and edit categories; prices cannot be set through the catalogue', async () => {

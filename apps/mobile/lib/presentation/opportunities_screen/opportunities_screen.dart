@@ -62,9 +62,6 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
           }
         } catch (_) {}
       }
-      if (registeredVehicle.isEmpty) {
-        registeredVehicle = 'SEDAN';
-      }
 
       final activeTrip = trips.firstWhere(
         (t) => t['status'] == 'IN_PROGRESS' || t['status'] == 'ARRIVED' || t['status'] == 'ASSIGNED',
@@ -121,7 +118,7 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
       final rawVType = (reqMap?['vehicleType'] ?? o['vehicleType'] ?? o['category'] ?? '').toString();
       final reqNorm = normalizeVehicleCategory(rawVType);
 
-      // CRITICAL: A sedan driver NEVER sees SUV or Hatchback opportunities!
+      // Only show offers compatible with the driver's registered category.
       if (driverNorm.isNotEmpty) {
         if (reqNorm.isNotEmpty && reqNorm != driverNorm) {
           return false;
@@ -347,14 +344,10 @@ class _OpportunitiesScreenState extends State<OpportunitiesScreen> {
   Widget _buildOpportunityCard(Map<String, dynamic> op, bool isDark) {
     final req = op['requirement'] as Map<String, dynamic>?;
     final title = req?['title'] as String? ?? op['title'] as String? ?? 'Fleet Trip Dispatch';
-    final rawCat = req?['vehicleType'] as String? ?? op['vehicleType'] as String? ?? op['category'] as String? ?? 'Sedan';
-    final category = normalizeVehicleCategory(rawCat) == 'SEDAN'
-        ? 'Prime Sedan'
-        : normalizeVehicleCategory(rawCat) == 'SUV'
-            ? 'SUV 7 Seater'
-            : normalizeVehicleCategory(rawCat) == 'HATCHBACK'
-                ? 'Compact Hatchback'
-                : rawCat;
+    final category = req?['vehicleType'] as String? ??
+        op['vehicleType'] as String? ??
+        op['category'] as String? ??
+        'Vehicle category unavailable';
 
     final pickup = req?['pickupAddress'] as String? ?? op['pickup'] as String? ?? op['pickupLocation']?['address'] as String? ?? 'Pickup location';
     final drop = req?['dropAddress'] as String? ?? op['drop'] as String? ?? op['dropLocation']?['address'] as String? ?? 'Destination location';

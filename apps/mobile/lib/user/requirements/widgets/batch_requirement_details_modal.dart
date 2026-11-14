@@ -82,7 +82,7 @@ class _BatchRequirementDetailsModalState extends State<BatchRequirementDetailsMo
       final List<CabCartItem> templateCabs = [];
       for (int i = 0; i < widget.items.length; i++) {
         final it = widget.items[i];
-        final vehicleType = it['vehicleType']?.toString() ?? 'SEDAN';
+        final vehicleType = it['vehicleType']?.toString() ?? '';
         final pickupAddress = it['pickupAddress']?.toString() ?? 'Office Hub';
         final dropAddress = it['dropAddress']?.toString() ?? 'Destination';
         final reportingTimeStr = it['reportingTime']?.toString();
@@ -107,8 +107,8 @@ class _BatchRequirementDetailsModalState extends State<BatchRequirementDetailsMo
           CabCartItem(
             id: 'tmpl_cab_${DateTime.now().millisecondsSinceEpoch}_$i',
             vehicleType: vehicleType,
-            vehicleLabel: vehicleType == 'SUV' ? 'SUV 7 Seater' : 'Prime Sedan',
-            passengers: vehicleType == 'SUV' ? 7 : 4,
+            vehicleLabel: it['categoryLabel']?.toString() ?? vehicleType,
+            passengers: (it['passengers'] as num?)?.toInt() ?? 1,
             pickupAddress: pickupAddress,
             pickupLat: pLat,
             pickupLng: pLng,
@@ -363,7 +363,7 @@ class _BatchRequirementDetailsModalState extends State<BatchRequirementDetailsMo
 
   Widget _buildCabItemCard(Map<String, dynamic> item, int index, bool isDark) {
     final String id = item['id'] ?? '';
-    final String vehicle = item['vehicleType'] ?? 'Sedan';
+    final String vehicle = item['vehicleType'] ?? 'Vehicle category unavailable';
     final String pickup = item['pickupAddress'] ?? 'Pickup location';
     final String drop = item['dropAddress'] ?? 'Drop location';
     final String status = item['status'] ?? 'POSTED';

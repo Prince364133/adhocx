@@ -850,6 +850,55 @@ class LocationService {
     return RoadRouteResult.fromMetersAndSeconds(haversineKm * 1000.0, fallbackMins * 60.0, isAccurate: false);
   }
 
+  /// Road geometry + ETA for the live trip map (Routes API `computeRoutes`, encoded polyline).
+  ///
+  /// Returns null on any failure so the map simply draws no route line (it never invents one).
+  Future<RoutePath?> fetchRoutePath({
+    required double startLat,
+    required double startLng,
+    required double endLat,
+    required double endLng,
+  }) async {
+    if (startLat == 0.0 || startLng == 0.0 || endLat == 0.0 || endLng == 0.0) return null;
+    try {
+      final body = {
+        'origin': {'location': {'latLng': {'latitude': startLat, 'longitude': startLng}}},
+        'destination': {'location': {'latLng': {'latitude': endLat, 'longitude': endLng}}},
+        'travelMode': 'DRIVE',
+        'routingPreference': 'TRAFFIC_AWARE',
+        'polylineQuality': 'OVERVIEW',
+      };
+      final response = await http
+          .post(
+            Uri.parse(_routesBase),
+            headers: {
+              ..._googleJsonHeaders,
+              'X-Goog-FieldMask': 'routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline',
+            },
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 6));
+      if (response.statusCode != 200) {
+        debugPrint('Google Routes API (path) HTTP ${response.statusCode}');
+        return null;
+      }
+      final routes = (jsonDecode(response.body) as Map<String, dynamic>)['routes'] as List<dynamic>?;
+      if (routes == null || routes.isEmpty) return null;
+      final route = routes.first as Map<String, dynamic>;
+      final encoded = (route['polyline'] as Map<String, dynamic>?)?['encodedPolyline'] as String?;
+      if (encoded == null || encoded.isEmpty) return null;
+      final seconds = double.tryParse((route['duration']?.toString() ?? '0s').replaceAll('s', '')) ?? 0;
+      return RoutePath(
+        encodedPolyline: encoded,
+        distanceMeters: (route['distanceMeters'] as num?)?.toDouble() ?? 0,
+        durationSeconds: seconds,
+      );
+    } catch (e) {
+      debugPrint('Google Routes API (path) error: $e');
+      return null;
+    }
+  }
+
   static double estimateRoadDistanceKm(double lat1, double lon1, double lat2, double lon2) {
     if (lat1 == 0.0 || lon1 == 0.0 || lat2 == 0.0 || lon2 == 0.0 || (lat1 == lat2 && lon1 == lon2)) {
       return 0.0;
@@ -881,6 +930,14 @@ class LocationService {
     final d = earthRadiusKm * c;
     return d > 0 ? d : 5.0;
   }
+}
+
+/// Road route geometry for drawing on the map.
+class RoutePath {
+  const RoutePath({required this.encodedPolyline, required this.distanceMeters, required this.durationSeconds});
+  final String encodedPolyline;
+  final double distanceMeters;
+  final double durationSeconds;
 }
 
 /// Result of a Google Maps road routing computation

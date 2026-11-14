@@ -1,21 +1,38 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+
+import '../../services/live_location_hub.dart';
 import '../../services/location_service.dart';
 import '../../services/permission_service.dart';
+import '../../shared/maps/map_assets.dart';
+import '../../shared/maps/map_geo.dart';
 import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
-import '../../shared/widgets/osm_map_picker_widget.dart';
 
+/// One screen for picking a location: search and pinpoint together (ride-hailing style).
+///
+/// - A full-screen Google map with a fixed centre pin. The pin tip is the chosen coordinate. Drag,
+///   pinch or double-tap the map; the pin lifts while moving and drops on idle.
+/// - The address under the pin is resolved once the camera settles (debounced, stale results dropped).
+/// - The search bar on top opens a panel on the same screen: recents, current location, popular
+///   places, live Places results. Picking a result flies the map there so the vendor can fine-tune
+///   the exact gate before confirming.
+///
+/// Returns `LocationModel.toMap()` via `context.pop` (same contract as before).
 class UniversalLocationPickerScreen extends StatefulWidget {
   final String title;
   final String? initialAddress;
   final double? initialLat;
   final double? initialLng;
+
+  /// true: open on the map. false: open with the search panel focused (map stays behind it).
   final bool startOnMap;
 
   const UniversalLocationPickerScreen({
@@ -32,42 +49,49 @@ class UniversalLocationPickerScreen extends StatefulWidget {
 }
 
 class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerScreen> {
+  static const double _pinZoom = 17.5;
+  static const Duration _geocodeDebounce = Duration(milliseconds: 350);
+  static const Duration _searchDebounce = Duration(milliseconds: 280);
+
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocus = FocusNode();
   final LocationService _locationService = LocationService.instance;
 
-  late LocationModel _selectedLocation;
+  // Map / pin
+  GoogleMapController? _map;
+  late LatLng _target; // live camera target (= pin tip)
+  bool _cameraMoving = false;
+  bool _programmaticMove = false;
+  bool _pinMovedByUser = false;
+  bool _pinOnFallback = false;
+
+  // Address under the pin
+  String _pinAddress = '';
+  LocationModel? _pinPlace; // a search result / recent that sits exactly under the pin
+  LatLng? _geocodedAt;
+  bool _isGeocoding = false;
+  int _geocodeSeq = 0;
+  Timer? _geocodeTimer;
+
+  // Search panel
+  bool _searchOpen = false;
   List<LocationModel> _searchResults = [];
   List<LocationModel> _recentLocations = [];
   List<LocationModel> _categoryPlaces = [];
-
-  bool _isSearching = false;
   bool _isLoadingSearch = false;
   bool _isLoadingCategoryPlaces = false;
+  String _selectedCategory = 'All';
+  int _searchSeq = 0;
+  Timer? _searchTimer;
+
+  // Device location
   bool _isFetchingGps = false;
   bool _hasLocationPermission = false;
-  String _selectedCategory = 'All';
-  Timer? _debounceTimer;
-
-  // Map Mode State (Pinpoint on Google Maps)
-  bool _isMapMode = false;
-  double _mapPinLat = 17.4435;
-  double _mapPinLng = 78.3772;
-  String _mapPinAddress = '';
-  bool _isGeocodingPin = false;
-  Timer? _mapDebounceTimer;
-  // Increments on every pin move so a slow reverse-geocode can't overwrite a newer pin's address.
-  int _geocodeSeq = 0;
-  // True once the vendor has moved the pin themselves; GPS auto-centering must not override that.
-  bool _pinMovedByUser = false;
-  // True while the pin still sits on the hard-coded fallback (no initial coordinates, no GPS yet).
-  bool _pinOnFallback = false;
-
   String? _currentCity;
   double? _currentLat;
   double? _currentLng;
 
-  final List<String> _categories = [
+  static const List<String> _categories = [
     'All',
     'Airports',
     'Tech Parks',
@@ -81,137 +105,141 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
   @override
   void initState() {
     super.initState();
-    _currentLat = widget.initialLat;
-    _currentLng = widget.initialLng;
-    final defaultAddress = widget.initialAddress != null && widget.initialAddress!.isNotEmpty
-        ? widget.initialAddress!
-        : 'Select Location';
-
-    _pinOnFallback = widget.initialLat == null || widget.initialLat == 0.0 || widget.initialLng == null || widget.initialLng == 0.0;
-    _mapPinLat = (widget.initialLat != null && widget.initialLat != 0.0) ? widget.initialLat! : 17.4435;
-    _mapPinLng = (widget.initialLng != null && widget.initialLng != 0.0) ? widget.initialLng! : 78.3772;
-    _mapPinAddress = (widget.initialAddress != null && widget.initialAddress!.isNotEmpty) ? widget.initialAddress! : '';
-    _isMapMode = widget.startOnMap;
-
-    _selectedLocation = LocationModel(
-      title: defaultAddress.split(',').first.trim(),
-      fullAddress: defaultAddress,
-      latitude: _mapPinLat,
-      longitude: _mapPinLng,
-      category: 'SAVED',
-      icon: LocationService.getIconForCategory('SAVED', defaultAddress),
-    );
-
-    _searchController.addListener(_onSearchChanged);
-    _detectLocationAndLoadData();
-
-    if (_isMapMode && _mapPinAddress.isEmpty) {
-      _reverseGeocodePin(_mapPinLat, _mapPinLng);
+    final hasInitial = MapGeo.isKnown(widget.initialLat, widget.initialLng);
+    final last = LiveLocationHub.instance.latest;
+    if (hasInitial) {
+      _target = LatLng(widget.initialLat!, widget.initialLng!);
+      _currentLat = widget.initialLat;
+      _currentLng = widget.initialLng;
+    } else if (last != null) {
+      _target = LatLng(last.latitude, last.longitude);
+    } else {
+      _target = MapAssets.indiaFallback.target;
+      _pinOnFallback = true;
     }
+    final initialAddress = widget.initialAddress?.trim() ?? '';
+    if (hasInitial && initialAddress.isNotEmpty) {
+      _pinAddress = initialAddress;
+      _geocodedAt = _target;
+    }
+    _searchOpen = !widget.startOnMap;
+    _searchController.addListener(_onSearchChanged);
+    _loadInitialData();
+    if (_pinAddress.isEmpty && !_pinOnFallback) _scheduleGeocode(immediate: true);
   }
 
   @override
   void dispose() {
-    _debounceTimer?.cancel();
-    _mapDebounceTimer?.cancel();
+    _geocodeTimer?.cancel();
+    _searchTimer?.cancel();
     _searchController.dispose();
     _searchFocus.dispose();
     super.dispose();
   }
 
-  void _onMapPositionChanged(double lat, double lng) {
-    _pinMovedByUser = true;
-    _pinOnFallback = false;
-    _movePin(lat, lng);
-  }
+  // ── Camera & pin ────────────────────────────────────────────────────────
 
-  /// Moves the pin and (debounced) resolves its street address. The address shown is always
-  /// for the current pin: older lookups that finish late are discarded.
-  void _movePin(double lat, double lng, {Duration debounce = const Duration(milliseconds: 500)}) {
-    final seq = ++_geocodeSeq;
-    setState(() {
-      _mapPinLat = lat;
-      _mapPinLng = lng;
-      _isGeocodingPin = true;
-    });
-    _mapDebounceTimer?.cancel();
-    _mapDebounceTimer = Timer(debounce, () => _reverseGeocodePin(lat, lng, seq: seq));
-  }
-
-  Future<void> _reverseGeocodePin(double lat, double lng, {int? seq}) async {
-    final mySeq = seq ?? ++_geocodeSeq;
-    if (mounted && !_isGeocodingPin) setState(() => _isGeocodingPin = true);
-    String address;
+  Future<void> _flyTo(LatLng p, {double? zoom}) async {
+    _target = p;
+    final map = _map;
+    if (map == null) {
+      setState(() {});
+      return;
+    }
+    _programmaticMove = true;
     try {
-      final loc = await _locationService.reverseGeocode(lat, lng);
-      address = loc.fullAddress;
+      await map.animateCamera(
+        zoom == null ? CameraUpdate.newLatLng(p) : CameraUpdate.newLatLngZoom(p, zoom),
+        duration: const Duration(milliseconds: 650),
+      );
     } catch (_) {
-      address = '';
+      _programmaticMove = false;
     }
-    if (!mounted || mySeq != _geocodeSeq) return;
-    setState(() {
-      _mapPinAddress = address;
-      _isGeocodingPin = false;
+  }
+
+  void _onCameraMoveStarted() {
+    if (!_programmaticMove) {
+      _pinMovedByUser = true;
+      _pinOnFallback = false;
+      _pinPlace = null; // vendor is fine-tuning: the address must come from the new pin position
+    }
+    _geocodeTimer?.cancel();
+    setState(() => _cameraMoving = true);
+  }
+
+  void _onCameraMove(CameraPosition pos) => _target = pos.target; // every frame: no setState
+
+  void _onCameraIdle() {
+    _programmaticMove = false;
+    setState(() => _cameraMoving = false);
+    final place = _pinPlace;
+    if (place != null && MapGeo.distanceM(_target, LatLng(place.latitude, place.longitude)) < 20) {
+      // A chosen search result sits under the pin: keep its name, skip the lookup.
+      _geocodeSeq++;
+      setState(() {
+        _pinAddress = place.fullAddress;
+        _geocodedAt = _target;
+        _isGeocoding = false;
+      });
+      return;
+    }
+    _scheduleGeocode(); // no-op for sub-8 m nudges when an address is already shown
+  }
+
+  /// Resolves the address under the pin. Skips tiny moves; a late answer for an old pin is dropped.
+  void _scheduleGeocode({bool immediate = false}) {
+    final at = _target;
+    final last = _geocodedAt;
+    if (!immediate && last != null && _pinAddress.isNotEmpty && MapGeo.distanceM(at, last) < 8) return;
+    final seq = ++_geocodeSeq;
+    _geocodeTimer?.cancel();
+    setState(() => _isGeocoding = true);
+    _geocodeTimer = Timer(immediate ? Duration.zero : _geocodeDebounce, () async {
+      String address = '';
+      try {
+        address = (await _locationService.reverseGeocode(at.latitude, at.longitude)).fullAddress;
+      } catch (_) {}
+      if (!mounted || seq != _geocodeSeq) return;
+      setState(() {
+        _pinAddress = address;
+        _geocodedAt = at;
+        _isGeocoding = false;
+      });
     });
   }
 
-  void _confirmMapPinLocation() {
-    if (_isGeocodingPin) return;
-    final title = _mapPinAddress.isNotEmpty
-        ? _mapPinAddress.split(',').first.trim()
-        : 'Pinpoint Location';
-    final full = _mapPinAddress.isNotEmpty
-        ? _mapPinAddress
-        : 'Lat: ${_mapPinLat.toStringAsFixed(5)}, Lng: ${_mapPinLng.toStringAsFixed(5)}';
-    final loc = LocationModel(
-      title: title,
-      fullAddress: full,
-      latitude: _mapPinLat,
-      longitude: _mapPinLng,
-      category: 'PINPOINT',
-      icon: Icons.pin_drop_rounded,
-    );
-    _selectLocation(loc);
-  }
-
-  void _switchToMapMode({String? hint}) {
-    FocusScope.of(context).unfocus();
-    setState(() => _isMapMode = true);
-    if (_pinOnFallback && !_pinMovedByUser && _currentLat != null && _currentLat != 0.0 && _currentLng != null) {
-      _pinOnFallback = false;
-      _movePin(_currentLat!, _currentLng!, debounce: Duration.zero);
-    } else if (_mapPinAddress.isEmpty) {
-      _reverseGeocodePin(_mapPinLat, _mapPinLng);
-    }
-    if (hint != null && hint.isNotEmpty && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Drag the map so the pin sits exactly on "$hint", then confirm.'),
-          duration: const Duration(seconds: 4),
-        ),
-      );
-    }
-  }
-
-  /// Map mode only: move the pin to the device's GPS fix instead of closing the picker.
-  Future<void> _centerPinOnGps() async {
+  Future<void> _centerOnGps() async {
     if (_isFetchingGps) return;
     setState(() => _isFetchingGps = true);
     try {
-      final pos = await PermissionService.instance.getCurrentPosition(requestIfDenied: true);
-      if (!mounted) return;
-      if (pos == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not get your GPS location. Check location permission and GPS.')),
+      if (!kIsWeb && !await PermissionService.instance.isLocationServiceEnabled()) {
+        _snack(
+          'Device location (GPS) is turned off.',
+          action: SnackBarAction(label: 'Turn On', onPressed: () => PermissionService.instance.openLocationSettings()),
         );
         return;
       }
+      final pos = await PermissionService.instance.getCurrentPosition(requestIfDenied: true);
+      if (!mounted) return;
+      if (pos == null) {
+        final granted = await PermissionService.instance.isLocationPermissionGranted();
+        _snack(
+          granted
+              ? 'Could not get a GPS fix. Try again in the open.'
+              : 'Location permission is needed to use your current location.',
+          action: granted ? null : SnackBarAction(label: 'Settings', onPressed: () => Geolocator.openAppSettings()),
+        );
+        return;
+      }
+      _hasLocationPermission = true;
       _currentLat = pos.latitude;
       _currentLng = pos.longitude;
-      _hasLocationPermission = true;
+      _pinPlace = null;
       _pinOnFallback = false;
       _pinMovedByUser = true;
-      _movePin(pos.latitude, pos.longitude, debounce: Duration.zero);
+      _closeSearch();
+      await _flyTo(LatLng(pos.latitude, pos.longitude), zoom: _pinZoom);
+      if (_map == null) _scheduleGeocode(immediate: true);
     } catch (e) {
       debugPrint('GPS centre error: $e');
     } finally {
@@ -219,76 +247,136 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
     }
   }
 
-  Future<void> _detectLocationAndLoadData() async {
-    final recents = await _locationService.getRecentLocations();
-    if (mounted) {
-      setState(() => _recentLocations = recents);
+  void _confirm() {
+    if (_isGeocoding || _cameraMoving) return;
+    final place = _pinPlace;
+    if (place != null && MapGeo.distanceM(_target, LatLng(place.latitude, place.longitude)) < 20) {
+      _finish(place);
+      return;
     }
+    final address = _pinAddress;
+    _finish(LocationModel(
+      title: address.isNotEmpty ? address.split(',').first.trim() : 'Pinned location',
+      fullAddress: address.isNotEmpty
+          ? address
+          : 'Lat: ${_target.latitude.toStringAsFixed(5)}, Lng: ${_target.longitude.toStringAsFixed(5)}',
+      latitude: _target.latitude,
+      longitude: _target.longitude,
+      category: 'PINPOINT',
+      icon: Icons.pin_drop_rounded,
+    ));
+  }
+
+  Future<void> _finish(LocationModel loc) async {
+    await _locationService.saveRecentLocation(loc);
+    if (!mounted) return;
+    context.pop(loc.toMap());
+  }
+
+  // ── Search ──────────────────────────────────────────────────────────────
+
+  void _openSearch() {
+    setState(() => _searchOpen = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _searchFocus.requestFocus();
+    });
+  }
+
+  void _closeSearch() {
+    _searchFocus.unfocus();
+    if (_searchOpen) setState(() => _searchOpen = false);
+  }
+
+  /// Search result / recent / popular place → fly the pin there; the vendor confirms (or fine-tunes).
+  void _choosePlace(LocationModel loc) {
+    _closeSearch();
+    _pinPlace = loc;
+    _pinOnFallback = false;
+    _pinMovedByUser = true;
+    setState(() {
+      _pinAddress = loc.fullAddress;
+      _geocodedAt = LatLng(loc.latitude, loc.longitude);
+      _isGeocoding = false;
+    });
+    _geocodeSeq++;
+    _flyTo(LatLng(loc.latitude, loc.longitude), zoom: _pinZoom);
+  }
+
+  void _onSearchChanged() {
+    final text = _searchController.text.trim();
+    _searchTimer?.cancel();
+    if (text.length < 2) {
+      _searchSeq++;
+      if (_searchResults.isNotEmpty || _isLoadingSearch) {
+        setState(() {
+          _searchResults = [];
+          _isLoadingSearch = false;
+        });
+      } else {
+        setState(() {});
+      }
+      return;
+    }
+    final seq = ++_searchSeq;
+    setState(() => _isLoadingSearch = true);
+    _searchTimer = Timer(_searchDebounce, () async {
+      // Bias results to where the pin is (or the device), not a fixed city.
+      final results = await _locationService.searchLocations(text, lat: _target.latitude, lon: _target.longitude);
+      if (!mounted || seq != _searchSeq) return;
+      setState(() {
+        _searchResults = results;
+        _isLoadingSearch = false;
+      });
+    });
+  }
+
+  Future<void> _loadInitialData() async {
+    final recents = await _locationService.getRecentLocations();
+    if (mounted) setState(() => _recentLocations = recents);
 
     try {
-      final isGranted = await PermissionService.instance.isLocationPermissionGranted();
-      if (isGranted) {
+      if (await PermissionService.instance.isLocationPermissionGranted()) {
         final pos = await PermissionService.instance.getCurrentPosition(requestIfDenied: false);
-        if (pos != null) {
+        if (pos != null && mounted) {
           _hasLocationPermission = true;
           _currentLat = pos.latitude;
           _currentLng = pos.longitude;
-          if (mounted && _isMapMode && _pinOnFallback && !_pinMovedByUser) {
+          if (_pinOnFallback && !_pinMovedByUser) {
             _pinOnFallback = false;
-            _movePin(pos.latitude, pos.longitude, debounce: Duration.zero);
+            await _flyTo(LatLng(pos.latitude, pos.longitude), zoom: _pinZoom);
+            if (_map == null) _scheduleGeocode(immediate: true);
           }
           final rev = await _locationService.reverseGeocode(pos.latitude, pos.longitude);
-          if (rev.city != null && rev.city!.isNotEmpty) {
-            _currentCity = rev.city;
-          }
+          if (rev.city != null && rev.city!.isNotEmpty) _currentCity = rev.city;
         }
       }
     } catch (e) {
       debugPrint('Location detection error: $e');
     }
-
-    // If city is still null and initial coordinates were provided
     if (_currentCity == null && _currentLat != null && _currentLng != null) {
       try {
         final rev = await _locationService.reverseGeocode(_currentLat!, _currentLng!);
-        if (rev.city != null && rev.city!.isNotEmpty) {
-          _currentCity = rev.city;
-        }
+        if (rev.city != null && rev.city!.isNotEmpty) _currentCity = rev.city;
       } catch (_) {}
     }
-
-    // Fallback: If no location permission or location unavailable, default to Hyderabad
-    if (!_hasLocationPermission && (_currentCity == null || _currentCity!.isEmpty)) {
-      _currentCity = 'Hyderabad';
-    }
-
-    final places = await _locationService.fetchCategoryPlaces(
-      'All',
-      lat: _currentLat,
-      lon: _currentLng,
-      cityName: _hasLocationPermission ? _currentCity : 'Hyderabad',
-    );
-
-    if (mounted) {
-      setState(() {
-        _categoryPlaces = places;
-      });
-    }
+    if (!_hasLocationPermission && (_currentCity == null || _currentCity!.isEmpty)) _currentCity = 'Hyderabad';
+    await _loadCategoryPlaces(_selectedCategory);
   }
 
   Future<void> _loadCategoryPlaces(String category) async {
-    setState(() {
-      _selectedCategory = category;
-      _isLoadingCategoryPlaces = true;
-    });
-
+    if (mounted) {
+      setState(() {
+        _selectedCategory = category;
+        _isLoadingCategoryPlaces = true;
+      });
+    }
     final places = await _locationService.fetchCategoryPlaces(
       category,
       lat: _currentLat,
       lon: _currentLng,
       cityName: _hasLocationPermission ? _currentCity : 'Hyderabad',
     );
-    if (mounted) {
+    if (mounted && _selectedCategory == category) {
       setState(() {
         _categoryPlaces = places;
         _isLoadingCategoryPlaces = false;
@@ -296,1006 +384,642 @@ class _UniversalLocationPickerScreenState extends State<UniversalLocationPickerS
     }
   }
 
-  void _onSearchChanged() {
-    final text = _searchController.text.trim();
-    if (text.isEmpty) {
-      setState(() {
-        _isSearching = false;
-        _searchResults = [];
-        _isLoadingSearch = false;
-      });
-      return;
-    }
-
-    _debounceTimer?.cancel();
-    setState(() {
-      _isSearching = true;
-      _isLoadingSearch = true;
-    });
-
-    _debounceTimer = Timer(const Duration(milliseconds: 300), () async {
-      final results = await _locationService.searchLocations(
-        text,
-        lat: _currentLat,
-        lon: _currentLng,
-      );
-      if (mounted) {
-        setState(() {
-          _searchResults = results;
-          _isLoadingSearch = false;
-        });
-      }
-    });
-  }
-
-  Future<void> _selectLocation(LocationModel loc) async {
-    await _locationService.saveRecentLocation(loc);
+  void _snack(String text, {SnackBarAction? action}) {
     if (!mounted) return;
-    context.pop(loc.toMap());
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(text), action: action, duration: const Duration(seconds: 4)));
   }
 
-
-
-
-  Future<void> _fetchCurrentGpsLocation() async {
-    if (_isFetchingGps) return;
-    setState(() => _isFetchingGps = true);
-
-    try {
-      if (!kIsWeb) {
-        final serviceEnabled = await PermissionService.instance.isLocationServiceEnabled();
-        if (!serviceEnabled) {
-          setState(() => _isFetchingGps = false);
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Device location (GPS) is turned off.'),
-              action: SnackBarAction(
-                label: 'Turn On',
-                onPressed: () => PermissionService.instance.openLocationSettings(),
-              ),
-              duration: const Duration(seconds: 4),
-            ),
-          );
-          return;
-        }
-      }
-
-      final pos = await PermissionService.instance.getCurrentPosition(requestIfDenied: true);
-      if (pos == null) {
-        setState(() => _isFetchingGps = false);
-        final isGranted = await PermissionService.instance.isLocationPermissionGranted();
-        if (!mounted) return;
-        if (!isGranted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Location permission is required to fetch current GPS location.'),
-              action: SnackBarAction(
-                label: 'Settings',
-                onPressed: () => Geolocator.openAppSettings(),
-              ),
-              duration: const Duration(seconds: 4),
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Could not acquire GPS fix. Showing Hyderabad places.'),
-              duration: Duration(seconds: 3),
-            ),
-          );
-        }
-        return;
-      }
-
-      _currentLat = pos.latitude;
-      _currentLng = pos.longitude;
-      _hasLocationPermission = true;
-
-      final loc = await _locationService.reverseGeocode(pos.latitude, pos.longitude);
-      if (loc.city != null && loc.city!.isNotEmpty) {
-        _currentCity = loc.city;
-      }
-
-      if (mounted) {
-        setState(() {
-          _isFetchingGps = false;
-          _selectedLocation = loc;
-        });
-        _loadCategoryPlaces(_selectedCategory);
-        _selectLocation(loc);
-      }
-    } catch (e) {
-      debugPrint('Error fetching current GPS location: $e');
-      if (mounted) setState(() => _isFetchingGps = false);
-    }
-  }
+  // ── Build ───────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Scaffold(
-      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
-      appBar: AppBar(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return PopScope(
+      canPop: !_searchOpen,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _searchOpen) _closeSearch(); // back closes the search panel first
+      },
+      child: Scaffold(
         backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
-        elevation: 0,
-        leading: IconButton(
-          onPressed: () => context.pop(),
-          icon: Icon(Icons.arrow_back_rounded, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        resizeToAvoidBottomInset: false,
+        body: Stack(
           children: [
-            Text(
-              widget.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.h3(
-                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            Row(
+            Column(
               children: [
-                const Icon(Icons.place, size: 11, color: Color(0xFFEA4335)),
-                const SizedBox(width: 4),
-                Flexible(
-                  child: Text(
-                    'Powered by Google Maps Platform',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
+                Expanded(child: _buildMapArea(isDark)),
+                _buildConfirmSheet(isDark),
               ],
             ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            onPressed: _isFetchingGps ? null : (_isMapMode ? _centerPinOnGps : _fetchCurrentGpsLocation),
-            icon: _isFetchingGps
-                ? SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: AppColors.primary,
-                    ),
-                  )
-                : Icon(Icons.my_location_rounded, color: AppColors.primary),
-            tooltip: 'GPS Current Location',
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Mode Switcher: Search Address vs Pinpoint on Map
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 6),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.surfaceDark : AppColors.slate100,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(AppRadius.md),
-                        onTap: () => setState(() => _isMapMode = false),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          decoration: BoxDecoration(
-                            color: !_isMapMode ? AppColors.primary : Colors.transparent,
-                            borderRadius: BorderRadius.circular(AppRadius.md),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.search_rounded,
-                                size: 16,
-                                color: !_isMapMode ? Colors.white : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Search Address',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: !_isMapMode ? Colors.white : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(AppRadius.md),
-                        onTap: _switchToMapMode,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          decoration: BoxDecoration(
-                            color: _isMapMode ? AppColors.primary : Colors.transparent,
-                            borderRadius: BorderRadius.circular(AppRadius.md),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.pin_drop_rounded,
-                                size: 16,
-                                color: _isMapMode ? Colors.white : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Pinpoint on Map',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: _isMapMode ? Colors.white : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+            // Search panel slides over the map on the same screen.
+            Positioned.fill(
+              child: IgnorePointer(
+                ignoring: !_searchOpen,
+                child: AnimatedOpacity(
+                  opacity: _searchOpen ? 1 : 0,
+                  duration: const Duration(milliseconds: 180),
+                  child: AnimatedSlide(
+                    offset: _searchOpen ? Offset.zero : const Offset(0, 0.04),
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeOutCubic,
+                    child: _buildSearchPanel(isDark),
+                  ),
                 ),
               ),
             ),
-
-            if (_isMapMode)
-              Expanded(child: _buildMapPickerView(isDark))
-            else ...[
-              // Search Bar Input Field (Live Google Maps Places Search)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                    borderRadius: BorderRadius.circular(AppRadius.lg),
-                    border: Border.all(
-                      color: _searchFocus.hasFocus ? AppColors.primary : (isDark ? AppColors.borderDark : AppColors.borderLight),
-                      width: _searchFocus.hasFocus ? 2 : 1,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: TextField(
-                    controller: _searchController,
-                    focusNode: _searchFocus,
-                    autofocus: widget.initialAddress == null || widget.initialAddress!.isEmpty,
-                    decoration: InputDecoration(
-                      hintText: 'Search city, landmark, or street via Google Maps...',
-                      hintStyle: TextStyle(
-                        fontSize: 13,
-                        color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                      ),
-                      prefixIcon: Icon(Icons.search_rounded, color: AppColors.primary),
-                      suffixIcon: _isLoadingSearch
-                          ? const Padding(
-                              padding: EdgeInsets.all(12),
-                              child: SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              ),
-                            )
-                          : _searchController.text.isNotEmpty
-                              ? IconButton(
-                                  icon: const Icon(Icons.cancel_rounded, size: 18),
-                                  onPressed: () {
-                                    _searchController.clear();
-                                    setState(() {
-                                      _isSearching = false;
-                                      _searchResults = [];
-                                    });
-                                  },
-                                )
-                              : null,
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                  ),
-                ),
-              ),
-
-              // Content Body
-              Expanded(
-                child: _isSearching
-                    ? _buildSearchResultsList(isDark)
-                    : _buildExploreAndRecentView(isDark),
-              ),
-            ],
           ],
         ),
       ),
     );
   }
 
-  /// Interactive Map Pinpoint Picker View (Google Maps)
-  Widget _buildMapPickerView(bool isDark) {
-    return Column(
+  Widget _buildMapArea(bool isDark) {
+    final topInset = MediaQuery.paddingOf(context).top;
+    return Stack(
       children: [
-        // Helper hint banner
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 8),
-          color: AppColors.primary.withValues(alpha: 0.1),
+        Positioned.fill(
+          child: MapAssets.nativeMapsAvailable
+              ? GoogleMap(
+                  initialCameraPosition: CameraPosition(target: _target, zoom: _pinOnFallback ? 12 : _pinZoom),
+                  style: MapAssets.styleFor(isDark ? Brightness.dark : Brightness.light),
+                  onMapCreated: (c) => _map = c,
+                  onCameraMoveStarted: _onCameraMoveStarted,
+                  onCameraMove: _onCameraMove,
+                  onCameraIdle: _onCameraIdle,
+                  // The map sits under the floating search bar; keep Google's logo/legal visible.
+                  padding: EdgeInsets.only(top: topInset + 64),
+                  myLocationEnabled: _hasLocationPermission && !kIsWeb,
+                  myLocationButtonEnabled: false,
+                  zoomControlsEnabled: false,
+                  mapToolbarEnabled: false,
+                  compassEnabled: false,
+                  rotateGesturesEnabled: false, // a rotated map makes "which gate" harder, not easier
+                  tiltGesturesEnabled: false,
+                  buildingsEnabled: true,
+                  indoorViewEnabled: false,
+                  minMaxZoomPreference: const MinMaxZoomPreference(4, 21),
+                )
+              : Container(color: isDark ? AppColors.surfaceElevatedDark : AppColors.borderLight),
+        ),
+
+        // Fixed centre pin. Map padding only shifts the camera centre down by topInset+64,
+        // so offset the pin by the same half-amount to keep its tip on the exact target.
+        Positioned.fill(
+          child: IgnorePointer(
+            child: Padding(
+              padding: EdgeInsets.only(top: topInset + 64),
+              child: Center(child: _CenterPin(lifted: _cameraMoving, label: widget.title)),
+            ),
+          ),
+        ),
+
+        // Floating search bar.
+        Positioned(
+          top: topInset + 8,
+          left: 12,
+          right: 12,
           child: Row(
             children: [
-              Icon(Icons.touch_app_rounded, size: 16, color: AppColors.primary),
+              _circleButton(
+                  isDark: isDark, icon: Icons.arrow_back_rounded, tooltip: 'Back', onTap: () => context.pop()),
               const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Pan and zoom the map to place the pin at the exact gate or entrance',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                  ),
-                ),
-              ),
+              Expanded(child: _searchBarButton(isDark)),
             ],
           ),
         ),
 
-        // Interactive Google Maps Area
-        Expanded(
-          child: Stack(
+        // Zoom + my-location controls.
+        Positioned(
+          right: 12,
+          bottom: 16,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              GoogleMapPickerWidget(
-                initialLat: _mapPinLat,
-                initialLng: _mapPinLng,
-                onPositionChanged: _onMapPositionChanged,
-                label: widget.title,
-              ),
-
-              // Re-center on GPS button
-              Positioned(
-                right: 16,
-                bottom: 16,
-                child: FloatingActionButton.small(
-                  heroTag: 'map_picker_gps_btn',
-                  backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
-                  foregroundColor: AppColors.primary,
-                  onPressed: _centerPinOnGps,
-                  tooltip: 'Move pin to my GPS location',
-                  child: _isFetchingGps
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.my_location_rounded, size: 20),
-                ),
+              _circleButton(
+                  isDark: isDark,
+                  icon: Icons.add_rounded,
+                  tooltip: 'Zoom in',
+                  onTap: () => _map?.animateCamera(CameraUpdate.zoomIn())),
+              const SizedBox(height: 8),
+              _circleButton(
+                  isDark: isDark,
+                  icon: Icons.remove_rounded,
+                  tooltip: 'Zoom out',
+                  onTap: () => _map?.animateCamera(CameraUpdate.zoomOut())),
+              const SizedBox(height: 12),
+              FloatingActionButton(
+                heroTag: 'map_picker_gps_btn',
+                tooltip: 'Use my current location',
+                backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
+                foregroundColor: AppColors.primary,
+                onPressed: _isFetchingGps ? null : _centerOnGps,
+                child: _isFetchingGps
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.my_location_rounded),
               ),
             ],
-          ),
-        ),
-
-        // Bottom Selected Location Confirmation Sheet
-        Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.12),
-                blurRadius: 10,
-                offset: const Offset(0, -3),
-              ),
-            ],
-            border: Border(
-              top: BorderSide(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-            ),
-          ),
-          child: SafeArea(
-            top: false,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEA4335).withValues(alpha: 0.12),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.location_on, color: Color(0xFFEA4335), size: 20),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                'SELECTED PINPOINT LOCATION',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.primary,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                              if (_isGeocodingPin) ...[
-                                const SizedBox(width: 8),
-                                const SizedBox(
-                                  width: 10,
-                                  height: 10,
-                                  child: CircularProgressIndicator(strokeWidth: 1.5),
-                                ),
-                              ],
-                            ],
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            _isGeocodingPin
-                                ? 'Resolving exact street address...'
-                                : (_mapPinAddress.isNotEmpty ? _mapPinAddress : 'Selected Map Coordinates'),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Lat: ${_mapPinLat.toStringAsFixed(5)}, Lng: ${_mapPinLng.toStringAsFixed(5)}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontFamily: 'monospace',
-                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.md),
-                ElevatedButton.icon(
-                  onPressed: _isGeocodingPin ? null : _confirmMapPinLocation,
-                  icon: const Icon(Icons.check_circle_rounded, size: 20),
-                  label: const Text(
-                    'Confirm Pinpoint Location',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                  ),
-                ),
-              ],
-            ),
           ),
         ),
       ],
     );
   }
 
-  /// 1. Real-time Search Results List
-  Widget _buildSearchResultsList(bool isDark) {
-    if (_isLoadingSearch && _searchResults.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 12),
-            Text(
-              'Searching Google Maps across India...',
-              style: TextStyle(
-                fontSize: 13,
-                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+  Widget _searchBarButton(bool isDark) {
+    return Material(
+      color: isDark ? AppColors.surfaceDark : Colors.white,
+      elevation: 3,
+      shadowColor: Colors.black26,
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        onTap: _openSearch,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+          child: Row(
+            children: [
+              Icon(Icons.search_rounded, color: AppColors.primary, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  widget.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                  ),
+                ),
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildConfirmSheet(bool isDark) {
+    final busy = _isGeocoding || _cameraMoving;
+    final fg = isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight;
+    final muted = isDark ? AppColors.textMutedDark : AppColors.textMutedLight;
+    final place = _pinPlace;
+    final title = place != null
+        ? place.title
+        : (_pinAddress.isNotEmpty ? _pinAddress.split(',').first.trim() : 'Move the map to place the pin');
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 12, offset: const Offset(0, -3))
+        ],
+      ),
+      padding: const EdgeInsets.fromLTRB(AppSpacing.md, 14, AppSpacing.md, AppSpacing.md),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'SELECTED LOCATION',
+              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary, letterSpacing: 0.6),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(top: 2),
+                  child: Icon(Icons.location_on_rounded, color: Color(0xFFEA4335), size: 22),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: busy
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _skeletonLine(isDark, 160, 14),
+                            const SizedBox(height: 8),
+                            _skeletonLine(isDark, double.infinity, 11),
+                            const SizedBox(height: 4),
+                            Text('Locating…', style: TextStyle(fontSize: 11, color: muted)),
+                          ],
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTypography.h4(color: fg, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 2),
+                            Text(
+                              _pinAddress.isNotEmpty
+                                  ? _pinAddress
+                                  : '${_target.latitude.toStringAsFixed(5)}, ${_target.longitude.toStringAsFixed(5)}',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 12, color: muted),
+                            ),
+                          ],
+                        ),
+                ),
+                const SizedBox(width: 8),
+                TextButton(onPressed: _openSearch, child: const Text('Change')),
+              ],
+            ),
+            const SizedBox(height: 14),
+            ElevatedButton(
+              onPressed: busy || _pinOnFallback ? null : _confirm,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text('Confirm Location', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
-      );
-    }
+      ),
+    );
+  }
 
+  Widget _skeletonLine(bool isDark, double width, double height) => Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.slate700 : AppColors.slate200,
+          borderRadius: BorderRadius.circular(4),
+        ),
+      );
+
+  Widget _buildSearchPanel(bool isDark) {
+    final query = _searchController.text.trim();
+    final bg = isDark ? AppColors.bgDark : AppColors.bgLight;
+    return Material(
+      color: bg,
+      child: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 6, AppSpacing.md, 6),
+              child: Row(
+                children: [
+                  IconButton(
+                    tooltip: 'Back to map',
+                    onPressed: _closeSearch,
+                    icon: Icon(Icons.arrow_back_rounded,
+                        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+                  ),
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        border: Border.all(color: AppColors.primary, width: 1.5),
+                      ),
+                      child: TextField(
+                        controller: _searchController,
+                        focusNode: _searchFocus,
+                        autofocus: !widget.startOnMap,
+                        textInputAction: TextInputAction.search,
+                        decoration: InputDecoration(
+                          hintText: 'Search ${widget.title.toLowerCase()}',
+                          hintStyle: TextStyle(
+                              fontSize: 14, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+                          prefixIcon: Icon(Icons.search_rounded, color: AppColors.primary),
+                          suffixIcon: _isLoadingSearch
+                              ? const Padding(
+                                  padding: EdgeInsets.all(14),
+                                  child:
+                                      SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                                )
+                              : query.isNotEmpty
+                                  ? IconButton(
+                                      tooltip: 'Clear',
+                                      icon: const Icon(Icons.cancel_rounded, size: 18),
+                                      onPressed: _searchController.clear,
+                                    )
+                                  : null,
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Always-available shortcuts (the two old "modes" collapse into these rows).
+            _shortcutTile(
+              isDark: isDark,
+              icon: Icons.my_location_rounded,
+              color: AppColors.primary,
+              title: 'Use current location',
+              subtitle: _isFetchingGps
+                  ? 'Getting GPS fix…'
+                  : (_hasLocationPermission && _currentCity != null
+                      ? 'Near $_currentCity'
+                      : 'Move the pin to where you are'),
+              loading: _isFetchingGps,
+              onTap: _centerOnGps,
+            ),
+            _shortcutTile(
+              isDark: isDark,
+              icon: Icons.pin_drop_rounded,
+              color: const Color(0xFFEA4335),
+              title: 'Set location on map',
+              subtitle: 'Drag the map to the exact gate or entrance',
+              onTap: _closeSearch,
+            ),
+            Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
+            Expanded(child: query.length >= 2 ? _buildResults(isDark, query) : _buildSuggestions(isDark)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildResults(bool isDark, String query) {
+    if (_isLoadingSearch && _searchResults.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
     if (_searchResults.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.xl),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.location_off_rounded, size: 48, color: AppColors.slate400),
-              const SizedBox(height: 12),
+              Icon(Icons.location_off_rounded, size: 44, color: AppColors.slate400),
+              const SizedBox(height: 10),
               Text(
-                'No matching places found on Google Maps',
+                'No places found for "$query"',
+                textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                ),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
               ),
-              if (_searchController.text.trim().isNotEmpty) ...[
-                const SizedBox(height: 16),
-                // A typed address with no search hit has no real coordinates: make the vendor pin it,
-                // otherwise the driver would be sent to the phone's GPS spot or a default city point.
-                ElevatedButton.icon(
-                  onPressed: () => _switchToMapMode(hint: _searchController.text.trim()),
-                  icon: const Icon(Icons.pin_drop_rounded, size: 18),
-                  label: Text(
-                    'Pin "${_searchController.text.trim()}" on the map',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                  ),
-                ),
-              ],
+              const SizedBox(height: 14),
+              // A typed address with no hit has no real coordinates: the vendor must pin it.
+              OutlinedButton.icon(
+                onPressed: () {
+                  _closeSearch();
+                  _snack('Drag the map so the pin sits exactly on "$query", then confirm.');
+                },
+                icon: const Icon(Icons.pin_drop_rounded, size: 18),
+                label: const Text('Pin it on the map'),
+              ),
             ],
           ),
         ),
       );
     }
-
     return ListView.separated(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       itemCount: _searchResults.length,
-      separatorBuilder: (context, index) => Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
-      itemBuilder: (context, index) {
-        final loc = _searchResults[index];
-        final isSelected = _selectedLocation.title == loc.title && _selectedLocation.fullAddress == loc.fullAddress;
-
-        return ListTile(
-          dense: true,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          leading: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: isSelected ? AppColors.primary : AppColors.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(AppRadius.md),
-            ),
-            child: Icon(
-              loc.icon,
-              color: isSelected ? Colors.white : AppColors.primary,
-              size: 20,
-            ),
-          ),
-          title: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  loc.title,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    color: isSelected
-                        ? AppColors.primary
-                        : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          subtitle: Text(
-            loc.fullAddress,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 12,
-              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-            ),
-          ),
-          trailing: isSelected
-              ? Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 20)
-              : Icon(Icons.north_west_rounded, size: 16, color: AppColors.slate400),
-          onTap: () => _selectLocation(loc),
-        );
-      },
+      separatorBuilder: (_, __) =>
+          Divider(height: 1, indent: 64, color: isDark ? AppColors.borderDark : AppColors.borderLight),
+      itemBuilder: (_, i) => _placeTile(isDark, _searchResults[i], trailing: Icons.north_west_rounded),
     );
   }
 
-  /// 2. Explore, Quick Actions & Recent Searches View
-  Widget _buildExploreAndRecentView(bool isDark) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildSuggestions(bool isDark) {
+    final fg = isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight;
+    return ListView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+      children: [
+        if (_recentLocations.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.md, 12, 4, 0),
+            child: Row(
+              children: [
+                Expanded(child: Text('Recent', style: AppTypography.h4(color: fg, fontWeight: FontWeight.bold))),
+                TextButton(
+                  onPressed: () async {
+                    await _locationService.clearRecentLocations();
+                    if (mounted) setState(() => _recentLocations = []);
+                  },
+                  child: Text('Clear', style: TextStyle(fontSize: 12, color: AppColors.slate500)),
+                ),
+              ],
+            ),
+          ),
+          ..._recentLocations.map((l) => _placeTile(isDark, l, leadingIcon: Icons.history_rounded)),
+        ],
+        Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.md, 14, AppSpacing.md, 8),
+          child: Text(
+            _hasLocationPermission && _currentCity != null ? 'Popular near $_currentCity' : 'Popular places',
+            style: AppTypography.h4(color: fg, fontWeight: FontWeight.bold),
+          ),
+        ),
+        SizedBox(
+          height: 36,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            itemCount: _categories.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemBuilder: (_, i) {
+              final cat = _categories[i];
+              final selected = cat == _selectedCategory;
+              return ChoiceChip(
+                label: Text(cat),
+                selected: selected,
+                onSelected: (_) => _loadCategoryPlaces(cat),
+                showCheckmark: false,
+                selectedColor: AppColors.primary,
+                labelStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: selected ? Colors.white : fg),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 6),
+        if (_isLoadingCategoryPlaces)
+          const Padding(padding: EdgeInsets.all(AppSpacing.lg), child: Center(child: CircularProgressIndicator()))
+        else
+          ..._categoryPlaces.map((p) => _placeTile(isDark, p)),
+      ],
+    );
+  }
+
+  Widget _placeTile(bool isDark, LocationModel loc,
+      {IconData? leadingIcon, IconData trailing = Icons.chevron_right_rounded}) {
+    return ListTile(
+      dense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 2),
+      leading: CircleAvatar(
+        radius: 18,
+        backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+        child: Icon(leadingIcon ?? loc.icon, size: 18, color: AppColors.primary),
+      ),
+      title: Text(
+        loc.title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+      ),
+      subtitle: Text(
+        loc.fullAddress,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(fontSize: 12, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+      ),
+      trailing: Icon(trailing, size: 16, color: AppColors.slate400),
+      onTap: () => _choosePlace(loc),
+    );
+  }
+
+  Widget _shortcutTile({
+    required bool isDark,
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    bool loading = false,
+  }) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      leading: CircleAvatar(
+        radius: 18,
+        backgroundColor: color.withValues(alpha: 0.12),
+        child: loading
+            ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: color))
+            : Icon(icon, size: 18, color: color),
+      ),
+      title: Text(title,
+          style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)),
+      subtitle: Text(subtitle,
+          style: TextStyle(fontSize: 12, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
+      onTap: loading ? null : onTap,
+    );
+  }
+
+  Widget _circleButton(
+      {required bool isDark, required IconData icon, required String tooltip, required VoidCallback onTap}) {
+    return Material(
+      color: isDark ? AppColors.surfaceDark : Colors.white,
+      shape: const CircleBorder(),
+      elevation: 3,
+      shadowColor: Colors.black26,
+      child: IconButton(
+        tooltip: tooltip,
+        onPressed: onTap,
+        icon: Icon(icon, color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+      ),
+    );
+  }
+}
+
+/// The fixed centre pin. Its tip is the exact centre of its parent; it lifts while the map moves.
+class _CenterPin extends StatelessWidget {
+  const _CenterPin({required this.lifted, required this.label});
+
+  final bool lifted;
+  final String label;
+
+  static const double _pinSize = 46;
+  static const double _labelH = 26;
+  static const double _width = 220;
+
+  @override
+  Widget build(BuildContext context) {
+    // The Material `location_pin` glyph's tip is ~22/24 of the way down its box.
+    const tipFromTop = _pinSize * 22 / 24;
+    const total = _labelH + 4 + tipFromTop;
+    // A box of height 2*total centred on the point puts y=total (the tip) exactly on it.
+    return SizedBox(
+      height: total * 2,
+      width: _width,
+      child: Stack(
+        clipBehavior: Clip.none,
         children: [
-          // Quick Action - Use Current Location via GPS
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            child: _buildQuickActionButton(
-              icon: Icons.my_location_rounded,
-              label: 'Use Current Location',
-              subtitle: _isFetchingGps
-                  ? 'Acquiring GPS fix via Google Maps...'
-                  : (_hasLocationPermission && _currentCity != null
-                      ? 'Near $_currentCity • Tap to update GPS'
-                      : 'Tap to fetch precise GPS coordinates'),
-              color: AppColors.primary,
-              onTap: _fetchCurrentGpsLocation,
-              isDark: isDark,
-              isLoading: _isFetchingGps,
-            ),
-          ),
-
-          const SizedBox(height: AppSpacing.xs),
-
-          // Quick Action - Pinpoint Location on Map
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            child: _buildQuickActionButton(
-              icon: Icons.pin_drop_rounded,
-              label: 'Choose / Pinpoint on Map',
-              subtitle: 'Manually select exact pickup or drop point on Google Maps',
-              color: const Color(0xFFEA4335),
-              onTap: _switchToMapMode,
-              isDark: isDark,
-            ),
-          ),
-
-          const SizedBox(height: AppSpacing.md),
-
-          // Recent Searches Section
-          if (_recentLocations.isNotEmpty) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.history_rounded, size: 18, color: AppColors.primary),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Recent Searches',
-                        style: AppTypography.h4(
-                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  TextButton(
-                    onPressed: () async {
-                      await _locationService.clearRecentLocations();
-                      setState(() => _recentLocations = []);
-                    },
-                    child: Text('Clear', style: TextStyle(fontSize: 12, color: AppColors.slate500)),
-                  ),
-                ],
+          // Ground shadow at the exact point (spreads when the pin lifts).
+          Positioned(
+            top: total - 3,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                width: lifted ? 14 : 8,
+                height: lifted ? 5 : 6,
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: lifted ? 0.25 : 0.55),
+                  borderRadius: BorderRadius.circular(8),
+                  border: lifted ? null : Border.all(color: Colors.white, width: 1),
+                ),
               ),
             ),
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-              itemCount: _recentLocations.length,
-              itemBuilder: (context, index) {
-                final item = _recentLocations[index];
-                return ListTile(
-                  dense: true,
-                  leading: CircleAvatar(
-                    radius: 16,
-                    backgroundColor: isDark ? AppColors.surfaceDark : AppColors.slate200,
-                    child: Icon(item.icon, size: 16, color: AppColors.primary),
-                  ),
-                  title: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          item.title,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  subtitle: Text(
-                    item.fullAddress,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 11, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
-                  ),
-                  trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 12),
-                  onTap: () => _selectLocation(item),
-                );
-              },
-            ),
-            const SizedBox(height: AppSpacing.sm),
-          ],
-
-          // Category Discovery Pills Header
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          ),
+          AnimatedPositioned(
+            duration: Duration(milliseconds: lifted ? 150 : 220),
+            curve: lifted ? Curves.easeOut : Curves.easeOutBack,
+            top: lifted ? -14 : 0,
+            left: 0,
+            right: 0,
+            height: total,
+            child: Column(
               children: [
-                Expanded(
-                  child: Text(
-                    'Popular Landmarks & Transit Hubs',
-                    style: AppTypography.h4(
-                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                      fontWeight: FontWeight.bold,
+                AnimatedOpacity(
+                  duration: const Duration(milliseconds: 150),
+                  opacity: lifted ? 0 : 1,
+                  child: Container(
+                    height: _labelH,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(AppRadius.full),
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 6, offset: const Offset(0, 2)),
+                      ],
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    child: Center(
+                      widthFactor: 1,
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: _hasLocationPermission
-                        ? AppColors.primary.withValues(alpha: 0.12)
-                        : (isDark ? AppColors.surfaceDark : AppColors.slate200),
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                    border: Border.all(
-                      color: _hasLocationPermission
-                          ? AppColors.primary.withValues(alpha: 0.3)
-                          : (isDark ? AppColors.borderDark : AppColors.borderLight),
+                const SizedBox(height: 4),
+                SizedBox(
+                  height: tipFromTop,
+                  width: _pinSize,
+                  child: OverflowBox(
+                    alignment: Alignment.topCenter,
+                    maxHeight: _pinSize,
+                    maxWidth: _pinSize,
+                    child: Icon(
+                      Icons.location_pin,
+                      size: _pinSize,
+                      color: const Color(0xFFEA4335),
+                      shadows: [
+                        Shadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 8, offset: const Offset(0, 4)),
+                      ],
                     ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _hasLocationPermission ? Icons.near_me_rounded : Icons.location_city_rounded,
-                        size: 11,
-                        color: _hasLocationPermission ? AppColors.primary : AppColors.slate600,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _hasLocationPermission
-                            ? (_currentCity != null ? 'Near $_currentCity' : 'Nearby')
-                            : 'Hyderabad',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: _hasLocationPermission
-                              ? (isDark ? Colors.tealAccent : AppColors.primary)
-                              : (isDark ? AppColors.textMutedDark : AppColors.slate700),
-                        ),
-                      ),
-                    ],
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 6),
-          SizedBox(
-            height: 38,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-              itemCount: _categories.length,
-              separatorBuilder: (context, index) => const SizedBox(width: AppSpacing.xs),
-              itemBuilder: (context, index) {
-                final cat = _categories[index];
-                final isSelected = _selectedCategory == cat;
-                return GestureDetector(
-                  onTap: () => _loadCategoryPlaces(cat),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? AppColors.primary
-                          : (isDark ? AppColors.surfaceDark : AppColors.slate200),
-                      borderRadius: BorderRadius.circular(AppRadius.full),
-                      border: Border.all(
-                        color: isSelected
-                            ? AppColors.primary
-                            : (isDark ? AppColors.borderDark : AppColors.borderLight),
-                      ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        cat,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                          color: isSelected
-                              ? Colors.white
-                              : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-
-          const SizedBox(height: AppSpacing.sm),
-
-          // Categorized Places List
-          if (_isLoadingCategoryPlaces)
-            const Padding(
-              padding: EdgeInsets.all(AppSpacing.lg),
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-              itemCount: _categoryPlaces.length,
-              itemBuilder: (context, index) {
-                final place = _categoryPlaces[index];
-                final isSelected = _selectedLocation.title == place.title;
-
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 6),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppColors.primary.withValues(alpha: 0.1)
-                        : (isDark ? AppColors.surfaceDark : AppColors.surfaceLight),
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                    border: Border.all(
-                      color: isSelected
-                          ? AppColors.primary
-                          : (isDark ? AppColors.borderDark : AppColors.borderLight),
-                      width: isSelected ? 2 : 1,
-                    ),
-                  ),
-                  child: ListTile(
-                    dense: true,
-                    leading: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? AppColors.primary
-                            : (isDark ? AppColors.slate800 : AppColors.slate100),
-                        borderRadius: BorderRadius.circular(AppRadius.sm),
-                      ),
-                      child: Icon(
-                        place.icon,
-                        color: isSelected ? Colors.white : AppColors.primary,
-                        size: 18,
-                      ),
-                    ),
-                    title: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            place.title,
-                            style: TextStyle(
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                              fontSize: 13,
-                              color: isSelected
-                                  ? AppColors.primary
-                                  : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    subtitle: Text(
-                      place.fullAddress,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                      ),
-                    ),
-                    trailing: isSelected
-                        ? Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 20)
-                        : Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.slate400),
-                    onTap: () => _selectLocation(place),
-                  ),
-                );
-              },
-            ),
         ],
-      ),
-    );
-  }
-
-
-
-  /// Quick Action Button Tile
-  Widget _buildQuickActionButton({
-    required IconData icon,
-    required String label,
-    required String subtitle,
-    required Color color,
-    required VoidCallback onTap,
-    required bool isDark,
-    bool isLoading = false,
-  }) {
-    return GestureDetector(
-      onTap: isLoading ? null : onTap,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-              ),
-              child: isLoading
-                  ? SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: color,
-                      ),
-                    )
-                  : Icon(icon, color: color, size: 20),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                    ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

@@ -7,57 +7,63 @@ import {
 
 describe('Corporate tenant vehicle capacity policy', () => {
   it.each([
-    ['SEDAN', 4],
-    ['SUV', 6],
-  ])('accepts the canonical %s capacity boundary', (defaultVehicleCategory, defaultCapacity) => {
+    ['CUSTOM_VAN', 8],
+    ['ALL', 12],
+  ])('accepts %s within the generic policy bounds', (defaultVehicleCategory, defaultCapacity) => {
     expect(() =>
       validateTenantPolicyValues({ defaultVehicleCategory, defaultCapacity }),
     ).not.toThrow();
   });
 
   it.each([
-    ['SEDAN', 5],
-    ['SUV', 7],
-  ])('rejects %s capacities above the vehicle limit', (defaultVehicleCategory, defaultCapacity) => {
+    ['CUSTOM_VAN', 13],
+    ['', 4],
+  ])('rejects invalid category policy values %#', (defaultVehicleCategory, defaultCapacity) => {
     expect(() =>
       validateTenantPolicyValues({ defaultVehicleCategory, defaultCapacity }),
     ).toThrow(BadRequestException);
   });
 
-  it('caps an out-of-range persisted Sedan capacity to the 4-seat limit when reading a policy', async () => {
+  it('rejects a stored capacity exceeding its active database category', async () => {
     const policy = {
       ...DEFAULT_TENANT_POLICY,
       version: 1,
       effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
-      defaultVehicleCategory: 'SEDAN',
-      defaultCapacity: 6,
+      defaultVehicleCategory: 'CUSTOM_VAN',
+      defaultCapacity: 10,
     };
     const database = {
       corporateTenantPolicy: { findFirst: jest.fn().mockResolvedValue(policy) },
+      vehiclePricingTier: {
+        findMany: jest.fn().mockResolvedValue([{ vehicleType: 'CUSTOM_VAN', seatingCapacity: '8 seats', isActive: true }]),
+      },
     };
     const service = new CorporateTenantPolicyService(database as any, {} as any);
 
-    const result = await service.getEffectivePolicy('tenant-1', new Date('2026-11-12T00:00:00.000Z'));
-
-    expect(result.defaultCapacity).toBe(4);
-    expect(result.defaultVehicleCategory).toBe('SEDAN');
+    await expect(service.getEffectivePolicy('tenant-1', new Date('2026-11-12T00:00:00.000Z')))
+      .rejects.toThrow(/capacity exceeds the active category capacity of 8/);
   });
 
-  it('rejects legacy policy rows with an unsupported vehicle category', async () => {
+  it('rejects a stored category that is no longer active', async () => {
     const policy = {
       ...DEFAULT_TENANT_POLICY,
       version: 1,
       effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
-      defaultVehicleCategory: 'VAN',
+      defaultVehicleCategory: 'RETIRED_VAN',
       defaultCapacity: 4,
     };
     const service = new CorporateTenantPolicyService(
-      { corporateTenantPolicy: { findFirst: jest.fn().mockResolvedValue(policy) } } as any,
+      {
+        corporateTenantPolicy: { findFirst: jest.fn().mockResolvedValue(policy) },
+        vehiclePricingTier: {
+          findMany: jest.fn().mockResolvedValue([{ vehicleType: 'CURRENT_VAN', seatingCapacity: '8 seats', isActive: true }]),
+        },
+      } as any,
       {} as any,
     );
 
     await expect(service.getEffectivePolicy('tenant-1')).rejects.toThrow(
-      'Stored tenant policy has an unsupported defaultVehicleCategory',
+      "defaultVehicleCategory 'RETIRED_VAN' is not active in the vehicle catalogue",
     );
   });
 });

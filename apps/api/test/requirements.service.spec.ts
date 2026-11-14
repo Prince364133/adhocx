@@ -10,7 +10,6 @@ import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter
 import {
   RequirementStatus,
   VerificationStatus,
-  VehicleType,
   OfferStatus,
   InvalidStateTransitionError,
 } from '@adhocx/contracts';
@@ -109,7 +108,7 @@ describe('RequirementsService Unit Tests', () => {
     db.requirement.create.mockResolvedValue({
       id: 'req-1',
       vendorId: 'vnd-1',
-      vehicleType: VehicleType.SEDAN,
+      vehicleType: 'SEDAN',
       quantity: 2,
       assignedQuantity: 0,
       pickupLat: 28.6139,
@@ -127,7 +126,7 @@ describe('RequirementsService Unit Tests', () => {
     });
 
     const result = await service.createRequirement('usr-vnd-1', {
-      vehicleType: VehicleType.SEDAN,
+      vehicleType: 'SEDAN',
       quantity: 2,
       pickupLocation: { latitude: 28.6139, longitude: 77.2090, address: 'Connaught Place' },
       dropLocation: { latitude: 28.5355, longitude: 77.3910, address: 'Noida Sector 62' },
@@ -143,7 +142,7 @@ describe('RequirementsService Unit Tests', () => {
 
   describe('mandatory review gate', () => {
     const bookingDto = () => ({
-      vehicleType: VehicleType.SEDAN,
+      vehicleType: 'SEDAN',
       quantity: 1,
       pickupLocation: { latitude: 28.6139, longitude: 77.209, address: 'CP' },
       dropLocation: { latitude: 28.5355, longitude: 77.391, address: 'Noida' },
@@ -211,7 +210,7 @@ describe('RequirementsService Unit Tests', () => {
       process.env.REVIEW_GATE_ENABLED = 'false';
       db.trip.findFirst.mockResolvedValue({ id: 'trip-old', driver: null });
       db.requirement.create.mockResolvedValue({
-        id: 'req-9', vendorId: 'vnd-1', vehicleType: VehicleType.SEDAN, quantity: 1, assignedQuantity: 0,
+        id: 'req-9', vendorId: 'vnd-1', vehicleType: 'SEDAN', quantity: 1, assignedQuantity: 0,
         pickupLat: 1, pickupLng: 1, pickupAddress: 'a', dropLat: 1, dropLng: 1, dropAddress: 'b',
         reportingTime: new Date(), ratePerVehicle: 1500, totalAmount: 1500, status: RequirementStatus.POSTED,
         createdAt: new Date(), updatedAt: new Date(),
@@ -232,7 +231,7 @@ describe('RequirementsService Unit Tests', () => {
     db.requirement.findUnique.mockResolvedValue({
       id: 'req-1',
       vendorId: 'vnd-1',
-      vehicleType: VehicleType.SEDAN,
+      vehicleType: 'SEDAN',
       quantity: 5,
       assignedQuantity: 2,
       pickupLat: 28.6139,
@@ -285,7 +284,7 @@ describe('RequirementsService Unit Tests', () => {
     db.requirement.findUnique.mockResolvedValueOnce({
       id: 'a0000000-0000-0000-0000-000000000001',
       vendorId: 'vnd-1',
-      vehicleType: VehicleType.SEDAN,
+      vehicleType: 'SEDAN',
       quantity: 1,
       assignedQuantity: 0,
       pickupLat: 28.6139,
@@ -358,7 +357,7 @@ describe('RequirementsService Unit Tests', () => {
   describe('distance-priced bookings', () => {
     const now = new Date();
     const dto: any = {
-      vehicleType: VehicleType.SEDAN,
+      vehicleType: 'SEDAN',
       quantity: 1,
       pickupLocation: { latitude: 17.3753, longitude: 78.4983, address: 'Malakpet' },
       dropLocation: { latitude: 17.4435, longitude: 78.3772, address: 'HITEC City' },
@@ -383,7 +382,7 @@ describe('RequirementsService Unit Tests', () => {
       expect(distancePricing.lockPricingSnapshotForBooking).toHaveBeenCalledWith(dto.quoteId, 'usr-vnd-1', {
         pickup: dto.pickupLocation,
         drop: dto.dropLocation,
-        vehicleCategory: VehicleType.SEDAN,
+        vehicleCategory: 'SEDAN',
         // The quote's peak/non-peak period is checked against the trip's own reporting time.
         reportingTime: dto.reportingTime,
       });
@@ -409,7 +408,7 @@ describe('RequirementsService Unit Tests', () => {
     it('re-sending an already-booked quote returns the original booking without a second debit', async () => {
       distancePricing.findBookingForQuote.mockResolvedValue('req-d1');
       db.requirement.findUnique.mockResolvedValue({
-        id: 'req-d1', vendorId: 'vnd-1', vehicleType: VehicleType.SEDAN, quantity: 1, assignedQuantity: 0,
+        id: 'req-d1', vendorId: 'vnd-1', vehicleType: 'SEDAN', quantity: 1, assignedQuantity: 0,
         pickupLat: 17.3753, pickupLng: 78.4983, pickupAddress: 'Malakpet', dropLat: 17.4435, dropLng: 78.3772,
         dropAddress: 'HITEC City', reportingTime: now, ratePerVehicle: 1500, totalAmount: 1500,
         status: RequirementStatus.POSTED, createdAt: now, updatedAt: now,
@@ -433,7 +432,7 @@ describe('RequirementsService Unit Tests', () => {
       await service.createRequirement('usr-vnd-1', { ...dto, quoteId: undefined });
       expect(distancePricing.createVendorQuote).toHaveBeenLastCalledWith(
         // Priced for the reporting time, not the moment of booking.
-        { pickup: dto.pickupLocation, drop: dto.dropLocation, vehicleCategory: VehicleType.SEDAN, pickupTime: dto.reportingTime },
+        { pickup: dto.pickupLocation, drop: dto.dropLocation, vehicleCategory: 'SEDAN', pickupTime: dto.reportingTime },
         'usr-vnd-1',
       );
     });
@@ -493,7 +492,7 @@ describe('RequirementsService Unit Tests', () => {
         id: '99999999-9999-9999-9999-999999999999',
         vendorId: 'vnd-1',
         fulfillmentMode: 'DIRECT_DISPATCH',
-        vehicleType: VehicleType.SEDAN,
+        vehicleType: 'SEDAN',
         quantity: 1,
         assignedQuantity: 0,
         pickupLat: 28.6139,

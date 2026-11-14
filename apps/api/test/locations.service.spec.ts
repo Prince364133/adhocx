@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { LocationsService } from '../src/modules/locations/locations.service';
 import { H3Service } from '../src/modules/locations/h3.service';
 import { DatabaseService } from '../src/database/database.service';
-import { DriverAvailability, VerificationStatus, VehicleType } from '@adhocx/contracts';
+import { DriverAvailability, VerificationStatus } from '@adhocx/contracts';
 
 describe('LocationsService', () => {
   let service: LocationsService;
@@ -78,7 +78,7 @@ describe('LocationsService', () => {
     mockDb.driver.findMany.mockResolvedValue(drivers);
 
     // Search radius: 5km around Delhi (28.6139, 77.2090)
-    const results = await service.findNearbyDrivers(28.6139, 77.2090, 5, VehicleType.SEDAN);
+    const results = await service.findNearbyDrivers(28.6139, 77.2090, 5, 'SEDAN');
 
     expect(results.length).toBe(1);
     expect(results[0].driverId).toBe('drv-near');
@@ -147,7 +147,7 @@ describe('LocationsService', () => {
       ];
       mockDb.driver.findMany.mockResolvedValue(drivers);
 
-      const candidates = await service.findNearbyDriversByH3(17.4435, 78.3772, 2, VehicleType.SEDAN);
+      const candidates = await service.findNearbyDriversByH3(17.4435, 78.3772, 2, 'SEDAN');
       expect(candidates.length).toBe(1);
       expect(candidates[0].driverId).toBe('drv-h3-1');
       expect(candidates[0].h3Cell).toBeDefined();

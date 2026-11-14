@@ -1,7 +1,7 @@
 class CabCartItem {
   final String id;
-  String vehicleType; // 'SEDAN', 'SUV', 'HATCHBACK', 'BUS'
-  String vehicleLabel; // 'Prime Sedan', 'SUV 7 Seater', etc.
+  String vehicleType;
+  String vehicleLabel;
   int passengers;
   String pickupAddress;
   double pickupLat;
@@ -207,8 +207,10 @@ class CabCartItem {
 
     return CabCartItem(
       id: json['id']?.toString() ?? 'cab_${DateTime.now().millisecondsSinceEpoch}',
-      vehicleType: json['vehicleType']?.toString() ?? 'SEDAN',
-      vehicleLabel: json['vehicleLabel']?.toString() ?? 'Prime Sedan',
+      vehicleType: json['vehicleType']?.toString() ?? '',
+      vehicleLabel: json['vehicleLabel']?.toString() ??
+          json['vehicleType']?.toString() ??
+          '',
       passengers: (json['passengers'] as num?)?.toInt() ?? 4,
       pickupAddress: json['pickupAddress']?.toString() ?? '',
       pickupLat: (json['pickupLat'] as num?)?.toDouble() ?? 0.0,

@@ -26,9 +26,9 @@ const emptyCategory = { vehicleType: '', categoryLabel: '', seatingCapacity: '',
 
 function CategoryIcon({ c }: { c: VehicleCategory }) {
   const key = c.iconKey || '';
-  if (c.vehicleType === 'BIKE' || key === 'bike') return <Bike size={17} color="#F59E0B" />;
-  if (c.vehicleType === 'BUS' || key === 'bus') return <Bus size={17} color="#10B981" />;
-  if (c.vehicleType === 'TEMPO_TRAVELLER' || key === 'truck') return <Truck size={17} color="#8B5CF6" />;
+  if (key === 'bike') return <Bike size={17} color="#F59E0B" />;
+  if (key === 'bus') return <Bus size={17} color="#10B981" />;
+  if (key === 'truck') return <Truck size={17} color="#8B5CF6" />;
   return <Car size={17} color="var(--brand-primary)" />;
 }
 
@@ -228,7 +228,7 @@ export default function PricingPage() {
       >
         <form onSubmit={handleCreateCategory} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div>
-            <label style={labelStyle}>Code * (e.g. EV_SEDAN)</label>
+            <label style={labelStyle}>Code * (e.g. CUSTOM_VAN)</label>
             <input value={newCategory.vehicleType} onChange={(e) => setNewCategory({ ...newCategory, vehicleType: e.target.value })} style={inputStyle} />
           </div>
           <div>

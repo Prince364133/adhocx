@@ -289,9 +289,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           if (driverVehicle.isEmpty) {
             driverVehicle = VehicleUtils.extractVehicleType(AuthService.instance.currentUser?.driverProfile);
           }
-          if (driverVehicle.isEmpty) {
-            driverVehicle = 'SEDAN';
-          }
 
           // 3. Check for direct dispatch offers strictly matching driver vehicle type
           final sentOffers = offers.where((o) {
@@ -1199,7 +1196,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final rawDisplayId = requirementId.length > 8 ? 'REQ-${requirementId.substring(0, 8).toUpperCase()}' : requirementId;
 
     final reqObj = offer?['requirement'] as Map<String, dynamic>?;
-    final vehicle = (offer?['vehicleType'] ?? reqObj?['vehicleType'] ?? 'Sedan').toString();
+    final vehicle = (offer?['vehicleType'] ?? reqObj?['vehicleType'] ?? 'Vehicle category unavailable').toString();
     final pickup = (offer?['pickupLocation']?['address'] ?? offer?['pickup'] ?? reqObj?['pickupAddress'] ?? 'Pickup Location').toString();
     final drop = (offer?['dropLocation']?['address'] ?? offer?['drop'] ?? reqObj?['dropAddress'] ?? 'Drop Location').toString();
 
@@ -1461,7 +1458,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final tripId = trip?['id'] as String? ?? 'LIVE';
     final pickup = (trip?['pickupLocation']?['address'] ?? trip?['pickupAddress'] ?? 'Pickup Point').toString();
     final drop = (trip?['dropLocation']?['address'] ?? trip?['dropAddress'] ?? 'Destination').toString();
-    final vehicle = (trip?['vehicleType'] ?? 'Sedan').toString();
+    final vehicle = (trip?['vehicleType'] ?? 'Vehicle category unavailable').toString();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

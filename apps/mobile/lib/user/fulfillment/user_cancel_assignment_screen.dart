@@ -63,7 +63,7 @@ class _UserCancelAssignmentScreenState extends State<UserCancelAssignmentScreen>
     final driverUser = driver?['user'] as Map<String, dynamic>?;
     final driverName = driverUser?['fullName'] ?? driver?['fullName'] ?? 'Assigned Driver';
     final vehiclePlate = driver?['vehiclePlate'] ?? trip['vehiclePlate'] ?? 'Vehicle Assigned';
-    final vehicleModel = driver?['vehicleModel'] ?? trip['vehicleModel'] ?? 'Sedan';
+    final vehicleModel = driver?['vehicleModel'] ?? trip['vehicleModel'] ?? 'Fleet Vehicle';
     final status = (trip['status'] ?? 'ASSIGNED').toString();
     final driverPhoto = (trip['driverPhoto'] ?? driver?['photoUrl'] ?? driver?['profilePhotoUrl'] ?? driverUser?['photoUrl'])?.toString();
 

@@ -22,7 +22,7 @@ class FleetTemplate {
   double get totalEstimatedFare =>
       cabs.fold(0.0, (sum, cab) => sum + cab.estimatedFare);
 
-  /// Human-readable vehicle breakdown, e.g. "3x Sedan, 2x SUV"
+  /// Human-readable vehicle breakdown using the configured category labels.
   String get vehicleSummary {
     if (cabs.isEmpty) return '0 Vehicles';
     final Map<String, int> counts = {};

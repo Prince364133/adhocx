@@ -9,7 +9,6 @@ import {
   UserStatus,
   VerificationStatus,
   DriverAvailability,
-  VehicleType,
 } from '@adhocx/contracts';
 
 /**
@@ -18,6 +17,7 @@ import {
  * these fixtures used to omit the location, which the old engine treated as "at the pickup".
  */
 const nearby = (km = 1) => ({
+  vehicleType: 'SEDAN',
   currentLat: 28.6139,
   currentLng: 77.209 + km / (111.32 * Math.cos((28.6139 * Math.PI) / 180)),
   lastLocationAt: new Date(),
@@ -79,7 +79,7 @@ describe('DispatchService Unit Tests', () => {
   it('a booking without a pricing snapshot that cannot be priced is not dispatched at a guessed payout', async () => {
     const now = new Date();
     db.requirement.findUnique.mockResolvedValue({
-      id: 'req-legacy', vendorId: 'vnd-1', vehicleType: VehicleType.SEDAN, quantity: 1, assignedQuantity: 0,
+      id: 'req-legacy', vendorId: 'vnd-1', vehicleType: 'SEDAN', quantity: 1, assignedQuantity: 0,
       pickupLat: 28.6139, pickupLng: 77.209, dropLat: 28.62, dropLng: 77.36, pickupAddress: 'CP', dropAddress: 'Noida',
       reportingTime: now, ratePerVehicle: 1500, pricingSnapshot: null, status: RequirementStatus.POSTED, offers: [],
       vendor: { userId: 'usr-vnd-1' },
@@ -103,7 +103,7 @@ describe('DispatchService Unit Tests', () => {
   it('a pre-engine booking is priced from the database plan, never from the vendor rate', async () => {
     const now = new Date();
     db.requirement.findUnique.mockResolvedValue({
-      id: 'req-legacy', vendorId: 'vnd-1', vehicleType: VehicleType.SEDAN, quantity: 1, assignedQuantity: 0,
+      id: 'req-legacy', vendorId: 'vnd-1', vehicleType: 'SEDAN', quantity: 1, assignedQuantity: 0,
       pickupLat: 28.6139, pickupLng: 77.209, dropLat: 28.62, dropLng: 77.36, pickupAddress: 'CP', dropAddress: 'Noida',
       reportingTime: now, ratePerVehicle: 1500, pricingSnapshot: null, status: RequirementStatus.POSTED, offers: [],
       vendor: { userId: 'usr-vnd-1' },
@@ -127,7 +127,7 @@ describe('DispatchService Unit Tests', () => {
     db.requirement.findUnique.mockResolvedValue({
       id: 'req-1',
       vendorId: 'vnd-1',
-      vehicleType: VehicleType.SEDAN,
+      vehicleType: 'SEDAN',
       quantity: 1,
       assignedQuantity: 0,
       pickupLat: 28.6139,
@@ -197,7 +197,7 @@ describe('DispatchService Unit Tests', () => {
     db.requirement.findUnique.mockResolvedValue({
       id: 'req-1',
       vendorId: 'vnd-1',
-      vehicleType: VehicleType.SEDAN,
+      vehicleType: 'SEDAN',
       quantity: 1,
       assignedQuantity: 0,
       pickupLat: 28.6139,
@@ -291,7 +291,7 @@ describe('DispatchService Unit Tests', () => {
     db.requirement.findUnique.mockResolvedValue({
       id: 'req-escort',
       vendorId: 'vnd-1',
-      vehicleType: VehicleType.SEDAN,
+      vehicleType: 'SEDAN',
       quantity: 1,
       assignedQuantity: 0,
       pickupLat: 28.6139,

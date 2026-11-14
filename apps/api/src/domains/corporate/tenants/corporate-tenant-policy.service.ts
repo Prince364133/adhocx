@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, Injectable, Logger, NotFoundExc
 import { DatabaseService } from '../../../database/database.service';
 import { AuditService } from '../../../modules/audit/audit.service';
 import { RESCHEDULE_CUTOFF_HOURS, isValidShiftTime } from '../replanning/cutoff-policy';
-import { VEHICLE_CAPACITY } from '../routing/routing.types';
+import { calculateTierMaxSeats } from '../../../modules/pricing/pricing.service';
 
 /** Operating policy of a corporate tenant at a point in time (CP-ROS-03, CP-ADM-03). */
 export interface CorporateTenantPolicyValues {
@@ -35,8 +35,8 @@ export type CreateTenantPolicyInput = Partial<CorporateTenantPolicyValues> & { e
 export const DEFAULT_TENANT_POLICY: Readonly<CorporateTenantPolicyValues> = Object.freeze({
   cancelCutoffHours: RESCHEDULE_CUTOFF_HOURS,
   maxRideMinutes: 120,
-  defaultVehicleCategory: 'SEDAN',
-  defaultCapacity: VEHICLE_CAPACITY.SEDAN,
+  defaultVehicleCategory: 'ALL',
+  defaultCapacity: 12,
   escalationLeadMinutes: 30,
   officeArrivalBufferMinutes: 10,
   stopDwellMinutes: 10,
@@ -48,7 +48,6 @@ export const DEFAULT_TENANT_POLICY: Readonly<CorporateTenantPolicyValues> = Obje
   nightShiftEnd: '06:00',
 });
 
-const VEHICLE_CATEGORIES = ['SEDAN', 'SUV'];
 const INT_RANGES: Record<string, [number, number]> = {
   cancelCutoffHours: [0, 72],
   maxRideMinutes: [15, 240],
@@ -84,17 +83,28 @@ export class CorporateTenantPolicyService {
       orderBy: [{ effectiveFrom: 'desc' }, { version: 'desc' }],
     });
     if (!row) {
-      return { tenantId, version: null, effectiveFrom: null, source: 'DEFAULT', ...DEFAULT_TENANT_POLICY };
+      const categories = await this.getActiveCategoryCapacities();
+      if (categories.length === 0) {
+        throw new BadRequestException('No active vehicle categories are configured');
+      }
+      return {
+        tenantId,
+        version: null,
+        effectiveFrom: null,
+        source: 'DEFAULT',
+        ...DEFAULT_TENANT_POLICY,
+        defaultCapacity: Math.max(...categories.map((category) => category.maxSeats)),
+      };
     }
     const defaultVehicleCategory = String(row.defaultVehicleCategory).trim().toUpperCase();
-    if (!VEHICLE_CATEGORIES.includes(defaultVehicleCategory)) {
-      throw new BadRequestException('Stored tenant policy has an unsupported defaultVehicleCategory');
-    }
-    const categoryCapacity =
-      defaultVehicleCategory === 'SEDAN' ? VEHICLE_CAPACITY.SEDAN : VEHICLE_CAPACITY.SUV;
     const storedCapacity = Number(row.defaultCapacity);
     if (!Number.isInteger(storedCapacity) || storedCapacity < 1) {
       throw new BadRequestException('Stored tenant policy defaultCapacity must be a positive integer');
+    }
+    const categories = await this.getActiveCategoryCapacities();
+    const categoryCapacity = this.resolvePolicyCategoryCapacity(defaultVehicleCategory, categories);
+    if (storedCapacity > categoryCapacity) {
+      throw new BadRequestException(`Stored tenant policy capacity exceeds the active category capacity of ${categoryCapacity}`);
     }
     return {
       tenantId,
@@ -104,7 +114,7 @@ export class CorporateTenantPolicyService {
       cancelCutoffHours: row.cancelCutoffHours,
       maxRideMinutes: row.maxRideMinutes,
       defaultVehicleCategory,
-      defaultCapacity: Math.min(storedCapacity, categoryCapacity),
+      defaultCapacity: storedCapacity,
       escalationLeadMinutes: row.escalationLeadMinutes,
       officeArrivalBufferMinutes: row.officeArrivalBufferMinutes,
       stopDwellMinutes: row.stopDwellMinutes ?? DEFAULT_TENANT_POLICY.stopDwellMinutes,
@@ -139,6 +149,13 @@ export class CorporateTenantPolicyService {
 
     const base = await this.getEffectivePolicy(tenantId, effectiveFrom);
     const values = this.validate({ ...this.pickValues(base), ...this.pickValues(input ?? {}) });
+    const categories = await this.getActiveCategoryCapacities();
+    const categoryCapacity = this.resolvePolicyCategoryCapacity(values.defaultVehicleCategory, categories);
+    if (values.defaultCapacity > categoryCapacity) {
+      throw new BadRequestException(
+        `defaultCapacity ${values.defaultCapacity} exceeds the ${categoryCapacity} seats available for ${values.defaultVehicleCategory}`,
+      );
+    }
 
     for (let attempt = 1; ; attempt++) {
       try {
@@ -187,6 +204,35 @@ export class CorporateTenantPolicyService {
   private validate(v: Partial<CorporateTenantPolicyValues>): CorporateTenantPolicyValues {
     return validateTenantPolicyValues(v);
   }
+
+  private async getActiveCategoryCapacities(): Promise<Array<{ vehicleType: string; maxSeats: number }>> {
+    const rows = await this.db.vehiclePricingTier.findMany({
+      where: { isActive: true },
+      orderBy: { vehicleType: 'asc' },
+      select: { vehicleType: true, seatingCapacity: true },
+    });
+    return rows
+      .filter((row) => row.vehicleType?.trim())
+      .map((row) => ({
+        vehicleType: row.vehicleType.trim().toUpperCase(),
+        maxSeats: calculateTierMaxSeats(row.vehicleType, row.seatingCapacity),
+      }));
+  }
+
+  private resolvePolicyCategoryCapacity(
+    vehicleCategory: string,
+    categories: Array<{ vehicleType: string; maxSeats: number }>,
+  ): number {
+    if (categories.length === 0) {
+      throw new BadRequestException('No active vehicle categories are configured');
+    }
+    if (vehicleCategory === 'ALL') return Math.max(...categories.map((category) => category.maxSeats));
+    const category = categories.find((item) => item.vehicleType === vehicleCategory);
+    if (!category) {
+      throw new BadRequestException(`defaultVehicleCategory '${vehicleCategory}' is not active in the vehicle catalogue`);
+    }
+    return category.maxSeats;
+  }
 }
 
 /** Shared validation for every policy write (versioned updates and company onboarding). */
@@ -200,15 +246,8 @@ export function validateTenantPolicyValues(v: Partial<CorporateTenantPolicyValue
     out[key] = n;
   }
   out.defaultVehicleCategory = String(out.defaultVehicleCategory).trim().toUpperCase();
-  if (!VEHICLE_CATEGORIES.includes(out.defaultVehicleCategory)) {
-    throw new BadRequestException(`defaultVehicleCategory must be one of ${VEHICLE_CATEGORIES.join(', ')}`);
-  }
-  const categoryCapacity =
-    out.defaultVehicleCategory === 'SEDAN' ? VEHICLE_CAPACITY.SEDAN : VEHICLE_CAPACITY.SUV;
-  if (out.defaultCapacity > categoryCapacity) {
-    throw new BadRequestException(
-      `defaultCapacity ${out.defaultCapacity} exceeds the ${categoryCapacity} seats of a ${out.defaultVehicleCategory}`,
-    );
+  if (!out.defaultVehicleCategory) {
+    throw new BadRequestException('defaultVehicleCategory must not be empty');
   }
   for (const key of ['nightShiftStart', 'nightShiftEnd']) {
     if (!isValidShiftTime(out[key])) throw new BadRequestException(`${key} must be HH:mm`);

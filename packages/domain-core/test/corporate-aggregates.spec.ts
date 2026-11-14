@@ -68,14 +68,15 @@ describe('Corporate Domain Aggregates (Clean Architecture & Invariants)', () => 
         shiftDate: new Date(),
         shiftTime: '08:00',
         direction: 'LOGIN',
-        vehicleCategory: 'SEDAN',
+        vehicleCategory: 'CUSTOM_VAN',
+        capacityLimit: 4,
         stops,
         estDistanceMeters: 25000,
         targetPickup1Time: new Date(),
       });
 
       expect(failResult.isFailure).toBe(true);
-      expect(failResult.error).toContain('Capacity violation: SEDAN cannot seat more than 4 passengers');
+      expect(failResult.error).toContain('Capacity violation: CUSTOM_VAN cannot seat more than 4 passengers');
 
       // 4 passengers in SEDAN -> Must succeed!
       const successResult = CorporateRouteAggregate.create('route-ok', {
@@ -84,7 +85,8 @@ describe('Corporate Domain Aggregates (Clean Architecture & Invariants)', () => 
         shiftDate: new Date(),
         shiftTime: '08:00',
         direction: 'LOGIN',
-        vehicleCategory: 'SEDAN',
+        vehicleCategory: 'CUSTOM_VAN',
+        capacityLimit: 4,
         stops: stops.slice(0, 4),
         estDistanceMeters: 20000,
         targetPickup1Time: new Date(),
@@ -116,7 +118,8 @@ describe('Corporate Domain Aggregates (Clean Architecture & Invariants)', () => 
         shiftDate: new Date(),
         shiftTime: '08:00',
         direction: 'LOGIN',
-        vehicleCategory: 'SEDAN',
+        vehicleCategory: 'CUSTOM_VAN',
+        capacityLimit: 4,
         stops,
         estDistanceMeters: 15000,
         targetPickup1Time: new Date(),

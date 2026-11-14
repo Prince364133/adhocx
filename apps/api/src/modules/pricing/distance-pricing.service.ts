@@ -195,6 +195,7 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
    */
   async createDraftPlan(dto: CreateDistancePricingPlanDto, actor: Actor): Promise<DistancePricingPlanDto> {
     const vehicleCategory = this.normalizeCategory(dto.vehicleCategory);
+    await this.assertActiveCategory(vehicleCategory);
 
     let slabs: SlabInput[];
     let source: string;
@@ -624,6 +625,8 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
     if (![pickupLat, pickupLng, dropLat, dropLng].every(Number.isFinite)) {
       throw new BadRequestException('Valid pickup and drop coordinates are required.');
     }
+    const vehicleCategory = this.normalizeCategory(dto.vehicleCategory);
+    await this.assertActiveCategory(vehicleCategory);
     await this.enforceQuoteRateLimit(vendorUserId);
 
     const started = Date.now();
@@ -631,7 +634,6 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
       { latitude: pickupLat, longitude: pickupLng },
       { latitude: dropLat, longitude: dropLng },
     );
-    const vehicleCategory = this.normalizeCategory(dto.vehicleCategory);
     const plan = await this.resolveActivePlan(vehicleCategory);
     const pricedForTime = parsePickupTime(dto.pickupTime);
     const peakEval = this.pricingPeriod(plan, pricedForTime);
@@ -1056,14 +1058,19 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
   private normalizeCategory(category?: string | null) {
     const raw = String(category ?? '').trim().toUpperCase();
     if (!raw || raw === 'ALL') return DEFAULT_PLAN_CATEGORY;
-    if (raw.includes('SEDAN')) return 'SEDAN';
-    if (raw.includes('SUV')) return 'SUV';
-    if (raw.includes('HATCHBACK') || raw.includes('MINI')) return 'HATCHBACK';
-    if (raw.includes('TEMPO')) return 'TEMPO_TRAVELLER';
-    if (raw.includes('BUS')) return 'BUS';
-    if (raw.includes('TATA') || raw.includes('ACE')) return 'TATA_ACE';
-    if (raw.includes('TRUCK') || raw.includes('PICKUP')) return 'PICKUP_TRUCK';
-    return raw;
+    return raw.replace(/[\s-]+/g, '_').replace(/_+/g, '_');
+  }
+
+  private async assertActiveCategory(vehicleCategory: string): Promise<void> {
+    if (vehicleCategory === DEFAULT_PLAN_CATEGORY) return;
+    const category = await this.db.vehiclePricingTier.findUnique({
+      where: { vehicleType: vehicleCategory },
+    });
+    if (!category || !category.isActive) {
+      throw new BadRequestException(
+        `Vehicle category "${vehicleCategory}" is not active in the pricing catalogue.`,
+      );
+    }
   }
 
   private slabRows(slabs: SlabInput[]) {

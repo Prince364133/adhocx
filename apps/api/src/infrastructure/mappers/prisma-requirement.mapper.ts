@@ -42,11 +42,7 @@ export class PrismaRequirementMapper {
 
     const pricingMode: MarketplacePricingMode = 'DIRECT_DISPATCH';
 
-    let category: MarketplaceVehicleCategory = 'SEDAN';
-    const rawCategory = raw.vehicleType?.toUpperCase() || '';
-    if (rawCategory.includes('SUV')) category = 'SUV';
-    else if (rawCategory.includes('HATCHBACK')) category = 'HATCHBACK';
-    else if (rawCategory.includes('AUTO')) category = 'AUTO';
+    const category: MarketplaceVehicleCategory = String(raw.vehicleType ?? '').trim().toUpperCase();
 
     const baseBudgetPaise = raw.suggestedBudget ? Math.round(Number(raw.suggestedBudget) * 100) : 0;
     const finalFarePaise = raw.totalAmount ? Math.round(Number(raw.totalAmount) * 100) : 0;

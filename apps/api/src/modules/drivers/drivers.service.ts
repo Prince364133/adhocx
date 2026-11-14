@@ -13,7 +13,6 @@ import {
   UploadDocumentResponseDto,
   DriverAvailability,
   VerificationStatus,
-  VehicleType,
   OfferStatus,
   validateAvailabilityTransition,
   DriverLocationPingDto,
@@ -35,6 +34,17 @@ export class DriversService {
     @Optional() private readonly locations?: LocationsService,
     @Optional() private readonly redis?: RedisService,
   ) {}
+
+  private async getActiveVehicleCategory(code: string): Promise<string> {
+    const vehicleType = code.trim().toUpperCase();
+    const category = await this.db.vehiclePricingTier.findUnique({
+      where: { vehicleType },
+    });
+    if (!category || !category.isActive) {
+      throw new BadRequestException(`Vehicle category "${vehicleType}" is not active in the pricing catalogue.`);
+    }
+    return vehicleType;
+  }
 
   private async syncSpatialIndex(driver: {
     id: string;
@@ -177,7 +187,7 @@ export class DriversService {
         email: driver.user?.email || undefined,
         verificationStatus: driver.verificationStatus as VerificationStatus,
         availabilityStatus: driver.availabilityStatus as DriverAvailability,
-        vehicleType: (driver.vehicleType as unknown as VehicleType) || undefined,
+        vehicleType: driver.vehicleType || undefined,
         vehicleModel: driver.vehicleModel || undefined,
         vehiclePlate: driver.vehiclePlate || undefined,
         walletBalance: Number(driver.walletBalance),
@@ -252,6 +262,17 @@ export class DriversService {
     const cleanPhone = dto.phone ? dto.phone.trim().replace(/\s+/g, '') : undefined;
     const cleanName = sanitizeRealName(dto.fullName);
     const rawPlate = (dto.vehiclePlate || (dto as any).rcNumber)?.trim().toUpperCase() || undefined;
+    const vehicleType = dto.vehicleType
+      ? await this.getActiveVehicleCategory(dto.vehicleType)
+      : undefined;
+    const vehicleTypeForVehicle = vehicleType || (
+      rawPlate && driver?.vehicleType
+        ? await this.getActiveVehicleCategory(driver.vehicleType)
+        : driver?.vehicleType?.toUpperCase()
+    );
+    if (rawPlate && this.db.vehicle && !vehicleTypeForVehicle) {
+      throw new BadRequestException('Select an active vehicle category before saving vehicle registration details.');
+    }
 
     if (!driver) {
       const user = await this.db.user.findUnique({ where: { id: userId } });
@@ -351,7 +372,7 @@ export class DriversService {
         ...(dto.aadharFrontUrl ? { aadharFrontUrl: dto.aadharFrontUrl } : {}),
         ...(dto.aadharBackUrl ? { aadharBackUrl: dto.aadharBackUrl } : {}),
         ...(dto.panDocUrl ? { panDocUrl: dto.panDocUrl } : {}),
-        ...(dto.vehicleType ? { vehicleType: dto.vehicleType.toUpperCase() } : {}),
+        ...(vehicleType ? { vehicleType } : {}),
         ...(dto.vehicleModel ? { vehicleModel: dto.vehicleModel } : {}),
         ...(rawPlate ? { vehiclePlate: rawPlate } : {}),
         kycDocuments: updatedKyc,
@@ -359,7 +380,10 @@ export class DriversService {
     });
 
     if (rawPlate && this.db.vehicle) {
-      const vType = (dto.vehicleType || driver.vehicleType || 'SEDAN').toUpperCase();
+      const vType = vehicleTypeForVehicle;
+      if (!vType) {
+        throw new BadRequestException('Select an active vehicle category before saving vehicle registration details.');
+      }
       const vModel = dto.vehicleModel || driver.vehicleModel || 'Commercial Fleet';
       const existingVehicle = await this.db.vehicle.findFirst({
         where: { driverId: driver.id },
@@ -500,7 +524,11 @@ export class DriversService {
       (!isSyntheticLicense ? rawLicense : undefined);
     const cleanPanNumber = dto.panNumber?.trim().toUpperCase() || undefined;
     const cleanRcNumber = dto.rcNumber?.trim().toUpperCase() || plate;
-    const vehicleType = (dto.vehicle?.type || dto.vehicleType || VehicleType.SEDAN) as VehicleType;
+    const rawVehicleType = dto.vehicle?.type || dto.vehicleType;
+    if (!rawVehicleType) {
+      throw new BadRequestException('Select a vehicle category from the active pricing catalogue before submitting KYC.');
+    }
+    const vehicleType = await this.getActiveVehicleCategory(rawVehicleType);
     const vehicleModel = dto.vehicle?.model || dto.vehicleModel || 'Commercial Fleet';
     const cleanVehicleColor =
       (dto.vehicleColor || dto.color || dto.vehicle?.color || '').trim() || undefined;

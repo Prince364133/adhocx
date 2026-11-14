@@ -41,9 +41,9 @@ describe('CorporateRoutingController route optimization validation', () => {
     [{ direction: 'LOGIN', loginTime: '24:00' }, /loginTime/],
     [{ stopDwellMinutes: 0 }, /stopDwellMinutes/],
     [{ stopDwellMinutes: 11 }, /stopDwellMinutes/],
-    [{ sedanCapacity: 0 }, /sedanCapacity/],
-    [{ sedanCapacity: 5 }, /sedanCapacity/], // sedan max is 4
-    [{ suvCapacity: 7 }, /suvCapacity/],
+    [{ maxCapacity: 0 }, /maxCapacity/],
+    [{ maxCapacity: 1.5 }, /maxCapacity/],
+    [{ vehicleCategory: '' }, /vehicleCategory/],
     [{ routingPreference: 'SHORTEST' }, /routingPreference/],
   ])('rejects invalid optimization request values %#', async (overrides, message) => {
     await expect(

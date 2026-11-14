@@ -13,7 +13,6 @@ import {
   AssignmentStatus,
   TripStatus,
   DriverAvailability,
-  VehicleType,
 } from '@adhocx/contracts';
 
 describe('OffersService Unit Tests', () => {
@@ -37,7 +36,7 @@ describe('OffersService Unit Tests', () => {
     dropLng: 77.391,
     dropAddress: 'Noida',
     reportingTime: now,
-    vehicleType: VehicleType.SEDAN,
+    vehicleType: 'SEDAN',
     quantity: 1,
     assignedQuantity: 0,
     status: RequirementStatus.DISPATCHING,
@@ -47,7 +46,7 @@ describe('OffersService Unit Tests', () => {
     id: 'off-1',
     requirementId: 'req-1',
     driverId: 'drv-1',
-    vehicleType: VehicleType.SEDAN,
+    vehicleType: 'SEDAN',
     offeredRate: 1500,
     status: OfferStatus.SENT,
     expiresAt: futureExpiry(),

@@ -11,7 +11,6 @@
  */
 
 import { haversineKm } from './google-routes-v2.adapter';
-import { VEHICLE_CAPACITY } from './routing.types';
 
 export interface DistanceSlab {
   upToKm: number;
@@ -19,7 +18,7 @@ export interface DistanceSlab {
 }
 
 export interface CabTypeConfig {
-  name: 'sedan' | 'suv' | string;
+  name: string;
   capacity: number;
   fleetCount: number;
   fixedCharge: number;
@@ -64,37 +63,23 @@ export interface CorridorableEmployee {
 export const DEFAULT_PRICING_CONFIG: PricingConfig = {
   employeeRevenue: 1800.0,
   revenuePerKm: 0.0,
-  cabTypes: [
-    {
-      name: 'sedan',
-      capacity: VEHICLE_CAPACITY.SEDAN,
-      fleetCount: DEFAULT_PLANNING_FLEET_COUNT,
-      fixedCharge: 350.0,
-      perKmCharge: 14.0,
-      distanceSlabs: [
-        { upToKm: 10, ratePerKm: 14.0 },
-        { upToKm: 25, ratePerKm: 12.0 },
-        { upToKm: 1000, ratePerKm: 10.0 },
-      ],
-    },
-    {
-      name: 'suv',
-      capacity: VEHICLE_CAPACITY.SUV,
-      fleetCount: DEFAULT_PLANNING_FLEET_COUNT,
-      fixedCharge: 500.0,
-      perKmCharge: 16.0,
-      distanceSlabs: [
-        { upToKm: 10, ratePerKm: 16.0 },
-        { upToKm: 25, ratePerKm: 14.0 },
-        { upToKm: 1000, ratePerKm: 12.0 },
-      ],
-    },
-  ],
+  cabTypes: [{
+    name: 'vehicle',
+    capacity: 4,
+    fleetCount: DEFAULT_PLANNING_FLEET_COUNT,
+    fixedCharge: 350.0,
+    perKmCharge: 14.0,
+    distanceSlabs: [
+      { upToKm: 10, ratePerKm: 14.0 },
+      { upToKm: 25, ratePerKm: 12.0 },
+      { upToKm: 1000, ratePerKm: 10.0 },
+    ],
+  }],
 };
 
 /**
  * Calculates driver payout using tiered marginal distance slabs and fixed base fee.
- * Example: 12km in Sedan:
+ * Example: 12km:
  *   Base = ₹350
  *   0-10 km: 10 * 14 = ₹140
  *   10-25 km: 2 * 12 = ₹24
@@ -225,8 +210,7 @@ function hasAcceptablePickupDetours<T extends CorridorableEmployee>(group: T[], 
 }
 
 /**
- * Selects the cheapest available cab vehicle type (Sedan vs SUV)
- * that satisfies capacity and has remaining quota in the fleet inventory.
+ * Selects the cheapest configured vehicle category that satisfies capacity and fleet inventory.
  */
 export function selectCheapestCab(
   distanceKm: number,

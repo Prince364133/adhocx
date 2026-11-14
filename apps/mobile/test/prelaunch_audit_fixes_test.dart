@@ -1,8 +1,5 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:adhocx/shared/widgets/osm_map_picker_widget.dart';
 import 'package:adhocx/shared/widgets/google_route_map_widget.dart';
 import 'package:adhocx/presentation/profile_screen/modals/about_modal.dart';
 import 'package:adhocx/presentation/profile_screen/modals/privacy_modal.dart';
@@ -10,43 +7,6 @@ import 'package:adhocx/presentation/profile_screen/modals/terms_modal.dart';
 import 'package:adhocx/presentation/profile_screen/modals/rate_card_modal.dart';
 
 void main() {
-  group('MapPickerMath (pinpoint accuracy)', () {
-    test('no drag keeps the exact centre', () {
-      final c = MapPickerMath.shiftCenter(lat: 17.4435, lng: 78.3772, zoom: 17, dx: 0, dy: 0);
-      expect(c.lat, closeTo(17.4435, 1e-9));
-      expect(c.lng, closeTo(78.3772, 1e-9));
-    });
-
-    test('dragging right moves the centre west by the Mercator amount', () {
-      final c = MapPickerMath.shiftCenter(lat: 17.4435, lng: 78.3772, zoom: 17, dx: 100, dy: 0);
-      final expected = 78.3772 - 100 * 360 / (256 * math.pow(2, 17));
-      expect(c.lng, closeTo(expected, 1e-9));
-      expect(c.lat, closeTo(17.4435, 1e-9));
-    });
-
-    test('dragging down moves the centre north, scaled by cos(lat)', () {
-      final c = MapPickerMath.shiftCenter(lat: 17.4435, lng: 78.3772, zoom: 17, dx: 0, dy: 100);
-      expect(c.lat, greaterThan(17.4435));
-      final approx = 100 * 360 / (256 * math.pow(2, 17)) * math.cos(17.4435 * math.pi / 180);
-      expect(c.lat - 17.4435, closeTo(approx, approx * 0.01));
-    });
-
-    test('screen-to-map pixel ratio is applied', () {
-      final a = MapPickerMath.shiftCenter(lat: 12.97, lng: 77.59, zoom: 16, dx: 50, dy: 0, mapPxPerScreenPx: 1);
-      final b = MapPickerMath.shiftCenter(lat: 12.97, lng: 77.59, zoom: 16, dx: 50, dy: 0, mapPxPerScreenPx: 0.5);
-      expect((77.59 - b.lng) * 2, closeTo(77.59 - a.lng, 1e-9));
-    });
-
-    test('request size keeps the box aspect ratio and the 640 cap', () {
-      final s = MapPickerMath.requestSize(412, 900);
-      expect(s.height, 640);
-      expect(s.width / s.height, closeTo(412 / 900, 0.01));
-      final small = MapPickerMath.requestSize(300, 200);
-      expect(small.width, 300);
-      expect(small.height, 200);
-    });
-  });
-
   group('Driver rate card shows admin peak windows', () {
     test('formats peak windows in IST', () {
       expect(

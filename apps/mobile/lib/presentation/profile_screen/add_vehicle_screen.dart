@@ -37,11 +37,14 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
     if (mounted) setState(() => _isLoadingCategories = true);
     try {
       final tiers = await DriverService.instance.getVehicleCategories(forceRefresh: true);
-      final activeTiers = tiers.where((t) => t['isActive'] != false).toList();
+      final activeTiers = tiers.where((t) {
+        return t['isActive'] != false &&
+            (t['vehicleType'] as String?)?.trim().isNotEmpty == true;
+      }).toList();
       if (activeTiers.isNotEmpty && mounted) {
         setState(() {
           _categories = activeTiers.map((t) => {
-            'id': (t['vehicleType'] as String? ?? 'SEDAN').toUpperCase(),
+            'id': (t['vehicleType'] as String).toUpperCase(),
             'label': t['categoryLabel'] ?? t['vehicleType'] ?? 'Vehicle',
             'perKmRate': (t['perKmRate'] as num?)?.toDouble() ?? 0.0,
             'baseFare': (t['baseFare'] as num?)?.toDouble() ?? 0.0,

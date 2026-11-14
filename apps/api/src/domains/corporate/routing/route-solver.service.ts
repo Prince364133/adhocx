@@ -10,8 +10,8 @@ import {
   RouteOptimizationBatchSummary,
   RouteOptimizationDirectionOutcome,
   VehicleCategory,
-  VEHICLE_CAPACITY,
 } from './routing.types';
+import { calculateTierMaxSeats } from '../../../modules/pricing/pricing.service';
 import { ITravelTimeMatrixPort, TRAVEL_TIME_MATRIX_PORT } from './travel-time-matrix.port';
 import { HaversineTravelTimeMatrix } from './haversine-travel-time-matrix';
 import { CorporateRoutePlanner, PlannerPassenger, PlanResult } from './corporate-route-planner';
@@ -20,9 +20,6 @@ import { CorporateRoutePlanner, PlannerPassenger, PlanResult } from './corporate
 export class RouteSolverService {
   private readonly logger = new Logger(RouteSolverService.name);
 
-  // Constants per PRD specs
-  private readonly DEFAULT_SEDAN_CAPACITY = VEHICLE_CAPACITY.SEDAN;
-  private readonly DEFAULT_SUV_CAPACITY = VEHICLE_CAPACITY.SUV;
   private readonly DEFAULT_STOP_DWELL_MINUTES = 5;
   private readonly OFFICE_ARRIVAL_BUFFER_MINUTES = 10; // Arrive 10m before shift login
   private readonly DEFAULT_MAX_RIDE_MINUTES = 120; // Max in-cab time per employee
@@ -70,7 +67,7 @@ export class RouteSolverService {
       officeId,
       shiftDate,
       direction,
-      vehicleCategory = 'SEDAN',
+      vehicleCategory = 'ALL',
       officeBufferMinutes = this.OFFICE_ARRIVAL_BUFFER_MINUTES,
       maxRideTimeMinutes = this.DEFAULT_MAX_RIDE_MINUTES,
       logoutReportingBufferMinutes = this.LOGOUT_REPORTING_BUFFER_MINUTES,
@@ -84,22 +81,31 @@ export class RouteSolverService {
     if (!shiftTime) {
       throw new BadRequestException(`${direction} optimization requires its direction-specific time`);
     }
-    const sedanCapacity = options.sedanCapacity ?? this.DEFAULT_SEDAN_CAPACITY;
-    const suvCapacity = options.suvCapacity ?? this.DEFAULT_SUV_CAPACITY;
-    if (!Number.isInteger(sedanCapacity) || sedanCapacity < 1 || sedanCapacity > this.DEFAULT_SEDAN_CAPACITY) {
-      throw new BadRequestException(`sedanCapacity must be an integer between 1 and ${this.DEFAULT_SEDAN_CAPACITY}`);
+    const categoryRows = await this.db.vehiclePricingTier.findMany({
+      where: { isActive: true },
+      orderBy: { vehicleType: 'asc' },
+      select: { vehicleType: true, seatingCapacity: true },
+    });
+    const activeCategories = categoryRows
+      .filter((category) => category.vehicleType?.trim())
+      .map((category) => ({
+        vehicleType: category.vehicleType.trim().toUpperCase(),
+        capacity: calculateTierMaxSeats(category.vehicleType, category.seatingCapacity),
+      }));
+    if (activeCategories.length === 0) {
+      throw new BadRequestException('No active vehicle categories are configured');
     }
-    if (!Number.isInteger(suvCapacity) || suvCapacity < 1 || suvCapacity > this.DEFAULT_SUV_CAPACITY) {
-      throw new BadRequestException(`suvCapacity must be an integer between 1 and ${this.DEFAULT_SUV_CAPACITY}`);
+    const requestedCategory = vehicleCategory.trim().toUpperCase();
+    const selectedCategories =
+      requestedCategory === 'ALL' || requestedCategory === 'BOTH'
+        ? activeCategories
+        : activeCategories.filter((category) => category.vehicleType === requestedCategory);
+    if (selectedCategories.length === 0) {
+      throw new BadRequestException(`Vehicle category '${requestedCategory}' is not active in the vehicle catalogue`);
     }
-    const categoryCapacity =
-      vehicleCategory === 'SUV'
-        ? suvCapacity
-        : vehicleCategory === 'BOTH'
-          ? Math.max(sedanCapacity, suvCapacity)
-          : sedanCapacity;
-    if (options.maxCapacity != null && (!Number.isInteger(options.maxCapacity) || options.maxCapacity < 1 || options.maxCapacity > this.DEFAULT_SUV_CAPACITY)) {
-      throw new BadRequestException(`maxCapacity must be an integer between 1 and ${this.DEFAULT_SUV_CAPACITY}`);
+    const categoryCapacity = Math.max(...selectedCategories.map((category) => category.capacity));
+    if (options.maxCapacity != null && (!Number.isInteger(options.maxCapacity) || options.maxCapacity < 1)) {
+      throw new BadRequestException('maxCapacity must be a positive integer');
     }
     if (options.maxCapacity != null && options.maxCapacity > categoryCapacity) {
       throw new BadRequestException('maxCapacity cannot exceed the selected vehicle category capacity');
@@ -139,8 +145,7 @@ export class RouteSolverService {
         direction,
         totalRequestsEvaluated: 0,
         routesCreated: 0,
-        sedanRoutesCreated: 0,
-        suvRoutesCreated: 0,
+        vehicleCategoryCounts: {},
         passengersAssigned: 0,
         unassignedRequests: 0,
         averagePassengersPerRoute: 0,
@@ -166,8 +171,7 @@ export class RouteSolverService {
       shiftTime,
       maxCapacity,
       vehicleCategory,
-      sedanCapacity,
-      suvCapacity,
+      selectedCategories,
       officeBufferMinutes,
       maxRideTimeMinutes,
       logoutReportingBufferMinutes,
@@ -271,8 +275,10 @@ export class RouteSolverService {
       direction,
       totalRequestsEvaluated: requests.length,
       routesCreated: createdRoutesSummary.length,
-      sedanRoutesCreated: createdRoutesSummary.filter((route) => route.vehicleCategory === 'SEDAN').length,
-      suvRoutesCreated: createdRoutesSummary.filter((route) => route.vehicleCategory === 'SUV').length,
+      vehicleCategoryCounts: createdRoutesSummary.reduce<Record<string, number>>((counts, route) => {
+        counts[route.vehicleCategory] = (counts[route.vehicleCategory] || 0) + 1;
+        return counts;
+      }, {}),
       passengersAssigned: assignedPassengers,
       unassignedRequests: requests.length - assignedPassengers,
       averagePassengersPerRoute:
@@ -336,8 +342,12 @@ export class RouteSolverService {
       plans,
       totalRequestsEvaluated: plans.reduce((sum, plan) => sum + (plan.summary?.totalRequestsEvaluated ?? 0), 0),
       routesCreated: plans.reduce((sum, plan) => sum + (plan.summary?.routesCreated ?? 0), 0),
-      sedanRoutesCreated: plans.reduce((sum, plan) => sum + (plan.summary?.sedanRoutesCreated ?? 0), 0),
-      suvRoutesCreated: plans.reduce((sum, plan) => sum + (plan.summary?.suvRoutesCreated ?? 0), 0),
+      vehicleCategoryCounts: plans.reduce<Record<string, number>>((counts, plan) => {
+        for (const [category, count] of Object.entries(plan.summary?.vehicleCategoryCounts ?? {})) {
+          counts[category] = (counts[category] || 0) + count;
+        }
+        return counts;
+      }, {}),
       passengersAssigned: plans.reduce((sum, plan) => sum + (plan.summary?.passengersAssigned ?? 0), 0),
       unassignedRequests: plans.reduce((sum, plan) => sum + (plan.summary?.unassignedRequests ?? 0), 0),
     };
@@ -353,8 +363,7 @@ export class RouteSolverService {
     shiftTime: string,
     maxCapacity: number,
     vehicleCategory: VehicleCategory,
-    sedanCapacity: number,
-    suvCapacity: number,
+    selectedCategories: Array<{ vehicleType: string; capacity: number }>,
     officeBufferMinutes: number,
     maxRideTimeMinutes: number,
     logoutReportingBufferMinutes: number,
@@ -424,13 +433,15 @@ export class RouteSolverService {
         boardingOtp: '------',
         dwellBufferSeconds: 0,
       };
-      const routeCategory: Exclude<VehicleCategory, 'BOTH'> =
-        vehicleCategory === 'BOTH'
-          ? r.passengers.length <= sedanCapacity
-            ? 'SEDAN'
-            : 'SUV'
-          : vehicleCategory;
-      const categoryCapacity = routeCategory === 'SEDAN' ? sedanCapacity : suvCapacity;
+      const requestedCategory = vehicleCategory.trim().toUpperCase();
+      const routeCategory = selectedCategories.find((category) => category.vehicleType === requestedCategory)
+        ?? selectedCategories
+          .filter((category) => category.capacity >= r.passengers.length)
+          .sort((left, right) => left.capacity - right.capacity)[0];
+      if (!routeCategory) {
+        throw new BadRequestException(`No active vehicle category has enough seats for route ${rIdx + 1}`);
+      }
+      const categoryCapacity = routeCategory.capacity;
       const routeCapacity = Math.min(maxCapacity, categoryCapacity);
       if (r.passengers.length > routeCapacity) {
         throw new BadRequestException(
@@ -439,7 +450,7 @@ export class RouteSolverService {
       }
       const result: OptimizedRouteResult = {
         routeIndex: rIdx + 1,
-        vehicleCategory: routeCategory,
+        vehicleCategory: routeCategory.vehicleType,
         maxCapacity: routeCapacity,
         passengerCount: r.passengers.length,
         targetPickup1Time: r.firstStopTime,

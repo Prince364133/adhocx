@@ -11,7 +11,6 @@ import { ConfigService } from '@nestjs/config';
 import {
   RequirementStatus,
   VerificationStatus,
-  VehicleType,
 } from '@adhocx/contracts';
 
 describe('Scheduled Trips & Automated 30s Pre-Dispatch Simulation Suite', () => {
@@ -122,7 +121,7 @@ describe('Scheduled Trips & Automated 30s Pre-Dispatch Simulation Suite', () => 
       const mockCreatedReq = {
         id: '11111111-1111-4111-8111-111111111111',
         vendorId: 'vnd-1',
-        vehicleType: VehicleType.SEDAN,
+        vehicleType: 'SEDAN',
         quantity: 1,
         assignedQuantity: 0,
         pickupLat: 28.6139,
@@ -145,7 +144,7 @@ describe('Scheduled Trips & Automated 30s Pre-Dispatch Simulation Suite', () => 
       const result = await requirementsService.createRequirement(
         'usr-vnd-1',
         {
-          vehicleType: VehicleType.SEDAN,
+          vehicleType: 'SEDAN',
           quantity: 1,
           pickupLocation: { latitude: 28.6139, longitude: 77.2090, address: 'Connaught Place, New Delhi' },
           dropLocation: { latitude: 28.6289, longitude: 77.3649, address: 'Sector 62, Noida' },
@@ -170,7 +169,7 @@ describe('Scheduled Trips & Automated 30s Pre-Dispatch Simulation Suite', () => 
       db.requirement.create.mockResolvedValue({
         id: '11111111-1111-4111-8111-111111111111',
         vendorId: 'vnd-1',
-        vehicleType: VehicleType.SEDAN,
+        vehicleType: 'SEDAN',
         quantity: 1,
         assignedQuantity: 0,
         pickupLat: 28.6139,
@@ -192,7 +191,7 @@ describe('Scheduled Trips & Automated 30s Pre-Dispatch Simulation Suite', () => 
       const result = await requirementsService.createRequirement(
         'usr-vnd-1',
         {
-          vehicleType: VehicleType.SEDAN,
+          vehicleType: 'SEDAN',
           quantity: 1,
           pickupLocation: { latitude: 28.6139, longitude: 77.2090, address: 'HITEC City, Hyderabad' },
           dropLocation: { latitude: 28.6289, longitude: 77.3649, address: 'Gachibowli, Hyderabad' },
@@ -215,7 +214,7 @@ describe('Scheduled Trips & Automated 30s Pre-Dispatch Simulation Suite', () => 
       const mockCreatedReq = {
         id: '22222222-2222-4222-8222-222222222222',
         vendorId: 'vnd-1',
-        vehicleType: VehicleType.SUV,
+        vehicleType: 'SUV',
         quantity: 1,
         assignedQuantity: 0,
         pickupLat: 28.6139,
@@ -238,7 +237,7 @@ describe('Scheduled Trips & Automated 30s Pre-Dispatch Simulation Suite', () => 
       const result = await requirementsService.createRequirement(
         'usr-vnd-1',
         {
-          vehicleType: VehicleType.SUV,
+          vehicleType: 'SUV',
           quantity: 1,
           pickupLocation: { latitude: 28.6139, longitude: 77.2090, address: 'Cyber City, Gurugram' },
           dropLocation: { latitude: 28.5562, longitude: 77.1000, address: 'IGI Airport T3, New Delhi' },
@@ -287,7 +286,7 @@ describe('Scheduled Trips & Automated 30s Pre-Dispatch Simulation Suite', () => 
       const mockCreatedReq = {
         id: '33333333-3333-4333-8333-333333333333',
         vendorId: 'vnd-1',
-        vehicleType: VehicleType.SEDAN,
+        vehicleType: 'SEDAN',
         quantity: 1,
         assignedQuantity: 0,
         pickupLat: 28.6139,
@@ -309,7 +308,7 @@ describe('Scheduled Trips & Automated 30s Pre-Dispatch Simulation Suite', () => 
       await requirementsService.createRequirement(
         'usr-vnd-1',
         {
-          vehicleType: VehicleType.SEDAN,
+          vehicleType: 'SEDAN',
           quantity: 1,
           pickupLocation: { latitude: 28.6139, longitude: 77.2090, address: 'Noida Sec 18' },
           dropLocation: { latitude: 28.6289, longitude: 77.3649, address: 'Connaught Place' },

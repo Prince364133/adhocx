@@ -522,7 +522,7 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
     final rawId = req?['id']?.toString() ?? widget.requirementId ?? 'LIVE';
     final displayId = rawId.length > 8 ? 'REQ-${rawId.substring(0, 8).toUpperCase()}' : rawId;
 
-    final vehicle = req?['vehicleType']?.toString() ?? 'Sedan';
+    final vehicle = req?['vehicleType']?.toString() ?? 'Vehicle category unavailable';
 
     final isFulfilled = status == 'FULFILLED' || status == 'COMPLETED' || (requiredQty > 0 && assignedQty >= requiredQty);
     final isCancelled = status == 'CANCELLED';

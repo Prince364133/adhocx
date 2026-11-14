@@ -666,7 +666,7 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final req = _requirement ?? _trip ?? {};
     final status = (req['status'] ?? _trip?['status'] ?? 'POSTED').toString();
-    final vehicle = req['vehicleType']?.toString() ?? _trip?['vehicleModel'] ?? 'Sedan';
+    final vehicle = req['vehicleType']?.toString() ?? _trip?['vehicleModel'] ?? 'Vehicle category unavailable';
     final requiredQty = _parseNum(req['quantity'] ?? req['requiredQuantity'], 1).toInt();
     final assignedQty = _parseNum(req['assignedQuantity'], _trip != null ? 1 : 0).toInt();
     final budget = _parseNum(req['ratePerVehicle'] ?? req['suggestedBudget'] ?? _trip?['agreedRate'], 800.0);
@@ -1093,7 +1093,7 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
             driver?['vehicleModel'] ??
             req['vehicleType'] ??
             trip['vehicleType'] ??
-            'Commercial Sedan')
+            'Fleet Vehicle')
         .toString();
     final String rating = (driver?['averageRating'] ?? driver?['rating'] ?? trip['rating'] ?? 5.0).toString();
     final String otp = (trip['startOtp'] ?? trip['otp'] ?? req['startOtp'] ?? '').toString();
@@ -1128,10 +1128,13 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
 
     final rateNum = _parseNum(req['ratePerVehicle'] ?? trip['agreedRate'] ?? req['suggestedBudget'] ?? req['totalAmount'], 800.0);
     final rateStr = '₹${rateNum.toStringAsFixed(0)}';
-    final vehicleCategory = (req['vehicleType'] ?? trip['vehicleType'] ?? 'Sedan').toString();
+    final vehicleCategory = (req['vehicleType'] ?? trip['vehicleType'] ?? '').toString();
     final vehicleLabel = VehicleUtils.getDisplayLabel(vehicleCategory);
-    final int maxSeats = VehicleUtils.getMaxSeats(vehicleCategory);
-    final String seatSpecText = '$maxSeats Passenger Seats';
+    final int maxSeats = VehicleUtils.getMaxSeats(
+      vehicleCategory,
+      _parseNum(req['maxCapacity'] ?? trip['maxCapacity'], 0).toInt(),
+    );
+    final String seatSpecText = maxSeats > 0 ? '$maxSeats Passenger Seats' : 'Capacity from selected category';
     final requiredQty = _parseNum(req['quantity'] ?? req['requiredQuantity'], 1).toInt();
     final assignedDrivers = req['assignedDrivers'] is List ? (req['assignedDrivers'] as List) : [];
     final wave = req['dispatchWaves']?.toString() ?? '1';

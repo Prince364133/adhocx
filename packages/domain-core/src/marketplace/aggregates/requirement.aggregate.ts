@@ -19,7 +19,7 @@ export type RequirementLifecycleStatus =
   | 'NO_DRIVER_AVAILABLE';
 
 export type MarketplacePricingMode = 'DIRECT_DISPATCH';
-export type MarketplaceVehicleCategory = 'HATCHBACK' | 'SEDAN' | 'SUV' | 'AUTO';
+export type MarketplaceVehicleCategory = string;
 
 export interface RequirementProps {
   requesterId: string;

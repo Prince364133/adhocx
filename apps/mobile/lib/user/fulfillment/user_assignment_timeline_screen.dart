@@ -53,7 +53,7 @@ class _UserAssignmentTimelineScreenState extends State<UserAssignmentTimelineScr
     final req = _requirement ?? {};
     final rawId = (req['requirementCode'] ?? req['id'] ?? widget.requirement?['id'] ?? '').toString();
     final reqCode = rawId.length > 8 ? 'REQ-${rawId.substring(0, 8).toUpperCase()}' : (rawId.isNotEmpty ? rawId : 'REQ-LIVE');
-    final vehicleType = req['vehicleType'] ?? 'Sedan';
+    final vehicleType = req['vehicleType'] ?? 'Vehicle category unavailable';
     final quantity = (req['quantity'] ?? 1) as int;
     final status = (req['status'] ?? 'DISPATCHING').toString();
 

@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../routes/app_routes.dart';
@@ -39,7 +38,6 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
   double? _driverLat;
   double? _driverLng;
   DateTime? _lastDriverFixAt;
-  DateTime? _lastMarkerUpdateAt;
   bool _driverLocationIsLive = false;
   StateSetter? _expandedMapSetState;
 
@@ -55,6 +53,11 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
     final trip = _trip is Map ? _trip as Map : const <String, dynamic>{};
     final status = trip['status']?.toString().toUpperCase();
     return const {'ASSIGNED', 'DRIVER_ASSIGNED', 'ARRIVED', 'IN_PROGRESS', 'STARTED'}.contains(status);
+  }
+
+  TripMapPhase get _mapPhase {
+    final trip = _trip is Map ? _trip as Map : const <String, dynamic>{};
+    return tripMapPhaseForStatus(trip['status']?.toString());
   }
 
   void _syncDriverLocationUpdates({bool showLatestFix = false}) {
@@ -78,7 +81,6 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
     _driverLat = null;
     _driverLng = null;
     _lastDriverFixAt = null;
-    _lastMarkerUpdateAt = null;
     _driverLocationIsLive = false;
   }
 
@@ -91,24 +93,10 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
       return;
     }
 
-    final shouldUpdateMarker = _driverLat == null ||
-        _driverLng == null ||
-        Geolocator.distanceBetween(
-              _driverLat!,
-              _driverLng!,
-              position.latitude,
-              position.longitude,
-            ) >=
-            50 ||
-        _lastMarkerUpdateAt == null ||
-        now.difference(_lastMarkerUpdateAt!) >= const Duration(minutes: 1);
-
+    // Every accepted fix moves the marker; the map widget itself glides between fixes.
     setState(() {
-      if (shouldUpdateMarker) {
-        _driverLat = position.latitude;
-        _driverLng = position.longitude;
-        _lastMarkerUpdateAt = now;
-      }
+      _driverLat = position.latitude;
+      _driverLng = position.longitude;
       _lastDriverFixAt = now;
       _driverLocationIsLive = true;
     });
@@ -126,7 +114,6 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
       if (!isFresh) {
         _driverLat = null;
         _driverLng = null;
-        _lastMarkerUpdateAt = null;
       }
     });
     _expandedMapSetState?.call(() {});
@@ -287,6 +274,9 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                       driverLocationIsLive: _driverLocationIsLive,
                       onNavigate: _openNavigation,
                       height: constraints.maxHeight,
+                      phase: _mapPhase,
+                      interactive: true,
+                      trackDevice: _hasActiveTrip,
                     ),
                   ),
                 ),
@@ -728,6 +718,8 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                             dropAddress: drop.toString(),
                           ),
                           height: 190,
+                          phase: _mapPhase,
+                          trackDevice: _hasActiveTrip,
                         ),
                         const SizedBox(height: AppSpacing.lg),
 

@@ -1,6 +1,6 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import { PickupRadiusConfig } from '../dispatch/pickup-radius';
-import { VehicleType, VerificationStatus, DriverAvailability } from '@adhocx/contracts';
+import { VerificationStatus, DriverAvailability } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
 import { RedisService } from '../../redis/redis.service';
 import { H3Service } from './h3.service';
@@ -249,7 +249,7 @@ export class LocationsService {
     }
   }
 
-  private vehicleMatches(metaVehicle: string | undefined, wanted?: VehicleType): boolean {
+  private vehicleMatches(metaVehicle: string | undefined, wanted?: string): boolean {
     return !wanted || !metaVehicle || metaVehicle === 'DEFAULT' || metaVehicle === wanted;
   }
 
@@ -265,7 +265,7 @@ export class LocationsService {
     latitude: number,
     longitude: number,
     kRing: number = 2,
-    vehicleType?: VehicleType,
+    vehicleType?: string,
     maxRadiusKm: number = PickupRadiusConfig.maxPickupRadiusKm,
   ): Promise<NearbyDriverResult[]> {
     const originCell = this.h3.latLngToCell(latitude, longitude, H3Service.DEFAULT_RESOLUTION);
@@ -336,7 +336,7 @@ export class LocationsService {
     latitude: number,
     longitude: number,
     radiusKm: number,
-    vehicleType?: VehicleType,
+    vehicleType?: string,
   ): Promise<NearbyDriverResult[]> {
     this.logger.debug(`Searching drivers near (${latitude}, ${longitude}) within ${radiusKm}km (vehicleType: ${vehicleType || 'ANY'})`);
 

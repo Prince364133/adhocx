@@ -180,7 +180,7 @@ class _UserDriverAssignmentsListScreenState extends State<UserDriverAssignmentsL
                           final driverUser = driver?['user'] as Map<String, dynamic>?;
                           final driverName = driverUser?['fullName'] ?? driver?['fullName'] ?? 'Assigned Driver';
                           final vehiclePlate = driver?['vehiclePlate'] ?? t['vehiclePlate'] ?? 'DL Vehicle';
-                          final vehicleModel = driver?['vehicleModel'] ?? t['vehicleModel'] ?? 'Sedan';
+                          final vehicleModel = driver?['vehicleModel'] ?? t['vehicleModel'] ?? 'Fleet Vehicle';
                           final status = (t['status'] ?? 'ASSIGNED').toString();
                           final driverPhoto = (t['driverPhoto'] ?? driver?['photoUrl'] ?? driver?['profilePhotoUrl'] ?? driverUser?['photoUrl'])?.toString();
 

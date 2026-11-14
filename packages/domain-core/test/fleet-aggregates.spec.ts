@@ -108,12 +108,13 @@ describe('Fleet & Compliance Context - Aggregates & Invariants', () => {
   });
 
   describe('VehicleAggregate', () => {
-    it('should enforce Sedan capacity constraint (<= 4)', () => {
+    it('should enforce the catalogue-provided capacity limit for a category', () => {
       const validSedan = VehicleAggregate.create('veh-sedan-1', {
         driverId: 'drv-1',
         registrationNumber: 'TS09UB1234',
         category: 'SEDAN',
         seatingCapacity: 4,
+        categoryCapacityLimit: 4,
         insuranceExpiry: new Date(Date.now() + 180 * 86400000),
         rcExpiry: new Date(Date.now() + 365 * 86400000),
         isVerified: true,
@@ -125,41 +126,28 @@ describe('Fleet & Compliance Context - Aggregates & Invariants', () => {
         driverId: 'drv-1',
         registrationNumber: 'TS09UB5678',
         category: 'SEDAN',
-        seatingCapacity: 5, // Exceeds Sedan limit of 4
+        seatingCapacity: 5,
+        categoryCapacityLimit: 4,
         insuranceExpiry: new Date(Date.now() + 180 * 86400000),
         rcExpiry: new Date(Date.now() + 365 * 86400000),
         isVerified: true,
         createdAt: new Date(),
       });
       expect(invalidSedan.isFailure).toBe(true);
-      expect(invalidSedan.error).toContain('Sedan capacity cannot exceed 4');
-    });
+      expect(invalidSedan.error).toContain('must be between 1 and 4');
 
-    it('should enforce SUV capacity constraint (<= 6)', () => {
-      const validSuv = VehicleAggregate.create('veh-suv-1', {
+      const customCategory = VehicleAggregate.create('veh-custom-category', {
         driverId: 'drv-2',
         registrationNumber: 'TS09UC9999',
-        category: 'SUV',
-        seatingCapacity: 6,
+        category: 'CUSTOM_VAN',
+        seatingCapacity: 8,
+        categoryCapacityLimit: 8,
         insuranceExpiry: new Date(Date.now() + 180 * 86400000),
         rcExpiry: new Date(Date.now() + 365 * 86400000),
         isVerified: true,
         createdAt: new Date(),
       });
-      expect(validSuv.isSuccess).toBe(true);
-
-      const invalidSuv = VehicleAggregate.create('veh-suv-overload', {
-        driverId: 'drv-2',
-        registrationNumber: 'TS09UC8888',
-        category: 'SUV',
-        seatingCapacity: 7,
-        insuranceExpiry: new Date(Date.now() + 180 * 86400000),
-        rcExpiry: new Date(Date.now() + 365 * 86400000),
-        isVerified: true,
-        createdAt: new Date(),
-      });
-      expect(invalidSuv.isFailure).toBe(true);
-      expect(invalidSuv.error).toContain('SUV capacity cannot exceed 6');
+      expect(customCategory.isSuccess).toBe(true);
     });
 
     it('should correctly evaluate commercial road legality based on RC and insurance', () => {
@@ -168,6 +156,7 @@ describe('Fleet & Compliance Context - Aggregates & Invariants', () => {
         registrationNumber: 'TS09UB1111',
         category: 'SEDAN',
         seatingCapacity: 4,
+        categoryCapacityLimit: 4,
         insuranceExpiry: new Date(Date.now() + 30 * 86400000),
         rcExpiry: new Date(Date.now() + 365 * 86400000),
         isVerified: true,

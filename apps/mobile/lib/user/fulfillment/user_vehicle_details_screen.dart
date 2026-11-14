@@ -39,7 +39,7 @@ class _UserVehicleDetailsScreenState extends State<UserVehicleDetailsScreen> {
         _vehicle = {
           'plate': driver?['vehiclePlate'] ?? t['vehiclePlate'] ?? '—',
           'model': driver?['vehicleModel'] ?? t['vehicleModel'] ?? 'Commercial Fleet',
-          'type': driver?['vehicleType'] ?? t['vehicleType'] ?? 'Sedan',
+          'type': driver?['vehicleType'] ?? t['vehicleType'] ?? 'Vehicle',
           'year': driver?['vehicleYear']?.toString() ?? '—',
           'seating': driver?['seatingCapacity'] ?? '4 + 1 Passengers',
           'fuel': driver?['fuelType'] ?? '—',

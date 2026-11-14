@@ -420,7 +420,7 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
 
     // Financial & vehicle specs
     final num rate = DriverService.resolveDriverPayout(offer);
-    final vehicle = (offer['vehicleType'] ?? req?['vehicleType'] ?? 'Sedan').toString();
+    final vehicle = (offer['vehicleType'] ?? req?['vehicleType'] ?? 'Vehicle category unavailable').toString();
     final pickup = (offer['pickupLocation']?['address'] ?? offer['pickup'] ?? offer['pickupAddress'] ?? req?['pickupAddress'] ?? 'Pickup Location').toString();
     final drop = (offer['dropLocation']?['address'] ?? offer['drop'] ?? offer['dropAddress'] ?? req?['dropAddress'] ?? 'Dropoff Location').toString();
 

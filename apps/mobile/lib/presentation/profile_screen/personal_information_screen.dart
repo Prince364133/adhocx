@@ -388,7 +388,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
     final rawVehType = _profile?['vehicleType'] ?? driverProf?['vehicleType'];
     final vehicleType = (rawVehType != null && rawVehType.toString().trim().isNotEmpty)
         ? rawVehType.toString().trim()
-        : (onboarding.vehicleType.isNotEmpty ? onboarding.vehicleType : 'Sedan');
+        : (onboarding.vehicleType.isNotEmpty ? onboarding.vehicleType : 'Vehicle category unavailable');
 
     final rawVehModel = _profile?['vehicleModel'] ?? driverProf?['vehicleModel'];
     final vehicleModel = (rawVehModel != null && rawVehModel.toString().trim().isNotEmpty)

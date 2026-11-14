@@ -38,16 +38,6 @@ enum DriverAvailability {
   UNAVAILABLE
 }
 
-enum VehicleType {
-  SEDAN
-  SUV
-  HATCHBACK
-  TEMPO_TRAVELLER
-  BUS
-  TATA_ACE
-  PICKUP_TRUCK
-}
-
 enum FulfillmentMode {
   DIRECT_DISPATCH
 }
@@ -1694,7 +1684,7 @@ model CorporatePayoutBatch {
 model CorporateRateCard {
   id                 String    @id @default(uuid()) @db.Uuid
   tenantId           String    @map("tenant_id") @db.Uuid
-  vehicleCategory    String    @default("SEDAN") @map("vehicle_category") @db.VarChar(16)
+  vehicleCategory    String    @map("vehicle_category") @db.VarChar(16)
   baseFarePaise      BigInt    @map("base_fare_paise")
   baseDistanceMeters Int       @default(10000) @map("base_distance_meters")
   perKmPaise         BigInt    @map("per_km_paise")
@@ -1725,7 +1715,7 @@ model CorporateRateCard {
 
 model CorporateDriverRateCard {
   id                     String    @id @default(uuid()) @db.Uuid
-  vehicleCategory        String    @default("SEDAN") @map("vehicle_category") @db.VarChar(16)
+  vehicleCategory        String    @map("vehicle_category") @db.VarChar(16)
   basePayoutPaise        BigInt    @map("base_payout_paise")
   baseDistanceMeters     Int       @default(10000) @map("base_distance_meters")
   perKmPaise             BigInt    @map("per_km_paise")
@@ -2060,8 +2050,8 @@ model CorporateTenantPolicy {
   effectiveFrom              DateTime @map("effective_from")
   cancelCutoffHours          Int      @default(9) @map("cancel_cutoff_hours")
   maxRideMinutes             Int      @default(120) @map("max_ride_minutes")
-  defaultVehicleCategory     String   @default("SEDAN") @map("default_vehicle_category") @db.VarChar(32)
-  defaultCapacity            Int      @default(4) @map("default_capacity")
+  defaultVehicleCategory     String   @map("default_vehicle_category") @db.VarChar(32)
+  defaultCapacity            Int      @map("default_capacity")
   escalationLeadMinutes        Int      @default(30) @map("escalation_lead_minutes")
   officeArrivalBufferMinutes   Int      @default(10) @map("office_arrival_buffer_minutes")
   stopDwellMinutes             Int      @default(10) @map("stop_dwell_minutes")

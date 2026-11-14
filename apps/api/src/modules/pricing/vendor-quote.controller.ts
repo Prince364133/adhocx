@@ -19,7 +19,6 @@ import {
   VendorTripQuoteResponseDto,
   VendorConfirmTripDto,
   CreateRequirementDto,
-  VehicleType,
 } from '@adhocx/contracts';
 
 @ApiTags('Vendor Trip Quotes & Bookings')
@@ -63,12 +62,12 @@ export class VendorQuoteController {
     const snapshot = prior ? null : await this.distancePricing.lockPricingSnapshotForBooking(dto.quoteId, user.id);
     const quote = snapshot?.quote;
 
-    if (quote && (!quote.vehicleCategory || quote.vehicleCategory === 'ALL')) {
+    if (!prior && (!quote?.vehicleCategory || quote.vehicleCategory === 'ALL')) {
       throw new BadRequestException('Get the quote for a specific vehicle type before booking.');
     }
 
     const requirement = await this.requirementsService.createRequirement(user.id, {
-      vehicleType: (quote?.vehicleCategory ?? VehicleType.SEDAN) as VehicleType,
+      vehicleType: quote?.vehicleCategory ?? '',
       quantity: dto.quantity || 1,
       pickupLocation: {
         latitude: Number(quote?.pickupLat ?? 0),

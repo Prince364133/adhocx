@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -26,6 +28,7 @@ import './core/networking/api_client.dart';
 import './core/security/security_service.dart';
 import './services/app_update_service.dart';
 import './services/global_dispatch_overlay_service.dart';
+import './shared/maps/map_assets.dart';
 
 import './presentation/overlay/driver_bubble_overlay.dart';
 
@@ -169,6 +172,10 @@ void main() async {
   };
 
   GoRouter.optionURLReflectsImperativeAPIs = true;
+
+  // Pre-load the Maps SDK + marker icons in the background so the first map has no grey cold start.
+  unawaited(MapAssets.warmup());
+  unawaited(MapAssets.icons());
 
   runApp(
     MultiProvider(

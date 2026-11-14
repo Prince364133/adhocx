@@ -6,7 +6,6 @@ import {
   RequestOtpDto,
   VerifyOtpDto,
   RejectDriverKycDto,
-  VehicleType,
 } from '../src';
 
 describe('Contracts DTO Validation Tests', () => {
@@ -39,9 +38,9 @@ describe('Contracts DTO Validation Tests', () => {
     expect(invalidErrors.length).toBeGreaterThan(0);
   });
 
-  it('should validate CreateRequirementDto vehicle type and quantity', async () => {
+  it('should accept custom vehicle category strings and validate quantity', async () => {
     const validDto = plainToInstance(CreateRequirementDto, {
-      vehicleType: VehicleType.SEDAN,
+      vehicleType: 'CUSTOM_VAN',
       quantity: 5,
       pickupLocation: { latitude: 28.6139, longitude: 77.2090, address: 'Delhi' },
       dropLocation: { latitude: 28.4595, longitude: 77.0266, address: 'Gurgaon' },
@@ -59,6 +58,15 @@ describe('Contracts DTO Validation Tests', () => {
     });
     const invalidErrors = await validate(invalidDto);
     expect(invalidErrors.length).toBeGreaterThan(0);
+
+    const missingCategory = plainToInstance(CreateRequirementDto, {
+      vehicleType: '',
+      quantity: 1,
+      pickupLocation: { latitude: 28.6139, longitude: 77.2090, address: 'Delhi' },
+      dropLocation: { latitude: 28.4595, longitude: 77.0266, address: 'Gurgaon' },
+      reportingTime: '2026-09-02T10:00:00Z',
+    });
+    expect((await validate(missingCategory)).length).toBeGreaterThan(0);
   });
 
   it('should require mandatory reason on RejectDriverKycDto', async () => {

@@ -1238,6 +1238,31 @@ export class AdminService {
     const cleanPhone = data.phone ? data.phone.trim().replace(/\s+/g, '') : undefined;
     const cleanName = sanitizeRealName(data.fullName);
     const rawPlate = data.vehiclePlate?.trim().toUpperCase();
+    const vehicleType = data.vehicleType?.trim().toUpperCase();
+    if (vehicleType) {
+      const category = await this.db.vehiclePricingTier.findUnique({
+        where: { vehicleType },
+      });
+      if (!category || !category.isActive) {
+        throw new BadRequestException(
+          `Vehicle category "${vehicleType}" is not active in the pricing catalogue.`,
+        );
+      }
+    }
+    const vehicleTypeForVehicle = vehicleType || driver.vehicleType?.toUpperCase();
+    if (rawPlate && !vehicleTypeForVehicle) {
+      throw new BadRequestException('Select an active vehicle category before saving vehicle registration details.');
+    }
+    if (rawPlate && !vehicleType && vehicleTypeForVehicle) {
+      const category = await this.db.vehiclePricingTier.findUnique({
+        where: { vehicleType: vehicleTypeForVehicle },
+      });
+      if (!category || !category.isActive) {
+        throw new BadRequestException(
+          `Vehicle category "${vehicleTypeForVehicle}" is not active in the pricing catalogue.`,
+        );
+      }
+    }
 
     if (cleanPhone && cleanPhone !== driver.phone && cleanPhone !== driver.user?.phone) {
       await assertPhoneAvailable(this.db, cleanPhone, {
@@ -1270,13 +1295,16 @@ export class AdminService {
         ...(cleanPhone ? { phone: cleanPhone } : {}),
         ...(rawPlate ? { vehiclePlate: rawPlate } : {}),
         ...(data.vehicleModel ? { vehicleModel: data.vehicleModel } : {}),
-        ...(data.vehicleType ? { vehicleType: data.vehicleType.toUpperCase() } : {}),
+        ...(vehicleType ? { vehicleType } : {}),
       },
       include: { user: true },
     });
 
     if (rawPlate) {
-      const vType = (data.vehicleType || driver.vehicleType || 'SEDAN').toUpperCase();
+      const vType = vehicleTypeForVehicle;
+      if (!vType) {
+        throw new BadRequestException('Select an active vehicle category before saving vehicle registration details.');
+      }
       const vModel = data.vehicleModel || driver.vehicleModel || 'Commercial Fleet';
       const veh = await this.db.vehicle.findFirst({ where: { driverId: driver.id } });
       if (veh) {
@@ -2734,7 +2762,7 @@ export class AdminService {
         totalTripRevenue += orderAmount;
         totalTripDriverEarnings += driverEarnings;
 
-        const vType = t.vehicleType || 'SEDAN';
+        const vType = t.vehicleType || '';
         if (!vehicleBreakdownMap[vType]) {
           vehicleBreakdownMap[vType] = { revenue: 0, count: 0 };
         }
@@ -2844,7 +2872,7 @@ export class AdminService {
           driverId: d.id,
           driverName: d.fullName || d.user?.fullName || 'Driver',
           driverPhone: d.phone || d.user?.phone || '—',
-          vehicleType: d.vehicleType || 'Sedan',
+          vehicleType: d.vehicleType || '',
           vehiclePlate: d.vehiclePlate || '—',
           tripsCompleted: d.trips.length,
           totalEarnings: Math.round(dTotalEarned * 100) / 100,
@@ -2999,7 +3027,7 @@ export class AdminService {
           fullName: driver.fullName || driver.user?.fullName || 'Driver',
           phone: driver.phone || driver.user?.phone || '—',
           walletBalance: Math.max(0, Number(driver.walletBalance || 0)),
-          vehicleType: driver.vehicleType || 'Sedan',
+          vehicleType: driver.vehicleType || '',
           vehiclePlate: driver.vehiclePlate || '—',
           kycDocuments: driver.kycDocuments,
         },

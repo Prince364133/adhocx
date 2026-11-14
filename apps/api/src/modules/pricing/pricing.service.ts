@@ -1,5 +1,4 @@
 import { Injectable, Logger, OnModuleInit, Optional, BadRequestException, NotFoundException, ConflictException } from '@nestjs/common';
-import { VehicleType } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
 
 /**
@@ -25,14 +24,12 @@ export interface VehicleCategoryDto {
 /** @deprecated name kept for existing imports: the catalogue no longer carries prices. */
 export type VehiclePricingTierDto = VehicleCategoryDto;
 
-export function calculateTierMaxSeats(vehicleType: string, seatingCapacity: string = ''): number {
-  const norm = (vehicleType || '').toUpperCase();
-  if (norm.includes('SUV') || norm.includes('7')) return 7;
-  if (norm.includes('TEMPO')) return 12;
-  if (norm.includes('BUS')) return 24;
-  if (seatingCapacity.includes('7') || seatingCapacity.includes('6 + 1')) return 7;
-  if (seatingCapacity.includes('12')) return 12;
-  if (seatingCapacity.includes('24')) return 24;
+export function calculateTierMaxSeats(_vehicleType: string, seatingCapacity: string = ''): number {
+  const capacity = String(seatingCapacity || '');
+  const splitCapacity = capacity.match(/(\d+)\s*\+\s*(\d+)/);
+  if (splitCapacity) return Number(splitCapacity[1]) + Number(splitCapacity[2]);
+  const numericCapacity = capacity.match(/\d+/);
+  if (numericCapacity && Number(numericCapacity[0]) > 0) return Number(numericCapacity[0]);
   return 4;
 }
 
@@ -44,15 +41,6 @@ export interface PlatformPolicyConfigDto {
   updatedAt: string;
 }
 
-/** Category names and seating shown in the apps on a fresh database (no prices). */
-const DEFAULT_CATEGORIES: Array<Pick<VehicleCategoryDto, 'vehicleType' | 'categoryLabel' | 'seatingCapacity' | 'description' | 'iconKey'>> = [
-  { vehicleType: VehicleType.SEDAN, categoryLabel: 'Prime Sedan', seatingCapacity: '4 + 1 Passengers', description: 'Executive 4-seater sedans', iconKey: 'car' },
-  { vehicleType: VehicleType.SUV, categoryLabel: 'SUV 7 Seater', seatingCapacity: '6 + 1 Passengers', description: '6-7 seater SUVs', iconKey: 'suv' },
-  { vehicleType: VehicleType.HATCHBACK, categoryLabel: 'Compact Hatchback', seatingCapacity: '4 + 1 Passengers', description: 'Compact city cabs', iconKey: 'car' },
-  { vehicleType: VehicleType.TEMPO_TRAVELLER, categoryLabel: 'Tempo Traveller', seatingCapacity: '12 - 16 Passengers', description: '12-16 seater minibuses', iconKey: 'bus' },
-  { vehicleType: VehicleType.BUS, categoryLabel: 'Coach Bus', seatingCapacity: '24 - 40 Passengers', description: '24-40 seater coaches', iconKey: 'bus' },
-];
-
 const DEFAULT_POLICY = { driverMonthlyFee: 499, driverTrialDays: 15, minWithdrawalAmount: 1000, escortFee: 300 };
 
 @Injectable()
@@ -63,24 +51,18 @@ export class PricingService implements OnModuleInit {
   constructor(@Optional() private readonly db?: DatabaseService) {}
 
   async onModuleInit() {
-    await this.seedCatalogueIfEmpty();
+    await this.seedPolicyIfMissing();
   }
 
-  /** First boot only: category names (no prices) and the default driver policy. */
-  async seedCatalogueIfEmpty(): Promise<void> {
+  /** First boot only: seed the default driver policy. Vehicle categories are admin-managed. */
+  async seedPolicyIfMissing(): Promise<void> {
     if (!this.db) return;
     try {
-      if ((await this.db.vehiclePricingTier.count()) === 0) {
-        for (const c of DEFAULT_CATEGORIES) {
-          await this.db.vehiclePricingTier.create({ data: { ...c, ...legacyZeroPrices(), isActive: true, updatedBy: 'SYSTEM' } });
-        }
-        this.logger.log(`Seeded ${DEFAULT_CATEGORIES.length} vehicle categories (catalogue only, no prices).`);
-      }
       if (!(await this.db.systemPolicyConfig.findUnique({ where: { key: 'GLOBAL_POLICY' } }))) {
         await this.db.systemPolicyConfig.create({ data: { key: 'GLOBAL_POLICY', ...DEFAULT_POLICY } });
       }
     } catch (err: any) {
-      this.logger.warn(`Could not seed vehicle categories: ${err.message}`);
+      this.logger.warn(`Could not seed platform policy: ${err.message}`);
     }
   }
 

@@ -39,7 +39,7 @@ export interface OnboardCorporateAdminInputDto {
 export interface OnboardCorporatePolicyInputDto {
   cancelCutoffHours?: number;
   maxRideMinutes?: number;
-  defaultVehicleCategory?: 'SEDAN' | 'SUV';
+  defaultVehicleCategory?: string;
   defaultCapacity?: number;
   escalationLeadMinutes?: number;
   officeArrivalBufferMinutes?: number;

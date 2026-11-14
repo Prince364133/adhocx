@@ -1,67 +1,27 @@
 class VehicleUtils {
   VehicleUtils._();
 
-  /// Normalizes any raw vehicle string (e.g. 'Prime Sedan', 'SEDAN', 'sedan', 'Toyota Dzire', 'Compact Hatchback')
-  /// into standard system categories: 'SEDAN', 'SUV', 'HATCHBACK', 'TEMPO_TRAVELLER', etc.
+  /// Normalizes a database category code without mapping it to a built-in vehicle list.
   static String normalizeVehicleCategory(String? raw) {
     if (raw == null) return '';
     final s = raw.trim().toUpperCase();
     if (s.isEmpty || s == 'NULL' || s == 'UNDEFINED') return '';
-    if (s.contains('SEDAN') || s.contains('DZIRE') || s.contains('ETIOS') || s.contains('AURA') || s.contains('TIGOR')) {
-      return 'SEDAN';
-    }
-    if (s.contains('SUV') || s.contains('7 SEATER') || s.contains('CRYSTA') || s.contains('INNOVA') || s.contains('ERTIGA') || s.contains('CARENS') || s.contains('XYLO') || s.contains('SCORPIO')) {
-      return 'SUV';
-    }
-    if (s.contains('HATCHBACK') || s.contains('COMPACT') || s.contains('MINI') || s.contains('WAGONR') || s.contains('SWIFT') || s.contains('TIAGO') || s.contains('I10') || s.contains('CELERIO')) {
-      return 'HATCHBACK';
-    }
-    if (s.contains('TEMPO') || s.contains('TRAVELLER') || s.contains('FORCE') || s.contains('WINGER') || s.contains('URBANIA')) {
-      return 'TEMPO_TRAVELLER';
-    }
     return s.replaceAll(RegExp(r'[^A-Z0-9]'), '_');
   }
 
-  /// Returns user-friendly UI display label for a normalized or raw vehicle category
+  /// Returns the supplied database label or code.
   static String getDisplayLabel(String? raw) {
-    final norm = normalizeVehicleCategory(raw);
-    switch (norm) {
-      case 'SEDAN':
-        return 'Prime Sedan';
-      case 'SUV':
-        return 'SUV 7 Seater';
-      case 'HATCHBACK':
-        return 'Compact Hatchback';
-      case 'TEMPO_TRAVELLER':
-        return 'Tempo Traveller';
-      default:
-        if (raw == null || raw.trim().isEmpty) return 'Prime Sedan';
-        return raw.trim();
-    }
+    if (raw == null || raw.trim().isEmpty) return 'Vehicle';
+    return raw.trim();
   }
 
-  /// Returns standard maximum passenger seating capacity for a vehicle category.
-  /// SUV is 7 seats, Sedan and Hatchback are 4 seats.
+  /// Uses the supplied capacity when available; category codes do not imply seating.
   static int getMaxSeats(String? vehicleType, [int? fallbackSeats]) {
-    final norm = normalizeVehicleCategory(vehicleType);
-    switch (norm) {
-      case 'SUV':
-        return 7;
-      case 'SEDAN':
-        return 4;
-      case 'HATCHBACK':
-        return 4;
-      case 'TEMPO_TRAVELLER':
-        return 12;
-      case 'BUS':
-        return 24;
-      default:
-        return fallbackSeats ?? 4;
-    }
+    return fallbackSeats ?? 0;
   }
 
   /// Checks if a driver's vehicle is strictly compatible with a trip/opportunity requirement.
-  /// A Sedan driver CANNOT see or accept SUV or Hatchback requirements.
+  /// A driver can only serve a requirement with the same registered category.
   static bool isCompatible({
     required String? driverVehicle,
     required String? requiredVehicle,
@@ -69,7 +29,7 @@ class VehicleUtils {
     final reqNorm = normalizeVehicleCategory(requiredVehicle);
     if (reqNorm.isEmpty) return true; // generic requirement
 
-    final driverNorm = normalizeVehicleCategory(driverVehicle ?? 'SEDAN');
+    final driverNorm = normalizeVehicleCategory(driverVehicle);
     if (driverNorm.isEmpty) return true;
 
     return driverNorm == reqNorm;

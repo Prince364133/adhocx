@@ -72,7 +72,7 @@ class _UserEditRequirementScreenState extends State<UserEditRequirementScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     final req = widget.requirementData ?? {};
-    final vehicleType = (req['vehicleType'] ?? 'Commercial Sedan').toString();
+    final vehicleType = (req['vehicleType'] ?? 'Vehicle category unavailable').toString();
     final quantity = (req['quantity'] ?? req['requiredQuantity'] ?? 1).toString();
     final pickup = req['pickupLocation'] as Map<String, dynamic>?;
     final drop = req['dropLocation'] as Map<String, dynamic>?;

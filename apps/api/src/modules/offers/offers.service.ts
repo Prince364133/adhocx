@@ -16,7 +16,6 @@ import {
   TripStatus,
   DriverAvailability,
   VerificationStatus,
-  VehicleType,
   NotificationType,
   validateOfferTransition,
 } from '@adhocx/contracts';
@@ -122,15 +121,15 @@ export class OffersService {
         offers = offers.filter(o => !fulfilledRequirementIds.has(o.requirementId));
       }
 
-      // Strict vehicle type filtering: A sedan driver only sees sedan offers
+      // Category codes are compared directly; the database catalogue defines the available types.
       if (driver.vehicleType) {
-        const dType = driver.vehicleType.toString().toUpperCase();
-        const dNorm = dType.includes('SEDAN') ? 'SEDAN' : dType.includes('SUV') ? 'SUV' : dType.includes('HATCH') ? 'HATCHBACK' : dType;
+        const normalizeCategory = (value: unknown) =>
+          String(value ?? '').trim().toUpperCase().replace(/[\s-]+/g, '_');
+        const dNorm = normalizeCategory(driver.vehicleType);
         offers = offers.filter((o) => {
-          const reqType = (o.requirement?.vehicleType || o.vehicleType || '').toString().toUpperCase();
+          const reqType = normalizeCategory(o.requirement?.vehicleType || o.vehicleType);
           if (!reqType) return true;
-          const rNorm = reqType.includes('SEDAN') ? 'SEDAN' : reqType.includes('SUV') ? 'SUV' : reqType.includes('HATCH') ? 'HATCHBACK' : reqType;
-          return dNorm === rNorm;
+          return dNorm === reqType;
         });
       }
 
@@ -209,7 +208,7 @@ export class OffersService {
       id: o.id,
       requirementId: o.requirementId,
       driverId: o.driverId,
-      vehicleType: o.vehicleType as unknown as VehicleType,
+      vehicleType: o.vehicleType,
       pickupLocation: {
         latitude: pLat,
         longitude: pLng,
@@ -523,7 +522,7 @@ export class OffersService {
       id: txResult.updatedOffer.id,
       requirementId: txResult.updatedOffer.requirementId,
       driverId: txResult.updatedOffer.driverId,
-      vehicleType: txResult.updatedOffer.vehicleType as unknown as VehicleType,
+      vehicleType: txResult.updatedOffer.vehicleType,
       pickupLocation: {
         latitude: Number(offer.requirement.pickupLat),
         longitude: Number(offer.requirement.pickupLng),
@@ -615,7 +614,7 @@ export class OffersService {
       id: updated.id,
       requirementId: updated.requirementId,
       driverId: updated.driverId,
-      vehicleType: updated.vehicleType as unknown as VehicleType,
+      vehicleType: updated.vehicleType,
       pickupLocation: {
         latitude: Number(offer.requirement.pickupLat),
         longitude: Number(offer.requirement.pickupLng),

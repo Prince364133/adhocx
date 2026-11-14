@@ -1,5 +1,5 @@
 import { IsEnum, IsNotEmpty, IsOptional, IsString, IsNumber, MaxLength } from 'class-validator';
-import { VerificationStatus, DriverAvailability, VehicleType } from '../enums';
+import { VerificationStatus, DriverAvailability } from '../enums';
 import { PaginationQueryDto } from './common.dto';
 
 export class AdminDriverQueryDto extends PaginationQueryDto {
@@ -78,7 +78,7 @@ export class AdminDriverDetailDto {
   phone!: string;
   verificationStatus!: VerificationStatus;
   availabilityStatus!: DriverAvailability;
-  vehicleType?: VehicleType;
+  vehicleType?: string;
   vehicleModel?: string;
   vehiclePlate?: string;
   walletBalance!: number;
