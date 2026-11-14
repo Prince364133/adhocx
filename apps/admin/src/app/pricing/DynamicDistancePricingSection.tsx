@@ -11,7 +11,6 @@ import {
   Send,
   Clock,
   Zap,
-  Sun,
   Building2,
   Car,
   CheckCircle2,
@@ -347,25 +346,6 @@ export function DynamicDistancePricingSection() {
       clearTimeout(t);
     };
   }, [simDistanceKm, simTimeOfDay, activePlan]);
-
-  // Open slab editor drawer
-  function handleOpenSlabEditor() {
-    if (!activePlan) return;
-    setSlabEditReason('');
-    setEditingSlabs(
-      activePlan.slabs.map((s) => ({
-        minDistanceMExclusive: s.minDistanceMExclusive,
-        maxDistanceMInclusive: s.maxDistanceMInclusive,
-        vendorPricePaise: s.vendorPricePaise,
-        driverPayoutPaise: s.driverPayoutPaise,
-        vendorPeakPricePaise: s.vendorPeakPricePaise ?? s.vendorPricePaise,
-        driverPeakPayoutPaise: s.driverPeakPayoutPaise ?? s.driverPayoutPaise,
-        active: s.active,
-      })),
-    );
-    setEditingWindows(peakWindows);
-    setIsEditSlabsOpen(true);
-  }
 
   // Auto-generate step slabs
   function handleGenerateSteps() {
