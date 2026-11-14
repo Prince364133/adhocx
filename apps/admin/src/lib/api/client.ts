@@ -83,6 +83,9 @@ import {
   FinanceDashboardData,
   FinanceTransactionItem,
   DriverFinancialHistoryDetail,
+  FeatureFlagItem,
+  CreateFeatureFlagPayload,
+  UpdateFeatureFlagPayload,
 } from './types';
 
 export function getApiBaseUrl(): string {
@@ -1703,6 +1706,32 @@ export const adminApi = {
       `/kyc/digio/digilocker/request/${requestId}/sync-media`,
       { method: 'POST' },
     ),
+
+  getFeatureFlags: () =>
+    apiClient<FeatureFlagItem[]>('/admin/feature-flags'),
+
+  toggleFeatureFlag: (key: string, isEnabled: boolean) =>
+    apiClient<FeatureFlagItem>(`/admin/feature-flags/${encodeURIComponent(key)}/toggle`, {
+      method: 'PATCH',
+      body: { isEnabled },
+    }),
+
+  createFeatureFlag: (data: CreateFeatureFlagPayload) =>
+    apiClient<FeatureFlagItem>('/admin/feature-flags', {
+      method: 'POST',
+      body: data,
+    }),
+
+  updateFeatureFlag: (key: string, data: UpdateFeatureFlagPayload) =>
+    apiClient<FeatureFlagItem>(`/admin/feature-flags/${encodeURIComponent(key)}`, {
+      method: 'PATCH',
+      body: data,
+    }),
+
+  deleteFeatureFlag: (key: string) =>
+    apiClient<{ id: string; key: string }>(`/admin/feature-flags/${encodeURIComponent(key)}`, {
+      method: 'DELETE',
+    }),
 
   logoutAdmin: async () => {
     try {

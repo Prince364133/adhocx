@@ -7,6 +7,7 @@ import { LeadsModule } from '../../modules/leads/leads.module';
 import { BlogsModule } from '../../modules/blogs/blogs.module';
 import { AppUpdateModule } from '../../modules/app-update/app-update.module';
 import { DisputesModule } from '../../modules/disputes/disputes.module';
+import { FeatureFlagsModule } from '../../modules/feature-flags/feature-flags.module';
 
 /**
  * Platform Domain (Bounded Context: Platform Governance & Infrastructure)
@@ -22,6 +23,7 @@ import { DisputesModule } from '../../modules/disputes/disputes.module';
     BlogsModule,
     AppUpdateModule,
     DisputesModule,
+    FeatureFlagsModule,
   ],
   exports: [
     AdminModule,
@@ -32,6 +34,7 @@ import { DisputesModule } from '../../modules/disputes/disputes.module';
     BlogsModule,
     AppUpdateModule,
     DisputesModule,
+    FeatureFlagsModule,
   ],
 })
 export class PlatformDomainModule {}

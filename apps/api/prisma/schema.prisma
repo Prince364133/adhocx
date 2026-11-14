@@ -2186,3 +2186,22 @@ model DigioVerification {
   @@index([tenantId])
   @@map("digio_verifications")
 }
+
+model FeatureFlag {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  name        String
+  description String?
+  category    String   @default("GENERAL")
+  isEnabled   Boolean  @default(false) @map("is_enabled")
+  metadata    Json?
+  createdBy   String?  @map("created_by")
+  updatedBy   String?  @map("updated_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([key])
+  @@index([isEnabled])
+  @@map("feature_flags")
+}
+

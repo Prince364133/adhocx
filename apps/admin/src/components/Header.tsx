@@ -44,6 +44,7 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
     if (pathname.startsWith('/settlements')) return 'Financial Settlements & Payouts';
     if (pathname.startsWith('/finance')) return 'Finance & Accounting Operations';
     if (pathname.startsWith('/reports')) return 'Finance & Accounting Operations';
+    if (pathname.startsWith('/feature-flags')) return 'Feature Flags & Platform Controls';
     if (pathname.startsWith('/pricing')) return 'Pricing Engine & Tariffs';
     if (pathname.startsWith('/payments')) return 'Payments & Escrow Balances';
     if (pathname.startsWith('/audit')) return 'Audit Logs & Compliance';

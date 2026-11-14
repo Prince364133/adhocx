@@ -28,6 +28,7 @@ import './core/networking/api_client.dart';
 import './core/security/security_service.dart';
 import './services/app_update_service.dart';
 import './services/global_dispatch_overlay_service.dart';
+import './services/feature_flags_service.dart';
 import './shared/maps/map_assets.dart';
 
 import './presentation/overlay/driver_bubble_overlay.dart';
@@ -108,6 +109,13 @@ void main() async {
     AppLogger.debug('Orientation lock skipped on platform: $e', tag: 'MAIN');
   }
 
+  // Initialize dynamic feature flags (cached + background API sync)
+  try {
+    await FeatureFlagsService.instance.init();
+  } catch (e) {
+    AppLogger.debug('Feature flags init skipped: $e', tag: 'MAIN');
+  }
+
   // Initialize Language Provider and load saved language
   final languageProvider = LanguageProvider();
   try {
@@ -184,6 +192,7 @@ void main() async {
         ChangeNotifierProvider.value(value: languageProvider),
         ChangeNotifierProvider.value(value: authProvider),
         ChangeNotifierProvider.value(value: onboardingProvider),
+        ChangeNotifierProvider.value(value: FeatureFlagsService.instance),
         ChangeNotifierProvider(create: (_) => RequirementDraftProvider()),
         Provider<AuthService>(create: (_) => AuthService.instance),
         Provider<DriverService>(create: (_) => DriverService.instance),

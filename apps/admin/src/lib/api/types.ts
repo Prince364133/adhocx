@@ -1549,3 +1549,35 @@ export interface DriverFinancialHistoryDetail {
     createdAt: string;
   }>;
 }
+
+export interface FeatureFlagItem {
+  id: string;
+  key: string;
+  name: string;
+  description?: string | null;
+  category: string;
+  isEnabled: boolean;
+  metadata?: Record<string, any> | null;
+  createdBy?: string | null;
+  updatedBy?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateFeatureFlagPayload {
+  key: string;
+  name: string;
+  description?: string;
+  category?: string;
+  isEnabled?: boolean;
+  metadata?: Record<string, any>;
+}
+
+export interface UpdateFeatureFlagPayload {
+  name?: string;
+  description?: string;
+  category?: string;
+  isEnabled?: boolean;
+  metadata?: Record<string, any>;
+}
+

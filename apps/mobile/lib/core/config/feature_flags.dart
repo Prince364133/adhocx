@@ -10,11 +10,16 @@ class FeatureFlags {
   static const String vendorPaymentGatewayPendingMessage =
       'Waiting for payment gateway API';
 
-  /// Temporarily hides Wallet / Payments UI and routes from Vendor (User)
-  /// access while keeping Driver Earnings / Wallet intact.
-  static bool _vendorWalletEnabled = false;
+  /// Controlled dynamically by FeatureFlagsService connected to PostgreSQL.
+  /// Defaults to true so vendor wallet is enabled out-of-the-box unless admin disables it.
+  static bool _vendorWalletEnabled = true;
 
   static bool get isVendorWalletEnabled => _vendorWalletEnabled;
+
+  /// Internal update called by FeatureFlagsService upon API/cache resolution.
+  static void updateVendorWalletLive(bool enabled) {
+    _vendorWalletEnabled = enabled;
+  }
 
   /// Matches Vendor-specific backend wallet/escrow balance error messages so
   /// global formatters can replace them without altering Driver wallet alerts.
@@ -42,4 +47,3 @@ class FeatureFlags {
     _vendorWalletEnabled = enabled;
   }
 }
-

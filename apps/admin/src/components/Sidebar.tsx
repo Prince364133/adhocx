@@ -23,6 +23,7 @@ import {
   Radio,
   ExternalLink,
   Building2,
+  Sliders,
 } from 'lucide-react';
 import { AdhocxBrandLogo } from './AdhocxBrandLogo';
 import { ConfirmDialog } from './common/ConfirmDialog';
@@ -74,6 +75,7 @@ const navSections: NavSection[] = [
   {
     title: 'GOVERNANCE',
     items: [
+      { href: '/feature-flags', label: 'Feature Flags', icon: Sliders },
       { href: '/finance', label: 'Finance', icon: WalletCards },
       { href: '/audit', label: 'Audit Logs', icon: FileText },
     ],
