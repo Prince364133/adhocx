@@ -515,6 +515,8 @@ export interface SettlementListItem {
   bankAccountName?: string;
   bankAccountNumber?: string;
   bankIfsc?: string;
+  bankName?: string;
+  bankVerificationStatus?: 'NOT_SUBMITTED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
   transactionRef?: string;
   processedAt?: string;
   createdAt: string;
@@ -1328,6 +1330,11 @@ export interface DistanceSimulationResult {
   vendorPeakPriceRupees?: number;
   driverPeakPayoutPaise?: number;
   driverPeakPayoutRupees?: number;
+  hasEscort?: boolean;
+  baseRideVendorPriceRupees?: number;
+  baseRideDriverPayoutRupees?: number;
+  escortVendorFeeRupees?: number;
+  escortDriverPayoutRupees?: number;
 }
 // =============================================================================
 // DIGIO KYC / KYB VERIFICATION TYPES

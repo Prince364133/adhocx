@@ -102,6 +102,18 @@ export class RateCardConfigDto {
   @IsOptional() @IsNumber() @Min(0)
   driverPeakExtraStepRupees?: number;
 
+  @IsOptional() @IsNumber() @Min(0)
+  escortBaseVendorRupees?: number;
+
+  @IsOptional() @IsNumber() @Min(0)
+  escortBaseDriverRupees?: number;
+
+  @IsOptional() @IsNumber() @Min(0)
+  escortStepVendorRupees?: number;
+
+  @IsOptional() @IsNumber() @Min(0)
+  escortStepDriverRupees?: number;
+
   @IsOptional()
   @IsObject()
   vehicleSurges?: Record<string, any>;

@@ -119,6 +119,9 @@ export class AdminPricingController {
       pickup?: { lat: number; lng: number; address?: string };
       drop?: { lat: number; lng: number; address?: string };
       vehicleCategory?: string;
+      pickupTime?: string;
+      isPeak?: boolean;
+      hasEscort?: boolean;
     },
   ) {
     return this.distancePricing.simulateCalculation(body);

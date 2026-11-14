@@ -913,6 +913,9 @@ export const adminApi = {
     pickup?: { lat: number; lng: number; address?: string };
     drop?: { lat: number; lng: number; address?: string };
     vehicleCategory?: string;
+    pickupTime?: string;
+    isPeak?: boolean;
+    hasEscort?: boolean;
   }) =>
     apiClient<DistanceSimulationResult>('/admin/pricing/simulate', {
       method: 'POST',
@@ -1051,6 +1054,11 @@ export const adminApi = {
       method: 'POST',
       body: data,
     }),
+  reviewSettlementBank: (id: string, data: { status: 'VERIFIED' | 'REJECTED'; reason?: string }) =>
+    apiClient<{ settlementId: string; bankVerificationStatus: 'VERIFIED' | 'REJECTED' }>(
+      `/settlements/${id}/bank-review`,
+      { method: 'POST', body: data },
+    ),
 
   // Disputes & Support Resolution
   getDisputes: (status?: string) => {

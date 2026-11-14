@@ -639,9 +639,11 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
     const peakEval = this.pricingPeriod(plan, pricedForTime);
     const slab = this.resolveSlab(plan, route.distanceMeters, peakEval.isPeak);
     const hasEscort = Boolean(dto.hasEscort);
-    const escortFarePaise = hasEscort ? await this.resolveEscortFeePaise() : 0;
+    const escortFarePaise = hasEscort ? await this.resolveEscortFeePaise(plan, route.distanceMeters) : 0;
+    const escortDriverPayoutPaise = hasEscort ? this.resolveEscortDriverPayoutPaise(plan, route.distanceMeters) : 0;
     const baseVendorPricePaise = slab.vendorPricePaise;
     const vendorPricePaise = baseVendorPricePaise + escortFarePaise;
+    const driverPayoutPaise = slab.driverPayoutPaise + escortDriverPayoutPaise;
     const expiresAt = new Date(Date.now() + this.quoteTtlMinutes * 60_000);
 
     const quote = await this.db.tripQuote.create({
@@ -659,7 +661,7 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
         planVersion: plan.version,
         slabId: slab.id,
         vendorPricePaise,
-        driverPayoutPaise: slab.driverPayoutPaise,
+        driverPayoutPaise,
         hasEscort,
         escortFarePaise,
         pricedForTime,
@@ -867,6 +869,12 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
     const peakSlab = this.resolveSlab(plan, distanceMeters, true);
     const activeSlab = peakEval.isPeak ? peakSlab : stdSlab;
 
+    const hasEscort = Boolean((params as any).hasEscort);
+    const escortVendorPaise = await this.resolveEscortFeePaise(plan, distanceMeters);
+    const escortDriverPaise = this.resolveEscortDriverPayoutPaise(plan, distanceMeters);
+    const resolvedVendorPaise = hasEscort ? activeSlab.vendorPricePaise + escortVendorPaise : activeSlab.vendorPricePaise;
+    const resolvedDriverPaise = hasEscort ? activeSlab.driverPayoutPaise + escortDriverPaise : activeSlab.driverPayoutPaise;
+
     return {
       distanceMeters,
       displayedKm: Number((distanceMeters / 1000).toFixed(1)),
@@ -877,11 +885,16 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
       slabId: activeSlab.id,
       slabRange: this.rangeLabel(activeSlab),
       isPeak: peakEval.isPeak,
+      hasEscort,
       activeWindowLabel: peakEval.activeWindow?.label || (peakEval.isPeak ? 'Peak Hours' : 'Standard Non-Peak'),
-      vendorPricePaise: activeSlab.vendorPricePaise,
-      vendorPriceRupees: activeSlab.vendorPricePaise / 100,
-      driverPayoutPaise: activeSlab.driverPayoutPaise,
-      driverPayoutRupees: activeSlab.driverPayoutPaise / 100,
+      vendorPricePaise: resolvedVendorPaise,
+      vendorPriceRupees: resolvedVendorPaise / 100,
+      driverPayoutPaise: resolvedDriverPaise,
+      driverPayoutRupees: resolvedDriverPaise / 100,
+      baseRideVendorPriceRupees: activeSlab.vendorPricePaise / 100,
+      baseRideDriverPayoutRupees: activeSlab.driverPayoutPaise / 100,
+      escortVendorFeeRupees: escortVendorPaise / 100,
+      escortDriverPayoutRupees: escortDriverPaise / 100,
       standard: {
         vendorPriceRupees: stdSlab.vendorPricePaise / 100,
         driverPayoutRupees: stdSlab.driverPayoutPaise / 100,
@@ -953,8 +966,23 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
   // Helpers
   // ===========================================================================
 
-  private async resolveEscortFeePaise(): Promise<number> {
+  private async resolveEscortFeePaise(plan?: any, distanceMeters?: number): Promise<number> {
     try {
+      if (plan?.rateConfigJson && typeof plan.rateConfigJson === 'object') {
+        const cfg = plan.rateConfigJson as any;
+        if (typeof cfg.escortBaseVendorRupees === 'number' && cfg.escortBaseVendorRupees >= 0) {
+          const baseKm = typeof cfg.baseKm === 'number' && cfg.baseKm > 0 ? cfg.baseKm : 10;
+          const stepKm = typeof cfg.stepKm === 'number' && cfg.stepKm > 0 ? cfg.stepKm : 10;
+          const stepVendor = typeof cfg.escortStepVendorRupees === 'number' && cfg.escortStepVendorRupees >= 0 ? cfg.escortStepVendorRupees : 0;
+          const baseM = baseKm * 1000;
+          const stepM = stepKm * 1000;
+          const dM = distanceMeters || 0;
+          const steps = dM > baseM ? Math.ceil((dM - baseM) / stepM) : 0;
+          const totalFee = cfg.escortBaseVendorRupees + steps * stepVendor;
+          return Math.round(totalFee * 100);
+        }
+      }
+
       const policy = await this.db.systemPolicyConfig?.findUnique?.({ where: { key: 'GLOBAL_POLICY' } });
       if (policy && (policy as any).escortFee !== undefined && (policy as any).escortFee !== null) {
         const fee = Number((policy as any).escortFee);
@@ -966,6 +994,28 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
       this.logger.warn(`Could not read escortFee policy; using default: ${err?.message ?? err}`);
     }
     return DEFAULT_ESCORT_FEE_PAISE;
+  }
+
+  private resolveEscortDriverPayoutPaise(plan?: any, distanceMeters?: number): number {
+    try {
+      if (plan?.rateConfigJson && typeof plan.rateConfigJson === 'object') {
+        const cfg = plan.rateConfigJson as any;
+        if (typeof cfg.escortBaseDriverRupees === 'number' && cfg.escortBaseDriverRupees >= 0) {
+          const baseKm = typeof cfg.baseKm === 'number' && cfg.baseKm > 0 ? cfg.baseKm : 10;
+          const stepKm = typeof cfg.stepKm === 'number' && cfg.stepKm > 0 ? cfg.stepKm : 10;
+          const stepDriver = typeof cfg.escortStepDriverRupees === 'number' && cfg.escortStepDriverRupees >= 0 ? cfg.escortStepDriverRupees : 0;
+          const baseM = baseKm * 1000;
+          const stepM = stepKm * 1000;
+          const dM = distanceMeters || 0;
+          const steps = dM > baseM ? Math.ceil((dM - baseM) / stepM) : 0;
+          const totalPayout = cfg.escortBaseDriverRupees + steps * stepDriver;
+          return Math.round(totalPayout * 100);
+        }
+      }
+    } catch (err: any) {
+      this.logger.warn(`Could not calculate driver escort payout; using 0: ${err?.message ?? err}`);
+    }
+    return 0;
   }
 
   private async verifiedDistance(
