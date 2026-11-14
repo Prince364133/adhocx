@@ -54,15 +54,6 @@ class _BankDetailsModalState extends State<BankDetailsModal> {
   bool _isSaving = false;
   bool _obscureAccount = false;
 
-  final List<String> _popularBanks = const [
-    'HDFC Bank',
-    'State Bank of India',
-    'ICICI Bank',
-    'Axis Bank',
-    'Kotak Mahindra',
-    'Punjab National Bank',
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -150,7 +141,7 @@ class _BankDetailsModalState extends State<BankDetailsModal> {
 
       if (mounted) {
         Fluttertoast.showToast(
-          msg: 'Bank account updated successfully!',
+          msg: 'Bank details submitted for manual verification.',
           backgroundColor: AppColors.accentGreenDark,
         );
         Navigator.of(context).pop(updatedMap);
@@ -222,7 +213,8 @@ class _BankDetailsModalState extends State<BankDetailsModal> {
                     ),
                     child: Icon(
                       Icons.account_balance_rounded,
-                      color: isDark ? AppColors.primaryLight : AppColors.primary,
+                      color:
+                          isDark ? AppColors.primaryLight : AppColors.primary,
                       size: 24,
                     ),
                   ),
@@ -234,7 +226,9 @@ class _BankDetailsModalState extends State<BankDetailsModal> {
                         Text(
                           'Bank & Payout Information',
                           style: AppTypography.h3(
-                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                            color: isDark
+                                ? AppColors.textPrimaryDark
+                                : AppColors.textPrimaryLight,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -242,7 +236,9 @@ class _BankDetailsModalState extends State<BankDetailsModal> {
                         Text(
                           'Earnings will be paid directly into this account',
                           style: AppTypography.caption(
-                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                            color: isDark
+                                ? AppColors.textSecondaryDark
+                                : AppColors.textSecondaryLight,
                           ),
                         ),
                       ],
@@ -252,7 +248,9 @@ class _BankDetailsModalState extends State<BankDetailsModal> {
                     onPressed: () => Navigator.of(context).pop(),
                     icon: Icon(
                       Icons.close_rounded,
-                      color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                      color: isDark
+                          ? AppColors.textMutedDark
+                          : AppColors.textMutedLight,
                     ),
                   ),
                 ],
@@ -273,7 +271,8 @@ class _BankDetailsModalState extends State<BankDetailsModal> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // 1. Account Holder Name
-                      _buildFieldLabel('Account Holder Legal Name', isDark, isRequired: true),
+                      _buildFieldLabel('Account Holder Legal Name', isDark,
+                          isRequired: true),
                       const SizedBox(height: 6),
                       TextFormField(
                         controller: _holderNameCtrl,
@@ -305,7 +304,7 @@ class _BankDetailsModalState extends State<BankDetailsModal> {
                         style: _fieldTextStyle(isDark),
                         decoration: _fieldDecoration(
                           isDark,
-                          hint: 'e.g. HDFC Bank, SBI, ICICI Bank',
+                          hint: 'Enter bank name',
                           icon: Icons.account_balance_outlined,
                         ),
                         validator: (val) {
@@ -317,68 +316,35 @@ class _BankDetailsModalState extends State<BankDetailsModal> {
                       ),
                       const SizedBox(height: 8),
 
-                      // Quick Bank Chips
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: _popularBanks.map((b) {
-                          final isSelected = _bankNameCtrl.text.trim().toLowerCase() == b.toLowerCase();
-                          return InkWell(
-                            onTap: () {
-                              setState(() {
-                                _bankNameCtrl.text = b;
-                              });
-                            },
-                            borderRadius: BorderRadius.circular(16),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? (isDark ? AppColors.primary.withValues(alpha: 0.3) : AppColors.primaryLight.withValues(alpha: 0.2))
-                                    : (isDark ? AppColors.surfaceElevatedDark : AppColors.bgLight),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: isSelected
-                                      ? (isDark ? AppColors.primaryLight : AppColors.primary)
-                                      : (isDark ? AppColors.borderDark : AppColors.borderLight),
-                                ),
-                              ),
-                              child: Text(
-                                b,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                  color: isSelected
-                                      ? (isDark ? AppColors.primaryLight : AppColors.primary)
-                                      : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
-                                ),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                      const SizedBox(height: 16),
-
                       // 3. Bank Account Number
-                      _buildFieldLabel('Bank Account Number', isDark, isRequired: true),
+                      _buildFieldLabel('Bank Account Number', isDark,
+                          isRequired: true),
                       const SizedBox(height: 6),
                       TextFormField(
                         controller: _accountNumberCtrl,
                         keyboardType: TextInputType.number,
-                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly
+                        ],
                         obscureText: _obscureAccount,
-                        style: _fieldTextStyle(isDark).copyWith(letterSpacing: 1.2),
+                        style: _fieldTextStyle(isDark)
+                            .copyWith(letterSpacing: 1.2),
                         decoration: _fieldDecoration(
                           isDark,
                           hint: 'Enter 9 to 18 digit account number',
                           icon: Icons.credit_card_rounded,
                           suffix: IconButton(
                             icon: Icon(
-                              _obscureAccount ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                              _obscureAccount
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
                               size: 18,
-                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                              color: isDark
+                                  ? AppColors.textMutedDark
+                                  : AppColors.textMutedLight,
                             ),
-                            onPressed: () => setState(() => _obscureAccount = !_obscureAccount),
+                            onPressed: () => setState(
+                                () => _obscureAccount = !_obscureAccount),
                           ),
                         ),
                         validator: (val) {
@@ -394,13 +360,17 @@ class _BankDetailsModalState extends State<BankDetailsModal> {
                       const SizedBox(height: 16),
 
                       // 4. Confirm Bank Account Number
-                      _buildFieldLabel('Confirm Bank Account Number', isDark, isRequired: true),
+                      _buildFieldLabel('Confirm Bank Account Number', isDark,
+                          isRequired: true),
                       const SizedBox(height: 6),
                       TextFormField(
                         controller: _confirmAccountCtrl,
                         keyboardType: TextInputType.number,
-                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                        style: _fieldTextStyle(isDark).copyWith(letterSpacing: 1.2),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly
+                        ],
+                        style: _fieldTextStyle(isDark)
+                            .copyWith(letterSpacing: 1.2),
                         decoration: _fieldDecoration(
                           isDark,
                           hint: 'Re-enter account number to verify',
@@ -426,9 +396,11 @@ class _BankDetailsModalState extends State<BankDetailsModal> {
                         textCapitalization: TextCapitalization.characters,
                         inputFormatters: [
                           LengthLimitingTextInputFormatter(11),
-                          FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
+                          FilteringTextInputFormatter.allow(
+                              RegExp(r'[a-zA-Z0-9]')),
                         ],
-                        style: _fieldTextStyle(isDark).copyWith(letterSpacing: 1.5, fontWeight: FontWeight.bold),
+                        style: _fieldTextStyle(isDark).copyWith(
+                            letterSpacing: 1.5, fontWeight: FontWeight.bold),
                         decoration: _fieldDecoration(
                           isDark,
                           hint: '11-character code (e.g. HDFC0001234)',
@@ -444,123 +416,17 @@ class _BankDetailsModalState extends State<BankDetailsModal> {
                           }
                           final ifscPattern = RegExp(r'^[A-Z]{4}0[A-Z0-9]{6}$');
                           if (!ifscPattern.hasMatch(v)) {
-                            return 'Invalid IFSC format (e.g. HDFC0001234, SBIN0001234)';
+                            return 'Invalid IFSC code format';
                           }
                           return null;
                         },
                       ),
                       const SizedBox(height: 8),
-                      ValueListenableBuilder<Map<String, dynamic>>(
-                        valueListenable: DigioService.instance.latestByTypeNotifier,
-                        builder: (context, latest, _) {
-                          final bankRec = latest['BANK_ACCOUNT'];
-                          final bankVerified = bankRec?['verified'] == true;
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 6,
-                                children: [
-                                  OutlinedButton.icon(
-                                    onPressed: () async {
-                                      final ifsc = _ifscCtrl.text.trim().toUpperCase();
-                                      if (ifsc.length != 11) {
-                                        AppToast.showError('Enter 11-character IFSC code first', context: context);
-                                        return;
-                                      }
-                                      try {
-                                        final res = await DigioService.instance.verifyIfsc(ifsc);
-                                        if (res['verified'] == true && res['bank'] != null) {
-                                          setState(() {
-                                            _bankNameCtrl.text = res['bank'].toString();
-                                          });
-                                          if (context.mounted) {
-                                            AppToast.showSuccess(
-                                              'IFSC Verified: ${res['bank']}${res['branch'] != null ? ' (${res['branch']})' : ''}',
-                                              context: context,
-                                            );
-                                          }
-                                        } else if (context.mounted) {
-                                          AppToast.showError('IFSC not found', context: context);
-                                        }
-                                      } catch (e) {
-                                        if (context.mounted) {
-                                          AppToast.showError(AppToast.cleanErrorMessage(e), context: context);
-                                        }
-                                      }
-                                    },
-                                    icon: const Icon(Icons.search_rounded, size: 15),
-                                    label: const Text('Lookup IFSC', style: TextStyle(fontSize: 12)),
-                                  ),
-                                  OutlinedButton.icon(
-                                    onPressed: () async {
-                                      final acc = _accountNumberCtrl.text.trim();
-                                      final ifsc = _ifscCtrl.text.trim().toUpperCase();
-                                      if (acc.length < 8 || ifsc.length != 11) {
-                                        AppToast.showError('Enter valid Account Number and IFSC first', context: context);
-                                        return;
-                                      }
-                                      try {
-                                        AppToast.showInfo('Verifying bank account...', context: context);
-                                        final res = await DigioService.instance.verifyBankAccount(
-                                          accountNumber: acc,
-                                          ifsc: ifsc,
-                                          accountHolderName: _holderNameCtrl.text.trim(),
-                                          saveToDriverProfile: false,
-                                        );
-                                        if (res['verified'] == true && res['verifiedName'] != null) {
-                                          if (_holderNameCtrl.text.trim().isEmpty) {
-                                            setState(() {
-                                              _holderNameCtrl.text = res['verifiedName'].toString();
-                                            });
-                                          }
-                                          if (context.mounted) {
-                                            AppToast.showSuccess(
-                                              'Bank Verified: ${res['verifiedName']}${res['matchScore'] != null ? ' (${res['matchScore']}% match)' : ''}',
-                                              context: context,
-                                            );
-                                          }
-                                        } else if (context.mounted) {
-                                          AppToast.showError('Bank account verification failed', context: context);
-                                        }
-                                      } catch (e) {
-                                        if (context.mounted) {
-                                          AppToast.showError(AppToast.cleanErrorMessage(e), context: context);
-                                        }
-                                      }
-                                    },
-                                    icon: Icon(
-                                      bankVerified ? Icons.verified_rounded : Icons.verified_user_outlined,
-                                      size: 15,
-                                      color: bankVerified ? AppColors.accentGreenDark : AppColors.primary,
-                                    ),
-                                    label: Text(
-                                      bankVerified ? 'Account Verified ✓' : 'Verify Bank Account',
-                                      style: const TextStyle(fontSize: 12),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              if (bankRec != null && bankRec['verifiedName'] != null) ...[
-                                const SizedBox(height: 6),
-                                Text(
-                                  'Registered Name: ${bankRec['verifiedName']}${bankRec['matchScore'] != null ? ' • Name Match: ${bankRec['matchScore']}%' : ''}',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: bankVerified ? AppColors.accentGreenDark : AppColors.warning,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          );
-                        },
-                      ),
                       const SizedBox(height: 16),
 
                       // 6. Optional UPI ID
-                      _buildFieldLabel('UPI ID (Optional)', isDark, isRequired: false),
+                      _buildFieldLabel('UPI ID (Optional)', isDark,
+                          isRequired: false),
                       const SizedBox(height: 6),
                       TextFormField(
                         controller: _upiCtrl,
@@ -586,11 +452,14 @@ class _BankDetailsModalState extends State<BankDetailsModal> {
                           onPressed: () async {
                             final vpa = _upiCtrl.text.trim().toLowerCase();
                             if (!vpa.contains('@')) {
-                              AppToast.showError('Enter a valid UPI ID (e.g. name@upi) to verify', context: context);
+                              AppToast.showError(
+                                  'Enter a valid UPI ID (e.g. name@upi) to verify',
+                                  context: context);
                               return;
                             }
                             try {
-                              final res = await DigioService.instance.verifyUpiVpa(
+                              final res =
+                                  await DigioService.instance.verifyUpiVpa(
                                 vpa: vpa,
                                 name: _holderNameCtrl.text.trim(),
                                 saveToDriverProfile: false,
@@ -602,17 +471,23 @@ class _BankDetailsModalState extends State<BankDetailsModal> {
                                     context: context,
                                   );
                                 } else {
-                                  AppToast.showError('UPI handle could not be verified', context: context);
+                                  AppToast.showError(
+                                      'UPI handle could not be verified',
+                                      context: context);
                                 }
                               }
                             } catch (e) {
                               if (context.mounted) {
-                                AppToast.showError(AppToast.cleanErrorMessage(e), context: context);
+                                AppToast.showError(
+                                    AppToast.cleanErrorMessage(e),
+                                    context: context);
                               }
                             }
                           },
-                          icon: const Icon(Icons.qr_code_scanner_rounded, size: 15),
-                          label: const Text('Verify UPI ID', style: TextStyle(fontSize: 12)),
+                          icon: const Icon(Icons.qr_code_scanner_rounded,
+                              size: 15),
+                          label: const Text('Verify UPI ID',
+                              style: TextStyle(fontSize: 12)),
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -621,10 +496,14 @@ class _BankDetailsModalState extends State<BankDetailsModal> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: isDark ? AppColors.surfaceElevatedDark : AppColors.bgLight,
+                          color: isDark
+                              ? AppColors.surfaceElevatedDark
+                              : AppColors.bgLight,
                           borderRadius: BorderRadius.circular(AppRadius.md),
                           border: Border.all(
-                            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                            color: isDark
+                                ? AppColors.borderDark
+                                : AppColors.borderLight,
                           ),
                         ),
                         child: Row(
@@ -638,9 +517,11 @@ class _BankDetailsModalState extends State<BankDetailsModal> {
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                'Bank payout credentials are AES-256 encrypted and validated for automated RTGS/NEFT/IMPS settlements. Payouts are directly credited to this account.',
+                                'Bank details are reviewed manually. Payouts will be available after the account is approved.',
                                 style: AppTypography.caption(
-                                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                  color: isDark
+                                      ? AppColors.textSecondaryDark
+                                      : AppColors.textSecondaryLight,
                                 ),
                               ),
                             ),
@@ -656,19 +537,25 @@ class _BankDetailsModalState extends State<BankDetailsModal> {
                             child: OutlinedButton(
                               onPressed: () => Navigator.of(context).pop(),
                               style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
                                 side: BorderSide(
-                                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                                  color: isDark
+                                      ? AppColors.borderDark
+                                      : AppColors.borderLight,
                                 ),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(AppRadius.md),
+                                  borderRadius:
+                                      BorderRadius.circular(AppRadius.md),
                                 ),
                               ),
                               child: Text(
                                 'Cancel',
                                 style: TextStyle(
                                   fontWeight: FontWeight.w600,
-                                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                                  color: isDark
+                                      ? AppColors.textSecondaryDark
+                                      : AppColors.textSecondaryLight,
                                 ),
                               ),
                             ),
@@ -695,20 +582,23 @@ class _BankDetailsModalState extends State<BankDetailsModal> {
     );
   }
 
-  Widget _buildFieldLabel(String label, bool isDark, {required bool isRequired}) {
+  Widget _buildFieldLabel(String label, bool isDark,
+      {required bool isRequired}) {
     return Row(
       children: [
         Text(
           label,
           style: AppTypography.caption(
-            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+            color:
+                isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
             fontWeight: FontWeight.bold,
           ),
         ),
         if (isRequired)
           const Text(
             ' *',
-            style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold),
+            style:
+                TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold),
           ),
       ],
     );

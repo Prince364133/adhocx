@@ -73,6 +73,19 @@ export function DynamicDistancePricingSection() {
   const [genDriverPeakExtraBase, setGenDriverPeakExtraBase] = useState<number>(50);
   const [genDriverPeakExtraStep, setGenDriverPeakExtraStep] = useState<number>(40);
 
+  // Dedicated Drawers for Independent Vendor, Driver, and Peak Hours Configuration
+  const [isEditVendorOpen, setIsEditVendorOpen] = useState(false);
+  const [isEditDriverOpen, setIsEditDriverOpen] = useState(false);
+  const [isEditPeakHoursOpen, setIsEditPeakHoursOpen] = useState(false);
+  const [autoActivateLive, setAutoActivateLive] = useState(true);
+  const [selectedPeakVehicleCategory, setSelectedPeakVehicleCategory] = useState<string>('ALL');
+  const [vehiclePeakSurges, setVehiclePeakSurges] = useState<Record<string, {
+    vendorPeakExtraBase: number;
+    vendorPeakExtraStep: number;
+    driverPeakExtraBase: number;
+    driverPeakExtraStep: number;
+  }>>({});
+
   // Retire (deactivate) State
   const [isRetireOpen, setIsRetireOpen] = useState(false);
   const [retiring, setRetiring] = useState(false);
@@ -210,6 +223,9 @@ export function DynamicDistancePricingSection() {
       if (typeof cfg.vendorPeakExtraStepRupees === 'number') setGenVendorPeakExtraStep(cfg.vendorPeakExtraStepRupees);
       if (typeof cfg.driverPeakExtraBaseRupees === 'number') setGenDriverPeakExtraBase(cfg.driverPeakExtraBaseRupees);
       if (typeof cfg.driverPeakExtraStepRupees === 'number') setGenDriverPeakExtraStep(cfg.driverPeakExtraStepRupees);
+      if (cfg.vehicleSurges && typeof cfg.vehicleSurges === 'object') {
+        setVehiclePeakSurges(cfg.vehicleSurges);
+      }
     }
   }, [activePlan]);
 
@@ -583,6 +599,153 @@ export function DynamicDistancePricingSection() {
     }
   }
 
+  // Save Rules Independently for Vendor, Driver, and Peak Hours
+  async function savePricingRules(options?: {
+    baseKm?: number;
+    stepKm?: number;
+    maxKm?: number;
+    baseVendor?: number;
+    stepVendor?: number;
+    baseDriver?: number;
+    stepDriver?: number;
+    vendorPeakExtraBase?: number;
+    vendorPeakExtraStep?: number;
+    driverPeakExtraBase?: number;
+    driverPeakExtraStep?: number;
+    windows?: PeakHourWindow[];
+    vehicleSurges?: Record<string, any>;
+    reason?: string;
+  }) {
+    if (!activePlan) return;
+    setSavingSlabs(true);
+    try {
+      const bKm = options?.baseKm ?? genBaseKm;
+      const sKm = options?.stepKm ?? genStepKm;
+      const mKm = options?.maxKm ?? genMaxKm;
+      const bVendor = options?.baseVendor ?? genBaseVendor;
+      const sVendor = options?.stepVendor ?? genStepVendor;
+      const bDriver = options?.baseDriver ?? genBaseDriver;
+      const sDriver = options?.stepDriver ?? genStepDriver;
+      const vpBase = options?.vendorPeakExtraBase ?? genVendorPeakExtraBase;
+      const vpStep = options?.vendorPeakExtraStep ?? genVendorPeakExtraStep;
+      const dpBase = options?.driverPeakExtraBase ?? genDriverPeakExtraBase;
+      const dpStep = options?.driverPeakExtraStep ?? genDriverPeakExtraStep;
+      const windows = options?.windows ?? editingWindows;
+      const surges = options?.vehicleSurges ?? vehiclePeakSurges;
+
+      // Anti-Collapse & Margin Guard
+      if (bVendor < bDriver) {
+        throw new Error(`Vendor Base Fare (₹${bVendor}) cannot be less than Driver Base Payout (₹${bDriver}).`);
+      }
+      if (sVendor < sDriver) {
+        throw new Error(`Vendor Step Increment (₹${sVendor}) cannot be less than Driver Step Payout (₹${sDriver}).`);
+      }
+      if ((bVendor + vpBase) < (bDriver + dpBase)) {
+        throw new Error(`Total Vendor Peak Base (₹${bVendor + vpBase}) cannot be less than Driver Peak Base (₹${bDriver + dpBase}).`);
+      }
+
+      // Automatically construct contiguous distance slabs
+      const baseM = bKm * 1000;
+      const stepM = sKm * 1000;
+      const maxM = mKm * 1000;
+      const newSlabs: CreatePricingSlabInput[] = [];
+
+      // Base band
+      newSlabs.push({
+        minDistanceMExclusive: 0,
+        maxDistanceMInclusive: Math.min(baseM, maxM),
+        vendorPricePaise: Math.round(bVendor * 100),
+        driverPayoutPaise: Math.round(bDriver * 100),
+        vendorPeakPricePaise: Math.round((bVendor + vpBase) * 100),
+        driverPeakPayoutPaise: Math.round((bDriver + dpBase) * 100),
+        active: true,
+      });
+
+      // Step bands
+      let curMin = baseM;
+      let stepIdx = 1;
+      while (curMin < maxM) {
+        const nextMax = Math.min(curMin + stepM, maxM);
+        const vStd = Math.round((bVendor + stepIdx * sVendor) * 100);
+        const dStd = Math.round((bDriver + stepIdx * sDriver) * 100);
+        const vPeak = Math.round((bVendor + vpBase + stepIdx * (sVendor + vpStep)) * 100);
+        const dPeak = Math.round((bDriver + dpBase + stepIdx * (sDriver + dpStep)) * 100);
+
+        newSlabs.push({
+          minDistanceMExclusive: curMin,
+          maxDistanceMInclusive: nextMax,
+          vendorPricePaise: vStd,
+          driverPayoutPaise: dStd,
+          vendorPeakPricePaise: vPeak,
+          driverPeakPayoutPaise: dPeak,
+          active: true,
+        });
+
+        curMin = nextMax;
+        stepIdx++;
+      }
+
+      const meta = {
+        peakWindows: windows,
+        config: {
+          baseKm: bKm,
+          baseVendorRupees: bVendor,
+          baseDriverRupees: bDriver,
+          stepKm: sKm,
+          stepVendorRupees: sVendor,
+          stepDriverRupees: sDriver,
+          maxDistanceKm: mKm,
+          vendorPeakExtraBaseRupees: vpBase,
+          vendorPeakExtraStepRupees: vpStep,
+          driverPeakExtraBaseRupees: dpBase,
+          driverPeakExtraStepRupees: dpStep,
+          vehicleSurges: surges,
+        },
+      };
+
+      const auditReason = options?.reason || 'Pricing rules updated from admin rate card';
+
+      if (activePlan.status === 'DRAFT') {
+        await adminApi.updateDistancePricingSlabs(activePlan.id, newSlabs, auditReason, meta);
+        if (autoActivateLive) {
+          await adminApi.publishDistancePricingPlan(activePlan.id, auditReason, undefined);
+          setAlert({ type: 'success', message: `Rate plan ${activePlan.version} updated and activated live on all apps!` });
+        } else {
+          setAlert({ type: 'success', message: `Draft ${activePlan.version} rate configuration saved.` });
+        }
+        await loadPlans(activePlan.id);
+      } else {
+        const draft = await adminApi.createDistancePricingPlan({
+          vehicleCategory: activePlan.vehicleCategory,
+          name: auditReason.slice(0, 120),
+          slabs: newSlabs,
+          peakWindows: windows,
+          config: meta.config,
+        });
+        if (autoActivateLive) {
+          await adminApi.publishDistancePricingPlan(draft.id, auditReason, undefined);
+          setAlert({ type: 'success', message: `Updated rates successfully published and activated live on all apps!` });
+          await loadPlans(draft.id);
+        } else {
+          setAlert({
+            type: 'success',
+            message: `Saved as draft ${draft.version}. Plan ${activePlan.version} remains active until published.`,
+          });
+          await loadPlans(draft.id);
+        }
+      }
+
+      setIsEditVendorOpen(false);
+      setIsEditDriverOpen(false);
+      setIsEditPeakHoursOpen(false);
+      setIsEditSlabsOpen(false);
+    } catch (err: any) {
+      setAlert({ type: 'error', message: err.message || 'Failed to update pricing rules' });
+    } finally {
+      setSavingSlabs(false);
+    }
+  }
+
   // Create Draft Plan Version
   async function handleCreatePlanVersion(e: React.FormEvent) {
     e.preventDefault();
@@ -828,8 +991,16 @@ export function DynamicDistancePricingSection() {
               </p>
             </div>
           </div>
-          <Button variant="secondary" size="sm" leftIcon={<Edit2 size={13} />} onClick={handleOpenSlabEditor}>
-            Configure Slots &amp; Rates
+          <Button
+            variant="secondary"
+            size="sm"
+            leftIcon={<Clock size={13} />}
+            onClick={() => {
+              setEditingWindows(peakWindows.length > 0 ? [...peakWindows] : [{ start: '08:00', end: '11:00', label: 'Morning Peak' }, { start: '17:00', end: '21:00', label: 'Evening Peak' }]);
+              setIsEditPeakHoursOpen(true);
+            }}
+          >
+            + Configure Peak Hours &amp; Surges
           </Button>
         </div>
 
@@ -949,8 +1120,11 @@ export function DynamicDistancePricingSection() {
 
           {selectedAudience !== 'ESCORT' && (
             <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <Button variant="secondary" size="sm" leftIcon={<Edit2 size={13} />} onClick={handleOpenSlabEditor}>
-                {isEditable ? 'Edit Draft Slabs' : 'Customize as Draft'}
+              <Button variant="primary" size="sm" leftIcon={<Building2 size={13} />} onClick={() => setIsEditVendorOpen(true)}>
+                Edit Vendor Rates
+              </Button>
+              <Button variant="secondary" size="sm" leftIcon={<Car size={13} />} onClick={() => setIsEditDriverOpen(true)}>
+                Edit Driver Payouts
               </Button>
             </div>
           )}
@@ -1138,7 +1312,7 @@ export function DynamicDistancePricingSection() {
                 }}
               >
                 {/* Card Header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                     <div style={{ width: '38px', height: '38px', borderRadius: 'var(--radius-md)', background: 'rgba(99, 102, 241, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <Building2 size={20} color="var(--brand-primary)" />
@@ -1157,6 +1331,14 @@ export function DynamicDistancePricingSection() {
                       </div>
                     </div>
                   </div>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    leftIcon={<Edit2 size={13} />}
+                    onClick={() => setIsEditVendorOpen(true)}
+                  >
+                    Edit Vendor Rates
+                  </Button>
                 </div>
 
                 {/* Dual Rule Highlights */}
@@ -1220,7 +1402,7 @@ export function DynamicDistancePricingSection() {
                 }}
               >
                 {/* Card Header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                     <div style={{ width: '38px', height: '38px', borderRadius: 'var(--radius-md)', background: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <Car size={20} color="var(--color-success)" />
@@ -1239,6 +1421,15 @@ export function DynamicDistancePricingSection() {
                       </div>
                     </div>
                   </div>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    leftIcon={<Edit2 size={13} />}
+                    onClick={() => setIsEditDriverOpen(true)}
+                    style={{ borderColor: 'rgba(16, 185, 129, 0.4)', color: 'var(--color-success)' }}
+                  >
+                    Edit Driver Payouts
+                  </Button>
                 </div>
 
                 {/* Dual Rule Highlights */}
@@ -1794,6 +1985,559 @@ export function DynamicDistancePricingSection() {
               onChange={(e) => setSlabEditReason(e.target.value)}
               style={{ width: '100%', marginTop: '0.25rem', padding: '0.45rem 0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)', fontSize: '0.8125rem' }}
             />
+          </div>
+        </div>
+      </Drawer>
+
+      {/* DRAWER 1: Configure Vendor Rates */}
+      <Drawer
+        isOpen={isEditVendorOpen}
+        onClose={() => setIsEditVendorOpen(false)}
+        title="Configure Vendor Rates (Client Billing)"
+        subtitle={`Set what enterprise clients are billed for ${activePlan?.vehicleCategory || 'ALL'} trips.`}
+        width="min(94vw, 560px)"
+        footer={
+          <div style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.78rem', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={autoActivateLive}
+                onChange={(e) => setAutoActivateLive(e.target.checked)}
+              />
+              <span>Make Live immediately in App</span>
+            </label>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <Button variant="secondary" size="sm" onClick={() => setIsEditVendorOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                isLoading={savingSlabs}
+                onClick={() => savePricingRules({ reason: 'Vendor Rate Card configuration saved' })}
+              >
+                Save Vendor Rates
+              </Button>
+            </div>
+          </div>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          {/* Section 1: Base Distance Tier */}
+          <div style={{ background: 'var(--bg-surface-elevated)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
+              <Route size={15} color="var(--brand-primary)" /> Initial Base Fare (Starting km)
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+              <div>
+                <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Base Distance (km)</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.25rem' }}>
+                  <input
+                    type="number"
+                    min="1"
+                    max="50"
+                    value={genBaseKm}
+                    onChange={(e) => setGenBaseKm(Number(e.target.value))}
+                    style={{ width: '100%', padding: '0.45rem 0.6rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '0.85rem', fontWeight: 700 }}
+                  />
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>km</span>
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Standard Base Fare (₹)</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.25rem' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)' }}>₹</span>
+                  <input
+                    type="number"
+                    min="10"
+                    value={genBaseVendor}
+                    onChange={(e) => setGenBaseVendor(Number(e.target.value))}
+                    style={{ width: '100%', padding: '0.45rem 0.6rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '0.85rem', fontWeight: 700 }}
+                  />
+                </div>
+              </div>
+            </div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+              Any trip up to {genBaseKm} km will be billed this base fare.
+            </div>
+          </div>
+
+          {/* Section 2: Incremental Steps */}
+          <div style={{ background: 'var(--bg-surface-elevated)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
+              <Sliders size={15} color="var(--brand-primary)" /> Distance Steps Increment
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+              <div>
+                <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Step Distance (km)</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.25rem' }}>
+                  <input
+                    type="number"
+                    min="1"
+                    max="50"
+                    value={genStepKm}
+                    onChange={(e) => setGenStepKm(Number(e.target.value))}
+                    style={{ width: '100%', padding: '0.45rem 0.6rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '0.85rem', fontWeight: 700 }}
+                  />
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>km</span>
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Price per Step (+₹)</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.25rem' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)' }}>+₹</span>
+                  <input
+                    type="number"
+                    min="1"
+                    value={genStepVendor}
+                    onChange={(e) => setGenStepVendor(Number(e.target.value))}
+                    style={{ width: '100%', padding: '0.45rem 0.6rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '0.85rem', fontWeight: 700 }}
+                  />
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>/ step</span>
+                </div>
+              </div>
+            </div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+              For every additional {genStepKm} km beyond the base distance, +₹{genStepVendor} will be added.
+            </div>
+          </div>
+
+          {/* Section 3: Peak Hours Extra Surcharge */}
+          <div style={{ background: 'var(--bg-surface-elevated)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid rgba(99, 102, 241, 0.3)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, fontSize: '0.85rem', color: '#818CF8' }}>
+                <Zap size={15} color="#818CF8" /> Peak Hours Surcharges (Added to Client Fare)
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingWindows(peakWindows.length > 0 ? [...peakWindows] : [{ start: '08:00', end: '11:00', label: 'Morning Peak' }, { start: '17:00', end: '21:00', label: 'Evening Peak' }]);
+                  setIsEditPeakHoursOpen(true);
+                }}
+                style={{ background: 'transparent', border: 'none', color: '#818CF8', fontSize: '0.74rem', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                + Manage Peak Slots &amp; Vehicles
+              </button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+              <div>
+                <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Peak Extra on Base (+₹)</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.25rem' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#818CF8' }}>+₹</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={genVendorPeakExtraBase}
+                    onChange={(e) => setGenVendorPeakExtraBase(Number(e.target.value))}
+                    style={{ width: '100%', padding: '0.45rem 0.6rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: '#818CF8', fontSize: '0.85rem', fontWeight: 700 }}
+                  />
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Peak Extra per Step (+₹)</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.25rem' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#818CF8' }}>+₹</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={genVendorPeakExtraStep}
+                    onChange={(e) => setGenVendorPeakExtraStep(Number(e.target.value))}
+                    style={{ width: '100%', padding: '0.45rem 0.6rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: '#818CF8', fontSize: '0.85rem', fontWeight: 700 }}
+                  />
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>/ step</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 4: Live Formula Breakdown */}
+          <div style={{ background: 'rgba(99, 102, 241, 0.05)', padding: '0.9rem', borderRadius: 'var(--radius-md)', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
+            <div style={{ fontSize: '0.72rem', color: '#818CF8', textTransform: 'uppercase', fontWeight: 800 }}>Live Pricing Formula Preview</div>
+            <div style={{ marginTop: '0.4rem', fontSize: '0.82rem', color: 'var(--text-primary)', lineHeight: 1.6 }}>
+              <div>🌤️ <strong>Standard Hours:</strong> ₹{genBaseVendor} for first {genBaseKm} km + ₹{genStepVendor} for every {genStepKm} km thereafter.</div>
+              <div style={{ marginTop: '0.25rem' }}>⚡ <strong>Peak Hours:</strong> ₹{genBaseVendor + genVendorPeakExtraBase} for first {genBaseKm} km + ₹{genStepVendor + genVendorPeakExtraStep} for every {genStepKm} km thereafter.</div>
+            </div>
+          </div>
+        </div>
+      </Drawer>
+
+      {/* DRAWER 2: Configure Driver Payouts */}
+      <Drawer
+        isOpen={isEditDriverOpen}
+        onClose={() => setIsEditDriverOpen(false)}
+        title="Configure Driver Payouts (Driver Earnings)"
+        subtitle={`Set guaranteed earnings credited to driver partners for ${activePlan?.vehicleCategory || 'ALL'} trips.`}
+        width="min(94vw, 560px)"
+        footer={
+          <div style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.78rem', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={autoActivateLive}
+                onChange={(e) => setAutoActivateLive(e.target.checked)}
+              />
+              <span>Make Live immediately in App</span>
+            </label>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <Button variant="secondary" size="sm" onClick={() => setIsEditDriverOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                isLoading={savingSlabs}
+                onClick={() => savePricingRules({ reason: 'Driver Payout configuration saved' })}
+              >
+                Save Driver Payouts
+              </Button>
+            </div>
+          </div>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          {/* Section 1: Base Distance Payout */}
+          <div style={{ background: 'var(--bg-surface-elevated)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
+              <Route size={15} color="var(--color-success)" /> Initial Base Payout (Starting km)
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+              <div>
+                <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Base Distance (km)</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.25rem' }}>
+                  <input
+                    type="number"
+                    min="1"
+                    max="50"
+                    value={genBaseKm}
+                    onChange={(e) => setGenBaseKm(Number(e.target.value))}
+                    style={{ width: '100%', padding: '0.45rem 0.6rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '0.85rem', fontWeight: 700 }}
+                  />
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>km</span>
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Standard Base Payout (₹)</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.25rem' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-success)' }}>₹</span>
+                  <input
+                    type="number"
+                    min="10"
+                    value={genBaseDriver}
+                    onChange={(e) => setGenBaseDriver(Number(e.target.value))}
+                    style={{ width: '100%', padding: '0.45rem 0.6rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--color-success)', fontSize: '0.85rem', fontWeight: 700 }}
+                  />
+                </div>
+              </div>
+            </div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+              Driver will receive this guaranteed payout for trips up to {genBaseKm} km.
+            </div>
+          </div>
+
+          {/* Section 2: Incremental Steps */}
+          <div style={{ background: 'var(--bg-surface-elevated)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
+              <Sliders size={15} color="var(--color-success)" /> Distance Steps Increment
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+              <div>
+                <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Step Distance (km)</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.25rem' }}>
+                  <input
+                    type="number"
+                    min="1"
+                    max="50"
+                    value={genStepKm}
+                    onChange={(e) => setGenStepKm(Number(e.target.value))}
+                    style={{ width: '100%', padding: '0.45rem 0.6rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '0.85rem', fontWeight: 700 }}
+                  />
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>km</span>
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Payout per Step (+₹)</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.25rem' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-success)' }}>+₹</span>
+                  <input
+                    type="number"
+                    min="1"
+                    value={genStepDriver}
+                    onChange={(e) => setGenStepDriver(Number(e.target.value))}
+                    style={{ width: '100%', padding: '0.45rem 0.6rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--color-success)', fontSize: '0.85rem', fontWeight: 700 }}
+                  />
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>/ step</span>
+                </div>
+              </div>
+            </div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+              For every additional {genStepKm} km beyond the base distance, +₹{genStepDriver} is added to driver payout.
+            </div>
+          </div>
+
+          {/* Section 3: Peak Hours Extra Payout */}
+          <div style={{ background: 'var(--bg-surface-elevated)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, fontSize: '0.85rem', color: 'var(--color-success)' }}>
+                <Zap size={15} color="var(--color-success)" /> Peak Hours Extra Payout (Driver Incentive)
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingWindows(peakWindows.length > 0 ? [...peakWindows] : [{ start: '08:00', end: '11:00', label: 'Morning Peak' }, { start: '17:00', end: '21:00', label: 'Evening Peak' }]);
+                  setIsEditPeakHoursOpen(true);
+                }}
+                style={{ background: 'transparent', border: 'none', color: '#818CF8', fontSize: '0.74rem', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                + Manage Peak Slots &amp; Vehicles
+              </button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+              <div>
+                <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Peak Extra on Base (+₹)</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.25rem' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-success)' }}>+₹</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={genDriverPeakExtraBase}
+                    onChange={(e) => setGenDriverPeakExtraBase(Number(e.target.value))}
+                    style={{ width: '100%', padding: '0.45rem 0.6rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--color-success)', fontSize: '0.85rem', fontWeight: 700 }}
+                  />
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Peak Extra per Step (+₹)</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.25rem' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-success)' }}>+₹</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={genDriverPeakExtraStep}
+                    onChange={(e) => setGenDriverPeakExtraStep(Number(e.target.value))}
+                    style={{ width: '100%', padding: '0.45rem 0.6rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--color-success)', fontSize: '0.85rem', fontWeight: 700 }}
+                  />
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>/ step</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 4: Platform Margin Guard & Payout Preview */}
+          <div style={{ background: 'rgba(16, 185, 129, 0.05)', padding: '0.9rem', borderRadius: 'var(--radius-md)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+            <div style={{ fontSize: '0.72rem', color: 'var(--color-success)', textTransform: 'uppercase', fontWeight: 800 }}>Platform Net Margin Safety Check</div>
+            <div style={{ marginTop: '0.4rem', fontSize: '0.82rem', color: 'var(--text-primary)', lineHeight: 1.6 }}>
+              <div>
+                Base Margin: <strong>+₹{genBaseVendor - genBaseDriver}</strong> ({genBaseVendor > 0 ? (((genBaseVendor - genBaseDriver) / genBaseVendor) * 100).toFixed(1) : 0}% of client fare)
+              </div>
+              <div style={{ marginTop: '0.2rem' }}>
+                Step Margin: <strong>+₹{genStepVendor - genStepDriver}</strong> ({genStepVendor > 0 ? (((genStepVendor - genStepDriver) / genStepVendor) * 100).toFixed(1) : 0}% of client step fare)
+              </div>
+            </div>
+          </div>
+        </div>
+      </Drawer>
+
+      {/* DRAWER 3: Configure Peak Hours & Per-Vehicle Surges */}
+      <Drawer
+        isOpen={isEditPeakHoursOpen}
+        onClose={() => setIsEditPeakHoursOpen(false)}
+        title="Peak Hours Schedule & Per-Vehicle Surges"
+        subtitle="Set up 3 to 4 peak hour windows in a day, and configure surge amounts for each vehicle category."
+        width="min(94vw, 680px)"
+        footer={
+          <div style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.78rem', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={autoActivateLive}
+                onChange={(e) => setAutoActivateLive(e.target.checked)}
+              />
+              <span>Make Live immediately in App</span>
+            </label>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <Button variant="secondary" size="sm" onClick={() => setIsEditPeakHoursOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                disabled={!peakWindowValidation.valid || savingSlabs}
+                isLoading={savingSlabs}
+                onClick={() => savePricingRules({ windows: editingWindows, reason: 'Peak hours schedule & vehicle surges updated' })}
+              >
+                Save Peak Configuration
+              </Button>
+            </div>
+          </div>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          {/* Validation Feedback */}
+          {!peakWindowValidation.valid && (
+            <div style={{ padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: 'var(--color-danger)', fontSize: '0.78rem' }}>
+              {peakWindowValidation.error}
+            </div>
+          )}
+
+          {/* Section A: Daily Peak Time Slots (3-4 slots per day) */}
+          <div style={{ background: 'var(--bg-surface-elevated)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                  <Clock size={15} color="#6366F1" /> Daily Peak Time Slots (IST)
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                  Configure multiple rush hour periods in a 24-hour day (e.g. morning, evening, night).
+                </div>
+              </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setEditingWindows([...editingWindows, { start: '12:00', end: '15:00', label: `Peak #${editingWindows.length + 1}` }])}
+              >
+                + Add Peak Window
+              </Button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              {editingWindows.map((w, idx) => (
+                <div key={idx} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', background: 'var(--bg-card)', padding: '0.5rem 0.65rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+                  <input
+                    type="text"
+                    value={w.label || ''}
+                    placeholder="Slot Label (e.g. Morning Rush)"
+                    onChange={(e) => {
+                      const updated = [...editingWindows];
+                      updated[idx] = { ...updated[idx], label: e.target.value };
+                      setEditingWindows(updated);
+                    }}
+                    style={{ flex: 1, padding: '0.4rem 0.6rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: '0.78rem' }}
+                  />
+                  <input
+                    type="time"
+                    value={w.start}
+                    onChange={(e) => {
+                      const updated = [...editingWindows];
+                      updated[idx] = { ...updated[idx], start: e.target.value };
+                      setEditingWindows(updated);
+                    }}
+                    style={{ width: '105px', padding: '0.4rem 0.6rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: '0.78rem' }}
+                  />
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>to</span>
+                  <input
+                    type="time"
+                    value={w.end}
+                    onChange={(e) => {
+                      const updated = [...editingWindows];
+                      updated[idx] = { ...updated[idx], end: e.target.value };
+                      setEditingWindows(updated);
+                    }}
+                    style={{ width: '105px', padding: '0.4rem 0.6rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: '0.78rem' }}
+                  />
+                  {editingWindows.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setEditingWindows(editingWindows.filter((_, i) => i !== idx))}
+                      style={{ background: 'transparent', border: 'none', color: 'var(--color-danger)', cursor: 'pointer', padding: '0.2rem' }}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Section B: Per-Vehicle Category Peak Surges */}
+          <div style={{ background: 'var(--bg-surface-elevated)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
+            <div style={{ marginBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                <Car size={15} color="var(--brand-primary)" /> Vehicle Category Surge Pricing
+              </div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                Select a vehicle category to adjust what is added during the configured peak windows.
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '0.85rem' }}>
+              <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Vehicle Category</label>
+              <select
+                value={selectedPeakVehicleCategory}
+                onChange={(e) => setSelectedPeakVehicleCategory(e.target.value)}
+                style={{ width: '100%', marginTop: '0.25rem', padding: '0.45rem 0.6rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '0.82rem', fontWeight: 700 }}
+              >
+                <option value="ALL">ALL Categories (Default)</option>
+                {vehicleCategories.map((cat) => (
+                  <option key={cat.vehicleType} value={cat.vehicleType}>
+                    {cat.categoryLabel} ({cat.vehicleType})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+              {/* Vendor Side */}
+              <div style={{ background: 'var(--bg-card)', padding: '0.85rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--brand-primary)', marginBottom: '0.5rem' }}>
+                  VENDOR CHARGE SURGE
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div>
+                    <label style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Extra on Base Fare (+₹)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={genVendorPeakExtraBase}
+                      onChange={(e) => setGenVendorPeakExtraBase(Number(e.target.value))}
+                      style={{ width: '100%', marginTop: '0.2rem', padding: '0.35rem 0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: '0.8rem', fontWeight: 700 }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Extra per Step (+₹ / step)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={genVendorPeakExtraStep}
+                      onChange={(e) => setGenVendorPeakExtraStep(Number(e.target.value))}
+                      style={{ width: '100%', marginTop: '0.2rem', padding: '0.35rem 0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: '0.8rem', fontWeight: 700 }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Driver Side */}
+              <div style={{ background: 'var(--bg-card)', padding: '0.85rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--color-success)', marginBottom: '0.5rem' }}>
+                  DRIVER PAYOUT SURGE
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div>
+                    <label style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Extra on Base Payout (+₹)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={genDriverPeakExtraBase}
+                      onChange={(e) => setGenDriverPeakExtraBase(Number(e.target.value))}
+                      style={{ width: '100%', marginTop: '0.2rem', padding: '0.35rem 0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--color-success)', fontSize: '0.8rem', fontWeight: 700 }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Extra per Step (+₹ / step)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={genDriverPeakExtraStep}
+                      onChange={(e) => setGenDriverPeakExtraStep(Number(e.target.value))}
+                      style={{ width: '100%', marginTop: '0.2rem', padding: '0.35rem 0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--color-success)', fontSize: '0.8rem', fontWeight: 700 }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.6rem' }}>
+              Trips during peak hours in category <strong>{selectedPeakVehicleCategory}</strong> will automatically have these additions applied to both base fare and distance steps.
+            </div>
           </div>
         </div>
       </Drawer>

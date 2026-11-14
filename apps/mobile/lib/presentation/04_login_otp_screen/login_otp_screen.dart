@@ -9,10 +9,9 @@ import '../../services/auth_provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/onboarding_provider.dart';
 import '../../theme/app_colors.dart';
-import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
-import '../../widgets/common/app_numeric_keypad.dart';
+import '../../widgets/common/app_otp_field.dart';
 
 /// Screen 4: Enter OTP (Login OTP Verification) for Phone or Email.
 class LoginOtpScreen extends StatefulWidget {
@@ -36,6 +35,7 @@ class LoginOtpScreen extends StatefulWidget {
 class _LoginOtpScreenState extends State<LoginOtpScreen> {
   String _otp = '';
   bool _isVerifying = false;
+  int _otpInputKey = 0;
   int _secondsRemaining = 25;
   Timer? _timer;
 
@@ -63,21 +63,6 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
     super.dispose();
   }
 
-  void _handleKeypadPress(String key) {
-    if (_otp.length < 6) {
-      setState(() => _otp += key);
-      if (_otp.length == 6) {
-        _verifyOtp();
-      }
-    }
-  }
-
-  void _handleKeypadDelete() {
-    if (_otp.isNotEmpty) {
-      setState(() => _otp = _otp.substring(0, _otp.length - 1));
-    }
-  }
-
   Future<void> _verifyOtp() async {
     if (_otp.length != 6) {
       AppToast.showError('Please enter the 6-digit OTP code', context: context);
@@ -97,7 +82,9 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
         otp: _otp,
         role: widget.isRegister ? widget.role : null,
         isRegister: widget.isRegister,
-        fullName: !isPlaceholderName(onboarding.fullName) ? onboarding.fullName.trim() : null,
+        fullName: !isPlaceholderName(onboarding.fullName)
+            ? onboarding.fullName.trim()
+            : null,
       );
 
       if (mounted) {
@@ -115,7 +102,10 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
           context.go(AppRoutes.setPasswordScreen);
         }
         // 2. Mandatory Onboarding: Only if user has never completed onboarding/profile setup
-        else if (!user.isOnboarded && !user.isUnderReview && !user.isVerified && !user.isRejected) {
+        else if (!user.isOnboarded &&
+            !user.isUnderReview &&
+            !user.isVerified &&
+            !user.isRejected) {
           context.go(AppRoutes.onboardingPersonalScreen);
         }
         // 3. Verification Gate: Unverified users (Drivers and Vendors) go to waitlist
@@ -124,12 +114,16 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
         }
         // 4. Verified Users & Drivers: Respective home screen
         else {
-          context.go(user.isDriver ? AppRoutes.homeScreen : AppRoutes.userHomeScreen);
+          context.go(
+              user.isDriver ? AppRoutes.homeScreen : AppRoutes.userHomeScreen);
         }
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _otp = '');
+        setState(() {
+          _otp = '';
+          _otpInputKey++;
+        });
         AppToast.showError(e, context: context);
       }
     } finally {
@@ -198,7 +192,9 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
                         },
                         icon: Icon(
                           Icons.arrow_back,
-                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                          color: isDark
+                              ? AppColors.textPrimaryDark
+                              : AppColors.textPrimaryLight,
                         ),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
@@ -211,7 +207,9 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
                   Text(
                     'Enter OTP',
                     style: AppTypography.h1(
-                      color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                      color: isDark
+                          ? AppColors.textPrimaryDark
+                          : AppColors.textPrimaryLight,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -219,51 +217,20 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
                   Text(
                     "We've sent a 6-digit code to $destination",
                     style: AppTypography.body(
-                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                      color: isDark
+                          ? AppColors.textSecondaryDark
+                          : AppColors.textSecondaryLight,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xxl),
 
-                  // ── 6-Box OTP PIN Display ──────────────────────────────────
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: List.generate(6, (index) {
-                      final hasChar = index < _otp.length;
-                      final char = hasChar ? _otp[index] : '';
-                      final isCurrent = index == _otp.length;
-
-                      return Container(
-                        width: 48,
-                        height: 52,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceLight,
-                          borderRadius: BorderRadius.circular(AppRadius.md),
-                          border: Border.all(
-                            color: isCurrent
-                                ? (isDark ? AppColors.primaryLight : AppColors.primary)
-                                : (hasChar
-                                    ? (isDark ? AppColors.primaryLight : AppColors.primaryLight)
-                                    : (isDark ? AppColors.borderDark : AppColors.borderLight)),
-                            width: isCurrent || hasChar ? 1.8 : 1,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-                              blurRadius: 2,
-                              offset: const Offset(0, 1),
-                            ),
-                          ],
-                        ),
-                        child: Text(
-                          char,
-                          style: AppTypography.h2(
-                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      );
-                    }),
+                  AppOtpField(
+                    key: ValueKey(_otpInputKey),
+                    onChanged: (otp) => setState(() => _otp = otp),
+                    onCompleted: (otp) {
+                      _otp = otp;
+                      _verifyOtp();
+                    },
                   ),
                   const SizedBox(height: AppSpacing.lg),
 
@@ -276,13 +243,17 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
                               Icon(
                                 Icons.refresh,
                                 size: 16,
-                                color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                color: isDark
+                                    ? AppColors.textMutedDark
+                                    : AppColors.textMutedLight,
                               ),
                               const SizedBox(width: 4),
                               Text(
                                 'Resend OTP in 00:${_secondsRemaining.toString().padLeft(2, '0')}',
                                 style: AppTypography.caption(
-                                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                                  color: isDark
+                                      ? AppColors.textMutedDark
+                                      : AppColors.textMutedLight,
                                 ),
                               ),
                             ],
@@ -292,7 +263,9 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
                             child: Text(
                               'Resend OTP Now',
                               style: AppTypography.caption(
-                                color: isDark ? AppColors.primaryLight : AppColors.primary,
+                                color: isDark
+                                    ? AppColors.primaryLight
+                                    : AppColors.primary,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -307,16 +280,13 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
                         padding: const EdgeInsets.all(AppSpacing.md),
                         child: CircularProgressIndicator(
                           strokeWidth: 2.5,
-                          color: isDark ? AppColors.primaryLight : AppColors.primary,
+                          color: isDark
+                              ? AppColors.primaryLight
+                              : AppColors.primary,
                         ),
                       ),
                     ),
 
-                  // ── Custom Numeric Keypad ──────────────────────────────────
-                  AppNumericKeypad(
-                    onKeyPressed: _handleKeypadPress,
-                    onDeletePressed: _handleKeypadDelete,
-                  ),
                   const SizedBox(height: AppSpacing.md),
                 ],
               ),
