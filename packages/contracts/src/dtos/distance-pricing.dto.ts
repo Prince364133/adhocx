@@ -7,6 +7,7 @@ import {
   IsISO8601,
   IsNotEmpty,
   IsNumber,
+  IsObject,
   IsOptional,
   IsString,
   IsUUID,
@@ -100,6 +101,10 @@ export class RateCardConfigDto {
 
   @IsOptional() @IsNumber() @Min(0)
   driverPeakExtraStepRupees?: number;
+
+  @IsOptional()
+  @IsObject()
+  vehicleSurges?: Record<string, any>;
 }
 
 export class CreatePricingSlabInputDto {
