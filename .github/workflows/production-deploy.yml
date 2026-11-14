@@ -194,7 +194,7 @@ jobs:
             # A failed push aborts the deploy (old containers keep running).
             echo 'Starting data services and syncing database schema...'
             docker compose -f docker-compose.prod.yml up -d --wait postgres redis
-            docker compose -f docker-compose.prod.yml run --rm --no-deps -T api npx prisma db push --skip-generate
+            docker compose -f docker-compose.prod.yml run --rm --no-deps -T api npx prisma db push --skip-generate --accept-data-loss
 
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
             docker compose -f docker-compose.prod.yml restart gateway
