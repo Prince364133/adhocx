@@ -57,6 +57,12 @@ export class PeakHourWindowDto {
 /** Slab-generator settings the admin UI restores; display only, never used to price a trip. */
 export class RateCardConfigDto {
   @IsOptional() @IsNumber() @Min(0.1) @Max(100)
+  baseKm?: number;
+
+  @IsOptional() @IsNumber() @Min(0.1) @Max(100)
+  stepKm?: number;
+
+  @IsOptional() @IsNumber() @Min(0.1) @Max(100)
   vendorStepKm?: number;
 
   @IsOptional() @IsNumber() @Min(0.1) @Max(100)
@@ -64,6 +70,18 @@ export class RateCardConfigDto {
 
   @IsOptional() @IsNumber() @Min(0.1) @Max(1000)
   maxDistanceKm?: number;
+
+  @IsOptional() @IsNumber() @Min(0)
+  baseVendorRupees?: number;
+
+  @IsOptional() @IsNumber() @Min(0)
+  baseDriverRupees?: number;
+
+  @IsOptional() @IsNumber() @Min(0)
+  stepVendorRupees?: number;
+
+  @IsOptional() @IsNumber() @Min(0)
+  stepDriverRupees?: number;
 
   @IsOptional() @IsNumber() @Min(0) @Max(200)
   vendorPeakSurchargePercent?: number;

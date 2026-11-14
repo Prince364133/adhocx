@@ -62,14 +62,15 @@ export function DynamicDistancePricingSection() {
   const [slabEditReason, setSlabEditReason] = useState('');
 
   // Step Generator State
-  const [genMinKm, setGenMinKm] = useState<number>(0);
-  const [genMaxKm, setGenMaxKm] = useState<number>(100);
-  const [genStepKm, setGenStepKm] = useState<number>(10);
-  const [genBaseVendor, setGenBaseVendor] = useState<number>(350);
-  const [genStepVendor, setGenStepVendor] = useState<number>(120);
-  const [genBaseDriver, setGenBaseDriver] = useState<number>(250);
-  const [genStepDriver, setGenStepDriver] = useState<number>(90);
-  const [genPeakUpliftPct, setGenPeakUpliftPct] = useState<number>(20);
+  const [genBaseKm, setGenBaseKm] = useState<number>(5);
+  const [genStepKm, setGenStepKm] = useState<number>(5);
+  const [genMaxKm, setGenMaxKm] = useState<number>(50);
+  const [genBaseVendor, setGenBaseVendor] = useState<number>(200);
+  const [genStepVendor, setGenStepVendor] = useState<number>(100);
+  const [genBaseDriver, setGenBaseDriver] = useState<number>(150);
+  const [genStepDriver, setGenStepDriver] = useState<number>(70);
+  const [genVendorPeakUpliftPct, setGenVendorPeakUpliftPct] = useState<number>(20);
+  const [genDriverPeakUpliftPct, setGenDriverPeakUpliftPct] = useState<number>(15);
 
   // Retire (deactivate) State
   const [isRetireOpen, setIsRetireOpen] = useState(false);
@@ -194,6 +195,19 @@ export function DynamicDistancePricingSection() {
       setPeakWindows([]);
       setEditingWindows([]);
     }
+
+    if (activePlan?.config) {
+      const cfg = activePlan.config as any;
+      if (typeof cfg.baseKm === 'number') setGenBaseKm(cfg.baseKm);
+      if (typeof cfg.stepKm === 'number') setGenStepKm(cfg.stepKm);
+      if (typeof cfg.maxDistanceKm === 'number') setGenMaxKm(cfg.maxDistanceKm);
+      if (typeof cfg.baseVendorRupees === 'number') setGenBaseVendor(cfg.baseVendorRupees);
+      if (typeof cfg.baseDriverRupees === 'number') setGenBaseDriver(cfg.baseDriverRupees);
+      if (typeof cfg.stepVendorRupees === 'number') setGenStepVendor(cfg.stepVendorRupees);
+      if (typeof cfg.stepDriverRupees === 'number') setGenStepDriver(cfg.stepDriverRupees);
+      if (typeof cfg.vendorPeakSurchargePercent === 'number') setGenVendorPeakUpliftPct(cfg.vendorPeakSurchargePercent);
+      if (typeof cfg.driverPeakSurchargePercent === 'number') setGenDriverPeakUpliftPct(cfg.driverPeakSurchargePercent);
+    }
   }, [activePlan]);
 
   const livePlans = useMemo(() => plans.filter((p) => p.status === 'ACTIVE'), [plans]);
@@ -289,55 +303,90 @@ export function DynamicDistancePricingSection() {
 
   // Auto-generate step slabs
   function handleGenerateSteps() {
-    if (genMaxKm <= genMinKm || genStepKm <= 0) {
-      setAlert({ type: 'error', message: 'Maximum distance must be greater than minimum distance, and step must be positive.' });
+    if (genMaxKm <= 0 || genStepKm <= 0 || genBaseKm <= 0) {
+      setAlert({ type: 'error', message: 'Base distance, step distance, and max distance must be positive.' });
       return;
     }
-    const newSlabs: CreatePricingSlabInput[] = [];
-    let currentMin = genMinKm * 1000;
-    const maxMeters = genMaxKm * 1000;
-    const stepMeters = genStepKm * 1000;
+    if (genMaxKm < genBaseKm) {
+      setAlert({ type: 'error', message: 'Maximum distance cannot be less than initial base distance.' });
+      return;
+    }
+    if (genBaseVendor < genBaseDriver) {
+      setAlert({ type: 'error', message: 'Vendor Base fare cannot be less than Driver Base payout.' });
+      return;
+    }
+    if (genStepVendor < genStepDriver) {
+      setAlert({ type: 'error', message: 'Vendor Step increment cannot be less than Driver Step increment.' });
+      return;
+    }
 
-    let index = 0;
+    const newSlabs: CreatePricingSlabInput[] = [];
+    const baseMeters = Math.round(genBaseKm * 1000);
+    const maxMeters = Math.round(genMaxKm * 1000);
+    const stepMeters = Math.round(genStepKm * 1000);
+
+    // Initial Base Tier (0 to baseKm)
+    const vBaseStd = Math.round(genBaseVendor * 100);
+    const dBaseStd = Math.round(genBaseDriver * 100);
+    const vBasePeak = Math.round(vBaseStd * (1 + genVendorPeakUpliftPct / 100));
+    const dBasePeak = Math.round(dBaseStd * (1 + genDriverPeakUpliftPct / 100));
+
+    newSlabs.push({
+      minDistanceMExclusive: 0,
+      maxDistanceMInclusive: Math.min(baseMeters, maxMeters),
+      vendorPricePaise: vBaseStd,
+      driverPayoutPaise: dBaseStd,
+      vendorPeakPricePaise: vBasePeak,
+      driverPeakPayoutPaise: dBasePeak,
+      active: true,
+    });
+
+    // Incremental Step Tiers (> baseKm)
+    let currentMin = baseMeters;
+    let stepIndex = 1;
     while (currentMin < maxMeters) {
       const nextMax = Math.min(currentMin + stepMeters, maxMeters);
-      const vStandard = Math.round((genBaseVendor + index * genStepVendor) * 100);
-      const dStandard = Math.round((genBaseDriver + index * genStepDriver) * 100);
-      const vPeak = Math.round(vStandard * (1 + genPeakUpliftPct / 100));
-      const dPeak = Math.round(dStandard * (1 + genPeakUpliftPct / 100));
+      const vStd = Math.round((genBaseVendor + stepIndex * genStepVendor) * 100);
+      const dStd = Math.round((genBaseDriver + stepIndex * genStepDriver) * 100);
+      const vPeak = Math.round(vStd * (1 + genVendorPeakUpliftPct / 100));
+      const dPeak = Math.round(dStd * (1 + genDriverPeakUpliftPct / 100));
 
       newSlabs.push({
         minDistanceMExclusive: currentMin,
         maxDistanceMInclusive: nextMax,
-        vendorPricePaise: vStandard,
-        driverPayoutPaise: dStandard,
+        vendorPricePaise: vStd,
+        driverPayoutPaise: dStd,
         vendorPeakPricePaise: vPeak,
         driverPeakPayoutPaise: dPeak,
         active: true,
       });
 
       currentMin = nextMax;
-      index++;
+      stepIndex++;
     }
 
     setEditingSlabs(newSlabs);
-    setAlert({ type: 'success', message: `Generated ${newSlabs.length} contiguous slabs from ${genMinKm} km to ${genMaxKm} km in ${genStepKm} km steps.` });
+    setAlert({
+      type: 'success',
+      message: `Generated ${newSlabs.length} slabs: Base 0-${genBaseKm} km (₹${genBaseVendor}/₹${genBaseDriver}), then +${genStepKm} km steps (+₹${genStepVendor}/+₹${genStepDriver}) up to ${genMaxKm} km with +${genVendorPeakUpliftPct}% / +${genDriverPeakUpliftPct}% peak surges.`,
+    });
   }
 
-  // One-click peak surcharge multiplier for current slabs
+  // One-click decoupled peak surcharge multiplier for current slabs
   function handleApplyPeakUpliftToExisting() {
     if (editingSlabs.length === 0) return;
-    const factor = 1 + genPeakUpliftPct / 100;
+    const vFactor = 1 + genVendorPeakUpliftPct / 100;
+    const dFactor = 1 + genDriverPeakUpliftPct / 100;
     setEditingSlabs(
       editingSlabs.map((s) => ({
         ...s,
-        vendorPeakPricePaise: Math.round(s.vendorPricePaise * factor),
-        driverPeakPayoutPaise: Math.round(s.driverPayoutPaise * factor),
+        vendorPeakPricePaise: Math.round(s.vendorPricePaise * vFactor),
+        driverPeakPayoutPaise: Math.round(s.driverPayoutPaise * dFactor),
       })),
     );
     setAlert({
       type: 'success',
-      message: `Applied +${genPeakUpliftPct}% uplift to peak rates for all ${editingSlabs.length} slabs.`,
+      message: `Applied +${genVendorPeakUpliftPct}% vendor and +${genDriverPeakUpliftPct}% driver peak uplift to all ${editingSlabs.length} slabs.`,
     });
   }
 
@@ -437,9 +486,15 @@ export function DynamicDistancePricingSection() {
       const meta = {
         peakWindows: editingWindows,
         config: {
-          vendorStepKm: genStepKm,
-          driverStepKm: 5,
+          baseKm: genBaseKm,
+          baseVendorRupees: genBaseVendor,
+          baseDriverRupees: genBaseDriver,
+          stepKm: genStepKm,
+          stepVendorRupees: genStepVendor,
+          stepDriverRupees: genStepDriver,
           maxDistanceKm: genMaxKm,
+          vendorPeakSurchargePercent: genVendorPeakUpliftPct,
+          driverPeakSurchargePercent: genDriverPeakUpliftPct,
         },
       };
 
@@ -1273,7 +1328,7 @@ export function DynamicDistancePricingSection() {
                 </span>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
                 <div style={{ background: 'var(--bg-card)', padding: '0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
                   <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Vendor Charge</div>
                   <div style={{ fontSize: '1.3rem', fontWeight: 900, color: 'var(--text-primary)', marginTop: '0.2rem' }}>
@@ -1288,6 +1343,15 @@ export function DynamicDistancePricingSection() {
                   </div>
                 </div>
 
+                <div style={{ background: 'var(--bg-card)', padding: '0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Platform Net Margin</div>
+                  <div style={{ fontSize: '1.3rem', fontWeight: 900, color: '#38BDF8', marginTop: '0.2rem' }}>
+                    {inr(Math.max(0, simResult.vendorPriceRupees - simResult.driverPayoutRupees))}
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginLeft: '0.4rem' }}>
+                      ({simResult.vendorPriceRupees > 0 ? (((simResult.vendorPriceRupees - simResult.driverPayoutRupees) / simResult.vendorPriceRupees) * 100).toFixed(1) : '0'}%)
+                    </span>
+                  </div>
+                </div>
               </div>
 
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
@@ -1412,33 +1476,29 @@ export function DynamicDistancePricingSection() {
 
           {/* Section B: Automated Step Increment & Slab Generator */}
           <div style={{ background: 'var(--bg-surface-elevated)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
-              <Sliders size={15} color="var(--brand-primary)" /> Distance Step Generator
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                <Sliders size={15} color="var(--brand-primary)" /> Distance Step Generator
+              </div>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                Configure Initial Base Tier, +KM Steps & Decoupled Peak Surcharges
+              </span>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.65rem' }}>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(125px, 1fr))', gap: '0.65rem' }}>
               <div>
-                <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>Min (km)</label>
+                <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>Base Dist (km)</label>
                 <input
                   type="number"
-                  min="0"
-                  value={genMinKm}
-                  onChange={(e) => setGenMinKm(Number(e.target.value))}
+                  min="1"
+                  max="50"
+                  value={genBaseKm}
+                  onChange={(e) => setGenBaseKm(Number(e.target.value))}
                   style={{ width: '100%', marginTop: '0.2rem', padding: '0.35rem 0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '0.78rem' }}
                 />
               </div>
               <div>
-                <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>Max (km)</label>
-                <input
-                  type="number"
-                  min="10"
-                  max="500"
-                  value={genMaxKm}
-                  onChange={(e) => setGenMaxKm(Number(e.target.value))}
-                  style={{ width: '100%', marginTop: '0.2rem', padding: '0.35rem 0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '0.78rem' }}
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>Step (km)</label>
+                <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>Step Dist (km)</label>
                 <input
                   type="number"
                   min="1"
@@ -1449,10 +1509,21 @@ export function DynamicDistancePricingSection() {
                 />
               </div>
               <div>
+                <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>Max Dist (km)</label>
+                <input
+                  type="number"
+                  min="10"
+                  max="500"
+                  value={genMaxKm}
+                  onChange={(e) => setGenMaxKm(Number(e.target.value))}
+                  style={{ width: '100%', marginTop: '0.2rem', padding: '0.35rem 0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '0.78rem' }}
+                />
+              </div>
+              <div>
                 <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>Vendor Base (₹)</label>
                 <input
                   type="number"
-                  min="50"
+                  min="10"
                   value={genBaseVendor}
                   onChange={(e) => setGenBaseVendor(Number(e.target.value))}
                   style={{ width: '100%', marginTop: '0.2rem', padding: '0.35rem 0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '0.78rem' }}
@@ -1462,7 +1533,7 @@ export function DynamicDistancePricingSection() {
                 <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>Vendor +₹/step</label>
                 <input
                   type="number"
-                  min="10"
+                  min="1"
                   value={genStepVendor}
                   onChange={(e) => setGenStepVendor(Number(e.target.value))}
                   style={{ width: '100%', marginTop: '0.2rem', padding: '0.35rem 0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '0.78rem' }}
@@ -1472,7 +1543,7 @@ export function DynamicDistancePricingSection() {
                 <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>Driver Base (₹)</label>
                 <input
                   type="number"
-                  min="50"
+                  min="10"
                   value={genBaseDriver}
                   onChange={(e) => setGenBaseDriver(Number(e.target.value))}
                   style={{ width: '100%', marginTop: '0.2rem', padding: '0.35rem 0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '0.78rem' }}
@@ -1482,27 +1553,38 @@ export function DynamicDistancePricingSection() {
                 <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>Driver +₹/step</label>
                 <input
                   type="number"
-                  min="10"
+                  min="1"
                   value={genStepDriver}
                   onChange={(e) => setGenStepDriver(Number(e.target.value))}
                   style={{ width: '100%', marginTop: '0.2rem', padding: '0.35rem 0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '0.78rem' }}
                 />
               </div>
               <div>
-                <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>Peak Uplift (%)</label>
+                <label style={{ fontSize: '0.7rem', color: '#818CF8', fontWeight: 600 }}>Vendor Peak (+%)</label>
                 <input
                   type="number"
                   min="0"
-                  max="100"
-                  value={genPeakUpliftPct}
-                  onChange={(e) => setGenPeakUpliftPct(Number(e.target.value))}
-                  style={{ width: '100%', marginTop: '0.2rem', padding: '0.35rem 0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '0.78rem' }}
+                  max="150"
+                  value={genVendorPeakUpliftPct}
+                  onChange={(e) => setGenVendorPeakUpliftPct(Number(e.target.value))}
+                  style={{ width: '100%', marginTop: '0.2rem', padding: '0.35rem 0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: '#818CF8', fontSize: '0.78rem', fontWeight: 700 }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.7rem', color: 'var(--color-success)', fontWeight: 600 }}>Driver Peak (+%)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="150"
+                  value={genDriverPeakUpliftPct}
+                  onChange={(e) => setGenDriverPeakUpliftPct(Number(e.target.value))}
+                  style={{ width: '100%', marginTop: '0.2rem', padding: '0.35rem 0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--color-success)', fontSize: '0.78rem', fontWeight: 700 }}
                 />
               </div>
             </div>
-            <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+            <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', flexWrap: 'wrap' }}>
               <Button variant="outline" size="sm" onClick={handleApplyPeakUpliftToExisting}>
-                Apply +{genPeakUpliftPct}% to Current Slabs
+                Apply Peak (+{genVendorPeakUpliftPct}% / +{genDriverPeakUpliftPct}%) to Current Slabs
               </Button>
               <Button variant="primary" size="sm" onClick={handleGenerateSteps}>
                 Generate Contiguous Slabs
