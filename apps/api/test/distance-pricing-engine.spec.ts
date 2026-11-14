@@ -32,6 +32,10 @@ class FakePricingDb {
   slabs = new Map<string, Row>();
   audits: Row[] = [];
   quotes = new Map<string, Row>();
+  vehiclePricingTier = {
+    findUnique: async ({ where }: Row) =>
+      where.vehicleType === 'INACTIVE' ? { vehicleType: where.vehicleType, isActive: false } : { vehicleType: where.vehicleType, isActive: true },
+  };
 
   private withSlabs(plan: Row, include?: Row) {
     if (!include?.slabs) return { ...plan };
@@ -153,6 +157,30 @@ async function publishPlan(svc: DistancePricingService, category: string, slabs 
 }
 
 describe('PRD 11: acceptance criteria', () => {
+  it('accepts custom active categories and rejects categories that are not active in the catalogue', async () => {
+    const { svc, db, maps } = build();
+    await publishPlan(svc, 'CUSTOM_VAN');
+    const quote = await svc.createVendorQuote(
+      { pickup: PICKUP, drop: DROP, vehicleCategory: 'CUSTOM_VAN' } as any,
+      'vendor-1',
+    );
+    expect(db.quotes.get(quote.quoteId)?.vehicleCategory).toBe('CUSTOM_VAN');
+
+    await expect(
+      svc.createVendorQuote(
+        { pickup: PICKUP, drop: DROP, vehicleCategory: 'INACTIVE' } as any,
+        'vendor-1',
+      ),
+    ).rejects.toThrow('not active in the pricing catalogue');
+    await expect(
+      svc.createDraftPlan(
+        { vehicleCategory: 'INACTIVE', slabs: PRD_SAMPLE_SLABS } as any,
+        ADMIN,
+      ),
+    ).rejects.toThrow('not active in the pricing catalogue');
+    expect(maps.computeVerifiedRoadDistance).toHaveBeenCalledTimes(1);
+  });
+
   it('a 10 km route resolves to the first slab and 10.001 km to the second', async () => {
     const { svc } = build();
     await publishPlan(svc, 'ALL');

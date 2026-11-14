@@ -12,7 +12,7 @@
 import { DispatchService } from '../src/modules/dispatch/dispatch.service';
 import { LocationsService } from '../src/modules/locations/locations.service';
 import { H3Service } from '../src/modules/locations/h3.service';
-import { DriverAvailability, RequirementStatus, UserStatus, VehicleType, VerificationStatus } from '@adhocx/contracts';
+import { DriverAvailability, RequirementStatus, UserStatus, VerificationStatus } from '@adhocx/contracts';
 import { DriversService } from '../src/modules/drivers/drivers.service';
 import { kRingForRadiusKm, waveSearchRadiusKm } from '../src/modules/dispatch/pickup-radius';
 import { rookieExplorationHit, rookieQuotaFor } from '../src/modules/dispatch/dispatch-ranking';
@@ -96,7 +96,7 @@ function makeWorld(drivers: SimDriver[]) {
     user: { status: UserStatus.ACTIVE },
     verificationStatus: VerificationStatus.VERIFIED,
     availabilityStatus: DriverAvailability.AVAILABLE,
-    vehicleType: VehicleType.SEDAN,
+    vehicleType: 'SEDAN',
     vehicles: [],
     trips: [],
     currentLat: d.stored?.lat ?? null,
@@ -111,7 +111,7 @@ function makeWorld(drivers: SimDriver[]) {
     id: 'req-1',
     vendorId: 'vnd-1',
     vendor: { userId: 'u-vnd' },
-    vehicleType: VehicleType.SEDAN,
+    vehicleType: 'SEDAN',
     quantity: 1,
     assignedQuantity: 0,
     dispatchWaves: 0,
@@ -208,7 +208,7 @@ describe(`Dispatch radius simulation (limit ${LIMIT_KM} km)`, () => {
       // heartbeat is long expired there (it exists only as an old Postgres row).
       for (const d of drivers) {
         const recent = d.lastLocationAt && Date.now() - d.lastLocationAt.getTime() < 5 * 60_000;
-        if (d.stored && recent) await locations.indexDriverLocation(d.id, d.stored.lat, d.stored.lng, VehicleType.SEDAN);
+        if (d.stored && recent) await locations.indexDriverLocation(d.id, d.stored.lat, d.stored.lng, 'SEDAN');
       }
       if (prepare) await prepare(redis, locations);
     }
@@ -249,7 +249,7 @@ describe(`Dispatch radius simulation (limit ${LIMIT_KM} km)`, () => {
       [{ id: 'moved-30', real: east(30), stored: east(0.3), lastLocationAt: fresh() }],
       async (redis, locations) => {
         redis.expireMeta('moved-30'); // 15 min of silence: metadata TTL elapsed
-        await locations.indexDriverLocation('moved-30', east(30).lat, east(30).lng, VehicleType.SEDAN); // next ping, far away
+        await locations.indexDriverLocation('moved-30', east(30).lat, east(30).lng, 'SEDAN'); // next ping, far away
       },
     );
     expect(offered.every((o) => (o.realKm ?? Infinity) <= LIMIT_KM)).toBe(true);
@@ -299,15 +299,15 @@ describe(`Dispatch radius simulation (limit ${LIMIT_KM} km)`, () => {
   it('S10 stale index entries are removed: old H3 membership (SREM) and GEO members without live metadata (ZREM)', async () => {
     const redis = new FakeRedis();
     const { locations } = build([], redis);
-    await locations.indexDriverLocation('mover', east(0.3).lat, east(0.3).lng, VehicleType.SEDAN);
+    await locations.indexDriverLocation('mover', east(0.3).lat, east(0.3).lng, 'SEDAN');
     const oldCell = JSON.parse((await redis.get('drivers:meta:mover'))!).h3Cell;
     redis.expireMeta('mover');
-    await locations.indexDriverLocation('mover', east(30).lat, east(30).lng, VehicleType.SEDAN);
-    await locations.indexDriverLocation('ghost', east(1).lat, east(1).lng, VehicleType.SEDAN);
+    await locations.indexDriverLocation('mover', east(30).lat, east(30).lng, 'SEDAN');
+    await locations.indexDriverLocation('ghost', east(1).lat, east(1).lng, 'SEDAN');
     redis.expireMeta('ghost'); // app killed: no more pings
     expect((await redis.smembers(`drivers:h3:res8:${oldCell}`)).includes('mover')).toBe(true);
 
-    const hits = await locations.findNearbyDriversByH3(PICKUP.lat, PICKUP.lng, kRingForRadiusKm(10), VehicleType.SEDAN, 10);
+    const hits = await locations.findNearbyDriversByH3(PICKUP.lat, PICKUP.lng, kRingForRadiusKm(10), 'SEDAN', 10);
     expect(hits.map((h) => h.driverId)).toEqual([]);
     expect((await redis.smembers(`drivers:h3:res8:${oldCell}`)).includes('mover')).toBe(false);
     expect(redis.geo.get('drivers:geo:available')?.has('ghost')).toBe(false);
@@ -315,7 +315,7 @@ describe(`Dispatch radius simulation (limit ${LIMIT_KM} km)`, () => {
 
   it('S11 heartbeat: only GPS-quality fixes are indexed or refresh lastLocationAt; an IP/network guess removes the driver from dispatch', async () => {
     const redis = new FakeRedis();
-    const row: any = { id: 'hb-1', userId: 'u-hb', availabilityStatus: DriverAvailability.AVAILABLE, vehicleType: VehicleType.SEDAN, lastLocationAt: null };
+    const row: any = { id: 'hb-1', userId: 'u-hb', availabilityStatus: DriverAvailability.AVAILABLE, vehicleType: 'SEDAN', lastLocationAt: null };
     const db: any = {
       driver: {
         findUnique: jest.fn(async () => row),
@@ -342,7 +342,7 @@ describe(`Dispatch radius simulation (limit ${LIMIT_KM} km)`, () => {
     const drivers = [{ id: 'at-6', real: east(6), stored: east(6), lastLocationAt: fresh() }];
     const redis = new FakeRedis();
     const { svc, world, locations } = build(drivers, redis);
-    await locations.indexDriverLocation('at-6', east(6).lat, east(6).lng, VehicleType.SEDAN);
+    await locations.indexDriverLocation('at-6', east(6).lat, east(6).lng, 'SEDAN');
     world.requirement.dispatchWaves = 0;
     await svc.dispatchRequirement('req-1');
     expect(world.offers.map((o) => [o.driverId, o.waveNumber])).toEqual([['at-6', 3]]);

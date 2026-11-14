@@ -14,7 +14,6 @@ import {
   UserRole,
   DriverAvailability,
   VerificationStatus,
-  VehicleType,
   RegisterDeviceTokenDto,
   AudienceFilterDto,
   BroadcastPushDto,
@@ -950,7 +949,7 @@ export class NotificationsService implements OnModuleInit {
       driverConditions.verificationStatus = filter.verificationStatus as VerificationStatus;
     }
     if (filter.vehicleTypes && filter.vehicleTypes.length > 0) {
-      driverConditions.vehicleType = { in: filter.vehicleTypes as VehicleType[] };
+      driverConditions.vehicleType = { in: filter.vehicleTypes };
     }
 
     if (Object.keys(driverConditions).length > 0) {

@@ -34,16 +34,24 @@ class _KycVehicleSectionWidgetState extends State<KycVehicleSectionWidget> {
   Future<void> _loadVehicleCategories() async {
     try {
       final tiers = await DriverService.instance.getVehicleCategories(forceRefresh: true);
-      final activeTiers = tiers.where((t) => t['isActive'] != false).toList();
+      final activeTiers = tiers.where((t) {
+        return t['isActive'] != false &&
+            (t['vehicleType'] as String?)?.trim().isNotEmpty == true;
+      }).toList();
       if (mounted && activeTiers.isNotEmpty) {
+        final options = activeTiers.map((t) => {
+          'id': (t['vehicleType'] as String).toUpperCase(),
+          'label': t['categoryLabel'] as String? ?? t['vehicleType'] as String,
+          'iconKey': t['iconKey'] as String? ?? 'car',
+        }).toList();
+        if (!options.any((option) => option['id'] == _vehicleType)) {
+          _vehicleType = options.first['id'] as String;
+        }
         setState(() {
-          _vehicleOptions = activeTiers.map((t) => {
-            'id': (t['vehicleType'] as String? ?? 'SEDAN').toUpperCase(),
-            'label': t['categoryLabel'] as String? ?? t['vehicleType'] as String? ?? 'Vehicle',
-            'iconKey': t['iconKey'] as String? ?? 'car',
-          }).toList();
+          _vehicleOptions = options;
           _isLoadingCategories = false;
         });
+        widget.onVehicleTypeChanged(_vehicleType);
         return;
       }
     } catch (_) {

@@ -553,8 +553,7 @@ export interface CalculatedRoute {
 export interface RoutePlanningResult {
   employeeCount: number;
   cabCount: number;
-  sedanRouteCount?: number;
-  suvRouteCount?: number;
+  vehicleCategoryCounts?: Record<string, number>;
   officeRadiusKm: number;
   maxTripKm?: number;
   outOfRadiusCount: number;
@@ -593,9 +592,17 @@ export interface RoutePlanningBatchResult {
   plans: RoutePlanningDirectionOutcome[];
   employeeCount: number;
   cabCount: number;
-  sedanRouteCount: number;
-  suvRouteCount: number;
+  vehicleCategoryCounts: Record<string, number>;
   totalKm: number;
+}
+
+export interface VehicleCategoryOption {
+  id: string;
+  vehicleType: string;
+  categoryLabel: string;
+  seatingCapacity: string;
+  maxSeats: number;
+  isActive: boolean;
 }
 
 export type RoutePlanningResponse = RoutePlanningResult | RoutePlanningBatchResult;

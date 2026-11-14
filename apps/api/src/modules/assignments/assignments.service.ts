@@ -96,7 +96,7 @@ export class AssignmentsService {
       driverName: asg.driver?.fullName || 'Assigned Driver',
       driverPhone: asg.driver?.phone || '',
       vehiclePlate: asg.vehicle?.registrationNumber || asg.driver?.vehiclePlate || 'N/A',
-      vehicleType: asg.vehicle?.vehicleType || asg.driver?.vehicleType || asg.requirement?.vehicleType || 'SEDAN',
+      vehicleType: asg.vehicle?.vehicleType || asg.driver?.vehicleType || asg.requirement?.vehicleType || '',
       status: asg.status,
       assignedAt: asg.assignedAt ? asg.assignedAt.toISOString() : asg.createdAt.toISOString(),
       createdAt: asg.createdAt.toISOString(),

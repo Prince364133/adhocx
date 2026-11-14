@@ -121,7 +121,7 @@ export class CorporateBillingService {
 
     for (const route of unbilledRoutes as any[]) {
       const tripAt = this.tripInstant(route);
-      const category = route.vehicleCategory || 'SEDAN';
+      const category = route.vehicleCategory || '';
       const stops: any[] = Array.isArray(route.stops) ? route.stops : [];
 
       if (route.status === 'CANCELLED') {
@@ -643,7 +643,7 @@ export class CorporateBillingService {
    */
   public async resolveClientFare(
     tenantId: string,
-    vehicleCategory: string = 'SEDAN',
+    vehicleCategory: string = '',
     distanceMeters: number,
     stopsCount: number = 1,
     options: {
@@ -693,7 +693,7 @@ export class CorporateBillingService {
    * at `at` (default now), via RateCardService. Falls back to ₹300 (first 10 km) + ₹18/km.
    */
   public async resolveDriverPayout(
-    vehicleCategory: string = 'SEDAN',
+    vehicleCategory: string = '',
     distanceMeters: number,
     at: Date = new Date(),
   ): Promise<{

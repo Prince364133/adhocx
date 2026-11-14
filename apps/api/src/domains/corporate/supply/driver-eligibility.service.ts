@@ -7,42 +7,7 @@ import {
   DriverIneligibilityReason,
 } from './corporate-supply.types';
 import { corporateRouteBusyWindow } from '../dispatch/corporate-dispatch.service';
-
-/** Passenger categories allowed on corporate routes, with licensed passenger seats (excluding the driver). */
-export const CORPORATE_PASSENGER_SEATS = {
-  HATCHBACK: 4,
-  SEDAN: 4,
-  SUV: 6,
-  TEMPO_TRAVELLER: 12,
-  BUS: 30,
-} as const;
-export type CorporatePassengerCategory = keyof typeof CORPORATE_PASSENGER_SEATS;
-
-/** Route categories each vehicle category may serve. A larger passenger car may serve a sedan route. */
-export const CORPORATE_CATEGORY_CAN_SERVE: Record<CorporatePassengerCategory, CorporatePassengerCategory[]> = {
-  HATCHBACK: ['HATCHBACK'],
-  SEDAN: ['SEDAN', 'HATCHBACK'],
-  SUV: ['SUV', 'SEDAN', 'HATCHBACK'],
-  TEMPO_TRAVELLER: ['TEMPO_TRAVELLER'],
-  BUS: ['BUS'],
-};
-
-/**
- * Normalises a free-text vehicle type ("Sedan", "suv", "Tempo Traveller") to a passenger category.
- * Returns null for goods vehicles (TATA_ACE, PICKUP_TRUCK, trucks) and anything unrecognised.
- */
-export function corporatePassengerCategory(raw: unknown): CorporatePassengerCategory | null {
-  if (typeof raw !== 'string') return null;
-  const t = raw.trim().toUpperCase().replace(/[\s-]+/g, '_');
-  if (!t) return null;
-  if (t.includes('TATA_ACE') || t.includes('PICKUP') || t.includes('TRUCK')) return null;
-  if (t.includes('TEMPO')) return 'TEMPO_TRAVELLER';
-  if (t.includes('SUV')) return 'SUV';
-  if (t.includes('SEDAN')) return 'SEDAN';
-  if (t.includes('HATCHBACK')) return 'HATCHBACK';
-  if (t === 'BUS' || t.startsWith('BUS_') || t.endsWith('_BUS')) return 'BUS';
-  return null;
-}
+import { calculateTierMaxSeats } from '../../../modules/pricing/pricing.service';
 
 @Injectable()
 export class DriverEligibilityService {
@@ -61,7 +26,7 @@ export class DriverEligibilityService {
     if (!driver) {
       return { driverId, isEligible: false, rejectionReason: 'DRIVER_NOT_FOUND' };
     }
-    return this.evaluateDriverRecord(driver, route);
+    return this.evaluateDriverRecord(driver, route, await this.getActiveCategoryCapacities());
   }
 
   /**
@@ -84,6 +49,7 @@ export class DriverEligibilityService {
         where: { id: { in: driverIds } },
         include: { vehicles: { where: { verificationStatus: 'VERIFIED' }, orderBy: { createdAt: 'desc' } } },
       })) ?? [];
+    const categoryCapacities = await this.getActiveCategoryCapacities();
 
     const eligibleDriverIds: string[] = [];
     const driverVehicleMap = new Map<string, string>();
@@ -92,7 +58,7 @@ export class DriverEligibilityService {
 
     for (const driver of drivers) {
       found.add(driver.id);
-      const res = await this.evaluateDriverRecord(driver, route);
+      const res = await this.evaluateDriverRecord(driver, route, categoryCapacities);
       if (res.isEligible && res.matchedVehicleId) {
         eligibleDriverIds.push(driver.id);
         driverVehicleMap.set(driver.id, res.matchedVehicleId);
@@ -111,7 +77,11 @@ export class DriverEligibilityService {
    * Applies the PRD eligibility rules (ALLOC-01/06, ADM-07, ADH-02-03) to a driver loaded with
    * their VERIFIED vehicles.
    */
-  private async evaluateDriverRecord(driver: any, route: any): Promise<DriverEligibilityResult> {
+  private async evaluateDriverRecord(
+    driver: any,
+    route: any,
+    categoryCapacities: Map<string, number>,
+  ): Promise<DriverEligibilityResult> {
     const driverId = driver.id;
 
     if (driver.verificationStatus !== 'VERIFIED') {
@@ -129,10 +99,13 @@ export class DriverEligibilityService {
       return { driverId, isEligible: false, rejectionReason: 'NO_VERIFIED_VEHICLE' };
     }
 
-    const targetCategory = corporatePassengerCategory(route.vehicleCategory || 'SEDAN');
+    const targetCategory = String(route.vehicleCategory ?? '').trim().toUpperCase();
+    const targetCapacity = categoryCapacities.get(targetCategory);
+    if (!targetCapacity) {
+      return { driverId, isEligible: false, rejectionReason: 'VEHICLE_CATEGORY_MISMATCH' };
+    }
     const routeEnd = this.calculateRouteEndTime(route);
-    const requiredCapacity =
-      Number(route.maxCapacity) || (targetCategory ? CORPORATE_PASSENGER_SEATS[targetCategory] : 4);
+    const requiredCapacity = Number(route.maxCapacity) || targetCapacity;
 
     let eligibleVehicle: any = null;
     let failureReason: DriverIneligibilityReason = 'VEHICLE_CATEGORY_MISMATCH';
@@ -143,15 +116,14 @@ export class DriverEligibilityService {
         continue;
       }
 
-      // Explicit passenger categories only: goods vehicles (TATA_ACE, PICKUP_TRUCK) and unknown
-      // types never match, and nothing is assumed to be a sedan by default.
-      const vehicleCategory = corporatePassengerCategory(vehicle.vehicleType);
-      if (!vehicleCategory || !targetCategory || !CORPORATE_CATEGORY_CAN_SERVE[vehicleCategory].includes(targetCategory)) {
+      const vehicleCategory = String(vehicle.vehicleType).trim().toUpperCase();
+      const vehicleCapacity = categoryCapacities.get(vehicleCategory);
+      if (!vehicleCapacity) {
         failureReason = 'VEHICLE_CATEGORY_MISMATCH';
         continue;
       }
 
-      if (CORPORATE_PASSENGER_SEATS[vehicleCategory] < requiredCapacity) {
+      if (vehicleCapacity < requiredCapacity) {
         failureReason = 'INSUFFICIENT_SEAT_CAPACITY';
         continue;
       }
@@ -199,6 +171,21 @@ export class DriverEligibilityService {
       matchedVehicleId: eligibleVehicle.id,
       dutyHoursLast24h: dutyCheck.totalHoursLast24h,
     };
+  }
+
+  private async getActiveCategoryCapacities(): Promise<Map<string, number>> {
+    const categories = await this.db.vehiclePricingTier.findMany({
+      where: { isActive: true },
+      select: { vehicleType: true, seatingCapacity: true },
+    });
+    return new Map(
+      categories
+        .filter((category) => category.vehicleType?.trim())
+        .map((category) => [
+          category.vehicleType.trim().toUpperCase(),
+          calculateTierMaxSeats(category.vehicleType, category.seatingCapacity),
+        ]),
+    );
   }
 
   private calculateRouteEndTime(route: any): Date {

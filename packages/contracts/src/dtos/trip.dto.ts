@@ -7,7 +7,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { TripStatus, VehicleType } from '../enums';
+import { TripStatus } from '../enums';
 import { GeoLocationDto } from './common.dto';
 
 export class StartTripDto {
@@ -67,7 +67,7 @@ export class TripResponseDto {
   vendorId!: string;
   driverId!: string;
   vehicleId?: string;
-  vehicleType!: VehicleType;
+  vehicleType!: string;
   pickupLocation!: GeoLocationDto;
   dropLocation!: GeoLocationDto;
   reportingTime!: string;

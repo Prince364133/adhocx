@@ -50,6 +50,7 @@ void main() {
               onExpand: () => expanded = true,
               onNavigate: () => navigated = true,
               height: 160,
+              phase: TripMapPhase.toPickup,
             ),
           ),
         ),

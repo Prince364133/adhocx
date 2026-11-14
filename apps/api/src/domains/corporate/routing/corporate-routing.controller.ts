@@ -31,7 +31,7 @@ import {
 import { CorporateRouteDirectionsService } from './corporate-route-directions.service';
 import { generateSampleCsv, generateSampleExcelBuffer } from './sample-roster-generator';
 import { DatabaseService } from '../../../database/database.service';
-import { RouteOptimizationOptions, VEHICLE_CAPACITY } from './routing.types';
+import { RouteOptimizationOptions } from './routing.types';
 import { JwtAuthGuard } from '../../../common/guards/auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { CorporateAccessGuard } from '../../../common/guards/corporate-access.guard';
@@ -230,9 +230,9 @@ export class CorporateRoutingController {
     if (direction !== 'LOGIN' && direction !== 'LOGOUT') {
       throw new BadRequestException('Roster planning requires one direction: LOGIN or LOGOUT');
     }
-    const vehicleCategory = String(body.vehicleCategory ?? 'BOTH').toUpperCase();
-    if (!['SEDAN', 'SUV', 'BOTH'].includes(vehicleCategory)) {
-      throw new BadRequestException('vehicleCategory must be SEDAN, SUV, or BOTH');
+    const vehicleCategory = String(body.vehicleCategory ?? 'ALL').trim().toUpperCase();
+    if (!vehicleCategory) {
+      throw new BadRequestException('vehicleCategory must not be empty');
     }
     const routingPreference = body.routingPreference ?? 'TRAFFIC_UNAWARE';
     if (!['TRAFFIC_UNAWARE', 'TRAFFIC_AWARE', 'TRAFFIC_AWARE_OPTIMAL'].includes(routingPreference)) {
@@ -253,8 +253,6 @@ export class CorporateRoutingController {
       pickupWaitMinutes: num('pickupWaitMinutes', body.pickupWaitMinutes),
       cabCapacity: num('cabCapacity', body.cabCapacity),
       vehicleCategory: vehicleCategory as PlannerVehicleCategory,
-      sedanCapacity: num('sedanCapacity', body.sedanCapacity),
-      suvCapacity: num('suvCapacity', body.suvCapacity),
       routingPreference,
       avoidTolls: bool('avoidTolls', body.avoidTolls, true),
       avoidHighways: bool('avoidHighways', body.avoidHighways, false),
@@ -321,10 +319,8 @@ export class CorporateRoutingController {
         direction: { type: 'string', enum: ['LOGIN', 'LOGOUT', 'BOTH'] },
         loginTime: { type: 'string', example: '08:00' },
         logoutTime: { type: 'string', example: '17:00' },
-        vehicleCategory: { type: 'string', enum: ['SEDAN', 'SUV', 'BOTH'], default: 'SEDAN' },
+        vehicleCategory: { type: 'string', description: 'Active vehicle category code, or ALL to allow all active categories', default: 'ALL' },
         maxCapacity: { type: 'number', example: 3 },
-        sedanCapacity: { type: 'number', example: 3 },
-        suvCapacity: { type: 'number', example: 6 },
         officeBufferMinutes: { type: 'number', default: 10 },
         maxRideTimeMinutes: { type: 'number', default: 120 },
         logoutReportingBufferMinutes: { type: 'number', default: 15 },
@@ -356,17 +352,15 @@ export class CorporateRoutingController {
       throw new BadRequestException('LOGOUT optimization requires a valid logoutTime value (HH:mm)');
     }
     for (const [field, value, min, max] of [
-      ['sedanCapacity', body.sedanCapacity, 1, VEHICLE_CAPACITY.SEDAN],
-      ['suvCapacity', body.suvCapacity, 1, VEHICLE_CAPACITY.SUV],
-      ['maxCapacity', body.maxCapacity, 1, VEHICLE_CAPACITY.SUV],
+      ['maxCapacity', body.maxCapacity, 1, Number.MAX_SAFE_INTEGER],
       ['stopDwellMinutes', body.stopDwellMinutes, 1, 10],
     ] as const) {
       if (value !== undefined && (!Number.isInteger(value) || value < min || value > max)) {
         throw new BadRequestException(`${field} must be an integer between ${min} and ${max}`);
       }
     }
-    if (body.vehicleCategory && !['SEDAN', 'SUV', 'BOTH'].includes(body.vehicleCategory)) {
-      throw new BadRequestException('vehicleCategory must be SEDAN, SUV, or BOTH');
+    if (body.vehicleCategory !== undefined && (typeof body.vehicleCategory !== 'string' || !body.vehicleCategory.trim())) {
+      throw new BadRequestException('vehicleCategory must not be empty');
     }
     if (
       body.routingPreference !== undefined &&
@@ -374,18 +368,6 @@ export class CorporateRoutingController {
     ) {
       throw new BadRequestException('routingPreference is not supported');
     }
-    if (body.maxCapacity !== undefined) {
-      const maxSelectedCapacity =
-        body.vehicleCategory === 'SUV'
-          ? body.suvCapacity ?? VEHICLE_CAPACITY.SUV
-          : body.vehicleCategory === 'SEDAN'
-            ? body.sedanCapacity ?? VEHICLE_CAPACITY.SEDAN
-            : Math.max(body.sedanCapacity ?? VEHICLE_CAPACITY.SEDAN, body.suvCapacity ?? VEHICLE_CAPACITY.SUV);
-      if (body.maxCapacity > maxSelectedCapacity) {
-        throw new BadRequestException('maxCapacity cannot exceed the selected vehicle category capacity');
-      }
-    }
-
     return this.routeSolverService.optimizeAndCreateRoutes(body);
   }
 

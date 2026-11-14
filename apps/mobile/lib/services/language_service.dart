@@ -272,13 +272,6 @@ class AppLanguageService {
       'VIEW OPPORTUNITIES': 'VIEW OPPORTUNITIES',
       'View Opportunities': 'View Opportunities',
       'Check the Opportunities tab to accept available requests in your area.': 'Check the Opportunities tab to accept available requests in your area.',
-      'Prime Sedan': 'Prime Sedan',
-      'SUV 7 Seater': 'SUV 7 Seater',
-      'Compact Hatchback': 'Compact Hatchback',
-      'Sedan': 'Sedan',
-      'SUV': 'SUV',
-      'Hatchback': 'Hatchback',
-
       // Wallet / Earnings Screen
       'Wallet & Settlements': 'Wallet & Settlements',
       'Available Balance': 'Available Balance',
@@ -536,13 +529,6 @@ class AppLanguageService {
       'VIEW OPPORTUNITIES': 'अवसर देखें',
       'View Opportunities': 'अवसर देखें',
       'Check the Opportunities tab to accept available requests in your area.': 'अपने क्षेत्र में उपलब्ध अनुरोधों को स्वीकार करने के लिए अवसर टैब देखें।',
-      'Prime Sedan': 'प्राइम सेडान',
-      'SUV 7 Seater': 'एसयूवी 7 सीटर',
-      'Compact Hatchback': 'कॉम्पैक्ट हैचबैक',
-      'Sedan': 'सेडान',
-      'SUV': 'एसयूवी',
-      'Hatchback': 'हैचबैक',
-
       // Wallet / Earnings Screen
       'Wallet & Settlements': 'वॉलेट और निपटान',
       'Available Balance': 'उपलब्ध शेष राशि',
@@ -800,13 +786,6 @@ class AppLanguageService {
       'VIEW OPPORTUNITIES': 'అవకాశాలను చూడండి',
       'View Opportunities': 'అవకాశాలను చూడండి',
       'Check the Opportunities tab to accept available requests in your area.': 'మీ ప్రాంతంలో అందుబాటులో ఉన్న అభ్యర్థనలను అంగీకరించడానికి అవకాశాల ట్యాబ్‌ను చూడండి.',
-      'Prime Sedan': 'ప్రైమ్ సెడాన్',
-      'SUV 7 Seater': 'SUV 7 సీటర్',
-      'Compact Hatchback': 'కాంపాక్ట్ హ్యాచ్‌బ్యాక్',
-      'Sedan': 'సెడాన్',
-      'SUV': 'SUV',
-      'Hatchback': 'హ్యాచ్‌బ్యాక్',
-
       // Wallet / Earnings Screen
       'Wallet & Settlements': 'వాలెట్ & సెటిల్‌మెంట్‌లు',
       'Available Balance': 'అందుబాటులో ఉన్న బ్యాలెన్స్',

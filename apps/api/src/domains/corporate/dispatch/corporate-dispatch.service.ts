@@ -294,7 +294,7 @@ export class CorporateDispatchService {
     targetPickup1Time?: Date | string | null;
   }): Promise<OfferPricing> {
     const at = route.targetPickup1Time ? new Date(route.targetPickup1Time) : new Date();
-    const category = route.vehicleCategory || 'SEDAN';
+    const category = route.vehicleCategory || '';
     const distanceMeters = Number(route.estDistanceMeters) || 0;
     const card = await this.getRateCardService().findDriverRateCard(category, at);
     if (card) {

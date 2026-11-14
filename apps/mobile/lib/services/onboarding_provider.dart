@@ -30,7 +30,7 @@ class OnboardingProvider extends ChangeNotifier {
   String _monthlyTrips = '26 - 100 trips / month';
 
   // Step 2 & 3: Identity and Vehicle Information (Driver)
-  String _vehicleType = 'Sedan';
+  String _vehicleType = '';
   String _carModel = '';
   String _color = '';
   String _registrationNumber = '';
@@ -451,7 +451,7 @@ class OnboardingProvider extends ChangeNotifier {
     _emergencyContactName = '';
     _emergencyContactPhone = '';
     _isCorporate = false;
-    _vehicleType = 'Sedan';
+    _vehicleType = '';
     _carModel = '';
     _color = '';
     _registrationNumber = '';

@@ -37,7 +37,7 @@ export class CreateEnterpriseLeadDto {
   @IsOptional()
   monthlyTripsEstimate?: string;
 
-  @ApiPropertyOptional({ description: 'Preferred commercial vehicle categories', example: '4-Seater Sedan, 7-Seater MUV' })
+  @ApiPropertyOptional({ description: 'Preferred vehicle categories configured in Pricing Management' })
   @IsString()
   @IsOptional()
   preferredVehicles?: string;

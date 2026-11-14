@@ -31,6 +31,11 @@ describe('DriversService Unit Tests', () => {
       offer: {
         updateMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
+      vehiclePricingTier: {
+        findUnique: jest.fn(async ({ where }: any) => ({
+          isActive: where.vehicleType !== 'INACTIVE',
+        })),
+      },
     };
 
     storage = {
@@ -186,6 +191,7 @@ describe('DriversService Unit Tests', () => {
     db.driver.update.mockResolvedValue({ id: 'drv-1' });
 
     const result = await service.submitKyc('usr-1', {
+      vehicleType: 'CUSTOM_VAN',
       idNumber: '123456789012',
       dlNumber: 'DL-12345',
       panNumber: 'ABCDE1234F',

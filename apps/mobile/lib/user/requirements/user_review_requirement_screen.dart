@@ -73,9 +73,6 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
         return match['categoryLabel'].toString();
       }
     }
-    if (vType == 'SUV') return 'Fleet SUV & MUV';
-    if (vType == 'HATCHBACK') return 'Compact Hatchback';
-    if (vType == 'SEDAN') return 'Prime Sedan';
     return type;
   }
 
@@ -512,8 +509,7 @@ class _UserReviewRequirementScreenState extends State<UserReviewRequirementScree
 
   String _normalizeVehicleType(String type) {
     final cleaned = type.trim().toUpperCase().replaceAll(' ', '_');
-    if (cleaned.isNotEmpty) return cleaned;
-    return 'SEDAN';
+    return cleaned;
   }
 
   Future<void> _handleConfirmAndPost() async {

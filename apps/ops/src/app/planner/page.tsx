@@ -8,6 +8,7 @@ import {
   RoutePlanningResult,
   RoutePlanningDirectionOutcome,
   RoutePlanningResponse,
+  VehicleCategoryOption,
 } from '../../lib/api/opsTypes';
 import { Button } from '../../components/common/Button';
 import { SpatialTopologyCanvas } from '../../components/operations/SpatialTopologyCanvas';
@@ -70,9 +71,7 @@ function istLocalToIso(value: string): string | undefined {
 
 /** Settings a roster plan was calculated with; commit reuses them so persisted routes match the plan. */
 interface RosterPlanSettings {
-  vehicleCategory: 'SEDAN' | 'SUV' | 'BOTH';
-  sedanCapacity: number;
-  suvCapacity: number;
+  vehicleCategory: string;
   stopDwellMinutes: number;
 }
 
@@ -97,9 +96,7 @@ export default function RouteOptimizerPage() {
   const [logoutDeadline, setLogoutDeadline] = useState(tomorrowEveningIst);
   const [officeRadiusKm, setOfficeRadiusKm] = useState(50);
   const [maxTripKm, setMaxTripKm] = useState(50);
-  const [uploadVehicleCategory, setUploadVehicleCategory] = useState<'SEDAN' | 'SUV' | 'BOTH'>('BOTH');
-  const [sedanCapacity, setSedanCapacity] = useState(3);
-  const [suvCapacity, setSuvCapacity] = useState(6);
+  const [uploadVehicleCategory, setUploadVehicleCategory] = useState('ALL');
   const [stopDwellMinutes, setStopDwellMinutes] = useState(10);
   const [bufferMinutes, setBufferMinutes] = useState(15);
   const [routingPreference, setRoutingPreference] = useState<RoutingPreference>('TRAFFIC_AWARE');
@@ -108,6 +105,7 @@ export default function RouteOptimizerPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   // DB Shift State
+  const [vehicleCategories, setVehicleCategories] = useState<VehicleCategoryOption[]>([]);
   const [tenants, setTenants] = useState<CorporateTenantOption[]>([]);
   const [selectedTenantId, setSelectedTenantId] = useState<string>('');
   const [selectedUploadTenantId, setSelectedUploadTenantId] = useState<string>('');
@@ -117,7 +115,7 @@ export default function RouteOptimizerPage() {
   const [loginShiftTime, setLoginShiftTime] = useState<string>('08:00');
   const [logoutShiftTime, setLogoutShiftTime] = useState<string>('17:00');
   const [direction, setDirection] = useState<'LOGIN' | 'LOGOUT' | 'BOTH'>('LOGIN');
-  const [dbVehicleCategory, setDbVehicleCategory] = useState<'SEDAN' | 'SUV' | 'BOTH'>('SEDAN');
+  const [dbVehicleCategory, setDbVehicleCategory] = useState('ALL');
 
   // Solver & UI State
   const [viewMode, setViewMode] = useState<'MAP' | 'TOPOLOGY'>('MAP');
@@ -166,6 +164,23 @@ export default function RouteOptimizerPage() {
   );
   const dbDirectionResults =
     dbOptimizeResult && 'plans' in dbOptimizeResult ? dbOptimizeResult.plans : [];
+
+  useEffect(() => {
+    let cancelled = false;
+    opsApi.getVehicleCategories()
+      .then((categories) => {
+        if (cancelled) return;
+        setVehicleCategories(categories);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setErrorMsg(`Could not load active vehicle categories: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -499,6 +514,10 @@ export default function RouteOptimizerPage() {
 
   async function handleCalculateRoutes(e: React.FormEvent) {
     e.preventDefault();
+    if (vehicleCategories.length === 0) {
+      setErrorMsg('Add an active vehicle category in Pricing before planning routes.');
+      return;
+    }
     if (!selectedFile) {
       setErrorMsg('Please select a roster spreadsheet with employee, pickup, phone, office, and login time columns.');
       return;
@@ -525,8 +544,6 @@ export default function RouteOptimizerPage() {
     }
     const settingsForPlan: RosterPlanSettings = {
       vehicleCategory: uploadVehicleCategory,
-      sedanCapacity,
-      suvCapacity,
       stopDwellMinutes: dwell,
     };
 
@@ -569,8 +586,6 @@ export default function RouteOptimizerPage() {
       formData.append('pickupWaitMinutes', String(dwell));
       formData.append('bufferMinutes', String(bufferMinutes));
       formData.append('vehicleCategory', uploadVehicleCategory);
-      formData.append('sedanCapacity', String(sedanCapacity));
-      formData.append('suvCapacity', String(suvCapacity));
       formData.append('routingPreference', routingPreference);
       formData.append('avoidTolls', String(avoidTolls));
       formData.append('avoidHighways', String(avoidHighways));
@@ -608,8 +623,12 @@ export default function RouteOptimizerPage() {
         ...collectedPlans[0].plan,
         employeeCount: collectedPlans.reduce((sum, entry) => sum + (entry.plan.employeeCount || 0), 0),
         cabCount: collectedPlans.reduce((sum, entry) => sum + (entry.plan.cabCount || 0), 0),
-        sedanRouteCount: collectedPlans.reduce((sum, entry) => sum + (entry.plan.sedanRouteCount || 0), 0),
-        suvRouteCount: collectedPlans.reduce((sum, entry) => sum + (entry.plan.suvRouteCount || 0), 0),
+        vehicleCategoryCounts: collectedPlans.reduce<Record<string, number>>((counts, entry) => {
+          for (const [category, count] of Object.entries(entry.plan.vehicleCategoryCounts ?? {})) {
+            counts[category] = (counts[category] || 0) + count;
+          }
+          return counts;
+        }, {}),
         outOfRadiusCount: collectedPlans.reduce((sum, entry) => sum + (entry.plan.outOfRadiusCount || 0), 0),
         excludedByDistanceCount: collectedPlans.reduce(
           (sum, entry) => sum + (entry.plan.excludedByDistanceCount || 0),
@@ -676,6 +695,10 @@ export default function RouteOptimizerPage() {
 
   async function handleOptimizeDbShift(e: React.FormEvent) {
     e.preventDefault();
+    if (vehicleCategories.length === 0) {
+      setErrorMsg('Add an active vehicle category in Pricing before planning routes.');
+      return;
+    }
     if (!selectedTenantId || !selectedOfficeId) {
       setErrorMsg('Please select a tenant and office hub');
       return;
@@ -708,8 +731,6 @@ export default function RouteOptimizerPage() {
         ...(direction === 'LOGOUT' || direction === 'BOTH' ? { logoutTime: logoutShiftTime } : {}),
         direction,
         vehicleCategory: dbVehicleCategory,
-        sedanCapacity,
-        suvCapacity,
         stopDwellMinutes: liveDwell,
         routingPreference,
         avoidTolls,
@@ -813,8 +834,6 @@ export default function RouteOptimizerPage() {
             direction: routeDirection,
             // Commit with the settings the plan was calculated with, not later form edits.
             vehicleCategory: planSettings.vehicleCategory,
-            sedanCapacity: planSettings.sedanCapacity,
-            suvCapacity: planSettings.suvCapacity,
             stopDwellMinutes: planSettings.stopDwellMinutes,
             ...({ includeMetadata: true } as any),
           });
@@ -1334,7 +1353,8 @@ export default function RouteOptimizerPage() {
                         </label>
                         <select
                           value={uploadVehicleCategory}
-                          onChange={(e) => setUploadVehicleCategory(e.target.value as 'SEDAN' | 'SUV' | 'BOTH')}
+                          onChange={(e) => setUploadVehicleCategory(e.target.value)}
+                          disabled={vehicleCategories.length === 0}
                           style={{
                             width: '100%',
                             padding: '8px 12px',
@@ -1346,62 +1366,14 @@ export default function RouteOptimizerPage() {
                             outline: 'none',
                           }}
                         >
-                          <option value="SEDAN">Sedan only</option>
-                          <option value="SUV">SUV only</option>
-                          <option value="BOTH">Both (automatic mixed allocation)</option>
+                          <option value="ALL">Auto-assign across all active categories</option>
+                          {vehicleCategories.map((category) => (
+                            <option key={category.vehicleType} value={category.vehicleType}>
+                              {category.categoryLabel} ({category.maxSeats} seats)
+                            </option>
+                          ))}
                         </select>
                       </div>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                      {(uploadVehicleCategory === 'SEDAN' || uploadVehicleCategory === 'BOTH') && (
-                        <div>
-                          <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                            Sedan Capacity (max 3)
-                          </label>
-                          <input
-                            type="number"
-                            min={1}
-                            max={3}
-                            value={sedanCapacity}
-                            onChange={(e) => setSedanCapacity(Math.min(3, Math.max(1, Number(e.target.value) || 3)))}
-                            style={{
-                              width: '100%',
-                              padding: '8px 12px',
-                              backgroundColor: 'var(--bg-input)',
-                              border: '1px solid var(--border-subtle)',
-                              borderRadius: '6px',
-                              color: 'var(--text-primary)',
-                              fontSize: '13px',
-                              outline: 'none',
-                            }}
-                          />
-                        </div>
-                      )}
-                      {(uploadVehicleCategory === 'SUV' || uploadVehicleCategory === 'BOTH') && (
-                        <div>
-                          <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                            SUV Capacity (max 6)
-                          </label>
-                          <input
-                            type="number"
-                            min={1}
-                            max={6}
-                            value={suvCapacity}
-                            onChange={(e) => setSuvCapacity(Math.min(6, Math.max(1, Number(e.target.value) || 6)))}
-                            style={{
-                              width: '100%',
-                              padding: '8px 12px',
-                              backgroundColor: 'var(--bg-input)',
-                              border: '1px solid var(--border-subtle)',
-                              borderRadius: '6px',
-                              color: 'var(--text-primary)',
-                              fontSize: '13px',
-                              outline: 'none',
-                            }}
-                          />
-                        </div>
-                      )}
                     </div>
 
                     {/* Dwell and Buffer */}
@@ -1572,7 +1544,7 @@ export default function RouteOptimizerPage() {
                       type="submit"
                       variant="primary"
                       style={{ width: '100%' }}
-                      disabled={calculating || !selectedFile}
+                      disabled={calculating || !selectedFile || vehicleCategories.length === 0}
                       leftIcon={calculating ? <RefreshCw className="spin" size={16} /> : <Play size={16} />}
                     >
                       {calculating ? 'Solving CVRPTW Routes...' : 'Calculate Routes'}
@@ -1751,7 +1723,8 @@ export default function RouteOptimizerPage() {
                         </label>
                         <select
                           value={dbVehicleCategory}
-                          onChange={(e) => setDbVehicleCategory(e.target.value as 'SEDAN' | 'SUV' | 'BOTH')}
+                          onChange={(e) => setDbVehicleCategory(e.target.value)}
+                          disabled={vehicleCategories.length === 0}
                           style={{
                             width: '100%',
                             padding: '8px 12px',
@@ -1763,62 +1736,14 @@ export default function RouteOptimizerPage() {
                             outline: 'none',
                           }}
                         >
-                          <option value="SEDAN">Sedan (up to 3 riders)</option>
-                          <option value="SUV">SUV (up to 6 riders)</option>
-                          <option value="BOTH">Both (auto-balance vehicles)</option>
+                          <option value="ALL">Auto-assign across all active categories</option>
+                          {vehicleCategories.map((category) => (
+                            <option key={category.vehicleType} value={category.vehicleType}>
+                              {category.categoryLabel} ({category.maxSeats} seats)
+                            </option>
+                          ))}
                         </select>
                       </div>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                      {(dbVehicleCategory === 'SEDAN' || dbVehicleCategory === 'BOTH') && (
-                        <div>
-                          <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                            Sedan Capacity (max 3)
-                          </label>
-                          <input
-                            type="number"
-                            min={1}
-                            max={3}
-                            value={sedanCapacity}
-                            onChange={(e) => setSedanCapacity(Math.min(3, Math.max(1, Number(e.target.value) || 3)))}
-                            style={{
-                              width: '100%',
-                              padding: '8px 12px',
-                              backgroundColor: 'var(--bg-input)',
-                              border: '1px solid var(--border-subtle)',
-                              borderRadius: '6px',
-                              color: 'var(--text-primary)',
-                              fontSize: '13px',
-                              outline: 'none',
-                            }}
-                          />
-                        </div>
-                      )}
-                      {(dbVehicleCategory === 'SUV' || dbVehicleCategory === 'BOTH') && (
-                        <div>
-                          <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                            SUV Capacity (max 6)
-                          </label>
-                          <input
-                            type="number"
-                            min={1}
-                            max={6}
-                            value={suvCapacity}
-                            onChange={(e) => setSuvCapacity(Math.min(6, Math.max(1, Number(e.target.value) || 6)))}
-                            style={{
-                              width: '100%',
-                              padding: '8px 12px',
-                              backgroundColor: 'var(--bg-input)',
-                              border: '1px solid var(--border-subtle)',
-                              borderRadius: '6px',
-                              color: 'var(--text-primary)',
-                              fontSize: '13px',
-                              outline: 'none',
-                            }}
-                          />
-                        </div>
-                      )}
                     </div>
 
                     <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
@@ -1884,7 +1809,9 @@ export default function RouteOptimizerPage() {
                         <strong>{dbDirectionResults.some((plan) => !plan.success) ? 'Partial Optimization:' : 'Optimization Result:'}</strong>
                         <div style={{ marginTop: '4px', color: 'var(--text-primary)' }}>
                           • Created {dbOptimizeResult.routesCreated ?? 0} active routes<br />
-                          • Sedan {dbOptimizeResult.sedanRoutesCreated ?? 0} / SUV {dbOptimizeResult.suvRoutesCreated ?? 0}<br />
+                          • Categories: {Object.entries(dbOptimizeResult.vehicleCategoryCounts ?? {})
+                            .map(([category, count]) => `${category} ${count}`)
+                            .join(' / ') || 'none'}<br />
                           • Assigned {dbOptimizeResult.passengersAssigned ?? 0} employee bookings<br />
                           • Unassigned {dbOptimizeResult.unassignedRequests ?? 0} requests<br />
                           {!('plans' in dbOptimizeResult) &&
@@ -1913,7 +1840,7 @@ export default function RouteOptimizerPage() {
                       type="submit"
                       variant="primary"
                       style={{ width: '100%' }}
-                      disabled={dbOptimizing}
+                      disabled={dbOptimizing || vehicleCategories.length === 0}
                       leftIcon={dbOptimizing ? <RefreshCw className="spin" size={16} /> : <Cpu size={16} />}
                     >
                       {dbOptimizing ? 'Optimizing Fleet...' : 'Auto-Optimize Shift Routes'}
@@ -1970,7 +1897,7 @@ export default function RouteOptimizerPage() {
                         <div key={outcome.direction} style={{ marginTop: '6px' }}>
                           <strong>{outcome.direction}:</strong>{' '}
                           {outcome.success && outcome.plan
-                            ? `${outcome.plan.employeeCount} employees, ${outcome.plan.cabCount} routes (${outcome.plan.sedanRouteCount ?? 0} Sedan / ${outcome.plan.suvRouteCount ?? 0} SUV)`
+                            ? `${outcome.plan.employeeCount} employees, ${outcome.plan.cabCount} routes (${Object.entries(outcome.plan.vehicleCategoryCounts ?? {}).map(([category, count]) => `${category} ${count}`).join(' / ') || 'category breakdown unavailable'})`
                             : `Failed — ${outcome.error || 'No plan returned.'}`}
                         </div>
                       ))}
@@ -2072,12 +1999,12 @@ export default function RouteOptimizerPage() {
                                     fontWeight: 700,
                                     padding: '1px 6px',
                                     borderRadius: '4px',
-                                    backgroundColor: route.cabType === 'suv' ? 'rgba(238, 152, 17, 0.15)' : 'rgba(17, 103, 238, 0.15)',
-                                    color: route.cabType === 'suv' ? '#EE9811' : '#1167EE',
-                                    border: `1px solid ${route.cabType === 'suv' ? '#EE9811' : '#1167EE'}`,
+                                    backgroundColor: 'rgba(17, 103, 238, 0.15)',
+                                    color: '#1167EE',
+                                    border: '1px solid #1167EE',
                                   }}
                                 >
-                                  {(route.cabType || 'sedan').toUpperCase()}
+                                  {(route.cabType || 'Unspecified').toUpperCase()}
                                 </span>
                               </div>
                               <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
@@ -2138,7 +2065,7 @@ export default function RouteOptimizerPage() {
                                 Sequence: <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{route.sequence}</span>
                               </div>
                               <div style={{ display: 'flex', gap: '8px', fontSize: '11px' }}>
-                                <span>Cab: <strong style={{ textTransform: 'uppercase' }}>{route.cabType || 'Sedan'}</strong></span>
+                                <span>Cab: <strong style={{ textTransform: 'uppercase' }}>{route.cabType || 'Unspecified'}</strong></span>
                                 <span>Revenue: <strong style={{ color: '#1167EE' }}>₹{route.corporateRevenue ?? 0}</strong></span>
                                 <span>Payout: <strong>₹{route.driverPayout ?? 0}</strong></span>
                                 <span>Margin: <strong style={{ color: 'var(--color-success, #16A34A)' }}>₹{route.projectedMargin ?? 0}</strong></span>

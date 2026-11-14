@@ -68,7 +68,7 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final offer = _offer ?? {};
-    final vehicleType = (offer['vehicleType'] ?? 'Sedan').toString();
+    final vehicleType = (offer['vehicleType'] ?? 'Vehicle category unavailable').toString();
     final pickup = offer['pickupLocation'] as Map<String, dynamic>?;
     final drop = offer['dropLocation'] as Map<String, dynamic>?;
     final pickupAddr = (pickup?['address'] ?? offer['pickup'] ?? 'Pickup Location').toString();

@@ -176,7 +176,7 @@ class _UserDraftRequirementsScreenState extends State<UserDraftRequirementsScree
                           separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
                           itemBuilder: (context, index) {
                             final draft = _drafts[index] is Map ? _drafts[index] as Map<String, dynamic> : <String, dynamic>{};
-                            final vehicleType = draft['vehicleType'] ?? 'Sedan';
+                            final vehicleType = draft['vehicleType'] ?? 'Vehicle category unavailable';
                             final quantity = draft['quantity'] ?? 1;
                             final title = draft['notes'] != null && draft['notes'].toString().isNotEmpty
                                 ? draft['notes'].toString().split('|').first.trim()

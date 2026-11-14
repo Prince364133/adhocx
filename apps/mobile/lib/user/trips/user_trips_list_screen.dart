@@ -94,7 +94,7 @@ class _UserTripsListScreenState extends State<UserTripsListScreen> {
                 'requirementId': reqId,
                 'isRequirementOnly': true,
                 'status': map['status'] ?? 'SCHEDULED',
-                'vehicleType': map['vehicleType'] ?? 'Sedan',
+                'vehicleType': map['vehicleType'] ?? '',
                 'quantity': map['quantity'] ?? 1,
                 'fare': map['ratePerVehicle'] ?? map['suggestedBudget'] ?? map['budgetPerVehicle'] ?? map['totalAmount'],
                 'pickupLocation': map['pickupLocation'],
@@ -335,7 +335,7 @@ class _UserTripsListScreenState extends State<UserTripsListScreen> {
     final vehiclePlate = driver['vehiclePlate'] ?? trip['vehiclePlate'];
 
     final status = (trip['status'] ?? 'SCHEDULED').toString().toUpperCase();
-    final vehicle = (trip['vehicleType'] ?? req['vehicleType'] ?? 'Sedan').toString();
+    final vehicle = (trip['vehicleType'] ?? req['vehicleType'] ?? 'Vehicle category unavailable').toString();
     final quantity = req['quantity'] ?? trip['quantity'] ?? 1;
 
     final tripId = (trip['id'] ?? 'TRIP').toString();

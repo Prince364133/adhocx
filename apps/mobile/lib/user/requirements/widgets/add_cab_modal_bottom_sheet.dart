@@ -142,40 +142,24 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
       if (tiers.isEmpty) {
         tiers = await UserService.instance.getPricingTiers(forceRefresh: true);
       }
-      final activeTiers = tiers.where((t) => t['isActive'] != false).toList();
+      final activeTiers = tiers.where((t) {
+        return t['isActive'] != false &&
+            (t['vehicleType'] as String?)?.trim().isNotEmpty == true;
+      }).toList();
       if (activeTiers.isNotEmpty && mounted) {
         setState(() {
           _vehicleOptions = activeTiers.map((t) {
-            final vType = (t['vehicleType'] as String? ?? 'SEDAN').toUpperCase();
+            final vType = (t['vehicleType'] as String).toUpperCase();
             final label = t['categoryLabel']?.toString() ?? vType;
-            final seating = t['seatingCapacity']?.toString() ?? '4 + 1 Passengers';
-            int maxSeats = (t['maxSeats'] as num?)?.toInt() ?? (t['seats'] as num?)?.toInt() ?? 0;
-            if (vType == 'SUV' || label.toUpperCase().contains('SUV') || label.contains('7') || seating.contains('7') || seating.contains('6 + 1')) {
-              maxSeats = 7;
-            } else if (vType == 'BUS' || label.toUpperCase().contains('BUS')) {
-              maxSeats = 24;
-            } else if (vType == 'TEMPO_TRAVELLER' || label.toUpperCase().contains('TEMPO')) {
-              maxSeats = 12;
-            } else if (maxSeats <= 0) {
-              if (seating.contains('12')) {
-                maxSeats = 12;
-              } else if (seating.contains('24')) {
-                maxSeats = 24;
-              } else {
-                maxSeats = 4;
-              }
-            }
+            final seating = t['seatingCapacity']?.toString() ?? '';
+            final maxSeats = _categoryCapacity(t);
 
             IconData icon = Icons.directions_car_rounded;
             final iconKey = t['iconKey'] as String? ?? '';
-            if (vType == 'SUV') {
-              icon = Icons.airport_shuttle_rounded;
-            } else if (vType == 'BUS' || iconKey == 'bus') {
+            if (iconKey == 'bus') {
               icon = Icons.directions_bus_rounded;
-            } else if (vType == 'TEMPO_TRAVELLER' || vType == 'TATA_ACE' || vType == 'PICKUP_TRUCK' || iconKey == 'truck') {
+            } else if (iconKey == 'truck') {
               icon = Icons.local_shipping_rounded;
-            } else if (vType == 'HATCHBACK') {
-              icon = Icons.electric_car_rounded;
             }
 
             return {
@@ -185,7 +169,7 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
               'maxSeats': maxSeats,
               'icon': icon,
             };
-          }).toList();
+          }).where((option) => (option['maxSeats'] as int) > 0).toList();
 
           // Auto-select first available live category if none set
           if ((_vehicleType.isEmpty || !_vehicleOptions.any((v) => v['id'] == _vehicleType)) &&
@@ -209,6 +193,19 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
     }
   }
 
+  int _categoryCapacity(Map<String, dynamic> tier) {
+    final supplied = (tier['maxSeats'] as num?)?.toInt() ??
+        (tier['seats'] as num?)?.toInt();
+    if (supplied != null && supplied > 0) return supplied;
+    final seating = tier['seatingCapacity']?.toString() ?? '';
+    final split = RegExp(r'(\d+)\s*\+\s*(\d+)').firstMatch(seating);
+    if (split != null) {
+      return int.parse(split.group(1)!) + int.parse(split.group(2)!);
+    }
+    final numeric = RegExp(r'\d+').firstMatch(seating);
+    return numeric == null ? 0 : int.parse(numeric.group(0)!);
+  }
+
   @override
   void dispose() {
     _notesController.dispose();
@@ -224,20 +221,17 @@ class _AddCabModalBottomSheetState extends State<AddCabModalBottomSheet> {
     if (_vehicleOptions.isNotEmpty) {
       return _vehicleOptions.first;
     }
-    final isSuv = _vehicleType.toUpperCase() == 'SUV' ||
-        _vehicleLabel.toUpperCase().contains('SUV') ||
-        _vehicleLabel.contains('7');
     return <String, dynamic>{
       'id': _vehicleType.isNotEmpty ? _vehicleType : '',
       'label': _vehicleLabel.isNotEmpty ? _vehicleLabel : '',
-      'maxSeats': isSuv ? 7 : 4,
-      'icon': isSuv ? Icons.airport_shuttle_rounded : Icons.directions_car_rounded,
+      'maxSeats': 0,
+      'icon': Icons.directions_car_rounded,
     };
   }
 
   int get _currentMaxSeats {
     final opt = _getSelectedVehicleOption();
-    return (opt['maxSeats'] as num?)?.toInt() ?? 4;
+    return (opt['maxSeats'] as num?)?.toInt() ?? 0;
   }
 
   bool get _hasRoute => _pickupLat != 0.0 && _pickupLng != 0.0 && _dropLat != 0.0 && _dropLng != 0.0;

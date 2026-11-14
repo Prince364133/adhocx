@@ -42,13 +42,14 @@ export class RateCardService {
    * `isActive AND effectiveFrom <= at AND (effectiveTo IS NULL OR effectiveTo > at)`, latest
    * `effectiveFrom` wins. Returns null when none is configured (or the table is unavailable).
    */
-  async findDriverRateCard(vehicleCategory: string = 'SEDAN', at: Date = new Date()): Promise<DriverRateCardRow | null> {
+  async findDriverRateCard(vehicleCategory: string = '', at: Date = new Date()): Promise<DriverRateCardRow | null> {
+    if (!vehicleCategory.trim()) return null;
     const delegate: any = (this.db as any)?.corporateDriverRateCard;
     if (!delegate?.findFirst) return null;
     try {
       const card = await delegate.findFirst({
         where: {
-          vehicleCategory: { equals: vehicleCategory || 'SEDAN', mode: 'insensitive' },
+          vehicleCategory: { equals: vehicleCategory, mode: 'insensitive' },
           isActive: true,
           effectiveFrom: { lte: at },
           OR: [{ effectiveTo: null }, { effectiveTo: { gt: at } }],
@@ -76,7 +77,7 @@ export class RateCardService {
 
   /** Card in force at `at`, or `fallback` (billing defaults) when none exists. */
   async resolveDriverPayout(
-    vehicleCategory: string = 'SEDAN',
+    vehicleCategory: string = '',
     distanceMeters: number,
     at: Date = new Date(),
     fallback: Pick<DriverRateCardRow, 'basePayoutPaise' | 'baseDistanceMeters' | 'perKmPaise'> = DEFAULT_DRIVER_PAYOUT_CARD,
@@ -97,16 +98,17 @@ export class RateCardService {
    */
   async findClientRateCard(
     tenantId: string,
-    vehicleCategory: string = 'SEDAN',
+    vehicleCategory: string = '',
     at: Date = new Date(),
   ): Promise<ClientCardTerms | null> {
+    if (!vehicleCategory.trim()) return null;
     const delegate: any = (this.db as any)?.corporateRateCard;
     if (!delegate?.findFirst) return null;
     try {
       const card = await delegate.findFirst({
         where: {
           tenantId,
-          vehicleCategory: { equals: vehicleCategory || 'SEDAN', mode: 'insensitive' },
+          vehicleCategory: { equals: vehicleCategory, mode: 'insensitive' },
           effectiveFrom: { lte: at },
           OR: [{ effectiveTo: null }, { effectiveTo: { gt: at } }],
         },
@@ -151,6 +153,7 @@ export class RateCardService {
 
   /** Corporate card in force at `at` picked from an already-loaded version list (no query). */
   static selectClientCard(cards: readonly ClientCardTerms[], vehicleCategory: string, at: Date): ClientCardTerms | null {
-    return selectCardAt(cards, vehicleCategory || 'SEDAN', at);
+    if (!vehicleCategory.trim()) return null;
+    return selectCardAt(cards, vehicleCategory, at);
   }
 }

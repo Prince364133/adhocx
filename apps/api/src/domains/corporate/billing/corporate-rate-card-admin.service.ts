@@ -51,7 +51,7 @@ export class CorporateRateCardAdminService {
     const tenant = await this.db.corporateTenant.findUnique({ where: { id: dto.tenantId }, select: { id: true } });
     if (!tenant) throw new NotFoundException(`Corporate tenant ${dto.tenantId} not found`);
 
-    const vehicleCategory = normalizeCategory(dto.vehicleCategory);
+    const vehicleCategory = await this.normalizeActiveCategory(dto.vehicleCategory);
     const effectiveFrom = parseInstant(dto.effectiveFrom, 'effectiveFrom');
     const terms = {
       baseFarePaise: parsePaise(dto.baseFarePaise, 'baseFarePaise', { required: true })!,
@@ -136,7 +136,7 @@ export class CorporateRateCardAdminService {
   // ---------------------------------------------------------------------------
 
   public async createDriverCard(dto: CreateDriverRateCardDto, actorUserId?: string) {
-    const vehicleCategory = normalizeCategory(dto?.vehicleCategory);
+    const vehicleCategory = await this.normalizeActiveCategory(dto?.vehicleCategory);
     const effectiveFrom = parseInstant(dto?.effectiveFrom, 'effectiveFrom');
     if (effectiveFrom.getTime() < Date.now() - DRIVER_CARD_CLOCK_SKEW_MS) {
       throw new BadRequestException('A driver rate card version cannot start in the past (live offers are priced from it)');
@@ -275,6 +275,18 @@ export class CorporateRateCardAdminService {
         `Rate card version ${card.version} already priced invoiced trips on/after ${cut.toISOString()}; a used version is never edited`,
       );
     }
+  }
+
+  private async normalizeActiveCategory(value: unknown): Promise<string> {
+    const category = normalizeCategory(value);
+    const tier = await this.db.vehiclePricingTier.findUnique({
+      where: { vehicleType: category },
+      select: { isActive: true },
+    });
+    if (!tier?.isActive) {
+      throw new BadRequestException(`Vehicle category '${category}' is not active in the vehicle catalogue`);
+    }
+    return category;
   }
 
   private parseMeters(v: unknown): number {

@@ -928,9 +928,7 @@ class _UserCreateRequirementScreenState extends State<UserCreateRequirementScree
                                             borderRadius: BorderRadius.circular(AppRadius.md),
                                           ),
                                           child: Icon(
-                                            cab.vehicleType == 'SUV'
-                                                ? Icons.airport_shuttle_rounded
-                                                : Icons.directions_car_rounded,
+                                            Icons.directions_car_rounded,
                                             color: AppColors.primary,
                                             size: 22,
                                           ),

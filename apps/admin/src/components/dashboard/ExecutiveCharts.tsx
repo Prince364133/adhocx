@@ -881,14 +881,14 @@ export const FleetCategoryDistributionChart: React.FC<{
               No Category Demands Recorded Yet
             </h4>
             <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', maxWidth: '440px', margin: '0 auto' }}>
-              Fleet demand distribution across Sedan, SUV, Tempo Traveller, Bus, and Tata Ace will track and render automatically as corporate clients post ride requirements.
+              Fleet demand distribution will track every active vehicle category as corporate clients post ride requirements.
             </p>
           </div>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {categories.map((c: any, idx: number) => {
-            const categoryName = c.category || c.vehicleType || 'SEDAN';
+            const categoryName = c.category || c.vehicleType || 'Unspecified';
             const demands = Number(c.demands || 0);
             const rate = Number(c.rate || 0);
             return (
@@ -1057,7 +1057,7 @@ export const CorridorMatrixChart: React.FC<{
                         color: 'var(--brand-primary)',
                       }}
                     >
-                      {c.vehicleClass || c.topVehicleType || 'SEDAN'}
+                      {c.vehicleClass || c.topVehicleType || 'Unspecified'}
                     </span>
                   </td>
                   <td>{c.demands || c.totalTrips || 0}</td>

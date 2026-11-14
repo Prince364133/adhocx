@@ -21,12 +21,10 @@ import {
 } from './cost-optimizer';
 import { getPhoneVariants, normalizeIndianPhone } from '../../../common/utils/uniqueness.util';
 import { istWallClockToUtc } from '../replanning/cutoff-policy';
-import { VEHICLE_CAPACITY } from './routing.types';
+import { calculateTierMaxSeats } from '../../../modules/pricing/pricing.service';
 
 /** A plan optimized to an office this far from the saved office is rejected at commit. */
 const OFFICE_PLAN_MAX_DRIFT_KM = 2;
-const SUV_CAPACITY = VEHICLE_CAPACITY.SUV;
-const SEDAN_CAPACITY = VEHICLE_CAPACITY.SEDAN;
 const MAX_PLANNER_DISTANCE_KM = 50;
 const COMMIT_TX_TIMEOUT_MS = 120_000;
 const SUPPORTED_SPREADSHEET_EXTENSIONS = new Set([
@@ -47,7 +45,14 @@ export function generateBoardingOtp(): string {
   return String(randomInt(1000, 10000));
 }
 
-export type PlannerVehicleCategory = 'SEDAN' | 'SUV' | 'BOTH';
+export type PlannerVehicleCategory = string;
+export interface PlannerVehicleCategoryDefinition {
+  vehicleType: string;
+  categoryLabel: string;
+  maxSeats: number;
+  baseFare: number;
+  perKmRate: number;
+}
 export type DistanceExclusionReason =
   | 'OUTSIDE_CATCHMENT'
   | 'EXCEEDS_MAX_TRIP'
@@ -77,28 +82,15 @@ export function validatePlanRouteConstraints(options: PlanRoutesFromFileOptions)
   validateRange('maxTripKm', options.maxTripKm, 1, MAX_PLANNER_DISTANCE_KM);
   validateRange('pickupWaitMinutes', options.pickupWaitMinutes, 1, 10, true);
   validateRange('bufferMinutes', options.bufferMinutes, 0, 30, true);
-  validateRange('sedanCapacity', options.sedanCapacity, 1, SEDAN_CAPACITY, true);
-  validateRange('suvCapacity', options.suvCapacity, 1, SUV_CAPACITY, true);
-  validateRange('cabCapacity', options.cabCapacity, 1, SUV_CAPACITY, true);
-  if (options.vehicleCategory && !['SEDAN', 'SUV', 'BOTH'].includes(options.vehicleCategory)) {
-    throw new BadRequestException('vehicleCategory must be SEDAN, SUV, or BOTH');
+  validateRange('cabCapacity', options.cabCapacity, 1, Number.MAX_SAFE_INTEGER, true);
+  if (options.vehicleCategory !== undefined && !options.vehicleCategory.trim()) {
+    throw new BadRequestException('vehicleCategory must not be empty');
   }
   if (
     options.routingPreference !== undefined &&
     !['TRAFFIC_UNAWARE', 'TRAFFIC_AWARE', 'TRAFFIC_AWARE_OPTIMAL'].includes(options.routingPreference)
   ) {
     throw new BadRequestException('routingPreference is not supported');
-  }
-  if (options.cabCapacity !== undefined) {
-    const categoryCapacity =
-      options.vehicleCategory === 'SEDAN'
-        ? options.sedanCapacity ?? SEDAN_CAPACITY
-        : options.vehicleCategory === 'SUV'
-          ? options.suvCapacity ?? SUV_CAPACITY
-          : Math.max(options.sedanCapacity ?? SEDAN_CAPACITY, options.suvCapacity ?? SUV_CAPACITY);
-    if (options.cabCapacity > categoryCapacity) {
-      throw new BadRequestException('cabCapacity cannot exceed the selected vehicle category capacity');
-    }
   }
 }
 
@@ -144,8 +136,6 @@ export interface PlanRoutesFromFileOptions {
   pickupWaitMinutes?: number; // standard/max 10
   cabCapacity?: number; // maximum passengers per cab, default 6
   vehicleCategory?: PlannerVehicleCategory;
-  sedanCapacity?: number;
-  suvCapacity?: number;
   routingPreference?: RouteRequestOptions['routingPreference'];
   avoidTolls?: boolean;
   avoidHighways?: boolean;
@@ -155,8 +145,7 @@ export interface PlanRoutesFromFileOptions {
 export interface PlanRoutesResult {
   employeeCount: number;
   cabCount: number;
-  sedanRouteCount: number;
-  suvRouteCount: number;
+  vehicleCategoryCounts: Record<string, number>;
   officeRadiusKm: number;
   maxTripKm: number;
   outOfRadiusCount: number;
@@ -193,8 +182,7 @@ export interface PlanRoutesBatchResult {
   plans: PlanRoutesDirectionOutcome[];
   employeeCount: number;
   cabCount: number;
-  sedanRouteCount: number;
-  suvRouteCount: number;
+  vehicleCategoryCounts: Record<string, number>;
   totalKm: number;
 }
 
@@ -213,8 +201,7 @@ export interface CommitPlanDto {
   shiftTime: string; // HH:mm
   direction: 'LOGIN' | 'LOGOUT';
   vehicleCategory?: PlannerVehicleCategory;
-  sedanCapacity?: number;
-  suvCapacity?: number;
+  cabCapacity?: number;
   stopDwellMinutes?: number;
   includeMetadata?: boolean;
   plan: PlanRoutesResult;
@@ -252,6 +239,45 @@ export class CorporateRoutePlannerService {
     private readonly db: DatabaseService,
   ) {}
 
+  private async getActiveVehicleCategories(): Promise<PlannerVehicleCategoryDefinition[]> {
+    const rows = await this.db.vehiclePricingTier.findMany({
+      where: { isActive: true },
+      orderBy: { vehicleType: 'asc' },
+      select: {
+        vehicleType: true,
+        categoryLabel: true,
+        seatingCapacity: true,
+        baseFare: true,
+        perKmRate: true,
+      },
+    });
+    return rows
+      .filter((row) => row.vehicleType?.trim())
+      .map((row) => ({
+        vehicleType: row.vehicleType.trim().toUpperCase(),
+        categoryLabel: row.categoryLabel,
+        maxSeats: calculateTierMaxSeats(row.vehicleType, row.seatingCapacity),
+        baseFare: Number(row.baseFare),
+        perKmRate: Number(row.perKmRate),
+      }));
+  }
+
+  private selectVehicleCategories(
+    selection: string | undefined,
+    categories: PlannerVehicleCategoryDefinition[],
+  ): PlannerVehicleCategoryDefinition[] {
+    if (categories.length === 0) {
+      throw new BadRequestException('No active vehicle categories are configured');
+    }
+    const requested = selection?.trim().toUpperCase() || 'ALL';
+    if (requested === 'ALL' || requested === 'BOTH') return categories;
+    const selected = categories.find((category) => category.vehicleType === requested);
+    if (!selected) {
+      throw new BadRequestException(`Vehicle category '${requested}' is not active in the vehicle catalogue`);
+    }
+    return [selected];
+  }
+
   /**
    * Plans capacity- and traffic-constrained corporate routes from an uploaded Excel / CSV file.
    */
@@ -263,6 +289,9 @@ export class CorporateRoutePlannerService {
     sharedContext?: SharedRosterPlanningContext,
   ): Promise<PlanRoutesResult> {
     validatePlanRouteConstraints(options);
+    const activeCategories = await this.getActiveVehicleCategories();
+    const vehicleCategory = options.vehicleCategory?.trim().toUpperCase() || 'ALL';
+    const selectedCategories = this.selectVehicleCategories(vehicleCategory, activeCategories);
     const parsedRoster = sharedContext?.parsedRoster ?? await this.parseRosterFile(fileBuffer, fileName);
     const rawRows = parsedRoster.rows;
     const duplicateEmployeeNames = parsedRoster.duplicateEmployeeNames;
@@ -315,9 +344,9 @@ export class CorporateRoutePlannerService {
             validatePlanRouteConstraints({ pickupWaitMinutes: policyDwellMinutes });
           }
         }
-        // Same rule as commit: only a SEDAN policy lowers the Sedan seat count.
         if (
-          String(latestPolicy?.defaultVehicleCategory ?? 'SEDAN').toUpperCase() === 'SEDAN' &&
+          selectedCategories.length === 1 &&
+          selectedCategories[0].vehicleType === String(latestPolicy?.defaultVehicleCategory ?? '').toUpperCase() &&
           Number(latestPolicy?.defaultCapacity) > 0
         ) {
           policyCapacity = Number(latestPolicy.defaultCapacity);
@@ -378,35 +407,36 @@ export class CorporateRoutePlannerService {
 
     const officeRadiusKm = options.officeRadiusKm ?? 50;
     const maxTripKm = options.maxTripKm ?? 50;
-    const vehicleCategory = options.vehicleCategory ?? 'BOTH';
-    const sedanCapacity = options.sedanCapacity ?? Math.min(policyCapacity ?? SEDAN_CAPACITY, SEDAN_CAPACITY);
-    const suvCapacity = options.suvCapacity ?? SUV_CAPACITY;
-    const maxCategoryCapacity =
-      vehicleCategory === 'SEDAN'
-        ? sedanCapacity
-        : vehicleCategory === 'SUV'
-          ? suvCapacity
-          : Math.max(sedanCapacity, suvCapacity);
-    const cabCapacity = options.cabCapacity == null ? maxCategoryCapacity : Math.min(options.cabCapacity, maxCategoryCapacity);
+    const maxCategoryCapacity = Math.max(...selectedCategories.map((category) => category.maxSeats));
+    const policyBoundedCapacity =
+      selectedCategories.length === 1 && policyCapacity
+        ? Math.min(maxCategoryCapacity, policyCapacity)
+        : maxCategoryCapacity;
+    const cabCapacity = options.cabCapacity ?? policyBoundedCapacity;
+    if (cabCapacity > maxCategoryCapacity) {
+      throw new BadRequestException(`cabCapacity cannot exceed the selected vehicle category capacity of ${maxCategoryCapacity}`);
+    }
     const configuredBufferMinutes = options.bufferMinutes ?? policyBufferMinutes ?? 15;
     validatePlanRouteConstraints({
       ...options,
       officeRadiusKm,
       maxTripKm,
       bufferMinutes: configuredBufferMinutes,
-      sedanCapacity,
-      suvCapacity,
       cabCapacity,
     });
     const basePricingConfig = options.pricingConfig || DEFAULT_PRICING_CONFIG;
     const pricingConfig: PricingConfig = {
       ...basePricingConfig,
-      cabTypes: basePricingConfig.cabTypes
-        .filter((cab) => vehicleCategory === 'BOTH' || cab.name.toUpperCase() === vehicleCategory)
-        .map((cab) => ({
-          ...cab,
-          capacity: cab.name.toLowerCase() === 'sedan' ? sedanCapacity : suvCapacity,
-        })),
+      cabTypes: selectedCategories.map((category) => {
+        return {
+          fixedCharge: category.baseFare,
+          perKmCharge: category.perKmRate,
+          distanceSlabs: [],
+          fleetCount: Number.MAX_SAFE_INTEGER,
+          name: category.vehicleType,
+          capacity: Math.min(category.maxSeats, cabCapacity),
+        };
+      }),
     };
 
     const resolvedWaitMinutes = Math.min(
@@ -597,7 +627,7 @@ export class CorporateRoutePlannerService {
         onProgress(
           'route_complete',
           pct,
-          `Solved Route ${i + 1} of ${routeGroups.length} [${cabRoute.cabType?.toUpperCase() || 'SEDAN'}] (${cabRoute.distanceKm} km, payout: ₹${cabRoute.driverPayout})`,
+          `Solved Route ${i + 1} of ${routeGroups.length} [${cabRoute.cabType?.toUpperCase() || 'VEHICLE'}] (${cabRoute.distanceKm} km, payout: ₹${cabRoute.driverPayout})`,
           {
             route: cabRoute,
             completed: i + 1,
@@ -628,8 +658,11 @@ export class CorporateRoutePlannerService {
     const result: PlanRoutesResult = {
       employeeCount,
       cabCount: routes.length,
-      sedanRouteCount: routes.filter((route) => route.cabType?.toUpperCase() === 'SEDAN').length,
-      suvRouteCount: routes.filter((route) => route.cabType?.toUpperCase() === 'SUV').length,
+      vehicleCategoryCounts: routes.reduce<Record<string, number>>((counts, route) => {
+        const category = route.cabType?.toUpperCase();
+        if (category) counts[category] = (counts[category] || 0) + 1;
+        return counts;
+      }, {}),
       officeRadiusKm: config.officeRadiusKm,
       maxTripKm,
       outOfRadiusCount,
@@ -718,8 +751,12 @@ export class CorporateRoutePlannerService {
       plans: outcomes,
       employeeCount: successfulPlans.reduce((sum, plan) => sum + plan.employeeCount, 0),
       cabCount: successfulPlans.reduce((sum, plan) => sum + plan.cabCount, 0),
-      sedanRouteCount: successfulPlans.reduce((sum, plan) => sum + plan.sedanRouteCount, 0),
-      suvRouteCount: successfulPlans.reduce((sum, plan) => sum + plan.suvRouteCount, 0),
+      vehicleCategoryCounts: successfulPlans.reduce<Record<string, number>>((counts, plan) => {
+        for (const [category, count] of Object.entries(plan.vehicleCategoryCounts)) {
+          counts[category] = (counts[category] || 0) + count;
+        }
+        return counts;
+      }, {}),
       totalKm: Number(successfulPlans.reduce((sum, plan) => sum + plan.totalKm, 0).toFixed(2)),
     };
   }
@@ -803,19 +840,17 @@ export class CorporateRoutePlannerService {
       officeId,
       shiftDate,
       shiftTime,
-      vehicleCategory = 'BOTH',
-      suvCapacity = SUV_CAPACITY,
+      vehicleCategory = 'ALL',
       plan,
     } = dto;
-    const requestedSedanCapacity = dto.sedanCapacity;
-    const sedanCapacity = requestedSedanCapacity ?? SEDAN_CAPACITY;
+    const activeCategories = await this.getActiveVehicleCategories();
+    const selectedCategories = this.selectVehicleCategories(vehicleCategory, activeCategories);
     const direction = String(dto.direction ?? 'LOGIN').toUpperCase() as 'LOGIN' | 'LOGOUT';
     const isLogout = direction === 'LOGOUT';
 
     validatePlanRouteConstraints({
       vehicleCategory,
-      sedanCapacity,
-      suvCapacity,
+      cabCapacity: dto.cabCapacity,
       pickupWaitMinutes: dto.stopDwellMinutes,
     });
     if (!/^\d{4}-\d{2}-\d{2}$/.test(shiftDate) || !Number.isFinite(new Date(`${shiftDate}T00:00:00Z`).getTime()) ||
@@ -881,9 +916,9 @@ export class CorporateRoutePlannerService {
       }
     }
 
-    // Policy: dwell + sedan capacity
+    // Policy: dwell + capacity for the configured category.
     let defaultDwellSeconds = (dto.stopDwellMinutes ?? 10) * 60;
-    let effectiveSedanCapacity = sedanCapacity;
+    let policyCapacity: number | undefined;
     if (typeof (this.db as any)?.corporateTenantPolicy?.findFirst === 'function') {
       const policy: any = await this.db.corporateTenantPolicy.findFirst({
         where: { tenantId },
@@ -897,13 +932,13 @@ export class CorporateRoutePlannerService {
         }
         defaultDwellSeconds = policyDwell * 60;
       }
-      // Mirror planning: an explicit request capacity wins; otherwise a SEDAN policy may lower the seat count.
       if (
-        requestedSedanCapacity == null &&
-        String(policy?.defaultVehicleCategory ?? 'SEDAN').toUpperCase() === 'SEDAN' &&
+        dto.cabCapacity == null &&
+        selectedCategories.length === 1 &&
+        String(policy?.defaultVehicleCategory ?? '').toUpperCase() === selectedCategories[0].vehicleType &&
         Number(policy?.defaultCapacity) > 0
       ) {
-        effectiveSedanCapacity = Math.min(sedanCapacity, Number(policy.defaultCapacity));
+        policyCapacity = Number(policy.defaultCapacity);
       }
     }
 
@@ -954,12 +989,22 @@ export class CorporateRoutePlannerService {
           const targetOfficeArrivalTime = isLogout ? departure : officeArrival;
           const { date: routeShiftDate, time: routeShiftTime } = istParts(isLogout ? departure : officeArrival);
 
-          let effectiveCategory: 'SEDAN' | 'SUV' =
-            vehicleCategory === 'SUV' || (vehicleCategory === 'BOTH' && route.stops.length > effectiveSedanCapacity)
-              ? 'SUV'
-              : 'SEDAN';
-          if (vehicleCategory === 'BOTH' && route.cabType?.toUpperCase() === 'SUV') effectiveCategory = 'SUV';
-          const effectiveMaxCapacity = effectiveCategory === 'SUV' ? suvCapacity : effectiveSedanCapacity;
+          const routeCategory = route.cabType?.trim().toUpperCase();
+          const category = selectedCategories.find((item) => item.vehicleType === routeCategory)
+            ?? (selectedCategories.length === 1 ? selectedCategories[0] : undefined)
+            ?? selectedCategories
+              .filter((item) => item.maxSeats >= route.stops.length)
+              .sort((left, right) => left.maxSeats - right.maxSeats)[0];
+          if (!category) {
+            throw new BadRequestException(
+              `Route ${route.cab} does not match an active vehicle category with enough seats`,
+            );
+          }
+          const effectiveCategory = category.vehicleType;
+          const effectiveMaxCapacity = Math.min(
+            category.maxSeats,
+            dto.cabCapacity ?? (policyCapacity ?? category.maxSeats),
+          );
           if (route.stops.length > effectiveMaxCapacity) {
             throw new BadRequestException(
               `Route ${route.cab} has ${route.stops.length} employees; a ${effectiveCategory} seats ${effectiveMaxCapacity}`,
@@ -1186,7 +1231,7 @@ export class CorporateRoutePlannerService {
     for (const r of plan.routes) {
       s1.addRow({
         cab: r.cab,
-        cabType: r.cabType?.toUpperCase() || 'SEDAN',
+        cabType: r.cabType?.toUpperCase() || 'VEHICLE',
         driverStart: r.driverStart,
         sequence: r.sequence,
         stopsCount: r.stops.length,

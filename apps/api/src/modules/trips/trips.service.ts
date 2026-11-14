@@ -20,7 +20,6 @@ import {
   RequirementStatus,
   AssignmentStatus,
   DriverAvailability,
-  VehicleType,
   UserRole,
   NotificationType,
   validateTripTransition,
@@ -1326,7 +1325,7 @@ export class TripsService {
       vehiclePlate: vehiclePlateNumber,
       vehicleModel: vehicleModelName,
       vehicleId: t.vehicleId || undefined,
-      vehicleType: t.vehicleType as unknown as VehicleType,
+      vehicleType: t.vehicleType,
       pickupLocation: {
         latitude: t.requirement ? Number(t.requirement.pickupLat) : 0,
         longitude: t.requirement ? Number(t.requirement.pickupLng) : 0,

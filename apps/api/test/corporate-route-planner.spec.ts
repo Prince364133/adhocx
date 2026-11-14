@@ -39,6 +39,12 @@ describe('Corporate ETS - Route Planner Engine & Spatial Clustering Suite', () =
   };
 
   const mockDbService = {
+    vehiclePricingTier: {
+      findMany: jest.fn().mockResolvedValue([
+        { vehicleType: 'SEDAN', categoryLabel: 'Sedan', seatingCapacity: '4 seats', baseFare: 350, perKmRate: 14, isActive: true },
+        { vehicleType: 'SUV', categoryLabel: 'SUV', seatingCapacity: '6 seats', baseFare: 500, perKmRate: 16, isActive: true },
+      ]),
+    },
     $transaction: jest.fn().mockImplementation(async (cb: (tx: any) => Promise<any>) => {
       const mockTx = {
         corporateRoute: {
@@ -159,8 +165,7 @@ describe('Corporate ETS - Route Planner Engine & Spatial Clustering Suite', () =
       const successfulPlan = {
         employeeCount: 1,
         cabCount: 1,
-        sedanRouteCount: 1,
-        suvRouteCount: 0,
+        vehicleCategoryCounts: { SEDAN: 1 },
         totalKm: 8,
       };
       const planDirection = jest
@@ -197,16 +202,30 @@ describe('Corporate ETS - Route Planner Engine & Spatial Clustering Suite', () =
 
   describe('Automatic vehicle assignment', () => {
     it.each([1, 2, 3, 4])('assigns %i riders to a sedan', (passengers) => {
-      expect(selectCheapestCab(20, passengers, DEFAULT_PRICING_CONFIG)?.name).toBe('sedan');
+      const config = {
+        ...DEFAULT_PRICING_CONFIG,
+        cabTypes: [
+          { name: 'STANDARD', capacity: 4, fleetCount: 10, fixedCharge: 100, perKmCharge: 10, distanceSlabs: [] },
+          { name: 'LARGE', capacity: 6, fleetCount: 10, fixedCharge: 200, perKmCharge: 12, distanceSlabs: [] },
+        ],
+      };
+      expect(selectCheapestCab(20, passengers, config)?.name).toBe('STANDARD');
     });
 
-    it('does not exhaust default cab availability on large rosters', () => {
+    it('does not exhaust category availability on large rosters', () => {
       const fleetUsed: Record<string, number> = {};
+      const config = {
+        ...DEFAULT_PRICING_CONFIG,
+        cabTypes: [
+          { name: 'STANDARD', capacity: 4, fleetCount: 1, fixedCharge: 100, perKmCharge: 10, distanceSlabs: [] },
+          { name: 'LARGE', capacity: 6, fleetCount: Number.MAX_SAFE_INTEGER, fixedCharge: 200, perKmCharge: 12, distanceSlabs: [] },
+        ],
+      };
 
       for (let route = 0; route < 100; route++) {
-        const cab = selectCheapestCab(20, 6, DEFAULT_PRICING_CONFIG, fleetUsed);
+        const cab = selectCheapestCab(20, 6, config, fleetUsed);
 
-        expect(cab?.name).toBe('suv');
+        expect(cab?.name).toBe('LARGE');
         if (cab) fleetUsed[cab.name] = (fleetUsed[cab.name] || 0) + 1;
       }
     });
@@ -392,13 +411,26 @@ describe('Corporate ETS - Route Planner Engine & Spatial Clustering Suite', () =
       });
     });
 
-    // Sedan seats 4 (business rule), so a 4th rider no longer forces an SUV.
-    it.each([5, 6])('assigns %i riders to an SUV', (passengers) => {
-      expect(selectCheapestCab(20, passengers, DEFAULT_PRICING_CONFIG)?.name).toBe('suv');
+    it.each([5, 6])('assigns %i riders to the larger category', (passengers) => {
+      const config = {
+        ...DEFAULT_PRICING_CONFIG,
+        cabTypes: [
+          { name: 'STANDARD', capacity: 4, fleetCount: 10, fixedCharge: 100, perKmCharge: 10, distanceSlabs: [] },
+          { name: 'LARGE', capacity: 6, fleetCount: 10, fixedCharge: 200, perKmCharge: 12, distanceSlabs: [] },
+        ],
+      };
+      expect(selectCheapestCab(20, passengers, config)?.name).toBe('LARGE');
     });
 
-    it('does not assign more than six riders to a sedan or SUV', () => {
-      expect(selectCheapestCab(20, 7, DEFAULT_PRICING_CONFIG)).toBeNull();
+    it('does not assign more passengers than any configured category can seat', () => {
+      const config = {
+        ...DEFAULT_PRICING_CONFIG,
+        cabTypes: [
+          { name: 'STANDARD', capacity: 4, fleetCount: 10, fixedCharge: 100, perKmCharge: 10, distanceSlabs: [] },
+          { name: 'LARGE', capacity: 6, fleetCount: 10, fixedCharge: 200, perKmCharge: 12, distanceSlabs: [] },
+        ],
+      };
+      expect(selectCheapestCab(20, 7, config)).toBeNull();
     });
   });
 
@@ -578,7 +610,7 @@ describe('Corporate ETS - Route Planner Engine & Spatial Clustering Suite', () =
 
       for (const route of result.routes) {
         expect(route.stops.length).toBeLessThanOrEqual(6);
-        expect(route.cabType).toBe(route.stops.length <= 3 ? 'sedan' : 'suv');
+        expect(route.cabType).toBe(route.stops.length <= 4 ? 'SEDAN' : 'SUV');
         expect(route.departure).toBeDefined();
         expect(route.arrival).toBeDefined();
         expect(route.distanceKm).toBeGreaterThanOrEqual(0);

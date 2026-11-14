@@ -24,16 +24,10 @@ import {
 } from './corporate-permissions';
 import { DEFAULT_TENANT_POLICY, validateTenantPolicyValues } from './corporate-tenant-policy.service';
 import { normalizeIndianPhone } from '../../../common/utils/uniqueness.util';
-import { VEHICLE_CAPACITY } from '../routing/routing.types';
+import { calculateTierMaxSeats } from '../../../modules/pricing/pricing.service';
 
 /** Portal password minimum (spec: 8). */
 export const CORPORATE_PORTAL_PASSWORD_MIN = 8;
-/** Seats a policy may assign per category. */
-const CATEGORY_MAX_CAPACITY: Record<string, number> = {
-  SEDAN: VEHICLE_CAPACITY.SEDAN,
-  SUV: VEHICLE_CAPACITY.SUV,
-};
-
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TENANT_CODE_RE = /^[A-Z0-9_-]{2,32}$/;
 
@@ -160,7 +154,7 @@ export class CorporateOnboardingService {
     }
 
     // 3. Validate policy defaults
-    const policy = this.normalizePolicy(dto?.policy);
+    const policy = await this.normalizePolicy(dto?.policy);
 
     // 4. Validate optional initial shift template
     let shiftInput:
@@ -350,23 +344,42 @@ export class CorporateOnboardingService {
     }
   }
 
-  private normalizePolicy(input?: OnboardCorporateCompanyDto['policy']) {
+  private async normalizePolicy(input?: OnboardCorporateCompanyDto['policy']) {
     const raw: any = { ...(input ?? {}) };
     const category = String(raw.defaultVehicleCategory ?? DEFAULT_TENANT_POLICY.defaultVehicleCategory)
       .trim()
       .toUpperCase();
-    // Capacity follows the category unless given.
+    const rows = await this.db.vehiclePricingTier.findMany({
+      where: { isActive: true },
+      orderBy: { vehicleType: 'asc' },
+      select: { vehicleType: true, seatingCapacity: true },
+    });
+    const categories = rows
+      .filter((row) => row.vehicleType?.trim())
+      .map((row) => ({
+        vehicleType: row.vehicleType.trim().toUpperCase(),
+        maxSeats: calculateTierMaxSeats(row.vehicleType, row.seatingCapacity),
+      }));
+    if (categories.length === 0) {
+      throw new BadRequestException('No active vehicle categories are configured');
+    }
+    const selectedCategory = category === 'ALL'
+      ? undefined
+      : categories.find((item) => item.vehicleType === category);
+    if (category !== 'ALL' && !selectedCategory) {
+      throw new BadRequestException(`defaultVehicleCategory '${category}' is not active in the vehicle catalogue`);
+    }
+    const maxSeats = selectedCategory?.maxSeats ?? Math.max(...categories.map((item) => item.maxSeats));
     if (raw.defaultCapacity === undefined || raw.defaultCapacity === null || raw.defaultCapacity === '') {
-      raw.defaultCapacity = category === 'SUV' ? VEHICLE_CAPACITY.SUV : VEHICLE_CAPACITY.SEDAN;
+      raw.defaultCapacity = maxSeats;
     }
     for (const key of Object.keys(raw)) {
       if (raw[key] === undefined || raw[key] === null || raw[key] === '') delete raw[key];
     }
     const values = validateTenantPolicyValues({ ...raw, defaultVehicleCategory: category });
-    const maxSeats = CATEGORY_MAX_CAPACITY[values.defaultVehicleCategory] ?? VEHICLE_CAPACITY.SUV;
     if (values.defaultCapacity > maxSeats) {
       throw new BadRequestException(
-        `defaultCapacity ${values.defaultCapacity} exceeds the ${maxSeats} seats of a ${values.defaultVehicleCategory}`,
+        `defaultCapacity ${values.defaultCapacity} exceeds the ${maxSeats} seats available for ${values.defaultVehicleCategory}`,
       );
     }
     return values;

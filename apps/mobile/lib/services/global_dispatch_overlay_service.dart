@@ -474,13 +474,13 @@ class GlobalDispatchOverlayService {
       }
     }
 
-    // Vehicle compatibility guard: Ensure Sedan driver does NOT receive Hatchback or SUV offers
+    // Keep an incoming offer aligned with the driver's registered category.
     final driverProf = AuthService.instance.currentUser?.driverProfile;
     final driverV = VehicleUtils.extractVehicleType(driverProf);
     final req = offerData['requirement'] as Map<String, dynamic>?;
     final reqV = (req?['vehicleType'] ?? offerData['vehicleType'])?.toString();
 
-    if (!VehicleUtils.isCompatible(driverVehicle: driverV.isEmpty ? 'SEDAN' : driverV, requiredVehicle: reqV)) {
+    if (!VehicleUtils.isCompatible(driverVehicle: driverV, requiredVehicle: reqV)) {
       debugPrint('🚫 [OverlayService] Dropping incoming offer $offerId: vehicle mismatch (driver: $driverV, req: $reqV)');
       return null;
     }

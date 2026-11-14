@@ -1,12 +1,12 @@
 import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
-import { OfferStatus, VehicleType } from '../enums';
+import { OfferStatus } from '../enums';
 import { GeoLocationDto } from './common.dto';
 
 export class OfferResponseDto {
   id!: string;
   requirementId!: string;
   driverId!: string;
-  vehicleType!: VehicleType;
+  vehicleType!: string;
   pickupLocation!: GeoLocationDto;
   dropLocation!: GeoLocationDto;
   reportingTime!: string;

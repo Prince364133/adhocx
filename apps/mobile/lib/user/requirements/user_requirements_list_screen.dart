@@ -124,7 +124,7 @@ class _UserRequirementsListScreenState extends State<UserRequirementsListScreen>
         final fare = (it['ratePerVehicle'] as num?)?.toDouble() ??
             (it['totalAmount'] as num?)?.toDouble() ??
             0.0;
-        final v = it['vehicleType']?.toString() ?? 'Sedan';
+        final v = it['vehicleType']?.toString() ?? 'Vehicle category unavailable';
 
         totalQty += q;
         assignedQty += a;
@@ -176,7 +176,7 @@ class _UserRequirementsListScreenState extends State<UserRequirementsListScreen>
     // 2. Individual (Non-Batch) Requirements
     for (final it in nonBatchItems) {
       final String id = it['id']?.toString() ?? '';
-      final String vehicle = it['vehicleType']?.toString() ?? 'Sedan';
+      final String vehicle = it['vehicleType']?.toString() ?? 'Vehicle category unavailable';
       final int qty = (it['quantity'] as num?)?.toInt() ?? 1;
       final int assigned = (it['assignedQuantity'] as num?)?.toInt() ?? 0;
       final String pickup = it['pickupAddress']?.toString() ?? 'Pickup location';
@@ -240,7 +240,7 @@ class _UserRequirementsListScreenState extends State<UserRequirementsListScreen>
       final List<CabCartItem> templateCabs = [];
       for (int i = 0; i < group.items.length; i++) {
         final it = group.items[i];
-        final vehicleType = it['vehicleType']?.toString() ?? 'SEDAN';
+        final vehicleType = it['vehicleType']?.toString() ?? '';
         final pickupAddress = it['pickupAddress']?.toString() ?? 'Office Hub';
         final dropAddress = it['dropAddress']?.toString() ?? 'Destination';
         final reportingTimeStr = it['reportingTime']?.toString();
@@ -265,8 +265,8 @@ class _UserRequirementsListScreenState extends State<UserRequirementsListScreen>
           CabCartItem(
             id: 'tmpl_cab_${DateTime.now().millisecondsSinceEpoch}_$i',
             vehicleType: vehicleType,
-            vehicleLabel: vehicleType == 'SUV' ? 'SUV 7 Seater' : 'Prime Sedan',
-            passengers: vehicleType == 'SUV' ? 7 : 4,
+            vehicleLabel: it['categoryLabel']?.toString() ?? vehicleType,
+            passengers: (it['passengers'] as num?)?.toInt() ?? 1,
             pickupAddress: pickupAddress,
             pickupLat: pLat,
             pickupLng: pLng,

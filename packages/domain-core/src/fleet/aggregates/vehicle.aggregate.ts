@@ -1,13 +1,14 @@
 import { AggregateRoot } from '../../common/aggregate-root';
 import { Result } from '../../common/result';
 
-export type FleetVehicleCategory = 'HATCHBACK' | 'SEDAN' | 'SUV' | 'AUTO';
+export type FleetVehicleCategory = string;
 
 export interface VehicleProps {
   driverId: string;
   registrationNumber: string;
   category: FleetVehicleCategory;
   seatingCapacity: number;
+  categoryCapacityLimit: number;
   insuranceExpiry: Date;
   rcExpiry: Date;
   fitnessExpiry?: Date;
@@ -18,7 +19,8 @@ export interface VehicleProps {
 /**
  * VehicleAggregate.
  * Encapsulates commercial fleet compliance: Indian registration validation,
- * hard seating limits (Sedan <= 4, SUV <= 6, Auto <= 3), and RC/insurance road legality.
+ * category-specific seating limits supplied by the active vehicle catalogue, and RC/insurance
+ * road legality.
  */
 export class VehicleAggregate extends AggregateRoot<string> {
   private _props: VehicleProps;
@@ -66,7 +68,7 @@ export class VehicleAggregate extends AggregateRoot<string> {
 
   /**
    * Factory method to create a VehicleAggregate.
-   * Invariant: Capacity limits (Sedan <= 4, SUV <= 6, Auto <= 3).
+   * Invariant: The vehicle's seating capacity cannot exceed its catalogue category limit.
    */
   public static create(id: string, props: VehicleProps): Result<VehicleAggregate> {
     if (!id || id.trim().length === 0) {
@@ -76,20 +78,21 @@ export class VehicleAggregate extends AggregateRoot<string> {
       return Result.fail('Valid commercial vehicle registration number is required');
     }
 
-    // Capacity invariant checks
-    if (props.category === 'SEDAN' && props.seatingCapacity > 4) {
-      return Result.fail(`Sedan capacity cannot exceed 4 passengers. Provided: ${props.seatingCapacity}`);
+    if (!Number.isInteger(props.categoryCapacityLimit) || props.categoryCapacityLimit <= 0) {
+      return Result.fail('Category capacity limit must be a positive integer');
     }
-    if (props.category === 'SUV' && props.seatingCapacity > 6) {
-      return Result.fail(`SUV capacity cannot exceed 6 passengers. Provided: ${props.seatingCapacity}`);
+    if (
+      !Number.isInteger(props.seatingCapacity) ||
+      props.seatingCapacity <= 0 ||
+      props.seatingCapacity > props.categoryCapacityLimit
+    ) {
+      return Result.fail(
+        `Vehicle seating capacity must be between 1 and ${props.categoryCapacityLimit}. Provided: ${props.seatingCapacity}`,
+      );
     }
-    if (props.category === 'AUTO' && props.seatingCapacity > 3) {
-      return Result.fail(`Auto capacity cannot exceed 3 passengers. Provided: ${props.seatingCapacity}`);
+    if (!props.category.trim()) {
+      return Result.fail('Vehicle category is required');
     }
-    if (props.seatingCapacity <= 0) {
-      return Result.fail('Seating capacity must be at least 1');
-    }
-
     return Result.ok(new VehicleAggregate(id, { ...props }));
   }
 

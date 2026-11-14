@@ -36,39 +36,20 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
   final _yearController = TextEditingController();
   final _colorController = TextEditingController();
 
-  String _category = 'SEDAN';
+  String _category = '';
   bool _isSubmitting = false;
   String? _inlineErrorMessage;
   final Map<String, bool> _uploadingState = {};
   final ImagePicker _picker = ImagePicker();
 
-  List<Map<String, dynamic>> _vehicleOptions = <Map<String, dynamic>>[
-    {
-      'id': 'SEDAN',
-      'label': 'Prime Sedan',
-      'subtitle': 'Dzire, Etios, Aura (4+1 Seater)',
-      'icon': Icons.directions_car_rounded,
-    },
-    {
-      'id': 'SUV',
-      'label': 'Prime SUV',
-      'subtitle': 'Innova, Ertiga, Carens (6+1 Seater)',
-      'icon': Icons.airport_shuttle_rounded,
-    },
-    {
-      'id': 'HATCHBACK',
-      'label': 'Mini Hatchback',
-      'subtitle': 'WagonR, Swift (4+1 Seater)',
-      'icon': Icons.electric_car_rounded,
-    },
-  ];
-  bool _loadingCategories = false;
+  List<Map<String, dynamic>> _vehicleOptions = [];
+  bool _loadingCategories = true;
 
   @override
   void initState() {
     super.initState();
     final onboarding = context.read<OnboardingProvider>();
-    _category = onboarding.vehicleType.isNotEmpty ? onboarding.vehicleType.toUpperCase() : 'SEDAN';
+    _category = onboarding.vehicleType.toUpperCase();
     _plateController.text = onboarding.registrationNumber;
     if (onboarding.carModel.isNotEmpty &&
         !_vehicleOptions.any((v) =>
@@ -85,12 +66,20 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
     _colorController.addListener(_clearErrorOnType);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _syncCategoryToProvider(_category);
-        _loadDynamicCategories();
-        _loadExistingData();
-      }
+      if (!mounted) return;
+      _loadCategoriesAndProfile();
     });
+  }
+
+  Future<void> _loadCategoriesAndProfile() async {
+    await _loadDynamicCategories();
+    await _loadExistingData();
+    if (!mounted) return;
+    if (!_vehicleOptions.any((v) => v['id'] == _category)) {
+      _category = _vehicleOptions.isNotEmpty ? _vehicleOptions.first['id'] as String : '';
+    }
+    if (_category.isNotEmpty) _syncCategoryToProvider(_category);
+    setState(() {});
   }
 
   void _clearErrorOnType() {
@@ -155,7 +144,9 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
       if (_colorController.text.isEmpty && onboarding.color.isNotEmpty) {
         _colorController.text = onboarding.color;
       }
-      if (profile['vehicleType'] != null && onboarding.vehicleType.isEmpty) {
+      if (profile['vehicleType'] != null &&
+          onboarding.vehicleType.isEmpty &&
+          _vehicleOptions.any((v) => v['id'] == profile['vehicleType'].toString().toUpperCase())) {
         final vType = profile['vehicleType'].toString().toUpperCase();
         setState(() {
           _category = vType;
@@ -198,23 +189,22 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
   Future<void> _loadDynamicCategories() async {
     try {
       final tiers = await DriverService.instance.getVehicleCategories(forceRefresh: true);
-      final activeTiers = tiers.where((t) => t['isActive'] != false).toList();
-      if (activeTiers.isNotEmpty && mounted) {
+      final activeTiers = tiers.where((t) =>
+          t['isActive'] != false &&
+          t['vehicleType'] is String &&
+          (t['vehicleType'] as String).trim().isNotEmpty).toList();
+      if (mounted) {
         setState(() {
           _vehicleOptions = activeTiers.map((t) {
-            final vType = (t['vehicleType'] as String? ?? 'SEDAN').toUpperCase();
+            final vType = (t['vehicleType'] as String).toUpperCase();
             final iconKey = t['iconKey'] as String? ?? '';
             IconData icon = Icons.directions_car_rounded;
-            if (vType == 'BIKE' || iconKey == 'bike') {
+            if (iconKey == 'bike') {
               icon = Icons.two_wheeler_rounded;
-            } else if (vType == 'BUS' || iconKey == 'bus') {
+            } else if (iconKey == 'bus') {
               icon = Icons.directions_bus_rounded;
-            } else if (vType == 'SUV') {
-              icon = Icons.airport_shuttle_rounded;
-            } else if (vType == 'TEMPO_TRAVELLER' || vType == 'TATA_ACE' || vType == 'PICKUP_TRUCK' || iconKey == 'truck') {
+            } else if (iconKey == 'truck') {
               icon = Icons.local_shipping_rounded;
-            } else if (vType == 'HATCHBACK') {
-              icon = Icons.electric_car_rounded;
             }
 
             return {
@@ -229,10 +219,7 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
             };
           }).toList();
 
-          if (!_vehicleOptions.any((v) => v['id'] == _category) && _vehicleOptions.isNotEmpty) {
-            _category = _vehicleOptions.first['id'] as String;
-          }
-          _syncCategoryToProvider(_category);
+          if (!_vehicleOptions.any((v) => v['id'] == _category)) _category = '';
         });
       }
     } catch (_) {
@@ -525,6 +512,12 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
   }
 
   Future<void> _handleSubmit() async {
+    if (!_vehicleOptions.any((v) => v['id'] == _category)) {
+      const msg = 'Please select an active vehicle category.';
+      setState(() => _inlineErrorMessage = msg);
+      AppToast.showError(msg, context: context);
+      return;
+    }
     if (!_formKey.currentState!.validate()) {
       const msg = 'Please fill in all mandatory vehicle details correctly.';
       setState(() => _inlineErrorMessage = msg);

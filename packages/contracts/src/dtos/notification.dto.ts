@@ -15,7 +15,6 @@ import {
   UserRole,
   DriverAvailability,
   VerificationStatus,
-  VehicleType,
 } from '../enums';
 
 export class RegisterDeviceTokenDto {
@@ -57,7 +56,7 @@ export class AudienceFilterDto {
 
   @IsOptional()
   @IsArray()
-  vehicleTypes?: VehicleType[];
+  vehicleTypes?: string[];
 
   @IsOptional()
   @IsString()

@@ -1,10 +1,4 @@
-/**
- * Max passengers per cab (business rule: sedan 4, SUV 6; each company may set a lower
- * defaultCapacity in its tenant policy). Single source for solver, planner, policy and API bounds.
- */
-export const VEHICLE_CAPACITY = Object.freeze({ SEDAN: 4, SUV: 6 });
-
-export type VehicleCategory = 'SEDAN' | 'SUV' | 'BOTH';
+export type VehicleCategory = string;
 
 export interface RouteOptimizationOptions {
   tenantId: string;
@@ -17,8 +11,6 @@ export interface RouteOptimizationOptions {
   direction: 'LOGIN' | 'LOGOUT' | 'BOTH';
   vehicleCategory?: VehicleCategory;
   maxCapacity?: number;
-  sedanCapacity?: number;
-  suvCapacity?: number;
   officeBufferMinutes?: number; // defaults to 10 minutes prior to shift login
   maxRideTimeMinutes?: number; // max in-cab time per employee, defaults to 120
   logoutReportingBufferMinutes?: number; // LOGOUT: cab at office this long before logout, defaults to 15
@@ -47,7 +39,7 @@ export interface OptimizedStopResult {
 
 export interface OptimizedRouteResult {
   routeIndex: number;
-  vehicleCategory: Exclude<VehicleCategory, 'BOTH'>;
+  vehicleCategory: VehicleCategory;
   maxCapacity: number;
   passengerCount: number;
   targetPickup1Time: Date;
@@ -65,8 +57,7 @@ export interface RouteOptimizationSummary {
   direction: 'LOGIN' | 'LOGOUT';
   totalRequestsEvaluated: number;
   routesCreated: number;
-  sedanRoutesCreated: number;
-  suvRoutesCreated: number;
+  vehicleCategoryCounts: Record<string, number>;
   passengersAssigned: number;
   unassignedRequests: number;
   averagePassengersPerRoute: number;
@@ -101,8 +92,7 @@ export interface RouteOptimizationBatchSummary {
   plans: RouteOptimizationDirectionOutcome[];
   totalRequestsEvaluated: number;
   routesCreated: number;
-  sedanRoutesCreated: number;
-  suvRoutesCreated: number;
+  vehicleCategoryCounts: Record<string, number>;
   passengersAssigned: number;
   unassignedRequests: number;
 }

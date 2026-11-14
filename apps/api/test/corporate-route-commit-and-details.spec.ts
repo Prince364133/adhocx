@@ -73,6 +73,12 @@ describe('Corporate Route CSV -> Commit -> Portal List & Google Maps Directions 
     };
 
     db = {
+      vehiclePricingTier: {
+        findMany: jest.fn().mockResolvedValue([
+          { vehicleType: 'SEDAN', seatingCapacity: '4 seats', baseFare: 350, perKmRate: 14, isActive: true },
+          { vehicleType: 'SUV', seatingCapacity: '6 seats', baseFare: 500, perKmRate: 16, isActive: true },
+        ]),
+      },
       corporateOffice: {
         findUnique: jest.fn(async ({ where }: any) =>
           where.id === 'office-hyd'
@@ -202,7 +208,7 @@ describe('Corporate Route CSV -> Commit -> Portal List & Google Maps Directions 
     ).rejects.toThrow('pickupWaitMinutes must be an integer between 1 and 10');
   });
 
-  it('commits with the explicit request Sedan capacity even when a SEDAN policy seats fewer', async () => {
+  it('commits with the explicit capacity even when tenant policy seats fewer', async () => {
     const csv = [
       'Employee Name,Employee Code,Phone Number,Department,Pickup Address,Office Address,Arrival Time,Logout Time,Gender',
       'Priya Nair,EMP101,+919800011101,Engineering,"KPHB Phase 1, Hyderabad","Madhapur Mindspace, Hyderabad",09:30,18:30,FEMALE',
@@ -218,7 +224,7 @@ describe('Corporate Route CSV -> Commit -> Portal List & Google Maps Directions 
       direction: 'LOGIN',
       loginTime: new Date('2026-11-10T09:30:00+05:30'),
       vehicleCategory: 'SEDAN',
-      sedanCapacity: 3,
+      cabCapacity: 3,
       pickupWaitMinutes: 10,
     });
     const sharedRoute = plan.routes.find((route) => route.stops.length > 1);
@@ -234,9 +240,9 @@ describe('Corporate Route CSV -> Commit -> Portal List & Google Maps Directions 
       plan: { ...plan, routes: [sharedRoute!] },
     };
 
-    // Without an explicit capacity the SEDAN policy (1 seat) applies, as it does during planning.
-    await expect(planner.commitPlanToDatabase(commitDto)).rejects.toThrow(/a SEDAN seats 1/);
-    const result = await planner.commitPlanToDatabase({ ...commitDto, sedanCapacity: 3 });
+    // Without an explicit capacity the tenant policy (1 seat) applies, as it does during planning.
+    await expect(planner.commitPlanToDatabase(commitDto)).rejects.toThrow(/seats 1/);
+    const result = await planner.commitPlanToDatabase({ ...commitDto, cabCapacity: 3 });
     expect(result.routesCreated).toBe(1);
   });
 

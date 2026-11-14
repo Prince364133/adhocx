@@ -6,7 +6,7 @@ export interface RouteOptimizationRequestDto {
   shiftDate: string; // YYYY-MM-DD
   shiftTime: string; // HH:mm
   direction: CorporateTransportDirection;
-  vehicleCategory?: 'SEDAN' | 'SUV';
+  vehicleCategory?: string;
   maxCapacity?: number;
   officeBufferMinutes?: number;
 }

@@ -1,9 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:geolocator/geolocator.dart';
 
 import 'dispatch_location.dart';
+import 'live_location_hub.dart';
 import 'driver_service.dart';
 import 'permission_service.dart';
 
@@ -17,9 +17,7 @@ final DriverLocationHeartbeat driverLocationHeartbeat = DriverLocationHeartbeat(
   },
   movementTriggerFactory: kIsWeb
       ? null
-      : () => Geolocator.getPositionStream(
-            locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 100),
-          ).map((_) {}),
+      : () => LiveLocationHub.instance.movementTrigger(100, precise: false),
 );
 
 DriverLocationHeartbeat? _tripPinger;
@@ -75,9 +73,8 @@ void syncDriverLocationLoops({required bool available, String? activeTripId}) {
       },
       movementTriggerFactory: kIsWeb
           ? null
-          : () => Geolocator.getPositionStream(
-                locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 50),
-              ).map((_) {}),
+          // Navigation-grade stream shared with the trip map; pings still fire per 50 m of movement.
+          : () => LiveLocationHub.instance.movementTrigger(50),
     )..start();
     return;
   }

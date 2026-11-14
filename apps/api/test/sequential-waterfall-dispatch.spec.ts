@@ -10,7 +10,6 @@ import {
   UserStatus,
   VerificationStatus,
   DriverAvailability,
-  VehicleType,
   OfferStatus,
 } from '@adhocx/contracts';
 
@@ -34,7 +33,7 @@ describe('Uber-Grade Sequential Waterfall Dispatch & Ring Expansion (4-Device Te
     requirementStore = {
       id: 'req-suv-1',
       vendorId: 'vnd-1',
-      vehicleType: VehicleType.SUV,
+      vehicleType: 'SUV',
       quantity: 1,
       assignedQuantity: 0,
       dispatchWaves: 0,
@@ -140,11 +139,11 @@ describe('Uber-Grade Sequential Waterfall Dispatch & Ring Expansion (4-Device Te
     const driverSedan = {
       id: 'drv-sedan',
       fullName: 'Sedan Driver',
-      vehicleType: VehicleType.SEDAN,
+      vehicleType: 'SEDAN',
       verificationStatus: VerificationStatus.VERIFIED,
       availabilityStatus: DriverAvailability.AVAILABLE,
       user: { status: UserStatus.ACTIVE },
-      vehicles: [{ vehicleType: VehicleType.SEDAN }],
+      vehicles: [{ vehicleType: 'SEDAN' }],
       trustScore: 98.0,
       averageRating: 5.0,
       totalTrips: 120,
@@ -158,11 +157,11 @@ describe('Uber-Grade Sequential Waterfall Dispatch & Ring Expansion (4-Device Te
     const driverSuv1 = {
       id: 'drv-suv-1',
       fullName: 'SUV Driver One (Rank #1)',
-      vehicleType: VehicleType.SUV,
+      vehicleType: 'SUV',
       verificationStatus: VerificationStatus.VERIFIED,
       availabilityStatus: DriverAvailability.AVAILABLE,
       user: { status: UserStatus.ACTIVE },
-      vehicles: [{ vehicleType: VehicleType.SUV }],
+      vehicles: [{ vehicleType: 'SUV' }],
       trustScore: 98.0,
       averageRating: 4.95,
       totalTrips: 150,
@@ -176,11 +175,11 @@ describe('Uber-Grade Sequential Waterfall Dispatch & Ring Expansion (4-Device Te
     const driverSuv2 = {
       id: 'drv-suv-2',
       fullName: 'SUV Driver Two (Rank #2)',
-      vehicleType: VehicleType.SUV,
+      vehicleType: 'SUV',
       verificationStatus: VerificationStatus.VERIFIED,
       availabilityStatus: DriverAvailability.AVAILABLE,
       user: { status: UserStatus.ACTIVE },
-      vehicles: [{ vehicleType: VehicleType.SUV }],
+      vehicles: [{ vehicleType: 'SUV' }],
       trustScore: 91.0,
       averageRating: 4.80,
       totalTrips: 45,
@@ -305,8 +304,8 @@ describe('Uber-Grade Sequential Waterfall Dispatch & Ring Expansion (4-Device Te
 
       // Wave 1 (defaults: 5 waves, 10 km radius): radius 10 × 1/5 = 2 km; H3 disk k = 3 covers it.
       await service.dispatchRequirement('req-suv-1');
-      expect(locationsService.findNearbyDriversByH3).toHaveBeenCalledWith(17.4435, 78.3772, 3, VehicleType.SUV, 2);
-      expect(locationsService.findNearbyDrivers).toHaveBeenCalledWith(17.4435, 78.3772, 2, VehicleType.SUV);
+      expect(locationsService.findNearbyDriversByH3).toHaveBeenCalledWith(17.4435, 78.3772, 3, 'SUV', 2);
+      expect(locationsService.findNearbyDrivers).toHaveBeenCalledWith(17.4435, 78.3772, 2, 'SUV');
 
       // Every wave stays within the radius; the last wave searches exactly the radius.
       expect([1, 2, 3, 4, 5].map((w) => waveSearchRadiusKm(w, 5, 10))).toEqual([2, 4, 6, 8, 10]);

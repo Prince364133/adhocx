@@ -486,7 +486,7 @@ class _OpportunityOfferScreenState extends State<OpportunityOfferScreen> {
                         builder: (context) {
                           final req = _activeOffer?['requirement'] as Map<String, dynamic>?;
                           final title = _firstNonEmptyString([req?['title'], _activeOffer?['title']]) ?? 'Trip Requirement';
-                          final vehicle = _firstNonEmptyString([req?['vehicleType'], _activeOffer?['vehicleType']]) ?? 'Sedan';
+                          final vehicle = _firstNonEmptyString([req?['vehicleType'], _activeOffer?['vehicleType']]) ?? 'Vehicle category unavailable';
                           final pickup = _firstNonEmptyString([
                                 req?['pickupAddress'],
                                 (req?['pickupLocation'] as Map?)?['address'],

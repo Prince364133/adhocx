@@ -56,17 +56,7 @@ export enum DriverAvailability {
   UNAVAILABLE = 'UNAVAILABLE',
 }
 
-export enum VehicleType {
-  SEDAN = 'SEDAN',
-  SUV = 'SUV',
-  HATCHBACK = 'HATCHBACK',
-  TEMPO_TRAVELLER = 'TEMPO_TRAVELLER',
-  BUS = 'BUS',
-  TATA_ACE = 'TATA_ACE',
-  PICKUP_TRUCK = 'PICKUP_TRUCK',
-}
-
-export type VehicleClass = VehicleType | string;
+export type VehicleClass = string;
 
 export enum FulfillmentMode {
   DIRECT_DISPATCH = 'DIRECT_DISPATCH',

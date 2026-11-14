@@ -26,7 +26,7 @@ const PRESET_REASONS = [
   'Commercial insurance policy is expired or inactive',
   'Aadhaar / National ID details mismatch with name',
   'GST certificate registration inactive or entity name mismatch',
-  'Vehicle class does not match selected tier (Sedan/SUV/Hatchback)',
+  'Vehicle class does not match the selected category',
 ];
 
 export const DeclineReasonModal: React.FC<DeclineModalProps> = ({

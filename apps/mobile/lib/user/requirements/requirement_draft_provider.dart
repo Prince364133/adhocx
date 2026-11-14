@@ -5,7 +5,7 @@ import 'models/fleet_template_model.dart';
 class RequirementDraftProvider extends ChangeNotifier {
   // Step 1: Category & Vehicle & Quantity
   String _fulfillmentMode = 'DIRECT_DISPATCH';
-  String _vehicleType = 'Sedan';
+  String _vehicleType = '';
   int _quantity = 5;
   String _specialRequests = '';
   double _suggestedBudget = 3500.0;
@@ -300,7 +300,7 @@ class RequirementDraftProvider extends ChangeNotifier {
 
   void reset() {
     _fulfillmentMode = 'DIRECT_DISPATCH';
-    _vehicleType = 'Sedan';
+    _vehicleType = '';
     _quantity = 5;
     _specialRequests = '';
     _pickupAddress = '';

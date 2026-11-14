@@ -96,22 +96,60 @@ class RateCardModal extends StatefulWidget {
 
 class _RateCardModalState extends State<RateCardModal> {
   bool _isLoading = true;
-  String _selectedVehicle = 'SEDAN';
+  String _selectedVehicle = '';
+  List<Map<String, dynamic>> _vehicleCategories = [];
   List<Map<String, dynamic>> _databaseSlabs = [];
   String? _rateVersion;
   String? _peakWindowsLabel;
+  String? _categoryLoadError;
 
   @override
   void initState() {
     super.initState();
-    _fetchRateCard();
+    _loadVehicleCategories();
   }
 
-  Future<void> _fetchRateCard() async {
+  Future<void> _loadVehicleCategories() async {
     setState(() => _isLoading = true);
     try {
+      final categories = (await DriverService.instance.getVehicleCategories(forceRefresh: true))
+          .where((category) => category['isActive'] == true && category['vehicleType'] is String)
+          .toList();
+      if (!mounted) return;
+      if (categories.isEmpty) {
+        setState(() {
+          _vehicleCategories = [];
+          _categoryLoadError = 'No active vehicle categories are configured.';
+          _isLoading = false;
+        });
+        return;
+      }
+      setState(() {
+        _vehicleCategories = categories;
+        _selectedVehicle = categories.first['vehicleType'] as String;
+        _categoryLoadError = null;
+      });
+      await _fetchRateCard(_selectedVehicle);
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _categoryLoadError = 'Could not load vehicle categories: $error';
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _fetchRateCard(String vehicleCategory) async {
+    setState(() {
+      _isLoading = true;
+      _selectedVehicle = vehicleCategory;
+      _databaseSlabs = [];
+      _categoryLoadError = null;
+    });
+    try {
       final res = await DriverService.instance.getDriverDistanceRateCard(
-        vehicleCategory: _selectedVehicle,
+        vehicleCategory: vehicleCategory,
         forceRefresh: true,
       );
       if (res != null && res is Map && res['slabs'] is List) {
@@ -140,7 +178,15 @@ class _RateCardModalState extends State<RateCardModal> {
           return;
         }
       }
-    } catch (_) {}
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _categoryLoadError = 'Could not load the rate card: $error';
+          _isLoading = false;
+        });
+      }
+      return;
+    }
 
     if (mounted) {
       setState(() => _isLoading = false);
@@ -187,30 +233,29 @@ class _RateCardModalState extends State<RateCardModal> {
           ),
           const SizedBox(height: 12),
 
-          // Vehicle Selector Pill
-          Row(
-            children: [
-              ChoiceChip(
-                label: const Text('Sedan (4+1)'),
-                selected: _selectedVehicle == 'SEDAN',
-                onSelected: (val) {
-                  setState(() => _selectedVehicle = 'SEDAN');
-                  _fetchRateCard();
-                },
-                selectedColor: AppColors.primary.withValues(alpha: 0.2),
-              ),
-              const SizedBox(width: 8),
-              ChoiceChip(
-                label: const Text('SUV (6+1)'),
-                selected: _selectedVehicle == 'SUV',
-                onSelected: (val) {
-                  setState(() => _selectedVehicle = 'SUV');
-                  _fetchRateCard();
-                },
-                selectedColor: AppColors.primary.withValues(alpha: 0.2),
-              ),
-            ],
-          ),
+          if (_vehicleCategories.isNotEmpty)
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _vehicleCategories.map((category) {
+                final vehicleType = category['vehicleType'] as String;
+                return ChoiceChip(
+                  label: Text((category['categoryLabel'] ?? vehicleType).toString()),
+                  selected: _selectedVehicle == vehicleType,
+                  onSelected: (selected) {
+                    if (selected) _fetchRateCard(vehicleType);
+                  },
+                  selectedColor: AppColors.primary.withValues(alpha: 0.2),
+                );
+              }).toList(),
+            ),
+          if (_categoryLoadError != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              _categoryLoadError!,
+              style: TextStyle(fontSize: 12, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+            ),
+          ],
           if (_peakWindowsLabel != null) ...[
             const SizedBox(height: 10),
             Row(

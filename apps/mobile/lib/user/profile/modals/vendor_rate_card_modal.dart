@@ -13,13 +13,14 @@ class VendorRateCardModal extends StatefulWidget {
 }
 
 class _VendorRateCardModalState extends State<VendorRateCardModal> {
-  String _selectedVehicle = 'SEDAN';
+  String _selectedVehicle = '';
   bool _isLoading = true;
   String? _error;
   String? _planVersion;
   String? _planCategory;
   double? _escortFeeRupees;
   List<Map<String, dynamic>> _slabs = [];
+  List<Map<String, dynamic>> _vehicleCategories = [];
 
   @override
   void initState() {
@@ -33,6 +34,27 @@ class _VendorRateCardModalState extends State<VendorRateCardModal> {
       _error = null;
     });
     try {
+      if (_vehicleCategories.isEmpty) {
+        final tiers = await UserService.instance.getPricingTiers(forceRefresh: true);
+        _vehicleCategories = tiers.where((category) {
+          final vehicleType = category['vehicleType'];
+          return category['isActive'] != false &&
+              vehicleType is String &&
+              vehicleType.trim().isNotEmpty;
+        }).toList();
+      }
+      if (_vehicleCategories.isEmpty) {
+        if (!mounted) return;
+        setState(() {
+          _slabs = [];
+          _error = 'No active vehicle categories are available.';
+          _isLoading = false;
+        });
+        return;
+      }
+      if (!_vehicleCategories.any((category) => category['vehicleType'] == _selectedVehicle)) {
+        _selectedVehicle = _vehicleCategories.first['vehicleType'] as String;
+      }
       final card = await UserService.instance.getVendorRateCard(vehicleCategory: _selectedVehicle, forceRefresh: true);
       final slabs = (card['slabs'] as List?)?.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList() ?? [];
       if (!mounted) return;
@@ -116,12 +138,12 @@ class _VendorRateCardModalState extends State<VendorRateCardModal> {
           Wrap(
             spacing: 8,
             children: [
-              for (final v in const [('SEDAN', 'Sedan'), ('SUV', 'SUV')])
+              for (final category in _vehicleCategories)
                 ChoiceChip(
-                  label: Text(v.$2),
-                  selected: _selectedVehicle == v.$1,
+                  label: Text(category['categoryLabel']?.toString() ?? category['vehicleType'].toString()),
+                  selected: _selectedVehicle == category['vehicleType'],
                   onSelected: (_) {
-                    setState(() => _selectedVehicle = v.$1);
+                    setState(() => _selectedVehicle = category['vehicleType'] as String);
                     _load();
                   },
                   selectedColor: AppColors.primary.withValues(alpha: 0.2),

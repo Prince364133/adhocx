@@ -35,7 +35,7 @@ class _KycUploadScreenState extends State<KycUploadScreen> {
     'aadhaar': '',
     'pan': '',
     'dl_number': '',
-    'vehicle_type': 'Sedan',
+    'vehicle_type': '',
     'vehicle_number': '',
     'rc_number': '',
     'account_holder_name': '',
@@ -127,7 +127,10 @@ class _KycUploadScreenState extends State<KycUploadScreen> {
       final aadhaarPath = await _uploadToStorage(_uploadedDocs['aadhaar_doc'], _docBytes['aadhaar_doc'], 'aadhaar');
 
       // 2. Map dynamic vehicle_type for authoritative database
-      final rawVehicleType = (_formData['vehicle_type'] as String?) ?? 'SEDAN';
+      final rawVehicleType = (_formData['vehicle_type'] as String?) ?? '';
+      if (rawVehicleType.trim().isEmpty) {
+        throw Exception('Select an active vehicle category before submitting KYC.');
+      }
       final dynamicVehicleType = rawVehicleType.toUpperCase();
 
       final bankAcc = (_formData['account_number'] as String?)?.trim();

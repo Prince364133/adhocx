@@ -7,7 +7,6 @@ import {
   OfferStatus,
   TripStatus,
   UserStatus,
-  VehicleType,
   VerificationStatus,
   DriverAvailability,
   NotificationType,
@@ -36,11 +35,7 @@ const WAVE_FIRE_GRACE_MS = 250;
 
 const normalizeVehicle = (v?: string | null): string => {
   if (!v) return '';
-  const s = v.toString().toUpperCase();
-  if (s.includes('SEDAN')) return 'SEDAN';
-  if (s.includes('SUV') || s.includes('7 SEATER') || s.includes('6 SEATER')) return 'SUV';
-  if (s.includes('HATCH') || s.includes('MINI') || s.includes('COMPACT')) return 'HATCHBACK';
-  return s;
+  return v.toString().trim().toUpperCase().replace(/[\s-]+/g, '_');
 };
 
 /** Road-factor estimate used for Phase A ranking and whenever live routing is unavailable. */
@@ -484,7 +479,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
           pickupLat,
           pickupLng,
           kRingForRadiusKm(waveRadiusKm),
-          requirement.vehicleType as unknown as VehicleType,
+          requirement.vehicleType,
           waveRadiusKm,
         )),
       ];
@@ -493,7 +488,7 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
           pickupLat,
           pickupLng,
           waveRadiusKm,
-          requirement.vehicleType as unknown as VehicleType,
+          requirement.vehicleType,
         );
         const existingIds = new Set(nearbyCandidates.map((c) => c.driverId));
         for (const rc of [...radialCandidates]) {
@@ -530,12 +525,12 @@ export class DispatchService implements OnModuleInit, OnModuleDestroy {
           continue;
         }
 
-        // Strict vehicle capability check (e.g. never a sedan for an SUV request)
-        const dNorm = normalizeVehicle(driver.vehicleType || driver.vehicleModel || 'SEDAN');
+        // Require an exact match between the driver's registered category and the request.
+        const dNorm = normalizeVehicle(driver.vehicleType);
         const matchesVehicle =
           !reqNorm ||
           dNorm === reqNorm ||
-          driver.vehicles.some((v) => normalizeVehicle(v.vehicleType) === reqNorm);
+          (driver.vehicles ?? []).some((v) => normalizeVehicle(v.vehicleType) === reqNorm);
         if (!matchesVehicle) continue;
 
         // No conflicting active trips

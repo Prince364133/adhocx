@@ -1,7 +1,7 @@
 import { AggregateRoot } from '../common/aggregate-root';
 import { Result } from '../common/result';
 
-export type CorporateVehicleCategory = 'SEDAN' | 'SUV';
+export type CorporateVehicleCategory = string;
 export type CorporateRouteDirection = 'LOGIN' | 'LOGOUT';
 export type CorporateRouteLifecycleStatus =
   | 'PLANNED'
@@ -42,7 +42,7 @@ export interface CorporateRouteProps {
 
 /**
  * CorporateRouteAggregate.
- * The Domain Aggregate Root enforcing CVRPTW passenger capacity constraints (Sedan <= 4, SUV <= 6),
+ * The Domain Aggregate Root enforcing passenger capacity constraints,
  * stop ordering, autonomous dispatch transitions, and trip completion invariants.
  */
 export class CorporateRouteAggregate extends AggregateRoot<string> {
@@ -107,19 +107,17 @@ export class CorporateRouteAggregate extends AggregateRoot<string> {
 
   public static create(
     id: string,
-    props: Omit<CorporateRouteProps, 'capacityLimit' | 'status'> & {
-      capacityLimit?: number;
-      status?: CorporateRouteLifecycleStatus;
-    },
+    props: Omit<CorporateRouteProps, 'status'> & { status?: CorporateRouteLifecycleStatus },
   ): Result<CorporateRouteAggregate> {
-    const capacityLimit =
-      props.vehicleCategory === 'SEDAN' ? 4 : 6;
+    if (!Number.isInteger(props.capacityLimit) || props.capacityLimit < 1) {
+      return Result.fail('Capacity limit must be a positive integer');
+    }
 
     // Invariant 1: Passenger capacity enforcement
     const passengerStops = props.stops.filter((s) => s.stopType === 'PICKUP');
-    if (passengerStops.length > capacityLimit) {
+    if (passengerStops.length > props.capacityLimit) {
       return Result.fail(
-        `Capacity violation: ${props.vehicleCategory} cannot seat more than ${capacityLimit} passengers (received ${passengerStops.length})`,
+        `Capacity violation: ${props.vehicleCategory} cannot seat more than ${props.capacityLimit} passengers (received ${passengerStops.length})`,
       );
     }
 
@@ -137,7 +135,6 @@ export class CorporateRouteAggregate extends AggregateRoot<string> {
 
     const route = new CorporateRouteAggregate(id, {
       ...props,
-      capacityLimit,
       status: props.status || 'PLANNED',
     });
 

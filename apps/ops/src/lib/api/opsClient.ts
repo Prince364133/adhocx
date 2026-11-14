@@ -10,6 +10,7 @@ import {
   RoutePlanningBatchResult,
   RoutePlanningResponse,
   RouteDirectionsResult,
+  VehicleCategoryOption,
   AssignmentItem,
   OpsSupportTicket,
   OpsSupportTicketStatus,
@@ -45,8 +46,7 @@ export interface ShiftOptimizationSummary {
   direction: 'LOGIN' | 'LOGOUT';
   totalRequestsEvaluated: number;
   routesCreated: number;
-  sedanRoutesCreated: number;
-  suvRoutesCreated: number;
+  vehicleCategoryCounts?: Record<string, number>;
   passengersAssigned: number;
   unassignedRequests: number;
   averagePassengersPerRoute: number;
@@ -67,8 +67,7 @@ export interface ShiftOptimizationBatchSummary {
   plans: ShiftOptimizationDirectionOutcome[];
   totalRequestsEvaluated: number;
   routesCreated: number;
-  sedanRoutesCreated: number;
-  suvRoutesCreated: number;
+  vehicleCategoryCounts?: Record<string, number>;
   passengersAssigned: number;
   unassignedRequests: number;
 }
@@ -425,6 +424,11 @@ export const opsApi = {
     ),
 
   // ── Companies / Tenants ──
+  getVehicleCategories: async (): Promise<VehicleCategoryOption[]> => {
+    const categories = await request<VehicleCategoryOption[]>('/pricing/tiers');
+    return categories.filter((category) => category.isActive);
+  },
+
   getTenants: async (params: { search?: string; page?: number; limit?: number } = {}): Promise<{
     items: CorporateTenantOption[];
     pagination: { total: number; page: number; limit: number; totalPages: number };
@@ -569,10 +573,8 @@ export const opsApi = {
     direction: 'LOGIN' | 'LOGOUT' | 'BOTH';
     loginTime?: string;
     logoutTime?: string;
-    vehicleCategory?: 'SEDAN' | 'SUV' | 'BOTH';
+    vehicleCategory?: string;
     maxCapacity?: number;
-    sedanCapacity?: number;
-    suvCapacity?: number;
     officeBufferMinutes?: number;
     maxRideTimeMinutes?: number;
     stopDwellMinutes?: number;
@@ -716,9 +718,8 @@ export const opsApi = {
     shiftDate: string;
     shiftTime: string;
     direction: 'LOGIN' | 'LOGOUT';
-    vehicleCategory?: 'SEDAN' | 'SUV' | 'BOTH';
-    sedanCapacity?: number;
-    suvCapacity?: number;
+    vehicleCategory?: string;
+    cabCapacity?: number;
     stopDwellMinutes?: number;
     plan: RoutePlanningResult;
   }): Promise<{ routesCreated: number; stopsCreated: number; routeIds?: string[]; employeesLinked?: number }> => {

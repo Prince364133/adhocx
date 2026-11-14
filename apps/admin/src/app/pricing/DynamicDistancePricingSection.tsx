@@ -27,6 +27,7 @@ import {
   PricingAuditItem,
   DistanceSimulationResult,
   PeakHourWindow,
+  VehicleCategory,
 } from '../../lib/api/types';
 import { Card, Button, StatusBadge, Drawer } from '../../components/common';
 
@@ -34,8 +35,10 @@ const inr = (rupees: number | undefined) => `₹${Number(rupees ?? 0).toLocaleSt
 
 export function DynamicDistancePricingSection() {
   const [plans, setPlans] = useState<DistancePricingPlan[]>([]);
+  const [vehicleCategories, setVehicleCategories] = useState<VehicleCategory[]>([]);
   const [selectedPlanId, setSelectedPlanId] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [loadingCategories, setLoadingCategories] = useState(true);
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Audience & Time Condition View Switcher
@@ -129,6 +132,18 @@ export function DynamicDistancePricingSection() {
     }
   }, []);
 
+  const loadVehicleCategories = useCallback(async () => {
+    setLoadingCategories(true);
+    try {
+      const categories = await adminApi.getPricingTiers();
+      setVehicleCategories(categories.filter((category) => category.isActive !== false));
+    } catch (err: any) {
+      setAlert({ type: 'error', message: err.message || 'Failed to load vehicle categories' });
+    } finally {
+      setLoadingCategories(false);
+    }
+  }, []);
+
   const handleSaveEscortFee = async () => {
     const trimmed = editingEscortFee.trim();
     const val = Number(trimmed);
@@ -163,7 +178,8 @@ export function DynamicDistancePricingSection() {
 
   useEffect(() => {
     loadPlans();
-  }, [loadPlans]);
+    loadVehicleCategories();
+  }, [loadPlans, loadVehicleCategories]);
 
   const activePlan = useMemo(() => {
     return plans.find((p) => p.id === selectedPlanId) || plans[0] || null;
@@ -1652,14 +1668,15 @@ export function DynamicDistancePricingSection() {
             <select
               value={newPlanCategory}
               onChange={(e) => setNewPlanCategory(e.target.value)}
+              disabled={loadingCategories}
               style={{ width: '100%', marginTop: '0.35rem', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)', fontSize: '0.85rem' }}
             >
               <option value="ALL">ALL (Default Plan)</option>
-              <option value="SEDAN">SEDAN</option>
-              <option value="SUV">SUV</option>
-              <option value="HATCHBACK">HATCHBACK</option>
-              <option value="TEMPO_TRAVELLER">TEMPO_TRAVELLER</option>
-              <option value="BUS">BUS</option>
+              {vehicleCategories.map((category) => (
+                <option key={category.vehicleType} value={category.vehicleType}>
+                  {category.categoryLabel} ({category.vehicleType})
+                </option>
+              ))}
             </select>
           </div>
           <div>
