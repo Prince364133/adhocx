@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import Link from 'next/link';
 import {
   Route,
   Plus,
@@ -502,7 +503,7 @@ export function DynamicDistancePricingSection() {
   }
 
   // Open Slabs Editor
-  function handleOpenSlabEditor() {
+  function _handleOpenSlabEditor() {
     if (activePlan?.slabs && activePlan.slabs.length > 0) {
       setEditingSlabs(
         activePlan.slabs.map((s) => ({
@@ -1166,16 +1167,22 @@ export function DynamicDistancePricingSection() {
             </p>
           </div>
 
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <Button variant="primary" size="sm" leftIcon={<Building2 size={13} />} onClick={() => setIsEditVendorOpen(true)}>
-              Edit Vendor Rates
-            </Button>
-            <Button variant="secondary" size="sm" leftIcon={<Car size={13} />} onClick={() => setIsEditDriverOpen(true)}>
-              Edit Driver Payouts
-            </Button>
-            <Button variant="outline" size="sm" leftIcon={<Sliders size={13} />} onClick={handleOpenSlabEditor}>
-              Customize as Draft
-            </Button>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <Link href="/pricing/matrix?role=vendor" style={{ textDecoration: 'none' }}>
+              <Button variant="primary" size="sm" leftIcon={<Building2 size={13} />}>
+                Vendor Matrix Workspace
+              </Button>
+            </Link>
+            <Link href="/pricing/matrix?role=driver" style={{ textDecoration: 'none' }}>
+              <Button variant="secondary" size="sm" leftIcon={<Car size={13} />}>
+                Driver Matrix Workspace
+              </Button>
+            </Link>
+            <Link href="/pricing/matrix?role=unified" style={{ textDecoration: 'none' }}>
+              <Button variant="outline" size="sm" leftIcon={<Layers size={13} />}>
+                Full Slabs Matrix (200km)
+              </Button>
+            </Link>
           </div>
         </div>
 
@@ -1221,14 +1228,25 @@ export function DynamicDistancePricingSection() {
                       </div>
                     </div>
                   </div>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    leftIcon={<Edit2 size={13} />}
-                    onClick={() => setIsEditVendorOpen(true)}
-                  >
-                    Edit Vendor Rates
-                  </Button>
+                  <div style={{ display: 'flex', gap: '0.4rem' }}>
+                    <Link href="/pricing/matrix?role=vendor" style={{ textDecoration: 'none' }}>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        leftIcon={<Layers size={13} />}
+                      >
+                        Open Full Matrix →
+                      </Button>
+                    </Link>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      leftIcon={<Edit2 size={13} />}
+                      onClick={() => setIsEditVendorOpen(true)}
+                    >
+                      Quick Edit
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Dual Rule Highlights */}
@@ -1350,15 +1368,26 @@ export function DynamicDistancePricingSection() {
                       </div>
                     </div>
                   </div>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    leftIcon={<Edit2 size={13} />}
-                    onClick={() => setIsEditDriverOpen(true)}
-                    style={{ borderColor: 'rgba(16, 185, 129, 0.4)', color: 'var(--color-success)' }}
-                  >
-                    Edit Driver Payouts
-                  </Button>
+                  <div style={{ display: 'flex', gap: '0.4rem' }}>
+                    <Link href="/pricing/matrix?role=driver" style={{ textDecoration: 'none' }}>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        leftIcon={<Layers size={13} />}
+                        style={{ borderColor: 'rgba(16, 185, 129, 0.4)', color: 'var(--color-success)' }}
+                      >
+                        Open Full Matrix →
+                      </Button>
+                    </Link>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      leftIcon={<Edit2 size={13} />}
+                      onClick={() => setIsEditDriverOpen(true)}
+                    >
+                      Quick Edit
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Dual Rule Highlights */}

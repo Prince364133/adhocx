@@ -114,6 +114,13 @@ export class RateCardConfigDto {
   @IsOptional() @IsNumber() @Min(0)
   escortStepDriverRupees?: number;
 
+  @IsOptional() @IsNumber() @Min(1)
+  maxKm?: number;
+
+  @IsOptional()
+  @IsArray()
+  overriddenSlabs?: Array<any>;
+
   @IsOptional()
   @IsObject()
   vehicleSurges?: Record<string, any>;

@@ -74,3 +74,6 @@ scratch/
 apps/api/load-test/.out/
 
 .claude/
+
+build-artifacts/
+release-android/
