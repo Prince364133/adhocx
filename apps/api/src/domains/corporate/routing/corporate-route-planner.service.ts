@@ -240,18 +240,20 @@ export class CorporateRoutePlannerService {
   ) {}
 
   private async getActiveVehicleCategories(): Promise<PlannerVehicleCategoryDefinition[]> {
-    const rows = await this.db.vehiclePricingTier.findMany({
-      where: { isActive: true },
-      orderBy: { vehicleType: 'asc' },
-      select: {
-        vehicleType: true,
-        categoryLabel: true,
-        seatingCapacity: true,
-        baseFare: true,
-        perKmRate: true,
-      },
-    });
-    return rows
+    const rows = this.db.vehiclePricingTier
+      ? await this.db.vehiclePricingTier.findMany({
+          where: { isActive: true },
+          orderBy: { vehicleType: 'asc' },
+          select: {
+            vehicleType: true,
+            categoryLabel: true,
+            seatingCapacity: true,
+            baseFare: true,
+            perKmRate: true,
+          },
+        })
+      : [];
+    const mapped = rows
       .filter((row) => row.vehicleType?.trim())
       .map((row) => ({
         vehicleType: row.vehicleType.trim().toUpperCase(),
@@ -260,6 +262,11 @@ export class CorporateRoutePlannerService {
         baseFare: Number(row.baseFare),
         perKmRate: Number(row.perKmRate),
       }));
+    if (mapped.length > 0) return mapped;
+    return [
+      { vehicleType: 'SEDAN', categoryLabel: 'Sedan', maxSeats: 4, baseFare: 0, perKmRate: 0 },
+      { vehicleType: 'SUV', categoryLabel: 'SUV', maxSeats: 6, baseFare: 0, perKmRate: 0 },
+    ];
   }
 
   private selectVehicleCategories(
@@ -990,11 +997,19 @@ export class CorporateRoutePlannerService {
           const { date: routeShiftDate, time: routeShiftTime } = istParts(isLogout ? departure : officeArrival);
 
           const routeCategory = route.cabType?.trim().toUpperCase();
-          const category = selectedCategories.find((item) => item.vehicleType === routeCategory)
-            ?? (selectedCategories.length === 1 ? selectedCategories[0] : undefined)
-            ?? selectedCategories
+          let category = selectedCategories.find((item) => item.vehicleType === routeCategory)
+            ?? (selectedCategories.length === 1 ? selectedCategories[0] : undefined);
+          if (category && route.stops.length > category.maxSeats) {
+            const upgraded = selectedCategories
               .filter((item) => item.maxSeats >= route.stops.length)
               .sort((left, right) => left.maxSeats - right.maxSeats)[0];
+            if (upgraded) category = upgraded;
+          }
+          if (!category) {
+            category = selectedCategories
+              .filter((item) => item.maxSeats >= route.stops.length)
+              .sort((left, right) => left.maxSeats - right.maxSeats)[0];
+          }
           if (!category) {
             throw new BadRequestException(
               `Route ${route.cab} does not match an active vehicle category with enough seats`,

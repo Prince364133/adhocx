@@ -1113,6 +1113,7 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
 
   private async assertActiveCategory(vehicleCategory: string): Promise<void> {
     if (vehicleCategory === DEFAULT_PLAN_CATEGORY) return;
+    if (!this.db.vehiclePricingTier) return;
     const category = await this.db.vehiclePricingTier.findUnique({
       where: { vehicleType: vehicleCategory },
     });

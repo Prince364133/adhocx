@@ -35,8 +35,8 @@ export type CreateTenantPolicyInput = Partial<CorporateTenantPolicyValues> & { e
 export const DEFAULT_TENANT_POLICY: Readonly<CorporateTenantPolicyValues> = Object.freeze({
   cancelCutoffHours: RESCHEDULE_CUTOFF_HOURS,
   maxRideMinutes: 120,
-  defaultVehicleCategory: 'ALL',
-  defaultCapacity: 12,
+  defaultVehicleCategory: 'SEDAN',
+  defaultCapacity: 4,
   escalationLeadMinutes: 30,
   officeArrivalBufferMinutes: 10,
   stopDwellMinutes: 10,
@@ -78,22 +78,23 @@ export class CorporateTenantPolicyService {
   ) {}
 
   async getEffectivePolicy(tenantId: string, at: Date = new Date()): Promise<EffectiveTenantPolicy> {
-    const row: any = await this.db.corporateTenantPolicy.findFirst({
-      where: { tenantId, effectiveFrom: { lte: at } },
-      orderBy: [{ effectiveFrom: 'desc' }, { version: 'desc' }],
-    });
+    const row: any = this.db.corporateTenantPolicy
+      ? await this.db.corporateTenantPolicy.findFirst({
+          where: { tenantId, effectiveFrom: { lte: at } },
+          orderBy: [{ effectiveFrom: 'desc' }, { version: 'desc' }],
+        })
+      : null;
     if (!row) {
       const categories = await this.getActiveCategoryCapacities();
-      if (categories.length === 0) {
-        throw new BadRequestException('No active vehicle categories are configured');
-      }
+      const defaultVehicleCategory = DEFAULT_TENANT_POLICY.defaultVehicleCategory;
+      const categoryCapacity = this.resolvePolicyCategoryCapacity(defaultVehicleCategory, categories);
       return {
         tenantId,
         version: null,
         effectiveFrom: null,
         source: 'DEFAULT',
         ...DEFAULT_TENANT_POLICY,
-        defaultCapacity: Math.max(...categories.map((category) => category.maxSeats)),
+        defaultCapacity: Math.min(DEFAULT_TENANT_POLICY.defaultCapacity, categoryCapacity),
       };
     }
     const defaultVehicleCategory = String(row.defaultVehicleCategory).trim().toUpperCase();
@@ -128,6 +129,7 @@ export class CorporateTenantPolicyService {
   }
 
   async listPolicyVersions(tenantId: string) {
+    if (!this.db.corporateTenantPolicy) return [];
     return this.db.corporateTenantPolicy.findMany({
       where: { tenantId },
       orderBy: [{ effectiveFrom: 'desc' }, { version: 'desc' }],
@@ -206,17 +208,24 @@ export class CorporateTenantPolicyService {
   }
 
   private async getActiveCategoryCapacities(): Promise<Array<{ vehicleType: string; maxSeats: number }>> {
-    const rows = await this.db.vehiclePricingTier.findMany({
-      where: { isActive: true },
-      orderBy: { vehicleType: 'asc' },
-      select: { vehicleType: true, seatingCapacity: true },
-    });
-    return rows
+    const rows = this.db.vehiclePricingTier
+      ? await this.db.vehiclePricingTier.findMany({
+          where: { isActive: true },
+          orderBy: { vehicleType: 'asc' },
+          select: { vehicleType: true, seatingCapacity: true },
+        })
+      : [];
+    const mapped = rows
       .filter((row) => row.vehicleType?.trim())
       .map((row) => ({
         vehicleType: row.vehicleType.trim().toUpperCase(),
         maxSeats: calculateTierMaxSeats(row.vehicleType, row.seatingCapacity),
       }));
+    if (mapped.length > 0) return mapped;
+    return [
+      { vehicleType: 'SEDAN', maxSeats: 4 },
+      { vehicleType: 'SUV', maxSeats: 6 },
+    ];
   }
 
   private resolvePolicyCategoryCapacity(

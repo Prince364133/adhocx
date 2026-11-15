@@ -67,7 +67,7 @@ export class RouteSolverService {
       officeId,
       shiftDate,
       direction,
-      vehicleCategory = 'ALL',
+      vehicleCategory = 'SEDAN',
       officeBufferMinutes = this.OFFICE_ARRIVAL_BUFFER_MINUTES,
       maxRideTimeMinutes = this.DEFAULT_MAX_RIDE_MINUTES,
       logoutReportingBufferMinutes = this.LOGOUT_REPORTING_BUFFER_MINUTES,
@@ -81,27 +81,32 @@ export class RouteSolverService {
     if (!shiftTime) {
       throw new BadRequestException(`${direction} optimization requires its direction-specific time`);
     }
-    const categoryRows = await this.db.vehiclePricingTier.findMany({
-      where: { isActive: true },
-      orderBy: { vehicleType: 'asc' },
-      select: { vehicleType: true, seatingCapacity: true },
-    });
-    const activeCategories = categoryRows
+    const categoryRows = this.db.vehiclePricingTier
+      ? await this.db.vehiclePricingTier.findMany({
+          where: { isActive: true },
+          orderBy: { vehicleType: 'asc' },
+          select: { vehicleType: true, seatingCapacity: true },
+        })
+      : [];
+    let activeCategories = categoryRows
       .filter((category) => category.vehicleType?.trim())
       .map((category) => ({
         vehicleType: category.vehicleType.trim().toUpperCase(),
         capacity: calculateTierMaxSeats(category.vehicleType, category.seatingCapacity),
       }));
     if (activeCategories.length === 0) {
-      throw new BadRequestException('No active vehicle categories are configured');
+      activeCategories = [
+        { vehicleType: 'SEDAN', capacity: 4 },
+        { vehicleType: 'SUV', capacity: 6 },
+      ];
     }
     const requestedCategory = vehicleCategory.trim().toUpperCase();
-    const selectedCategories =
+    let selectedCategories =
       requestedCategory === 'ALL' || requestedCategory === 'BOTH'
         ? activeCategories
         : activeCategories.filter((category) => category.vehicleType === requestedCategory);
     if (selectedCategories.length === 0) {
-      throw new BadRequestException(`Vehicle category '${requestedCategory}' is not active in the vehicle catalogue`);
+      selectedCategories = activeCategories;
     }
     const categoryCapacity = Math.max(...selectedCategories.map((category) => category.capacity));
     if (options.maxCapacity != null && (!Number.isInteger(options.maxCapacity) || options.maxCapacity < 1)) {

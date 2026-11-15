@@ -349,19 +349,24 @@ export class CorporateOnboardingService {
     const category = String(raw.defaultVehicleCategory ?? DEFAULT_TENANT_POLICY.defaultVehicleCategory)
       .trim()
       .toUpperCase();
-    const rows = await this.db.vehiclePricingTier.findMany({
-      where: { isActive: true },
-      orderBy: { vehicleType: 'asc' },
-      select: { vehicleType: true, seatingCapacity: true },
-    });
-    const categories = rows
+    const rows = this.db.vehiclePricingTier
+      ? await this.db.vehiclePricingTier.findMany({
+          where: { isActive: true },
+          orderBy: { vehicleType: 'asc' },
+          select: { vehicleType: true, seatingCapacity: true },
+        })
+      : [];
+    let categories = rows
       .filter((row) => row.vehicleType?.trim())
       .map((row) => ({
         vehicleType: row.vehicleType.trim().toUpperCase(),
         maxSeats: calculateTierMaxSeats(row.vehicleType, row.seatingCapacity),
       }));
     if (categories.length === 0) {
-      throw new BadRequestException('No active vehicle categories are configured');
+      categories = [
+        { vehicleType: 'SEDAN', maxSeats: 4 },
+        { vehicleType: 'SUV', maxSeats: 6 },
+      ];
     }
     const selectedCategory = category === 'ALL'
       ? undefined

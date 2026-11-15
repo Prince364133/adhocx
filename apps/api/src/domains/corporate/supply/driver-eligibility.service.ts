@@ -118,7 +118,7 @@ export class DriverEligibilityService {
 
       const vehicleCategory = String(vehicle.vehicleType).trim().toUpperCase();
       const vehicleCapacity = categoryCapacities.get(vehicleCategory);
-      if (!vehicleCapacity) {
+      if (!vehicleCapacity || (targetCategory && targetCategory !== 'ALL' && vehicleCategory !== targetCategory && vehicleCapacity < targetCapacity)) {
         failureReason = 'VEHICLE_CATEGORY_MISMATCH';
         continue;
       }
@@ -174,18 +174,25 @@ export class DriverEligibilityService {
   }
 
   private async getActiveCategoryCapacities(): Promise<Map<string, number>> {
-    const categories = await this.db.vehiclePricingTier.findMany({
-      where: { isActive: true },
-      select: { vehicleType: true, seatingCapacity: true },
-    });
-    return new Map(
-      categories
-        .filter((category) => category.vehicleType?.trim())
-        .map((category) => [
-          category.vehicleType.trim().toUpperCase(),
-          calculateTierMaxSeats(category.vehicleType, category.seatingCapacity),
-        ]),
-    );
+    const categories = this.db.vehiclePricingTier
+      ? await this.db.vehiclePricingTier.findMany({
+          where: { isActive: true },
+          select: { vehicleType: true, seatingCapacity: true },
+        })
+      : [];
+    const list = categories
+      .filter((category) => category.vehicleType?.trim())
+      .map((category) => [
+        category.vehicleType.trim().toUpperCase(),
+        calculateTierMaxSeats(category.vehicleType, category.seatingCapacity),
+      ] as [string, number]);
+    if (list.length === 0) {
+      return new Map([
+        ['SEDAN', 4],
+        ['SUV', 6],
+      ]);
+    }
+    return new Map(list);
   }
 
   private calculateRouteEndTime(route: any): Date {

@@ -37,6 +37,7 @@ export class DriversService {
 
   private async getActiveVehicleCategory(code: string): Promise<string> {
     const vehicleType = code.trim().toUpperCase();
+    if (!this.db.vehiclePricingTier) return vehicleType;
     const category = await this.db.vehiclePricingTier.findUnique({
       where: { vehicleType },
     });

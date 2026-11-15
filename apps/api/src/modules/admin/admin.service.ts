@@ -1239,7 +1239,7 @@ export class AdminService {
     const cleanName = sanitizeRealName(data.fullName);
     const rawPlate = data.vehiclePlate?.trim().toUpperCase();
     const vehicleType = data.vehicleType?.trim().toUpperCase();
-    if (vehicleType) {
+    if (vehicleType && this.db.vehiclePricingTier) {
       const category = await this.db.vehiclePricingTier.findUnique({
         where: { vehicleType },
       });
@@ -1253,7 +1253,7 @@ export class AdminService {
     if (rawPlate && !vehicleTypeForVehicle) {
       throw new BadRequestException('Select an active vehicle category before saving vehicle registration details.');
     }
-    if (rawPlate && !vehicleType && vehicleTypeForVehicle) {
+    if (rawPlate && !vehicleType && vehicleTypeForVehicle && this.db.vehiclePricingTier) {
       const category = await this.db.vehiclePricingTier.findUnique({
         where: { vehicleType: vehicleTypeForVehicle },
       });

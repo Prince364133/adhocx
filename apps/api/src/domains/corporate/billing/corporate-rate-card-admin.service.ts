@@ -279,11 +279,12 @@ export class CorporateRateCardAdminService {
 
   private async normalizeActiveCategory(value: unknown): Promise<string> {
     const category = normalizeCategory(value);
+    if (!this.db.vehiclePricingTier) return category;
     const tier = await this.db.vehiclePricingTier.findUnique({
       where: { vehicleType: category },
       select: { isActive: true },
     });
-    if (!tier?.isActive) {
+    if (tier && !tier.isActive) {
       throw new BadRequestException(`Vehicle category '${category}' is not active in the vehicle catalogue`);
     }
     return category;

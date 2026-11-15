@@ -42,14 +42,14 @@ export class RateCardService {
    * `isActive AND effectiveFrom <= at AND (effectiveTo IS NULL OR effectiveTo > at)`, latest
    * `effectiveFrom` wins. Returns null when none is configured (or the table is unavailable).
    */
-  async findDriverRateCard(vehicleCategory: string = '', at: Date = new Date()): Promise<DriverRateCardRow | null> {
-    if (!vehicleCategory.trim()) return null;
+  async findDriverRateCard(vehicleCategory: string = 'SEDAN', at: Date = new Date()): Promise<DriverRateCardRow | null> {
+    const normalizedCategory = vehicleCategory?.trim() ? vehicleCategory.trim().toUpperCase() : 'SEDAN';
     const delegate: any = (this.db as any)?.corporateDriverRateCard;
     if (!delegate?.findFirst) return null;
     try {
       const card = await delegate.findFirst({
         where: {
-          vehicleCategory: { equals: vehicleCategory, mode: 'insensitive' },
+          vehicleCategory: { equals: normalizedCategory, mode: 'insensitive' },
           isActive: true,
           effectiveFrom: { lte: at },
           OR: [{ effectiveTo: null }, { effectiveTo: { gt: at } }],
@@ -98,17 +98,17 @@ export class RateCardService {
    */
   async findClientRateCard(
     tenantId: string,
-    vehicleCategory: string = '',
+    vehicleCategory: string = 'SEDAN',
     at: Date = new Date(),
   ): Promise<ClientCardTerms | null> {
-    if (!vehicleCategory.trim()) return null;
+    const normalizedCategory = vehicleCategory?.trim() ? vehicleCategory.trim().toUpperCase() : 'SEDAN';
     const delegate: any = (this.db as any)?.corporateRateCard;
     if (!delegate?.findFirst) return null;
     try {
       const card = await delegate.findFirst({
         where: {
           tenantId,
-          vehicleCategory: { equals: vehicleCategory, mode: 'insensitive' },
+          vehicleCategory: { equals: normalizedCategory, mode: 'insensitive' },
           effectiveFrom: { lte: at },
           OR: [{ effectiveTo: null }, { effectiveTo: { gt: at } }],
         },
@@ -116,7 +116,7 @@ export class RateCardService {
       });
       return card ?? null;
     } catch (err: any) {
-      this.logger.warn(`Corporate rate card lookup failed (${tenantId}/${vehicleCategory}): ${err?.message ?? err}`);
+      this.logger.warn(`Corporate rate card lookup failed (${tenantId}/${normalizedCategory}): ${err?.message ?? err}`);
       return null;
     }
   }
@@ -153,7 +153,7 @@ export class RateCardService {
 
   /** Corporate card in force at `at` picked from an already-loaded version list (no query). */
   static selectClientCard(cards: readonly ClientCardTerms[], vehicleCategory: string, at: Date): ClientCardTerms | null {
-    if (!vehicleCategory.trim()) return null;
-    return selectCardAt(cards, vehicleCategory, at);
+    const normalizedCategory = vehicleCategory?.trim() ? vehicleCategory.trim().toUpperCase() : 'SEDAN';
+    return selectCardAt(cards, normalizedCategory, at);
   }
 }
