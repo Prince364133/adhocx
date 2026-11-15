@@ -577,8 +577,22 @@ export function DynamicDistancePricingSection() {
     if (!activePlan || !slabValidation.valid || !peakWindowValidation.valid) return;
     setSavingSlabs(true);
     try {
+      const cleanWindows = (editingWindows || []).map((w) => ({
+        start: w.start,
+        end: w.end,
+        label: w.label ? String(w.label).trim() : undefined,
+      }));
+      const cleanSlabs = editingSlabs.map((s) => ({
+        minDistanceMExclusive: Math.round(Number(s.minDistanceMExclusive)),
+        maxDistanceMInclusive: Math.round(Number(s.maxDistanceMInclusive)),
+        vendorPricePaise: Math.round(Number(s.vendorPricePaise)),
+        driverPayoutPaise: Math.round(Number(s.driverPayoutPaise)),
+        vendorPeakPricePaise: s.vendorPeakPricePaise != null ? Math.round(Number(s.vendorPeakPricePaise)) : undefined,
+        driverPeakPayoutPaise: s.driverPeakPayoutPaise != null ? Math.round(Number(s.driverPeakPayoutPaise)) : undefined,
+        active: s.active !== false,
+      }));
       const meta = {
-        peakWindows: editingWindows,
+        peakWindows: cleanWindows,
         config: {
           baseKm: genBaseKm,
           baseVendorRupees: genBaseVendor,
@@ -591,11 +605,15 @@ export function DynamicDistancePricingSection() {
           vendorPeakExtraStepRupees: genVendorPeakExtraStep,
           driverPeakExtraBaseRupees: genDriverPeakExtraBase,
           driverPeakExtraStepRupees: genDriverPeakExtraStep,
+          escortBaseVendorRupees: genEscortBaseVendor,
+          escortStepVendorRupees: genEscortStepVendor,
+          escortBaseDriverRupees: genEscortBaseDriver,
+          escortStepDriverRupees: genEscortStepDriver,
         },
       };
 
       if (activePlan.status === 'DRAFT') {
-        await adminApi.updateDistancePricingSlabs(activePlan.id, editingSlabs, slabEditReason.trim() || undefined, meta);
+        await adminApi.updateDistancePricingSlabs(activePlan.id, cleanSlabs, slabEditReason.trim() || undefined, meta);
         setAlert({ type: 'success', message: `Draft ${activePlan.version} rate cards saved. Publish it to activate.` });
         setIsEditSlabsOpen(false);
         loadPlans(activePlan.id);
@@ -603,8 +621,8 @@ export function DynamicDistancePricingSection() {
         const draft = await adminApi.createDistancePricingPlan({
           vehicleCategory: activePlan.vehicleCategory,
           name: slabEditReason.trim() ? `Draft: ${slabEditReason.trim()}`.slice(0, 120) : undefined,
-          slabs: editingSlabs,
-          peakWindows: editingWindows,
+          slabs: cleanSlabs,
+          peakWindows: cleanWindows,
           config: meta.config,
         });
         setAlert({
@@ -660,7 +678,12 @@ export function DynamicDistancePricingSection() {
       const esVendor = Number(options?.escortStepVendor ?? genEscortStepVendor) || 0;
       const ebDriver = Number(options?.escortBaseDriver ?? genEscortBaseDriver) || 0;
       const esDriver = Number(options?.escortStepDriver ?? genEscortStepDriver) || 0;
-      const windows = options?.windows ?? editingWindows;
+      const rawWindows = options?.windows ?? editingWindows;
+      const windows = (rawWindows || []).map((w) => ({
+        start: w.start,
+        end: w.end,
+        label: w.label ? String(w.label).trim() : undefined,
+      }));
       const surges = options?.vehicleSurges ?? vehiclePeakSurges;
 
       // Anti-Collapse & Margin Guard

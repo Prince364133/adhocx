@@ -37,14 +37,14 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Lint (ESLint, shared eslint.config.mjs)
-        run: pnpm lint
-
       - name: Build Contracts Package
         run: pnpm --filter @adhocx/contracts build
 
       - name: Generate Prisma Client
         run: cd apps/api && npx prisma generate
+
+      - name: Lint (ESLint, shared eslint.config.mjs)
+        run: pnpm lint
 
       - name: Typecheck Backend API
         run: pnpm --filter @adhocx/api build

@@ -74,3 +74,4 @@ export class ToggleFeatureFlagDto {
   @IsBoolean({ message: 'isEnabled must be a boolean' })
   isEnabled!: boolean;
 }
+

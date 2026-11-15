@@ -9,14 +9,12 @@ import {
   Search,
   RefreshCw,
   Wallet,
-  Shield,
   Layers,
   Sparkles,
   AlertCircle,
   Clock,
   User,
   Tag,
-  ArrowRight,
 } from 'lucide-react';
 import { adminApi } from '../../lib/api/client';
 import { FeatureFlagItem } from '../../lib/api/types';
@@ -620,3 +618,4 @@ export default function FeatureFlagsPage() {
     </div>
   );
 }
+
