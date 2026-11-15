@@ -31,7 +31,7 @@ async function approveDriverKycForTest(userId) {
       where: { userId },
       data: { verificationStatus: 'VERIFIED', rejectionReason: null },
     });
-    // Ensure SEDAN is present and active in the pricing catalogue
+    // Ensure SEDAN and SUV are present and active in the pricing catalogue
     await prisma.vehiclePricingTier.upsert({
       where: { vehicleType: 'SEDAN' },
       update: { isActive: true },
@@ -40,6 +40,23 @@ async function approveDriverKycForTest(userId) {
         categoryLabel: 'Sedan',
         seatingCapacity: '4',
         description: 'Standard 4-seater Sedan',
+        iconKey: 'car',
+        baseFare: 0,
+        baseKm: 0,
+        perKmRate: 0,
+        surgeMultiplier: 1.0,
+        isActive: true,
+        updatedBy: 'TEST_SUITE',
+      },
+    });
+    await prisma.vehiclePricingTier.upsert({
+      where: { vehicleType: 'SUV' },
+      update: { isActive: true },
+      create: {
+        vehicleType: 'SUV',
+        categoryLabel: 'SUV',
+        seatingCapacity: '6',
+        description: 'Standard 6-seater SUV',
         iconKey: 'car',
         baseFare: 0,
         baseKm: 0,
