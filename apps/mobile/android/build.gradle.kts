@@ -20,6 +20,26 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
+subprojects {
+    afterEvaluate {
+        val android = project.extensions.findByName("android") ?: return@afterEvaluate
+        try {
+            val m = android.javaClass.getMethod("compileSdkVersion", Int::class.javaPrimitiveType)
+            m.invoke(android, 35)
+        } catch (_: Throwable) {
+            try {
+                val m = android.javaClass.getMethod("setCompileSdk", java.lang.Integer::class.java)
+                m.invoke(android, 35)
+            } catch (_: Throwable) {
+                try {
+                    val m = android.javaClass.getMethod("compileSdkVersion", String::class.java)
+                    m.invoke(android, "android-35")
+                } catch (_: Throwable) {}
+            }
+        }
+    }
+}
+
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
