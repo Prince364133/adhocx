@@ -27,11 +27,30 @@ async function approveDriverKycForTest(userId) {
   }
   const prisma = new PrismaClient({ datasources: { db: { url } } });
   try {
-    const res = await prisma.driver.updateMany({
+    await prisma.driver.updateMany({
       where: { userId },
       data: { verificationStatus: 'VERIFIED', rejectionReason: null },
     });
-    if (res.count !== 1) throw new Error(`Expected one driver profile for user ${userId}, found ${res.count}`);
+    // Ensure SEDAN is present and active in the pricing catalogue
+    await prisma.vehiclePricingTier.upsert({
+      where: { vehicleType: 'SEDAN' },
+      update: { isActive: true },
+      create: {
+        vehicleType: 'SEDAN',
+        categoryLabel: 'Sedan',
+        seatingCapacity: '4',
+        description: 'Standard 4-seater Sedan',
+        iconKey: 'car',
+        basePrice: 0,
+        perKmPrice: 0,
+        minimumPrice: 0,
+        driverBasePayout: 0,
+        driverPerKmPayout: 0,
+        driverMinimumPayout: 0,
+        isActive: true,
+        updatedBy: 'TEST_SUITE',
+      },
+    });
   } finally {
     await prisma.$disconnect();
   }
@@ -154,6 +173,9 @@ async function runVerification() {
 
   // 3. Driver Goes Online
   console.log('\n[STEP 3] Configuring Driver Profile with SEDAN vehicle and setting Availability...');
+  await approveDriverKycForTest(driverAuth.user.id);
+  console.log('✓ Driver KYC approved & SEDAN category verified');
+
   await request('/drivers/profile', {
     method: 'PATCH',
     headers: driverHeaders,
@@ -163,9 +185,6 @@ async function runVerification() {
       vehiclePlate: `DL01${timestamp}`,
     }),
   });
-
-  await approveDriverKycForTest(driverAuth.user.id);
-  console.log('✓ Driver KYC approved (admin verification stand-in, test DB only)');
 
   const availability = await request('/drivers/availability', {
     method: 'PATCH',

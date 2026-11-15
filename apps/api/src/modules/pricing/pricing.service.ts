@@ -61,6 +61,25 @@ export class PricingService implements OnModuleInit {
       if (!(await this.db.systemPolicyConfig.findUnique({ where: { key: 'GLOBAL_POLICY' } }))) {
         await this.db.systemPolicyConfig.create({ data: { key: 'GLOBAL_POLICY', ...DEFAULT_POLICY } });
       }
+      if (this.db.vehiclePricingTier) {
+        const count = await this.db.vehiclePricingTier.count();
+        if (count === 0) {
+          const defaults = [
+            { vehicleType: 'SEDAN', categoryLabel: 'Sedan', seatingCapacity: '4', description: '4 Passenger Sedan', iconKey: 'car' },
+            { vehicleType: 'SUV', categoryLabel: 'SUV', seatingCapacity: '6', description: '6 Passenger SUV', iconKey: 'car' },
+          ];
+          for (const d of defaults) {
+            await this.db.vehiclePricingTier.create({
+              data: {
+                ...d,
+                ...legacyZeroPrices(),
+                isActive: true,
+                updatedBy: 'SYSTEM_BOOT',
+              },
+            });
+          }
+        }
+      }
     } catch (err: any) {
       this.logger.warn(`Could not seed platform policy: ${err.message}`);
     }

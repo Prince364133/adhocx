@@ -41,7 +41,14 @@ export class DriversService {
     const category = await this.db.vehiclePricingTier.findUnique({
       where: { vehicleType },
     });
-    if (!category || !category.isActive) {
+    if (!category) {
+      const count = await this.db.vehiclePricingTier.count();
+      if (count === 0 && ['SEDAN', 'SUV', 'HATCHBACK'].includes(vehicleType)) {
+        return vehicleType;
+      }
+      throw new BadRequestException(`Vehicle category "${vehicleType}" is not active in the pricing catalogue.`);
+    }
+    if (!category.isActive) {
       throw new BadRequestException(`Vehicle category "${vehicleType}" is not active in the pricing catalogue.`);
     }
     return vehicleType;
