@@ -911,6 +911,7 @@ export const adminApi = {
     apiClient<PricingAuditItem[]>(`/admin/pricing/audit${planId ? `?planId=${planId}` : ''}`),
 
   simulateDistancePricing: (data: {
+    planId?: string;
     distanceKm?: number;
     distanceMeters?: number;
     pickup?: { lat: number; lng: number; address?: string };

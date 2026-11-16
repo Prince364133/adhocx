@@ -838,6 +838,7 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
   // ===========================================================================
 
   async simulateCalculation(params: {
+    planId?: string;
     distanceKm?: number;
     distanceMeters?: number;
     pickup?: { lat: number; lng: number; address?: string };
@@ -845,6 +846,7 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
     vehicleCategory?: string;
     pickupTime?: string;
     isPeak?: boolean;
+    hasEscort?: boolean;
   }) {
     let distanceMeters = params.distanceMeters ? Math.round(Number(params.distanceMeters)) : undefined;
     if (!distanceMeters && params.pickup && params.drop) {
@@ -860,18 +862,110 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
       throw new BadRequestException('Provide route coordinates or a positive distance.');
     }
     const vehicleCategory = this.normalizeCategory(params.vehicleCategory);
-    const plan = await this.resolveActivePlan(vehicleCategory);
+
+    let plan: any = null;
+    if (params.planId) {
+      plan = await this.db.pricingPlan.findUnique({
+        where: { id: params.planId },
+        include: { slabs: { where: { active: true }, orderBy: { minDistanceMExclusive: 'asc' } } },
+      });
+    }
+    if (!plan) {
+      try {
+        plan = await this.resolveActivePlan(vehicleCategory);
+      } catch {
+        plan = await this.db.pricingPlan.findFirst({
+          where: { vehicleCategory },
+          orderBy: { createdAt: 'desc' },
+          include: { slabs: { where: { active: true }, orderBy: { minDistanceMExclusive: 'asc' } } },
+        });
+        if (!plan) {
+          plan = await this.db.pricingPlan.findFirst({
+            where: { status: 'ACTIVE' },
+            orderBy: { createdAt: 'desc' },
+            include: { slabs: { where: { active: true }, orderBy: { minDistanceMExclusive: 'asc' } } },
+          });
+        }
+      }
+    }
+
+    if (!plan || !plan.slabs || plan.slabs.length === 0) {
+      return {
+        distanceMeters,
+        displayedKm: Number((distanceMeters / 1000).toFixed(1)),
+        planId: null,
+        planVersion: 'N/A',
+        planCategory: vehicleCategory,
+        vehicleCategory,
+        slabId: null,
+        slabRange: 'No slabs configured',
+        isPeak: false,
+        hasEscort: Boolean(params.hasEscort),
+        activeWindowLabel: 'N/A',
+        outOfRange: true,
+        error: `No pricing plan configured for ${vehicleCategory}. Please click Configure Pricing to generate slabs.`,
+        vendorPricePaise: 0,
+        vendorPriceRupees: 0,
+        driverPayoutPaise: 0,
+        driverPayoutRupees: 0,
+        baseRideVendorPriceRupees: 0,
+        baseRideDriverPayoutRupees: 0,
+        escortVendorFeeRupees: 0,
+        escortDriverPayoutRupees: 0,
+        standard: { vendorPriceRupees: 0, driverPayoutRupees: 0 },
+        peak: { vendorPriceRupees: 0, driverPayoutRupees: 0 },
+        peakWindows: [],
+      };
+    }
+
     const peakWindows = planPeakWindows(plan.peakWindowsJson);
     const peakEval: { isPeak: boolean; activeWindow?: PeakWindowDef } =
       params.isPeak !== undefined ? { isPeak: Boolean(params.isPeak) } : evaluatePeakTime(parsePickupTime(params.pickupTime), peakWindows);
 
-    const stdSlab = this.resolveSlab(plan, distanceMeters, false);
-    const peakSlab = this.resolveSlab(plan, distanceMeters, true);
-    const activeSlab = peakEval.isPeak ? peakSlab : stdSlab;
+    const sorted = [...plan.slabs].filter((s: any) => s.active !== false).sort((a: any, b: any) => a.minDistanceMExclusive - b.minDistanceMExclusive);
+    const maxConfiguredMeters = sorted[sorted.length - 1]?.maxDistanceMInclusive ?? 0;
+    const match = sorted.find((s: any) => distanceMeters! > s.minDistanceMExclusive && distanceMeters! <= s.maxDistanceMInclusive);
 
-    const hasEscort = Boolean((params as any).hasEscort);
+    const hasEscort = Boolean(params.hasEscort);
     const escortVendorPaise = await this.resolveEscortFeePaise(plan, distanceMeters);
     const escortDriverPaise = this.resolveEscortDriverPayoutPaise(plan, distanceMeters);
+
+    if (!match) {
+      const maxConfiguredKm = Number((maxConfiguredMeters / 1000).toFixed(1));
+      const requestedKm = Number((distanceMeters / 1000).toFixed(1));
+      return {
+        distanceMeters,
+        displayedKm: requestedKm,
+        planId: plan.id,
+        planVersion: plan.version,
+        planCategory: plan.vehicleCategory,
+        vehicleCategory,
+        slabId: null,
+        slabRange: `> ${maxConfiguredKm} km (Out of Range)`,
+        isPeak: peakEval.isPeak,
+        hasEscort,
+        activeWindowLabel: peakEval.activeWindow?.label || (peakEval.isPeak ? 'Peak Hours' : 'Standard Non-Peak'),
+        outOfRange: true,
+        maxConfiguredKm,
+        error: `Distance (${requestedKm} km) exceeds maximum configured slab (${maxConfiguredKm} km).`,
+        vendorPricePaise: 0,
+        vendorPriceRupees: 0,
+        driverPayoutPaise: 0,
+        driverPayoutRupees: 0,
+        baseRideVendorPriceRupees: 0,
+        baseRideDriverPayoutRupees: 0,
+        escortVendorFeeRupees: escortVendorPaise / 100,
+        escortDriverPayoutRupees: 0,
+        standard: { vendorPriceRupees: 0, driverPayoutRupees: 0 },
+        peak: { vendorPriceRupees: 0, driverPayoutRupees: 0 },
+        peakWindows,
+      };
+    }
+
+    const stdSlab = { ...match, ...slabRates(match, false) };
+    const peakSlab = { ...match, ...slabRates(match, true) };
+    const activeSlab = peakEval.isPeak ? peakSlab : stdSlab;
+
     const resolvedVendorPaise = hasEscort ? activeSlab.vendorPricePaise + escortVendorPaise : activeSlab.vendorPricePaise;
     const resolvedDriverPaise = hasEscort ? activeSlab.driverPayoutPaise + escortDriverPaise : activeSlab.driverPayoutPaise;
 
@@ -970,6 +1064,19 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
     try {
       if (plan?.rateConfigJson && typeof plan.rateConfigJson === 'object') {
         const cfg = plan.rateConfigJson as any;
+        // 1. Check custom slab escort override first
+        if (cfg.slabEscorts && typeof cfg.slabEscorts === 'object' && distanceMeters !== undefined) {
+          const slabs = (plan.slabs || []).filter((s: any) => s.active !== false);
+          const matchedSlab = slabs.find((s: any) => distanceMeters > s.minDistanceMExclusive && distanceMeters <= s.maxDistanceMInclusive);
+          if (matchedSlab) {
+            const slabKey = `${matchedSlab.minDistanceMExclusive}-${matchedSlab.maxDistanceMInclusive}`;
+            if (typeof cfg.slabEscorts[slabKey] === 'number' && cfg.slabEscorts[slabKey] >= 0) {
+              return Math.round(cfg.slabEscorts[slabKey] * 100);
+            }
+          }
+        }
+
+        // 2. Formula-based escort
         if (typeof cfg.escortBaseVendorRupees === 'number' && cfg.escortBaseVendorRupees >= 0) {
           const baseKm = typeof cfg.baseKm === 'number' && cfg.baseKm > 0 ? cfg.baseKm : 10;
           const stepKm = typeof cfg.stepKm === 'number' && cfg.stepKm > 0 ? cfg.stepKm : 10;

@@ -149,11 +149,14 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
   const [currentDriverPeakStep, setCurrentDriverPeakStep] = useState<number>(40);
 
   // Simulation State
-  const [simDistanceKm, setSimDistanceKm] = useState<number>(62.5);
+  const [simDistanceKm, setSimDistanceKm] = useState<number>(25);
   const [simTimeOfDay, setSimTimeOfDay] = useState<string>('09:30');
   const [simIncludeEscort, setSimIncludeEscort] = useState<boolean>(false);
   const [simResult, setSimResult] = useState<DistanceSimulationResult | null>(null);
   const [simulating, setSimulating] = useState(false);
+
+  // Per-slab Security Escort overrides (Vendor client add-on)
+  const [slabEscorts, setSlabEscorts] = useState<Record<string, number>>({});
 
   // Load Plans and Categories
   const loadPlans = useCallback(async (preferredPlanId?: string) => {
@@ -263,6 +266,13 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
       if (typeof cfg.driverPeakExtraBaseRupees === 'number') setCurrentDriverPeakBase(cfg.driverPeakExtraBaseRupees);
       if (typeof cfg.driverPeakExtraStepRupees === 'number') setCurrentDriverPeakStep(cfg.driverPeakExtraStepRupees);
 
+      // Hydrate per-slab custom escort fee overrides
+      if (cfg.slabEscorts && typeof cfg.slabEscorts === 'object') {
+        setSlabEscorts(cfg.slabEscorts);
+      } else {
+        setSlabEscorts({});
+      }
+
       // Hydrate custom overrides set
       if (Array.isArray(cfg.overriddenSlabs)) {
         const keys = new Set<string>();
@@ -324,6 +334,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
     } else {
       setSelectedPlanId('');
       setEditingSlabs([]);
+      setSlabEscorts({});
     }
   };
 
@@ -429,6 +440,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
         driverPeakExtraStepRupees: currentDriverPeakStep,
         escortBaseVendorRupees: genEscortBaseVendor,
         escortStepVendorRupees: genEscortStepVendor,
+        slabEscorts,
         overriddenSlabs: Array.from(overriddenSlabKeys),
       };
 
@@ -497,6 +509,17 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
     setOverriddenSlabKeys(newOverrides);
   };
 
+  // Inline escort fee edit handler (Vendor only)
+  const handleUpdateEscort = (slabKey: string, value: number) => {
+    setSlabEscorts((prev) => ({
+      ...prev,
+      [slabKey]: value,
+    }));
+    const newOverrides = new Set(overriddenSlabKeys);
+    newOverrides.add(slabKey);
+    setOverriddenSlabKeys(newOverrides);
+  };
+
   // Reset individual slab to mathematical formula
   const handleResetSlabToFormula = (index: number) => {
     const target = editingSlabs[index];
@@ -528,6 +551,12 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
     const key = `${target.minDistanceMExclusive}-${target.maxDistanceMInclusive}`;
     const newOverrides = new Set(overriddenSlabKeys);
     newOverrides.delete(key);
+
+    setSlabEscorts((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
 
     setEditingSlabs(updated);
     setOverriddenSlabKeys(newOverrides);
@@ -598,6 +627,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
         driverPeakExtraStepRupees: maxDStepExtra,
         escortBaseVendorRupees: genEscortBaseVendor,
         escortStepVendorRupees: genEscortStepVendor,
+        slabEscorts,
         overriddenSlabs: Array.from(overriddenSlabKeys),
       };
 
@@ -689,6 +719,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
         driverPeakExtraStepRupees: currentDriverPeakStep,
         escortBaseVendorRupees: genEscortBaseVendor,
         escortStepVendorRupees: genEscortStepVendor,
+        slabEscorts,
         overriddenSlabs: overriddenArray,
       };
 
@@ -747,6 +778,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
         const hhmm = /^\d{2}:\d{2}$/.test(simTimeOfDay) ? simTimeOfDay : '12:00';
 
         const res = await adminApi.simulateDistancePricing({
+          planId: activePlan?.id,
           distanceKm: Number(simDistanceKm),
           vehicleCategory: selectedVehicleChip,
           pickupTime: `${istToday}T${hhmm}:00+05:30`,
@@ -1091,8 +1123,25 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
                             {inr(vPeakTotal)}
                           </td>
 
-                          <td style={{ padding: '0.75rem 1rem', color: '#3B82F6', fontWeight: 700 }}>
-                            {inr(escort.vendorEscort)}
+                          <td style={{ padding: '0.5rem 1rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                              <span>₹</span>
+                              <input
+                                type="number"
+                                min={0}
+                                value={slabEscorts[key] !== undefined ? slabEscorts[key] : escort.vendorEscort}
+                                onChange={(e) => handleUpdateEscort(key, Math.max(0, Number(e.target.value)))}
+                                style={{
+                                  width: '85px',
+                                  padding: '0.35rem 0.5rem',
+                                  borderRadius: 'var(--radius-sm)',
+                                  border: '1px solid var(--border)',
+                                  background: 'var(--bg-surface-elevated)',
+                                  color: '#3B82F6',
+                                  fontWeight: 700,
+                                }}
+                              />
+                            </div>
                           </td>
                         </>
                       )}
@@ -1273,25 +1322,34 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
           {/* Simulation Output Card */}
           {simResult && (
             <div style={{ gridColumn: 'span 2', display: 'flex', gap: '1rem', background: 'var(--bg-surface-elevated)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
-              {(role === 'vendor' || role === 'unified') && (
-                <div>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Vendor Charge</span>
-                  <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--brand-primary)' }}>{inr(simResult.vendorPriceRupees)}</div>
+              {simResult.error ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#D97706', fontSize: '0.85rem', fontWeight: 600 }}>
+                  <AlertTriangle size={18} />
+                  <span>{simResult.error}</span>
                 </div>
-              )}
-              {(role === 'driver' || role === 'unified') && (
-                <div style={{ borderLeft: role === 'unified' ? '1px solid var(--border)' : 'none', paddingLeft: role === 'unified' ? '1rem' : 0 }}>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Driver Payout</span>
-                  <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--color-success)' }}>{inr(simResult.driverPayoutRupees)}</div>
-                </div>
-              )}
-              {role === 'unified' && (
-                <div style={{ borderLeft: '1px solid var(--border)', paddingLeft: '1rem' }}>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Platform Margin</span>
-                  <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#10B981' }}>
-                    +{inr(simResult.vendorPriceRupees - simResult.driverPayoutRupees)}
-                  </div>
-                </div>
+              ) : (
+                <>
+                  {(role === 'vendor' || role === 'unified') && (
+                    <div>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Vendor Charge</span>
+                      <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--brand-primary)' }}>{inr(simResult.vendorPriceRupees)}</div>
+                    </div>
+                  )}
+                  {(role === 'driver' || role === 'unified') && (
+                    <div style={{ borderLeft: role === 'unified' ? '1px solid var(--border)' : 'none', paddingLeft: role === 'unified' ? '1rem' : 0 }}>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Driver Payout</span>
+                      <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--color-success)' }}>{inr(simResult.driverPayoutRupees)}</div>
+                    </div>
+                  )}
+                  {role === 'unified' && (
+                    <div style={{ borderLeft: '1px solid var(--border)', paddingLeft: '1rem' }}>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Platform Margin</span>
+                      <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#10B981' }}>
+                        +{inr(simResult.vendorPriceRupees - simResult.driverPayoutRupees)}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}

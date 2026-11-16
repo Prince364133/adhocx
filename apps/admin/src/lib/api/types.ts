@@ -1335,6 +1335,9 @@ export interface DistanceSimulationResult {
   baseRideDriverPayoutRupees?: number;
   escortVendorFeeRupees?: number;
   escortDriverPayoutRupees?: number;
+  error?: string;
+  outOfRange?: boolean;
+  maxConfiguredKm?: number;
 }
 // =============================================================================
 // DIGIO KYC / KYB VERIFICATION TYPES

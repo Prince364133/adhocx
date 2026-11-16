@@ -8,10 +8,15 @@ export class DatabaseService extends PrismaClient implements OnModuleInit, OnMod
   public readonly tenant: any;
 
   constructor() {
+    let dbUrl = process.env.DATABASE_URL || '';
+    if (dbUrl && !dbUrl.includes('connection_limit=')) {
+      const sep = dbUrl.includes('?') ? '&' : '?';
+      dbUrl = `${dbUrl}${sep}connection_limit=15`;
+    }
     super({
       datasources: {
         db: {
-          url: process.env.DATABASE_URL,
+          url: dbUrl,
         },
       },
     });
