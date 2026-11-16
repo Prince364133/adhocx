@@ -44,7 +44,7 @@ function computeTimeDuration(start: string, end: string): string {
   const startMinutes = sh * 60 + sm;
   let endMinutes = eh * 60 + em;
   if (endMinutes <= startMinutes) {
-    endMinutes += 24 * 60; // overnight peak window
+    endMinutes += 24 * 60; // overnight window crossing midnight
   }
   const diff = endMinutes - startMinutes;
   const hours = Math.floor(diff / 60);
@@ -53,12 +53,20 @@ function computeTimeDuration(start: string, end: string): string {
   return `${hours} hrs ${minutes < 10 ? '0' : ''}${minutes} mins`;
 }
 
-interface VehiclePeakExtra {
+interface PeakSlotVehicleSurcharge {
   vehicleType: string;
   vendorBaseExtra: number;
   vendorStepExtra: number;
   driverBaseExtra: number;
   driverStepExtra: number;
+}
+
+interface PeakSlotWindow {
+  id: string;
+  label: string;
+  start: string;
+  end: string;
+  vehicleSurges: PeakSlotVehicleSurcharge[];
 }
 
 export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: PricingMatrixWorkspaceProps) {
@@ -87,33 +95,54 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
   const [genStepKm, setGenStepKm] = useState<number>(10);
   const [genMaxKm, setGenMaxKm] = useState<number>(200);
 
-  // Base and Step Pricing
+  // Vendor Base and Step Pricing
   const [genBaseVendor, setGenBaseVendor] = useState<number>(400);
   const [genStepVendor, setGenStepVendor] = useState<number>(100);
+
+  // Driver Base and Step Pricing
   const [genBaseDriver, setGenBaseDriver] = useState<number>(300);
   const [genStepDriver, setGenStepDriver] = useState<number>(70);
 
-  // Escort Pricing
+  // Security Escort Pricing (Vendor only)
   const [genEscortBaseVendor, setGenEscortBaseVendor] = useState<number>(300);
   const [genEscortStepVendor, setGenEscortStepVendor] = useState<number>(50);
-  const [genEscortBaseDriver, setGenEscortBaseDriver] = useState<number>(200);
-  const [genEscortStepDriver, setGenEscortStepDriver] = useState<number>(30);
 
-  // Bottom Sheet 2: Peak Pricing
+  // Bottom Sheet 2: Multiple Peak Timings
   const [isPeakSheetOpen, setIsPeakSheetOpen] = useState(false);
-  const [peakStartTime, setPeakStartTime] = useState<string>('18:00');
-  const [peakEndTime, setPeakEndTime] = useState<string>('21:00');
-  const [peakVehicleSurges, setPeakVehicleSurges] = useState<VehiclePeakExtra[]>([
+  const [peakSlots, setPeakSlots] = useState<PeakSlotWindow[]>([
     {
-      vehicleType: 'ALL',
-      vendorBaseExtra: 80,
-      vendorStepExtra: 60,
-      driverBaseExtra: 50,
-      driverStepExtra: 40,
+      id: 'slot-1',
+      label: 'Morning Peak',
+      start: '08:00',
+      end: '11:00',
+      vehicleSurges: [
+        {
+          vehicleType: 'ALL',
+          vendorBaseExtra: 80,
+          vendorStepExtra: 60,
+          driverBaseExtra: 50,
+          driverStepExtra: 40,
+        },
+      ],
+    },
+    {
+      id: 'slot-2',
+      label: 'Evening Peak',
+      start: '17:00',
+      end: '21:00',
+      vehicleSurges: [
+        {
+          vehicleType: 'ALL',
+          vendorBaseExtra: 80,
+          vendorStepExtra: 60,
+          driverBaseExtra: 50,
+          driverStepExtra: 40,
+        },
+      ],
     },
   ]);
 
-  // Surcharge for current active vehicle
+  // Current active peak surge for the active plan
   const [currentVendorPeakBase, setCurrentVendorPeakBase] = useState<number>(80);
   const [currentVendorPeakStep, setCurrentVendorPeakStep] = useState<number>(60);
   const [currentDriverPeakBase, setCurrentDriverPeakBase] = useState<number>(50);
@@ -121,7 +150,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
 
   // Simulation State
   const [simDistanceKm, setSimDistanceKm] = useState<number>(62.5);
-  const [simTimeOfDay, setSimTimeOfDay] = useState<string>('18:30');
+  const [simTimeOfDay, setSimTimeOfDay] = useState<string>('09:30');
   const [simIncludeEscort, setSimIncludeEscort] = useState<boolean>(false);
   const [simResult, setSimResult] = useState<DistanceSimulationResult | null>(null);
   const [simulating, setSimulating] = useState(false);
@@ -173,10 +202,24 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
       setGenVehicleType(plan.vehicleCategory);
     }
 
-    // Peak windows
+    // Hydrate multiple peak windows from plan
     if (Array.isArray(plan.peakWindows) && plan.peakWindows.length > 0) {
-      setPeakStartTime(plan.peakWindows[0].start || '18:00');
-      setPeakEndTime(plan.peakWindows[0].end || '21:00');
+      const hydratedSlots: PeakSlotWindow[] = plan.peakWindows.map((pw, idx) => ({
+        id: `slot-${idx + 1}`,
+        label: pw.label || `Peak Slot ${idx + 1}`,
+        start: pw.start || '08:00',
+        end: pw.end || '11:00',
+        vehicleSurges: [
+          {
+            vehicleType: plan.vehicleCategory || 'ALL',
+            vendorBaseExtra: 80,
+            vendorStepExtra: 60,
+            driverBaseExtra: 50,
+            driverStepExtra: 40,
+          },
+        ],
+      }));
+      setPeakSlots(hydratedSlots);
     }
 
     // Hydrate parameters if stored in rateConfigJson
@@ -191,8 +234,6 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
       if (typeof cfg.stepDriverRupees === 'number') setGenStepDriver(cfg.stepDriverRupees);
       if (typeof cfg.escortBaseVendorRupees === 'number') setGenEscortBaseVendor(cfg.escortBaseVendorRupees);
       if (typeof cfg.escortStepVendorRupees === 'number') setGenEscortStepVendor(cfg.escortStepVendorRupees);
-      if (typeof cfg.escortBaseDriverRupees === 'number') setGenEscortBaseDriver(cfg.escortBaseDriverRupees);
-      if (typeof cfg.escortStepDriverRupees === 'number') setGenEscortStepDriver(cfg.escortStepDriverRupees);
       if (typeof cfg.vendorPeakExtraBaseRupees === 'number') setCurrentVendorPeakBase(cfg.vendorPeakExtraBaseRupees);
       if (typeof cfg.vendorPeakExtraStepRupees === 'number') setCurrentVendorPeakStep(cfg.vendorPeakExtraStepRupees);
       if (typeof cfg.driverPeakExtraBaseRupees === 'number') setCurrentDriverPeakBase(cfg.driverPeakExtraBaseRupees);
@@ -227,7 +268,6 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
     vehicleCategories.forEach((vc) => {
       if (!list.includes(vc.vehicleType)) list.push(vc.vehicleType);
     });
-    // Add vehicleCategory from existing plans if not present
     plans.forEach((p) => {
       if (p.vehicleCategory && !list.includes(p.vehicleCategory)) {
         list.push(p.vehicleCategory);
@@ -240,7 +280,8 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
   const handleSelectVehicleChip = (chip: string) => {
     setSelectedVehicleChip(chip);
     setGenVehicleType(chip);
-    const matchingPlan = plans.find((p) => p.vehicleCategory === chip && p.status === 'ACTIVE') ||
+    const matchingPlan =
+      plans.find((p) => p.vehicleCategory === chip && p.status === 'ACTIVE') ||
       plans.find((p) => p.vehicleCategory === chip);
     if (matchingPlan) {
       setSelectedPlanId(matchingPlan.id);
@@ -248,17 +289,16 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
     }
   };
 
-  // Helper for escort fee calculation per distance
+  // Helper for escort fee calculation per distance (Vendor only)
   const getEscortFeeForDistance = useCallback(
     (maxM: number) => {
       const baseM = genBaseKm * 1000;
       const stepM = genStepKm * 1000;
       const steps = maxM > baseM ? Math.ceil((maxM - baseM) / stepM) : 0;
       const vendorEscort = genEscortBaseVendor + steps * genEscortStepVendor;
-      const driverEscort = genEscortBaseDriver + steps * genEscortStepDriver;
-      return { vendorEscort, driverEscort };
+      return { vendorEscort };
     },
-    [genBaseKm, genStepKm, genEscortBaseVendor, genEscortStepVendor, genEscortBaseDriver, genEscortStepDriver]
+    [genBaseKm, genStepKm, genEscortBaseVendor, genEscortStepVendor]
   );
 
   // Generator: Generate full table from formula for the selected vehicle type
@@ -269,10 +309,6 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
     }
     if (genMaxKm < genBaseKm) {
       setAlert({ type: 'error', message: 'Maximum distance cannot be less than initial base distance.' });
-      return;
-    }
-    if (genBaseVendor < genBaseDriver) {
-      setAlert({ type: 'error', message: 'Vendor Base fare cannot be less than Driver Base payout.' });
       return;
     }
 
@@ -340,11 +376,11 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
     setIsConfigureSheetOpen(false);
     setAlert({
       type: 'success',
-      message: `Generated ${newSlabs.length} slabs up to ${genMaxKm} km for vehicle ${genVehicleType}. Standard base & step rates configured.`,
+      message: `Generated ${newSlabs.length} slabs up to ${genMaxKm} km for ${genVehicleType}. Rates configured cleanly.`,
     });
   };
 
-  // Inline slab edit handler (Price or Escort edit)
+  // Inline slab edit handler
   const handleUpdateSlab = (index: number, updates: Partial<CreatePricingSlabInput>) => {
     const updated = [...editingSlabs];
     const target = updated[index];
@@ -400,31 +436,40 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
     });
   };
 
-  // Apply Peak Surcharges to slabs
+  // Apply Peak Surcharges from configured slots across slabs
   const handleApplyPeakSurcharges = () => {
-    const surge = peakVehicleSurges.find((s) => s.vehicleType === selectedVehicleChip) ||
-      peakVehicleSurges.find((s) => s.vehicleType === 'ALL') || {
-        vendorBaseExtra: currentVendorPeakBase,
-        vendorStepExtra: currentVendorPeakStep,
-        driverBaseExtra: currentDriverPeakBase,
-        driverStepExtra: currentDriverPeakStep,
-      };
+    // Find highest extra from configured peak slots matching vehicle chip
+    let maxVBaseExtra = currentVendorPeakBase;
+    let maxVStepExtra = currentVendorPeakStep;
+    let maxDBaseExtra = currentDriverPeakBase;
+    let maxDStepExtra = currentDriverPeakStep;
 
-    setCurrentVendorPeakBase(surge.vendorBaseExtra);
-    setCurrentVendorPeakStep(surge.vendorStepExtra);
-    setCurrentDriverPeakBase(surge.driverBaseExtra);
-    setCurrentDriverPeakStep(surge.driverStepExtra);
+    peakSlots.forEach((slot) => {
+      const match = slot.vehicleSurges.find((s) => s.vehicleType === selectedVehicleChip) ||
+        slot.vehicleSurges.find((s) => s.vehicleType === 'ALL');
+      if (match) {
+        if (match.vendorBaseExtra > 0) maxVBaseExtra = match.vendorBaseExtra;
+        if (match.vendorStepExtra > 0) maxVStepExtra = match.vendorStepExtra;
+        if (match.driverBaseExtra > 0) maxDBaseExtra = match.driverBaseExtra;
+        if (match.driverStepExtra > 0) maxDStepExtra = match.driverStepExtra;
+      }
+    });
+
+    setCurrentVendorPeakBase(maxVBaseExtra);
+    setCurrentVendorPeakStep(maxVStepExtra);
+    setCurrentDriverPeakBase(maxDBaseExtra);
+    setCurrentDriverPeakStep(maxDStepExtra);
 
     const baseM = genBaseKm * 1000;
     const stepM = genStepKm * 1000;
 
     const updated = editingSlabs.map((s) => {
-      let vExtra = surge.vendorBaseExtra;
-      let dExtra = surge.driverBaseExtra;
+      let vExtra = maxVBaseExtra;
+      let dExtra = maxDBaseExtra;
       if (s.minDistanceMExclusive > 0) {
         const stepIndex = Math.max(1, Math.round((s.maxDistanceMInclusive - baseM) / stepM));
-        vExtra = surge.vendorBaseExtra + stepIndex * surge.vendorStepExtra;
-        dExtra = surge.driverBaseExtra + stepIndex * surge.driverStepExtra;
+        vExtra = maxVBaseExtra + stepIndex * maxVStepExtra;
+        dExtra = maxDBaseExtra + stepIndex * maxDStepExtra;
       }
 
       return {
@@ -438,11 +483,11 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
     setIsPeakSheetOpen(false);
     setAlert({
       type: 'success',
-      message: `Applied peak surcharges for ${selectedVehicleChip} (${peakStartTime} – ${peakEndTime}). Peak rates updated across all slabs.`,
+      message: `Applied ${peakSlots.length} peak windows for ${selectedVehicleChip}. Peak rates updated across all slabs.`,
     });
   };
 
-  // Validation: Loss Prevention Guardrail
+  // Validation
   const validation = useMemo(() => {
     if (editingSlabs.length === 0) {
       return { valid: false, error: 'No slabs configured. Please click "Configure Pricing" to generate slabs.' };
@@ -460,19 +505,11 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
         return { valid: false, error: `Slab #${i + 1} (${minKm}–${maxKm} km): Max distance must exceed min distance.` };
       }
 
+      // If unified or vendor, ensure vendor >= driver
       if (s.vendorPricePaise < s.driverPayoutPaise) {
         return {
           valid: false,
           error: `Negative Margin Detected on ${minKm}–${maxKm} km! Vendor fare (₹${s.vendorPricePaise / 100}) cannot be less than Driver payout (₹${s.driverPayoutPaise / 100}).`,
-        };
-      }
-
-      const vPeak = s.vendorPeakPricePaise ?? s.vendorPricePaise;
-      const dPeak = s.driverPeakPayoutPaise ?? s.driverPayoutPaise;
-      if (vPeak < dPeak) {
-        return {
-          valid: false,
-          error: `Negative Peak Margin Detected on ${minKm}–${maxKm} km! Vendor peak (₹${vPeak / 100}) cannot be less than Driver peak payout (₹${dPeak / 100}).`,
         };
       }
     }
@@ -505,18 +542,14 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
         driverPeakExtraStepRupees: currentDriverPeakStep,
         escortBaseVendorRupees: genEscortBaseVendor,
         escortStepVendorRupees: genEscortStepVendor,
-        escortBaseDriverRupees: genEscortBaseDriver,
-        escortStepDriverRupees: genEscortStepDriver,
         overriddenSlabs: overriddenArray,
       };
 
-      const peakWindowsPayload: PeakHourWindow[] = [
-        {
-          label: 'Peak Window',
-          start: peakStartTime,
-          end: peakEndTime,
-        },
-      ];
+      const peakWindowsPayload: PeakHourWindow[] = peakSlots.map((slot) => ({
+        label: slot.label,
+        start: slot.start,
+        end: slot.end,
+      }));
 
       if (activePlan) {
         await adminApi.updateDistancePricingSlabs(activePlan.id, editingSlabs, undefined, {
@@ -525,7 +558,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
         });
         setAlert({
           type: 'success',
-          message: `Saved matrix with ${editingSlabs.length} distance bands directly to database. Ready for driver & vendor apps.`,
+          message: `Saved matrix with ${editingSlabs.length} distance bands and ${peakSlots.length} peak windows. Ready for live apps.`,
         });
         await loadPlans(activePlan.id);
       }
@@ -551,7 +584,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
           distanceKm: Number(simDistanceKm),
           vehicleCategory: selectedVehicleChip,
           pickupTime: `${istToday}T${hhmm}:00+05:30`,
-          hasEscort: simIncludeEscort,
+          hasEscort: role === 'vendor' ? simIncludeEscort : false,
         });
         if (!cancelled) setSimResult(res);
       } catch {
@@ -567,7 +600,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
       cancelled = true;
       clearTimeout(t);
     };
-  }, [simDistanceKm, simTimeOfDay, simIncludeEscort, activePlan, selectedVehicleChip]);
+  }, [simDistanceKm, simTimeOfDay, simIncludeEscort, activePlan, selectedVehicleChip, role]);
 
   // Filtered slabs for table display based on search query
   const filteredSlabs = useMemo(() => {
@@ -593,8 +626,6 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
     );
   }
 
-  const peakDurationString = computeTimeDuration(peakStartTime, peakEndTime);
-
   return (
     <div style={{ maxWidth: '1440px', margin: '0 auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {/* Top Breadcrumb Navigation */}
@@ -606,11 +637,11 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
             </Link>
             <ChevronRight size={13} />
             <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-              {role === 'vendor' ? 'Vendor Rate Matrix' : role === 'driver' ? 'Driver Payout Matrix' : 'Unified Rate Matrix'}
+              {role === 'vendor' ? 'Vendor Rate Matrix' : role === 'driver' ? 'Driver Guaranteed Payouts' : 'Unified Rate Matrix'}
             </span>
           </div>
           <h1 style={{ margin: 0, fontSize: '1.65rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Route size={24} color="var(--brand-primary)" />
+            <Route size={24} color={role === 'driver' ? 'var(--color-success)' : 'var(--brand-primary)'} />
             {role === 'vendor' ? 'Vendor Rate Matrix (Client Billing)' : role === 'driver' ? 'Driver Guaranteed Payouts' : 'Unified Distance Slabs Matrix'}
             <StatusBadge status={activePlan?.status === 'ACTIVE' ? 'APPROVED' : 'PENDING'} label={activePlan?.status || 'DRAFT'} />
           </h1>
@@ -622,6 +653,10 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
             variant="primary"
             leftIcon={<Sparkles size={15} />}
             onClick={() => setIsConfigureSheetOpen(true)}
+            style={{
+              background: role === 'driver' ? 'var(--color-success)' : 'var(--brand-primary)',
+              borderColor: role === 'driver' ? 'var(--color-success)' : 'var(--brand-primary)',
+            }}
           >
             Configure Pricing
           </Button>
@@ -631,7 +666,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
             leftIcon={<Clock size={15} />}
             onClick={() => setIsPeakSheetOpen(true)}
           >
-            Peak Pricing
+            Peak Pricing ({peakSlots.length} Windows)
           </Button>
 
           <Button
@@ -696,6 +731,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
           </span>
           {availableVehicleChips.map((chip) => {
             const isSelected = selectedVehicleChip === chip;
+            const themeColor = role === 'driver' ? 'var(--color-success)' : 'var(--brand-primary)';
             return (
               <button
                 key={chip}
@@ -703,8 +739,8 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
                 style={{
                   padding: '0.45rem 1rem',
                   borderRadius: '999px',
-                  border: isSelected ? '1.5px solid var(--brand-primary)' : '1px solid var(--border)',
-                  background: isSelected ? 'var(--brand-primary)' : 'var(--bg-surface-elevated)',
+                  border: isSelected ? `1.5px solid ${themeColor}` : '1px solid var(--border)',
+                  background: isSelected ? themeColor : 'var(--bg-surface-elevated)',
                   color: isSelected ? '#fff' : 'var(--text-primary)',
                   fontWeight: 700,
                   fontSize: '0.85rem',
@@ -713,7 +749,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
                   alignItems: 'center',
                   gap: '0.35rem',
                   transition: 'all 0.15s ease',
-                  boxShadow: isSelected ? '0 2px 8px rgba(91, 66, 243, 0.25)' : 'none',
+                  boxShadow: isSelected ? '0 2px 8px rgba(0, 0, 0, 0.15)' : 'none',
                 }}
               >
                 <Car size={14} />
@@ -752,16 +788,17 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
               <tr style={{ background: 'var(--bg-surface-elevated)', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, zIndex: 10 }}>
                 <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Distance Band</th>
 
-                {/* Vendor Columns */}
+                {/* Vendor Columns (Shown ONLY in Vendor or Unified view) */}
                 {(role === 'vendor' || role === 'unified') && (
                   <>
                     <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--brand-primary)' }}>Vendor Std Fare (₹)</th>
                     <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--brand-primary)' }}>Peak Extra (+₹)</th>
                     <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--brand-primary)' }}>Total Peak (₹)</th>
+                    <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: '#3B82F6' }}>Security Escort (₹)</th>
                   </>
                 )}
 
-                {/* Driver Columns */}
+                {/* Driver Columns (Shown ONLY in Driver or Unified view) */}
                 {(role === 'driver' || role === 'unified') && (
                   <>
                     <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--color-success)' }}>Driver Payout (₹)</th>
@@ -770,8 +807,9 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
                   </>
                 )}
 
-                <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Security Escort (₹)</th>
-                <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Platform Net Margin</th>
+                {role === 'unified' && (
+                  <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Platform Net Margin</th>
+                )}
                 <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Status</th>
                 <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-secondary)', textAlign: 'center' }}>Actions</th>
               </tr>
@@ -779,7 +817,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
             <tbody>
               {filteredSlabs.length === 0 ? (
                 <tr>
-                  <td colSpan={10} style={{ padding: '3.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                  <td colSpan={role === 'unified' ? 10 : 7} style={{ padding: '3.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
                     No distance slabs configured. Click <strong>Configure Pricing</strong> above to generate the full matrix table.
                   </td>
                 </tr>
@@ -804,7 +842,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
                   const marginStdPct = vStd > 0 ? ((marginStd / vStd) * 100).toFixed(1) : '0';
                   const isNegativeMargin = marginStd <= 0;
 
-                  // Escort
+                  // Escort (Vendor only)
                   const escort = getEscortFeeForDistance(slab.maxDistanceMInclusive);
 
                   return (
@@ -812,7 +850,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
                       key={key}
                       style={{
                         borderBottom: '1px solid var(--border)',
-                        background: isNegativeMargin
+                        background: (role === 'unified' && isNegativeMargin)
                           ? 'rgba(239, 68, 68, 0.08)'
                           : isOverridden
                           ? 'rgba(245, 158, 11, 0.04)'
@@ -824,14 +862,14 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
                         {originalIndex === 0 ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                             <span>0 – {maxKm} km</span>
-                            <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.4rem', borderRadius: '4px', background: 'var(--brand-primary)', color: '#fff', fontWeight: 800 }}>BASE</span>
+                            <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.4rem', borderRadius: '4px', background: role === 'driver' ? 'var(--color-success)' : 'var(--brand-primary)', color: '#fff', fontWeight: 800 }}>BASE</span>
                           </div>
                         ) : (
                           <span>&gt;{minKm} – {maxKm} km</span>
                         )}
                       </td>
 
-                      {/* Vendor Columns (Inline Editable) */}
+                      {/* Vendor Columns */}
                       {(role === 'vendor' || role === 'unified') && (
                         <>
                           <td style={{ padding: '0.5rem 1rem' }}>
@@ -886,10 +924,14 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
                           <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: '#F59E0B' }}>
                             {inr(vPeakTotal)}
                           </td>
+
+                          <td style={{ padding: '0.75rem 1rem', color: '#3B82F6', fontWeight: 700 }}>
+                            {inr(escort.vendorEscort)}
+                          </td>
                         </>
                       )}
 
-                      {/* Driver Columns (Inline Editable) */}
+                      {/* Driver Columns */}
                       {(role === 'driver' || role === 'unified') && (
                         <>
                           <td style={{ padding: '0.5rem 1rem' }}>
@@ -947,35 +989,31 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
                         </>
                       )}
 
-                      {/* Security Escort */}
-                      <td style={{ padding: '0.75rem 1rem', fontSize: '0.8125rem' }}>
-                        <div>{inr(escort.vendorEscort)} client</div>
-                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{inr(escort.driverEscort)} driver</div>
-                      </td>
-
-                      {/* Platform Net Margin */}
-                      <td style={{ padding: '0.75rem 1rem' }}>
-                        <span
-                          style={{
-                            padding: '0.25rem 0.55rem',
-                            borderRadius: '999px',
-                            fontSize: '0.8rem',
-                            fontWeight: 700,
-                            background: isNegativeMargin
-                              ? 'rgba(239, 68, 68, 0.15)'
-                              : Number(marginStdPct) < 15
-                              ? 'rgba(245, 158, 11, 0.15)'
-                              : 'rgba(16, 185, 129, 0.15)',
-                            color: isNegativeMargin
-                              ? 'var(--color-error)'
-                              : Number(marginStdPct) < 15
-                              ? 'var(--color-warning)'
-                              : 'var(--color-success)',
-                          }}
-                        >
-                          +{inr(marginStd)} ({marginStdPct}%)
-                        </span>
-                      </td>
+                      {/* Unified Platform Margin Column */}
+                      {role === 'unified' && (
+                        <td style={{ padding: '0.75rem 1rem' }}>
+                          <span
+                            style={{
+                              padding: '0.25rem 0.55rem',
+                              borderRadius: '999px',
+                              fontSize: '0.8rem',
+                              fontWeight: 700,
+                              background: isNegativeMargin
+                                ? 'rgba(239, 68, 68, 0.15)'
+                                : Number(marginStdPct) < 15
+                                ? 'rgba(245, 158, 11, 0.15)'
+                                : 'rgba(16, 185, 129, 0.15)',
+                              color: isNegativeMargin
+                                ? 'var(--color-error)'
+                                : Number(marginStdPct) < 15
+                                ? 'var(--color-warning)'
+                                : 'var(--color-success)',
+                            }}
+                          >
+                            +{inr(marginStd)} ({marginStdPct}%)
+                          </span>
+                        </td>
+                      )}
 
                       {/* Status */}
                       <td style={{ padding: '0.75rem 1rem' }}>
@@ -1051,51 +1089,55 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
             />
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', paddingBottom: '0.65rem' }}>
-            <input
-              type="checkbox"
-              id="simEscort"
-              checked={simIncludeEscort}
-              onChange={(e) => setSimIncludeEscort(e.target.checked)}
-              style={{ width: '16px', height: '16px', accentColor: 'var(--brand-primary)' }}
-            />
-            <label htmlFor="simEscort" style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', cursor: 'pointer' }}>
-              Include Security Escort Guard
-            </label>
-          </div>
+          {role === 'vendor' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', paddingBottom: '0.65rem' }}>
+              <input
+                type="checkbox"
+                id="simEscort"
+                checked={simIncludeEscort}
+                onChange={(e) => setSimIncludeEscort(e.target.checked)}
+                style={{ width: '16px', height: '16px', accentColor: 'var(--brand-primary)' }}
+              />
+              <label htmlFor="simEscort" style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', cursor: 'pointer' }}>
+                Include Security Escort Guard
+              </label>
+            </div>
+          )}
 
           {/* Simulation Output Card */}
           {simResult && (
             <div style={{ gridColumn: 'span 2', display: 'flex', gap: '1rem', background: 'var(--bg-surface-elevated)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
-              <div>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Vendor Charge</span>
-                <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--brand-primary)' }}>{inr(simResult.vendorPriceRupees)}</div>
-              </div>
-              <div style={{ borderLeft: '1px solid var(--border)', paddingLeft: '1rem' }}>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Driver Payout</span>
-                <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--color-success)' }}>{inr(simResult.driverPayoutRupees)}</div>
-              </div>
-              <div style={{ borderLeft: '1px solid var(--border)', paddingLeft: '1rem' }}>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Platform Margin</span>
-                <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#10B981' }}>
-                  +{inr(simResult.vendorPriceRupees - simResult.driverPayoutRupees)} (
-                  {simResult.vendorPriceRupees > 0
-                    ? (((simResult.vendorPriceRupees - simResult.driverPayoutRupees) / simResult.vendorPriceRupees) * 100).toFixed(1)
-                    : '0'}
-                  %)
+              {(role === 'vendor' || role === 'unified') && (
+                <div>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Vendor Charge</span>
+                  <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--brand-primary)' }}>{inr(simResult.vendorPriceRupees)}</div>
                 </div>
-              </div>
+              )}
+              {(role === 'driver' || role === 'unified') && (
+                <div style={{ borderLeft: role === 'unified' ? '1px solid var(--border)' : 'none', paddingLeft: role === 'unified' ? '1rem' : 0 }}>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Driver Payout</span>
+                  <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--color-success)' }}>{inr(simResult.driverPayoutRupees)}</div>
+                </div>
+              )}
+              {role === 'unified' && (
+                <div style={{ borderLeft: '1px solid var(--border)', paddingLeft: '1rem' }}>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Platform Margin</span>
+                  <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#10B981' }}>
+                    +{inr(simResult.vendorPriceRupees - simResult.driverPayoutRupees)}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
       </Card>
 
-      {/* BOTTOM SHEET 1: Configure Pricing */}
+      {/* BOTTOM SHEET 1: Configure Pricing (Isolated for Vendor vs Driver) */}
       <BottomSheet
         isOpen={isConfigureSheetOpen}
         onClose={() => setIsConfigureSheetOpen(false)}
-        title="Configure Distance & Pricing Generator"
-        subtitle="Configure the distance geometry and base/step rates. Generating will build all contiguous distance bands up to your maximum target reach."
+        title={role === 'driver' ? 'Configure Driver Guaranteed Payouts' : 'Configure Vendor Client Rates'}
+        subtitle={role === 'driver' ? 'Set the driver payout rates and step increments for your verified fleet drivers.' : 'Set client billing base rates, distance steps, and security escort add-ons.'}
         icon={<Sparkles size={20} />}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -1168,310 +1210,402 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
             </div>
           </div>
 
-          {/* 3. Base & Step Rates */}
+          {/* 3. Base & Step Rates (ISOLATED) */}
           <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
             <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              Standard Base & Step Rates
+              {role === 'driver' ? 'Driver Guaranteed Payout Rates' : 'Vendor Client Billing Rates'}
             </h4>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
-              <div>
-                <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--brand-primary)' }}>
-                  Vendor Base Fare (₹)
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  value={genBaseVendor}
-                  onChange={(e) => setGenBaseVendor(Number(e.target.value))}
-                  style={{ width: '100%', marginTop: '0.35rem', padding: '0.55rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)', fontWeight: 700 }}
-                />
+
+            {role === 'driver' ? (
+              /* Driver Only Inputs */
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-success)' }}>
+                    Driver Base Payout (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={genBaseDriver}
+                    onChange={(e) => setGenBaseDriver(Number(e.target.value))}
+                    style={{ width: '100%', marginTop: '0.35rem', padding: '0.55rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)', fontWeight: 700 }}
+                  />
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>For initial 0 – {genBaseKm} km</span>
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-success)' }}>
+                    Driver Payout per Step (+₹)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={genStepDriver}
+                    onChange={(e) => setGenStepDriver(Number(e.target.value))}
+                    style={{ width: '100%', marginTop: '0.35rem', padding: '0.55rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)', fontWeight: 700 }}
+                  />
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>For each additional +{genStepKm} km</span>
+                </div>
               </div>
-              <div>
-                <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--brand-primary)' }}>
-                  Vendor Price per Step (+₹)
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  value={genStepVendor}
-                  onChange={(e) => setGenStepVendor(Number(e.target.value))}
-                  style={{ width: '100%', marginTop: '0.35rem', padding: '0.55rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)', fontWeight: 700 }}
-                />
+            ) : (
+              /* Vendor Only Inputs */
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--brand-primary)' }}>
+                    Vendor Base Fare (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={genBaseVendor}
+                    onChange={(e) => setGenBaseVendor(Number(e.target.value))}
+                    style={{ width: '100%', marginTop: '0.35rem', padding: '0.55rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)', fontWeight: 700 }}
+                  />
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Client fare for 0 – {genBaseKm} km</span>
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--brand-primary)' }}>
+                    Vendor Price per Step (+₹)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={genStepVendor}
+                    onChange={(e) => setGenStepVendor(Number(e.target.value))}
+                    style={{ width: '100%', marginTop: '0.35rem', padding: '0.55rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)', fontWeight: 700 }}
+                  />
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Client fare per +{genStepKm} km step</span>
+                </div>
               </div>
-              <div>
-                <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-success)' }}>
-                  Driver Base Payout (₹)
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  value={genBaseDriver}
-                  onChange={(e) => setGenBaseDriver(Number(e.target.value))}
-                  style={{ width: '100%', marginTop: '0.35rem', padding: '0.55rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)', fontWeight: 700 }}
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-success)' }}>
-                  Driver Payout per Step (+₹)
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  value={genStepDriver}
-                  onChange={(e) => setGenStepDriver(Number(e.target.value))}
-                  style={{ width: '100%', marginTop: '0.35rem', padding: '0.55rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)', fontWeight: 700 }}
-                />
-              </div>
-            </div>
+            )}
           </div>
 
-          {/* 4. Security Escort Rates */}
-          <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
-            <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', fontWeight: 700, color: '#3B82F6', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <ShieldCheck size={16} /> Distance-Based Security Escort Add-on
-            </h4>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
-              <div>
-                <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                  Client Escort Base (₹)
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  value={genEscortBaseVendor}
-                  onChange={(e) => setGenEscortBaseVendor(Number(e.target.value))}
-                  style={{ width: '100%', marginTop: '0.35rem', padding: '0.55rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)' }}
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                  Client Escort Step (+₹)
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  value={genEscortStepVendor}
-                  onChange={(e) => setGenEscortStepVendor(Number(e.target.value))}
-                  style={{ width: '100%', marginTop: '0.35rem', padding: '0.55rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)' }}
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                  Driver Escort Base (₹)
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  value={genEscortBaseDriver}
-                  onChange={(e) => setGenEscortBaseDriver(Number(e.target.value))}
-                  style={{ width: '100%', marginTop: '0.35rem', padding: '0.55rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)' }}
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                  Driver Escort Step (+₹)
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  value={genEscortStepDriver}
-                  onChange={(e) => setGenEscortStepDriver(Number(e.target.value))}
-                  style={{ width: '100%', marginTop: '0.35rem', padding: '0.55rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)' }}
-                />
+          {/* 4. Security Escort Rates (Vendor ONLY - Driver Escort completely removed) */}
+          {(role === 'vendor' || role === 'unified') && (
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+              <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', fontWeight: 700, color: '#3B82F6', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <ShieldCheck size={16} /> Distance-Based Security Escort Add-on (Client Charge)
+              </h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                    Client Escort Base (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={genEscortBaseVendor}
+                    onChange={(e) => setGenEscortBaseVendor(Number(e.target.value))}
+                    style={{ width: '100%', marginTop: '0.35rem', padding: '0.55rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)' }}
+                  />
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Base escort fee for 0 – {genBaseKm} km</span>
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                    Client Escort Step (+₹)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={genEscortStepVendor}
+                    onChange={(e) => setGenEscortStepVendor(Number(e.target.value))}
+                    style={{ width: '100%', marginTop: '0.35rem', padding: '0.55rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)' }}
+                  />
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Escort increment per +{genStepKm} km step</span>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           <Button
             variant="primary"
             size="lg"
             leftIcon={<Sparkles size={16} />}
             onClick={handleGenerateFullTable}
-            style={{ width: '100%', marginTop: '0.5rem' }}
+            style={{
+              width: '100%',
+              marginTop: '0.5rem',
+              background: role === 'driver' ? 'var(--color-success)' : 'var(--brand-primary)',
+              borderColor: role === 'driver' ? 'var(--color-success)' : 'var(--brand-primary)',
+            }}
           >
             Generate Slabs Table up to {genMaxKm} km for {genVehicleType}
           </Button>
         </div>
       </BottomSheet>
 
-      {/* BOTTOM SHEET 2: Peak Pricing */}
+      {/* BOTTOM SHEET 2: Multiple Peak Timing Windows & Vehicle Surcharges */}
       <BottomSheet
         isOpen={isPeakSheetOpen}
         onClose={() => setIsPeakSheetOpen(false)}
-        title="Configure Peak Hours & Vehicle Surcharges"
-        subtitle="Set the peak operating hours and customize peak bonuses added on top of base and step rates."
+        title={role === 'driver' ? 'Configure Driver Peak Hours & Bonuses' : 'Configure Vendor Peak Hours & Surcharges'}
+        subtitle="Configure multiple peak timing windows and set vehicle-specific peak bonuses added on top of base and step rates."
         icon={<Clock size={20} />}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          {/* Time Window & Duration */}
-          <div style={{ background: 'var(--bg-surface-elevated)', padding: '1rem 1.25rem', borderRadius: '12px', border: '1px solid var(--border)' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', alignItems: 'center' }}>
-              <div>
-                <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                  Peak Start Time
-                </label>
-                <input
-                  type="time"
-                  value={peakStartTime}
-                  onChange={(e) => setPeakStartTime(e.target.value)}
-                  style={{ width: '100%', marginTop: '0.35rem', padding: '0.55rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--text-primary)', fontWeight: 700 }}
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                  Peak End Time
-                </label>
-                <input
-                  type="time"
-                  value={peakEndTime}
-                  onChange={(e) => setPeakEndTime(e.target.value)}
-                  style={{ width: '100%', marginTop: '0.35rem', padding: '0.55rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--text-primary)', fontWeight: 700 }}
-                />
-              </div>
-              <div>
-                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                  Peak Duration
-                </div>
-                <div style={{ marginTop: '0.45rem', display: 'inline-block', padding: '0.35rem 0.75rem', borderRadius: '999px', background: 'rgba(245, 158, 11, 0.15)', color: '#F59E0B', fontWeight: 800, fontSize: '0.85rem' }}>
-                  {peakDurationString}
-                </div>
-              </div>
-            </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+          {/* Header & Add Window CTA */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              Configured Peak Timing Windows ({peakSlots.length})
+            </h4>
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<Plus size={14} />}
+              onClick={() => {
+                const nextId = `slot-${Date.now()}`;
+                setPeakSlots([
+                  ...peakSlots,
+                  {
+                    id: nextId,
+                    label: `Peak Slot ${peakSlots.length + 1}`,
+                    start: '20:00',
+                    end: '23:00',
+                    vehicleSurges: [
+                      {
+                        vehicleType: 'ALL',
+                        vendorBaseExtra: 80,
+                        vendorStepExtra: 60,
+                        driverBaseExtra: 50,
+                        driverStepExtra: 40,
+                      },
+                    ],
+                  },
+                ]);
+              }}
+            >
+              + Add Another Peak Window
+            </Button>
           </div>
 
-          {/* Vehicle Category Peak Surcharges */}
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-              <h4 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                Vehicle Peak Surcharges (Added on Top of Base & Step Fares)
-              </h4>
-              <Button
-                variant="outline"
-                size="sm"
-                leftIcon={<Plus size={14} />}
-                onClick={() => {
-                  setPeakVehicleSurges([
-                    ...peakVehicleSurges,
-                    {
-                      vehicleType: availableVehicleChips.find((c) => !peakVehicleSurges.some((s) => s.vehicleType === c)) || 'SEDAN',
-                      vendorBaseExtra: 80,
-                      vendorStepExtra: 60,
-                      driverBaseExtra: 50,
-                      driverStepExtra: 40,
-                    },
-                  ]);
-                }}
-              >
-                Add Vehicle Row
-              </Button>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {peakVehicleSurges.map((surge, idx) => (
+          {/* List of Peak Slots */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            {peakSlots.map((slot, sIdx) => {
+              const duration = computeTimeDuration(slot.start, slot.end);
+              return (
                 <div
-                  key={idx}
+                  key={slot.id}
                   style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1.2fr 1fr 1fr 1fr 1fr auto',
-                    gap: '0.75rem',
-                    alignItems: 'center',
                     background: 'var(--bg-surface-elevated)',
-                    padding: '0.75rem 1rem',
-                    borderRadius: '10px',
                     border: '1px solid var(--border)',
+                    borderRadius: '14px',
+                    padding: '1.25rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '1rem',
                   }}
                 >
-                  <div>
-                    <label style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Vehicle</label>
-                    <select
-                      value={surge.vehicleType}
-                      onChange={(e) => {
-                        const next = [...peakVehicleSurges];
-                        next[idx].vehicleType = e.target.value;
-                        setPeakVehicleSurges(next);
-                      }}
-                      style={{ width: '100%', marginTop: '0.2rem', padding: '0.45rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--text-primary)', fontWeight: 700 }}
-                    >
-                      {availableVehicleChips.map((c) => (
-                        <option key={c} value={c}>{c === 'ALL' ? 'All (Default)' : c}</option>
+                  {/* Slot Header: Label, Start, End, Duration */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <input
+                        type="text"
+                        value={slot.label}
+                        onChange={(e) => {
+                          const next = [...peakSlots];
+                          next[sIdx].label = e.target.value;
+                          setPeakSlots(next);
+                        }}
+                        style={{
+                          fontWeight: 700,
+                          fontSize: '0.9rem',
+                          padding: '0.35rem 0.65rem',
+                          borderRadius: '6px',
+                          border: '1px solid var(--border)',
+                          background: 'var(--bg-surface)',
+                          color: 'var(--text-primary)',
+                        }}
+                      />
+                      <span style={{ fontSize: '0.8rem', padding: '0.3rem 0.65rem', borderRadius: '999px', background: 'rgba(245, 158, 11, 0.15)', color: '#F59E0B', fontWeight: 800 }}>
+                        {duration}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>From:</span>
+                        <input
+                          type="time"
+                          value={slot.start}
+                          onChange={(e) => {
+                            const next = [...peakSlots];
+                            next[sIdx].start = e.target.value;
+                            setPeakSlots(next);
+                          }}
+                          style={{ padding: '0.35rem 0.5rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--text-primary)', fontWeight: 700 }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>To:</span>
+                        <input
+                          type="time"
+                          value={slot.end}
+                          onChange={(e) => {
+                            const next = [...peakSlots];
+                            next[sIdx].end = e.target.value;
+                            setPeakSlots(next);
+                          }}
+                          style={{ padding: '0.35rem 0.5rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--text-primary)', fontWeight: 700 }}
+                        />
+                      </div>
+
+                      {peakSlots.length > 1 && (
+                        <button
+                          onClick={() => setPeakSlots(peakSlots.filter((_, i) => i !== sIdx))}
+                          style={{ background: 'none', border: 'none', color: 'var(--color-error)', cursor: 'pointer', padding: '0.4rem' }}
+                          title="Remove this peak window"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Vehicle Peak Surcharges for this Slot */}
+                  <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                        Vehicle Surcharges ({slot.vehicleSurges.length})
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        leftIcon={<Plus size={12} />}
+                        onClick={() => {
+                          const next = [...peakSlots];
+                          next[sIdx].vehicleSurges.push({
+                            vehicleType: availableVehicleChips.find((c) => !slot.vehicleSurges.some((s) => s.vehicleType === c)) || 'SEDAN',
+                            vendorBaseExtra: 80,
+                            vendorStepExtra: 60,
+                            driverBaseExtra: 50,
+                            driverStepExtra: 40,
+                          });
+                          setPeakSlots(next);
+                        }}
+                      >
+                        + Add Vehicle Surcharge
+                      </Button>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      {slot.vehicleSurges.map((surge, vIdx) => (
+                        <div
+                          key={vIdx}
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: role === 'driver' ? '1.5fr 1fr 1fr auto' : role === 'vendor' ? '1.5fr 1fr 1fr auto' : '1fr 1fr 1fr 1fr 1fr auto',
+                            gap: '0.75rem',
+                            alignItems: 'center',
+                            background: 'var(--bg-surface)',
+                            padding: '0.6rem 0.85rem',
+                            borderRadius: '8px',
+                            border: '1px solid var(--border)',
+                          }}
+                        >
+                          <div>
+                            <label style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Vehicle</label>
+                            <select
+                              value={surge.vehicleType}
+                              onChange={(e) => {
+                                const next = [...peakSlots];
+                                next[sIdx].vehicleSurges[vIdx].vehicleType = e.target.value;
+                                setPeakSlots(next);
+                              }}
+                              style={{ width: '100%', marginTop: '0.2rem', padding: '0.4rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)', fontWeight: 700 }}
+                            >
+                              {availableVehicleChips.map((c) => (
+                                <option key={c} value={c}>{c === 'ALL' ? 'All (Default)' : c}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Vendor Inputs (Only if Vendor or Unified) */}
+                          {(role === 'vendor' || role === 'unified') && (
+                            <>
+                              <div>
+                                <label style={{ fontSize: '0.7rem', color: 'var(--brand-primary)', fontWeight: 600 }}>Vendor Base (+₹)</label>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={surge.vendorBaseExtra}
+                                  onChange={(e) => {
+                                    const next = [...peakSlots];
+                                    next[sIdx].vehicleSurges[vIdx].vendorBaseExtra = Number(e.target.value);
+                                    setPeakSlots(next);
+                                  }}
+                                  style={{ width: '100%', marginTop: '0.2rem', padding: '0.4rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)' }}
+                                />
+                              </div>
+                              <div>
+                                <label style={{ fontSize: '0.7rem', color: 'var(--brand-primary)', fontWeight: 600 }}>Vendor Step (+₹)</label>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={surge.vendorStepExtra}
+                                  onChange={(e) => {
+                                    const next = [...peakSlots];
+                                    next[sIdx].vehicleSurges[vIdx].vendorStepExtra = Number(e.target.value);
+                                    setPeakSlots(next);
+                                  }}
+                                  style={{ width: '100%', marginTop: '0.2rem', padding: '0.4rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)' }}
+                                />
+                              </div>
+                            </>
+                          )}
+
+                          {/* Driver Inputs (Only if Driver or Unified) */}
+                          {(role === 'driver' || role === 'unified') && (
+                            <>
+                              <div>
+                                <label style={{ fontSize: '0.7rem', color: 'var(--color-success)', fontWeight: 600 }}>Driver Base (+₹)</label>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={surge.driverBaseExtra}
+                                  onChange={(e) => {
+                                    const next = [...peakSlots];
+                                    next[sIdx].vehicleSurges[vIdx].driverBaseExtra = Number(e.target.value);
+                                    setPeakSlots(next);
+                                  }}
+                                  style={{ width: '100%', marginTop: '0.2rem', padding: '0.4rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)' }}
+                                />
+                              </div>
+                              <div>
+                                <label style={{ fontSize: '0.7rem', color: 'var(--color-success)', fontWeight: 600 }}>Driver Step (+₹)</label>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={surge.driverStepExtra}
+                                  onChange={(e) => {
+                                    const next = [...peakSlots];
+                                    next[sIdx].vehicleSurges[vIdx].driverStepExtra = Number(e.target.value);
+                                    setPeakSlots(next);
+                                  }}
+                                  style={{ width: '100%', marginTop: '0.2rem', padding: '0.4rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)' }}
+                                />
+                              </div>
+                            </>
+                          )}
+
+                          {slot.vehicleSurges.length > 1 && (
+                            <button
+                              onClick={() => {
+                                const next = [...peakSlots];
+                                next[sIdx].vehicleSurges = next[sIdx].vehicleSurges.filter((_, i) => i !== vIdx);
+                                setPeakSlots(next);
+                              }}
+                              style={{ background: 'none', border: 'none', color: 'var(--color-error)', cursor: 'pointer', padding: '0.25rem' }}
+                              title="Remove vehicle row"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          )}
+                        </div>
                       ))}
-                    </select>
+                    </div>
                   </div>
-
-                  <div>
-                    <label style={{ fontSize: '0.7rem', color: 'var(--brand-primary)', fontWeight: 600 }}>Vendor Base (+₹)</label>
-                    <input
-                      type="number"
-                      min={0}
-                      value={surge.vendorBaseExtra}
-                      onChange={(e) => {
-                        const next = [...peakVehicleSurges];
-                        next[idx].vendorBaseExtra = Number(e.target.value);
-                        setPeakVehicleSurges(next);
-                      }}
-                      style={{ width: '100%', marginTop: '0.2rem', padding: '0.45rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--text-primary)' }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ fontSize: '0.7rem', color: 'var(--brand-primary)', fontWeight: 600 }}>Vendor Step (+₹)</label>
-                    <input
-                      type="number"
-                      min={0}
-                      value={surge.vendorStepExtra}
-                      onChange={(e) => {
-                        const next = [...peakVehicleSurges];
-                        next[idx].vendorStepExtra = Number(e.target.value);
-                        setPeakVehicleSurges(next);
-                      }}
-                      style={{ width: '100%', marginTop: '0.2rem', padding: '0.45rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--text-primary)' }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ fontSize: '0.7rem', color: 'var(--color-success)', fontWeight: 600 }}>Driver Base (+₹)</label>
-                    <input
-                      type="number"
-                      min={0}
-                      value={surge.driverBaseExtra}
-                      onChange={(e) => {
-                        const next = [...peakVehicleSurges];
-                        next[idx].driverBaseExtra = Number(e.target.value);
-                        setPeakVehicleSurges(next);
-                      }}
-                      style={{ width: '100%', marginTop: '0.2rem', padding: '0.45rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--text-primary)' }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ fontSize: '0.7rem', color: 'var(--color-success)', fontWeight: 600 }}>Driver Step (+₹)</label>
-                    <input
-                      type="number"
-                      min={0}
-                      value={surge.driverStepExtra}
-                      onChange={(e) => {
-                        const next = [...peakVehicleSurges];
-                        next[idx].driverStepExtra = Number(e.target.value);
-                        setPeakVehicleSurges(next);
-                      }}
-                      style={{ width: '100%', marginTop: '0.2rem', padding: '0.45rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--text-primary)' }}
-                    />
-                  </div>
-
-                  {peakVehicleSurges.length > 1 && (
-                    <button
-                      onClick={() => {
-                        setPeakVehicleSurges(peakVehicleSurges.filter((_, i) => i !== idx));
-                      }}
-                      style={{ background: 'none', border: 'none', color: 'var(--color-error)', cursor: 'pointer', padding: '0.25rem' }}
-                      title="Remove row"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  )}
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
 
           <Button
@@ -1479,7 +1613,12 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
             size="lg"
             leftIcon={<Clock size={16} />}
             onClick={handleApplyPeakSurcharges}
-            style={{ width: '100%', marginTop: '0.5rem' }}
+            style={{
+              width: '100%',
+              marginTop: '0.5rem',
+              background: role === 'driver' ? 'var(--color-success)' : 'var(--brand-primary)',
+              borderColor: role === 'driver' ? 'var(--color-success)' : 'var(--brand-primary)',
+            }}
           >
             Apply Peak Surcharges Across Matrix
           </Button>

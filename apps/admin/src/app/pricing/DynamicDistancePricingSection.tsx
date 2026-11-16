@@ -45,8 +45,8 @@ export function DynamicDistancePricingSection() {
   // Security Escort Distance Configuration State (Base Tier + Step Increment)
   const [genEscortBaseVendor, setGenEscortBaseVendor] = useState<number>(300);
   const [genEscortStepVendor, setGenEscortStepVendor] = useState<number>(50);
-  const [genEscortBaseDriver, setGenEscortBaseDriver] = useState<number>(200);
-  const [genEscortStepDriver, setGenEscortStepDriver] = useState<number>(30);
+  const genEscortBaseDriver = 0;
+  const genEscortStepDriver = 0;
   const [simIncludeEscort, setSimIncludeEscort] = useState<boolean>(false);
 
   // Peak Hours Configuration State
@@ -187,8 +187,6 @@ export function DynamicDistancePricingSection() {
       if (typeof cfg.driverPeakExtraStepRupees === 'number') setGenDriverPeakExtraStep(cfg.driverPeakExtraStepRupees);
       if (typeof cfg.escortBaseVendorRupees === 'number') setGenEscortBaseVendor(cfg.escortBaseVendorRupees);
       if (typeof cfg.escortStepVendorRupees === 'number') setGenEscortStepVendor(cfg.escortStepVendorRupees);
-      if (typeof cfg.escortBaseDriverRupees === 'number') setGenEscortBaseDriver(cfg.escortBaseDriverRupees);
-      if (typeof cfg.escortStepDriverRupees === 'number') setGenEscortStepDriver(cfg.escortStepDriverRupees);
       if (cfg.vehicleSurges && typeof cfg.vehicleSurges === 'object') {
         setVehiclePeakSurges(cfg.vehicleSurges);
       }
@@ -608,8 +606,6 @@ export function DynamicDistancePricingSection() {
           driverPeakExtraStepRupees: genDriverPeakExtraStep,
           escortBaseVendorRupees: genEscortBaseVendor,
           escortStepVendorRupees: genEscortStepVendor,
-          escortBaseDriverRupees: genEscortBaseDriver,
-          escortStepDriverRupees: genEscortStepDriver,
         },
       };
 
@@ -677,8 +673,6 @@ export function DynamicDistancePricingSection() {
       const dpStep = Number(options?.driverPeakExtraStep ?? genDriverPeakExtraStep) || 0;
       const ebVendor = Number(options?.escortBaseVendor ?? genEscortBaseVendor) || 0;
       const esVendor = Number(options?.escortStepVendor ?? genEscortStepVendor) || 0;
-      const ebDriver = Number(options?.escortBaseDriver ?? genEscortBaseDriver) || 0;
-      const esDriver = Number(options?.escortStepDriver ?? genEscortStepDriver) || 0;
       const rawWindows = options?.windows ?? editingWindows;
       const windows = (rawWindows || []).map((w) => ({
         start: w.start,
@@ -708,12 +702,6 @@ export function DynamicDistancePricingSection() {
       }
       if ((bVendor + vpBase) < (bDriver + dpBase)) {
         throw new Error(`Total Vendor Peak Base (₹${bVendor + vpBase}) cannot be less than Driver Peak Base (₹${bDriver + dpBase}).`);
-      }
-      if (ebVendor < ebDriver) {
-        throw new Error(`Vendor Escort Base Fee (₹${ebVendor}) cannot be less than Driver Escort Base Payout (₹${ebDriver}).`);
-      }
-      if (esVendor < esDriver) {
-        throw new Error(`Vendor Escort Step Fee (₹${esVendor}) cannot be less than Driver Escort Step Payout (₹${esDriver}).`);
       }
 
       // Automatically construct contiguous distance slabs
@@ -773,8 +761,6 @@ export function DynamicDistancePricingSection() {
           driverPeakExtraStepRupees: dpStep,
           escortBaseVendorRupees: ebVendor,
           escortStepVendorRupees: esVendor,
-          escortBaseDriverRupees: ebDriver,
-          escortStepDriverRupees: esDriver,
           vehicleSurges: surges,
         },
       };
@@ -1431,44 +1417,6 @@ export function DynamicDistancePricingSection() {
                   </div>
                 </div>
 
-                {/* Security Escort Guard Payout */}
-                <div style={{ background: 'var(--bg-card)', padding: '0.9rem', borderRadius: 'var(--radius-md)', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', fontWeight: 800, color: 'var(--color-success)' }}>
-                      <ShieldCheck size={14} /> Security Escort Guard Payout
-                    </div>
-                    <span style={{ fontSize: '0.65rem', fontWeight: 800, padding: '0.1rem 0.4rem', borderRadius: 'var(--radius-xs)', background: 'rgba(16, 185, 129, 0.15)', color: 'var(--color-success)' }}>
-                      DRIVER / GUARD PAYOUT
-                    </span>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                    <div>
-                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
-                        Base Payout (0 - {derivedRules.baseKm} km)
-                      </div>
-                      <div style={{ marginTop: '0.2rem', display: 'flex', alignItems: 'baseline', gap: '0.35rem' }}>
-                        <span style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--color-success)' }}>
-                          {inr(derivedRules.escortBaseDriver)}
-                        </span>
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>guaranteed</span>
-                      </div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
-                        Escort Steps (+{derivedRules.stepKm} km)
-                      </div>
-                      <div style={{ marginTop: '0.2rem', display: 'flex', alignItems: 'baseline', gap: '0.35rem' }}>
-                        <span style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--color-success)' }}>
-                          +{inr(derivedRules.escortStepDriver)}
-                        </span>
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>/ step</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.4rem', borderTop: '1px dashed var(--border)', paddingTop: '0.35rem' }}>
-                    Formula: ₹{derivedRules.escortBaseDriver} base (0–{derivedRules.baseKm} km) + ₹{derivedRules.escortStepDriver} per {derivedRules.stepKm} km step thereafter.
-                  </div>
-                </div>
 
                 {/* Formula Footnote */}
                 <div style={{ fontSize: '0.73rem', color: 'var(--text-muted)', background: 'rgba(0,0,0,0.15)', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
@@ -1779,7 +1727,7 @@ export function DynamicDistancePricingSection() {
               </label>
               {simIncludeEscort && (
                 <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.35rem', paddingLeft: '1.5rem' }}>
-                  Simulates distance-based escort fee (+₹{derivedRules.escortBaseVendor} base + ₹{derivedRules.escortStepVendor}/step) on vendor charge, and (+₹{derivedRules.escortBaseDriver} base + ₹{derivedRules.escortStepDriver}/step) on driver payout.
+                  Simulates distance-based escort fee (+₹{derivedRules.escortBaseVendor} base + ₹{derivedRules.escortStepVendor}/step) on vendor charge. Drivers do not receive an escort fee.
                 </div>
               )}
             </div>
@@ -2608,56 +2556,8 @@ export function DynamicDistancePricingSection() {
                 DRIVER / GUARD EARNINGS
               </span>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
-              <div>
-                <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Escort Base Payout (₹)</label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.25rem' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-success)' }}>₹</span>
-                  <input
-                    type="number"
-                    min="0"
-                    value={genEscortBaseDriver}
-                    onChange={(e) => setGenEscortBaseDriver(Number(e.target.value))}
-                    style={{ width: '100%', padding: '0.45rem 0.6rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--color-success)', fontSize: '0.85rem', fontWeight: 700 }}
-                  />
-                </div>
-                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                  Credited to driver for 0 to {genBaseKm} km.
-                </div>
-              </div>
-              <div>
-                <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>Escort Payout per Step (+₹)</label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.25rem' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-success)' }}>+₹</span>
-                  <input
-                    type="number"
-                    min="0"
-                    value={genEscortStepDriver}
-                    onChange={(e) => setGenEscortStepDriver(Number(e.target.value))}
-                    style={{ width: '100%', padding: '0.45rem 0.6rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--color-success)', fontSize: '0.85rem', fontWeight: 700 }}
-                  />
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>/ step</span>
-                </div>
-                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                  For each {genStepKm} km beyond base.
-                </div>
-              </div>
-            </div>
-
-            {/* Real-time Escort Margin Comparison */}
-            <div style={{ marginTop: '0.65rem', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', background: genEscortBaseDriver > genEscortBaseVendor || genEscortStepDriver > genEscortStepVendor ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.08)', border: '1px solid ' + (genEscortBaseDriver > genEscortBaseVendor || genEscortStepDriver > genEscortStepVendor ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.25)') }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.73rem' }}>
-                <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Escort Base Take Rate:</span>
-                <span style={{ fontWeight: 800, color: genEscortBaseVendor >= genEscortBaseDriver ? 'var(--color-success)' : 'var(--color-danger)' }}>
-                  Vendor ₹{genEscortBaseVendor} − Driver ₹{genEscortBaseDriver} = +₹{genEscortBaseVendor - genEscortBaseDriver} ({genEscortBaseVendor > 0 ? (((genEscortBaseVendor - genEscortBaseDriver) / genEscortBaseVendor) * 100).toFixed(1) : 0}%)
-                </span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.73rem', marginTop: '0.25rem' }}>
-                <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Escort Step Take Rate:</span>
-                <span style={{ fontWeight: 800, color: genEscortStepVendor >= genEscortStepDriver ? 'var(--color-success)' : 'var(--color-danger)' }}>
-                  Vendor +₹{genEscortStepVendor} − Driver +₹{genEscortStepDriver} = +₹{genEscortStepVendor - genEscortStepDriver} ({genEscortStepVendor > 0 ? (((genEscortStepVendor - genEscortStepDriver) / genEscortStepVendor) * 100).toFixed(1) : 0}%)
-                </span>
-              </div>
+            <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              Security escort guard fee is an enterprise client-side add-on billed to the vendor. Drivers are not paid escort fees.
             </div>
           </div>
 
@@ -2674,16 +2574,16 @@ export function DynamicDistancePricingSection() {
                 <strong>+₹{genStepVendor - genStepDriver} ({genStepVendor > 0 ? (((genStepVendor - genStepDriver) / genStepVendor) * 100).toFixed(1) : 0}%)</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.2rem' }}>
-                <span>Escort Base Margin:</span>
-                <strong>+₹{genEscortBaseVendor - genEscortBaseDriver} ({genEscortBaseVendor > 0 ? (((genEscortBaseVendor - genEscortBaseDriver) / genEscortBaseVendor) * 100).toFixed(1) : 0}%)</strong>
+                <span>Escort Base Client Fee:</span>
+                <strong>+₹{genEscortBaseVendor}</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.2rem' }}>
-                <span>Escort Step Margin:</span>
-                <strong>+₹{genEscortStepVendor - genEscortStepDriver} ({genEscortStepVendor > 0 ? (((genEscortStepVendor - genEscortStepDriver) / genEscortStepVendor) * 100).toFixed(1) : 0}%)</strong>
+                <span>Escort Step Client Fee:</span>
+                <strong>+₹{genEscortStepVendor}</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.35rem', borderTop: '1px dashed var(--border)', paddingTop: '0.35rem', color: 'var(--color-success)' }}>
                 <span>Total Combined Base Take:</span>
-                <strong>+₹{(genBaseVendor - genBaseDriver) + (genEscortBaseVendor - genEscortBaseDriver)} ({(genBaseVendor + genEscortBaseVendor) > 0 ? ((((genBaseVendor - genBaseDriver) + (genEscortBaseVendor - genEscortBaseDriver)) / (genBaseVendor + genEscortBaseVendor)) * 100).toFixed(1) : 0}%)</strong>
+                <strong>+₹{(genBaseVendor - genBaseDriver) + genEscortBaseVendor} ({(genBaseVendor + genEscortBaseVendor) > 0 ? ((((genBaseVendor - genBaseDriver) + genEscortBaseVendor) / (genBaseVendor + genEscortBaseVendor)) * 100).toFixed(1) : 0}%)</strong>
               </div>
             </div>
           </div>

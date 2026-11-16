@@ -8,13 +8,12 @@ import {
   ChevronRight,
   ShieldCheck,
   TrendingUp,
-  Layers,
   Sparkles,
   Zap,
 } from 'lucide-react';
 import { adminApi } from '../../lib/api/client';
 import { DistancePricingPlan, VehicleCategory } from '../../lib/api/types';
-import { Card, Button, PageHeader, FeedbackBanner, StatusBadge } from '../../components/common';
+import { Card, PageHeader, FeedbackBanner, StatusBadge } from '../../components/common';
 
 const inr = (value: number | undefined) => `₹${Number(value ?? 0).toLocaleString('en-IN')}`;
 
@@ -54,7 +53,6 @@ export default function PricingOverviewPage() {
   const baseDriver = cfg.baseDriverRupees ?? 300;
   const stepDriver = cfg.stepDriverRupees ?? 70;
   const escortVendor = cfg.escortBaseVendorRupees ?? 300;
-  const escortDriver = cfg.escortBaseDriverRupees ?? 200;
 
   const baseMargin = baseVendor - baseDriver;
   const baseMarginPct = baseVendor > 0 ? ((baseMargin / baseVendor) * 100).toFixed(1) : '0';
@@ -69,13 +67,6 @@ export default function PricingOverviewPage() {
             title="Pricing Studio"
             subtitle="Authoritative distance pricing and payout matrices. Select a rate card below to customize distance slabs, peak surcharges, and security escort fees."
           />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem' }}>
-          <Link href="/pricing/matrix?role=unified" style={{ textDecoration: 'none' }}>
-            <Button variant="outline" size="sm" leftIcon={<Layers size={15} />}>
-              Open Unified Matrix View
-            </Button>
-          </Link>
         </div>
       </div>
 
@@ -271,7 +262,7 @@ export default function PricingOverviewPage() {
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                     <ShieldCheck size={15} color="#10B981" />
-                    <span>Driver Escort Share: <strong>{inr(escortDriver)}</strong> base payout</span>
+                    <span>Pure distance-based trip earnings (100% credited to driver)</span>
                   </div>
                 </div>
 

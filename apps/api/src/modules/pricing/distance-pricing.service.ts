@@ -996,25 +996,8 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
     return DEFAULT_ESCORT_FEE_PAISE;
   }
 
-  private resolveEscortDriverPayoutPaise(plan?: any, distanceMeters?: number): number {
-    try {
-      if (plan?.rateConfigJson && typeof plan.rateConfigJson === 'object') {
-        const cfg = plan.rateConfigJson as any;
-        if (typeof cfg.escortBaseDriverRupees === 'number' && cfg.escortBaseDriverRupees >= 0) {
-          const baseKm = typeof cfg.baseKm === 'number' && cfg.baseKm > 0 ? cfg.baseKm : 10;
-          const stepKm = typeof cfg.stepKm === 'number' && cfg.stepKm > 0 ? cfg.stepKm : 10;
-          const stepDriver = typeof cfg.escortStepDriverRupees === 'number' && cfg.escortStepDriverRupees >= 0 ? cfg.escortStepDriverRupees : 0;
-          const baseM = baseKm * 1000;
-          const stepM = stepKm * 1000;
-          const dM = distanceMeters || 0;
-          const steps = dM > baseM ? Math.ceil((dM - baseM) / stepM) : 0;
-          const totalPayout = cfg.escortBaseDriverRupees + steps * stepDriver;
-          return Math.round(totalPayout * 100);
-        }
-      }
-    } catch (err: any) {
-      this.logger.warn(`Could not calculate driver escort payout; using 0: ${err?.message ?? err}`);
-    }
+  private resolveEscortDriverPayoutPaise(_plan?: any, _distanceMeters?: number): number {
+    // Driver escort payout removed per product policy: driver payout is purely distance-based; escort is client add-on
     return 0;
   }
 

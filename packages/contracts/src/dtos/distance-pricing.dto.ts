@@ -106,13 +106,7 @@ export class RateCardConfigDto {
   escortBaseVendorRupees?: number;
 
   @IsOptional() @IsNumber() @Min(0)
-  escortBaseDriverRupees?: number;
-
-  @IsOptional() @IsNumber() @Min(0)
   escortStepVendorRupees?: number;
-
-  @IsOptional() @IsNumber() @Min(0)
-  escortStepDriverRupees?: number;
 
   @IsOptional() @IsNumber() @Min(1)
   maxKm?: number;
