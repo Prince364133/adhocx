@@ -43,19 +43,20 @@ export default function PricingOverviewPage() {
     loadData();
   }, [loadData]);
 
-  const activePlan = plans.find((p) => p.status === 'ACTIVE') || plans[0];
-  const cfg = (activePlan as any)?.rateConfigJson || activePlan?.config || {};
+  const activePlan = plans.find((p) => p.status === 'ACTIVE' && p.vehicleCategory !== 'ALL') || plans.find((p) => p.status === 'ACTIVE') || null;
+  const cfg = (activePlan as any)?.rateConfigJson || activePlan?.config || null;
 
-  const baseKm = cfg.baseKm ?? 10;
-  const stepKm = cfg.stepKm ?? 10;
-  const baseVendor = cfg.baseVendorRupees ?? 400;
-  const stepVendor = cfg.stepVendorRupees ?? 100;
-  const baseDriver = cfg.baseDriverRupees ?? 300;
-  const stepDriver = cfg.stepDriverRupees ?? 70;
-  const escortVendor = cfg.escortBaseVendorRupees ?? 300;
+  const hasConfig = Boolean(activePlan && cfg);
+  const baseKm = cfg?.baseKm ?? 10;
+  const stepKm = cfg?.stepKm ?? 10;
+  const baseVendor = cfg?.baseVendorRupees ?? null;
+  const stepVendor = cfg?.stepVendorRupees ?? null;
+  const baseDriver = cfg?.baseDriverRupees ?? null;
+  const stepDriver = cfg?.stepDriverRupees ?? null;
+  const escortVendor = cfg?.escortBaseVendorRupees ?? null;
 
-  const baseMargin = baseVendor - baseDriver;
-  const baseMarginPct = baseVendor > 0 ? ((baseMargin / baseVendor) * 100).toFixed(1) : '0';
+  const baseMargin = baseVendor !== null && baseDriver !== null ? baseVendor - baseDriver : 0;
+  const baseMarginPct = baseVendor && baseVendor > 0 ? ((baseMargin / baseVendor) * 100).toFixed(1) : '0';
 
   return (
     <div style={{ maxWidth: '1280px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -128,7 +129,7 @@ export default function PricingOverviewPage() {
                       >
                         CLIENT BILLING
                       </span>
-                      <StatusBadge status="APPROVED" label="LIVE" />
+                      <StatusBadge status={hasConfig ? 'APPROVED' : 'PENDING'} label={hasConfig ? 'LIVE' : 'NOT CONFIGURED'} />
                     </div>
                   </div>
 
@@ -144,22 +145,22 @@ export default function PricingOverviewPage() {
                     <div>
                       <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: 700 }}>Starting Base Fare</div>
                       <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--brand-primary)', marginTop: '0.2rem' }}>
-                        {inr(baseVendor)}
+                        {baseVendor !== null ? inr(baseVendor) : '—'}
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>0 to {baseKm} km</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{hasConfig ? `0 to ${baseKm} km` : 'Setup required'}</div>
                     </div>
                     <div>
                       <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: 700 }}>Step Pricing</div>
                       <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--brand-primary)', marginTop: '0.2rem' }}>
-                        +{inr(stepVendor)}
+                        {stepVendor !== null ? `+${inr(stepVendor)}` : '—'}
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>per +{stepKm} km step</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{hasConfig ? `per +${stepKm} km step` : 'Setup required'}</div>
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                     <ShieldCheck size={15} color="#3B82F6" />
-                    <span>Security Escort Add-on: <strong>{inr(escortVendor)}</strong> base</span>
+                    <span>Security Escort Add-on: <strong>{escortVendor !== null ? inr(escortVendor) : '—'}</strong> base</span>
                   </div>
                 </div>
 
@@ -231,7 +232,7 @@ export default function PricingOverviewPage() {
                       >
                         DRIVER PAYOUT
                       </span>
-                      <StatusBadge status="APPROVED" label="LIVE" />
+                      <StatusBadge status={hasConfig ? 'APPROVED' : 'PENDING'} label={hasConfig ? 'LIVE' : 'NOT CONFIGURED'} />
                     </div>
                   </div>
 
@@ -247,16 +248,16 @@ export default function PricingOverviewPage() {
                     <div>
                       <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: 700 }}>Starting Base Payout</div>
                       <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--color-success)', marginTop: '0.2rem' }}>
-                        {inr(baseDriver)}
+                        {baseDriver !== null ? inr(baseDriver) : '—'}
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>0 to {baseKm} km</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{hasConfig ? `0 to ${baseKm} km` : 'Setup required'}</div>
                     </div>
                     <div>
                       <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: 700 }}>Step Increment</div>
                       <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--color-success)', marginTop: '0.2rem' }}>
-                        +{inr(stepDriver)}
+                        {stepDriver !== null ? `+${inr(stepDriver)}` : '—'}
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>per +{stepKm} km step</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{hasConfig ? `per +${stepKm} km step` : 'Setup required'}</div>
                     </div>
                   </div>
 

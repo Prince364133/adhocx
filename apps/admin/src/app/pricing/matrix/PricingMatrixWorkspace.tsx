@@ -96,57 +96,26 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
   const [genMaxKm, setGenMaxKm] = useState<number>(200);
 
   // Vendor Base and Step Pricing
-  const [genBaseVendor, setGenBaseVendor] = useState<number>(400);
-  const [genStepVendor, setGenStepVendor] = useState<number>(100);
+  const [genBaseVendor, setGenBaseVendor] = useState<number | ''>('');
+  const [genStepVendor, setGenStepVendor] = useState<number | ''>('');
 
   // Driver Base and Step Pricing
-  const [genBaseDriver, setGenBaseDriver] = useState<number>(300);
-  const [genStepDriver, setGenStepDriver] = useState<number>(70);
+  const [genBaseDriver, setGenBaseDriver] = useState<number | ''>('');
+  const [genStepDriver, setGenStepDriver] = useState<number | ''>('');
 
   // Security Escort Pricing (Vendor only)
-  const [genEscortBaseVendor, setGenEscortBaseVendor] = useState<number>(300);
-  const [genEscortStepVendor, setGenEscortStepVendor] = useState<number>(50);
+  const [genEscortBaseVendor, setGenEscortBaseVendor] = useState<number | ''>('');
+  const [genEscortStepVendor, setGenEscortStepVendor] = useState<number | ''>('');
 
   // Bottom Sheet 2: Multiple Peak Timings
   const [isPeakSheetOpen, setIsPeakSheetOpen] = useState(false);
-  const [peakSlots, setPeakSlots] = useState<PeakSlotWindow[]>([
-    {
-      id: 'slot-1',
-      label: 'Morning Peak',
-      start: '08:00',
-      end: '11:00',
-      vehicleSurges: [
-        {
-          vehicleType: 'SEDAN',
-          vendorBaseExtra: 80,
-          vendorStepExtra: 60,
-          driverBaseExtra: 50,
-          driverStepExtra: 40,
-        },
-      ],
-    },
-    {
-      id: 'slot-2',
-      label: 'Evening Peak',
-      start: '17:00',
-      end: '21:00',
-      vehicleSurges: [
-        {
-          vehicleType: 'SEDAN',
-          vendorBaseExtra: 80,
-          vendorStepExtra: 60,
-          driverBaseExtra: 50,
-          driverStepExtra: 40,
-        },
-      ],
-    },
-  ]);
+  const [peakSlots, setPeakSlots] = useState<PeakSlotWindow[]>([]);
 
   // Current active peak surge for the active plan
-  const [currentVendorPeakBase, setCurrentVendorPeakBase] = useState<number>(80);
-  const [currentVendorPeakStep, setCurrentVendorPeakStep] = useState<number>(60);
-  const [currentDriverPeakBase, setCurrentDriverPeakBase] = useState<number>(50);
-  const [currentDriverPeakStep, setCurrentDriverPeakStep] = useState<number>(40);
+  const [currentVendorPeakBase, setCurrentVendorPeakBase] = useState<number>(0);
+  const [currentVendorPeakStep, setCurrentVendorPeakStep] = useState<number>(0);
+  const [currentDriverPeakBase, setCurrentDriverPeakBase] = useState<number>(0);
+  const [currentDriverPeakStep, setCurrentDriverPeakStep] = useState<number>(0);
 
   // Simulation State
   const [simDistanceKm, setSimDistanceKm] = useState<number>(25);
@@ -190,15 +159,18 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
       setGenVehicleType(initialChip);
 
       const planToSelect =
-        (preferredPlanId && plansData.find((p) => p.id === preferredPlanId)) ||
+        (preferredPlanId && plansData.find((p) => p.id === preferredPlanId && p.vehicleCategory === initialChip)) ||
         plansData.find((p) => p.vehicleCategory === initialChip && p.status === 'ACTIVE') ||
-        plansData.find((p) => p.vehicleCategory === initialChip) ||
-        plansData.find((p) => p.status === 'ACTIVE' && p.vehicleCategory !== 'ALL') ||
-        plansData[0];
+        plansData.find((p) => p.vehicleCategory === initialChip);
 
       if (planToSelect) {
         setSelectedPlanId(planToSelect.id);
         initFromPlan(planToSelect, initialChip);
+      } else {
+        setSelectedPlanId('');
+        setEditingSlabs([]);
+        setSlabEscorts({});
+        setOverriddenSlabKeys(new Set());
       }
     } catch (err: any) {
       setAlert({ type: 'error', message: err?.message || 'Failed to load pricing data.' });
@@ -220,6 +192,8 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
           active: s.active,
         }))
       );
+    } else {
+      setEditingSlabs([]);
     }
 
     const currentCat = (plan.vehicleCategory && plan.vehicleCategory !== 'ALL')
@@ -230,27 +204,33 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
     setGenVehicleType(currentCat);
 
     // Hydrate multiple peak windows from plan
-    if (Array.isArray(plan.peakWindows) && plan.peakWindows.length > 0) {
-      const hydratedSlots: PeakSlotWindow[] = plan.peakWindows.map((pw, idx) => ({
+    const cfg = (plan as any).rateConfigJson || plan.config;
+    if (cfg && Array.isArray(cfg.peakSlots) && cfg.peakSlots.length > 0) {
+      setPeakSlots(cfg.peakSlots);
+    } else if (Array.isArray(plan.peakWindows) && plan.peakWindows.length > 0) {
+      const hydratedSlots: PeakSlotWindow[] = plan.peakWindows.map((pw: any, idx: number) => ({
         id: `slot-${idx + 1}`,
         label: pw.label || `Peak Slot ${idx + 1}`,
         start: pw.start || '08:00',
         end: pw.end || '11:00',
-        vehicleSurges: [
-          {
-            vehicleType: currentCat,
-            vendorBaseExtra: 80,
-            vendorStepExtra: 60,
-            driverBaseExtra: 50,
-            driverStepExtra: 40,
-          },
-        ],
+        vehicleSurges: Array.isArray(pw.vehicleSurges) && pw.vehicleSurges.length > 0
+          ? pw.vehicleSurges
+          : [
+              {
+                vehicleType: currentCat,
+                vendorBaseExtra: Number(cfg?.vendorPeakExtraBaseRupees) || 0,
+                vendorStepExtra: Number(cfg?.vendorPeakExtraStepRupees) || 0,
+                driverBaseExtra: Number(cfg?.driverPeakExtraBaseRupees) || 0,
+                driverStepExtra: Number(cfg?.driverPeakExtraStepRupees) || 0,
+              },
+            ],
       }));
       setPeakSlots(hydratedSlots);
+    } else {
+      setPeakSlots([]);
     }
 
     // Hydrate parameters if stored in rateConfigJson
-    const cfg = (plan as any).rateConfigJson || plan.config;
     if (cfg && typeof cfg === 'object') {
       if (typeof cfg.baseKm === 'number' && cfg.baseKm > 0) setGenBaseKm(cfg.baseKm);
       if (typeof cfg.stepKm === 'number' && cfg.stepKm > 0) setGenStepKm(cfg.stepKm);
@@ -284,6 +264,19 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
         });
         setOverriddenSlabKeys(keys);
       }
+    } else {
+      setGenBaseVendor('');
+      setGenStepVendor('');
+      setGenBaseDriver('');
+      setGenStepDriver('');
+      setGenEscortBaseVendor('');
+      setGenEscortStepVendor('');
+      setCurrentVendorPeakBase(0);
+      setCurrentVendorPeakStep(0);
+      setCurrentDriverPeakBase(0);
+      setCurrentDriverPeakStep(0);
+      setSlabEscorts({});
+      setOverriddenSlabKeys(new Set());
     }
   }
 
@@ -295,8 +288,8 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
     () =>
       plans.find((p) => p.vehicleCategory === selectedVehicleChip && p.status === 'ACTIVE') ||
       plans.find((p) => p.vehicleCategory === selectedVehicleChip) ||
-      (selectedPlanId ? plans.find((p) => p.id === selectedPlanId) : null) ||
-      plans[0],
+      (selectedPlanId ? plans.find((p) => p.id === selectedPlanId && p.vehicleCategory === selectedVehicleChip) : null) ||
+      null,
     [plans, selectedPlanId, selectedVehicleChip]
   );
 
@@ -335,6 +328,18 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
       setSelectedPlanId('');
       setEditingSlabs([]);
       setSlabEscorts({});
+      setOverriddenSlabKeys(new Set());
+      setGenBaseVendor('');
+      setGenStepVendor('');
+      setGenBaseDriver('');
+      setGenStepDriver('');
+      setGenEscortBaseVendor('');
+      setGenEscortStepVendor('');
+      setCurrentVendorPeakBase(0);
+      setCurrentVendorPeakStep(0);
+      setCurrentDriverPeakBase(0);
+      setCurrentDriverPeakStep(0);
+      setPeakSlots([]);
     }
   };
 
@@ -344,7 +349,9 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
       const baseM = genBaseKm * 1000;
       const stepM = genStepKm * 1000;
       const steps = maxM > baseM ? Math.ceil((maxM - baseM) / stepM) : 0;
-      const vendorEscort = genEscortBaseVendor + steps * genEscortStepVendor;
+      const baseEscort = Number(genEscortBaseVendor) || 0;
+      const stepEscort = Number(genEscortStepVendor) || 0;
+      const vendorEscort = baseEscort + steps * stepEscort;
       return { vendorEscort };
     },
     [genBaseKm, genStepKm, genEscortBaseVendor, genEscortStepVendor]
@@ -365,6 +372,13 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
     const maxMeters = Math.round(genMaxKm * 1000);
     const stepMeters = Math.round(genStepKm * 1000);
 
+    const numBaseVendor = Number(genBaseVendor) || 0;
+    const numStepVendor = Number(genStepVendor) || 0;
+    const numBaseDriver = Number(genBaseDriver) || 0;
+    const numStepDriver = Number(genStepDriver) || 0;
+    const numEscortBase = Number(genEscortBaseVendor) || 0;
+    const numEscortStep = Number(genEscortStepVendor) || 0;
+
     const existingMap = new Map<string, CreatePricingSlabInput>();
     editingSlabs.forEach((s) => {
       existingMap.set(`${s.minDistanceMExclusive}-${s.maxDistanceMInclusive}`, s);
@@ -381,10 +395,10 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
       newSlabs.push({
         minDistanceMExclusive: 0,
         maxDistanceMInclusive: Math.min(baseMeters, maxMeters),
-        vendorPricePaise: Math.round(genBaseVendor * 100),
-        driverPayoutPaise: Math.round(genBaseDriver * 100),
-        vendorPeakPricePaise: Math.round((genBaseVendor + currentVendorPeakBase) * 100),
-        driverPeakPayoutPaise: Math.round((genBaseDriver + currentDriverPeakBase) * 100),
+        vendorPricePaise: Math.round(numBaseVendor * 100),
+        driverPayoutPaise: Math.round(numBaseDriver * 100),
+        vendorPeakPricePaise: Math.round((numBaseVendor + currentVendorPeakBase) * 100),
+        driverPeakPayoutPaise: Math.round((numBaseDriver + currentDriverPeakBase) * 100),
         active: true,
       });
     }
@@ -400,10 +414,10 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
       if (existingStep && overriddenSlabKeys.has(key)) {
         newSlabs.push(existingStep);
       } else {
-        const vStd = Math.round((genBaseVendor + stepIdx * genStepVendor) * 100);
-        const dStd = Math.round((genBaseDriver + stepIdx * genStepDriver) * 100);
-        const vPeak = Math.round((genBaseVendor + currentVendorPeakBase + stepIdx * (genStepVendor + currentVendorPeakStep)) * 100);
-        const dPeak = Math.round((genBaseDriver + currentDriverPeakBase + stepIdx * (genStepDriver + currentDriverPeakStep)) * 100);
+        const vStd = Math.round((numBaseVendor + stepIdx * numStepVendor) * 100);
+        const dStd = Math.round((numBaseDriver + stepIdx * numStepDriver) * 100);
+        const vPeak = Math.round((numBaseVendor + currentVendorPeakBase + stepIdx * (numStepVendor + currentVendorPeakStep)) * 100);
+        const dPeak = Math.round((numBaseDriver + currentDriverPeakBase + stepIdx * (numStepDriver + currentDriverPeakStep)) * 100);
 
         newSlabs.push({
           minDistanceMExclusive: currentMin,
@@ -430,18 +444,19 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
         baseKm: genBaseKm,
         stepKm: genStepKm,
         maxKm: genMaxKm,
-        baseVendorRupees: genBaseVendor,
-        stepVendorRupees: genStepVendor,
+        baseVendorRupees: numBaseVendor,
+        stepVendorRupees: numStepVendor,
         vendorPeakExtraBaseRupees: currentVendorPeakBase,
         vendorPeakExtraStepRupees: currentVendorPeakStep,
-        baseDriverRupees: genBaseDriver,
-        stepDriverRupees: genStepDriver,
+        baseDriverRupees: numBaseDriver,
+        stepDriverRupees: numStepDriver,
         driverPeakExtraBaseRupees: currentDriverPeakBase,
         driverPeakExtraStepRupees: currentDriverPeakStep,
-        escortBaseVendorRupees: genEscortBaseVendor,
-        escortStepVendorRupees: genEscortStepVendor,
+        escortBaseVendorRupees: numEscortBase,
+        escortStepVendorRupees: numEscortStep,
         slabEscorts,
         overriddenSlabs: Array.from(overriddenSlabKeys),
+        peakSlots,
       };
 
       const peakWindowsPayload: PeakHourWindow[] = peakSlots.map((slot) => ({
@@ -526,17 +541,22 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
     const baseM = genBaseKm * 1000;
     const stepM = genStepKm * 1000;
 
-    let vStd = genBaseVendor;
-    let dStd = genBaseDriver;
-    let vPeak = genBaseVendor + currentVendorPeakBase;
-    let dPeak = genBaseDriver + currentDriverPeakBase;
+    const numBaseVendor = Number(genBaseVendor) || 0;
+    const numStepVendor = Number(genStepVendor) || 0;
+    const numBaseDriver = Number(genBaseDriver) || 0;
+    const numStepDriver = Number(genStepDriver) || 0;
+
+    let vStd = numBaseVendor;
+    let dStd = numBaseDriver;
+    let vPeak = numBaseVendor + currentVendorPeakBase;
+    let dPeak = numBaseDriver + currentDriverPeakBase;
 
     if (target.minDistanceMExclusive > 0) {
       const stepIndex = Math.max(1, Math.round((target.maxDistanceMInclusive - baseM) / stepM));
-      vStd = genBaseVendor + stepIndex * genStepVendor;
-      dStd = genBaseDriver + stepIndex * genStepDriver;
-      vPeak = genBaseVendor + currentVendorPeakBase + stepIndex * (genStepVendor + currentVendorPeakStep);
-      dPeak = genBaseDriver + currentDriverPeakBase + stepIndex * (genStepDriver + currentDriverPeakStep);
+      vStd = numBaseVendor + stepIndex * numStepVendor;
+      dStd = numBaseDriver + stepIndex * numStepDriver;
+      vPeak = numBaseVendor + currentVendorPeakBase + stepIndex * (numStepVendor + currentVendorPeakStep);
+      dPeak = numBaseDriver + currentDriverPeakBase + stepIndex * (numStepDriver + currentDriverPeakStep);
     }
 
     const updated = [...editingSlabs];
@@ -629,6 +649,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
         escortStepVendorRupees: genEscortStepVendor,
         slabEscorts,
         overriddenSlabs: Array.from(overriddenSlabKeys),
+        peakSlots,
       };
 
       const peakWindowsPayload: PeakHourWindow[] = peakSlots.map((slot) => ({
@@ -704,23 +725,30 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
     setSaving(true);
     try {
       const overriddenArray = Array.from(overriddenSlabKeys);
+      const numBaseVendor = Number(genBaseVendor) || 0;
+      const numStepVendor = Number(genStepVendor) || 0;
+      const numBaseDriver = Number(genBaseDriver) || 0;
+      const numStepDriver = Number(genStepDriver) || 0;
+      const numEscortBase = Number(genEscortBaseVendor) || 0;
+      const numEscortStep = Number(genEscortStepVendor) || 0;
 
       const configPayload = {
         baseKm: genBaseKm,
         stepKm: genStepKm,
         maxKm: genMaxKm,
-        baseVendorRupees: genBaseVendor,
-        stepVendorRupees: genStepVendor,
+        baseVendorRupees: numBaseVendor,
+        stepVendorRupees: numStepVendor,
         vendorPeakExtraBaseRupees: currentVendorPeakBase,
         vendorPeakExtraStepRupees: currentVendorPeakStep,
-        baseDriverRupees: genBaseDriver,
-        stepDriverRupees: genStepDriver,
+        baseDriverRupees: numBaseDriver,
+        stepDriverRupees: numStepDriver,
         driverPeakExtraBaseRupees: currentDriverPeakBase,
         driverPeakExtraStepRupees: currentDriverPeakStep,
-        escortBaseVendorRupees: genEscortBaseVendor,
-        escortStepVendorRupees: genEscortStepVendor,
+        escortBaseVendorRupees: numEscortBase,
+        escortStepVendorRupees: numEscortStep,
         slabEscorts,
         overriddenSlabs: overriddenArray,
+        peakSlots,
       };
 
       const peakWindowsPayload: PeakHourWindow[] = peakSlots.map((slot) => ({
@@ -1588,10 +1616,10 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
                     vehicleSurges: [
                       {
                         vehicleType: selectedVehicleChip || 'SEDAN',
-                        vendorBaseExtra: 80,
-                        vendorStepExtra: 60,
-                        driverBaseExtra: 50,
-                        driverStepExtra: 40,
+                        vendorBaseExtra: 0,
+                        vendorStepExtra: 0,
+                        driverBaseExtra: 0,
+                        driverStepExtra: 0,
                       },
                     ],
                   },
@@ -1699,10 +1727,10 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
                           const next = [...peakSlots];
                           next[sIdx].vehicleSurges.push({
                             vehicleType: availableVehicleChips.find((c) => !slot.vehicleSurges.some((s) => s.vehicleType === c)) || 'SEDAN',
-                            vendorBaseExtra: 80,
-                            vendorStepExtra: 60,
-                            driverBaseExtra: 50,
-                            driverStepExtra: 40,
+                            vendorBaseExtra: 0,
+                            vendorStepExtra: 0,
+                            driverBaseExtra: 0,
+                            driverStepExtra: 0,
                           });
                           setPeakSlots(next);
                         }}
