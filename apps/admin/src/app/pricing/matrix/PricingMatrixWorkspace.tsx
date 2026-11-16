@@ -78,8 +78,8 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
   const [saving, setSaving] = useState(false);
   const [alert, setAlert] = useState<{ type: 'success' | 'error' | 'warning'; message: string } | null>(null);
 
-  // Selected Vehicle Chip filter
-  const [selectedVehicleChip, setSelectedVehicleChip] = useState<string>('ALL');
+  // Selected Vehicle Chip filter (Concrete vehicles only, no 'ALL')
+  const [selectedVehicleChip, setSelectedVehicleChip] = useState<string>('SEDAN');
 
   // Slabs & Overrides State
   const [editingSlabs, setEditingSlabs] = useState<CreatePricingSlabInput[]>([]);
@@ -90,7 +90,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
 
   // Bottom Sheet 1: Configure Pricing
   const [isConfigureSheetOpen, setIsConfigureSheetOpen] = useState(false);
-  const [genVehicleType, setGenVehicleType] = useState<string>('ALL');
+  const [genVehicleType, setGenVehicleType] = useState<string>('SEDAN');
   const [genBaseKm, setGenBaseKm] = useState<number>(10);
   const [genStepKm, setGenStepKm] = useState<number>(10);
   const [genMaxKm, setGenMaxKm] = useState<number>(200);
@@ -117,7 +117,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
       end: '11:00',
       vehicleSurges: [
         {
-          vehicleType: 'ALL',
+          vehicleType: 'SEDAN',
           vendorBaseExtra: 80,
           vendorStepExtra: 60,
           driverBaseExtra: 50,
@@ -132,7 +132,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
       end: '21:00',
       vehicleSurges: [
         {
-          vehicleType: 'ALL',
+          vehicleType: 'SEDAN',
           vendorBaseExtra: 80,
           vendorStepExtra: 60,
           driverBaseExtra: 50,
@@ -166,14 +166,36 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
       setPlans(plansData);
       setVehicleCategories(catsData);
 
+      // Determine available concrete vehicle chips (no 'ALL')
+      const validChips: string[] = [];
+      catsData.forEach((vc) => {
+        const t = vc.vehicleType?.trim().toUpperCase();
+        if (t && t !== 'ALL' && !validChips.includes(t)) validChips.push(t);
+      });
+      plansData.forEach((p) => {
+        const t = p.vehicleCategory?.trim().toUpperCase();
+        if (t && t !== 'ALL' && !validChips.includes(t)) validChips.push(t);
+      });
+      if (validChips.length === 0) validChips.push('SEDAN', 'SUV', 'HATCHBACK');
+
+      const initialChip =
+        selectedVehicleChip && selectedVehicleChip !== 'ALL' && validChips.includes(selectedVehicleChip)
+          ? selectedVehicleChip
+          : validChips[0];
+
+      setSelectedVehicleChip(initialChip);
+      setGenVehicleType(initialChip);
+
       const planToSelect =
         (preferredPlanId && plansData.find((p) => p.id === preferredPlanId)) ||
-        plansData.find((p) => p.status === 'ACTIVE') ||
+        plansData.find((p) => p.vehicleCategory === initialChip && p.status === 'ACTIVE') ||
+        plansData.find((p) => p.vehicleCategory === initialChip) ||
+        plansData.find((p) => p.status === 'ACTIVE' && p.vehicleCategory !== 'ALL') ||
         plansData[0];
 
       if (planToSelect) {
         setSelectedPlanId(planToSelect.id);
-        initFromPlan(planToSelect);
+        initFromPlan(planToSelect, initialChip);
       }
     } catch (err: any) {
       setAlert({ type: 'error', message: err?.message || 'Failed to load pricing data.' });
@@ -182,7 +204,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
     }
   }, []);
 
-  function initFromPlan(plan: DistancePricingPlan) {
+  function initFromPlan(plan: DistancePricingPlan, fallbackVehicle?: string) {
     if (plan.slabs && plan.slabs.length > 0) {
       setEditingSlabs(
         plan.slabs.map((s) => ({
@@ -197,10 +219,12 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
       );
     }
 
-    if (plan.vehicleCategory) {
-      setSelectedVehicleChip(plan.vehicleCategory);
-      setGenVehicleType(plan.vehicleCategory);
-    }
+    const currentCat = (plan.vehicleCategory && plan.vehicleCategory !== 'ALL')
+      ? plan.vehicleCategory
+      : fallbackVehicle || selectedVehicleChip || 'SEDAN';
+
+    setSelectedVehicleChip(currentCat);
+    setGenVehicleType(currentCat);
 
     // Hydrate multiple peak windows from plan
     if (Array.isArray(plan.peakWindows) && plan.peakWindows.length > 0) {
@@ -211,7 +235,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
         end: pw.end || '11:00',
         vehicleSurges: [
           {
-            vehicleType: plan.vehicleCategory || 'ALL',
+            vehicleType: currentCat,
             vendorBaseExtra: 80,
             vendorStepExtra: 60,
             driverBaseExtra: 50,
@@ -258,21 +282,32 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
   }, [loadPlans]);
 
   const activePlan = useMemo(
-    () => plans.find((p) => p.id === selectedPlanId) || plans[0],
-    [plans, selectedPlanId]
+    () =>
+      plans.find((p) => p.vehicleCategory === selectedVehicleChip && p.status === 'ACTIVE') ||
+      plans.find((p) => p.vehicleCategory === selectedVehicleChip) ||
+      (selectedPlanId ? plans.find((p) => p.id === selectedPlanId) : null) ||
+      plans[0],
+    [plans, selectedPlanId, selectedVehicleChip]
   );
 
-  // Available Vehicle Chips: 'ALL' + all active vehicle types
+  // Available Vehicle Chips: Concrete vehicle types only (NO 'ALL')
   const availableVehicleChips = useMemo(() => {
-    const list = ['ALL'];
+    const list: string[] = [];
     vehicleCategories.forEach((vc) => {
-      if (!list.includes(vc.vehicleType)) list.push(vc.vehicleType);
-    });
-    plans.forEach((p) => {
-      if (p.vehicleCategory && !list.includes(p.vehicleCategory)) {
-        list.push(p.vehicleCategory);
+      const type = vc.vehicleType?.trim().toUpperCase();
+      if (type && type !== 'ALL' && !list.includes(type)) {
+        list.push(type);
       }
     });
+    plans.forEach((p) => {
+      const type = p.vehicleCategory?.trim().toUpperCase();
+      if (type && type !== 'ALL' && !list.includes(type)) {
+        list.push(type);
+      }
+    });
+    if (list.length === 0) {
+      list.push('SEDAN', 'SUV', 'HATCHBACK');
+    }
     return list;
   }, [vehicleCategories, plans]);
 
@@ -285,7 +320,10 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
       plans.find((p) => p.vehicleCategory === chip);
     if (matchingPlan) {
       setSelectedPlanId(matchingPlan.id);
-      initFromPlan(matchingPlan);
+      initFromPlan(matchingPlan, chip);
+    } else {
+      setSelectedPlanId('');
+      setEditingSlabs([]);
     }
   };
 
@@ -445,8 +483,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
     let maxDStepExtra = currentDriverPeakStep;
 
     peakSlots.forEach((slot) => {
-      const match = slot.vehicleSurges.find((s) => s.vehicleType === selectedVehicleChip) ||
-        slot.vehicleSurges.find((s) => s.vehicleType === 'ALL');
+      const match = slot.vehicleSurges.find((s) => s.vehicleType === selectedVehicleChip);
       if (match) {
         if (match.vendorBaseExtra > 0) maxVBaseExtra = match.vendorBaseExtra;
         if (match.vendorStepExtra > 0) maxVStepExtra = match.vendorStepExtra;
@@ -551,16 +588,35 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
         end: slot.end,
       }));
 
-      if (activePlan) {
-        await adminApi.updateDistancePricingSlabs(activePlan.id, editingSlabs, undefined, {
+      const targetCategory = selectedVehicleChip || genVehicleType || 'SEDAN';
+      const existingMatchingPlan = plans.find(
+        (p) => p.vehicleCategory === targetCategory && p.status === 'ACTIVE'
+      ) || plans.find((p) => p.vehicleCategory === targetCategory);
+
+      if (existingMatchingPlan) {
+        await adminApi.updateDistancePricingSlabs(existingMatchingPlan.id, editingSlabs, undefined, {
           config: configPayload as any,
           peakWindows: peakWindowsPayload,
         });
         setAlert({
           type: 'success',
-          message: `Saved matrix with ${editingSlabs.length} distance bands and ${peakSlots.length} peak windows. Ready for live apps.`,
+          message: `Saved matrix for ${targetCategory} with ${editingSlabs.length} distance bands and ${peakSlots.length} peak windows. Ready for live apps.`,
         });
-        await loadPlans(activePlan.id);
+        await loadPlans(existingMatchingPlan.id);
+      } else {
+        const newPlan = await adminApi.createDistancePricingPlan({
+          name: `${targetCategory} Distance Pricing Matrix`,
+          vehicleCategory: targetCategory,
+          slabs: editingSlabs,
+          config: configPayload as any,
+          peakWindows: peakWindowsPayload,
+        });
+        await adminApi.publishDistancePricingPlan(newPlan.id, `Initial activation for ${targetCategory}`);
+        setAlert({
+          type: 'success',
+          message: `Created and published new ${targetCategory} matrix with ${editingSlabs.length} distance bands and ${peakSlots.length} peak windows.`,
+        });
+        await loadPlans(newPlan.id);
       }
     } catch (err: any) {
       setAlert({ type: 'error', message: err?.message || 'Failed to save matrix.' });
@@ -753,7 +809,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
                 }}
               >
                 <Car size={14} />
-                <span>{chip === 'ALL' ? 'All Vehicles (Default)' : chip}</span>
+                <span>{chip}</span>
               </button>
             );
           })}
@@ -818,7 +874,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
               {filteredSlabs.length === 0 ? (
                 <tr>
                   <td colSpan={role === 'unified' ? 10 : 7} style={{ padding: '3.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                    No distance slabs configured. Click <strong>Configure Pricing</strong> above to generate the full matrix table.
+                    No distance slabs configured for <strong>{selectedVehicleChip}</strong>. Click <strong>Configure Pricing</strong> above to generate the matrix table.
                   </td>
                 </tr>
               ) : (
@@ -1163,7 +1219,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
             >
               {availableVehicleChips.map((v) => (
                 <option key={v} value={v}>
-                  {v === 'ALL' ? 'All Vehicles (Global Default)' : v}
+                  {v}
                 </option>
               ))}
             </select>
@@ -1362,7 +1418,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
                     end: '23:00',
                     vehicleSurges: [
                       {
-                        vehicleType: 'ALL',
+                        vehicleType: selectedVehicleChip || 'SEDAN',
                         vendorBaseExtra: 80,
                         vendorStepExtra: 60,
                         driverBaseExtra: 50,
@@ -1513,7 +1569,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
                               style={{ width: '100%', marginTop: '0.2rem', padding: '0.4rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)', fontWeight: 700 }}
                             >
                               {availableVehicleChips.map((c) => (
-                                <option key={c} value={c}>{c === 'ALL' ? 'All (Default)' : c}</option>
+                                <option key={c} value={c}>{c}</option>
                               ))}
                             </select>
                           </div>
