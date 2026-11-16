@@ -10,6 +10,7 @@ class AppBottomSheet extends StatelessWidget {
   final String? subtitle;
   final Widget child;
   final Widget? footer;
+  final ScrollController? scrollController;
 
   const AppBottomSheet({
     super.key,
@@ -17,6 +18,7 @@ class AppBottomSheet extends StatelessWidget {
     this.subtitle,
     required this.child,
     this.footer,
+    this.scrollController,
   });
 
   static Future<T?> show<T>({
@@ -45,6 +47,60 @@ class AppBottomSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final handle = Center(
+      child: Container(
+        key: const ValueKey('app-bottom-sheet-handle'),
+        width: 38,
+        height: 4,
+        margin: const EdgeInsets.only(bottom: AppSpacing.md),
+        decoration: BoxDecoration(
+          color:
+              isDark ? AppColors.borderSubtleDark : AppColors.borderSubtleLight,
+          borderRadius: AppRadius.borderPill,
+        ),
+      ),
+    );
+    final header = Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: AppTypography.h3(
+                  color: isDark
+                      ? AppColors.textPrimaryDark
+                      : AppColors.textPrimaryLight,
+                ),
+              ),
+              if (subtitle != null) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  subtitle!,
+                  style: AppTypography.small(
+                    color: isDark
+                        ? AppColors.textSecondaryDark
+                        : AppColors.textSecondaryLight,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        IconButton(
+          icon: Icon(
+            Icons.close,
+            color: isDark
+                ? AppColors.textSecondaryDark
+                : AppColors.textSecondaryLight,
+            size: 20,
+          ),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ],
+    );
 
     return Container(
       padding: EdgeInsets.only(
@@ -52,7 +108,7 @@ class AppBottomSheet extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-        borderRadius: BorderRadius.only(
+        borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(AppRadius.xl),
           topRight: Radius.circular(AppRadius.xl),
         ),
@@ -88,60 +144,34 @@ class AppBottomSheet extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Grabber Handle
-              Center(
-                child: Container(
-                  width: 38,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: AppSpacing.md),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.borderSubtleDark : AppColors.borderSubtleLight,
-                    borderRadius: AppRadius.borderPill,
-                  ),
+              if (scrollController == null) ...[
+                handle,
+                header,
+                Divider(
+                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                  height: AppSpacing.xl,
                 ),
-              ),
-              // Header
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
+                child,
+              ] else
+                Expanded(
+                  child: SingleChildScrollView(
+                    controller: scrollController,
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text(
-                          title,
-                          style: AppTypography.h3(
-                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                          ),
+                        handle,
+                        header,
+                        Divider(
+                          color: isDark
+                              ? AppColors.borderDark
+                              : AppColors.borderLight,
+                          height: AppSpacing.xl,
                         ),
-                        if (subtitle != null) ...[
-                          const SizedBox(height: AppSpacing.xs),
-                          Text(
-                            subtitle!,
-                            style: AppTypography.small(
-                              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                            ),
-                          ),
-                        ],
+                        child,
                       ],
                     ),
                   ),
-                  IconButton(
-                    icon: Icon(
-                      Icons.close,
-                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                      size: 20,
-                    ),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ],
-              ),
-              Divider(
-                color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                height: AppSpacing.xl,
-              ),
-              // Body
-              child,
+                ),
               // Footer
               if (footer != null) ...[
                 const SizedBox(height: AppSpacing.lg),

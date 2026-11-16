@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 // Unified Feature-Sliced Screen Architecture
@@ -57,7 +58,8 @@ class AppRoutes {
   static const String cancelTrip = '/schedule/cancel-trip';
 
   // Batch 04 Routes
-  static const String assignmentNotification = '/driver/assignment-notification';
+  static const String assignmentNotification =
+      '/driver/assignment-notification';
   static const String cabAssignedOverview = '/driver/assigned-overview';
   static const String driverDetails = '/driver/details';
   static const String vehicleDetails = '/driver/vehicle-details';
@@ -158,127 +160,343 @@ class AppRoutes {
     routes: [
       // Batch 01
       GoRoute(path: splash, builder: (context, state) => const SplashScreen()),
-      GoRoute(path: welcome, builder: (context, state) => const WelcomeScreen()),
+      GoRoute(
+          path: welcome, builder: (context, state) => const WelcomeScreen()),
       GoRoute(path: loginOptions, redirect: (context, state) => mobileNumber),
-      GoRoute(path: mobileNumber, builder: (context, state) => const MobileNumberScreen()),
-      GoRoute(path: otpVerify, builder: (context, state) => const OtpVerificationScreen()),
+      GoRoute(
+          path: mobileNumber,
+          builder: (context, state) => const MobileNumberScreen()),
+      GoRoute(
+          path: otpVerify,
+          builder: (context, state) => const OtpVerificationScreen()),
       GoRoute(path: companySso, redirect: (context, state) => mobileNumber),
-      GoRoute(path: employeeVerified, builder: (context, state) => const EmployeeVerificationScreen()),
-      GoRoute(path: permissionLocation, builder: (context, state) => const LocationPermissionScreen()),
-      GoRoute(path: permissionNotification, builder: (context, state) => const NotificationPermissionScreen()),
-      GoRoute(path: onboardingSchedule, builder: (context, state) => const OnboardingScheduleScreen()),
-      GoRoute(path: onboardingTracking, builder: (context, state) => const OnboardingTrackingScreen()),
-      GoRoute(path: onboardingSafety, builder: (context, state) => const OnboardingSafetyScreen()),
-      GoRoute(path: onboardingComplete, builder: (context, state) => const OnboardingCompleteScreen()),
-      GoRoute(path: invalidOtp, builder: (context, state) => const InvalidOtpScreen()),
-      GoRoute(path: transportUnavailable, builder: (context, state) => const TransportUnavailableScreen()),
-      GoRoute(path: home, builder: (context, state) => const HomeScreenPlaceholder()),
+      GoRoute(
+          path: employeeVerified,
+          builder: (context, state) => const EmployeeVerificationScreen()),
+      GoRoute(
+          path: permissionLocation,
+          builder: (context, state) => const LocationPermissionScreen()),
+      GoRoute(
+          path: permissionNotification,
+          builder: (context, state) => const NotificationPermissionScreen()),
+      GoRoute(
+          path: onboardingSchedule,
+          builder: (context, state) => const OnboardingScheduleScreen()),
+      GoRoute(
+          path: onboardingTracking,
+          builder: (context, state) => const OnboardingTrackingScreen()),
+      GoRoute(
+          path: onboardingSafety,
+          builder: (context, state) => const OnboardingSafetyScreen()),
+      GoRoute(
+          path: onboardingComplete,
+          builder: (context, state) => const OnboardingCompleteScreen()),
+      GoRoute(
+          path: invalidOtp,
+          builder: (context, state) => const InvalidOtpScreen()),
+      GoRoute(
+          path: transportUnavailable,
+          builder: (context, state) => const TransportUnavailableScreen()),
+      GoRoute(
+          path: home,
+          builder: (context, state) => const HomeScreenPlaceholder()),
 
       // Batch 02
-      GoRoute(path: homeUpcomingPickup, builder: (context, state) => const HomeUpcomingPickupScreen()),
-      GoRoute(path: homeUpcomingDrop, builder: (context, state) => const HomeUpcomingDropScreen()),
-      GoRoute(path: homeNoTrips, builder: (context, state) => const HomeNoUpcomingTripScreen()),
-      GoRoute(path: tripPlanning, builder: (context, state) => const TripPlanningScreen()),
-      GoRoute(path: tripAssigned, builder: (context, state) => const TripAssignedScreen()),
-      GoRoute(path: tripApproaching, builder: (context, state) => const TripApproachingScreen()),
-      GoRoute(path: tripArrived, builder: (context, state) => const TripArrivedScreen()),
-      GoRoute(path: tripBoarded, builder: (context, state) => const TripBoardedScreen()),
-      GoRoute(path: tripInProgress, builder: (context, state) => const TripInProgressScreen()),
-      GoRoute(path: tripCompleted, builder: (context, state) => const TripCompletedScreen()),
-      GoRoute(path: tripCancelled, builder: (context, state) => const TripCancelledScreen()),
-      GoRoute(path: tripUnserved, builder: (context, state) => const TripUnservedScreen()),
-      GoRoute(path: tripDetails, builder: (context, state) => const TripDetailsCompletedScreen()),
-      GoRoute(path: tripDriverVehicle, builder: (context, state) => const DriverVehicleDetailsScreen()),
+      GoRoute(
+          path: homeUpcomingPickup,
+          builder: (context, state) => const HomeUpcomingPickupScreen()),
+      GoRoute(
+          path: homeUpcomingDrop,
+          builder: (context, state) => const HomeUpcomingDropScreen()),
+      GoRoute(
+          path: homeNoTrips,
+          builder: (context, state) => const HomeNoUpcomingTripScreen()),
+      GoRoute(
+          path: tripPlanning,
+          builder: (context, state) => const TripPlanningScreen()),
+      GoRoute(
+          path: tripAssigned,
+          builder: (context, state) => const TripAssignedScreen()),
+      GoRoute(
+          path: tripApproaching,
+          builder: (context, state) => const TripApproachingScreen()),
+      GoRoute(
+          path: tripArrived,
+          builder: (context, state) => const TripArrivedScreen()),
+      GoRoute(
+          path: tripBoarded,
+          builder: (context, state) => const TripBoardedScreen()),
+      GoRoute(
+          path: tripInProgress,
+          builder: (context, state) => const TripInProgressScreen()),
+      GoRoute(
+          path: tripCompleted,
+          builder: (context, state) => const TripCompletedScreen()),
+      GoRoute(
+          path: tripCancelled,
+          builder: (context, state) => const TripCancelledScreen()),
+      GoRoute(
+          path: tripUnserved,
+          builder: (context, state) => const TripUnservedScreen()),
+      GoRoute(
+          path: tripDetails,
+          builder: (context, state) => const TripDetailsCompletedScreen()),
+      GoRoute(
+          path: tripDriverVehicle,
+          builder: (context, state) => const DriverVehicleDetailsScreen()),
 
       // Batch 03
-      GoRoute(path: scheduleToday, builder: (context, state) => const ScheduleTodayOverviewScreen()),
-      GoRoute(path: scheduleDaily, builder: (context, state) => const ScheduleDailyScreen()),
-      GoRoute(path: scheduleWeekly, builder: (context, state) => const ScheduleWeeklyScreen()),
-      GoRoute(path: scheduleMonthly, builder: (context, state) => const ScheduleMonthlyScreen()),
-      GoRoute(path: shiftDetailsLogin, builder: (context, state) => const ShiftDetailsLoginScreen()),
-      GoRoute(path: shiftDetailsOvernight, builder: (context, state) => const ShiftDetailsOvernightScreen()),
-      GoRoute(path: scheduleNoTrips, builder: (context, state) => const ScheduleNoTripsScreen()),
-      GoRoute(path: requestChangeOptions, builder: (context, state) => const RequestChangeOptionsScreen()),
-      GoRoute(path: changeDetails, builder: (context, state) => const ChangeRequestDetailsScreen()),
-      GoRoute(path: changeSubmitted, builder: (context, state) => const ChangeRequestSubmittedScreen()),
-      GoRoute(path: requestPending, builder: (context, state) => const RequestStatusPendingScreen()),
-      GoRoute(path: requestApproved, builder: (context, state) => const RequestStatusApprovedScreen()),
-      GoRoute(path: requestRejected, builder: (context, state) => const RequestStatusRejectedScreen()),
-      GoRoute(path: cancelTrip, builder: (context, state) => const CancelTripRequestScreen()),
+      GoRoute(
+          path: scheduleToday,
+          builder: (context, state) => const ScheduleTodayOverviewScreen()),
+      GoRoute(
+          path: scheduleDaily,
+          builder: (context, state) => const ScheduleDailyScreen()),
+      GoRoute(
+          path: scheduleWeekly,
+          builder: (context, state) => const ScheduleWeeklyScreen()),
+      GoRoute(
+          path: scheduleMonthly,
+          builder: (context, state) => const ScheduleMonthlyScreen()),
+      GoRoute(
+          path: shiftDetailsLogin,
+          builder: (context, state) => const ShiftDetailsLoginScreen()),
+      GoRoute(
+          path: shiftDetailsOvernight,
+          builder: (context, state) => const ShiftDetailsOvernightScreen()),
+      GoRoute(
+          path: scheduleNoTrips,
+          builder: (context, state) => const ScheduleNoTripsScreen()),
+      GoRoute(
+          path: requestChangeOptions,
+          builder: (context, state) => const RequestChangeOptionsScreen()),
+      GoRoute(
+          path: changeDetails,
+          builder: (context, state) => const ChangeRequestDetailsScreen()),
+      GoRoute(
+          path: changeSubmitted,
+          builder: (context, state) => const ChangeRequestSubmittedScreen()),
+      GoRoute(
+          path: requestPending,
+          builder: (context, state) => const RequestStatusPendingScreen()),
+      GoRoute(
+          path: requestApproved,
+          builder: (context, state) => const RequestStatusApprovedScreen()),
+      GoRoute(
+          path: requestRejected,
+          builder: (context, state) => const RequestStatusRejectedScreen()),
+      GoRoute(
+          path: cancelTrip,
+          builder: (context, state) => const CancelTripRequestScreen()),
 
       // Batch 04
-      GoRoute(path: assignmentNotification, builder: (context, state) => const AssignmentNotificationScreen()),
-      GoRoute(path: cabAssignedOverview, builder: (context, state) => const CabAssignedOverviewScreen()),
-      GoRoute(path: driverDetails, builder: (context, state) => const DriverDetailsScreen()),
-      GoRoute(path: vehicleDetails, builder: (context, state) => const VehicleDetailsScreen()),
-      GoRoute(path: pickupSequence, builder: (context, state) => const PickupSequenceScreen()),
-      GoRoute(path: cabReassigned, builder: (context, state) => const CabReassignedScreen()),
-      GoRoute(path: assignmentDelayed, builder: (context, state) => const AssignmentDelayedScreen()),
-      GoRoute(path: driverReplaced, builder: (context, state) => const DriverReplacedScreen()),
-      GoRoute(path: driverDelay, builder: (context, state) => const DriverDelayScreen()),
-      GoRoute(path: vehicleIssue, builder: (context, state) => const VehicleIssueScreen()),
-      GoRoute(path: contactDriverSheet, builder: (context, state) => const ContactDriverSheetScreen()),
-      GoRoute(path: assignmentHistory, builder: (context, state) => const AssignmentHistoryScreen()),
-      GoRoute(path: noCabAvailable, builder: (context, state) => const NoCabAvailableScreen()),
+      GoRoute(
+          path: assignmentNotification,
+          builder: (context, state) => const AssignmentNotificationScreen()),
+      GoRoute(
+          path: cabAssignedOverview,
+          builder: (context, state) => const CabAssignedOverviewScreen()),
+      GoRoute(
+          path: driverDetails,
+          builder: (context, state) => const DriverDetailsScreen()),
+      GoRoute(
+          path: vehicleDetails,
+          builder: (context, state) => const VehicleDetailsScreen()),
+      GoRoute(
+          path: pickupSequence,
+          builder: (context, state) => const PickupSequenceScreen()),
+      GoRoute(
+          path: cabReassigned,
+          builder: (context, state) => const CabReassignedScreen()),
+      GoRoute(
+          path: assignmentDelayed,
+          builder: (context, state) => const AssignmentDelayedScreen()),
+      GoRoute(
+          path: driverReplaced,
+          builder: (context, state) => const DriverReplacedScreen()),
+      GoRoute(
+          path: driverDelay,
+          builder: (context, state) => const DriverDelayScreen()),
+      GoRoute(
+          path: vehicleIssue,
+          builder: (context, state) => const VehicleIssueScreen()),
+      GoRoute(
+        path: contactDriverSheet,
+        pageBuilder: (context, state) => CustomTransitionPage<void>(
+          key: state.pageKey,
+          opaque: false,
+          barrierColor: Colors.transparent,
+          transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+              child,
+          child: const ContactDriverSheetScreen(),
+        ),
+      ),
+      GoRoute(
+          path: assignmentHistory,
+          builder: (context, state) => const AssignmentHistoryScreen()),
+      GoRoute(
+          path: noCabAvailable,
+          builder: (context, state) => const NoCabAvailableScreen()),
 
       // Batch 05
-      GoRoute(path: liveTrackingOverview, builder: (context, state) => const LiveTrackingOverviewScreen()),
-      GoRoute(path: tripLiveMapFull, builder: (context, state) => const TripLiveMapFullScreen()),
-      GoRoute(path: pickupPointDetails, builder: (context, state) => const PickupPointDetailsScreen()),
-      GoRoute(path: walkingDirections, builder: (context, state) => const WalkingDirectionsScreen()),
-      GoRoute(path: cabApproaching, builder: (context, state) => const CabApproachingScreen()),
-      GoRoute(path: cabArrived, builder: (context, state) => const CabArrivedScreen()),
-      GoRoute(path: tripProgressOnTrip, builder: (context, state) => const TripProgressOnTripScreen()),
-      GoRoute(path: routeAndStops, builder: (context, state) => const RouteAndStopsScreen()),
-      GoRoute(path: gpsUnavailable, builder: (context, state) => const GpsUnavailableScreen()),
-      GoRoute(path: staleLocation, builder: (context, state) => const StaleLocationScreen()),
-      GoRoute(path: poorNetwork, builder: (context, state) => const PoorNetworkScreen()),
-      GoRoute(path: reconnecting, builder: (context, state) => const ReconnectingScreen()),
+      GoRoute(
+          path: liveTrackingOverview,
+          builder: (context, state) => const LiveTrackingOverviewScreen()),
+      GoRoute(
+          path: tripLiveMapFull,
+          builder: (context, state) => const TripLiveMapFullScreen()),
+      GoRoute(
+          path: pickupPointDetails,
+          builder: (context, state) => const PickupPointDetailsScreen()),
+      GoRoute(
+          path: walkingDirections,
+          builder: (context, state) => const WalkingDirectionsScreen()),
+      GoRoute(
+          path: cabApproaching,
+          builder: (context, state) => const CabApproachingScreen()),
+      GoRoute(
+          path: cabArrived,
+          builder: (context, state) => const CabArrivedScreen()),
+      GoRoute(
+          path: tripProgressOnTrip,
+          builder: (context, state) => const TripProgressOnTripScreen()),
+      GoRoute(
+          path: routeAndStops,
+          builder: (context, state) => const RouteAndStopsScreen()),
+      GoRoute(
+          path: gpsUnavailable,
+          builder: (context, state) => const GpsUnavailableScreen()),
+      GoRoute(
+          path: staleLocation,
+          builder: (context, state) => const StaleLocationScreen()),
+      GoRoute(
+          path: poorNetwork,
+          builder: (context, state) => const PoorNetworkScreen()),
+      GoRoute(
+          path: reconnecting,
+          builder: (context, state) => const ReconnectingScreen()),
 
       // Batch 06
-      GoRoute(path: boardingVerifyOptions, builder: (context, state) => const BoardingVerifyOptionsScreen()),
-      GoRoute(path: boardingOtpInput, builder: (context, state) => const BoardingOtpInputScreen()),
-      GoRoute(path: scanBoardingQr, builder: (context, state) => const ScanBoardingQrScreen()),
-      GoRoute(path: verifyingBoarding, builder: (context, state) => const VerifyingBoardingScreen()),
-      GoRoute(path: boardingSuccessful, builder: (context, state) => const BoardingSuccessfulScreen()),
-      GoRoute(path: wrongOtp, builder: (context, state) => const WrongOtpScreen()),
-      GoRoute(path: boardingIssue, builder: (context, state) => const BoardingIssueScreen()),
-      GoRoute(path: tripInProgressEnRoute, builder: (context, state) => const TripInProgressEnRouteScreen()),
-      GoRoute(path: dropReached, builder: (context, state) => const DropReachedScreen()),
-      GoRoute(path: tripCompletedSummary, builder: (context, state) => const TripCompletedSummaryScreen()),
-      GoRoute(path: safeReachConfirmation, builder: (context, state) => const SafeReachConfirmationScreen()),
-      GoRoute(path: postTripFeedback, builder: (context, state) => const PostTripFeedbackScreen()),
+      GoRoute(
+          path: boardingVerifyOptions,
+          builder: (context, state) => const BoardingVerifyOptionsScreen()),
+      GoRoute(
+          path: boardingOtpInput,
+          builder: (context, state) => const BoardingOtpInputScreen()),
+      GoRoute(
+          path: scanBoardingQr,
+          builder: (context, state) => const ScanBoardingQrScreen()),
+      GoRoute(
+          path: verifyingBoarding,
+          builder: (context, state) => const VerifyingBoardingScreen()),
+      GoRoute(
+          path: boardingSuccessful,
+          builder: (context, state) => const BoardingSuccessfulScreen()),
+      GoRoute(
+          path: wrongOtp, builder: (context, state) => const WrongOtpScreen()),
+      GoRoute(
+          path: boardingIssue,
+          builder: (context, state) => const BoardingIssueScreen()),
+      GoRoute(
+          path: tripInProgressEnRoute,
+          builder: (context, state) => const TripInProgressEnRouteScreen()),
+      GoRoute(
+          path: dropReached,
+          builder: (context, state) => const DropReachedScreen()),
+      GoRoute(
+          path: tripCompletedSummary,
+          builder: (context, state) => const TripCompletedSummaryScreen()),
+      GoRoute(
+          path: safeReachConfirmation,
+          builder: (context, state) => const SafeReachConfirmationScreen()),
+      GoRoute(
+          path: postTripFeedback,
+          builder: (context, state) => const PostTripFeedbackScreen()),
 
       // Batch 07
-      GoRoute(path: safetyOverview, builder: (context, state) => const SafetyCenterOverviewScreen()),
-      GoRoute(path: safetySos, builder: (context, state) => const SosActivateScreen()),
-      GoRoute(path: safetySosConfirmed, builder: (context, state) => const SosAlertConfirmedScreen()),
-      GoRoute(path: safetyTeamCall, builder: (context, state) => const SafetyTeamCallScreen()),
-      GoRoute(path: safetyReportIncident, builder: (context, state) => const ReportIncidentScreen()),
-      GoRoute(path: safetyRaiseComplaint, builder: (context, state) => const RaiseComplaintScreen()),
-      GoRoute(path: safetyLostProperty, builder: (context, state) => const LostPropertyScreen()),
-      GoRoute(path: safetyMyRequests, builder: (context, state) => const MyRequestsTicketsScreen()),
-      GoRoute(path: safetyRequestDetails, builder: (context, state) => const RequestDetailsTrackingScreen()),
-      GoRoute(path: safetyRequestResolved, builder: (context, state) => const RequestResolvedScreen()),
-      GoRoute(path: safetyEmergencyContacts, builder: (context, state) => const EmergencyContactsScreen()),
-      GoRoute(path: safetyTips, builder: (context, state) => const SafetyTipsGuidelinesScreen()),
-      GoRoute(path: safetyLiveChat, builder: (context, state) => const LiveSupportChatScreen()),
+      GoRoute(
+          path: safetyOverview,
+          builder: (context, state) => const SafetyCenterOverviewScreen()),
+      GoRoute(
+          path: safetySos,
+          builder: (context, state) => const SosActivateScreen()),
+      GoRoute(
+          path: safetySosConfirmed,
+          builder: (context, state) => const SosAlertConfirmedScreen()),
+      GoRoute(
+          path: safetyTeamCall,
+          builder: (context, state) => const SafetyTeamCallScreen()),
+      GoRoute(
+          path: safetyReportIncident,
+          builder: (context, state) => const ReportIncidentScreen()),
+      GoRoute(
+          path: safetyRaiseComplaint,
+          builder: (context, state) => const RaiseComplaintScreen()),
+      GoRoute(
+          path: safetyLostProperty,
+          builder: (context, state) => const LostPropertyScreen()),
+      GoRoute(
+          path: safetyMyRequests,
+          builder: (context, state) => const MyRequestsTicketsScreen()),
+      GoRoute(
+          path: safetyRequestDetails,
+          builder: (context, state) => const RequestDetailsTrackingScreen()),
+      GoRoute(
+          path: safetyRequestResolved,
+          builder: (context, state) => const RequestResolvedScreen()),
+      GoRoute(
+          path: safetyEmergencyContacts,
+          builder: (context, state) => const EmergencyContactsScreen()),
+      GoRoute(
+          path: safetyTips,
+          builder: (context, state) => const SafetyTipsGuidelinesScreen()),
+      GoRoute(
+          path: safetyLiveChat,
+          builder: (context, state) => const LiveSupportChatScreen()),
 
       // Batch 08
-      GoRoute(path: historyOverview, builder: (context, state) => const TripHistoryOverviewScreen()),
-      GoRoute(path: historyDetails, builder: (context, state) => const TripHistoryDetailsScreen()),
-      GoRoute(path: historyAnalytics, builder: (context, state) => const TripSummaryAnalyticsScreen()),
-      GoRoute(path: historyFeedback, builder: (context, state) => const TripFeedbackFormScreen()),
-      GoRoute(path: notificationsCenter, builder: (context, state) => const NotificationsCenterScreen()),
-      GoRoute(path: profileDetails, builder: (context, state) => const ProfileMyDetailsScreen()),
-      GoRoute(path: profileEdit, builder: (context, state) => const EditProfileScreen()),
-      GoRoute(path: settingsOverview, builder: (context, state) => const SettingsOverviewScreen()),
-      GoRoute(path: settingsLanguage, builder: (context, state) => const SelectLanguageScreen()),
-      GoRoute(path: settingsNotifications, builder: (context, state) => const NotificationPreferencesScreen()),
-      GoRoute(path: settingsPrivacy, builder: (context, state) => const PrivacyDataScreen()),
-      GoRoute(path: aboutAdhocx, builder: (context, state) => const AboutAdhocxScreen()),
-      GoRoute(path: logoutConfirm, builder: (context, state) => const LogoutConfirmScreen()),
-      GoRoute(path: deleteAccount, builder: (context, state) => const DeleteAccountScreen()),
+      GoRoute(
+          path: historyOverview,
+          builder: (context, state) => const TripHistoryOverviewScreen()),
+      GoRoute(
+          path: historyDetails,
+          builder: (context, state) => const TripHistoryDetailsScreen()),
+      GoRoute(
+          path: historyAnalytics,
+          builder: (context, state) => const TripSummaryAnalyticsScreen()),
+      GoRoute(
+          path: historyFeedback,
+          builder: (context, state) => const TripFeedbackFormScreen()),
+      GoRoute(
+          path: notificationsCenter,
+          builder: (context, state) => const NotificationsCenterScreen()),
+      GoRoute(
+          path: profileDetails,
+          builder: (context, state) => const ProfileMyDetailsScreen()),
+      GoRoute(
+          path: profileEdit,
+          builder: (context, state) => const EditProfileScreen()),
+      GoRoute(
+          path: settingsOverview,
+          builder: (context, state) => const SettingsOverviewScreen()),
+      GoRoute(
+          path: settingsLanguage,
+          builder: (context, state) => const SelectLanguageScreen()),
+      GoRoute(
+          path: settingsNotifications,
+          builder: (context, state) => const NotificationPreferencesScreen()),
+      GoRoute(
+          path: settingsPrivacy,
+          builder: (context, state) => const PrivacyDataScreen()),
+      GoRoute(
+          path: aboutAdhocx,
+          builder: (context, state) => const AboutAdhocxScreen()),
+      GoRoute(
+          path: logoutConfirm,
+          builder: (context, state) => const LogoutConfirmScreen()),
+      GoRoute(
+          path: deleteAccount,
+          builder: (context, state) => const DeleteAccountScreen()),
     ],
   );
 }

@@ -55,7 +55,7 @@ class EmployeeCenteredLayout extends StatelessWidget {
         child: LayoutBuilder(
           builder: (context, constraints) => SingleChildScrollView(
             padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.xxl,
+              horizontal: AppSpacing.pageHorizontal,
               vertical: AppSpacing.lg,
             ),
             child: ConstrainedBox(

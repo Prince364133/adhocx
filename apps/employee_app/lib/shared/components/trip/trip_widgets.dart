@@ -68,9 +68,9 @@ class TripStageScaffold extends StatelessWidget {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(
-            AppSpacing.xxl,
+            AppSpacing.pageHorizontal,
             AppSpacing.sm,
-            AppSpacing.xxl,
+            AppSpacing.pageHorizontal,
             AppSpacing.xxl,
           ),
           child: Column(
@@ -161,7 +161,8 @@ class TripDriverRow extends StatelessWidget {
           CircleAvatar(
             radius: avatarRadius,
             backgroundColor: p.accentTint,
-            child: Icon(Icons.person, color: p.accent, size: avatarRadius * 1.15),
+            child:
+                Icon(Icons.person, color: p.accent, size: avatarRadius * 1.15),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
@@ -283,7 +284,8 @@ class TripVehicleCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(details, style: AppTypography.caption(color: p.textSecondary)),
+                Text(details,
+                    style: AppTypography.caption(color: p.textSecondary)),
               ],
             ),
           ),
@@ -378,7 +380,8 @@ class TripDestinationTile extends StatelessWidget {
       children: [
         Container(
           padding: const EdgeInsets.all(AppSpacing.sm + 2),
-          decoration: BoxDecoration(color: p.accentTint, shape: BoxShape.circle),
+          decoration:
+              BoxDecoration(color: p.accentTint, shape: BoxShape.circle),
           child: Icon(icon, color: p.accent, size: 22),
         ),
         const SizedBox(width: AppSpacing.md + 2),
@@ -460,7 +463,8 @@ class TripTimeline extends StatelessWidget {
                       child: entries[i].dotChild,
                     ),
                     if (i < entries.length - 1)
-                      Expanded(child: Container(width: 2, color: p.borderSubtle)),
+                      Expanded(
+                          child: Container(width: 2, color: p.borderSubtle)),
                   ],
                 ),
                 const SizedBox(width: AppSpacing.md + 2),

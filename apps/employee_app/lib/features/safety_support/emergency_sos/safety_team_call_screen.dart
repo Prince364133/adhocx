@@ -70,7 +70,7 @@ class _SafetyTeamCallScreenState extends State<SafetyTeamCallScreen> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.xxl,
+            horizontal: AppSpacing.pageHorizontal,
             vertical: AppSpacing.xxxl,
           ),
           child: Column(

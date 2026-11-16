@@ -44,9 +44,9 @@ class ScheduleViewScaffold extends StatelessWidget {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(
-            AppSpacing.xl,
+            AppSpacing.pageHorizontal,
             AppSpacing.sm,
-            AppSpacing.xl,
+            AppSpacing.pageHorizontal,
             AppSpacing.xxl,
           ),
           child: Column(

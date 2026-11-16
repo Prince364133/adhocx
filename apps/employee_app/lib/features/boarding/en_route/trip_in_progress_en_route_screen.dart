@@ -31,7 +31,7 @@ class TripInProgressEnRouteScreen extends StatelessWidget {
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.xxl,
+                      horizontal: AppSpacing.pageHorizontal,
                       vertical: AppSpacing.lg,
                     ),
                     child: Column(
@@ -76,9 +76,9 @@ class TripInProgressEnRouteScreen extends StatelessWidget {
                 ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.xxl,
+                    AppSpacing.pageHorizontal,
                     AppSpacing.sm,
-                    AppSpacing.xxl,
+                    AppSpacing.pageHorizontal,
                     AppSpacing.sm,
                   ),
                   child: EmployeePrimaryButton(

@@ -133,139 +133,140 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                 keyboardDismissBehavior:
                     ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.xxl,
+                  horizontal: AppSpacing.pageHorizontal,
                   vertical: AppSpacing.sm,
                 ),
                 child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Verify OTP',
-                style: AppTypography.h2(color: p.textPrimary),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                'Enter the 6-digit code sent to\n$phone',
-                style: AppTypography.body(color: p.textSecondary),
-              ),
-              const SizedBox(height: AppSpacing.xxxl + 4),
-
-              // 6-digit OTP boxes
-              EmployeeOtpInput(
-                length: 6,
-                hasError: _hasError,
-                onChanged: (val) {
-                  setState(() {
-                    _otpCode = val;
-                    if (_hasError) {
-                      _hasError = false;
-                      _errorMessage = null;
-                    }
-                  });
-                },
-                onCompleted: (val) {
-                  _otpCode = val;
-                  _handleVerify();
-                },
-              ),
-
-              const SizedBox(height: AppSpacing.lg),
-
-              // Error banner if invalid (Screen 14)
-              AnimatedSize(
-                duration: reduceMotion
-                    ? Duration.zero
-                    : const Duration(milliseconds: 200),
-                curve: Curves.easeOutCubic,
-                child: AnimatedSwitcher(
-                  duration: reduceMotion
-                      ? Duration.zero
-                      : const Duration(milliseconds: 180),
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
-                  transitionBuilder: (child, animation) => FadeTransition(
-                    opacity: animation,
-                    child: SlideTransition(
-                      position: Tween<Offset>(
-                        begin: const Offset(0, -0.08),
-                        end: Offset.zero,
-                      ).animate(animation),
-                      child: child,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Verify OTP',
+                      style: AppTypography.h2(color: p.textPrimary),
                     ),
-                  ),
-                  child: _hasError && _errorMessage != null
-                      ? Padding(
-                          key: ValueKey(_errorMessage),
-                          padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.error_outline_rounded,
-                                color: AppColors.errorText,
-                                size: 16,
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      'Enter the 6-digit code sent to\n$phone',
+                      style: AppTypography.body(color: p.textSecondary),
+                    ),
+                    const SizedBox(height: AppSpacing.xxxl + 4),
+
+                    // 6-digit OTP boxes
+                    EmployeeOtpInput(
+                      length: 6,
+                      hasError: _hasError,
+                      onChanged: (val) {
+                        setState(() {
+                          _otpCode = val;
+                          if (_hasError) {
+                            _hasError = false;
+                            _errorMessage = null;
+                          }
+                        });
+                      },
+                      onCompleted: (val) {
+                        _otpCode = val;
+                        _handleVerify();
+                      },
+                    ),
+
+                    const SizedBox(height: AppSpacing.lg),
+
+                    // Error banner if invalid (Screen 14)
+                    AnimatedSize(
+                      duration: reduceMotion
+                          ? Duration.zero
+                          : const Duration(milliseconds: 200),
+                      curve: Curves.easeOutCubic,
+                      child: AnimatedSwitcher(
+                        duration: reduceMotion
+                            ? Duration.zero
+                            : const Duration(milliseconds: 180),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        transitionBuilder: (child, animation) => FadeTransition(
+                          opacity: animation,
+                          child: SlideTransition(
+                            position: Tween<Offset>(
+                              begin: const Offset(0, -0.08),
+                              end: Offset.zero,
+                            ).animate(animation),
+                            child: child,
+                          ),
+                        ),
+                        child: _hasError && _errorMessage != null
+                            ? Padding(
+                                key: ValueKey(_errorMessage),
+                                padding: const EdgeInsets.only(
+                                    bottom: AppSpacing.lg),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.error_outline_rounded,
+                                      color: AppColors.errorText,
+                                      size: 16,
+                                    ),
+                                    const SizedBox(width: AppSpacing.xs + 2),
+                                    Expanded(
+                                      child: Text(
+                                        _errorMessage!,
+                                        style: AppTypography.small(
+                                          color: AppColors.errorText,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : const SizedBox.shrink(
+                                key: ValueKey('otp-error-hidden'),
                               ),
-                              const SizedBox(width: AppSpacing.xs + 2),
-                              Expanded(
+                      ),
+                    ),
+
+                    // Resend countdown or action link
+                    Center(
+                      child: AnimatedSwitcher(
+                        duration: reduceMotion
+                            ? Duration.zero
+                            : const Duration(milliseconds: 180),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        child: countdown > 0
+                            ? Text(
+                                'Resend OTP in $countdownFormatted',
+                                key: const ValueKey('otp-countdown'),
+                                style: AppTypography.small(
+                                  color: p.textSecondary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              )
+                            : TextButton(
+                                key: const ValueKey('otp-resend'),
+                                onPressed:
+                                    authProvider.isLoading || _isResending
+                                        ? null
+                                        : _handleResend,
                                 child: Text(
-                                  _errorMessage!,
-                                  style: AppTypography.small(
-                                    color: AppColors.errorText,
-                                    fontWeight: FontWeight.w500,
+                                  'Resend OTP',
+                                  style: AppTypography.label(
+                                    color: p.accent,
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
                               ),
-                            ],
-                          ),
-                        )
-                      : const SizedBox.shrink(
-                          key: ValueKey('otp-error-hidden'),
-                        ),
-                ),
-              ),
-
-              // Resend countdown or action link
-              Center(
-                child: AnimatedSwitcher(
-                  duration: reduceMotion
-                      ? Duration.zero
-                      : const Duration(milliseconds: 180),
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
-                  child: countdown > 0
-                      ? Text(
-                          'Resend OTP in $countdownFormatted',
-                          key: const ValueKey('otp-countdown'),
-                          style: AppTypography.small(
-                            color: p.textSecondary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        )
-                      : TextButton(
-                          key: const ValueKey('otp-resend'),
-                          onPressed: authProvider.isLoading || _isResending
-                              ? null
-                              : _handleResend,
-                          child: Text(
-                            'Resend OTP',
-                            style: AppTypography.label(
-                              color: p.accent,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                ),
-              ),
-
-            ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-            // "Verify & Continue" — pinned directly above the native keyboard.
+            // "Verify & Continue" stays pinned above the platform keyboard.
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                AppSpacing.xxl,
+                AppSpacing.pageHorizontal,
                 AppSpacing.sm,
-                AppSpacing.xxl,
+                AppSpacing.pageHorizontal,
                 AppSpacing.lg,
               ),
               child: EmployeePrimaryButton(

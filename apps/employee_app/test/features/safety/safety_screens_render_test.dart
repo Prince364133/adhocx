@@ -1,6 +1,7 @@
 import 'package:adhocx_employee/features/safety_support/safety_support.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
 import 'package:adhocx_employee/services/mock_data_service.dart';
+import 'package:adhocx_employee/shared/illustrations/safety_illustrations.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_theme.dart';
 import 'package:flutter/material.dart';
@@ -28,7 +29,8 @@ const _fixedBackdrop = {'SOS activate', 'SOS confirmed', 'Safety team call'};
 
 int _sosPushes = 0;
 
-Future<void> _pump(WidgetTester tester, Widget screen, {bool dark = false}) async {
+Future<void> _pump(WidgetTester tester, Widget screen,
+    {bool dark = false}) async {
   tester.view.physicalSize = const Size(360, 640);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -70,8 +72,7 @@ void main() {
         await _pump(tester, build(), dark: dark);
         expect(tester.takeException(), isNull);
         if (!_fixedBackdrop.contains(name)) {
-          final scaffold =
-              tester.widget<Scaffold>(find.byType(Scaffold).first);
+          final scaffold = tester.widget<Scaffold>(find.byType(Scaffold).first);
           expect(scaffold.backgroundColor,
               dark ? AppColors.bgDark : AppColors.bgLight);
         }
@@ -80,22 +81,27 @@ void main() {
     });
   }
 
-  testWidgets('a full SOS slide sends exactly one alert', (tester) async {
+  testWidgets('SOS screen keeps hold action and cancel without the slider',
+      (tester) async {
+    await _pump(tester, const SosActivateScreen());
+
+    expect(find.byType(Slider), findsNothing);
+    expect(
+      find.text('Press and hold for 3 seconds\nto send an emergency alert.'),
+      findsOneWidget,
+    );
+    expect(find.text('Cancel'), findsOneWidget);
+  });
+
+  testWidgets('a 3-second SOS hold sends exactly one alert', (tester) async {
     _sosPushes = 0;
     await _pump(tester, const SosActivateScreen());
-    final slider = find.byType(Slider);
-    final box = tester.getRect(slider);
-    // Drag across the whole track in many small steps (many onChanged
-    // events past 90%), then release.
-    final gesture = await tester.startGesture(box.centerLeft + const Offset(24, 0));
-    for (var i = 0; i < 20; i++) {
-      await gesture.moveBy(Offset(box.width / 18, 0));
-      await tester.pump(const Duration(milliseconds: 16));
-    }
+    final siren = find.byType(SosSirenBadge);
+    final gesture = await tester.startGesture(tester.getCenter(siren));
+    await tester.pump(const Duration(seconds: 3));
     await gesture.up();
-    for (var i = 0; i < 6; i++) {
-      await tester.pump(const Duration(milliseconds: 100));
-    }
+    await tester.pumpAndSettle();
+
     expect(_sosPushes, 1);
     expect(find.text('SOS SENT'), findsOneWidget);
   });

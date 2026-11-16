@@ -80,9 +80,9 @@ class _ChangeRequestDetailsScreenState
         child: SingleChildScrollView(
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           padding: const EdgeInsets.fromLTRB(
-            AppSpacing.xxl,
+            AppSpacing.pageHorizontal,
             AppSpacing.sm,
-            AppSpacing.xxl,
+            AppSpacing.pageHorizontal,
             AppSpacing.xxl,
           ),
           child: Column(
@@ -167,7 +167,8 @@ class _ChangeRequestDetailsScreenState
                 delay: const Duration(milliseconds: 120),
                 child: EmployeePrimaryButton(
                   label: 'Submit Request',
-                  onPressed: () => context.push(AppRoutes.changeSubmitted),
+                  onPressed: () =>
+                      context.pushReplacement(AppRoutes.tripPlanning),
                 ),
               ),
             ],

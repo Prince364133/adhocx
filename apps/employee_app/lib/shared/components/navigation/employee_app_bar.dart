@@ -128,7 +128,7 @@ class EmployeeGreetingHeader extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   '$name 👋',
-                  style: AppTypography.h2(color: textPrimary, fontSize: 20),
+                  style: AppTypography.h2(color: textPrimary, fontSize: 18),
                 ),
               ],
             ),
@@ -186,15 +186,6 @@ class EmployeeSosButton extends StatelessWidget {
                   Icons.sos_rounded,
                   color: Colors.white,
                   size: size * 0.55,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'SOS',
-                style: AppTypography.micro(
-                  color: AppColors.error,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w800,
                 ),
               ),
             ],

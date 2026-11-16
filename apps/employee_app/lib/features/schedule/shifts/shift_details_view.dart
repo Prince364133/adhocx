@@ -76,9 +76,9 @@ class ShiftDetailsView extends StatelessWidget {
           body: SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(
-                AppSpacing.xxl,
+                AppSpacing.pageHorizontal,
                 AppSpacing.sm,
-                AppSpacing.xxl,
+                AppSpacing.pageHorizontal,
                 AppSpacing.xxl,
               ),
               child: Column(

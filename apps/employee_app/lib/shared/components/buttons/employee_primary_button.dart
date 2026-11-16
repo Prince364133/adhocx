@@ -25,7 +25,7 @@ class EmployeePrimaryButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.isLoading = false,
-    this.height = 48,
+    this.height = 46,
     this.width,
     this.icon,
     this.backgroundColor,
@@ -52,8 +52,8 @@ class EmployeePrimaryButton extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (icon != null) ...[
-                Icon(icon, size: 18, color: textColor),
-                const SizedBox(width: AppSpacing.sm),
+                Icon(icon, size: 16, color: textColor),
+                const SizedBox(width: AppSpacing.xs + 2),
               ],
               Flexible(
                 child: Text(
@@ -79,7 +79,7 @@ class EmployeePrimaryButton extends StatelessWidget {
           disabledForegroundColor: textColor.withAlpha(150),
           elevation: 0,
           padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
+            horizontal: AppSpacing.md,
             vertical: AppSpacing.sm,
           ),
           shape: RoundedRectangleBorder(

@@ -32,7 +32,10 @@ class RouteAndStopsScreen extends StatelessWidget {
                 // Scrolls so long routes never overflow the screen.
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(AppSpacing.xl),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.pageHorizontal,
+                      vertical: AppSpacing.xl,
+                    ),
                     child: AppCard(
                       width: double.infinity,
                       padding: AppSpacing.paddingXl,

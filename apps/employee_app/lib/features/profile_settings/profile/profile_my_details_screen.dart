@@ -35,7 +35,9 @@ class ProfileMyDetailsScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.xxl),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.pageHorizontal,
+                  ),
                   child: Column(
                     children: [
                       EmployeeEntrance(

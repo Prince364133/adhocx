@@ -56,7 +56,7 @@ class _BoardingOtpInputScreenState extends State<BoardingOtpInputScreen> {
                     keyboardDismissBehavior:
                         ScrollViewKeyboardDismissBehavior.onDrag,
                     padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.xxl,
+                      horizontal: AppSpacing.pageHorizontal,
                       vertical: AppSpacing.lg,
                     ),
                     child: Column(
@@ -128,9 +128,9 @@ class _BoardingOtpInputScreenState extends State<BoardingOtpInputScreen> {
                 ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.xxl,
+                    AppSpacing.pageHorizontal,
                     AppSpacing.sm,
-                    AppSpacing.xxl,
+                    AppSpacing.pageHorizontal,
                     AppSpacing.lg,
                   ),
                   child: EmployeePrimaryButton(

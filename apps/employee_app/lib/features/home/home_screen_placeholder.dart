@@ -43,7 +43,7 @@ class HomeScreenPlaceholder extends StatelessWidget {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.xl,
+            horizontal: AppSpacing.pageHorizontal,
             vertical: AppSpacing.lg,
           ),
           child: Column(
@@ -80,7 +80,8 @@ class HomeScreenPlaceholder extends StatelessWidget {
                     child: EmployeeSecondaryButton(
                       label: 'Request Change',
                       icon: Icons.edit_calendar_rounded,
-                      onPressed: () => context.push(AppRoutes.tripPlanning),
+                      onPressed: () =>
+                          context.push(AppRoutes.requestChangeOptions),
                     ),
                   ),
                   const SizedBox(width: AppSpacing.md),
@@ -137,7 +138,10 @@ class _WelcomeBanner extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppColors.primaryGradientStart, AppColors.primaryGradientEnd],
+          colors: [
+            AppColors.primaryGradientStart,
+            AppColors.primaryGradientEnd
+          ],
         ),
         borderRadius: AppRadius.borderXxl,
       ),
@@ -149,7 +153,8 @@ class _WelcomeBanner extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Welcome back,',
-                  style: AppTypography.small(color: Colors.white.withAlpha(217)),
+                  style:
+                      AppTypography.small(color: Colors.white.withAlpha(217)),
                 ),
               ),
               Container(

@@ -66,7 +66,9 @@ class AssignmentNotificationScreen extends StatelessWidget {
                   const SizedBox(height: AppSpacing.huge),
                   Padding(
                     padding:
-                        const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                        const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.pageHorizontal,
+                        ),
                     child: Material(
                       color: p.surface,
                       borderRadius: AppRadius.borderXxl,
@@ -139,9 +141,9 @@ class AssignmentNotificationScreen extends StatelessWidget {
                   const Spacer(),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.xl,
+                      AppSpacing.pageHorizontal,
                       0,
-                      AppSpacing.xl,
+                      AppSpacing.pageHorizontal,
                       AppSpacing.xxl,
                     ),
                     child: Material(
@@ -154,7 +156,7 @@ class AssignmentNotificationScreen extends StatelessWidget {
                         onTap: open,
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.xxl,
+                            horizontal: AppSpacing.pageHorizontal,
                             vertical: AppSpacing.md,
                           ),
                           child: Row(

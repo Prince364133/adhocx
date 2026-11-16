@@ -2,23 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
 import 'routes/app_routes.dart';
-import 'shared/components/feedback/employee_page_transition.dart';
+import 'shared/components/feedback/employee_no_page_transitions.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_provider.dart';
 
 class EmployeeApp extends StatelessWidget {
   const EmployeeApp({super.key});
 
-  /// The employee app keeps its own page-transition motion on top of the
-  /// Driver app theme (the theme files themselves are exact driver copies).
   static const PageTransitionsTheme _transitions = PageTransitionsTheme(
     builders: {
-      TargetPlatform.android: EmployeePageTransition(),
-      TargetPlatform.iOS: EmployeePageTransition(),
-      TargetPlatform.linux: EmployeePageTransition(),
-      TargetPlatform.macOS: EmployeePageTransition(),
-      TargetPlatform.windows: EmployeePageTransition(),
-      TargetPlatform.fuchsia: EmployeePageTransition(),
+      TargetPlatform.android: EmployeeNoPageTransitionsBuilder(),
+      TargetPlatform.iOS: EmployeeNoPageTransitionsBuilder(),
+      TargetPlatform.linux: EmployeeNoPageTransitionsBuilder(),
+      TargetPlatform.macOS: EmployeeNoPageTransitionsBuilder(),
+      TargetPlatform.windows: EmployeeNoPageTransitionsBuilder(),
+      TargetPlatform.fuchsia: EmployeeNoPageTransitionsBuilder(),
     },
   );
 

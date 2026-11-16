@@ -45,7 +45,7 @@ class _ScanBoardingQrScreenState extends State<ScanBoardingQrScreen> {
                     const SizedBox(height: AppSpacing.xl),
                     Padding(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.xxl,
+                        horizontal: AppSpacing.pageHorizontal,
                       ),
                       child: Text(
                         'Point camera at the QR code on the cab dashboard',

@@ -64,8 +64,8 @@ class TripLiveMapFullScreen extends StatelessWidget {
 
               // Floating status card
               Positioned(
-                left: AppSpacing.xl,
-                right: AppSpacing.xl,
+                left: AppSpacing.pageHorizontal,
+                right: AppSpacing.pageHorizontal,
                 bottom: AppSpacing.xxxl,
                 child: SafeArea(
                   child: MapFloatingCard(

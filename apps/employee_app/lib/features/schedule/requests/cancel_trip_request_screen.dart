@@ -93,9 +93,9 @@ class _CancelTripRequestScreenState extends State<CancelTripRequestScreen> {
               keyboardDismissBehavior:
                   ScrollViewKeyboardDismissBehavior.onDrag,
               padding: const EdgeInsets.fromLTRB(
-                AppSpacing.xxl,
+                AppSpacing.pageHorizontal,
                 AppSpacing.sm,
-                AppSpacing.xxl,
+                AppSpacing.pageHorizontal,
                 AppSpacing.xxl,
               ),
               child: Column(

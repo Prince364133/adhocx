@@ -56,7 +56,7 @@ class EmployeeHeroTripCard extends StatelessWidget {
           borderRadius: AppRadius.borderXxl,
           child: Ink(
             width: double.infinity,
-            padding: AppSpacing.paddingXl,
+            padding: AppSpacing.paddingLg,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
@@ -154,7 +154,7 @@ class EmployeeHeroTripCard extends StatelessWidget {
                     children: [
                       if (primaryActionLabel != null)
                         Expanded(
-                          flex: 2,
+                          flex: 3,
                           child: SizedBox(
                             height: 44,
                             child: ElevatedButton(
@@ -163,16 +163,27 @@ class EmployeeHeroTripCard extends StatelessWidget {
                                 backgroundColor: Colors.white,
                                 foregroundColor: AppColors.primaryHover,
                                 elevation: 0,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppSpacing.sm,
+                                  vertical: AppSpacing.sm,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: AppRadius.borderMd,
                                 ),
                               ),
-                              child: Text(
-                                primaryActionLabel!,
-                                style: AppTypography.button(
-                                  color: AppColors.primaryHover,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  primaryActionLabel!,
+                                  maxLines: 1,
+                                  softWrap: false,
+                                  textAlign: TextAlign.center,
+                                  style: AppTypography.button(
+                                    color: AppColors.primaryHover,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    overflow: TextOverflow.visible,
+                                  ),
                                 ),
                               ),
                             ),
@@ -183,12 +194,17 @@ class EmployeeHeroTripCard extends StatelessWidget {
                         const SizedBox(width: AppSpacing.sm + 2),
                       if (secondaryActionLabel != null)
                         Expanded(
+                          flex: 2,
                           child: SizedBox(
                             height: 44,
                             child: OutlinedButton(
                               onPressed: onSecondaryAction,
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: onBrand,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppSpacing.sm,
+                                  vertical: AppSpacing.sm,
+                                ),
                                 side: BorderSide(
                                   color: Colors.white.withAlpha(102),
                                   width: 1.2,
@@ -197,11 +213,18 @@ class EmployeeHeroTripCard extends StatelessWidget {
                                   borderRadius: AppRadius.borderMd,
                                 ),
                               ),
-                              child: Text(
-                                secondaryActionLabel!,
-                                style: AppTypography.button(
-                                  color: onBrand,
-                                  fontSize: 13,
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  secondaryActionLabel!,
+                                  maxLines: 1,
+                                  softWrap: false,
+                                  textAlign: TextAlign.center,
+                                  style: AppTypography.button(
+                                    color: onBrand,
+                                    fontSize: 13,
+                                    overflow: TextOverflow.visible,
+                                  ),
                                 ),
                               ),
                             ),

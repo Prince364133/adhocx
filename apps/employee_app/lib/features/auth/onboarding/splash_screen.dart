@@ -84,7 +84,7 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.xxl,
+                  horizontal: AppSpacing.pageHorizontal,
                   vertical: AppSpacing.xl,
                 ),
                 child: Column(

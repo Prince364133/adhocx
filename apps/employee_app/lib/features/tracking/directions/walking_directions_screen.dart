@@ -94,8 +94,8 @@ class WalkingDirectionsScreen extends StatelessWidget {
 
               // Bottom distance card
               Positioned(
-                left: AppSpacing.xl,
-                right: AppSpacing.xl,
+                left: AppSpacing.pageHorizontal,
+                right: AppSpacing.pageHorizontal,
                 bottom: AppSpacing.xxxl,
                 child: SafeArea(
                   child: MapFloatingCard(
