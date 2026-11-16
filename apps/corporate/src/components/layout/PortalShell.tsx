@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
   Users,
-  Route,
   LifeBuoy,
   Receipt,
   BarChart3,
@@ -34,7 +33,6 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/routes', label: 'Routes & Dispatch', icon: <Navigation size={18} /> },
   { href: '/employees', label: 'Employees', icon: <Users size={18} /> },
   { href: '/cancellations', label: 'Cancellation Requests', icon: <CalendarX size={18} /> },
-  { href: '/routes-list', label: 'Routes', icon: <Route size={18} /> },
   { href: '/support', label: 'Support', icon: <LifeBuoy size={18} /> },
   { href: '/billing', label: 'Billing & Invoices', icon: <Receipt size={18} /> },
   { href: '/dashboard/analytics', label: 'Transport Analytics', icon: <BarChart3 size={15} /> },
@@ -141,7 +139,7 @@ function Sidebar() {
         }}
       >
         <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>AdhocX ETS v2.0</div>
-        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Hyderabad Enterprise Operations</div>
+        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Corporate Operations</div>
       </div>
     </aside>
   );

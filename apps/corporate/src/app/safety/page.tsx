@@ -1,15 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   ShieldAlert,
-  AlertTriangle,
   CheckCircle2,
-  Clock,
   Radio,
   Search,
-  ArrowRight,
   PhoneCall,
 } from 'lucide-react';
 import { safetyApi } from '../../lib/api/corporate';
@@ -19,35 +16,44 @@ import MetricCard from '../../components/common/MetricCard';
 
 export default function SafetyOverviewPage() {
   const { tenantId } = useSession();
-  const activeTenantId = tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+  const activeTenantId = tenantId;
 
   const [alerts, setAlerts] = useState<SosAlert[]>([]);
   const [incidents, setIncidents] = useState<SafetyIncident[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [severityFilter, setSeverityFilter] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
 
-  const loadData = () => {
+  const loadData = useCallback(() => {
+    if (!activeTenantId) {
+      setAlerts([]);
+      setIncidents([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
+    setError(null);
     Promise.all([
-      safetyApi.alerts(activeTenantId, {}).catch(() => []),
-      safetyApi.incidents(activeTenantId, {}).catch(() => []),
+      safetyApi.alerts(activeTenantId, {}),
+      safetyApi.incidents(activeTenantId, {}),
     ])
       .then(([alertList, incidentList]) => {
         setAlerts(alertList);
         setIncidents(incidentList);
       })
       .catch((err) => {
-        console.warn('Failed to load safety data:', err);
+        console.error('Failed to load safety data:', err);
+        setError('Unable to load tenant safety records. Please try again.');
       })
       .finally(() => {
         setLoading(false);
       });
-  };
+  }, [activeTenantId]);
 
   useEffect(() => {
     loadData();
-  }, [activeTenantId]);
+  }, [loadData]);
 
   const activeSosCount = alerts.filter((a) => a.status === 'TRIGGERED' || a.status === 'ACKNOWLEDGED').length;
 
@@ -104,11 +110,13 @@ export default function SafetyOverviewPage() {
                 gap: 6,
               }}
             >
-              <CheckCircle2 size={13} /> 0 Active SOS Alerts · Safe Operations
+              <CheckCircle2 size={13} /> No active SOS alerts reported
             </span>
           )}
         </div>
       </div>
+
+      {error && <div role="alert" className="surface-card" style={{ padding: 14, color: '#B91C1C' }}>{error}</div>}
 
       {/* KPI Cards */}
       <div
@@ -119,89 +127,29 @@ export default function SafetyOverviewPage() {
         }}
       >
         <MetricCard
-          label="Total Incidents (Month)"
-          value={incidents.length.toString()}
+          label="Incident records"
+          value={loading ? '...' : incidents.length.toString()}
           delta={`${incidents.filter((i) => i.status === 'RESOLVED').length} Resolved`}
           deltaType="positive"
           icon={<ShieldAlert size={20} />}
           category="primary"
         />
         <MetricCard
-          label="Avg First Response SLA"
-          value="1.8 min"
-          delta="Goal: < 3.0 min"
-          deltaType="positive"
-          icon={<Clock size={20} />}
-          category="success"
+          label="SOS alert records"
+          value={loading ? '...' : alerts.length.toString()}
+          delta="Tenant API records"
+          deltaType="neutral"
+          icon={<Radio size={20} />}
+          category="info"
         />
         <MetricCard
-          label="Active SOS Panic Triggers"
-          value={`${activeSosCount} Active`}
-          delta={activeSosCount > 0 ? 'Response team on line' : 'All Clear'}
+          label="Active SOS alerts"
+          value={loading ? '...' : activeSosCount.toString()}
+          delta={activeSosCount > 0 ? 'Requires review' : 'No active alert records'}
           deltaType={activeSosCount > 0 ? 'negative' : 'positive'}
           icon={<PhoneCall size={20} />}
           category={activeSosCount > 0 ? 'danger' : 'success'}
         />
-        <MetricCard
-          label="Safety Compliance"
-          value="100%"
-          delta="Verified Drivers & Panic Buttons"
-          deltaType="positive"
-          icon={<CheckCircle2 size={20} />}
-          category="info"
-        />
-      </div>
-
-      {/* End-to-End Safety Lifecycle Checkpoints */}
-      <div
-        style={{
-          padding: '16px 20px',
-          backgroundColor: 'var(--bg-surface)',
-          borderRadius: 8,
-          border: '1px solid var(--border-color)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 12,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
-            Mandatory Trip Safety Lifecycle Checkpoints
-          </h2>
-          <span style={{ fontSize: 11, fontWeight: 700, color: '#16A34A', backgroundColor: '#DCFCE7', padding: '3px 8px', borderRadius: 4 }}>
-            Zero-Trust Protocol Active
-          </span>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-          {[
-            { step: '1. Assignment', desc: 'Driver DL, Vehicle Fitness & Seating Capacity Verified', state: 'ENFORCED' },
-            { step: '2. Pickup', desc: '<150m Geofenced GPS Arrival & License Plate Match', state: 'ACTIVE' },
-            { step: '3. Boarding', desc: '4-Digit Commuter OTP & Audited Supervisor Override', state: 'MANDATORY' },
-            { step: '4. In Transit', desc: 'Realtime Telemetry, <500m Corridor & 80km/h Speed Watch', state: 'MONITORED' },
-            { step: '5. Drop-off', desc: 'Geofenced Drop & Female Safe-Drop Escort Protocol', state: 'AUDITED' },
-            { step: '6. Closure', desc: 'P0-P3 Incident Resolution & Command Centre SLA Ledger', state: 'LOGGED' },
-          ].map((ckpt, idx) => (
-            <div
-              key={idx}
-              style={{
-                padding: '10px 12px',
-                borderRadius: 6,
-                backgroundColor: 'var(--bg-surface-muted)',
-                border: '1px solid var(--border-color)',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>{ckpt.step}</span>
-                <span style={{ fontSize: 9, fontWeight: 800, color: '#2563EB', backgroundColor: '#DBEAFE', padding: '2px 5px', borderRadius: 3 }}>
-                  {ckpt.state}
-                </span>
-              </div>
-              <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0, lineHeight: 1.35 }}>
-                {ckpt.desc}
-              </p>
-            </div>
-          ))}
-        </div>
       </div>
 
       {/* Filter and Search Bar */}
@@ -273,7 +221,7 @@ export default function SafetyOverviewPage() {
           </div>
         ) : filteredIncidents.length === 0 ? (
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
-            No safety incidents logged. All commuter routes operational without safety exceptions.
+            No safety incidents match this filter.
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>

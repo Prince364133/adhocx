@@ -297,6 +297,8 @@ describe('Corporate ETS - Routing Planner Controller & Wire Suite', () => {
       const csvData = res._getData();
       expect(csvData).toContain('employee_name');
       expect(csvData).toContain('pickup_address');
+      expect(csvData).toContain('employee_code');
+      expect(csvData).toContain('email');
     });
 
     it('should return XLSX binary buffer when format is xlsx or omitted', async () => {

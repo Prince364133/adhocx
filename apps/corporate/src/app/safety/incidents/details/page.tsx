@@ -16,11 +16,10 @@ import {
 import { safetyApi } from '../../../../lib/api/corporate';
 import type { SafetyIncident } from '../../../../lib/api/types';
 import { useSession } from '../../../../lib/auth/SessionContext';
-import MiniLiveMap from '../../../../components/maps/MiniLiveMap';
 
 function IncidentDetailsDossierContent() {
   const { tenantId } = useSession();
-  const activeTenantId = tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+  const activeTenantId = tenantId;
 
   const searchParams = useSearchParams();
   const incId = searchParams.get('id');
@@ -29,6 +28,11 @@ function IncidentDetailsDossierContent() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!activeTenantId) {
+      setIncident(null);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     if (incId) {
       safetyApi
@@ -144,8 +148,15 @@ function IncidentDetailsDossierContent() {
       {/* Main Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(340px, 1.4fr) minmax(300px, 1fr)', gap: 16 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div className="surface-card" style={{ padding: 16, backgroundColor: 'var(--bg-surface)', borderRadius: 8, border: '1px solid var(--border-color)' }}>
-            <MiniLiveMap height={320} routeName="Incident Telemetry Pin" />
+          <div className="surface-card" style={{ padding: 20, backgroundColor: 'var(--bg-surface)', borderRadius: 8, border: '1px solid var(--border-color)' }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>
+              Location
+            </h3>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>
+              {incident.routeId
+                ? `Route ${incident.routeId} is linked to this incident. GPS coordinates are not included in the incident record.`
+                : 'No route or GPS coordinates are linked to this incident.'}
+            </p>
           </div>
 
           <div className="surface-card" style={{ padding: 20, backgroundColor: 'var(--bg-surface)', borderRadius: 8, border: '1px solid var(--border-color)' }}>
@@ -176,7 +187,9 @@ function IncidentDetailsDossierContent() {
               </div>
               <div>
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Emergency Contact Action</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#16A34A' }}>Escorted & Verified</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                  {incident.resolutionNotes ?? (incident.resolvedAt ? `Resolved ${new Date(incident.resolvedAt).toLocaleString()}` : '—')}
+                </div>
               </div>
             </div>
           </div>

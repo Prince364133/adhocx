@@ -263,5 +263,17 @@ describe('Corporate Roster Ingestion & Template Service', () => {
       expect(result.isValid).toBe(false);
       expect(result.errors.some((e) => e.message.toLowerCase().includes('duplicate login request'))).toBe(true);
     });
+
+    it('should validate CSV buffers and recognize column aliases like employee_code and pickup_address', async () => {
+      const csv = [
+        'employee_code,employee_name,email,phone_number,gender,pickup_address,office_code,roster_date,required_arrival_time',
+        'EMP-9999,Sunita Rao,sunita.rao@example.com,9876543299,FEMALE,Gachibowli Hyderabad,HYD-HQ,2026-11-20,08:00',
+      ].join('\n');
+
+      const result = await ingestionService.dryRunValidateRoster(tenantId, Buffer.from(csv));
+      expect(result.isValid).toBe(true);
+      expect(result.validRows).toBe(1);
+      expect(result.errors).toHaveLength(0);
+    });
   });
 });

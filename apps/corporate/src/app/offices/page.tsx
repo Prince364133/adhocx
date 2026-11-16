@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Building2,
@@ -8,7 +8,6 @@ import {
   Car,
   ShieldCheck,
   MapPin,
-  Phone,
   Plus,
   ExternalLink,
   ChevronRight,
@@ -21,27 +20,71 @@ import MetricCard from '../../components/common/MetricCard';
 
 export default function OfficesDirectoryPage() {
   const { tenantId } = useSession();
-  const activeTenantId = tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+  const activeTenantId = tenantId;
 
   const [offices, setOffices] = useState<Office[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [officeForm, setOfficeForm] = useState({
+    code: '',
+    name: '',
+    city: '',
+    addressText: '',
+    latitude: '',
+    longitude: '',
+  });
+
+  const loadOffices = useCallback(async () => {
+    if (!activeTenantId) {
+      setOffices([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      setOffices(await tenantApi.offices(activeTenantId));
+    } catch (err) {
+      console.error('Failed to load offices:', err);
+      setError('Unable to load tenant offices. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [activeTenantId]);
 
   useEffect(() => {
-    setLoading(true);
-    tenantApi
-      .offices(activeTenantId)
-      .then((data) => {
-        setOffices(data);
-      })
-      .catch((err) => {
-        console.warn('Failed to load offices:', err);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, [activeTenantId]);
+    void loadOffices();
+  }, [loadOffices]);
+
+  const createOffice = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!activeTenantId) return;
+    const latitude = Number(officeForm.latitude);
+    const longitude = Number(officeForm.longitude);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      setFormError('Enter valid latitude and longitude coordinates.');
+      return;
+    }
+
+    setIsSaving(true);
+    setFormError(null);
+    try {
+      await tenantApi.createOffice(activeTenantId, { ...officeForm, latitude, longitude });
+      setShowCreateForm(false);
+      setOfficeForm({ code: '', name: '', city: '', addressText: '', latitude: '', longitude: '' });
+      await loadOffices();
+    } catch (err) {
+      console.error('Failed to create office:', err);
+      setFormError('Unable to create the office. Check the details and try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const filteredOffices = offices.filter((off) => {
     const s = search.toLowerCase();
@@ -49,12 +92,14 @@ export default function OfficesDirectoryPage() {
       (off.name || '').toLowerCase().includes(s) ||
       (off.code || '').toLowerCase().includes(s) ||
       (off.address || '').toLowerCase().includes(s);
-    const matchesStatus = statusFilter === 'All' || (off.isActive !== false ? 'Active' : 'Inactive') === statusFilter;
+    const matchesStatus = statusFilter === 'All' || (off.isActive === true ? 'Active' : off.isActive === false ? 'Inactive' : 'Unknown') === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
-  const totalHeadcount = offices.reduce((sum, o) => sum + (o.employeeCount || 0), 0);
-  const activeOfficesCount = offices.filter((o) => o.isActive !== false).length;
+  const hasHeadcountForAllOffices = offices.length > 0 && offices.every((office) => office.employeeCount !== undefined);
+  const totalHeadcount = offices.reduce((sum, office) => sum + (office.employeeCount ?? 0), 0);
+  const geofencedOfficeCount = offices.filter((office) => office.geofenceRadiusMeters !== undefined).length;
+  const activeOfficesCount = offices.filter((office) => office.isActive === true).length;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -71,7 +116,8 @@ export default function OfficesDirectoryPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
             type="button"
-            onClick={() => alert('Add campus site: Connects to POST /corporate/tenants/:id/offices')}
+            onClick={() => setShowCreateForm((shown) => !shown)}
+            disabled={!activeTenantId}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -101,7 +147,7 @@ export default function OfficesDirectoryPage() {
       >
         <MetricCard
           label="Registered Campuses"
-          value={`${offices.length} Sites`}
+          value={loading ? '...' : `${offices.length} Sites`}
           delta={`${activeOfficesCount} Operational`}
           deltaType="positive"
           icon={<Building2 size={20} />}
@@ -109,25 +155,25 @@ export default function OfficesDirectoryPage() {
         />
         <MetricCard
           label="Headcount Linked"
-          value={totalHeadcount > 0 ? totalHeadcount.toLocaleString() : 'Live Synced'}
-          delta="Enrolled Commuters"
-          deltaType="positive"
+          value={hasHeadcountForAllOffices ? totalHeadcount.toLocaleString() : '—'}
+          delta="API-reported headcount"
+          deltaType="neutral"
           icon={<Users size={20} />}
           category="primary"
         />
         <MetricCard
-          label="Campus Geofences"
-          value={`${offices.length} Configured`}
-          delta="Automated Arrival Detection"
+          label="Offices with geofence radius"
+          value={loading ? '...' : geofencedOfficeCount.toLocaleString()}
+          delta="Stored office settings"
           deltaType="neutral"
           icon={<Car size={20} />}
           category="success"
         />
         <MetricCard
           label="Access Perimeter"
-          value="Secured"
-          delta="RFID & Barrier Online"
-          deltaType="positive"
+          value="—"
+          delta="Access hardware status is not in the API"
+          deltaType="neutral"
           icon={<ShieldCheck size={20} />}
           category="info"
         />
@@ -181,9 +227,41 @@ export default function OfficesDirectoryPage() {
             <option value="All">All Statuses</option>
             <option value="Active">Active</option>
             <option value="Inactive">Inactive</option>
+            <option value="Unknown">Unknown</option>
           </select>
         </div>
       </div>
+
+      {showCreateForm && (
+        <form onSubmit={createOffice} className="surface-card" style={{ padding: 20, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+          {([
+            ['code', 'Office code'],
+            ['name', 'Office name'],
+            ['city', 'City'],
+            ['addressText', 'Address'],
+            ['latitude', 'Latitude'],
+            ['longitude', 'Longitude'],
+          ] as const).map(([field, label]) => (
+            <label key={field} style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 }}>
+              {label}
+              <input
+                required={field !== 'city'}
+                type={field === 'latitude' || field === 'longitude' ? 'number' : 'text'}
+                step={field === 'latitude' || field === 'longitude' ? 'any' : undefined}
+                value={officeForm[field]}
+                onChange={(event) => setOfficeForm((form) => ({ ...form, [field]: event.target.value }))}
+                style={{ height: 36, padding: '0 10px', border: '1px solid var(--border-strong)', borderRadius: 6 }}
+              />
+            </label>
+          ))}
+          {formError && <div role="alert" style={{ gridColumn: '1 / -1', color: '#B91C1C' }}>{formError}</div>}
+          <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <button type="button" onClick={() => setShowCreateForm(false)} disabled={isSaving}>Cancel</button>
+            <button type="submit" disabled={isSaving}>{isSaving ? 'Saving...' : 'Create office'}</button>
+          </div>
+        </form>
+      )}
+      {error && <div role="alert" className="surface-card" style={{ padding: 14, color: '#B91C1C' }}>{error}</div>}
 
       {/* Campus Sites Grid Cards */}
       {loading ? (
@@ -197,8 +275,8 @@ export default function OfficesDirectoryPage() {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16 }}>
           {filteredOffices.map((office) => {
-            const statusText = office.isActive !== false ? 'Active' : 'Inactive';
-            const geofenceRadius = office.geofenceRadiusMeters || 500;
+            const statusText = office.isActive === undefined ? 'Unknown' : office.isActive ? 'Active' : 'Inactive';
+            const geofenceRadius = office.geofenceRadiusMeters;
             return (
               <div
                 key={office.id}
@@ -227,13 +305,13 @@ export default function OfficesDirectoryPage() {
                             fontWeight: 700,
                           }}
                         >
-                          {office.code || 'CAMPUS'}
+                          {office.code || '—'}
                         </span>
                         <span
                           style={{
                             padding: '2px 8px',
-                            backgroundColor: office.isActive !== false ? '#DCFCE7' : '#F1F5F9',
-                            color: office.isActive !== false ? '#15803D' : '#64748B',
+                            backgroundColor: office.isActive === true ? '#DCFCE7' : '#F1F5F9',
+                            color: office.isActive === true ? '#15803D' : '#64748B',
                             borderRadius: 4,
                             fontSize: 11,
                             fontWeight: 600,
@@ -247,7 +325,7 @@ export default function OfficesDirectoryPage() {
                       </h3>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-muted)' }}>
                         <MapPin size={13} />
-                        <span>{office.address || 'Office Campus Location'}</span>
+                        <span>{office.addressText || office.address || '—'}</span>
                       </div>
                     </div>
                   </div>
@@ -273,13 +351,15 @@ export default function OfficesDirectoryPage() {
                     <div>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Geofence</div>
                       <div style={{ fontSize: 15, fontWeight: 700, color: '#5728B2' }}>
-                        {geofenceRadius}m
+                        {geofenceRadius === undefined ? '—' : `${geofenceRadius}m`}
                       </div>
                     </div>
                     <div>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Coordinates</div>
                       <div style={{ fontSize: 12, fontWeight: 600, color: '#16A34A', marginTop: 3 }}>
-                        {office.latitude ? `${Number(office.latitude).toFixed(2)}, ${Number(office.longitude).toFixed(2)}` : 'Set'}
+                        {office.latitude !== undefined && office.longitude !== undefined
+                          ? `${Number(office.latitude).toFixed(4)}, ${Number(office.longitude).toFixed(4)}`
+                          : '—'}
                       </div>
                     </div>
                   </div>

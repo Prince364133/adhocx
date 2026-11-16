@@ -768,9 +768,11 @@ export interface OfficeGeofenceDetails {
     name: string;
     addressText: string;
   };
-  radiusMeters: number;
-  center: { latitude: number; longitude: number };
-  polygon: Array<{ latitude: number; longitude: number }>;
+  geofence: {
+    radiusMeters: number;
+    center: { latitude: number; longitude: number };
+    polygon: Array<{ latitude: number; longitude: number }>;
+  } | null;
   gates: Array<{
     id: string;
     name: string;
@@ -795,18 +797,18 @@ export interface TenantIntegrations {
   tenantId: string;
   tenantName: string;
   hrms: {
-    provider: string;
+    provider: string | null;
     status: string;
-    lastSyncAt: string;
-    syncInterval: string;
+    lastSyncAt: string | null;
+    syncInterval: string | null;
     autoSyncEnabled: boolean;
-    totalEmployeesSynced: number;
+    totalEmployeesSynced: number | null;
   };
   webhookHealth: {
-    uptimePct: number;
-    avgLatencyMs: number;
-    totalEventsToday: number;
-    failedEventsToday: number;
+    uptimePct: number | null;
+    avgLatencyMs: number | null;
+    totalEventsToday: number | null;
+    failedEventsToday: number | null;
   };
   fieldMappings: Array<{
     systemField: string;

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Car,
@@ -11,44 +11,84 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { FilterBar } from '../../components/common/FilterBar';
-import { MiniLiveMap } from '../../components/maps/MiniLiveMap';
+import { GoogleRouteMap } from '../../components/maps/GoogleRouteMap';
 import { routesApi, analyticsApi } from '../../lib/api/corporate';
-import type { RouteListItem, Dashboard } from '../../lib/api/types';
+import type { RouteListItem, Dashboard, RouteTracking } from '../../lib/api/types';
 import { useSession } from '../../lib/auth/SessionContext';
 
 export default function LiveOperationsMapPage() {
   const { tenantId } = useSession();
-  const activeTenantId = tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+  const activeTenantId = tenantId;
 
   const [routes, setRoutes] = useState<RouteListItem[]>([]);
   const [selectedRoute, setSelectedRoute] = useState<RouteListItem | null>(null);
+  const [tracking, setTracking] = useState<RouteTracking | null>(null);
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [filterType, setFilterType] = useState('ALL');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const loadData = () => {
+  const loadData = useCallback(() => {
+    if (!activeTenantId) {
+      setRoutes([]);
+      setDashboard(null);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
+    setLoadError(null);
     const today = new Date().toISOString().slice(0, 10);
 
     Promise.all([
-      routesApi.list(activeTenantId, { status: 'IN_PROGRESS' }).catch(() => []),
-      analyticsApi.dashboard({ tenantId: activeTenantId, from: today, to: today }).catch(() => null),
+      routesApi.list(activeTenantId, { status: 'IN_PROGRESS' }),
+      analyticsApi.dashboard({ tenantId: activeTenantId, from: today, to: today }),
     ])
       .then(([rts, dash]) => {
         setRoutes(rts);
         setDashboard(dash);
-        if (rts.length > 0) setSelectedRoute(rts[0]);
+        setSelectedRoute((current) => rts.find((route) => route.id === current?.id) || rts[0] || null);
+      })
+      .catch((err) => {
+        console.error('Failed to load live operations data:', err);
+        setLoadError('Unable to load live operations data. Please try again.');
       })
       .finally(() => {
         setLoading(false);
       });
-  };
+  }, [activeTenantId]);
 
   useEffect(() => {
     loadData();
+    if (!activeTenantId) return;
     const timer = setInterval(loadData, 15000);
     return () => clearInterval(timer);
-  }, [activeTenantId]);
+  }, [activeTenantId, loadData]);
+
+  const selectedRouteId = selectedRoute?.id;
+  useEffect(() => {
+    if (!selectedRouteId) {
+      setTracking(null);
+      return;
+    }
+
+    let active = true;
+    const loadTracking = () => {
+      routesApi.tracking(selectedRouteId)
+        .then((data) => {
+          if (active) setTracking(data);
+        })
+        .catch((err) => {
+          console.error('Failed to load route GPS data:', err);
+          if (active) setTracking(null);
+        });
+    };
+    loadTracking();
+    const timer = setInterval(loadTracking, 15000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [selectedRouteId]);
 
   const filteredRoutes = routes.filter((rt) => {
     if (filterType === 'LOGIN') return rt.direction === 'LOGIN';
@@ -58,14 +98,24 @@ export default function LiveOperationsMapPage() {
 
   const activeTripsCount = routes.length;
   const employeesServed = dashboard?.employeesServed ?? 0;
-  const vehiclesCount = activeTripsCount > 0 ? activeTripsCount : 12;
+  const vehiclesCount = new Set(routes.map((route) => route.vehicleId).filter(Boolean)).size;
   const completedToday = dashboard?.trips?.byStatus?.['COMPLETED'] ?? 0;
   const delayedCount = dashboard?.punctuality?.latePickups ?? 0;
 
-  const currentPlate = selectedRoute?.vehicle?.registrationNumber || selectedRoute?.vehiclePlate || 'TS09UB7845';
-  const currentEta = selectedRoute?.estDurationSeconds
-    ? `${Math.round(selectedRoute.estDurationSeconds / 60)} min`
-    : (selectedRoute?.plannedDurationMinutes ? `${selectedRoute.plannedDurationMinutes} min` : '15 min');
+  const currentPlate = selectedRoute?.vehicle?.registrationNumber || selectedRoute?.vehiclePlate || '—';
+  const mapStops = selectedRoute?.stops?.map((stop) => ({
+    id: stop.id,
+    stopSequence: stop.stopSequence,
+    stopType: stop.stopType,
+    employeeName: stop.employee?.fullName ?? null,
+    employeePhone: stop.employee?.phoneNumber ?? null,
+    addressText: stop.addressText ?? stop.address ?? null,
+    lat: Number(stop.latitude),
+    lng: Number(stop.longitude),
+    plannedEta: stop.plannedEta,
+    dwellBufferSeconds: stop.dwellBufferSeconds,
+    status: stop.status,
+  })) ?? [];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -126,7 +176,7 @@ export default function LiveOperationsMapPage() {
           </div>
           <div>
             <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)' }}>{vehiclesCount}</div>
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Vehicles (Cabs)</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Vehicles on active trips</div>
           </div>
         </div>
 
@@ -162,16 +212,22 @@ export default function LiveOperationsMapPage() {
       </div>
 
       {/* Main Map + Trips Feed Split */}
+      {loadError && (
+        <div role="alert" className="surface-card" style={{ padding: 16, color: '#B91C1C' }}>
+          {loadError}
+        </div>
+      )}
+      {loading && <div className="surface-card" style={{ padding: 12, color: 'var(--text-secondary)' }}>Loading tenant routes and analytics...</div>}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '20px' }}>
         {/* Left: Large Interactive Map Canvas */}
         <div className="surface-card" style={{ padding: '20px', flex: '1 1 65%' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
             <div>
               <h2 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                Corridor: {selectedRoute?.routeNumber ?? 'Live Route'}
+                Corridor: {selectedRoute?.routeNumber ?? '—'}
               </h2>
               <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                Driver: <strong>{selectedRoute?.driver?.fullName ?? selectedRoute?.driverName ?? 'Assigned Driver'}</strong> ({selectedRoute?.driver?.phone ?? selectedRoute?.driverPhone ?? 'Direct Line'}) · Vehicle: <strong>{currentPlate}</strong>
+                Driver: <strong>{selectedRoute?.driver?.fullName ?? selectedRoute?.driverName ?? '—'}</strong> ({selectedRoute?.driver?.phone ?? selectedRoute?.driverPhone ?? '—'}) · Vehicle: <strong>{currentPlate}</strong>
               </p>
             </div>
 
@@ -193,11 +249,30 @@ export default function LiveOperationsMapPage() {
             )}
           </div>
 
-          <MiniLiveMap
-            height={440}
-            activeVehiclePlate={currentPlate}
-            activeEta={currentEta}
-          />
+          {selectedRoute ? (
+            <GoogleRouteMap
+              height={440}
+              office={selectedRoute.office?.latitude !== undefined && selectedRoute.office.longitude !== undefined
+                ? {
+                    name: selectedRoute.office.name,
+                    addressText: selectedRoute.office.addressText,
+                    lat: Number(selectedRoute.office.latitude),
+                    lng: Number(selectedRoute.office.longitude),
+                  }
+                : null}
+              stops={mapStops}
+              livePosition={tracking?.position ? {
+                lat: tracking.position.lat,
+                lng: tracking.position.lng,
+                recordedAt: tracking.position.recordedAt,
+                gpsState: tracking.gpsState,
+              } : null}
+            />
+          ) : (
+            <div style={{ height: 440, display: 'grid', placeItems: 'center', color: 'var(--text-secondary)' }}>
+              No active routes are available for this tenant.
+            </div>
+          )}
         </div>
 
         {/* Right: Active Trips Feed */}
@@ -282,14 +357,14 @@ export default function LiveOperationsMapPage() {
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
                       <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                        {rt.vehicle?.registrationNumber ?? rt.vehiclePlate ?? `RT-${rt.id.slice(0, 6)}`}
+                        {rt.vehicle?.registrationNumber ?? rt.vehiclePlate ?? '—'}
                       </span>
                       <span style={{ fontSize: '11px', fontWeight: 700, color: '#16A34A', backgroundColor: '#DCFCE7', padding: '2px 6px', borderRadius: '4px' }}>
                         {rt.status}
                       </span>
                     </div>
                     <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                      {rt.direction} · {rt.driver?.fullName ?? rt.driverName ?? 'Driver Assigned'} · {rt._count?.stops ?? rt.stopsCount ?? 0} stops
+                      {rt.direction} · {rt.driver?.fullName ?? rt.driverName ?? '—'} · {rt._count?.stops ?? rt.stopsCount ?? 0} stops
                     </div>
                   </div>
                 );

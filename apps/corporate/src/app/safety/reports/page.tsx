@@ -1,258 +1,135 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import {
-  FileText,
-  ShieldCheck,
-  AlertTriangle,
-  Download,
-  Calendar,
-  Building,
-  TrendingUp,
-  Clock,
-} from 'lucide-react';
-import { safetyApi, tenantApi, analyticsApi } from '../../../lib/api/corporate';
-import type { SosAlert, Office } from '../../../lib/api/types';
+import React, { useEffect, useMemo, useState } from 'react';
+import { AlertTriangle, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { safetyApi } from '../../../lib/api/corporate';
+import type { SosAlert } from '../../../lib/api/types';
 import { useSession } from '../../../lib/auth/SessionContext';
 import MetricCard from '../../../components/common/MetricCard';
 import { DonutChart } from '../../../components/charts/DonutChart';
 import { AreaTrendChart } from '../../../components/charts/AreaTrendChart';
 
+const colors = ['#5728B2', '#38BDF8', '#8B5CF6', '#F59E0B', '#10B981', '#EC4899'];
+
 export default function SafetyReportsPage() {
   const { tenantId } = useSession();
-  const activeTenantId = tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
-
   const [alerts, setAlerts] = useState<SosAlert[]>([]);
-  const [offices, setOffices] = useState<Office[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!tenantId) {
+      setAlerts([]);
+      setLoading(false);
+      return;
+    }
+
+    let active = true;
     setLoading(true);
-    Promise.all([
-      safetyApi.alerts(activeTenantId, {}).catch(() => []),
-      tenantApi.offices(activeTenantId).catch(() => []),
-    ])
-      .then(([alertList, offList]) => {
-        setAlerts(alertList);
-        setOffices(offList);
+    setError(null);
+    safetyApi.alerts(tenantId, {})
+      .then((data) => {
+        if (active) setAlerts(data);
       })
       .catch((err) => {
-        console.warn('Failed to load safety report data:', err);
+        console.error('Failed to load safety report data:', err);
+        if (active) setError('Unable to load tenant safety alerts. Please try again.');
       })
       .finally(() => {
-        setLoading(false);
+        if (active) setLoading(false);
       });
-  }, [activeTenantId]);
 
-  const totalIncidents = alerts.length;
-  const resolvedCount = alerts.filter((a) => a.status === 'RESOLVED').length;
-  const resolutionRate = totalIncidents > 0 ? `${((resolvedCount / totalIncidents) * 100).toFixed(0)}%` : '100%';
+    return () => {
+      active = false;
+    };
+  }, [tenantId]);
 
-  const incidentCategories = [
-    { label: 'SOS Panic Alerts', count: totalIncidents, pct: 100, color: '#DC2626' },
-  ];
+  const resolvedCount = alerts.filter((alert) => alert.status === 'RESOLVED').length;
+  const activeCount = alerts.filter((alert) => ['TRIGGERED', 'ACKNOWLEDGED'].includes(alert.status)).length;
+  const statusCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const alert of alerts) counts.set(alert.status, (counts.get(alert.status) ?? 0) + 1);
+    return Array.from(counts.entries()).map(([label, count], index) => ({
+      label,
+      count,
+      pct: alerts.length ? Math.round((count / alerts.length) * 100) : 0,
+      color: colors[index % colors.length],
+    }));
+  }, [alerts]);
 
-  const safetyTrend = [
-    { day: 'Mon', trips: 0 },
-    { day: 'Tue', trips: 0 },
-    { day: 'Wed', trips: alerts.length },
-    { day: 'Thu', trips: 0 },
-    { day: 'Fri', trips: 0 },
-  ];
+  const trend = useMemo(() => {
+    const days = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date();
+      date.setDate(date.getDate() - (6 - index));
+      const key = date.toISOString().slice(0, 10);
+      return { key, trips: 0 };
+    });
+    const byDate = new Map(days.map((day) => [day.key, day]));
+    for (const alert of alerts) {
+      const key = alert.createdAt.slice(0, 10);
+      const day = byDate.get(key);
+      if (day) day.trips += 1;
+    }
+    return days.map((day) => ({ day: day.key, trips: day.trips }));
+  }, [alerts]);
 
-  const handleExport = () => {
-    const today = new Date().toISOString().slice(0, 10);
-    const lastMonth = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
-    analyticsApi.downloadReport('trips', { tenantId: activeTenantId, from: lastMonth, to: today });
-  };
+  const officeCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const alert of alerts) {
+      const name = alert.route?.office?.name ?? 'Office not recorded';
+      counts.set(name, (counts.get(name) ?? 0) + 1);
+    }
+    return Array.from(counts.entries());
+  }, [alerts]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {/* Top Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-            Safety & Compliance Reports
-          </h1>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
-            Comprehensive safety audits, incident categories, response times and office-wise resolution trends
-          </p>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button
-            type="button"
-            onClick={handleExport}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '8px 14px',
-              backgroundColor: 'var(--bg-surface)',
-              border: '1px solid var(--border-color)',
-              color: 'var(--text-secondary)',
-              borderRadius: 6,
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            <Download size={14} /> Export Audit CSV
-          </button>
-        </div>
+      <div>
+        <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+          Safety Alert Report
+        </h1>
+        <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '4px 0 0' }}>
+          Status, trend, and office data from saved tenant SOS alerts
+        </p>
       </div>
 
-      {/* KPI Cards */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: 16,
-        }}
-      >
-        <MetricCard
-          label="Total Monthly Incidents"
-          value={`${totalIncidents} Cases`}
-          delta={`${resolvedCount} Closed`}
-          deltaType="positive"
-          icon={<ShieldCheck size={20} />}
-          category="primary"
-        />
-        <MetricCard
-          label="First Response Time"
-          value="1.8 min"
-          delta="Benchmark: < 3.0 min"
-          deltaType="positive"
-          icon={<Clock size={20} />}
-          category="success"
-        />
-        <MetricCard
-          label="Escort Night Protocol"
-          value="100% Verified"
-          delta="Commuters Verified Safe"
-          deltaType="positive"
-          icon={<ShieldCheck size={20} />}
-          category="success"
-        />
-        <MetricCard
-          label="Resolution Rate"
-          value={resolutionRate}
-          delta="Audited Incidents"
-          deltaType="positive"
-          icon={<TrendingUp size={20} />}
-          category="info"
-        />
+      {error && <div role="alert" className="surface-card" style={{ padding: 14, color: '#B91C1C' }}>{error}</div>}
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+        <MetricCard label="SOS alert records" value={loading ? '...' : alerts.length.toLocaleString()} icon={<ShieldAlert size={20} />} category="primary" />
+        <MetricCard label="Resolved alerts" value={loading ? '...' : resolvedCount.toLocaleString()} icon={<CheckCircle2 size={20} />} category="success" />
+        <MetricCard label="Active alerts" value={loading ? '...' : activeCount.toLocaleString()} icon={<AlertTriangle size={20} />} category="warning" />
       </div>
 
-      {/* Charts Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16 }}>
-        {/* Category Breakdown Donut */}
-        <div
-          style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 8,
-            border: '1px solid var(--border-color)',
-            padding: 20,
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-          }}
-        >
-          <div>
-            <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-              Incident Distribution by Category
-            </h2>
-            <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 16px 0' }}>
-              Breakdown across safety alarms and telemetry exceptions
-            </p>
-          </div>
-          <DonutChart
-            segments={incidentCategories}
-            totalValue={totalIncidents.toString()}
-            totalLabel="Total Alerts"
-            size={180}
-          />
-        </div>
-
-        {/* 7-Day Safety Trend Curve */}
-        <div
-          style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 8,
-            border: '1px solid var(--border-color)',
-            padding: 20,
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-          }}
-        >
-          <div>
-            <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-              Weekly Incident Trajectory
-            </h2>
-            <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 16px 0' }}>
-              Daily recorded alerts over current operating cycle
-            </p>
-          </div>
-          <AreaTrendChart data={safetyTrend} height={180} lineColor="#DC2626" />
-        </div>
+        <section className="surface-card" style={{ padding: 20 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 700, marginTop: 0 }}>Alerts by status</h2>
+          {statusCounts.length === 0 ? <p style={{ color: 'var(--text-secondary)' }}>No alert records are available.</p> : (
+            <DonutChart segments={statusCounts} totalValue={alerts.length} totalLabel="Alerts" size={180} />
+          )}
+        </section>
+        <section className="surface-card" style={{ padding: 20 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 700, marginTop: 0 }}>Alerts recorded — last 7 days</h2>
+          <AreaTrendChart data={trend} height={180} lineColor="#DC2626" />
+        </section>
       </div>
 
-      {/* Office-Wise Safety Statistics Table */}
-      <div
-        style={{
-          backgroundColor: 'var(--bg-surface)',
-          borderRadius: 8,
-          border: '1px solid var(--border-color)',
-          overflow: 'hidden',
-        }}
-      >
-        <div
-          style={{
-            padding: '16px 20px',
-            borderBottom: '1px solid var(--border-color)',
-            fontSize: 15,
-            fontWeight: 700,
-            color: 'var(--text-primary)',
-          }}
-        >
-          Office-Wise Safety Statistics & Resolution Rates
-        </div>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
-            <thead>
-              <tr style={{ backgroundColor: 'var(--bg-surface-muted)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
-                <th style={{ padding: '12px 16px' }}>Campus Site</th>
-                <th style={{ padding: '12px 16px' }}>Total Incidents Logged</th>
-                <th style={{ padding: '12px 16px' }}>Avg Resolution SLA</th>
-                <th style={{ padding: '12px 16px' }}>Resolution Rate</th>
-                <th style={{ padding: '12px 16px' }}>Escort Compliance</th>
-              </tr>
-            </thead>
-            <tbody>
-              {offices.map((off) => (
-                <tr key={off.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                  <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                    {off.name}
-                  </td>
-                  <td style={{ padding: '14px 16px', fontWeight: 600, color: '#5728B2' }}>
-                    0 Incidents
-                  </td>
-                  <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>
-                    1.8 min
-                  </td>
-                  <td style={{ padding: '14px 16px', fontWeight: 700, color: '#16A34A' }}>
-                    100%
-                  </td>
-                  <td style={{ padding: '14px 16px', color: '#16A34A', fontWeight: 600 }}>
-                    100% Compliant
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <section className="surface-card" style={{ padding: 20 }}>
+        <h2 style={{ fontSize: 15, fontWeight: 700, marginTop: 0 }}>Alert count by office</h2>
+        {officeCounts.length === 0 ? <p style={{ color: 'var(--text-secondary)' }}>No alert records are available.</p> : (
+          <div className="table-scroll">
+            <table className="data-table">
+              <thead><tr><th>Office</th><th>Alerts</th></tr></thead>
+              <tbody>
+                {officeCounts.map(([office, count]) => <tr key={office}><td>{office}</td><td>{count}</td></tr>)}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p style={{ color: 'var(--text-secondary)', fontSize: 12 }}>
+          The current API does not expose response-time, escort-compliance, or incident-resolution SLA metrics.
+        </p>
+      </section>
     </div>
   );
 }

@@ -13,25 +13,35 @@ sampleArrival.setUTCHours(0, 0, 0, 0);
 const sampleArrivalDate = sampleArrival.toISOString().slice(0, 10);
 
 export const SAMPLE_EMPLOYEE_ROSTER = [
-  { employeeName: 'Aarav Sharma', pickupAddress: 'Aparna Sarovar Grande, Nallagandla, Gachibowli, Hyderabad', officeAddress: 'Mindspace IT Park, Hitec City, Hyderabad', arrivalDate: sampleArrivalDate, arrivalTime: '08:00', gender: 'MALE', phone: '+91 98765 43210' },
-  { employeeName: 'Priya Reddy', pickupAddress: 'My Home Bhooja, Silpa Gram Craft Village, Madhapur, Hyderabad', officeAddress: 'Mindspace IT Park, Hitec City, Hyderabad', arrivalDate: sampleArrivalDate, arrivalTime: '08:00', gender: 'FEMALE', phone: '+91 98765 43211' },
-  { employeeName: 'Rohan Verma', pickupAddress: 'Jayabheri Silicon County, Hitec City, Hyderabad', officeAddress: 'Mindspace IT Park, Hitec City, Hyderabad', arrivalDate: sampleArrivalDate, arrivalTime: '08:00', gender: 'MALE', phone: '+91 98765 43212' },
-  { employeeName: 'Sneha Kulkarni', pickupAddress: 'Prestige High Fields, Financial District, Nanakramguda, Hyderabad', officeAddress: 'Mindspace IT Park, Hitec City, Hyderabad', arrivalDate: sampleArrivalDate, arrivalTime: '08:00', gender: 'FEMALE', phone: '+91 98765 43213' },
-  { employeeName: 'Vikram Malhotra', pickupAddress: 'SMR Vinay City, Miyapur, Hyderabad', officeAddress: 'Mindspace IT Park, Hitec City, Hyderabad', arrivalDate: sampleArrivalDate, arrivalTime: '08:00', gender: 'MALE', phone: '+91 98765 43214' },
-  { employeeName: 'Ananya Deshmukh', pickupAddress: 'Lodha Bellezza, Eden Square, Phase 4, KPHB Colony, Kukatpally, Hyderabad', officeAddress: 'Mindspace IT Park, Hitec City, Hyderabad', arrivalDate: sampleArrivalDate, arrivalTime: '08:00', gender: 'FEMALE', phone: '+91 98765 43215' },
-  { employeeName: 'Karthik Raju', pickupAddress: 'Rainbow Vistas Rock Garden, IDL Access Road, Moosapet, Hyderabad', officeAddress: 'Mindspace IT Park, Hitec City, Hyderabad', arrivalDate: sampleArrivalDate, arrivalTime: '08:00', gender: 'MALE', phone: '+91 98765 43216' },
-  { employeeName: 'Divya Nair', pickupAddress: 'Indis PBEL City, Peeramcheru, Hyderabad', officeAddress: 'Mindspace IT Park, Hitec City, Hyderabad', arrivalDate: sampleArrivalDate, arrivalTime: '08:00', gender: 'FEMALE', phone: '+91 98765 43217' },
-  { employeeName: 'Siddharth Joshi', pickupAddress: 'Lanco Hills Apartments, Manikonda, Hyderabad', officeAddress: 'Mindspace IT Park, Hitec City, Hyderabad', arrivalDate: sampleArrivalDate, arrivalTime: '08:00', gender: 'MALE', phone: '+91 98765 43218' },
-  { employeeName: 'Meera Iyer', pickupAddress: 'Road No 36, Jubilee Hills, Hyderabad', officeAddress: 'Mindspace IT Park, Hitec City, Hyderabad', arrivalDate: sampleArrivalDate, arrivalTime: '08:00', gender: 'FEMALE', phone: '+91 98765 43219' },
-  { employeeName: 'Aditya Prasad', pickupAddress: 'Green Valley, Banjara Hills Road No 12, Hyderabad', officeAddress: 'Mindspace IT Park, Hitec City, Hyderabad', arrivalDate: sampleArrivalDate, arrivalTime: '08:00', gender: 'MALE', phone: '+91 98765 43220' },
-  { employeeName: 'Kavita Menon', pickupAddress: 'Botanical Garden Road, Masjid Banda, Kondapur, Hyderabad', officeAddress: 'Mindspace IT Park, Hitec City, Hyderabad', arrivalDate: sampleArrivalDate, arrivalTime: '08:00', gender: 'FEMALE', phone: '+91 98765 43221' },
+  { employeeCode: 'EMP-1001', employeeName: 'Aarav Sharma', email: 'aarav.sharma@example.com', pickupAddress: 'Aparna Sarovar Grande, Nallagandla, Gachibowli, Hyderabad', officeAddress: 'Mindspace IT Park, Hitec City, Hyderabad', arrivalDate: sampleArrivalDate, arrivalTime: '08:00', gender: 'MALE', phone: '+91 98765 43210' },
+  { employeeCode: 'EMP-1002', employeeName: 'Priya Reddy', email: 'priya.reddy@example.com', pickupAddress: 'My Home Bhooja, Silpa Gram Craft Village, Madhapur, Hyderabad', officeAddress: 'Mindspace IT Park, Hitec City, Hyderabad', arrivalDate: sampleArrivalDate, arrivalTime: '08:00', gender: 'FEMALE', phone: '+91 98765 43211' },
+  { employeeCode: 'EMP-1003', employeeName: 'Rohan Verma', email: 'rohan.verma@example.com', pickupAddress: 'Jayabheri Silicon County, Hitec City, Hyderabad', officeAddress: 'Mindspace IT Park, Hitec City, Hyderabad', arrivalDate: sampleArrivalDate, arrivalTime: '08:00', gender: 'MALE', phone: '+91 98765 43212' },
+  { employeeCode: 'EMP-1004', employeeName: 'Sneha Kulkarni', email: 'sneha.kulkarni@example.com', pickupAddress: 'Prestige High Fields, Financial District, Nanakramguda, Hyderabad', officeAddress: 'Mindspace IT Park, Hitec City, Hyderabad', arrivalDate: sampleArrivalDate, arrivalTime: '08:00', gender: 'FEMALE', phone: '+91 98765 43213' },
+  { employeeCode: 'EMP-1005', employeeName: 'Vikram Malhotra', email: 'vikram.malhotra@example.com', pickupAddress: 'SMR Vinay City, Miyapur, Hyderabad', officeAddress: 'Mindspace IT Park, Hitec City, Hyderabad', arrivalDate: sampleArrivalDate, arrivalTime: '08:00', gender: 'MALE', phone: '+91 98765 43214' },
+  { employeeCode: 'EMP-1006', employeeName: 'Ananya Deshmukh', email: 'ananya.deshmukh@example.com', pickupAddress: 'Lodha Bellezza, Eden Square, Phase 4, KPHB Colony, Kukatpally, Hyderabad', officeAddress: 'Mindspace IT Park, Hitec City, Hyderabad', arrivalDate: sampleArrivalDate, arrivalTime: '08:00', gender: 'FEMALE', phone: '+91 98765 43215' },
+  { employeeCode: 'EMP-1007', employeeName: 'Karthik Raju', email: 'karthik.raju@example.com', pickupAddress: 'Rainbow Vistas Rock Garden, IDL Access Road, Moosapet, Hyderabad', officeAddress: 'Mindspace IT Park, Hitec City, Hyderabad', arrivalDate: sampleArrivalDate, arrivalTime: '08:00', gender: 'MALE', phone: '+91 98765 43216' },
+  { employeeCode: 'EMP-1008', employeeName: 'Divya Nair', email: 'divya.nair@example.com', pickupAddress: 'Indis PBEL City, Peeramcheru, Hyderabad', officeAddress: 'Mindspace IT Park, Hitec City, Hyderabad', arrivalDate: sampleArrivalDate, arrivalTime: '08:00', gender: 'FEMALE', phone: '+91 98765 43217' },
+  { employeeCode: 'EMP-1009', employeeName: 'Siddharth Joshi', email: 'siddharth.joshi@example.com', pickupAddress: 'Lanco Hills Apartments, Manikonda, Hyderabad', officeAddress: 'Mindspace IT Park, Hitec City, Hyderabad', arrivalDate: sampleArrivalDate, arrivalTime: '08:00', gender: 'MALE', phone: '+91 98765 43218' },
+  { employeeCode: 'EMP-1010', employeeName: 'Meera Iyer', email: 'meera.iyer@example.com', pickupAddress: 'Road No 36, Jubilee Hills, Hyderabad', officeAddress: 'Mindspace IT Park, Hitec City, Hyderabad', arrivalDate: sampleArrivalDate, arrivalTime: '08:00', gender: 'FEMALE', phone: '+91 98765 43219' },
+  { employeeCode: 'EMP-1011', employeeName: 'Aditya Prasad', email: 'aditya.prasad@example.com', pickupAddress: 'Green Valley, Banjara Hills Road No 12, Hyderabad', officeAddress: 'Mindspace IT Park, Hitec City, Hyderabad', arrivalDate: sampleArrivalDate, arrivalTime: '08:00', gender: 'MALE', phone: '+91 98765 43220' },
+  { employeeCode: 'EMP-1012', employeeName: 'Kavita Menon', email: 'kavita.menon@example.com', pickupAddress: 'Botanical Garden Road, Masjid Banda, Kondapur, Hyderabad', officeAddress: 'Mindspace IT Park, Hitec City, Hyderabad', arrivalDate: sampleArrivalDate, arrivalTime: '08:00', gender: 'FEMALE', phone: '+91 98765 43221' },
 ];
 
 export function generateSampleCsv(): string {
-  const headers = ['employee_name', 'pickup_address', 'office_address', 'required_arrival_date', 'required_arrival_time', 'gender', 'phone_number'];
+  const headers = [
+    'employee_code',
+    'employee_name',
+    'pickup_address',
+    'office_address',
+    'required_arrival_date',
+    'required_arrival_time',
+    'gender',
+    'phone_number',
+    'email',
+  ];
   const rows = SAMPLE_EMPLOYEE_ROSTER.map(
     (row) =>
-      `"${row.employeeName}","${row.pickupAddress}","${row.officeAddress}","${row.arrivalDate}","${row.arrivalTime}","${row.gender}","${row.phone}"`,
+      `"${row.employeeCode}","${row.employeeName}","${row.pickupAddress}","${row.officeAddress}","${row.arrivalDate}","${row.arrivalTime}","${row.gender}","${row.phone}","${row.email}"`,
   );
   return [headers.join(','), ...rows].join('\n');
 }
@@ -46,6 +56,7 @@ export async function generateSampleExcelBuffer(): Promise<Buffer> {
   });
 
   worksheet.columns = [
+    { header: 'Employee Code', key: 'employee_code', width: 18 },
     { header: 'Employee Name *', key: 'employee_name', width: 24 },
     { header: 'Pickup Address *', key: 'pickup_address', width: 55 },
     { header: 'Office Address *', key: 'office_address', width: 55 },
@@ -53,6 +64,7 @@ export async function generateSampleExcelBuffer(): Promise<Buffer> {
     { header: 'Required Arrival Time * (24h, IST)', key: 'required_arrival_time', width: 30 },
     { header: 'Gender (MALE/FEMALE)', key: 'gender', width: 22 },
     { header: 'Phone Number', key: 'phone_number', width: 20 },
+    { header: 'Email', key: 'email', width: 28 },
   ];
 
   // Style header row
@@ -68,6 +80,7 @@ export async function generateSampleExcelBuffer(): Promise<Buffer> {
 
   for (const item of SAMPLE_EMPLOYEE_ROSTER) {
     const row = worksheet.addRow({
+      employee_code: item.employeeCode,
       employee_name: item.employeeName,
       pickup_address: item.pickupAddress,
       office_address: item.officeAddress,
@@ -75,6 +88,7 @@ export async function generateSampleExcelBuffer(): Promise<Buffer> {
       required_arrival_time: item.arrivalTime,
       gender: item.gender,
       phone_number: item.phone,
+      email: item.email,
     });
     row.height = 22;
     row.alignment = { vertical: 'middle' };

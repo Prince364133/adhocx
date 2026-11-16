@@ -2,23 +2,10 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import {
-  Car,
-  User,
-  Star,
-  MapPin,
-  Calendar,
-  Clock,
-  Route,
-  CheckCircle2,
-  AlertCircle,
-  Phone,
-  ChevronDown,
-  Navigation,
-} from 'lucide-react';
-import { MiniLiveMap } from '../../../components/maps/MiniLiveMap';
+import { Navigation } from 'lucide-react';
+import { GoogleRouteMap } from '../../../components/maps/GoogleRouteMap';
 import { routesApi } from '../../../lib/api/corporate';
-import type { CorporateRoute, CorporateRouteStop } from '../../../lib/api/types';
+import type { CorporateRoute, RouteTracking } from '../../../lib/api/types';
 
 function LiveTripDetailsContent() {
   const searchParams = useSearchParams();
@@ -26,18 +13,21 @@ function LiveTripDetailsContent() {
 
   const [routes, setRoutes] = useState<CorporateRoute[]>([]);
   const [selectedRoute, setSelectedRoute] = useState<CorporateRoute | null>(null);
+  const [tracking, setTracking] = useState<RouteTracking | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'info' | 'employees' | 'timeline'>('info');
 
   useEffect(() => {
     setLoading(true);
     routesApi
-      .list()
+      .list({ status: 'IN_PROGRESS' })
       .then((data) => {
         setRoutes(data);
         if (data.length > 0) {
           const match = routeIdParam ? data.find((r) => r.id === routeIdParam) : null;
           setSelectedRoute(match || data[0]);
+        } else {
+          setSelectedRoute(null);
         }
       })
       .catch((err) => {
@@ -47,6 +37,32 @@ function LiveTripDetailsContent() {
         setLoading(false);
       });
   }, [routeIdParam]);
+
+  const selectedRouteId = selectedRoute?.id;
+  useEffect(() => {
+    if (!selectedRouteId) {
+      setTracking(null);
+      return;
+    }
+
+    let active = true;
+    const loadTracking = () => {
+      routesApi.tracking(selectedRouteId)
+        .then((data) => {
+          if (active) setTracking(data);
+        })
+        .catch((err) => {
+          console.error('Failed to load trip GPS data:', err);
+          if (active) setTracking(null);
+        });
+    };
+    loadTracking();
+    const timer = setInterval(loadTracking, 15000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [selectedRouteId]);
 
   if (loading) {
     return (
@@ -64,18 +80,30 @@ function LiveTripDetailsContent() {
     );
   }
 
-  const cabNumber = selectedRoute.vehicle?.licensePlate || selectedRoute.vehicle?.registrationNumber || selectedRoute.routeCode || 'CAB-LIVE';
-  const driverName = selectedRoute.driver?.fullName || selectedRoute.driver?.name || 'Assigned Driver';
-  const driverRating = selectedRoute.driver?.rating ? selectedRoute.driver.rating.toFixed(1) : '4.8';
-  const vehicleModel = selectedRoute.vehicle?.model || 'Commercial EV / Fleet Cab';
-  const seatsOccupied = selectedRoute.stops?.length || selectedRoute._count?.stops || selectedRoute.assignedPassengerCount || 4;
-  const totalSeats = selectedRoute.vehicle?.capacity || selectedRoute.maxCapacity || 6;
+  const cabNumber = selectedRoute.vehicle?.licensePlate || selectedRoute.vehicle?.registrationNumber || selectedRoute.routeCode || '—';
+  const driverName = selectedRoute.driver?.fullName || selectedRoute.driver?.name || '—';
+  const vehicleModel = selectedRoute.vehicle?.model || '—';
+  const seatsOccupied = selectedRoute.assignedPassengerCount;
+  const totalSeats = selectedRoute.vehicle?.capacity || selectedRoute.maxCapacity;
   const distanceKm = selectedRoute.totalDistanceMeters
     ? (selectedRoute.totalDistanceMeters / 1000).toFixed(1)
     : selectedRoute.estDistanceMeters
     ? (selectedRoute.estDistanceMeters / 1000).toFixed(1)
-    : '28.5';
+    : '—';
   const stops = selectedRoute.stops || [];
+  const mapStops = stops.map((stop) => ({
+    id: stop.id,
+    stopSequence: stop.stopSequence,
+    stopType: stop.stopType,
+    employeeName: stop.employee?.fullName ?? null,
+    employeePhone: stop.employee?.phoneNumber ?? null,
+    addressText: stop.addressText ?? stop.address ?? null,
+    lat: Number(stop.latitude),
+    lng: Number(stop.longitude),
+    plannedEta: stop.plannedEta,
+    dwellBufferSeconds: stop.dwellBufferSeconds,
+    status: stop.status,
+  }));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -127,7 +155,7 @@ function LiveTripDetailsContent() {
             >
               {routes.map((r) => (
                 <option key={r.id} value={r.id}>
-                  {r.routeCode} - {r.vehicle?.licensePlate || 'Fleet Cab'} ({r.status})
+                  {r.routeCode ?? r.id} - {r.vehicle?.licensePlate || r.vehicle?.registrationNumber || '—'} ({r.status})
                 </option>
               ))}
             </select>
@@ -152,10 +180,23 @@ function LiveTripDetailsContent() {
               </span>
             </div>
 
-            <MiniLiveMap
+            <GoogleRouteMap
               height={360}
-              activeVehiclePlate={cabNumber}
-              activeEta="Live Telemetry"
+              office={selectedRoute.office?.latitude !== undefined && selectedRoute.office.longitude !== undefined
+                ? {
+                    name: selectedRoute.office.name,
+                    addressText: selectedRoute.office.addressText,
+                    lat: Number(selectedRoute.office.latitude),
+                    lng: Number(selectedRoute.office.longitude),
+                  }
+                : null}
+              stops={mapStops}
+              livePosition={tracking?.position ? {
+                lat: tracking.position.lat,
+                lng: tracking.position.lng,
+                recordedAt: tracking.position.recordedAt,
+                gpsState: tracking.gpsState,
+              } : null}
             />
           </div>
 
@@ -174,9 +215,11 @@ function LiveTripDetailsContent() {
               <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Driver</div>
               <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <span>{driverName}</span>
-                <span style={{ fontSize: '11px', color: '#D97706', display: 'flex', alignItems: 'center' }}>
-                  ★ {driverRating}
-                </span>
+                {selectedRoute.driver?.rating != null && (
+                  <span style={{ fontSize: '11px', color: '#D97706', display: 'flex', alignItems: 'center' }}>
+                    ★ {selectedRoute.driver.rating.toFixed(1)}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -190,7 +233,7 @@ function LiveTripDetailsContent() {
             <div>
               <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Capacity</div>
               <div style={{ fontSize: '13px', fontWeight: 700, color: '#5728B2' }}>
-                {seatsOccupied} / {totalSeats} Seats
+                {totalSeats ? `${seatsOccupied} / ${totalSeats} Seats` : '—'}
               </div>
             </div>
 
@@ -345,7 +388,7 @@ function LiveTripDetailsContent() {
                                 borderRadius: '4px',
                               }}
                             >
-                              {stop.status || 'SCHEDULED'}
+                              {stop.status || '—'}
                             </span>
                           </td>
                         </tr>
@@ -392,7 +435,7 @@ function LiveTripDetailsContent() {
                         </span>
                       </div>
                       <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                        {stop.address || 'Designated Employee Boarding Point'}
+                        {stop.address || '—'}
                       </div>
                     </div>
                   </div>

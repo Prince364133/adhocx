@@ -394,8 +394,20 @@ export default function CompanyProfilePage() {
   }, [loadData]);
 
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get('logoUpload') === 'failed') {
-      setNotice({ kind: 'error', text: 'Company was created, but its logo could not be uploaded. You can try again in Organization details.' });
+    const params = new URLSearchParams(window.location.search);
+    const logoUploadFailed = params.get('logoUpload') === 'failed';
+    const portalAccess = params.get('portalAccess');
+    if (logoUploadFailed || portalAccess) {
+      setNotice({
+        kind: logoUploadFailed ? 'error' : portalAccess === 'created' ? 'success' : 'error',
+        text: logoUploadFailed
+          ? portalAccess === 'created'
+            ? 'Company and Corporate Super Admin account were created, but its logo could not be uploaded. You can try again in Organization details.'
+            : 'Company was created, but its logo could not be uploaded. You can try again in Organization details.'
+          : portalAccess === 'created'
+            ? 'Company and Corporate Super Admin account created. The primary contact can sign in using SMS OTP.'
+            : 'Company was created, but Corporate portal account creation was not confirmed. Verify the company users before retrying.',
+      });
       router.replace(`/companies/${companyId}`);
     }
   }, [companyId, router]);

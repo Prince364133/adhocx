@@ -105,7 +105,6 @@ describe('WS-F corporate roles, permission matrix and office scope', () => {
       [CorporateRoutingController, 'optimizeRoutes'],
       [CorporateTrackingController, 'getTracking'],
       [CorporateTrackingController, 'getFleetSnapshot'],
-      [CorporateTripExecutionController, 'listRequests'],
       [CorporateTripExecutionController, 'reviewRequest'],
       [CorporateTripExecutionController, 'rescheduleOrCancel'],
       [CorporateSafetyController, 'listAlerts'],
@@ -122,6 +121,50 @@ describe('WS-F corporate roles, permission matrix and office scope', () => {
         ).toThrow(ForbiddenException);
       }
     }
+  });
+
+  it('allows authorized tenant booking reads while preserving platform access and tenant isolation', async () => {
+    const handler = CorporateTripExecutionController.prototype.listRequests;
+    const roles = Reflect.getMetadata(ROLES_KEY, handler);
+    expect(roles).toEqual([
+      UserRole.ADMIN,
+      UserRole.OPS,
+      UserRole.CORPORATE_ADMIN,
+      UserRole.CORPORATE_MANAGER,
+    ]);
+    expect(Reflect.getMetadata(CORPORATE_PERMISSION_KEY, handler)).toBe('bookings:read');
+
+    const rolesGuard = new RolesGuard(new Reflector());
+    for (const role of [UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER]) {
+      expect(rolesGuard.canActivate(ctx(CorporateTripExecutionController, 'listRequests', req({ id: 'user', role })))).toBe(true);
+    }
+    for (const role of [UserRole.ADMIN, UserRole.OPS]) {
+      expect(await can({ id: 'user', role }, CorporateTripExecutionController, 'listRequests', {
+        query: { tenantId: T1.id },
+      })).toBe(true);
+    }
+
+    for (const role of [CorporateRole.CORP_SUPER_ADMIN, CorporateRole.TRANSPORT, CorporateRole.READ_ONLY]) {
+      expect(await can(corpUser(role), CorporateTripExecutionController, 'listRequests', {
+        query: { tenantId: T1.id },
+      })).toBe(true);
+    }
+    for (const role of [CorporateRole.HR, CorporateRole.FINANCE, CorporateRole.SAFETY]) {
+      expect(await can(corpUser(role), CorporateTripExecutionController, 'listRequests', {
+        query: { tenantId: T1.id },
+      })).toBe(false);
+    }
+
+    const crossTenantRequest = req(corpUser(CorporateRole.CORP_SUPER_ADMIN), {
+      query: { tenantId: 'tenant-2' },
+    });
+    await expect(
+      guard.canActivate(ctx(CorporateTripExecutionController, 'listRequests', crossTenantRequest)),
+    ).rejects.toThrow(ForbiddenException);
+
+    const scopedRequest = req(corpUser(CorporateRole.CORP_SUPER_ADMIN), { query: {} });
+    await guard.canActivate(ctx(CorporateTripExecutionController, 'listRequests', scopedRequest));
+    expect(scopedRequest.query.tenantId).toBe(T1.id);
   });
 
   it('READ_ONLY has no mutation permission and FINANCE has invoices but no employee PII edit', () => {

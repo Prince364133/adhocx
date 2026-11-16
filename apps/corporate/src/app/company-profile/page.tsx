@@ -102,19 +102,6 @@ const emptyLegalDraft: LegalDraft = {
   billingAddress: '',
   billingSameAsRegistered: true,
 };
-const SAMPLE_ORGANIZATION = {
-  industry: 'Enterprise technology & business services',
-  website: 'https://northstar-demo.example',
-  registeredAddress: 'Northstar Business Park, Plot 42, HITEC City',
-  city: 'Hyderabad',
-  state: 'Telangana',
-  pinCode: '500081',
-  country: 'India',
-  primaryContactName: 'Aarav Mehta (sample)',
-  primaryContactEmail: 'admin@northstar-demo.example',
-  primaryContactPhone: '+91 90000 00000',
-};
-const SAMPLE_REGISTERED_BUSINESS_ADDRESS = 'Northstar Business Park, Plot 42, HITEC City, Hyderabad, Telangana 500081';
 const CORPORATE_ROLE_DISPLAY_LABELS: Record<string, string> = {
   CORP_SUPER_ADMIN: 'Corporate Super Admin',
   HR: 'HR Manager',
@@ -352,10 +339,6 @@ function valueOrDash(value?: string | null) {
   return value?.trim() || 'Not provided';
 }
 
-function valueWithSample(value: string | null | undefined, sample: string, showSample: boolean) {
-  return value?.trim() || (showSample ? sample : undefined);
-}
-
 export default function CompanyProfilePage() {
   const { status, tenant, tenantId, tenantError, offices, officeScope, reloadTenant, can, user } = useSession();
   const [activeSection, setActiveSection] = useState<SectionId>('organization');
@@ -393,31 +376,6 @@ export default function CompanyProfilePage() {
   const canReadUsers = can('users:read') && !officeScope;
   const canManageUsers = can('users:invite');
   const canEditProfile = can('tenant:write');
-  const organizationFields = profileTenant
-    ? [
-        profileTenant.industry,
-        profileTenant.website,
-        profileTenant.logoUrl,
-        profileTenant.registeredAddress,
-        profileTenant.city,
-        profileTenant.state,
-        profileTenant.pinCode,
-        profileTenant.country,
-        profileTenant.primaryContactName,
-        profileTenant.primaryContactEmail,
-        profileTenant.primaryContactPhone,
-      ]
-    : [];
-  const showOrganizationSample = !organizationFields.some((value) => value?.trim());
-  const legalFields = profileTenant
-    ? [
-        profileTenant.gstin,
-        profileTenant.cin,
-        profileTenant.registeredBusinessAddress,
-        profileTenant.billingSameAsRegistered ? null : profileTenant.billingAddress,
-      ]
-    : [];
-  const showLegalSample = !legalFields.some((value) => value?.trim());
   const profileCompletionFields = profileTenant
     ? [
         profileTenant.name,
@@ -1022,9 +980,8 @@ export default function CompanyProfilePage() {
                     title="Organization details"
                     description="Organization identity, registered address and primary contact."
                     action={
-                      canEditProfile || showOrganizationSample ? (
+                      canEditProfile ? (
                         <div className={styles.headingActions}>
-                          {showOrganizationSample && <span className={styles.sampleBadge}>Sample preview</span>}
                           {canEditProfile && !editingOrganization && (
                             <ActionButton onClick={editOrganization}>Edit details</ActionButton>
                           )}
@@ -1032,16 +989,6 @@ export default function CompanyProfilePage() {
                       ) : undefined
                     }
                   />
-                  {showOrganizationSample && (
-                    <div className={styles.sampleNotice}>
-                      <Shield size={16} aria-hidden="true" />
-                      <p>
-                        <strong>Illustrative profile details</strong>
-                        These examples are display-only and are not saved to your company account. Use{' '}
-                        <b>Edit details</b> to enter your organization&apos;s real information.
-                      </p>
-                    </div>
-                  )}
                   {editingOrganization ? (
                     <form onSubmit={submitOrganization} className={styles.profileForm}>
                       <div className={styles.logoEditor}>
@@ -1207,11 +1154,7 @@ export default function CompanyProfilePage() {
                         <div className={styles.organizationIdentity}>
                           <h3>{profileTenant.name}</h3>
                           <p>
-                            {valueWithSample(
-                              profileTenant.industry,
-                              SAMPLE_ORGANIZATION.industry,
-                              showOrganizationSample,
-                            )}{' '}
+                            {valueOrDash(profileTenant.industry)}{' '}
                             · Tenant code {profileTenant.code}
                           </p>
                         </div>
@@ -1220,71 +1163,39 @@ export default function CompanyProfilePage() {
                       <div className={styles.detailsGrid}>
                         <Detail
                           label="Company website"
-                          value={valueWithSample(
-                            profileTenant.website,
-                            SAMPLE_ORGANIZATION.website,
-                            showOrganizationSample,
-                          )}
+                          value={valueOrDash(profileTenant.website)}
                         />
                         <Detail
                           label="Registered address"
-                          value={valueWithSample(
-                            profileTenant.registeredAddress,
-                            SAMPLE_ORGANIZATION.registeredAddress,
-                            showOrganizationSample,
-                          )}
+                          value={valueOrDash(profileTenant.registeredAddress)}
                         />
                         <Detail
                           label="City"
-                          value={valueWithSample(profileTenant.city, SAMPLE_ORGANIZATION.city, showOrganizationSample)}
+                          value={valueOrDash(profileTenant.city)}
                         />
                         <Detail
                           label="State"
-                          value={valueWithSample(
-                            profileTenant.state,
-                            SAMPLE_ORGANIZATION.state,
-                            showOrganizationSample,
-                          )}
+                          value={valueOrDash(profileTenant.state)}
                         />
                         <Detail
                           label="PIN code"
-                          value={valueWithSample(
-                            profileTenant.pinCode,
-                            SAMPLE_ORGANIZATION.pinCode,
-                            showOrganizationSample,
-                          )}
+                          value={valueOrDash(profileTenant.pinCode)}
                         />
                         <Detail
                           label="Country"
-                          value={valueWithSample(
-                            profileTenant.country,
-                            SAMPLE_ORGANIZATION.country,
-                            showOrganizationSample,
-                          )}
+                          value={valueOrDash(profileTenant.country)}
                         />
                         <Detail
                           label="Primary contact"
-                          value={valueWithSample(
-                            profileTenant.primaryContactName,
-                            SAMPLE_ORGANIZATION.primaryContactName,
-                            showOrganizationSample,
-                          )}
+                          value={valueOrDash(profileTenant.primaryContactName)}
                         />
                         <Detail
                           label="Contact email"
-                          value={valueWithSample(
-                            profileTenant.primaryContactEmail,
-                            SAMPLE_ORGANIZATION.primaryContactEmail,
-                            showOrganizationSample,
-                          )}
+                          value={valueOrDash(profileTenant.primaryContactEmail)}
                         />
                         <Detail
                           label="Contact phone"
-                          value={valueWithSample(
-                            profileTenant.primaryContactPhone,
-                            SAMPLE_ORGANIZATION.primaryContactPhone,
-                            showOrganizationSample,
-                          )}
+                          value={valueOrDash(profileTenant.primaryContactPhone)}
                         />
                       </div>
                     </>
@@ -1298,9 +1209,8 @@ export default function CompanyProfilePage() {
                     title="Legal & tax details"
                     description="Legal entity, registration and billing information."
                     action={
-                      canEditProfile || showLegalSample ? (
+                      canEditProfile ? (
                         <div className={styles.headingActions}>
-                          {showLegalSample && <span className={styles.sampleBadge}>Sample preview</span>}
                           {canEditProfile && !editingLegal && (
                             <ActionButton onClick={editLegal}>Edit details</ActionButton>
                           )}
@@ -1308,16 +1218,6 @@ export default function CompanyProfilePage() {
                       ) : undefined
                     }
                   />
-                  {showLegalSample && (
-                    <div className={styles.sampleNotice}>
-                      <Shield size={16} aria-hidden="true" />
-                      <p>
-                        <strong>Illustrative address only</strong>
-                        GSTIN and CIN are intentionally left unfilled because they are not required for every legal
-                        structure.
-                      </p>
-                    </div>
-                  )}
                   {editingLegal ? (
                     <form onSubmit={submitLegal} className={styles.profileForm}>
                       <div className={styles.formGrid}>
@@ -1398,19 +1298,15 @@ export default function CompanyProfilePage() {
                       <Detail label="Legal business name" value={profileTenant.legalEntityName} />
                       <Detail
                         label="GSTIN"
-                        value={profileTenant.gstin || (showLegalSample ? 'Optional · add if applicable' : undefined)}
+                        value={valueOrDash(profileTenant.gstin)}
                       />
                       <Detail
                         label="CIN / Registration number"
-                        value={profileTenant.cin || (showLegalSample ? 'Optional · add if applicable' : undefined)}
+                        value={valueOrDash(profileTenant.cin)}
                       />
                       <Detail
                         label="Registered business address"
-                        value={valueWithSample(
-                          profileTenant.registeredBusinessAddress,
-                          SAMPLE_REGISTERED_BUSINESS_ADDRESS,
-                          showLegalSample,
-                        )}
+                        value={valueOrDash(profileTenant.registeredBusinessAddress)}
                       />
                       <Detail
                         label="Billing address"

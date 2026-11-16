@@ -39,6 +39,7 @@ describe('Corporate ETS - Route Planner Engine & Spatial Clustering Suite', () =
   };
 
   const mockDbService = {
+    corporateOffice: undefined as { findUnique: jest.Mock } | undefined,
     $transaction: jest.fn().mockImplementation(async (cb: (tx: any) => Promise<any>) => {
       const mockTx = {
         corporateRoute: {
@@ -192,6 +193,96 @@ describe('Corporate ETS - Route Planner Engine & Spatial Clustering Suite', () =
 
       parsedFile.mockRestore();
       planDirection.mockRestore();
+    });
+  });
+
+  describe('Office destination coordinates', () => {
+    it('uses the geocoded office for a flagged preview when the saved pin is materially displaced', async () => {
+      const officeAddress = 'Apex Tower, HITEC City, Hyderabad';
+      const findUnique = jest.fn().mockResolvedValue({
+        name: 'Apex Global Enterprises HQ',
+        addressText: officeAddress,
+        latitude: 17.385044,
+        longitude: 78.486671,
+      });
+      const previousCorporateOffice = mockDbService.corporateOffice;
+      mockDbService.corporateOffice = { findUnique };
+      const geocode = jest.spyOn(geocodingAdapter, 'batchGeocode').mockResolvedValue(
+        new Map([
+          [
+            officeAddress.toLowerCase(),
+            {
+              lat: 17.4470457,
+              lng: 78.3778342,
+              matchedAddress: 'HITEC City, Hyderabad, Telangana, India',
+              partialMatch: true,
+              isRealGeocode: true,
+            },
+          ],
+          [
+            'kompally, hyderabad',
+            {
+              lat: 17.54,
+              lng: 78.48,
+              matchedAddress: 'Kompally, Hyderabad',
+              partialMatch: false,
+              isRealGeocode: true,
+            },
+          ],
+        ]),
+      );
+      const routesAdapter = (service as any).routesAdapter;
+      const computeRoute = jest.spyOn(routesAdapter, 'computeRoute').mockResolvedValue({
+        durationSeconds: 600,
+        distanceMeters: 5000,
+        distanceKm: 5,
+        optimizedIntermediateWaypointIndex: [],
+        legs: [{ durationSeconds: 600, distanceMeters: 5000 }],
+        encodedPolyline: '',
+        decodedPath: [
+          [17.54, 78.48],
+          [17.4470457, 78.3778342],
+        ],
+        isRealRoad: false,
+      });
+      const onProgress = jest.fn();
+
+      try {
+        const plan = await service.planFromFile(
+          Buffer.from('employee_name,pickup_address\nEmployee One,"Kompally, Hyderabad"'),
+          'apex-roster.csv',
+          {
+            tenantId: 'apex-tenant',
+            officeId: 'apex-office',
+            loginTime: new Date('2099-01-02T08:00:00+05:30'),
+          },
+          onProgress,
+        );
+        expect(plan.office).toMatchObject({ lat: 17.4470457, lng: 78.3778342 });
+        expect(plan.routes[0].office).toMatchObject({ lat: 17.4470457, lng: 78.3778342 });
+        expect(plan.warnings).toEqual([
+          expect.stringMatching(
+            /Saved office pin for "Apex Tower, HITEC City, Hyderabad" differs from the geocoded address by \d+\.\d km\. This preview uses the geocoded address; update the saved office pin before committing\./,
+          ),
+        ]);
+        expect(onProgress).toHaveBeenCalledWith(
+          'office_location_mismatch',
+          50,
+          expect.stringContaining('This preview uses the geocoded address'),
+          expect.objectContaining({ officeAddress, previewCoordinates: { lat: 17.4470457, lng: 78.3778342 } }),
+        );
+        expect(findUnique).toHaveBeenCalledWith(
+          expect.objectContaining({ where: { id: 'apex-office' } }),
+        );
+      } finally {
+        geocode.mockRestore();
+        computeRoute.mockRestore();
+        if (previousCorporateOffice === undefined) {
+          delete mockDbService.corporateOffice;
+        } else {
+          mockDbService.corporateOffice = previousCorporateOffice;
+        }
+      }
     });
   });
 
@@ -744,6 +835,10 @@ describe('Corporate ETS - Route Planner Engine & Spatial Clustering Suite', () =
     it('should generate downloadable sample Excel and CSV templates', async () => {
       const sampleCsv = generateSampleCsv();
       expect(sampleCsv).toContain('employee_name,pickup_address,office_address,required_arrival_date,required_arrival_time');
+      expect(sampleCsv).toContain('employee_code');
+      expect(sampleCsv).toContain('email');
+      expect(sampleCsv).toContain('EMP-1001');
+      expect(sampleCsv).toContain('aarav.sharma@example.com');
       expect(sampleCsv).toContain('Aarav Sharma');
       expect(sampleCsv).toContain('Mindspace IT Park, Hitec City, Hyderabad');
 

@@ -128,6 +128,12 @@ describe('AuthService Unit Tests', () => {
 
     expect(result.accessToken).toBe('test_token');
     expect(result.user.id).toBe('usr-1');
+    expect(redis.del).toHaveBeenCalledWith('ratelimit:otp_verify:+919876543210');
+  });
+
+  it('should clear any prior verify rate-limit lockout when a new OTP is requested', async () => {
+    await service.requestOtp({ phone: '+919876543210' });
+    expect(redis.del).toHaveBeenCalledWith('ratelimit:otp_verify:+919876543210');
   });
 
   it('should reject incorrect OTP', async () => {

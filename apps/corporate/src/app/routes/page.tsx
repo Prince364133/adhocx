@@ -143,7 +143,7 @@ export default function CorporateRoutesPage() {
           </div>
           <div>
             <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: 'var(--text-primary)' }}>
-              {session.tenant?.name ? `${session.tenant.name} — Shift Routes` : 'Company Shift Routes'}
+              {session.tenant?.name ? `${session.tenant.name} — Routes & Dispatch` : 'Routes & Dispatch'}
             </h1>
             <p style={{ margin: '2px 0 0 0', fontSize: 13, color: 'var(--text-secondary)' }}>
               View employee pickup routes, Google Maps directions, live traffic ETAs, and autonomous dispatch updates.
@@ -497,7 +497,7 @@ export default function CorporateRoutesPage() {
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)', marginTop: 6 }}>
                     <Building2 size={13} />
-                    <span>{route.office?.name || 'Corporate Office'}</span>
+                    <span>{route.office?.name || '—'}</span>
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
                     {route.direction} • {route.shiftDate} ({route.shiftTime} IST)
@@ -526,7 +526,7 @@ export default function CorporateRoutesPage() {
                   {firstStop ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>
                       <MapPin size={12} />
-                      <span>1st: {firstStop.employeeName || firstStop.employee?.fullName || 'Employee'}</span>
+                      <span>1st: {firstStop.employeeName || firstStop.employee?.fullName || '—'}</span>
                     </div>
                   ) : (
                     <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
@@ -556,7 +556,7 @@ export default function CorporateRoutesPage() {
                     <div>
                       <StatusBadge status="NO_DRIVERS_FOUND" label="Drivers Not Found" size="sm" />
                       <div style={{ fontSize: 11, color: '#DC2626', marginTop: 4 }}>
-                        {route.dispatchFailureReason || 'No drivers accepted within 10km'}
+                        {route.dispatchFailureReason || 'No driver failure detail recorded.'}
                       </div>
                     </div>
                   ) : (

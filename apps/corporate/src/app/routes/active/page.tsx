@@ -3,11 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
-  Route,
   Radio,
-  Clock,
-  MapPin,
-  Car,
   ChevronRight,
   RefreshCw,
 } from 'lucide-react';
@@ -17,9 +13,11 @@ import type { CorporateRoute } from '../../../lib/api/types';
 export default function ActiveRoutesListPage() {
   const [routes, setRoutes] = useState<CorporateRoute[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadRoutes = () => {
     setLoading(true);
+    setLoadError(null);
     routesApi
       .list({ status: 'IN_PROGRESS' })
       .then((data) => {
@@ -27,6 +25,8 @@ export default function ActiveRoutesListPage() {
       })
       .catch((err) => {
         console.warn('Failed to load active routes:', err);
+        setRoutes([]);
+        setLoadError(err instanceof Error ? err.message : 'Failed to load active routes.');
       })
       .finally(() => {
         setLoading(false);
@@ -92,7 +92,11 @@ export default function ActiveRoutesListPage() {
       </div>
 
       {/* Active Routes Cards */}
-      {loading ? (
+      {loadError ? (
+        <div role="alert" className="surface-card" style={{ padding: 40, textAlign: 'center', color: '#B91C1C' }}>
+          {loadError}
+        </div>
+      ) : loading ? (
         <div className="surface-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
           Loading live active routes...
         </div>
@@ -103,10 +107,9 @@ export default function ActiveRoutesListPage() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {routes.map((route) => {
-            const cabNumber = route.vehicle?.licensePlate || route.routeCode || 'CAB-LIVE';
-            const driverName = route.driver?.name || 'Assigned Driver';
+            const cabNumber = route.vehicle?.licensePlate || route.vehicle?.registrationNumber || '—';
+            const driverName = route.driver?.fullName || route.driver?.name || '—';
             const stops = route.stops || [];
-            const distKm = route.totalDistanceMeters ? (route.totalDistanceMeters / 1000).toFixed(1) : '18.4';
 
             return (
               <div
@@ -134,7 +137,7 @@ export default function ActiveRoutesListPage() {
                         fontWeight: 800,
                       }}
                     >
-                      {route.routeCode}
+                      {route.routeCode ?? route.id}
                     </div>
                     <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
                       Vehicle: {cabNumber}
@@ -195,7 +198,7 @@ export default function ActiveRoutesListPage() {
                   ))}
                   {stops.length === 0 && (
                     <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                      Sequential waypoints configured ({distKm} km)
+                      No saved stops are available.
                     </span>
                   )}
                 </div>

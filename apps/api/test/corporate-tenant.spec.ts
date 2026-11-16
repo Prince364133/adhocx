@@ -35,6 +35,12 @@ describe('CorporateTenantService', () => {
         create: jest.fn(),
         updateMany: jest.fn(),
       },
+      user: {
+        findFirst: jest.fn(),
+        create: jest.fn(),
+      },
+      driver: { findFirst: jest.fn() },
+      vendor: { findFirst: jest.fn() },
       $transaction: jest.fn((callback) => callback(mockDb)),
     };
 
@@ -111,10 +117,76 @@ describe('CorporateTenantService', () => {
           status: 'ACTIVE',
         }),
       });
+      expect(mockDb.user.create).not.toHaveBeenCalled();
       expect(result.id).toBe('tenant-101');
       expect(mockAudit.log).toHaveBeenCalledWith(
         expect.objectContaining({ action: 'CORPORATE_TENANT_CREATED' }),
       );
+    });
+
+    it('atomically creates an active Corporate Super Admin account from the primary contact', async () => {
+      mockDb.corporateTenant.findUnique.mockResolvedValue(null);
+      mockDb.corporateTenant.create.mockResolvedValue({
+        id: 'tenant-101',
+        code: 'ACME',
+        name: 'Acme Technologies',
+        legalEntityName: 'Acme Tech India Pvt Ltd',
+        status: 'ACTIVE',
+      });
+      mockDb.user.findFirst.mockResolvedValue(null);
+      mockDb.driver.findFirst.mockResolvedValue(null);
+      mockDb.vendor.findFirst.mockResolvedValue(null);
+      mockDb.user.create.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({
+        id: 'user-101',
+        ...data,
+      }));
+
+      const result = await service.createTenant({
+        code: 'acme',
+        name: 'Acme Technologies',
+        legalEntityName: 'Acme Tech India Pvt Ltd',
+        primaryContactName: 'Ananya Sharma',
+        primaryContactEmail: 'ADMIN@ACME.IN',
+        primaryContactPhone: '9014758927',
+        createPortalAdmin: true,
+      });
+
+      expect(mockDb.user.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          fullName: 'Ananya Sharma',
+          email: 'admin@acme.in',
+          phone: '+919014758927',
+          role: 'CORPORATE_ADMIN',
+          corporateRole: 'CORP_SUPER_ADMIN',
+          corporateTenantId: 'tenant-101',
+          status: 'ACTIVE',
+        }),
+      });
+      expect(result.portalAccess).toEqual({
+        created: true,
+        corporateRole: 'CORP_SUPER_ADMIN',
+        loginMethod: 'SMS_OTP',
+      });
+      expect(mockAudit.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'CORPORATE_USER_INVITED',
+          entityId: 'user-101',
+        }),
+      );
+    });
+
+    it('rejects portal provisioning when the primary contact is incomplete', async () => {
+      await expect(
+        service.createTenant({
+          code: 'ACME',
+          name: 'Acme Technologies',
+          legalEntityName: 'Acme Tech India Pvt Ltd',
+          createPortalAdmin: true,
+        }),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(mockDb.corporateTenant.create).not.toHaveBeenCalled();
+      expect(mockDb.user.create).not.toHaveBeenCalled();
     });
 
     it('should throw ConflictException if tenant code is already registered', async () => {

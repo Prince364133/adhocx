@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { billingApi } from '../../../lib/api/corporate';
 import { InvoiceDetail } from '../../../lib/api/types';
+import { useSession } from '../../../lib/auth/SessionContext';
 
 function formatPaiseToRupees(paise: string | number): string {
   const rupees = Number(paise) / 100;
@@ -29,9 +30,9 @@ function formatPaiseToRupees(paise: string | number): string {
 }
 
 function InvoiceDetailsContent() {
+  const { tenantId: activeTenantId } = useSession();
   const searchParams = useSearchParams();
   const queryId = searchParams.get('id');
-  const activeTenantId = searchParams.get('tenantId') || '9d66820f-280c-400c-98dc-e021d0045b58';
 
   const [loading, setLoading] = useState(true);
   const [invoice, setInvoice] = useState<InvoiceDetail | null>(null);
@@ -39,6 +40,11 @@ function InvoiceDetailsContent() {
 
   useEffect(() => {
     async function fetchInvoice() {
+      if (!activeTenantId) {
+        setInvoice(null);
+        setLoading(false);
+        return;
+      }
       try {
         setLoading(true);
         let targetId = queryId;

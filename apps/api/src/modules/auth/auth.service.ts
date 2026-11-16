@@ -483,6 +483,7 @@ export class AuthService implements OnModuleInit {
       await this.redis.set(`otp:${requestId}:${value}`, otp, expirySeconds);
       await this.redis.set(`otp_direct:${value}`, otp, expirySeconds);
       await this.redis.set(`otp_delay:${value}`, '1', 30);
+      await this.redis.del(`ratelimit:otp_verify:${value}`);
     } catch (_) {}
 
     await this.notifications.sendOtp({
@@ -514,15 +515,6 @@ export class AuthService implements OnModuleInit {
 
     const { isEmail, value } = this.normalizeIdentifier(rawIdentifier, countryCode);
 
-    // A 6-digit code is guessable without a limit: 5 tries per 10 minutes, then the code is voided.
-    await this.enforceAttemptLimit(
-      `otp_verify:${value}`,
-      5,
-      10 * 60,
-      'Too many incorrect codes. Request a new OTP and try again.',
-      () => this.invalidateOtps(value, requestId),
-    );
-
     let cachedOtp: string | null = null;
     try {
       if (requestId) {
@@ -535,10 +527,24 @@ export class AuthService implements OnModuleInit {
 
     const allowTestOtp = process.env.ALLOW_TEST_OTP === 'true';
     const isMasterOtp = allowTestOtp && (otp === '123456' || otp === '528471');
+    const isMatch = isMasterOtp || (Boolean(cachedOtp) && this.otpEquals(cachedOtp!, otp));
 
-    if (!isMasterOtp && (!cachedOtp || !this.otpEquals(cachedOtp, otp))) {
+    if (!isMatch) {
+      // A 6-digit code is guessable without a limit: 5 incorrect tries per 10 minutes, then the code is voided.
+      await this.enforceAttemptLimit(
+        `otp_verify:${value}`,
+        5,
+        10 * 60,
+        'Too many incorrect codes. Request a new OTP and try again.',
+        () => this.invalidateOtps(value, requestId),
+      );
       throw new UnauthorizedException('Invalid or expired OTP code');
     }
+
+    // Reset attempt lockout on successful match
+    try {
+      await this.redis.del(`ratelimit:otp_verify:${value}`);
+    } catch (_) {}
 
     // Single use for sign-in. The forgot-password screen signs in with this code and then submits it
     // again to reset-password, so it survives only as a reset-only code until it expires.
@@ -884,14 +890,6 @@ export class AuthService implements OnModuleInit {
   async resetPassword(dto: ResetPasswordDto) {
     const { isEmail, value, phoneVariants } = this.normalizeIdentifier(dto.identifier);
 
-    await this.enforceAttemptLimit(
-      `otp_verify:${value}`,
-      5,
-      10 * 60,
-      'Too many incorrect codes. Request a new OTP and try again.',
-      () => this.invalidateOtps(value),
-    );
-
     // Verify OTP against Redis cache (a code already used to sign in is still valid here once)
     let cachedOtp: string | null = null;
     let resetOnlyOtp: string | null = null;
@@ -905,8 +903,20 @@ export class AuthService implements OnModuleInit {
 
     const otpOk = isMasterOtp || (cachedOtp && this.otpEquals(cachedOtp, dto.otp)) || (resetOnlyOtp && this.otpEquals(resetOnlyOtp, dto.otp));
     if (!otpOk) {
+      await this.enforceAttemptLimit(
+        `otp_verify:${value}`,
+        5,
+        10 * 60,
+        'Too many incorrect codes. Request a new OTP and try again.',
+        () => this.invalidateOtps(value),
+      );
       throw new UnauthorizedException('Invalid or expired OTP code');
     }
+
+    // Reset attempt lockout on successful match
+    try {
+      await this.redis.del(`ratelimit:otp_verify:${value}`);
+    } catch (_) {}
 
     // Hash new password
     const passwordHash = await this.hashPassword(dto.password);

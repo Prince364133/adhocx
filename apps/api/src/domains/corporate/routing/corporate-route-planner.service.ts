@@ -23,7 +23,7 @@ import { getPhoneVariants, normalizeIndianPhone } from '../../../common/utils/un
 import { istWallClockToUtc } from '../replanning/cutoff-policy';
 import { VEHICLE_CAPACITY } from './routing.types';
 
-/** A plan optimized to an office this far from the saved office is rejected at commit. */
+/** Office pins farther than this from their geocoded address must be corrected before planning or commit. */
 const OFFICE_PLAN_MAX_DRIFT_KM = 2;
 const SUV_CAPACITY = VEHICLE_CAPACITY.SUV;
 const SEDAN_CAPACITY = VEHICLE_CAPACITY.SEDAN;
@@ -159,6 +159,7 @@ export interface PlanRoutesResult {
   suvRouteCount: number;
   officeRadiusKm: number;
   maxTripKm: number;
+  warnings?: string[];
   outOfRadiusCount: number;
   excludedByDistanceCount: number;
   excludedByDistance: Array<{
@@ -469,14 +470,41 @@ export class CorporateRoutePlannerService {
       for (const [key, result] of newGeocodes) geocodeMap.set(key, result);
     }
 
+    const officeWarnings: string[] = [];
     if (dbOfficeCoords && sharedOffice) {
-      geocodeMap.set(sharedOffice.toLowerCase(), {
-        lat: dbOfficeCoords.lat,
-        lng: dbOfficeCoords.lng,
-        matchedAddress: sharedOffice,
-        partialMatch: false,
-        isRealGeocode: true,
-      });
+      const geocodedOffice = geocodeMap.get(sharedOffice.toLowerCase());
+      if (geocodedOffice?.isRealGeocode) {
+        const driftKm = haversineKm(dbOfficeCoords, geocodedOffice);
+        if (driftKm > OFFICE_PLAN_MAX_DRIFT_KM) {
+          const warning =
+            `Saved office pin for "${sharedOffice}" differs from the geocoded address by ${driftKm.toFixed(1)} km. ` +
+            'This preview uses the geocoded address; update the saved office pin before committing.';
+          officeWarnings.push(warning);
+          this.logger.warn(warning);
+          onProgress?.('office_location_mismatch', 50, warning, {
+            officeAddress: sharedOffice,
+            driftKm: Number(driftKm.toFixed(1)),
+            savedCoordinates: dbOfficeCoords,
+            previewCoordinates: { lat: geocodedOffice.lat, lng: geocodedOffice.lng },
+          });
+        } else {
+          geocodeMap.set(sharedOffice.toLowerCase(), {
+            lat: dbOfficeCoords.lat,
+            lng: dbOfficeCoords.lng,
+            matchedAddress: sharedOffice,
+            partialMatch: false,
+            isRealGeocode: true,
+          });
+        }
+      } else {
+        geocodeMap.set(sharedOffice.toLowerCase(), {
+          lat: dbOfficeCoords.lat,
+          lng: dbOfficeCoords.lng,
+          matchedAddress: sharedOffice,
+          partialMatch: false,
+          isRealGeocode: true,
+        });
+      }
     }
 
     const offices = Array.from(officesByKey.values()).map((office) => {
@@ -632,6 +660,7 @@ export class CorporateRoutePlannerService {
       suvRouteCount: routes.filter((route) => route.cabType?.toUpperCase() === 'SUV').length,
       officeRadiusKm: config.officeRadiusKm,
       maxTripKm,
+      warnings: officeWarnings,
       outOfRadiusCount,
       excludedByDistanceCount: excludedByDistance.length,
       excludedByDistance,
@@ -1343,7 +1372,7 @@ export class CorporateRoutePlannerService {
     const addrIdx = this.findPickupAddressColumn(headers);
     const officeIdx = headers.findIndex((h) => ['office_address', 'office_destination', 'destination_address', 'destination', 'office'].some((alias) => h.startsWith(alias)));
     const arrivalDateIdx = headers.findIndex((h) =>
-      ['required_arrival_date', 'arrival_date', 'login_date', 'shift_date', 'scheduled_date', 'schedule_date', 'work_date']
+      ['required_arrival_date', 'arrival_date', 'login_date', 'shift_date', 'scheduled_date', 'schedule_date', 'work_date', 'roster_date']
         .some((alias) => h === alias || h.startsWith(`${alias}_`)),
     );
     const arrivalTimeIdx = headers.findIndex((h) =>
@@ -1500,7 +1529,7 @@ export class CorporateRoutePlannerService {
 
       headers.forEach((name, index) => {
         if (['office_address', 'office_destination', 'destination_address', 'destination', 'office'].some((alias) => name.startsWith(alias))) officeCol = index;
-        if (['required_arrival_date', 'arrival_date', 'login_date', 'shift_date', 'scheduled_date', 'schedule_date', 'work_date'].some((alias) => name === alias || name.startsWith(`${alias}_`))) arrivalDateCol = index;
+        if (['required_arrival_date', 'arrival_date', 'login_date', 'shift_date', 'scheduled_date', 'schedule_date', 'work_date', 'roster_date'].some((alias) => name === alias || name.startsWith(`${alias}_`))) arrivalDateCol = index;
         if (
           ['required_arrival_time', 'arrival_time', 'login_time', 'deadline', 'reporting_time', 'office_login_time', 'shift_time', 'shift_start_time', 'start_time']
             .some((alias) => name === alias || name.includes(alias)) ||

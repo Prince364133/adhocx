@@ -1,269 +1,199 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import {
-  CalendarClock,
-  Clock,
-  Users,
-  Repeat,
-  Plus,
-  Settings,
-  Edit2,
-  CheckCircle2,
-  Loader2,
-  RefreshCw,
-} from 'lucide-react';
-import { schedulingApi } from '../../../lib/api/corporate';
+import React, { useCallback, useEffect, useState } from 'react';
+import { CalendarClock, Clock, Plus, RefreshCw } from 'lucide-react';
+import { schedulingApi, tenantApi } from '../../../lib/api/corporate';
+import type { Office, ShiftTemplate } from '../../../lib/api/types';
 import { useSession } from '../../../lib/auth/SessionContext';
 
-interface ShiftTemplateItem {
-  id: string;
-  name: string;
-  iconColor: string;
-  type: 'Fixed' | 'Rotating';
-  loginTime: string;
-  logoutTime: string;
-  duration: string;
-  assignedEmployees: number;
-  status: 'Active' | 'Inactive';
-}
+const weekdays = [
+  { day: 1, label: 'Mon' },
+  { day: 2, label: 'Tue' },
+  { day: 3, label: 'Wed' },
+  { day: 4, label: 'Thu' },
+  { day: 5, label: 'Fri' },
+  { day: 6, label: 'Sat' },
+  { day: 7, label: 'Sun' },
+];
 
 export default function ShiftManagementPage() {
   const { tenantId } = useSession();
-  const activeTenantId = tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
-
-  const [shifts, setShifts] = useState<ShiftTemplateItem[]>([]);
+  const [shifts, setShifts] = useState<ShiftTemplate[]>([]);
+  const [offices, setOffices] = useState<Office[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    officeId: '',
+    name: '',
+    loginTime: '',
+    logoutTime: '',
+    weekdays: [] as number[],
+  });
 
   const loadShifts = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const res = await schedulingApi.shiftTemplates(activeTenantId);
-      if (Array.isArray(res)) {
-        setShifts(
-          res.map((s, idx) => ({
-            id: s.id,
-            name: s.name,
-            iconColor: ['#3B82F6', '#F59E0B', '#8B5CF6', '#10B981', '#06B6D4'][idx % 5],
-            type: ((s as any).type === 'Rotating' ? 'Rotating' : 'Fixed') as 'Fixed' | 'Rotating',
-            loginTime: s.loginTime || '09:00 AM',
-            logoutTime: s.logoutTime || '06:00 PM',
-            duration: (s as any).duration || '9 hr',
-            assignedEmployees: (s as any).assignedEmployees || 0,
-            status: s.isActive !== false ? 'Active' : 'Inactive',
-          })),
-        );
-      } else {
-        setShifts([]);
-      }
-    } catch (err) {
-      console.warn('Failed to load shifts:', err);
+    if (!tenantId) {
       setShifts([]);
+      setOffices([]);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    try {
+      const [shiftTemplates, officeList] = await Promise.all([
+        schedulingApi.shiftTemplates(tenantId),
+        tenantApi.offices(tenantId),
+      ]);
+      setShifts(shiftTemplates);
+      setOffices(officeList);
+    } catch (err) {
+      console.error('Failed to load shift templates:', err);
+      setError('Unable to load tenant shift templates. Please try again.');
     } finally {
       setIsLoading(false);
     }
-  }, [activeTenantId]);
+  }, [tenantId]);
 
   useEffect(() => {
-    loadShifts();
+    void loadShifts();
   }, [loadShifts]);
 
+  const createShift = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!tenantId) return;
+    if (!form.officeId || !form.name.trim() || !form.loginTime || !form.logoutTime || form.weekdays.length === 0) {
+      setFormError('Complete the fields and select at least one weekday.');
+      return;
+    }
+
+    setIsSaving(true);
+    setFormError(null);
+    try {
+      await schedulingApi.createShiftTemplate(tenantId, {
+        officeId: form.officeId,
+        name: form.name.trim(),
+        loginTime: form.loginTime,
+        logoutTime: form.logoutTime,
+        weekdays: form.weekdays,
+      });
+      setShowCreateForm(false);
+      setForm({ officeId: '', name: '', loginTime: '', logoutTime: '', weekdays: [] });
+      await loadShifts();
+    } catch (err) {
+      console.error('Failed to create shift template:', err);
+      setFormError('Unable to create the shift template. Check the details and try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const toggleWeekday = (day: number) => {
+    setForm((current) => ({
+      ...current,
+      weekdays: current.weekdays.includes(day)
+        ? current.weekdays.filter((value) => value !== day)
+        : [...current.weekdays, day].sort((a, b) => a - b),
+    }));
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* Title & Action Buttons Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
             Shift Management
           </h1>
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-            Create and manage shift templates, timings and transport policies
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 }}>
+            Saved tenant shift templates and working days
           </p>
         </div>
-
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button
-            onClick={() => loadShifts()}
-            disabled={isLoading}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              backgroundColor: 'var(--bg-surface)',
-              color: 'var(--text-secondary)',
-              border: '1px solid var(--border-strong)',
-              borderRadius: 'var(--radius-md)',
-              padding: '8px 12px',
-              fontSize: '13px',
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            <RefreshCw size={14} className={isLoading ? 'spin' : ''} />
-            <span>Sync</span>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button type="button" onClick={() => void loadShifts()} disabled={isLoading} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', border: '1px solid var(--border-strong)', borderRadius: 6 }}>
+            <RefreshCw size={14} /> Refresh
           </button>
-
-          <button
-            onClick={() => alert('New Shift Template: Connects to POST /corporate/scheduling/shift-templates')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              backgroundColor: '#5728B2',
-              color: '#FFFFFF',
-              border: 'none',
-              borderRadius: 'var(--radius-md)',
-              padding: '8px 16px',
-              fontSize: '13px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              boxShadow: '0 2px 4px rgba(87, 40, 178,0.25)',
-            }}
-          >
-            <Plus size={16} />
-            <span>Create Shift Template</span>
+          <button type="button" onClick={() => setShowCreateForm((shown) => !shown)} disabled={!tenantId} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', border: 0, borderRadius: 6, background: '#5728B2', color: '#fff' }}>
+            <Plus size={16} /> Create template
           </button>
         </div>
       </div>
 
-      {/* Shift Templates List */}
-      <div className="surface-card" style={{ padding: '20px', backgroundColor: 'var(--bg-surface)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-          <h2 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)' }}>
-            Active Shift Schedules ({shifts.length})
-          </h2>
-        </div>
+      {error && <div role="alert" className="surface-card" style={{ padding: 14, color: '#B91C1C' }}>{error}</div>}
 
+      {showCreateForm && (
+        <form onSubmit={createShift} className="surface-card" style={{ padding: 20, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 }}>
+            Office
+            <select required value={form.officeId} onChange={(event) => setForm((current) => ({ ...current, officeId: event.target.value }))} style={{ height: 36, padding: '0 8px' }}>
+              <option value="">Select office</option>
+              {offices.map((office) => <option key={office.id} value={office.id}>{office.name}</option>)}
+            </select>
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 }}>
+            Template name
+            <input required value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} style={{ height: 36, padding: '0 8px' }} />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 }}>
+            Login time
+            <input required type="time" value={form.loginTime} onChange={(event) => setForm((current) => ({ ...current, loginTime: event.target.value }))} style={{ height: 36, padding: '0 8px' }} />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 }}>
+            Logout time
+            <input required type="time" value={form.logoutTime} onChange={(event) => setForm((current) => ({ ...current, logoutTime: event.target.value }))} style={{ height: 36, padding: '0 8px' }} />
+          </label>
+          <fieldset style={{ gridColumn: '1 / -1', display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+            <legend>Working days</legend>
+            {weekdays.map(({ day, label }) => (
+              <label key={day} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <input type="checkbox" checked={form.weekdays.includes(day)} onChange={() => toggleWeekday(day)} />
+                {label}
+              </label>
+            ))}
+          </fieldset>
+          {formError && <div role="alert" style={{ gridColumn: '1 / -1', color: '#B91C1C' }}>{formError}</div>}
+          <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <button type="button" onClick={() => setShowCreateForm(false)} disabled={isSaving}>Cancel</button>
+            <button type="submit" disabled={isSaving}>{isSaving ? 'Saving...' : 'Save template'}</button>
+          </div>
+        </form>
+      )}
+
+      <section className="surface-card" style={{ padding: 20 }}>
+        <h2 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)', marginTop: 0 }}>
+          Shift templates ({shifts.length})
+        </h2>
         {isLoading ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px', gap: '10px', color: 'var(--text-secondary)' }}>
-            <Loader2 size={20} className="spin" />
-            <span style={{ fontSize: '14px', fontWeight: 600 }}>Loading shift templates...</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40, gap: 10, color: 'var(--text-secondary)' }}>
+            <Clock size={18} /> Loading tenant shift templates...
           </div>
         ) : shifts.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>
-            <CalendarClock size={40} color="#94A3B8" style={{ marginBottom: 12 }} />
-            <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>No shift templates created</h3>
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: 16 }}>
-              Define login and logout windows for your facility to begin roster assignment.
-            </p>
-            <button
-              onClick={() => alert('Create shift template modal')}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                backgroundColor: '#5728B2',
-                color: '#FFFFFF',
-                borderRadius: 6,
-                padding: '8px 16px',
-                fontSize: 13,
-                fontWeight: 700,
-                border: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              <Plus size={15} />
-              <span>Create Shift Template</span>
-            </button>
+          <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>
+            <CalendarClock size={32} style={{ marginBottom: 8 }} />
+            <p>No shift templates are configured for this tenant.</p>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {shifts.map((shift) => (
-              <div
-                key={shift.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '14px 18px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--border-subtle)',
-                  backgroundColor: 'var(--bg-surface)',
-                  flexWrap: 'wrap',
-                  gap: '14px',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 200 }}>
-                  <div
-                    style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: '8px',
-                      backgroundColor: `${shift.iconColor}15`,
-                      color: shift.iconColor,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Clock size={20} />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)' }}>
-                      {shift.name}
-                    </div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                      {shift.loginTime} — {shift.logoutTime}
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '24px', flexWrap: 'wrap' }}>
-                  <div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Shift Duration</div>
-                    <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{shift.duration}</div>
-                  </div>
-
-                  <div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Assigned Headcount</div>
-                    <div style={{ fontSize: '13px', fontWeight: 700, color: '#5728B2' }}>
-                      {shift.assignedEmployees > 0 ? `${shift.assignedEmployees.toLocaleString()} employees` : 'General Pool'}
-                    </div>
-                  </div>
-
-                  <div>
-                    <span
-                      style={{
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        padding: '3px 8px',
-                        borderRadius: '4px',
-                        backgroundColor: shift.status === 'Active' ? '#DCFCE7' : '#F1F5F9',
-                        color: shift.status === 'Active' ? '#16A34A' : '#64748B',
-                        border: `1px solid ${shift.status === 'Active' ? '#86EFAC' : '#CBD5E1'}`,
-                      }}
-                    >
-                      {shift.status}
-                    </span>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <button
-                      onClick={() => alert(`Edit shift ${shift.name}`)}
-                      style={{
-                        padding: '6px 12px',
-                        borderRadius: '6px',
-                        border: '1px solid var(--border-strong)',
-                        backgroundColor: 'transparent',
-                        color: 'var(--text-secondary)',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                      }}
-                    >
-                      <Edit2 size={13} />
-                      <span>Edit</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
+          <div className="table-scroll">
+            <table className="data-table">
+              <thead><tr><th>Template</th><th>Office</th><th>Login</th><th>Logout</th><th>Working days</th><th>Status</th></tr></thead>
+              <tbody>
+                {shifts.map((shift) => (
+                  <tr key={shift.id}>
+                    <td>{shift.name}</td>
+                    <td>{offices.find((office) => office.id === shift.officeId)?.name ?? '—'}</td>
+                    <td>{shift.loginTime}</td>
+                    <td>{shift.logoutTime}</td>
+                    <td>{shift.weekdays?.map((day) => weekdays.find((item) => item.day === day)?.label ?? day).join(', ') || '—'}</td>
+                    <td>{shift.isActive ? 'Active' : 'Inactive'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }

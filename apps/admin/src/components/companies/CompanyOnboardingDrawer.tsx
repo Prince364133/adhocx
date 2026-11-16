@@ -90,7 +90,7 @@ export function CompanyOnboardingDrawer({
 }: {
   isOpen: boolean;
   onClose: () => void;
-  onCreated: (companyId: string, logoUploadFailed: boolean) => void;
+  onCreated: (companyId: string, logoUploadFailed: boolean, portalAccessCreated: boolean) => void;
 }) {
   const [draft, setDraft] = useState<CompanyDraft>(EMPTY_DRAFT);
   const [logo, setLogo] = useState<File | null>(null);
@@ -142,6 +142,7 @@ export function CompanyOnboardingDrawer({
         primaryContactName: draft.primaryContactName?.trim(),
         primaryContactEmail: draft.primaryContactEmail?.trim(),
         primaryContactPhone: draft.primaryContactPhone?.trim(),
+        createPortalAdmin: true,
         billingAddress: draft.billingSameAsRegistered ? undefined : draft.billingAddress?.trim(),
         billingSameAsRegistered: Boolean(draft.billingSameAsRegistered),
       };
@@ -156,7 +157,7 @@ export function CompanyOnboardingDrawer({
       }
       setDraft(EMPTY_DRAFT);
       setLogo(null);
-      onCreated(company.id, logoUploadFailed);
+      onCreated(company.id, logoUploadFailed, company.portalAccess?.created === true);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Company onboarding failed.');
     } finally {
@@ -169,7 +170,7 @@ export function CompanyOnboardingDrawer({
       isOpen={isOpen}
       onClose={saving ? () => undefined : onClose}
       title="Onboard a company"
-      subtitle="Add the organization's identity and legal details. Offices, departments, zones, and users can be set up in its profile."
+      subtitle="The primary contact is also created as an active Corporate Super Admin and can sign in using SMS OTP. Offices, departments, and zones can be set up in its profile."
       width="680px"
       footer={
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>

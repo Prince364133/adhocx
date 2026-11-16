@@ -175,19 +175,28 @@ export default function RouteOptimizerPage() {
         const items = res?.items ?? [];
         if (cancelled) return;
         setTenants(items);
-        if (items.length > 0) {
-          const requestedTenantId =
-            typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tenantId') : null;
-          let tenant = (requestedTenantId && items.find((item) => item.id === requestedTenantId)) || items[0];
+        const requestedTenantId =
+          typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tenantId') : null;
+        let tenant: CorporateTenantOption | undefined;
+        if (requestedTenantId) {
+          tenant = items.find((item) => item.id === requestedTenantId) ?? await opsApi.getTenant(requestedTenantId);
+        } else {
+          tenant = items[0];
+        }
+        if (tenant) {
           setUploadCompanyLoading(true);
           setSelectedTenantId(tenant.id);
           setSelectedUploadTenantId(tenant.id);
           if (!tenant.offices?.length) {
             tenant = await opsApi.getTenant(tenant.id);
             if (cancelled) return;
-            setTenants((current) => current.map((item) => item.id === tenant.id ? tenant : item));
           }
-          const office = tenant.offices?.[0];
+          const selectedTenant = tenant;
+          setTenants((current) => [
+            selectedTenant,
+            ...current.filter((item) => item.id !== selectedTenant.id),
+          ]);
+          const office = selectedTenant.offices?.[0];
           setSelectedOfficeId(office?.id ?? '');
           if (office?.addressText || office?.name) setOfficeAddress(office.addressText || office.name);
           const policyDwell = tenant.policies?.[0]?.stopDwellMinutes;
@@ -629,6 +638,7 @@ export default function RouteOptimizerPage() {
               .map((office) => [`${office.name.trim().toLowerCase()}|${office.lat}|${office.lng}`, office] as const),
           ).values(),
         ),
+        warnings: collectedPlans.flatMap(({ plan }) => plan.warnings ?? []),
         routes: collectedPlans.flatMap(({ direction: routeDirection, plan }) =>
           plan.routes.map((route) => ({ ...route, direction: routeDirection, cab: nextCabNumber++ })),
         ),
@@ -937,6 +947,27 @@ export default function RouteOptimizerPage() {
           </Button>
         </div>
       </div>
+
+      {planResult?.warnings?.map((warning) => (
+        <div
+          key={warning}
+          role="alert"
+          style={{
+            padding: '12px 16px',
+            borderRadius: 'var(--radius-md, 8px)',
+            backgroundColor: 'var(--color-warning-bg, #FFF7ED)',
+            border: '1px solid var(--color-warning-border, #FDBA74)',
+            color: 'var(--color-warning, #9A3412)',
+            fontSize: '13px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}
+        >
+          <AlertTriangle size={16} />
+          <span>{warning}</span>
+        </div>
+      ))}
 
       {/* KPI HUD Strip (Appears when plan is calculated) */}
       {planResult && !useTopologyFallback && (

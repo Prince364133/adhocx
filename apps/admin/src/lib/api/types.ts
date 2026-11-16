@@ -82,11 +82,12 @@ export interface CreateCorporateTenantInput {
   primaryContactName?: string;
   primaryContactEmail?: string;
   primaryContactPhone?: string;
+  createPortalAdmin?: boolean;
   billingAddress?: string;
   billingSameAsRegistered?: boolean;
 }
 
-export type UpdateCorporateTenantInput = Partial<Omit<CreateCorporateTenantInput, 'code'>> & {
+export type UpdateCorporateTenantInput = Partial<Omit<CreateCorporateTenantInput, 'code' | 'createPortalAdmin'>> & {
   status?: CorporateTenantListItem['status'];
 };
 

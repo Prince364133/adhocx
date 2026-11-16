@@ -1,34 +1,21 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  UploadCloud,
   FileSpreadsheet,
   Download,
   Trash2,
-  CheckCircle2,
   ArrowRight,
-  Info,
-  Calendar,
 } from 'lucide-react';
 import { rosterApi } from '../../../lib/api/corporate';
+import type { RosterValidationResult } from '../../../lib/api/types';
 import { useSession } from '../../../lib/auth/SessionContext';
-
-interface PreviewRow {
-  empId: string;
-  name: string;
-  shift: string;
-  shiftColor: string;
-  office: string;
-  date: string;
-}
 
 export default function RosterImportPreviewPage() {
   const router = useRouter();
   const { tenantId } = useSession();
-  const activeTenantId = tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+  const activeTenantId = tenantId;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<{
@@ -36,11 +23,19 @@ export default function RosterImportPreviewPage() {
     name: string;
     size: string;
   } | null>(null);
-  const [previewRows, setPreviewRows] = useState<PreviewRow[]>([]);
+  const [validation, setValidation] = useState<RosterValidationResult | null>(null);
   const [isValidating, setIsValidating] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
+      if (!activeTenantId) {
+        setValidation(null);
+        setError('No tenant is selected for roster import.');
+        setIsValidating(false);
+        return;
+      }
       const file = e.target.files[0];
       const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
       setSelectedFile({
@@ -49,17 +44,43 @@ export default function RosterImportPreviewPage() {
         size: `${sizeMb} MB`,
       });
 
+      setValidation(null);
+      setError(null);
       setIsValidating(true);
       try {
         const res = await rosterApi.validate(activeTenantId, file);
-        if (res && (res as any).previewRows) {
-          setPreviewRows((res as any).previewRows);
-        }
+        setValidation(res);
       } catch (err) {
-        console.warn('Validation error:', err);
+        console.error('Roster validation failed:', err);
+        setError('Unable to validate this roster file. Check its format and try again.');
       } finally {
         setIsValidating(false);
       }
+    }
+  };
+
+  const downloadTemplate = async () => {
+    setError(null);
+    try {
+      await rosterApi.downloadTemplate();
+    } catch (err) {
+      console.error('Failed to download roster template:', err);
+      setError('Unable to download the roster template. Please try again.');
+    }
+  };
+
+  const uploadDraft = async () => {
+    if (!activeTenantId || !selectedFile || !validation?.isValid) return;
+    setIsUploading(true);
+    setError(null);
+    try {
+      await rosterApi.upload(activeTenantId, selectedFile.file, 'draft');
+      router.push('/rosters/approve');
+    } catch (err) {
+      console.error('Roster draft upload failed:', err);
+      setError('Unable to save this roster as a draft. Please retry.');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -177,18 +198,30 @@ export default function RosterImportPreviewPage() {
                     {selectedFile.name}
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                    {selectedFile.size} · Validating columns & employee IDs
+                    {selectedFile.size} · {isValidating ? 'Validating file...' : validation ? 'Validation complete' : 'Not validated'}
                   </div>
                 </div>
               </div>
 
-              <Trash2 size={14} color="#DC2626" style={{ cursor: 'pointer' }} onClick={() => setSelectedFile(null)} />
+              <button
+                type="button"
+                aria-label="Remove selected roster file"
+                onClick={() => {
+                  setSelectedFile(null);
+                  setValidation(null);
+                  if (fileInputRef.current) fileInputRef.current.value = '';
+                }}
+                style={{ border: 0, background: 'transparent', cursor: 'pointer' }}
+              >
+                <Trash2 size={14} color="#DC2626" />
+              </button>
             </div>
           )}
 
           <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <button
-              onClick={() => alert('Downloading Roster Template (Excel)')}
+              type="button"
+              onClick={() => void downloadTemplate()}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -208,8 +241,9 @@ export default function RosterImportPreviewPage() {
             </button>
 
             <button
-              onClick={() => router.push('/rosters/approve')}
-              disabled={!selectedFile}
+              type="button"
+              onClick={() => void uploadDraft()}
+              disabled={!selectedFile || !validation?.isValid || isValidating || isUploading}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -225,7 +259,7 @@ export default function RosterImportPreviewPage() {
                 boxShadow: selectedFile ? '0 2px 4px rgba(87, 40, 178,0.25)' : 'none',
               }}
             >
-              <span>Validate & Review</span>
+              <span>{isUploading ? 'Saving draft...' : 'Save draft & review'}</span>
               <ArrowRight size={14} />
             </button>
           </div>
@@ -239,57 +273,47 @@ export default function RosterImportPreviewPage() {
                 Import Preview
               </h3>
               <p style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                Column mapping verified against tenant shifts
+                Validation results returned by the roster API
               </p>
             </div>
-            {selectedFile && (
-              <span style={{ fontSize: '11px', fontWeight: 700, color: '#16A34A', backgroundColor: '#DCFCE7', padding: '2px 8px', borderRadius: '4px' }}>
-                ✓ Ready for Validation
-              </span>
-            )}
+            {validation && <span>{validation.isValid ? 'Valid' : 'Invalid'}</span>}
           </div>
 
-          {previewRows.length === 0 ? (
+          {error && <div role="alert" style={{ marginBottom: 12, color: '#B91C1C' }}>{error}</div>}
+          {isValidating ? (
+            <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-secondary)' }}>Validating roster file...</div>
+          ) : !validation ? (
             <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13 }}>
-              Select a roster spreadsheet to preview parsed rows.
+              Select a roster spreadsheet to validate its rows.
             </div>
           ) : (
-            <div className="table-scroll">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Employee ID</th>
-                    <th>Employee Name</th>
-                    <th>Shift</th>
-                    <th>Office</th>
-                    <th>Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {previewRows.map((row) => (
-                    <tr key={row.empId}>
-                      <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{row.empId}</td>
-                      <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{row.name}</td>
-                      <td>
-                        <span
-                          style={{
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            padding: '2px 8px',
-                            borderRadius: '4px',
-                            backgroundColor: `${row.shiftColor}18`,
-                            color: row.shiftColor,
-                          }}
-                        >
-                          {row.shift}
-                        </span>
-                      </td>
-                      <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{row.office}</td>
-                      <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{row.date}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 16 }}>
+                <span>Total rows: {validation.totalRows}</span>
+                <span>Valid rows: {validation.validRows}</span>
+                <span>Invalid rows: {validation.invalidRows}</span>
+                <span>Login requests: {validation.loginRequestsCount}</span>
+                <span>Logout requests: {validation.logoutRequestsCount}</span>
+              </div>
+              {validation.errors.length === 0 ? (
+                <p style={{ color: 'var(--text-secondary)' }}>No validation errors returned.</p>
+              ) : (
+                <div className="table-scroll">
+                  <table className="data-table">
+                    <thead><tr><th>Row</th><th>Field</th><th>Value</th><th>Issue</th></tr></thead>
+                    <tbody>
+                      {validation.errors.map((item, index) => (
+                        <tr key={`${item.rowNumber}-${item.field}-${index}`}>
+                          <td>{item.rowNumber}</td>
+                          <td>{item.field}</td>
+                          <td>{String(item.invalidValue ?? '—')}</td>
+                          <td>{item.message}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
         </div>

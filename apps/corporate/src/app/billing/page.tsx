@@ -7,19 +7,15 @@ import {
   CheckCircle2,
   AlertCircle,
   FileText,
-  AlertTriangle,
-  Download,
-  Plus,
   Scale,
   Receipt,
-  Layers,
 } from 'lucide-react';
 import { billingApi } from '../../lib/api/corporate';
 import { Invoice, InvoiceDispute } from '../../lib/api/types';
 import { MetricCard } from '../../components/common/MetricCard';
 import { FilterBar } from '../../components/common/FilterBar';
-import { DonutChart } from '../../components/charts/DonutChart';
 import { AreaTrendChart } from '../../components/charts/AreaTrendChart';
+import { useSession } from '../../lib/auth/SessionContext';
 
 function formatPaiseToRupees(paise: string | number): string {
   const rupees = Number(paise) / 100;
@@ -30,24 +26,28 @@ function formatPaiseToRupees(paise: string | number): string {
   }).format(rupees);
 }
 
-interface PageProps {
-  searchParams?: { tenantId?: string };
-}
-
-export default function BillingOverviewPage({ searchParams }: PageProps) {
-  const activeTenantId = searchParams?.tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+export default function BillingOverviewPage() {
+  const { tenantId: activeTenantId } = useSession();
   const [loading, setLoading] = useState(true);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [disputes, setDisputes] = useState<InvoiceDispute[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadBilling() {
-      if (!activeTenantId) return;
+      if (!activeTenantId) {
+        setInvoices([]);
+        setDisputes([]);
+        setLoadError(null);
+        setLoading(false);
+        return;
+      }
       try {
         setLoading(true);
+        setLoadError(null);
         const [invRes, dispRes] = await Promise.all([
           billingApi.invoices(activeTenantId, { limit: 100 }),
-          billingApi.disputes(activeTenantId).catch(() => []),
+          billingApi.disputes(activeTenantId),
         ]);
         setInvoices(invRes.items || []);
         setDisputes(dispRes || []);
@@ -55,6 +55,7 @@ export default function BillingOverviewPage({ searchParams }: PageProps) {
         console.error('Failed to load corporate billing overview:', err);
         setInvoices([]);
         setDisputes([]);
+        setLoadError(err instanceof Error ? err.message : 'Failed to load billing data.');
       } finally {
         setLoading(false);
       }
@@ -71,34 +72,27 @@ export default function BillingOverviewPage({ searchParams }: PageProps) {
     .reduce((acc, inv) => acc + (Number(inv.totalAmountPaise) || 0), 0);
   const outstandingPaise = totalBilledPaise > paidAmountPaise ? totalBilledPaise - paidAmountPaise : 0;
 
-  const paidPct = totalBilledPaise > 0 
-    ? Math.round((paidAmountPaise * 100) / totalBilledPaise) 
-    : 100;
+  const paidPct = totalBilledPaise > 0
+    ? Math.round((paidAmountPaise * 100) / totalBilledPaise)
+    : null;
 
   // Monthly billing aggregation
-  const monthMap = new Map<string, number>();
+  const monthMap = new Map<string, { day: string; trips: number }>();
   invoices.forEach((inv) => {
-    const month = new Date(inv.createdAt).toLocaleString('default', { month: 'short', year: '2-digit' });
-    const amount = Number((Number(inv.totalAmountPaise) || 0) / 100 / 1000); // in thousands
-    monthMap.set(month, (monthMap.get(month) || 0) + amount);
+    const date = new Date(inv.createdAt);
+    if (Number.isNaN(date.getTime())) return;
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    const month = monthMap.get(key) ?? {
+      day: date.toLocaleString('default', { month: 'short', year: '2-digit' }),
+      trips: 0,
+    };
+    month.trips += (Number(inv.totalAmountPaise) || 0) / 100 / 1000;
+    monthMap.set(key, month);
   });
 
-  const billingTrend = monthMap.size > 0
-    ? Array.from(monthMap.entries()).map(([day, trips]) => ({ day, trips }))
-    : [
-        { day: 'Jul', trips: 0 },
-        { day: 'Aug', trips: 0 },
-        { day: 'Sep', trips: 0 },
-        { day: 'Oct', trips: 0 },
-        { day: 'Nov', trips: 0 },
-        { day: 'Dec', trips: 0 },
-      ];
-
-  const breakdownDonut = [
-    { label: 'Employee Trips (Roster)', count: Math.round((totalBilledPaise / 100) * 0.75), pct: 75, color: '#5728B2' },
-    { label: 'Ad-hoc Commutes', count: Math.round((totalBilledPaise / 100) * 0.15), pct: 15, color: '#8B5CF6' },
-    { label: 'Re-routes & Waiting', count: Math.round((totalBilledPaise / 100) * 0.10), pct: 10, color: '#06B6D4' },
-  ];
+  const billingTrend = Array.from(monthMap.entries())
+    .sort(([first], [second]) => first.localeCompare(second))
+    .map(([, month]) => month);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -119,34 +113,36 @@ export default function BillingOverviewPage({ searchParams }: PageProps) {
         />
       </div>
 
+      {loadError && <div role="alert" className="surface-card" style={{ padding: 16, color: '#B91C1C' }}>{loadError}</div>}
+
       {/* 5 KPI Metric Cards */}
       <div className="metric-grid">
         <MetricCard
           label="Total Billed"
-          value={loading ? '...' : formatPaiseToRupees(totalBilledPaise)}
+          value={loading ? '...' : invoices.length ? formatPaiseToRupees(totalBilledPaise) : '—'}
           icon={<IndianRupee size={18} />}
           highlightColor="#5728B2"
         />
         <MetricCard
           label="Paid Amount"
-          value={loading ? '...' : formatPaiseToRupees(paidAmountPaise)}
-          subtext={`${paidPct}% Settled`}
+          value={loading ? '...' : invoices.length ? formatPaiseToRupees(paidAmountPaise) : '—'}
+          subtext={paidPct === null ? 'No invoice totals' : `${paidPct}% Settled`}
           icon={<CheckCircle2 size={18} />}
-          trend={{ value: `${paidPct}%`, isPositive: paidPct >= 80 }}
+          trend={paidPct === null ? undefined : { value: `${paidPct}%`, isPositive: paidPct >= 80 }}
           highlightColor="#16A34A"
         />
         <MetricCard
           label="Outstanding"
           value={loading ? '...' : formatPaiseToRupees(outstandingPaise)}
-          subtext={outstandingPaise > 0 ? 'Balance Due' : 'Zero Balance'}
+          subtext={outstandingPaise > 0 ? 'Balance Due' : invoices.length ? 'No outstanding balance' : 'No invoices'}
           icon={<AlertCircle size={18} />}
-          trend={{ value: outstandingPaise > 0 ? 'Pending' : 'Cleared', isAlert: outstandingPaise > 0 }}
+          trend={invoices.length ? { value: outstandingPaise > 0 ? 'Pending' : 'Cleared', isAlert: outstandingPaise > 0 } : undefined}
           highlightColor="#D97706"
         />
         <MetricCard
           label="Total Invoices"
           value={loading ? '...' : String(invoices.length)}
-          subtext="Generated to date"
+          subtext="From saved invoices"
           icon={<Receipt size={18} />}
           highlightColor="#8B5CF6"
         />
@@ -155,7 +151,7 @@ export default function BillingOverviewPage({ searchParams }: PageProps) {
           value={loading ? '...' : String(disputes.length)}
           subtext={disputes.filter((d) => d.status === 'OPEN').length + ' Open'}
           icon={<Scale size={18} />}
-          trend={{ value: `${disputes.length} active`, isAlert: disputes.length > 0 }}
+          trend={{ value: `${disputes.filter((dispute) => dispute.status === 'OPEN').length} open`, isAlert: disputes.some((dispute) => dispute.status === 'OPEN') }}
           highlightColor="#DC2626"
         />
       </div>
@@ -188,12 +184,18 @@ export default function BillingOverviewPage({ searchParams }: PageProps) {
             </span>
           </div>
 
-          <AreaTrendChart
-            data={billingTrend}
-            height={210}
-            lineColor="#5728B2"
-            metricLabel="k"
-          />
+          {billingTrend.length > 0 ? (
+            <AreaTrendChart
+              data={billingTrend}
+              height={210}
+              lineColor="#5728B2"
+              metricLabel="k"
+            />
+          ) : (
+            <p style={{ padding: '56px 0', textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13 }}>
+              No invoice history is available for this tenant.
+            </p>
+          )}
         </div>
 
         {/* Right: Cost Breakdown Donut */}
@@ -204,18 +206,13 @@ export default function BillingOverviewPage({ searchParams }: PageProps) {
                 Cost Breakdown
               </h2>
               <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                Expenditure classified across roster and ad-hoc operations
+                Invoice summaries do not include category totals.
               </p>
             </div>
           </div>
-
-          <DonutChart
-            totalLabel="Total Spend"
-            totalValue={formatPaiseToRupees(totalBilledPaise)}
-            segments={breakdownDonut}
-            size={185}
-            thickness={22}
-          />
+          <div style={{ minHeight: 185, display: 'grid', placeItems: 'center', color: 'var(--text-secondary)', fontSize: 13, textAlign: 'center' }}>
+            Category breakdown is unavailable from the current billing summary API.
+          </div>
         </div>
       </div>
 

@@ -290,7 +290,7 @@ export class CorporateSupportTicketController {
 
 @ApiTags('OPS - Support Tickets')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, CorporateAccessGuard)
 @Controller('ops/support/tickets')
 export class OpsSupportTicketController {
   constructor(private readonly tickets: CorporateSupportTicketService) {}

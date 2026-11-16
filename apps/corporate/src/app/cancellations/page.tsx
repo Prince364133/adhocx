@@ -1,360 +1,149 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarX, CheckCircle2, Info } from "lucide-react";
-import {
-  CancellationFilters,
-  CancellationDatePreset,
-} from "./components/CancellationFilters";
-import {
-  CancellationMetric,
-  CancellationSummaryCards,
-} from "./components/CancellationSummaryCards";
-import { CancellationTable } from "./components/CancellationTable";
-import { ErrorState } from "../../components/common/StateViews";
-import { useSession } from "../../lib/auth/SessionContext";
-import {
-  CancellationRecord,
-  cancellationsApi,
-  getIndiaDateKey,
-  getWeekStartDateKey,
-  shiftDateKey,
-} from "../../lib/api/cancellations";
+import { useCallback, useEffect, useState } from 'react';
+import { CalendarX, RefreshCw, Search } from 'lucide-react';
+import { cancellationsApi } from '../../lib/api/cancellations';
+import type { BookingRequestItem } from '../../lib/api/types';
+import { useSession } from '../../lib/auth/SessionContext';
 
-const DEFAULT_TENANT_ID = "9d66820f-280c-400c-98dc-e021d0045b58";
-
-function getMetricForPreset(
-  preset: CancellationDatePreset,
-): CancellationMetric | null {
-  if (preset === "all") return "all";
-  if (preset === "today") return "today";
-  if (preset === "week") return "week";
-  if (preset === "month") return "month";
-  return null;
+function formatDate(value: string) {
+  const date = new Date(`${value.slice(0, 10)}T00:00:00`);
+  return Number.isNaN(date.getTime())
+    ? 'Not available'
+    : new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }).format(date);
 }
 
-function isWithinPreset(
-  record: CancellationRecord,
-  preset: CancellationDatePreset,
-  customDate: string,
-  today: string,
-): boolean {
-  const date = getIndiaDateKey(new Date(record.cancelledAt));
-
-  switch (preset) {
-    case "today":
-      return date === today;
-    case "yesterday":
-      return date === shiftDateKey(today, -1);
-    case "last7":
-      return date >= shiftDateKey(today, -6) && date <= today;
-    case "last30":
-      return date >= shiftDateKey(today, -29) && date <= today;
-    case "week":
-      return date >= getWeekStartDateKey(today) && date <= today;
-    case "month":
-      return date.startsWith(today.slice(0, 7));
-    case "custom":
-      return Boolean(customDate) && date === customDate;
-    case "all":
-      return true;
-  }
+function formatDateTime(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? 'Not available'
+    : new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
 }
 
 export default function CancellationRequestsPage() {
-  const { tenantId, offices } = useSession();
-  const activeTenantId = tenantId || DEFAULT_TENANT_ID;
-  const [records, setRecords] = useState<CancellationRecord[]>([]);
-  const [source, setSource] = useState<"api" | "sample">("api");
+  const { tenantId, status } = useSession();
+  const [requests, setRequests] = useState<BookingRequestItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(30);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<unknown>(null);
-  const [datePreset, setDatePreset] = useState<CancellationDatePreset>("all");
-  const [customDate, setCustomDate] = useState("");
-  const [search, setSearch] = useState("");
-  const [office, setOffice] = useState("");
-  const [route, setRoute] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const loadCancellations = useCallback(async () => {
+  const loadRequests = useCallback(async () => {
+    if (status === 'loading') return;
+    if (!tenantId) {
+      setRequests([]);
+      setTotal(0);
+      setError('Sign in with a corporate account to view cancelled requests.');
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
-      const result = await cancellationsApi.list(activeTenantId);
-      setRecords(result.records);
-      setSource(result.source);
-    } catch (err) {
-      setError(err);
+      const result = await cancellationsApi.list(tenantId, {
+        page,
+        limit: pageSize,
+        search: search.trim() || undefined,
+      });
+      setRequests(result.items);
+      setTotal(result.total);
+      setTotalPages(Math.max(1, result.totalPages));
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unable to load cancelled requests.');
     } finally {
       setLoading(false);
     }
-  }, [activeTenantId]);
+  }, [page, pageSize, search, status, tenantId]);
 
   useEffect(() => {
-    void loadCancellations();
-  }, [loadCancellations]);
-
-  const today = getIndiaDateKey(new Date());
-  const counts = useMemo(
-    () => ({
-      all: records.length,
-      today: records.filter((record) =>
-        isWithinPreset(record, "today", "", today),
-      ).length,
-      week: records.filter((record) =>
-        isWithinPreset(record, "week", "", today),
-      ).length,
-      month: records.filter((record) =>
-        isWithinPreset(record, "month", "", today),
-      ).length,
-    }),
-    [records, today],
-  );
-
-  const routeOptions = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          records.map(
-            (record) => `${record.pickupLocation} → ${record.dropLocation}`,
-          ),
-        ),
-      ).sort(),
-    [records],
-  );
-  const officeOptions = useMemo(
-    () =>
-      Array.from(
-        new Set([
-          ...offices.map((item) => item.name),
-          ...records.map((record) => record.officeName),
-        ]),
-      ).sort(),
-    [offices, records],
-  );
-
-  const filteredRecords = useMemo(() => {
-    const query = search.trim().toLocaleLowerCase();
-    return records.filter((record) => {
-      if (!isWithinPreset(record, datePreset, customDate, today)) return false;
-      if (office && record.officeName !== office) return false;
-      if (
-        route &&
-        `${record.pickupLocation} → ${record.dropLocation}` !== route
-      )
-        return false;
-      if (!query) return true;
-      return [record.employeeId, record.employeeName, record.bookingId].some(
-        (value) => value.toLocaleLowerCase().includes(query),
-      );
-    });
-  }, [records, datePreset, customDate, today, office, route, search]);
-
-  const selectMetric = (metric: CancellationMetric) => {
-    const preset: CancellationDatePreset = metric === "all" ? "all" : metric;
-    setDatePreset(preset);
-    setCustomDate("");
-  };
-
-  const resetFilters = () => {
-    setDatePreset("all");
-    setCustomDate("");
-    setSearch("");
-    setOffice("");
-    setRoute("");
-  };
-
-  const activeMetric = getMetricForPreset(datePreset);
-  const emptyMessage =
-    datePreset === "custom"
-      ? "No successful cancellations found for the selected date."
-      : "No successful cancellations found for the selected date range.";
+    void loadRequests();
+  }, [loadRequests, refreshKey]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      <header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: 16,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <div
-            aria-hidden="true"
-            style={{
-              width: 46,
-              height: 46,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-              borderRadius: "var(--radius-xl)",
-              backgroundColor: "var(--brand-primary-subtle)",
-              color: "var(--brand-primary)",
-            }}
-          >
-            <CalendarX size={22} />
-          </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <CalendarX size={24} aria-hidden="true" />
           <div>
-            <h1
-              style={{
-                fontSize: 25,
-                fontWeight: 800,
-                color: "var(--text-primary)",
-                letterSpacing: "-0.02em",
-                lineHeight: 1.2,
-              }}
-            >
-              Cancellation Requests
-            </h1>
+            <h1 style={{ margin: 0, fontSize: 24, color: 'var(--text-primary)' }}>Cancelled transport requests</h1>
+            <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--text-secondary)' }}>
+              Request records returned by the signed-in tenant’s Corporate API.
+            </p>
           </div>
-          <p
-            style={{
-              marginTop: 5,
-              fontSize: 13,
-              color: "var(--text-secondary)",
-            }}
-          >
-            View employee bookings that were cancelled successfully.
-          </p>
         </div>
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 7,
-            padding: "7px 11px",
-            border: "1px solid var(--color-success-border)",
-            borderRadius: "var(--radius-pill)",
-            backgroundColor: "var(--color-success-bg)",
-            color: "var(--color-success)",
-            fontSize: 12,
-            fontWeight: 700,
-          }}
-        >
-          <CheckCircle2 size={14} />
-          Successful only
-        </span>
+        <button type="button" onClick={() => setRefreshKey((key) => key + 1)} disabled={loading}>
+          <RefreshCw size={14} /> Refresh
+        </button>
       </header>
 
-      <section
-        role="note"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          padding: "14px 16px",
-          border: "1px solid var(--border-subtle)",
-          borderLeft: "3px solid var(--brand-primary)",
-          borderRadius: "var(--radius-lg)",
-          backgroundColor: "var(--bg-surface)",
-          boxShadow: "var(--shadow-xs)",
-        }}
-      >
-        <span
-          aria-hidden="true"
-          style={{
-            width: 34,
-            height: 34,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-            borderRadius: "var(--radius-md)",
-            backgroundColor: "var(--brand-primary-subtle)",
-            color: "var(--brand-primary)",
-          }}
-        >
-          <Info size={17} />
-        </span>
-        <div>
-          <h2
-            style={{
-              marginBottom: 2,
-              color: "var(--text-primary)",
-              fontSize: 13,
-              fontWeight: 700,
-            }}
-          >
-            12-hour cancellation policy
-          </h2>
-          <p style={{ color: "var(--text-secondary)", fontSize: 12 }}>
-            Automatic cancellation is successful only when submitted at least 12
-            hours before scheduled pickup. Later requests are not treated as
-            automatically successful.
-          </p>
-        </div>
+      <section className="surface-card" style={{ padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <strong>{total} cancelled requests</strong>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Search size={16} aria-hidden="true" />
+          <input
+            type="search"
+            aria-label="Search cancelled requests"
+            value={search}
+            onChange={(event) => { setSearch(event.target.value); setPage(1); }}
+            placeholder="Search employee or employee ID"
+          />
+        </label>
       </section>
 
-      {source === "sample" && !error && (
-        <section
-          role="status"
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            gap: 10,
-            padding: "12px 15px",
-            border: "1px solid var(--color-warning-border)",
-            borderRadius: "var(--radius-md)",
-            backgroundColor: "var(--color-warning-bg)",
-            color: "var(--text-secondary)",
-            fontSize: 12,
-          }}
-        >
-          <Info
-            size={16}
-            aria-hidden="true"
-            color="var(--color-warning)"
-            style={{ flexShrink: 0, marginTop: 1 }}
-          />
-          <p>
-            <strong style={{ color: "var(--text-primary)" }}>
-              Sample data
-            </strong>
-            {" — "}The live cancellations endpoint is not available yet. These
-            example records will be replaced when backend support is added.
-          </p>
-        </section>
-      )}
+      {error && <p role="alert" style={{ color: 'var(--color-danger)' }}>{error}</p>}
+      <section className="surface-card" style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', minWidth: 850, borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
+          <thead>
+            <tr style={{ backgroundColor: 'var(--bg-surface-muted)' }}>
+              <th style={{ padding: 12 }}>Employee</th>
+              <th style={{ padding: 12 }}>Request ID</th>
+              <th style={{ padding: 12 }}>Office</th>
+              <th style={{ padding: 12 }}>Scheduled date</th>
+              <th style={{ padding: 12 }}>Shift</th>
+              <th style={{ padding: 12 }}>Direction</th>
+              <th style={{ padding: 12 }}>Last updated</th>
+              <th style={{ padding: 12 }}>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading && <tr><td colSpan={8} style={{ padding: 24, textAlign: 'center' }}>Loading cancelled requests…</td></tr>}
+            {!loading && !error && requests.length === 0 && (
+              <tr><td colSpan={8} style={{ padding: 24, textAlign: 'center' }}>No cancelled requests found.</td></tr>
+            )}
+            {!loading && requests.map((request) => (
+              <tr key={request.id} style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                <td style={{ padding: 12 }}>
+                  <strong>{request.employee?.fullName ?? 'Employee unavailable'}</strong>
+                  <div style={{ color: 'var(--text-muted)' }}>{request.employee?.employeeCode ?? 'ID unavailable'}</div>
+                </td>
+                <td style={{ padding: 12, fontFamily: 'monospace' }}>{request.id}</td>
+                <td style={{ padding: 12 }}>{request.roster?.office?.name ?? 'Not recorded'}</td>
+                <td style={{ padding: 12 }}>{formatDate(request.scheduledDate)}</td>
+                <td style={{ padding: 12 }}>{request.shiftTime}</td>
+                <td style={{ padding: 12 }}>{request.direction}</td>
+                <td style={{ padding: 12 }}>{formatDateTime(request.updatedAt)}</td>
+                <td style={{ padding: 12 }}>{request.status}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
 
-      {error ? (
-        <ErrorState error={error} onRetry={() => void loadCancellations()} />
-      ) : (
-        <>
-          <CancellationSummaryCards
-            counts={counts}
-            activeMetric={activeMetric}
-            loading={loading}
-            onSelect={selectMetric}
-          />
-
-          <CancellationFilters
-            datePreset={datePreset}
-            customDate={customDate}
-            search={search}
-            office={office}
-            route={route}
-            offices={officeOptions}
-            routes={routeOptions}
-            onDatePresetChange={(value) => {
-              setDatePreset(value);
-              if (value !== "custom") setCustomDate("");
-            }}
-            onCustomDateChange={setCustomDate}
-            onSearchChange={setSearch}
-            onOfficeChange={setOffice}
-            onRouteChange={setRoute}
-            onReset={resetFilters}
-          />
-
-          <CancellationTable
-            records={filteredRecords}
-            loading={loading}
-            emptyMessage={emptyMessage}
-          />
-        </>
-      )}
+      <footer style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12 }}>
+        <label>Rows
+          <select value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }}>
+            {[10, 30, 50, 100].map((size) => <option key={size} value={size}>{size}</option>)}
+          </select>
+        </label>
+        <button type="button" disabled={page <= 1 || loading} onClick={() => setPage((value) => Math.max(1, value - 1))}>Previous</button>
+        <span>Page {page} of {totalPages}</span>
+        <button type="button" disabled={page >= totalPages || loading} onClick={() => setPage((value) => Math.min(totalPages, value + 1))}>Next</button>
+      </footer>
     </div>
   );
 }
