@@ -368,10 +368,6 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
       return;
     }
 
-    const baseMeters = Math.round(genBaseKm * 1000);
-    const maxMeters = Math.round(genMaxKm * 1000);
-    const stepMeters = Math.round(genStepKm * 1000);
-
     const numBaseVendor = Number(genBaseVendor) || 0;
     const numStepVendor = Number(genStepVendor) || 0;
     const numBaseDriver = Number(genBaseDriver) || 0;
@@ -379,28 +375,164 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
     const numEscortBase = Number(genEscortBaseVendor) || 0;
     const numEscortStep = Number(genEscortStepVendor) || 0;
 
+    // Validate inputs per active role
+    if (role === 'driver') {
+      if (numBaseDriver <= 0 || numStepDriver <= 0) {
+        setAlert({
+          type: 'error',
+          message: 'Please enter valid Driver Base Payout (₹) and Payout per Step (+₹) greater than 0.',
+        });
+        return;
+      }
+    } else if (role === 'vendor') {
+      if (numBaseVendor <= 0 || numStepVendor <= 0) {
+        setAlert({
+          type: 'error',
+          message: 'Please enter valid Vendor Base Fare (₹) and Price per Step (+₹) greater than 0.',
+        });
+        return;
+      }
+    } else {
+      if (numBaseVendor <= 0 || numStepVendor <= 0 || numBaseDriver <= 0 || numStepDriver <= 0) {
+        setAlert({
+          type: 'error',
+          message: 'Please enter valid Base and Step values greater than 0 for both Vendor and Driver.',
+        });
+        return;
+      }
+    }
+
+    const baseMeters = Math.round(genBaseKm * 1000);
+    const maxMeters = Math.round(genMaxKm * 1000);
+    const stepMeters = Math.round(genStepKm * 1000);
+
     const existingMap = new Map<string, CreatePricingSlabInput>();
     editingSlabs.forEach((s) => {
       existingMap.set(`${s.minDistanceMExclusive}-${s.maxDistanceMInclusive}`, s);
     });
+    if (activePlan?.slabs) {
+      activePlan.slabs.forEach((s: any) => {
+        const k = `${s.minDistanceMExclusive}-${s.maxDistanceMInclusive}`;
+        if (!existingMap.has(k)) {
+          existingMap.set(k, {
+            minDistanceMExclusive: s.minDistanceMExclusive,
+            maxDistanceMInclusive: s.maxDistanceMInclusive,
+            vendorPricePaise: s.vendorPricePaise,
+            driverPayoutPaise: s.driverPayoutPaise,
+            vendorPeakPricePaise: s.vendorPeakPricePaise ?? s.vendorPricePaise,
+            driverPeakPayoutPaise: s.driverPeakPayoutPaise ?? s.driverPayoutPaise,
+            active: s.active,
+          });
+        }
+      });
+    }
+
+    const buildSlab = (minM: number, maxM: number, stepIdx: number): CreatePricingSlabInput => {
+      const key = `${minM}-${maxM}`;
+      const existing = existingMap.get(key);
+
+      let vStd: number;
+      let dStd: number;
+      let vPeak: number;
+      let dPeak: number;
+
+      if (role === 'driver') {
+        // Driver role formula
+        dStd = stepIdx === 0
+          ? Math.round(numBaseDriver * 100)
+          : Math.round((numBaseDriver + stepIdx * numStepDriver) * 100);
+        dPeak = stepIdx === 0
+          ? Math.round((numBaseDriver + currentDriverPeakBase) * 100)
+          : Math.round((numBaseDriver + currentDriverPeakBase + stepIdx * (numStepDriver + currentDriverPeakStep)) * 100);
+
+        if (existing && existing.vendorPricePaise > 0) {
+          vStd = Math.max(existing.vendorPricePaise, dStd);
+          vPeak = Math.max(existing.vendorPeakPricePaise ?? existing.vendorPricePaise, dPeak);
+        } else if (numBaseVendor > 0) {
+          const fV = stepIdx === 0
+            ? Math.round(numBaseVendor * 100)
+            : Math.round((numBaseVendor + stepIdx * numStepVendor) * 100);
+          const fVPeak = stepIdx === 0
+            ? Math.round((numBaseVendor + currentVendorPeakBase) * 100)
+            : Math.round((numBaseVendor + currentVendorPeakBase + stepIdx * (numStepVendor + currentVendorPeakStep)) * 100);
+          vStd = Math.max(fV, dStd);
+          vPeak = Math.max(fVPeak, dPeak);
+        } else {
+          // Vendor rate not yet configured: set to driver payout (at cost baseline)
+          vStd = dStd;
+          vPeak = dPeak;
+        }
+      } else if (role === 'vendor') {
+        // Vendor role formula
+        vStd = stepIdx === 0
+          ? Math.round(numBaseVendor * 100)
+          : Math.round((numBaseVendor + stepIdx * numStepVendor) * 100);
+        vPeak = stepIdx === 0
+          ? Math.round((numBaseVendor + currentVendorPeakBase) * 100)
+          : Math.round((numBaseVendor + currentVendorPeakBase + stepIdx * (numStepVendor + currentVendorPeakStep)) * 100);
+
+        if (existing && existing.driverPayoutPaise > 0) {
+          dStd = Math.min(existing.driverPayoutPaise, vStd);
+          dPeak = Math.min(existing.driverPeakPayoutPaise ?? existing.driverPayoutPaise, vPeak);
+        } else if (numBaseDriver > 0) {
+          const fD = stepIdx === 0
+            ? Math.round(numBaseDriver * 100)
+            : Math.round((numBaseDriver + stepIdx * numStepDriver) * 100);
+          const fDPeak = stepIdx === 0
+            ? Math.round((numBaseDriver + currentDriverPeakBase) * 100)
+            : Math.round((numBaseDriver + currentDriverPeakBase + stepIdx * (numStepDriver + currentDriverPeakStep)) * 100);
+          dStd = Math.min(fD, vStd);
+          dPeak = Math.min(fDPeak, vPeak);
+        } else {
+          // Driver payout not yet configured: default to 75% of vendor price
+          dStd = Math.max(100, Math.round(vStd * 0.75));
+          dPeak = Math.max(100, Math.round(vPeak * 0.75));
+        }
+      } else {
+        // Unified
+        vStd = stepIdx === 0
+          ? Math.round(numBaseVendor * 100)
+          : Math.round((numBaseVendor + stepIdx * numStepVendor) * 100);
+        dStd = stepIdx === 0
+          ? Math.round(numBaseDriver * 100)
+          : Math.round((numBaseDriver + stepIdx * numStepDriver) * 100);
+        vPeak = stepIdx === 0
+          ? Math.round((numBaseVendor + currentVendorPeakBase) * 100)
+          : Math.round((numBaseVendor + currentVendorPeakBase + stepIdx * (numStepVendor + currentVendorPeakStep)) * 100);
+        dPeak = stepIdx === 0
+          ? Math.round((numBaseDriver + currentDriverPeakBase) * 100)
+          : Math.round((numBaseDriver + currentDriverPeakBase + stepIdx * (numStepDriver + currentDriverPeakStep)) * 100);
+      }
+
+      // Guarantee minimum 100 paise (₹1) and no negative margin
+      vStd = Math.max(100, vStd);
+      dStd = Math.max(100, dStd);
+      vPeak = Math.max(vStd, vPeak);
+      dPeak = Math.max(dStd, dPeak);
+      if (vStd < dStd) vStd = dStd;
+      if (vPeak < dPeak) vPeak = dPeak;
+
+      return {
+        minDistanceMExclusive: minM,
+        maxDistanceMInclusive: maxM,
+        vendorPricePaise: vStd,
+        driverPayoutPaise: dStd,
+        vendorPeakPricePaise: vPeak,
+        driverPeakPayoutPaise: dPeak,
+        active: true,
+      };
+    };
 
     const newSlabs: CreatePricingSlabInput[] = [];
 
     // Base Tier (0 to baseKm)
-    const baseKey = `0-${Math.min(baseMeters, maxMeters)}`;
+    const baseEndMeters = Math.min(baseMeters, maxMeters);
+    const baseKey = `0-${baseEndMeters}`;
     const existingBase = existingMap.get(baseKey);
     if (existingBase && overriddenSlabKeys.has(baseKey)) {
       newSlabs.push(existingBase);
     } else {
-      newSlabs.push({
-        minDistanceMExclusive: 0,
-        maxDistanceMInclusive: Math.min(baseMeters, maxMeters),
-        vendorPricePaise: Math.round(numBaseVendor * 100),
-        driverPayoutPaise: Math.round(numBaseDriver * 100),
-        vendorPeakPricePaise: Math.round((numBaseVendor + currentVendorPeakBase) * 100),
-        driverPeakPayoutPaise: Math.round((numBaseDriver + currentDriverPeakBase) * 100),
-        active: true,
-      });
+      newSlabs.push(buildSlab(0, baseEndMeters, 0));
     }
 
     // Incremental Steps
@@ -414,20 +546,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
       if (existingStep && overriddenSlabKeys.has(key)) {
         newSlabs.push(existingStep);
       } else {
-        const vStd = Math.round((numBaseVendor + stepIdx * numStepVendor) * 100);
-        const dStd = Math.round((numBaseDriver + stepIdx * numStepDriver) * 100);
-        const vPeak = Math.round((numBaseVendor + currentVendorPeakBase + stepIdx * (numStepVendor + currentVendorPeakStep)) * 100);
-        const dPeak = Math.round((numBaseDriver + currentDriverPeakBase + stepIdx * (numStepDriver + currentDriverPeakStep)) * 100);
-
-        newSlabs.push({
-          minDistanceMExclusive: currentMin,
-          maxDistanceMInclusive: nextMax,
-          vendorPricePaise: vStd,
-          driverPayoutPaise: dStd,
-          vendorPeakPricePaise: vPeak,
-          driverPeakPayoutPaise: dPeak,
-          active: true,
-        });
+        newSlabs.push(buildSlab(currentMin, nextMax, stepIdx));
       }
 
       currentMin = nextMax;
@@ -540,32 +659,57 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
     const target = editingSlabs[index];
     const baseM = genBaseKm * 1000;
     const stepM = genStepKm * 1000;
+    const stepIndex = target.minDistanceMExclusive === 0
+      ? 0
+      : Math.max(1, Math.round((target.maxDistanceMInclusive - baseM) / stepM));
 
     const numBaseVendor = Number(genBaseVendor) || 0;
     const numStepVendor = Number(genStepVendor) || 0;
     const numBaseDriver = Number(genBaseDriver) || 0;
     const numStepDriver = Number(genStepDriver) || 0;
 
-    let vStd = numBaseVendor;
-    let dStd = numBaseDriver;
-    let vPeak = numBaseVendor + currentVendorPeakBase;
-    let dPeak = numBaseDriver + currentDriverPeakBase;
+    let vStd = target.vendorPricePaise;
+    let dStd = target.driverPayoutPaise;
+    let vPeak = target.vendorPeakPricePaise ?? target.vendorPricePaise;
+    let dPeak = target.driverPeakPayoutPaise ?? target.driverPayoutPaise;
 
-    if (target.minDistanceMExclusive > 0) {
-      const stepIndex = Math.max(1, Math.round((target.maxDistanceMInclusive - baseM) / stepM));
-      vStd = numBaseVendor + stepIndex * numStepVendor;
-      dStd = numBaseDriver + stepIndex * numStepDriver;
-      vPeak = numBaseVendor + currentVendorPeakBase + stepIndex * (numStepVendor + currentVendorPeakStep);
-      dPeak = numBaseDriver + currentDriverPeakBase + stepIndex * (numStepDriver + currentDriverPeakStep);
+    if (role === 'driver' || role === 'unified') {
+      if (numBaseDriver > 0) {
+        dStd = stepIndex === 0
+          ? Math.round(numBaseDriver * 100)
+          : Math.round((numBaseDriver + stepIndex * numStepDriver) * 100);
+        dPeak = stepIndex === 0
+          ? Math.round((numBaseDriver + currentDriverPeakBase) * 100)
+          : Math.round((numBaseDriver + currentDriverPeakBase + stepIndex * (numStepDriver + currentDriverPeakStep)) * 100);
+      }
     }
+
+    if (role === 'vendor' || role === 'unified') {
+      if (numBaseVendor > 0) {
+        vStd = stepIndex === 0
+          ? Math.round(numBaseVendor * 100)
+          : Math.round((numBaseVendor + stepIndex * numStepVendor) * 100);
+        vPeak = stepIndex === 0
+          ? Math.round((numBaseVendor + currentVendorPeakBase) * 100)
+          : Math.round((numBaseVendor + currentVendorPeakBase + stepIndex * (numStepVendor + currentVendorPeakStep)) * 100);
+      }
+    }
+
+    // Safety checks
+    vStd = Math.max(100, vStd);
+    dStd = Math.max(100, dStd);
+    vPeak = Math.max(vStd, vPeak);
+    dPeak = Math.max(dStd, dPeak);
+    if (vStd < dStd) vStd = dStd;
+    if (vPeak < dPeak) vPeak = dPeak;
 
     const updated = [...editingSlabs];
     updated[index] = {
       ...target,
-      vendorPricePaise: Math.round(vStd * 100),
-      driverPayoutPaise: Math.round(dStd * 100),
-      vendorPeakPricePaise: Math.round(vPeak * 100),
-      driverPeakPayoutPaise: Math.round(dPeak * 100),
+      vendorPricePaise: vStd,
+      driverPayoutPaise: dStd,
+      vendorPeakPricePaise: vPeak,
+      driverPeakPayoutPaise: dPeak,
     };
 
     const key = `${target.minDistanceMExclusive}-${target.maxDistanceMInclusive}`;
@@ -773,28 +917,45 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
         (p) => p.vehicleCategory === targetCategory && p.status === 'ACTIVE'
       ) || plans.find((p) => p.vehicleCategory === targetCategory);
 
+      // Ensure each slab has valid positive numbers and no negative margin
+      const sanitizedSlabs: CreatePricingSlabInput[] = editingSlabs.map((s) => {
+        let vStd = Math.max(100, s.vendorPricePaise);
+        let dStd = Math.max(100, s.driverPayoutPaise);
+        let vPeak = Math.max(vStd, s.vendorPeakPricePaise ?? vStd);
+        let dPeak = Math.max(dStd, s.driverPeakPayoutPaise ?? dStd);
+        if (vStd < dStd) vStd = dStd;
+        if (vPeak < dPeak) vPeak = dPeak;
+        return {
+          ...s,
+          vendorPricePaise: vStd,
+          driverPayoutPaise: dStd,
+          vendorPeakPricePaise: vPeak,
+          driverPeakPayoutPaise: dPeak,
+        };
+      });
+
       if (existingMatchingPlan) {
-        await adminApi.updateDistancePricingSlabs(existingMatchingPlan.id, editingSlabs, undefined, {
+        await adminApi.updateDistancePricingSlabs(existingMatchingPlan.id, sanitizedSlabs, undefined, {
           config: configPayload as any,
           peakWindows: peakWindowsPayload,
         });
         setAlert({
           type: 'success',
-          message: `Saved matrix for ${targetCategory} with ${editingSlabs.length} distance bands and ${peakSlots.length} peak windows. Ready for live apps.`,
+          message: `Saved matrix for ${targetCategory} with ${sanitizedSlabs.length} distance bands and ${peakSlots.length} peak windows. Ready for live apps.`,
         });
         await loadPlans(existingMatchingPlan.id);
       } else {
         const newPlan = await adminApi.createDistancePricingPlan({
           name: `${targetCategory} Distance Pricing Matrix`,
           vehicleCategory: targetCategory,
-          slabs: editingSlabs,
+          slabs: sanitizedSlabs,
           config: configPayload as any,
           peakWindows: peakWindowsPayload,
         });
         await adminApi.publishDistancePricingPlan(newPlan.id, `Initial activation for ${targetCategory}`);
         setAlert({
           type: 'success',
-          message: `Created and published new ${targetCategory} matrix with ${editingSlabs.length} distance bands and ${peakSlots.length} peak windows.`,
+          message: `Created and published new ${targetCategory} matrix with ${sanitizedSlabs.length} distance bands and ${peakSlots.length} peak windows.`,
         });
         await loadPlans(newPlan.id);
       }
