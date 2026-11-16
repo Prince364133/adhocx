@@ -127,9 +127,9 @@
 }
 
 .overviewIconBlue {
-  border-color: #bfdbfe;
-  background: #eff6ff;
-  color: #2563eb;
+  border-color: var(--color-blue-border);
+  background: var(--color-blue-bg);
+  color: var(--color-blue-text);
 }
 
 .overviewIconGreen {
@@ -186,7 +186,7 @@
 .progressFill {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--brand-primary), #8b5cf6);
+  background: linear-gradient(90deg, var(--brand-action), var(--color-chart-purple));
   transition: width 180ms ease;
 }
 
@@ -248,7 +248,7 @@
 .navButton:focus-visible,
 .actionButton:focus-visible,
 .textAction:focus-visible {
-  outline: 3px solid rgba(87, 40, 178, 0.25);
+  outline: 3px solid rgba(var(--brand-primary-rgb), 0.25);
   outline-offset: 2px;
 }
 
@@ -521,7 +521,7 @@
 
 .searchRow:focus-within {
   border-color: var(--border-focus);
-  box-shadow: 0 0 0 3px rgba(87, 40, 178, 0.12);
+  box-shadow: 0 0 0 3px rgba(var(--brand-primary-rgb), 0.12);
 }
 
 .searchInput {
@@ -630,7 +630,7 @@
   padding: 8px 12px;
   border: 1px solid var(--brand-primary);
   border-radius: 8px;
-  background: var(--brand-primary);
+  background: var(--brand-action);
   color: #fff;
   font: inherit;
   font-size: 12px;
@@ -644,7 +644,7 @@
 }
 
 .actionButton:hover:not(:disabled) {
-  background: var(--brand-primary-hover);
+  background: var(--brand-action-hover);
   box-shadow: var(--shadow-sm);
 }
 
@@ -766,7 +766,7 @@
 }
 
 .drawerClose:focus-visible {
-  outline: 3px solid rgba(87, 40, 178, 0.25);
+  outline: 3px solid rgba(var(--brand-primary-rgb), 0.25);
   outline-offset: 2px;
 }
 
@@ -819,7 +819,7 @@
 .fieldSelect:focus,
 .fieldTextarea:focus {
   border-color: var(--border-focus);
-  box-shadow: 0 0 0 3px rgba(87, 40, 178, 0.12);
+  box-shadow: 0 0 0 3px rgba(var(--brand-primary-rgb), 0.12);
 }
 
 .fieldTextarea {

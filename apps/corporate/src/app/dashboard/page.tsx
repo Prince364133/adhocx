@@ -138,7 +138,7 @@ function DailyTripsChart({ data }: { data: DailyTripCount[] }) {
                 width={barWidth}
                 height={Math.max(barHeight, 1)}
                 rx="4"
-                fill="#6366F1"
+                fill="var(--color-chart-indigo)"
               >
                 <title>{`${point.label}: ${point.trips} trips`}</title>
               </rect>
@@ -269,9 +269,9 @@ export default function CompanyOverviewPage() {
   const counts = data?.dashboard.trips.byStatus;
   const totalRoutes = data?.dashboard.trips.total;
   const metrics = [
-    { label: 'Total Employees', value: data?.totalEmployees, icon: <Users size={18} />, color: '#5728B2' },
-    { label: 'Total Routes', value: totalRoutes, icon: <MapIcon size={18} />, color: '#8B5CF6' },
-    { label: 'Active Trips', value: counts?.IN_TRANSIT, icon: <Car size={18} />, color: '#16A34A' },
+    { label: 'Total Employees', value: data?.totalEmployees, icon: <Users size={18} />, color: 'var(--brand-primary)' },
+    { label: 'Total Routes', value: totalRoutes, icon: <MapIcon size={18} />, color: 'var(--color-chart-purple)' },
+    { label: 'Active Trips', value: counts?.IN_TRANSIT, icon: <Car size={18} />, color: 'var(--color-success)' },
     { label: 'Completed Trips', value: counts?.COMPLETED, icon: <CheckCircle2 size={18} />, color: '#059669' },
     { label: 'Cancelled Trips', value: counts?.CANCELLED, icon: <XCircle size={18} />, color: '#DC2626' },
   ];
@@ -320,7 +320,7 @@ export default function CompanyOverviewPage() {
           <button
             type="submit"
             disabled={loading}
-            style={{ border: 0, borderRadius: '8px', padding: '10px 14px', background: '#5728B2', color: '#fff', fontWeight: 700, cursor: loading ? 'wait' : 'pointer', opacity: loading ? 0.7 : 1 }}
+            style={{ border: 0, borderRadius: '8px', padding: '10px 14px', background: 'var(--brand-action)', color: '#fff', fontWeight: 700, cursor: loading ? 'wait' : 'pointer', opacity: loading ? 0.7 : 1 }}
           >
             <CalendarDays size={14} style={{ verticalAlign: 'middle', marginRight: '6px' }} />
             Apply
@@ -337,17 +337,17 @@ export default function CompanyOverviewPage() {
       </div>
 
       {validationError && (
-        <p role="alert" style={{ margin: 0, color: '#B91C1C', fontSize: '13px' }}>{validationError}</p>
+        <p role="alert" style={{ margin: 0, color: 'var(--color-danger-text)', fontSize: '13px' }}>{validationError}</p>
       )}
 
       {error && (
-        <div role="alert" className="surface-card" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 18px', color: '#B91C1C', borderColor: '#FECACA' }}>
+        <div role="alert" className="surface-card" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 18px', color: 'var(--color-danger-text)', borderColor: '#FECACA' }}>
           <AlertCircle size={18} />
           <span>{error}</span>
           <button
             type="button"
             onClick={() => setRefreshKey((key) => key + 1)}
-            style={{ marginLeft: 'auto', border: '1px solid #FECACA', borderRadius: '6px', padding: '6px 10px', background: '#fff', color: '#B91C1C', fontWeight: 600, cursor: 'pointer' }}
+            style={{ marginLeft: 'auto', border: '1px solid #FECACA', borderRadius: '6px', padding: '6px 10px', background: '#fff', color: 'var(--color-danger-text)', fontWeight: 600, cursor: 'pointer' }}
           >
             Retry
           </button>

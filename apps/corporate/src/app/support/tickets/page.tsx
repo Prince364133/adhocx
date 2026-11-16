@@ -74,7 +74,7 @@ export default function SupportTicketListPage() {
               alignItems: 'center',
               gap: 6,
               padding: '8px 14px',
-              backgroundColor: '#5728B2',
+              backgroundColor: 'var(--brand-action)',
               color: '#FFFFFF',
               borderRadius: 6,
               fontSize: 13,
@@ -113,7 +113,7 @@ export default function SupportTicketListPage() {
                 border: 'none',
                 fontSize: 12,
                 fontWeight: 700,
-                backgroundColor: statusTab === tab ? '#5728B2' : '#F1F5F9',
+                backgroundColor: statusTab === tab ? 'var(--brand-action)' : '#F1F5F9',
                 color: statusTab === tab ? '#FFFFFF' : '#475569',
                 cursor: 'pointer',
               }}
@@ -178,7 +178,7 @@ export default function SupportTicketListPage() {
               <tbody>
                 {filteredTickets.map((tkt) => (
                   <tr key={tkt.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                    <td style={{ padding: '14px 16px', fontWeight: 800, fontFamily: 'monospace', color: '#5728B2' }}>
+                    <td style={{ padding: '14px 16px', fontWeight: 800, fontFamily: 'monospace', color: 'var(--brand-primary)' }}>
                       #{tkt.ticketNumber || tkt.id.slice(0, 8).toUpperCase()}
                     </td>
                     <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--text-primary)' }}>
@@ -195,9 +195,9 @@ export default function SupportTicketListPage() {
                           fontSize: 11,
                           fontWeight: 700,
                           backgroundColor:
-                            tkt.priority === 'CRITICAL' || tkt.priority === 'HIGH' ? '#FEE2E2' : '#EFF6FF',
+                            tkt.priority === 'CRITICAL' || tkt.priority === 'HIGH' ? 'var(--color-danger-bg)' : 'var(--color-blue-bg)',
                           color:
-                            tkt.priority === 'CRITICAL' || tkt.priority === 'HIGH' ? '#DC2626' : '#5728B2',
+                            tkt.priority === 'CRITICAL' || tkt.priority === 'HIGH' ? '#DC2626' : 'var(--brand-primary)',
                         }}
                       >
                         {tkt.priority || 'NORMAL'}
@@ -209,17 +209,17 @@ export default function SupportTicketListPage() {
                           padding: '3px 8px',
                           backgroundColor:
                             tkt.status === 'RESOLVED'
-                              ? '#DCFCE7'
+                              ? 'var(--color-success-bg)'
                               : tkt.status === 'IN_PROGRESS'
                               ? '#E0E7FF'
                               : tkt.status === 'CLOSED'
                               ? '#F1F5F9'
-                              : '#FEF3C7',
+                              : 'var(--color-warning-bg)',
                           color:
                             tkt.status === 'RESOLVED'
-                              ? '#16A34A'
+                              ? 'var(--color-success)'
                               : tkt.status === 'IN_PROGRESS'
-                              ? '#4338CA'
+                              ? 'var(--color-chart-indigo-hover)'
                               : tkt.status === 'CLOSED'
                               ? '#475569'
                               : '#D97706',
@@ -242,7 +242,7 @@ export default function SupportTicketListPage() {
                           backgroundColor: 'var(--bg-surface)',
                           fontSize: 12,
                           fontWeight: 600,
-                          color: '#5728B2',
+                          color: 'var(--brand-primary)',
                           textDecoration: 'none',
                         }}
                       >

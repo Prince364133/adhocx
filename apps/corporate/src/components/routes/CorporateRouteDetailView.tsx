@@ -355,7 +355,7 @@ export function CorporateRouteDetailView({ routeId }: { routeId: string }) {
             </div>
             {route.driver ? (
               <>
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#15803D', marginTop: 6 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-success-text)', marginTop: 6 }}>
                   {route.driver.fullName || route.driver.name || 'Assigned Driver'}
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--text-primary)', marginTop: 4 }}>
@@ -371,7 +371,7 @@ export function CorporateRouteDetailView({ routeId }: { routeId: string }) {
                       alignItems: 'center',
                       gap: 5,
                       fontSize: 12,
-                      color: 'var(--brand-primary, #5728B2)',
+                      color: 'var(--brand-primary)',
                       marginTop: 4,
                       textDecoration: 'none',
                       fontWeight: 600,
@@ -383,7 +383,7 @@ export function CorporateRouteDetailView({ routeId }: { routeId: string }) {
               </>
             ) : (
               <>
-                <div style={{ fontSize: 14, fontWeight: 700, color: driversNotFound ? '#DC2626' : '#B45309', marginTop: 6 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: driversNotFound ? '#DC2626' : 'var(--color-warning-text)', marginTop: 6 }}>
                   {driversNotFound
                     ? 'Drivers Not Found'
                     : dispatchStatus === 'SEARCHING'
@@ -442,7 +442,7 @@ export function CorporateRouteDetailView({ routeId }: { routeId: string }) {
                 padding: '3px 8px',
                 borderRadius: 999,
                 backgroundColor: directions?.isRealRoad ? 'rgba(22, 163, 74, 0.14)' : 'rgba(217, 119, 6, 0.14)',
-                color: directions?.isRealRoad ? '#15803D' : '#B45309',
+                color: directions?.isRealRoad ? 'var(--color-success-text)' : 'var(--color-warning-text)',
               }}
             >
               {directions?.isRealRoad ? 'Live Google Roads' : 'Route Fallback'}
@@ -517,10 +517,10 @@ export function CorporateRouteDetailView({ routeId }: { routeId: string }) {
                       padding: 14,
                       borderRadius: 10,
                       border: isHighlighted
-                        ? '1px solid var(--brand-primary, #5728B2)'
+                        ? '1px solid var(--brand-primary)'
                         : '1px solid var(--border-subtle)',
                       backgroundColor: isHighlighted
-                        ? 'var(--brand-primary-subtle, rgba(87, 40, 178, 0.08))'
+                        ? 'var(--brand-primary-subtle, rgba(var(--brand-primary-rgb), 0.08))'
                         : 'var(--bg-surface-muted)',
                       cursor: 'pointer',
                       display: 'flex',
@@ -535,7 +535,7 @@ export function CorporateRouteDetailView({ routeId }: { routeId: string }) {
                             width: 26,
                             height: 26,
                             borderRadius: '50%',
-                            backgroundColor: 'var(--brand-primary, #5728B2)',
+                            backgroundColor: 'var(--brand-action)',
                             color: '#FFFFFF',
                             fontSize: 12,
                             fontWeight: 700,
@@ -580,7 +580,7 @@ export function CorporateRouteDetailView({ routeId }: { routeId: string }) {
                             gap: 5,
                             fontSize: 12,
                             fontWeight: 600,
-                            color: 'var(--brand-primary, #5728B2)',
+                            color: 'var(--brand-primary)',
                             textDecoration: 'none',
                           }}
                         >
@@ -612,7 +612,7 @@ export function CorporateRouteDetailView({ routeId }: { routeId: string }) {
                         }}
                       >
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--text-primary)', fontWeight: 600 }}>
-                          <Navigation size={13} color="#5728B2" />
+                          <Navigation size={13} color="var(--brand-primary)" />
                           Next → {leg.toLabel}
                         </span>
                         <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>
@@ -638,9 +638,9 @@ export function CorporateRouteDetailView({ routeId }: { routeId: string }) {
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Building2 size={16} color="#15803D" />
+                    <Building2 size={16} color="var(--color-success-text)" />
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: '#15803D' }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-success-text)' }}>
                         Destination: {route.office.name}
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
@@ -648,7 +648,7 @@ export function CorporateRouteDetailView({ routeId }: { routeId: string }) {
                       </div>
                     </div>
                   </div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#15803D' }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-success-text)' }}>
                     {formatIstTime(route.targetOfficeArrivalTime)}
                   </div>
                 </div>

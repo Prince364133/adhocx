@@ -64,7 +64,7 @@ export default function ImportMappingEnginePage() {
               alignItems: 'center',
               gap: 6,
               padding: '8px 14px',
-              backgroundColor: '#5728B2',
+              backgroundColor: 'var(--brand-action)',
               color: '#FFFFFF',
               borderRadius: 6,
               fontSize: 13,
@@ -104,7 +104,7 @@ export default function ImportMappingEnginePage() {
               Transform source file headers to enterprise data fields
             </p>
           </div>
-          <span style={{ fontSize: 12, color: '#5728B2', fontWeight: 600 }}>
+          <span style={{ fontSize: 12, color: 'var(--brand-primary)', fontWeight: 600 }}>
             Active Canonical Template v2.4
           </span>
         </div>
@@ -141,7 +141,7 @@ export default function ImportMappingEnginePage() {
                   <td style={{ padding: '14px 8px', color: 'var(--text-muted)' }}>
                     <ArrowRight size={14} />
                   </td>
-                  <td style={{ padding: '14px 16px', fontWeight: 600, color: '#5728B2' }}>
+                  <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--brand-primary)' }}>
                     {field.adhocxField}
                   </td>
                   <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>
@@ -154,8 +154,8 @@ export default function ImportMappingEnginePage() {
                     <span
                       style={{
                         padding: '2px 6px',
-                        backgroundColor: field.isRequired ? '#EFF6FF' : 'var(--bg-surface-muted)',
-                        color: field.isRequired ? '#5728B2' : 'var(--text-muted)',
+                        backgroundColor: field.isRequired ? 'var(--color-blue-bg)' : 'var(--bg-surface-muted)',
+                        color: field.isRequired ? 'var(--brand-primary)' : 'var(--text-muted)',
                         borderRadius: 4,
                         fontSize: 11,
                         fontWeight: 600,
@@ -171,8 +171,8 @@ export default function ImportMappingEnginePage() {
                         alignItems: 'center',
                         gap: 4,
                         padding: '2px 8px',
-                        backgroundColor: '#DCFCE7',
-                        color: '#15803D',
+                        backgroundColor: 'var(--color-success-bg)',
+                        color: 'var(--color-success-text)',
                         borderRadius: 4,
                         fontSize: 11,
                         fontWeight: 600,

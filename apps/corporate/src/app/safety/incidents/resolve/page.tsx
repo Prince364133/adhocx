@@ -80,7 +80,7 @@ function IncidentResolutionContent() {
             alignItems: 'center',
             gap: 6,
             padding: '8px 16px',
-            backgroundColor: '#16A34A',
+            backgroundColor: 'var(--color-success)',
             color: '#FFFFFF',
             borderRadius: 6,
             fontSize: 13,

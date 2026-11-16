@@ -40,7 +40,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
 
   const categoryColor =
     category === 'primary' ? 'var(--corporate-blue)' :
-    category === 'success' ? '#16A34A' :
+    category === 'success' ? 'var(--color-success)' :
     category === 'warning' ? '#F59E0B' :
     category === 'danger' ? '#DC2626' :
     category === 'info' ? '#0284C7' : highlightColor;

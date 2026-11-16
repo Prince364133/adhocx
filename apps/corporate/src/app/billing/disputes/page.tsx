@@ -137,7 +137,7 @@ export default function BillingDisputesPage({ searchParams }: PageProps) {
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
-            backgroundColor: '#5728B2',
+            backgroundColor: 'var(--brand-action)',
             color: '#FFFFFF',
             border: 'none',
             borderRadius: 'var(--radius-md)',
@@ -145,7 +145,7 @@ export default function BillingDisputesPage({ searchParams }: PageProps) {
             fontSize: '13px',
             fontWeight: 700,
             cursor: 'pointer',
-            boxShadow: '0 2px 4px rgba(87, 40, 178,0.25)',
+            boxShadow: '0 2px 4px rgba(var(--brand-primary-rgb), 0.25)',
           }}
         >
           <Plus size={16} />
@@ -165,7 +165,7 @@ export default function BillingDisputesPage({ searchParams }: PageProps) {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#FEF3C7', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: 'var(--color-warning-bg)', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <AlertTriangle size={18} />
           </div>
           <div>
@@ -177,11 +177,11 @@ export default function BillingDisputesPage({ searchParams }: PageProps) {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#DCFCE7', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: 'var(--color-success-bg)', color: 'var(--color-success)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <CheckCircle2 size={18} />
           </div>
           <div>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: '#16A34A' }}>
+            <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--color-success)' }}>
               {loading ? '...' : resolvedDisputes.length}
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Resolved</div>
@@ -189,7 +189,7 @@ export default function BillingDisputesPage({ searchParams }: PageProps) {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#EFF6FF', color: '#5728B2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: 'var(--color-blue-bg)', color: 'var(--brand-action)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <IndianRupee size={18} />
           </div>
           <div>
@@ -201,11 +201,11 @@ export default function BillingDisputesPage({ searchParams }: PageProps) {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#DCFCE7', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: 'var(--color-success-bg)', color: 'var(--color-success)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <CheckCircle2 size={18} />
           </div>
           <div>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: '#16A34A' }}>
+            <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--color-success)' }}>
               {loading ? '...' : formatPaiseToRupees(totalApprovedPaise)}
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Approved Credit</div>
@@ -226,7 +226,7 @@ export default function BillingDisputesPage({ searchParams }: PageProps) {
                 fontSize: '12px',
                 fontWeight: 700,
                 border: 'none',
-                backgroundColor: activeTab === 'all' ? '#5728B2' : 'var(--bg-surface-muted)',
+                backgroundColor: activeTab === 'all' ? 'var(--brand-action)' : 'var(--bg-surface-muted)',
                 color: activeTab === 'all' ? '#FFFFFF' : 'var(--text-secondary)',
                 cursor: 'pointer',
               }}
@@ -241,7 +241,7 @@ export default function BillingDisputesPage({ searchParams }: PageProps) {
                 fontSize: '12px',
                 fontWeight: 700,
                 border: 'none',
-                backgroundColor: activeTab === 'open' ? '#D97706' : '#FEF3C7',
+                backgroundColor: activeTab === 'open' ? '#D97706' : 'var(--color-warning-bg)',
                 color: activeTab === 'open' ? '#FFFFFF' : '#D97706',
                 cursor: 'pointer',
               }}
@@ -256,8 +256,8 @@ export default function BillingDisputesPage({ searchParams }: PageProps) {
                 fontSize: '12px',
                 fontWeight: 700,
                 border: 'none',
-                backgroundColor: activeTab === 'resolved' ? '#16A34A' : '#DCFCE7',
-                color: activeTab === 'resolved' ? '#FFFFFF' : '#16A34A',
+                backgroundColor: activeTab === 'resolved' ? 'var(--color-success)' : 'var(--color-success-bg)',
+                color: activeTab === 'resolved' ? '#FFFFFF' : 'var(--color-success)',
                 cursor: 'pointer',
               }}
             >
@@ -324,7 +324,7 @@ export default function BillingDisputesPage({ searchParams }: PageProps) {
                     <td style={{ padding: '12px 14px' }}>
                       <Link
                         href={`/billing/details?id=${d.invoiceId}`}
-                        style={{ color: '#5728B2', textDecoration: 'none', fontWeight: 600 }}
+                        style={{ color: 'var(--brand-primary)', textDecoration: 'none', fontWeight: 600 }}
                       >
                         {d.invoiceId.slice(0, 12)}
                       </Link>
@@ -340,7 +340,7 @@ export default function BillingDisputesPage({ searchParams }: PageProps) {
                     <td style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-primary)' }}>
                       {formatPaiseToRupees(d.claimedAmountPaise)}
                     </td>
-                    <td style={{ padding: '12px 14px', fontWeight: 600, color: '#16A34A' }}>
+                    <td style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--color-success)' }}>
                       {d.approvedAmountPaise ? formatPaiseToRupees(d.approvedAmountPaise) : '—'}
                     </td>
                     <td style={{ padding: '12px 14px' }}>
@@ -352,13 +352,13 @@ export default function BillingDisputesPage({ searchParams }: PageProps) {
                           fontWeight: 700,
                           backgroundColor:
                             d.status === 'ACCEPTED'
-                              ? '#DCFCE7'
+                              ? 'var(--color-success-bg)'
                               : d.status === 'REJECTED'
-                              ? '#FEE2E2'
-                              : '#FEF3C7',
+                              ? 'var(--color-danger-bg)'
+                              : 'var(--color-warning-bg)',
                           color:
                             d.status === 'ACCEPTED'
-                              ? '#16A34A'
+                              ? 'var(--color-success)'
                               : d.status === 'REJECTED'
                               ? '#DC2626'
                               : '#D97706',
@@ -506,7 +506,7 @@ export default function BillingDisputesPage({ searchParams }: PageProps) {
                     padding: '8px 16px',
                     borderRadius: 6,
                     border: 'none',
-                    backgroundColor: '#5728B2',
+                    backgroundColor: 'var(--brand-action)',
                     color: '#FFFFFF',
                     fontSize: 13,
                     fontWeight: 700,

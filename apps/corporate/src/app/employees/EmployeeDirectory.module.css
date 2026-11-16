@@ -66,11 +66,11 @@
 
 .primaryButton {
   color: #fff;
-  background: var(--brand-primary);
-  box-shadow: 0 1px 2px rgb(26 10 54 / 12%);
+  background: var(--brand-action);
+  box-shadow: 0 1px 2px var(--shadow-brand-tint);
 }
 
-.primaryButton:hover { background: var(--brand-primary-hover); }
+.primaryButton:hover { background: var(--brand-action-hover); }
 .primaryButton:disabled { cursor: not-allowed; opacity: .55; }
 
 .secondaryButton {
@@ -91,7 +91,7 @@
 .pageButton:focus-visible,
 .clearFilters:focus-visible,
 .templateLink:focus-visible {
-  outline: 3px solid rgb(87 40 178 / 24%);
+  outline: 3px solid rgba(var(--brand-primary-rgb), 0.24);
   outline-offset: 2px;
 }
 
@@ -127,7 +127,7 @@
 
 .metricGreen { color: var(--color-success); background: var(--color-success-bg); border-color: var(--color-success-border); }
 .metricGray { color: var(--text-muted); background: var(--bg-surface-muted); border-color: var(--border-subtle); }
-.metricLavender { color: #6d42b5; background: #f5f0ff; border-color: #e6dafb; }
+.metricLavender { color: var(--color-purple-muted); background: var(--color-purple-muted-bg); border-color: var(--color-purple-muted-border); }
 .metric > div { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
 .metricLabel { overflow: hidden; color: var(--text-muted); font-size: 11px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
 .metric strong { color: var(--text-primary); font-size: 20px; font-weight: 700; line-height: 1.15; letter-spacing: -.025em; }
@@ -165,7 +165,7 @@
   transition: border-color .15s ease, box-shadow .15s ease;
 }
 
-.searchBox:focus-within { border-color: var(--border-focus); box-shadow: 0 0 0 3px rgb(87 40 178 / 12%); }
+.searchBox:focus-within { border-color: var(--border-focus); box-shadow: 0 0 0 3px rgba(var(--brand-primary-rgb), 0.12); }
 .searchBox input { width: 100%; min-width: 0; border: 0; outline: 0; color: var(--text-primary); background: transparent; font: inherit; font-size: 12px; }
 .searchBox input::placeholder { color: var(--text-muted); opacity: .85; }
 .searchBox input::-webkit-search-cancel-button { cursor: pointer; }
@@ -196,7 +196,7 @@
   cursor: pointer;
 }
 
-.filterSelect:focus-within { border-color: var(--border-focus); box-shadow: 0 0 0 3px rgb(87 40 178 / 12%); }
+.filterSelect:focus-within { border-color: var(--border-focus); box-shadow: 0 0 0 3px rgba(var(--brand-primary-rgb), 0.12); }
 .filterSelect > svg { position: absolute; right: 9px; pointer-events: none; }
 
 .clearFilters {
@@ -242,10 +242,10 @@
   height: 34px;
   flex: 0 0 34px;
   place-items: center;
-  border: 1px solid #e6dcf8;
+  border: 1px solid var(--color-purple-strong-border);
   border-radius: 50%;
-  color: #5836a0;
-  background: #f1eafd;
+  color: var(--color-purple-strong);
+  background: var(--color-purple-strong-bg);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: .02em;
@@ -324,7 +324,7 @@
 .pageNumber strong { color: var(--text-secondary); }
 
 .dataNotice { display: flex; align-items: center; gap: 7px; margin-top: -10px; color: var(--text-muted); font-size: 10px; }
-.dataNotice span { width: 6px; height: 6px; border-radius: 50%; background: var(--brand-primary); opacity: .65; }
+.dataNotice span { width: 6px; height: 6px; border-radius: 50%; background: var(--brand-action); opacity: .65; }
 .srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
 
 .overlay { position: fixed; z-index: 1200; inset: 0; display: flex; justify-content: flex-end; background: rgb(15 23 42 / 38%); backdrop-filter: blur(1px); }
@@ -345,7 +345,7 @@
 .field > span { color: var(--text-secondary); font-size: 10px; font-weight: 600; }
 .field > span b { color: var(--color-danger); font-weight: 600; }
 .field input, .field select { width: 100%; height: 36px; border: 1px solid var(--border-strong); border-radius: 6px; outline: 0; padding: 0 10px; color: var(--text-primary); background: var(--bg-input); font: inherit; font-size: 11px; }
-.field input:focus, .field select:focus { border-color: var(--border-focus); box-shadow: 0 0 0 3px rgb(87 40 178 / 12%); }
+.field input:focus, .field select:focus { border-color: var(--border-focus); box-shadow: 0 0 0 3px rgba(var(--brand-primary-rgb), 0.12); }
 .field input::placeholder { color: var(--text-muted); opacity: .8; }
 .formError { margin-top: 12px; color: var(--color-danger); font-size: 11px; }
 

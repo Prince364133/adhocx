@@ -122,7 +122,7 @@ export default function GeofencesPickupPointsPage() {
             alignItems: 'center',
             gap: 6,
             padding: '8px 14px',
-            backgroundColor: '#5728B2',
+            backgroundColor: 'var(--brand-action)',
             color: '#FFFFFF',
             borderRadius: 6,
             fontSize: 13,
@@ -151,7 +151,7 @@ export default function GeofencesPickupPointsPage() {
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Layers size={16} style={{ color: '#5728B2' }} />
+              <Layers size={16} style={{ color: 'var(--brand-primary)' }} />
               <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
                 Live Geofence Boundary Map
               </span>
@@ -162,8 +162,8 @@ export default function GeofencesPickupPointsPage() {
                 alignItems: 'center',
                 gap: 6,
                 padding: '2px 8px',
-                backgroundColor: '#EFF6FF',
-                color: '#5728B2',
+                backgroundColor: 'var(--color-blue-bg)',
+                color: 'var(--brand-primary)',
                 borderRadius: 4,
                 fontSize: 11,
                 fontWeight: 600,
@@ -192,7 +192,7 @@ export default function GeofencesPickupPointsPage() {
             <div>
               <strong>Current Focus:</strong> {selectedZone.name} ({selectedZone.zoneType})
             </div>
-            <div style={{ color: '#5728B2', fontWeight: 600 }}>
+            <div style={{ color: 'var(--brand-primary)', fontWeight: 600 }}>
               Perimeter Buffer: {radiusAdjustment}m
             </div>
           </div>
@@ -214,8 +214,8 @@ export default function GeofencesPickupPointsPage() {
                 <span
                   style={{
                     padding: '2px 8px',
-                    backgroundColor: '#EFF6FF',
-                    color: '#5728B2',
+                    backgroundColor: 'var(--color-blue-bg)',
+                    color: 'var(--brand-primary)',
                     borderRadius: 4,
                     fontSize: 11,
                     fontWeight: 700,
@@ -241,7 +241,7 @@ export default function GeofencesPickupPointsPage() {
 
               <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
                 <span style={{ color: 'var(--text-muted)' }}>Auto Boarding / Checkout:</span>
-                <span style={{ fontWeight: 600, color: '#15803D' }}>
+                <span style={{ fontWeight: 600, color: 'var(--color-success-text)' }}>
                   {selectedZone.autoCheckout ? 'Enabled (FastTag/GPS)' : 'Manual Only'}
                 </span>
               </div>
@@ -250,7 +250,7 @@ export default function GeofencesPickupPointsPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 4 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Perimeter Buffer Radius:</span>
-                  <span style={{ fontWeight: 700, color: '#5728B2' }}>{radiusAdjustment} Meters</span>
+                  <span style={{ fontWeight: 700, color: 'var(--brand-primary)' }}>{radiusAdjustment} Meters</span>
                 </div>
                 <input
                   type="range"
@@ -276,7 +276,7 @@ export default function GeofencesPickupPointsPage() {
                 style={{
                   flex: 1,
                   padding: '8px 12px',
-                  backgroundColor: '#5728B2',
+                  backgroundColor: 'var(--brand-action)',
                   color: '#FFFFFF',
                   borderRadius: 6,
                   fontSize: 12,
@@ -312,7 +312,7 @@ export default function GeofencesPickupPointsPage() {
                     style={{
                       padding: '12px 16px',
                       borderBottom: '1px solid var(--border-subtle)',
-                      backgroundColor: isSelected ? '#EFF6FF' : '#FFFFFF',
+                      backgroundColor: isSelected ? 'var(--color-blue-bg)' : '#FFFFFF',
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
@@ -321,7 +321,7 @@ export default function GeofencesPickupPointsPage() {
                     }}
                   >
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: isSelected ? '#5728B2' : 'var(--text-primary)' }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: isSelected ? 'var(--brand-primary)' : 'var(--text-primary)' }}>
                         {zone.name}
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
@@ -331,8 +331,8 @@ export default function GeofencesPickupPointsPage() {
                     <span
                       style={{
                         padding: '2px 6px',
-                        backgroundColor: '#DCFCE7',
-                        color: '#15803D',
+                        backgroundColor: 'var(--color-success-bg)',
+                        color: 'var(--color-success-text)',
                         borderRadius: 4,
                         fontSize: 11,
                         fontWeight: 600,

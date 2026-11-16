@@ -78,7 +78,7 @@ export default function SafetyOverviewPage() {
             <span
               style={{
                 padding: '6px 12px',
-                backgroundColor: '#FEE2E2',
+                backgroundColor: 'var(--color-danger-bg)',
                 color: '#DC2626',
                 borderRadius: 6,
                 fontSize: 12,
@@ -94,8 +94,8 @@ export default function SafetyOverviewPage() {
             <span
               style={{
                 padding: '6px 12px',
-                backgroundColor: '#DCFCE7',
-                color: '#16A34A',
+                backgroundColor: 'var(--color-success-bg)',
+                color: 'var(--color-success)',
                 borderRadius: 6,
                 fontSize: 12,
                 fontWeight: 700,
@@ -168,7 +168,7 @@ export default function SafetyOverviewPage() {
           <h2 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
             Mandatory Trip Safety Lifecycle Checkpoints
           </h2>
-          <span style={{ fontSize: 11, fontWeight: 700, color: '#16A34A', backgroundColor: '#DCFCE7', padding: '3px 8px', borderRadius: 4 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-success)', backgroundColor: 'var(--color-success-bg)', padding: '3px 8px', borderRadius: 4 }}>
             Zero-Trust Protocol Active
           </span>
         </div>
@@ -192,7 +192,7 @@ export default function SafetyOverviewPage() {
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>{ckpt.step}</span>
-                <span style={{ fontSize: 9, fontWeight: 800, color: '#2563EB', backgroundColor: '#DBEAFE', padding: '2px 5px', borderRadius: 3 }}>
+                <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--color-blue-text)', backgroundColor: 'var(--color-blue-bg-strong)', padding: '2px 5px', borderRadius: 3 }}>
                   {ckpt.state}
                 </span>
               </div>
@@ -298,7 +298,7 @@ export default function SafetyOverviewPage() {
                       <span
                         style={{
                           padding: '3px 8px',
-                          backgroundColor: inc.severity === 'CRITICAL' ? '#FEE2E2' : '#FEF3C7',
+                          backgroundColor: inc.severity === 'CRITICAL' ? 'var(--color-danger-bg)' : 'var(--color-warning-bg)',
                           color: inc.severity === 'CRITICAL' ? '#DC2626' : '#D97706',
                           borderRadius: 4,
                           fontSize: 11,
@@ -318,8 +318,8 @@ export default function SafetyOverviewPage() {
                       <span
                         style={{
                           padding: '3px 8px',
-                          backgroundColor: inc.status === 'RESOLVED' ? '#DCFCE7' : '#EFF6FF',
-                          color: inc.status === 'RESOLVED' ? '#16A34A' : '#5728B2',
+                          backgroundColor: inc.status === 'RESOLVED' ? 'var(--color-success-bg)' : 'var(--color-blue-bg)',
+                          color: inc.status === 'RESOLVED' ? 'var(--color-success)' : 'var(--brand-primary)',
                           borderRadius: 4,
                           fontSize: 11,
                           fontWeight: 700,
@@ -338,7 +338,7 @@ export default function SafetyOverviewPage() {
                           backgroundColor: 'var(--bg-surface)',
                           fontSize: 12,
                           fontWeight: 600,
-                          color: '#5728B2',
+                          color: 'var(--brand-primary)',
                           textDecoration: 'none',
                         }}
                       >

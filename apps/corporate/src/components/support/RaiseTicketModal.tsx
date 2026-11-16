@@ -419,7 +419,7 @@ export const RaiseTicketModal: React.FC<RaiseTicketModalProps> = ({
               padding: '8px 18px',
               borderRadius: 6,
               border: 'none',
-              backgroundColor: '#5728B2',
+              backgroundColor: 'var(--brand-action)',
               color: '#FFFFFF',
               fontSize: 13,
               fontWeight: 600,

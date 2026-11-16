@@ -132,8 +132,8 @@ export default function CorporateRoutesPage() {
               width: 40,
               height: 40,
               borderRadius: 10,
-              backgroundColor: 'var(--brand-primary-subtle, rgba(87, 40, 178, 0.12))',
-              color: 'var(--brand-primary, #5728B2)',
+              backgroundColor: 'var(--brand-primary-subtle, rgba(var(--brand-primary-rgb), 0.12))',
+              color: 'var(--brand-primary)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -164,8 +164,8 @@ export default function CorporateRoutesPage() {
       {/* KPI Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 14 }}>
         {[
-          { label: 'Company Routes', value: metrics.total, sub: `${metrics.totalPassengers} employees commuting`, icon: <RouteIcon size={18} />, accent: '#5728B2' },
-          { label: 'Drivers Confirmed', value: metrics.assigned, sub: 'Cab & chauffeur allocated', icon: <Car size={18} />, accent: '#16A34A' },
+          { label: 'Company Routes', value: metrics.total, sub: `${metrics.totalPassengers} employees commuting`, icon: <RouteIcon size={18} />, accent: 'var(--brand-primary)' },
+          { label: 'Drivers Confirmed', value: metrics.assigned, sub: 'Cab & chauffeur allocated', icon: <Car size={18} />, accent: 'var(--color-success)' },
           { label: 'Automated Search', value: metrics.searching, sub: '10km radius dispatch cron', icon: <Radio size={18} />, accent: '#D97706' },
           { label: 'Drivers Not Found', value: metrics.noDrivers, sub: 'Escalated to Operations team', icon: <AlertTriangle size={18} />, accent: '#DC2626' },
         ].map((kpi) => (
@@ -538,7 +538,7 @@ export default function CorporateRoutesPage() {
                 <div>
                   {route.driver ? (
                     <>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700, color: '#15803D' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700, color: 'var(--color-success-text)' }}>
                         <Car size={14} />
                         <span>{route.driver.fullName || route.driver.name}</span>
                       </div>

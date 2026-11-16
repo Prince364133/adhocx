@@ -75,7 +75,7 @@ export default function HrmsIntegrationPage({ searchParams }: PageProps) {
               alignItems: 'center',
               gap: 6,
               padding: '8px 14px',
-              backgroundColor: '#5728B2',
+              backgroundColor: 'var(--brand-action)',
               color: '#FFFFFF',
               borderRadius: 6,
               fontSize: 13,
@@ -167,8 +167,8 @@ export default function HrmsIntegrationPage({ searchParams }: PageProps) {
                     <span
                       style={{
                         padding: '2px 8px',
-                        backgroundColor: integ.status === 'ACTIVE' ? '#DCFCE7' : 'var(--bg-surface-muted)',
-                        color: integ.status === 'ACTIVE' ? '#15803D' : 'var(--text-secondary)',
+                        backgroundColor: integ.status === 'ACTIVE' ? 'var(--color-success-bg)' : 'var(--bg-surface-muted)',
+                        color: integ.status === 'ACTIVE' ? 'var(--color-success-text)' : 'var(--text-secondary)',
                         borderRadius: 4,
                         fontSize: 11,
                         fontWeight: 700,
@@ -191,7 +191,7 @@ export default function HrmsIntegrationPage({ searchParams }: PageProps) {
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: 'var(--text-muted)' }}>Synced Records:</span>
-                    <span style={{ fontWeight: 600, color: '#5728B2' }}>{integ.syncedRecordsCount ?? 0} Profiles</span>
+                    <span style={{ fontWeight: 600, color: 'var(--brand-primary)' }}>{integ.syncedRecordsCount ?? 0} Profiles</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: 'var(--text-muted)' }}>Frequency:</span>
@@ -199,7 +199,7 @@ export default function HrmsIntegrationPage({ searchParams }: PageProps) {
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: 'var(--text-muted)' }}>Auto Deactivate:</span>
-                    <span style={{ fontWeight: 600, color: integ.autoDeactivateLeavers ? '#15803D' : 'var(--text-secondary)' }}>
+                    <span style={{ fontWeight: 600, color: integ.autoDeactivateLeavers ? 'var(--color-success-text)' : 'var(--text-secondary)' }}>
                       {integ.autoDeactivateLeavers ? 'Active' : 'Disabled'}
                     </span>
                   </div>
@@ -214,7 +214,7 @@ export default function HrmsIntegrationPage({ searchParams }: PageProps) {
                   style={{
                     fontSize: 12,
                     fontWeight: 600,
-                    color: '#5728B2',
+                    color: 'var(--brand-primary)',
                     backgroundColor: 'transparent',
                     border: 'none',
                     cursor: 'pointer',

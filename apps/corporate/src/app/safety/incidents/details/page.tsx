@@ -104,7 +104,7 @@ function IncidentDetailsDossierContent() {
               <span
                 style={{
                   padding: '2px 8px',
-                  backgroundColor: incident.severity === 'CRITICAL' ? '#FEE2E2' : '#FEF3C7',
+                  backgroundColor: incident.severity === 'CRITICAL' ? 'var(--color-danger-bg)' : 'var(--color-warning-bg)',
                   color: incident.severity === 'CRITICAL' ? '#DC2626' : '#C2410C',
                   borderRadius: 4,
                   fontSize: 11,
@@ -128,7 +128,7 @@ function IncidentDetailsDossierContent() {
               alignItems: 'center',
               gap: 6,
               padding: '8px 16px',
-              backgroundColor: '#16A34A',
+              backgroundColor: 'var(--color-success)',
               color: '#FFFFFF',
               borderRadius: 6,
               fontSize: 13,
@@ -176,7 +176,7 @@ function IncidentDetailsDossierContent() {
               </div>
               <div>
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Emergency Contact Action</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#16A34A' }}>Escorted & Verified</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-success)' }}>Escorted & Verified</div>
               </div>
             </div>
           </div>

@@ -44,7 +44,7 @@ const controlStyle: React.CSSProperties = {
   background: 'var(--bg-surface)',
   color: 'var(--text-primary)',
   fontSize: 13,
-  outlineColor: '#6840bf',
+  outlineColor: 'var(--support-accent-variant-1)',
   boxSizing: 'border-box',
 };
 const labelStyle: React.CSSProperties = {
@@ -57,7 +57,7 @@ const labelStyle: React.CSSProperties = {
 
 function statusColor(status: string) {
   if (status === 'RESOLVED' || status === 'CLOSED') return { bg: '#edf8f1', color: '#237548' };
-  if (status === 'IN_PROGRESS' || status === 'ASSIGNED') return { bg: '#f1efff', color: '#5938a8' };
+  if (status === 'IN_PROGRESS' || status === 'ASSIGNED') return { bg: '#f1efff', color: 'var(--support-accent-variant-2)' };
   if (status === 'WAITING_FOR_CORPORATE') return { bg: '#fff7e9', color: '#9b6500' };
   return { bg: '#eef2f7', color: '#4d5b70' };
 }
@@ -118,6 +118,21 @@ export default function SupportOverviewPage() {
   const [replyFiles, setReplyFiles] = useState<File[]>([]);
   const [replyError, setReplyError] = useState('');
   const [replying, setReplying] = useState(false);
+
+  useEffect(() => {
+    const openTicketFromHelp = () => {
+      setCreateClosing(false);
+      setShowCreate(true);
+    };
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('openTicket') === '1') {
+      openTicketFromHelp();
+      window.history.replaceState(window.history.state, '', window.location.pathname);
+    }
+
+    window.addEventListener('adhocx:open-support-ticket', openTicketFromHelp);
+    return () => window.removeEventListener('adhocx:open-support-ticket', openTicketFromHelp);
+  }, []);
 
   const loadTickets = useCallback(async () => {
     setLoading(true);
@@ -315,7 +330,7 @@ export default function SupportOverviewPage() {
         </div>
         <button type="button" onClick={() => { setCreateClosing(false); setShowCreate(true); }} style={{
           display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: 40, padding: '0 15px',
-          border: 0, borderRadius: 8, background: '#5d3ab6', color: '#fff', fontSize: 13, fontWeight: 650, cursor: 'pointer',
+          border: 0, borderRadius: 8, background: 'var(--support-accent-variant-3)', color: '#fff', fontSize: 13, fontWeight: 650, cursor: 'pointer',
         }}>
           <Plus size={16} /> Raise a Ticket
         </button>
@@ -334,9 +349,9 @@ export default function SupportOverviewPage() {
 
       <section aria-label="Ticket summary" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
         {[
-          { label: 'Total Tickets', value: counts.total, icon: <LifeBuoy size={17} />, color: '#6242ae' },
+          { label: 'Total Tickets', value: counts.total, icon: <LifeBuoy size={17} />, color: 'var(--support-accent-variant-4)' },
           { label: 'Open Tickets', value: counts.open, icon: <AlertCircle size={17} />, color: '#a76a0b' },
-          { label: 'In Progress', value: counts.progress, icon: <Clock3 size={17} />, color: '#6044b4' },
+          { label: 'In Progress', value: counts.progress, icon: <Clock3 size={17} />, color: 'var(--support-accent-variant-5)' },
           { label: 'Resolved', value: counts.resolved, icon: <CheckCircle2 size={17} />, color: '#278054' },
           { label: 'Closed', value: counts.closed, icon: <CheckCircle2 size={17} />, color: '#64748b' },
         ].map((item) => (
@@ -351,7 +366,7 @@ export default function SupportOverviewPage() {
         <div style={{ padding: 16, borderBottom: '1px solid var(--border-color)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 13 }}>
             <div><h2 style={{ margin: 0, color: 'var(--text-primary)', fontSize: 15, fontWeight: 700 }}>Your tickets</h2><p style={{ margin: '4px 0 0', color: 'var(--text-muted)', fontSize: 12 }}>Responses and operational updates are synchronized automatically.</p></div>
-            {activeFilters > 0 && <button type="button" onClick={clearFilters} style={{ border: 0, background: 'none', color: '#5d3ab6', fontSize: 12, fontWeight: 650, cursor: 'pointer' }}>Clear filters ({activeFilters})</button>}
+            {activeFilters > 0 && <button type="button" onClick={clearFilters} style={{ border: 0, background: 'none', color: 'var(--support-accent-variant-3)', fontSize: 12, fontWeight: 650, cursor: 'pointer' }}>Clear filters ({activeFilters})</button>}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 9 }}>
             <div style={{ position: 'relative' }}><Search size={15} style={{ position: 'absolute', top: 12, left: 10, color: 'var(--text-muted)' }} /><input aria-label="Search tickets" placeholder="Search ticket number or title" value={search} onChange={(event) => setSearch(event.target.value)} style={{ ...controlStyle, paddingLeft: 32 }} /></div>
@@ -365,13 +380,13 @@ export default function SupportOverviewPage() {
 
         {loadError ? (
           <div role="alert" style={{ textAlign: 'center', padding: 44, color: 'var(--text-secondary)' }}>
-            <AlertCircle size={22} style={{ color: '#b5473c' }} /><p>{loadError}</p><button type="button" onClick={() => void loadTickets()} style={{ border: 0, background: 'none', color: '#5d3ab6', fontWeight: 650, cursor: 'pointer' }}>Retry</button>
+            <AlertCircle size={22} style={{ color: '#b5473c' }} /><p>{loadError}</p><button type="button" onClick={() => void loadTickets()} style={{ border: 0, background: 'none', color: 'var(--support-accent-variant-3)', fontWeight: 650, cursor: 'pointer' }}>Retry</button>
           </div>
         ) : loading ? (
           <div style={{ padding: 32 }}>{[0, 1, 2, 3].map((item) => <div key={item} style={{ height: 42, borderRadius: 6, marginBottom: 10, background: 'var(--bg-surface-muted)' }} />)}</div>
         ) : pageTickets.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '48px 20px', color: 'var(--text-muted)' }}>
-            <LifeBuoy size={24} style={{ color: '#8b77c2' }} />
+            <LifeBuoy size={24} style={{ color: 'var(--support-accent-variant-6)' }} />
             <p style={{ color: 'var(--text-primary)', fontWeight: 650, margin: '10px 0 4px' }}>{tickets.length ? 'No tickets match your filters' : 'No tickets yet'}</p>
             <p style={{ margin: 0, fontSize: 13 }}>{tickets.length ? 'Try adjusting the filters or clear them to see all tickets.' : 'Raise a ticket and your support team will follow up here.'}</p>
           </div>
@@ -382,7 +397,7 @@ export default function SupportOverviewPage() {
                 {['Ticket ID', 'Title', 'Category', 'Priority', 'Created', 'Last Updated', 'Assigned Team', 'Status', ''].map((head) => <th key={head} style={{ padding: '11px 14px', fontWeight: 650, whiteSpace: 'nowrap' }}>{head}</th>)}
               </tr></thead>
               <tbody>{pageTickets.map((ticket) => <tr key={ticket.id} style={{ borderTop: '1px solid var(--border-color)' }}>
-                <td style={{ padding: '13px 14px', color: '#5d3ab6', fontWeight: 700, fontSize: 12, whiteSpace: 'nowrap' }}>{ticket.ticketNumber}</td>
+                <td style={{ padding: '13px 14px', color: 'var(--support-accent-variant-3)', fontWeight: 700, fontSize: 12, whiteSpace: 'nowrap' }}>{ticket.ticketNumber}</td>
                 <td style={{ padding: '13px 14px', minWidth: 190 }}><div style={{ fontSize: 13, fontWeight: 650, color: 'var(--text-primary)' }}>{ticket.subject}</div><div style={{ marginTop: 3, maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 11, color: 'var(--text-muted)' }}>{ticket.description}</div></td>
                 <td style={{ padding: '13px 14px', color: 'var(--text-secondary)', fontSize: 12, whiteSpace: 'nowrap' }}>{pretty(ticket.category)}</td>
                 <td style={{ padding: '13px 14px', color: ticket.priority === 'CRITICAL' || ticket.priority === 'HIGH' ? '#a13f38' : 'var(--text-secondary)', fontSize: 12, fontWeight: 650 }}>{pretty(ticket.priority)}</td>
@@ -472,17 +487,17 @@ export default function SupportOverviewPage() {
               </div>
               <div style={{ padding: '18px 0', borderBottom: '1px solid var(--border-color)' }}><h3 style={sectionTitleStyle}>Description</h3><p style={{ whiteSpace: 'pre-wrap', color: 'var(--text-secondary)', fontSize: 13, lineHeight: 1.6, margin: 0 }}>{selected.description}</p></div>
               {selected.resolutionNotes && <div style={{ padding: '18px 0', borderBottom: '1px solid var(--border-color)' }}><h3 style={sectionTitleStyle}>Resolution</h3><p style={{ color: 'var(--text-secondary)', fontSize: 13, margin: 0 }}>{selected.resolutionNotes}</p></div>}
-              {!!selected.attachments?.length && <div style={{ padding: '18px 0', borderBottom: '1px solid var(--border-color)' }}><h3 style={sectionTitleStyle}>Attachments</h3><div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>{selected.attachments.map((attachment) => <a key={attachment.id} href={attachment.url} target="_blank" rel="noreferrer" style={{ color: '#5d3ab6' }}><img src={attachment.url} alt={attachment.fileName} style={{ width: 100, height: 80, objectFit: 'cover', border: '1px solid var(--border-color)', borderRadius: 7 }} /></a>)}</div></div>}
+              {!!selected.attachments?.length && <div style={{ padding: '18px 0', borderBottom: '1px solid var(--border-color)' }}><h3 style={sectionTitleStyle}>Attachments</h3><div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>{selected.attachments.map((attachment) => <a key={attachment.id} href={attachment.url} target="_blank" rel="noreferrer" style={{ color: 'var(--support-accent-variant-3)' }}><img src={attachment.url} alt={attachment.fileName} style={{ width: 100, height: 80, objectFit: 'cover', border: '1px solid var(--border-color)', borderRadius: 7 }} /></a>)}</div></div>}
               <div style={{ padding: '18px 0' }}>
                 <h3 style={sectionTitleStyle}>Activity & replies</h3>
-                {[...(selected.activities ?? []).map((activity) => ({ id: activity.id, message: activity.description, createdAt: activity.createdAt, kind: 'activity' })), ...(selected.comments ?? []).map((comment) => ({ id: comment.id, message: comment.message, createdAt: comment.createdAt, kind: 'reply' }))].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()).map((entry) => <div key={`${entry.kind}-${entry.id}`} style={{ display: 'flex', gap: 10, padding: '8px 0' }}><span style={{ width: 7, height: 7, marginTop: 5, borderRadius: 10, background: entry.kind === 'reply' ? '#5d3ab6' : '#9a91a8', flexShrink: 0 }} /><div><div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{entry.message}</div><div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 3 }}>{formatDate(entry.createdAt)}</div></div></div>)}
+                {[...(selected.activities ?? []).map((activity) => ({ id: activity.id, message: activity.description, createdAt: activity.createdAt, kind: 'activity' })), ...(selected.comments ?? []).map((comment) => ({ id: comment.id, message: comment.message, createdAt: comment.createdAt, kind: 'reply' }))].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()).map((entry) => <div key={`${entry.kind}-${entry.id}`} style={{ display: 'flex', gap: 10, padding: '8px 0' }}><span style={{ width: 7, height: 7, marginTop: 5, borderRadius: 10, background: entry.kind === 'reply' ? 'var(--support-accent-variant-3)' : '#9a91a8', flexShrink: 0 }} /><div><div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{entry.message}</div><div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 3 }}>{formatDate(entry.createdAt)}</div></div></div>)}
                 {!selected.activities?.length && !selected.comments?.length && <p style={{ color: 'var(--text-muted)', fontSize: 12 }}>No updates yet.</p>}
               </div>
               {selected.status === 'RESOLVED' && <button type="button" onClick={() => void reopenTicket()} style={{ ...secondaryButton, display: 'inline-flex', alignItems: 'center', gap: 7, marginBottom: 14 }}><RotateCcw size={14} /> Reopen ticket</button>}
               {!['CLOSED'].includes(selected.status) && <form onSubmit={submitReply} style={{ borderTop: '1px solid var(--border-color)', paddingTop: 16 }}>
                 <label><span style={labelStyle}>Reply to support <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>({reply.length}/1,000)</span></span><textarea maxLength={1000} rows={3} value={reply} onChange={(event) => setReply(event.target.value)} placeholder="Write a reply…" style={{ ...controlStyle, resize: 'vertical' }} /></label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 9 }}>
-                  <label style={{ display: 'inline-flex', gap: 6, alignItems: 'center', color: '#5d3ab6', fontSize: 12, cursor: 'pointer' }}><Paperclip size={14} /> Attach images<input type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" multiple hidden onChange={(event) => { acceptFiles(event.target.files, 'reply'); event.target.value = ''; }} /></label>
+                  <label style={{ display: 'inline-flex', gap: 6, alignItems: 'center', color: 'var(--support-accent-variant-3)', fontSize: 12, cursor: 'pointer' }}><Paperclip size={14} /> Attach images<input type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" multiple hidden onChange={(event) => { acceptFiles(event.target.files, 'reply'); event.target.value = ''; }} /></label>
                   {replyFiles.map((file, index) => <span key={`${file.name}-${index}`} style={{ fontSize: 11, color: 'var(--text-muted)' }}>{file.name}<button type="button" onClick={() => setReplyFiles((items) => items.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Remove ${file.name}`} style={{ border: 0, background: 'none', cursor: 'pointer' }}><X size={11} /></button></span>)}
                   <button type="submit" disabled={replying || !reply.trim() || !!replyError} style={{ ...primaryButton, marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 7 }}><Send size={14} />{replying ? 'Sending…' : 'Send reply'}</button>
                 </div>
@@ -505,9 +520,9 @@ const overlayStyle: React.CSSProperties = { position: 'fixed', inset: 0, zIndex:
 const drawerStyle: React.CSSProperties = { width: 'min(560px, 100vw)', height: '100%', background: 'var(--bg-surface)', boxShadow: '-12px 0 32px rgba(20, 24, 40, .12)', display: 'flex', flexDirection: 'column' };
 const drawerHeaderStyle: React.CSSProperties = { padding: '22px 22px 18px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', gap: 16, flexShrink: 0 };
 const drawerTitleStyle: React.CSSProperties = { margin: '4px 0 0', color: 'var(--text-primary)', fontSize: 20, fontWeight: 700 };
-const eyebrowStyle: React.CSSProperties = { color: '#6242ae', fontWeight: 700, fontSize: 10, letterSpacing: '.08em' };
+const eyebrowStyle: React.CSSProperties = { color: 'var(--support-accent-variant-4)', fontWeight: 700, fontSize: 10, letterSpacing: '.08em' };
 const iconButton: React.CSSProperties = { display: 'inline-flex', justifyContent: 'center', alignItems: 'center', width: 32, height: 32, padding: 0, border: '1px solid var(--border-color)', borderRadius: 7, background: 'var(--bg-surface)', color: 'var(--text-secondary)', cursor: 'pointer' };
 const secondaryButton: React.CSSProperties = { minHeight: 36, padding: '0 12px', border: '1px solid var(--border-color)', borderRadius: 7, background: 'var(--bg-surface)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600, cursor: 'pointer' };
-const primaryButton: React.CSSProperties = { minHeight: 36, padding: '0 13px', border: 0, borderRadius: 7, background: '#5d3ab6', color: '#fff', fontSize: 12, fontWeight: 650, cursor: 'pointer' };
+const primaryButton: React.CSSProperties = { minHeight: 36, padding: '0 13px', border: 0, borderRadius: 7, background: 'var(--support-accent-variant-3)', color: '#fff', fontSize: 12, fontWeight: 650, cursor: 'pointer' };
 const validationStyle: React.CSSProperties = { color: '#a0342b', fontSize: 11, margin: '6px 0 0' };
 const sectionTitleStyle: React.CSSProperties = { margin: '0 0 10px', color: 'var(--text-primary)', fontSize: 13, fontWeight: 700 };

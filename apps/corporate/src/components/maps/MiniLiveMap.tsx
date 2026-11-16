@@ -37,7 +37,7 @@ export const MiniLiveMap: React.FC<MiniLiveMapProps> = ({
         position: 'relative',
         width: '100%',
         height: height,
-        backgroundColor: '#EDF2F7',
+        backgroundColor: 'var(--map-canvas)',
         borderRadius: 'var(--radius-lg)',
         overflow: 'hidden',
         border: '1px solid var(--border-subtle)',
@@ -55,19 +55,19 @@ export const MiniLiveMap: React.FC<MiniLiveMapProps> = ({
         }}
       >
         {/* Subtle Map Roads & Blocks Background */}
-        <rect width="800" height="400" fill="#EBF1F6" />
+        <rect width="800" height="400" fill="var(--map-zone)" />
 
         {/* City Zones / Blocks */}
-        <path d="M 50 40 L 260 40 L 240 160 L 60 140 Z" fill="#E2E8F0" opacity="0.6" />
-        <path d="M 300 30 L 520 30 L 510 130 L 320 120 Z" fill="#E2E8F0" opacity="0.6" />
-        <path d="M 560 50 L 750 50 L 740 150 L 580 140 Z" fill="#E2E8F0" opacity="0.6" />
-        <path d="M 80 260 L 270 240 L 260 360 L 90 370 Z" fill="#E2E8F0" opacity="0.6" />
-        <path d="M 320 270 L 540 260 L 530 380 L 310 370 Z" fill="#E2E8F0" opacity="0.6" />
+        <path d="M 50 40 L 260 40 L 240 160 L 60 140 Z" fill="var(--map-region)" opacity="0.6" />
+        <path d="M 300 30 L 520 30 L 510 130 L 320 120 Z" fill="var(--map-region)" opacity="0.6" />
+        <path d="M 560 50 L 750 50 L 740 150 L 580 140 Z" fill="var(--map-region)" opacity="0.6" />
+        <path d="M 80 260 L 270 240 L 260 360 L 90 370 Z" fill="var(--map-region)" opacity="0.6" />
+        <path d="M 320 270 L 540 260 L 530 380 L 310 370 Z" fill="var(--map-region)" opacity="0.6" />
 
         {/* Road networks */}
-        <line x1="0" y1="180" x2="800" y2="180" stroke="#CBD5E1" strokeWidth="8" />
-        <line x1="280" y1="0" x2="280" y2="400" stroke="#CBD5E1" strokeWidth="6" />
-        <line x1="540" y1="0" x2="540" y2="400" stroke="#CBD5E1" strokeWidth="6" />
+        <line x1="0" y1="180" x2="800" y2="180" stroke="var(--map-road)" strokeWidth="8" />
+        <line x1="280" y1="0" x2="280" y2="400" stroke="var(--map-road)" strokeWidth="6" />
+        <line x1="540" y1="0" x2="540" y2="400" stroke="var(--map-road)" strokeWidth="6" />
 
         {/* Landmark labels */}
         <text x="130" y="110" fill="#64748B" fontSize="13" fontWeight="700" letterSpacing="0.05em">
@@ -84,21 +84,21 @@ export const MiniLiveMap: React.FC<MiniLiveMapProps> = ({
         <path
           d={pathD}
           fill="none"
-          stroke="#5728B2"
+          stroke="var(--brand-primary)"
           strokeWidth="5"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
 
         {/* Origin Pin (Kondapur) */}
-        <circle cx="140" cy="230" r="10" fill="#16A34A" />
+        <circle cx="140" cy="230" r="10" fill="var(--color-success)" />
         <circle cx="140" cy="230" r="4" fill="#FFFFFF" />
 
         {/* Waypoint Stops */}
-        <circle cx="280" cy="215" r="7" fill="#5728B2" />
+        <circle cx="280" cy="215" r="7" fill="var(--brand-primary)" />
         <text x="280" y="219" fill="#FFFFFF" fontSize="9" fontWeight="700" textAnchor="middle">1</text>
 
-        <circle cx="440" cy="180" r="7" fill="#5728B2" />
+        <circle cx="440" cy="180" r="7" fill="var(--brand-primary)" />
         <text x="440" y="184" fill="#FFFFFF" fontSize="9" fontWeight="700" textAnchor="middle">2</text>
 
         {/* Destination Pin (HiTEC City Hub) */}
@@ -108,13 +108,13 @@ export const MiniLiveMap: React.FC<MiniLiveMapProps> = ({
         {/* Live Vehicle Marker */}
         <g transform="translate(435, 175)">
           {/* Animated pulse ring */}
-          <circle cx="0" cy="0" r="16" fill="#5728B2" opacity="0.2">
+          <circle cx="0" cy="0" r="16" fill="var(--brand-primary)" opacity="0.2">
             <animate attributeName="r" values="12;24;12" dur="2s" repeatCount="indefinite" />
             <animate attributeName="opacity" values="0.4;0;0.4" dur="2s" repeatCount="indefinite" />
           </circle>
 
           {/* Vehicle Icon Circle */}
-          <circle cx="0" cy="0" r="14" fill="#5728B2" stroke="#FFFFFF" strokeWidth="2.5" />
+          <circle cx="0" cy="0" r="14" fill="var(--brand-primary)" stroke="#FFFFFF" strokeWidth="2.5" />
           <path
             d="M -6 -3 L -4 -7 L 4 -7 L 6 -3 L 6 4 L -6 4 Z"
             fill="#FFFFFF"
@@ -148,8 +148,8 @@ export const MiniLiveMap: React.FC<MiniLiveMapProps> = ({
             style={{
               fontSize: '10px',
               fontWeight: 700,
-              color: '#16A34A',
-              backgroundColor: '#DCFCE7',
+              color: 'var(--color-success)',
+              backgroundColor: 'var(--color-success-bg)',
               padding: '1px 5px',
               borderRadius: '4px',
             }}
@@ -158,7 +158,7 @@ export const MiniLiveMap: React.FC<MiniLiveMapProps> = ({
           </span>
         </div>
         <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 500 }}>
-          ETA: <strong style={{ color: '#5728B2' }}>{activeEta}</strong> Â· 5 stops
+          ETA: <strong style={{ color: 'var(--brand-primary)' }}>{activeEta}</strong> Â· 5 stops
         </div>
       </div>
 

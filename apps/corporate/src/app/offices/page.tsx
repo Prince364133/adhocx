@@ -77,7 +77,7 @@ export default function OfficesDirectoryPage() {
               alignItems: 'center',
               gap: 6,
               padding: '8px 14px',
-              backgroundColor: '#5728B2',
+              backgroundColor: 'var(--brand-action)',
               color: '#FFFFFF',
               borderRadius: 6,
               fontSize: 13,
@@ -220,8 +220,8 @@ export default function OfficesDirectoryPage() {
                         <span
                           style={{
                             padding: '2px 8px',
-                            backgroundColor: '#EFF6FF',
-                            color: '#5728B2',
+                            backgroundColor: 'var(--color-blue-bg)',
+                            color: 'var(--brand-primary)',
                             borderRadius: 4,
                             fontSize: 11,
                             fontWeight: 700,
@@ -232,8 +232,8 @@ export default function OfficesDirectoryPage() {
                         <span
                           style={{
                             padding: '2px 8px',
-                            backgroundColor: office.isActive !== false ? '#DCFCE7' : '#F1F5F9',
-                            color: office.isActive !== false ? '#15803D' : '#64748B',
+                            backgroundColor: office.isActive !== false ? 'var(--color-success-bg)' : '#F1F5F9',
+                            color: office.isActive !== false ? 'var(--color-success-text)' : '#64748B',
                             borderRadius: 4,
                             fontSize: 11,
                             fontWeight: 600,
@@ -272,13 +272,13 @@ export default function OfficesDirectoryPage() {
                     </div>
                     <div>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Geofence</div>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: '#5728B2' }}>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--brand-primary)' }}>
                         {geofenceRadius}m
                       </div>
                     </div>
                     <div>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Coordinates</div>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: '#16A34A', marginTop: 3 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-success)', marginTop: 3 }}>
                         {office.latitude ? `${Number(office.latitude).toFixed(2)}, ${Number(office.longitude).toFixed(2)}` : 'Set'}
                       </div>
                     </div>
@@ -292,7 +292,7 @@ export default function OfficesDirectoryPage() {
                     style={{
                       fontSize: 12,
                       fontWeight: 600,
-                      color: '#5728B2',
+                      color: 'var(--brand-primary)',
                       textDecoration: 'none',
                       display: 'inline-flex',
                       alignItems: 'center',

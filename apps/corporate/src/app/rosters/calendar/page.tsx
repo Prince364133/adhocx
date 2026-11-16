@@ -88,11 +88,11 @@ export default function RosterCalendarPage() {
   const getShiftBadge = (shift: string) => {
     switch (shift) {
       case 'Day':
-        return { bg: '#EFF6FF', color: '#5728B2', border: '#BFDBFE' };
+        return { bg: 'var(--color-blue-bg)', color: 'var(--brand-primary)', border: 'var(--color-blue-border)' };
       case 'Night':
-        return { bg: '#F3E8FF', color: '#7C3AED', border: '#D8B4FE' };
+        return { bg: 'var(--brand-blue-100)', color: 'var(--color-purple)', border: 'var(--color-purple-border)' };
       case 'Evening':
-        return { bg: '#FEF3C7', color: '#D97706', border: '#FCD34D' };
+        return { bg: 'var(--color-warning-bg)', color: '#D97706', border: 'var(--color-warning-border)' };
       case 'Training':
         return { bg: '#CCFBF1', color: '#0F766E', border: '#99F6E4' };
       case 'Off':
@@ -124,7 +124,7 @@ export default function RosterCalendarPage() {
               border: 'none',
               fontSize: '12px',
               fontWeight: 700,
-              backgroundColor: viewMode === 'day' ? '#5728B2' : 'transparent',
+              backgroundColor: viewMode === 'day' ? 'var(--brand-action)' : 'transparent',
               color: viewMode === 'day' ? '#FFFFFF' : '#475569',
               cursor: 'pointer',
             }}
@@ -139,7 +139,7 @@ export default function RosterCalendarPage() {
               border: 'none',
               fontSize: '12px',
               fontWeight: 700,
-              backgroundColor: viewMode === 'week' ? '#5728B2' : 'transparent',
+              backgroundColor: viewMode === 'week' ? 'var(--brand-action)' : 'transparent',
               color: viewMode === 'week' ? '#FFFFFF' : '#475569',
               cursor: 'pointer',
             }}
@@ -154,7 +154,7 @@ export default function RosterCalendarPage() {
               border: 'none',
               fontSize: '12px',
               fontWeight: 700,
-              backgroundColor: viewMode === 'month' ? '#5728B2' : 'transparent',
+              backgroundColor: viewMode === 'month' ? 'var(--brand-action)' : 'transparent',
               color: viewMode === 'month' ? '#FFFFFF' : '#475569',
               cursor: 'pointer',
             }}

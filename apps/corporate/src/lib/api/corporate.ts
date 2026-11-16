@@ -24,6 +24,7 @@ import type {
   Invoice,
   InvoiceDetail,
   InvoiceDispute,
+  InAppNotificationsResponse,
   Office,
   OfficeGeofenceDetails,
   OtpRequestResponse,
@@ -532,4 +533,17 @@ export const usersApi = {
     }),
   update: (tenantId: string, userId: string, body: { corporateRole?: string; officeIds?: string[] }) =>
     apiRequest<CorporateUser>(`/corporate/tenants/${tenantId}/users/${userId}`, { method: 'PATCH', body }),
+};
+
+export const notificationsApi = {
+  list: (limit = 8) =>
+    apiRequest<InAppNotificationsResponse>(`/notifications/in-app${qs({ limit })}`),
+  markRead: (notificationId: string) =>
+    apiRequest<{ success: boolean }>(`/notifications/in-app/${encodeURIComponent(notificationId)}/read`, {
+      method: 'PATCH',
+    }),
+  markAllRead: () =>
+    apiRequest<{ success: boolean }>('/notifications/in-app/read-all', {
+      method: 'PATCH',
+    }),
 };

@@ -74,12 +74,12 @@ export default function BookingsOverviewPage({ searchParams }: PageProps) {
     switch (status) {
       case 'COMPLETED':
       case 'CONFIRMED':
-        return { bg: '#DCFCE7', color: '#16A34A', border: '#86EFAC' };
+        return { bg: 'var(--color-success-bg)', color: 'var(--color-success)', border: 'var(--color-success-border)' };
       case 'PENDING':
       case 'UNSERVED':
-        return { bg: '#FEF3C7', color: '#D97706', border: '#FCD34D' };
+        return { bg: 'var(--color-warning-bg)', color: '#D97706', border: 'var(--color-warning-border)' };
       case 'IN_PROGRESS':
-        return { bg: '#EFF6FF', color: '#5728B2', border: '#BFDBFE' };
+        return { bg: 'var(--color-blue-bg)', color: 'var(--brand-primary)', border: 'var(--color-blue-border)' };
       case 'CANCELLED':
         return { bg: 'var(--bg-surface-muted)', color: 'var(--text-muted)', border: 'var(--border-color)' };
       default:
@@ -107,14 +107,14 @@ export default function BookingsOverviewPage({ searchParams }: PageProps) {
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              backgroundColor: '#5728B2',
+              backgroundColor: 'var(--brand-action)',
               color: '#FFFFFF',
               borderRadius: 'var(--radius-md)',
               padding: '8px 16px',
               fontSize: '13px',
               fontWeight: 700,
               textDecoration: 'none',
-              boxShadow: '0 2px 4px rgba(87, 40, 178,0.25)',
+              boxShadow: '0 2px 4px rgba(var(--brand-primary-rgb), 0.25)',
             }}
           >
             <span>Review Approvals</span>
@@ -137,7 +137,7 @@ export default function BookingsOverviewPage({ searchParams }: PageProps) {
                 fontWeight: 700,
                 border: 'none',
                 cursor: 'pointer',
-                backgroundColor: activeTab === 'all' ? '#5728B2' : 'var(--bg-surface-muted)',
+                backgroundColor: activeTab === 'all' ? 'var(--brand-action)' : 'var(--bg-surface-muted)',
                 color: activeTab === 'all' ? '#FFFFFF' : 'var(--text-secondary)',
               }}
             >
@@ -152,7 +152,7 @@ export default function BookingsOverviewPage({ searchParams }: PageProps) {
                 fontWeight: 700,
                 border: 'none',
                 cursor: 'pointer',
-                backgroundColor: activeTab === 'login' ? '#5728B2' : 'var(--bg-surface-muted)',
+                backgroundColor: activeTab === 'login' ? 'var(--brand-action)' : 'var(--bg-surface-muted)',
                 color: activeTab === 'login' ? '#FFFFFF' : 'var(--text-secondary)',
               }}
             >
@@ -167,7 +167,7 @@ export default function BookingsOverviewPage({ searchParams }: PageProps) {
                 fontWeight: 700,
                 border: 'none',
                 cursor: 'pointer',
-                backgroundColor: activeTab === 'logout' ? '#5728B2' : 'var(--bg-surface-muted)',
+                backgroundColor: activeTab === 'logout' ? 'var(--brand-action)' : 'var(--bg-surface-muted)',
                 color: activeTab === 'logout' ? '#FFFFFF' : 'var(--text-secondary)',
               }}
             >
@@ -272,8 +272,8 @@ export default function BookingsOverviewPage({ searchParams }: PageProps) {
                             fontWeight: 700,
                             padding: '3px 8px',
                             borderRadius: '4px',
-                            backgroundColor: item.direction === 'LOGIN' ? '#EFF6FF' : '#FEF3C7',
-                            color: item.direction === 'LOGIN' ? '#5728B2' : '#D97706',
+                            backgroundColor: item.direction === 'LOGIN' ? 'var(--color-blue-bg)' : 'var(--color-warning-bg)',
+                            color: item.direction === 'LOGIN' ? 'var(--brand-primary)' : '#D97706',
                             border: '1px solid currentColor',
                           }}
                         >
@@ -311,7 +311,7 @@ export default function BookingsOverviewPage({ searchParams }: PageProps) {
                             backgroundColor: 'var(--bg-surface)',
                             fontSize: '11px',
                             fontWeight: 700,
-                            color: '#5728B2',
+                            color: 'var(--brand-primary)',
                             textDecoration: 'none',
                           }}
                         >

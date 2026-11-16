@@ -95,8 +95,8 @@ export default function BillingOverviewPage({ searchParams }: PageProps) {
       ];
 
   const breakdownDonut = [
-    { label: 'Employee Trips (Roster)', count: Math.round((totalBilledPaise / 100) * 0.75), pct: 75, color: '#5728B2' },
-    { label: 'Ad-hoc Commutes', count: Math.round((totalBilledPaise / 100) * 0.15), pct: 15, color: '#8B5CF6' },
+    { label: 'Employee Trips (Roster)', count: Math.round((totalBilledPaise / 100) * 0.75), pct: 75, color: 'var(--brand-primary)' },
+    { label: 'Ad-hoc Commutes', count: Math.round((totalBilledPaise / 100) * 0.15), pct: 15, color: 'var(--color-chart-purple)' },
     { label: 'Re-routes & Waiting', count: Math.round((totalBilledPaise / 100) * 0.10), pct: 10, color: '#06B6D4' },
   ];
 
@@ -125,7 +125,7 @@ export default function BillingOverviewPage({ searchParams }: PageProps) {
           label="Total Billed"
           value={loading ? '...' : formatPaiseToRupees(totalBilledPaise)}
           icon={<IndianRupee size={18} />}
-          highlightColor="#5728B2"
+          highlightColor="var(--brand-primary)"
         />
         <MetricCard
           label="Paid Amount"
@@ -133,7 +133,7 @@ export default function BillingOverviewPage({ searchParams }: PageProps) {
           subtext={`${paidPct}% Settled`}
           icon={<CheckCircle2 size={18} />}
           trend={{ value: `${paidPct}%`, isPositive: paidPct >= 80 }}
-          highlightColor="#16A34A"
+          highlightColor="var(--color-success)"
         />
         <MetricCard
           label="Outstanding"
@@ -148,7 +148,7 @@ export default function BillingOverviewPage({ searchParams }: PageProps) {
           value={loading ? '...' : String(invoices.length)}
           subtext="Generated to date"
           icon={<Receipt size={18} />}
-          highlightColor="#8B5CF6"
+          highlightColor="var(--color-chart-purple)"
         />
         <MetricCard
           label="Disputes"
@@ -177,11 +177,11 @@ export default function BillingOverviewPage({ searchParams }: PageProps) {
               style={{
                 fontSize: '11px',
                 fontWeight: 700,
-                color: '#5728B2',
-                backgroundColor: 'rgba(87, 40, 178, 0.08)',
+                color: 'var(--brand-primary)',
+                backgroundColor: 'rgba(var(--brand-primary-rgb), 0.08)',
                 padding: '4px 10px',
                 borderRadius: 'var(--radius-pill)',
-                border: '1px solid rgba(87, 40, 178, 0.2)',
+                border: '1px solid rgba(var(--brand-primary-rgb), 0.2)',
               }}
             >
               {invoices.length} Invoices Tracked
@@ -191,7 +191,7 @@ export default function BillingOverviewPage({ searchParams }: PageProps) {
           <AreaTrendChart
             data={billingTrend}
             height={210}
-            lineColor="#5728B2"
+            lineColor="var(--brand-primary)"
             metricLabel="k"
           />
         </div>
@@ -231,9 +231,9 @@ export default function BillingOverviewPage({ searchParams }: PageProps) {
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              backgroundColor: 'rgba(87, 40, 178, 0.08)',
-              color: '#5728B2',
-              border: '1px solid rgba(87, 40, 178, 0.25)',
+              backgroundColor: 'rgba(var(--brand-primary-rgb), 0.08)',
+              color: 'var(--brand-primary)',
+              border: '1px solid rgba(var(--brand-primary-rgb), 0.25)',
               borderRadius: '6px',
               padding: '8px 14px',
               fontSize: '12px',

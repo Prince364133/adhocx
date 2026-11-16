@@ -40,8 +40,8 @@ export default function TransportAnalyticsPage() {
   const completedTrips = dashboard?.trips?.byStatus?.['COMPLETED'] ?? Math.round(totalTrips * 0.9);
 
   const tripDistribution = [
-    { label: 'Login Pickups', count: Math.round(totalTrips * 0.52), pct: 52, color: '#5728B2' },
-    { label: 'Logout Drops', count: Math.round(totalTrips * 0.38), pct: 38, color: '#8B5CF6' },
+    { label: 'Login Pickups', count: Math.round(totalTrips * 0.52), pct: 52, color: 'var(--brand-primary)' },
+    { label: 'Logout Drops', count: Math.round(totalTrips * 0.38), pct: 38, color: 'var(--color-chart-purple)' },
     { label: 'Ad-hoc / Late Shift', count: Math.max(1, Math.round(totalTrips * 0.1)), pct: 10, color: '#38BDF8' },
   ];
 
@@ -84,7 +84,7 @@ export default function TransportAnalyticsPage() {
           value={`${onTimePct}%`}
           icon={<Clock size={18} />}
           trend={{ value: '+1.8%', isPositive: true }}
-          highlightColor="#16A34A"
+          highlightColor="var(--color-success)"
         />
         <MetricCard
           label="Avg. Pickup Delay"
@@ -105,7 +105,7 @@ export default function TransportAnalyticsPage() {
           value="18.6 km"
           icon={<Route size={18} />}
           trend={{ value: '-1.2km', isPositive: true }}
-          highlightColor="#6366F1"
+          highlightColor="var(--color-chart-indigo)"
         />
         <MetricCard
           label="Total Transport Cost"

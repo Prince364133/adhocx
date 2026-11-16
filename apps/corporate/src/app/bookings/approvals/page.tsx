@@ -120,8 +120,8 @@ export default function ApprovalsPage({ searchParams }: PageProps) {
               fontWeight: 700,
               border: 'none',
               backgroundColor: 'transparent',
-              color: activeTab === 'all' ? '#5728B2' : 'var(--text-secondary)',
-              borderBottom: `2px solid ${activeTab === 'all' ? '#5728B2' : 'transparent'}`,
+              color: activeTab === 'all' ? 'var(--brand-primary)' : 'var(--text-secondary)',
+              borderBottom: `2px solid ${activeTab === 'all' ? 'var(--brand-primary)' : 'transparent'}`,
               cursor: 'pointer',
             }}
           >
@@ -135,8 +135,8 @@ export default function ApprovalsPage({ searchParams }: PageProps) {
               fontWeight: 700,
               border: 'none',
               backgroundColor: 'transparent',
-              color: activeTab === 'login' ? '#5728B2' : 'var(--text-secondary)',
-              borderBottom: `2px solid ${activeTab === 'login' ? '#5728B2' : 'transparent'}`,
+              color: activeTab === 'login' ? 'var(--brand-primary)' : 'var(--text-secondary)',
+              borderBottom: `2px solid ${activeTab === 'login' ? 'var(--brand-primary)' : 'transparent'}`,
               cursor: 'pointer',
             }}
           >
@@ -150,8 +150,8 @@ export default function ApprovalsPage({ searchParams }: PageProps) {
               fontWeight: 700,
               border: 'none',
               backgroundColor: 'transparent',
-              color: activeTab === 'logout' ? '#5728B2' : 'var(--text-secondary)',
-              borderBottom: `2px solid ${activeTab === 'logout' ? '#5728B2' : 'transparent'}`,
+              color: activeTab === 'logout' ? 'var(--brand-primary)' : 'var(--text-secondary)',
+              borderBottom: `2px solid ${activeTab === 'logout' ? 'var(--brand-primary)' : 'transparent'}`,
               cursor: 'pointer',
             }}
           >
@@ -202,8 +202,8 @@ export default function ApprovalsPage({ searchParams }: PageProps) {
                           fontWeight: 700,
                           padding: '2px 8px',
                           borderRadius: 4,
-                          backgroundColor: req.direction === 'LOGIN' ? '#EFF6FF' : '#FEF3C7',
-                          color: req.direction === 'LOGIN' ? '#5728B2' : '#D97706',
+                          backgroundColor: req.direction === 'LOGIN' ? 'var(--color-blue-bg)' : 'var(--color-warning-bg)',
+                          color: req.direction === 'LOGIN' ? 'var(--brand-primary)' : '#D97706',
                           border: '1px solid currentColor',
                         }}
                       >
@@ -226,7 +226,7 @@ export default function ApprovalsPage({ searchParams }: PageProps) {
                             gap: '4px',
                             padding: '6px 12px',
                             borderRadius: 4,
-                            backgroundColor: '#16A34A',
+                            backgroundColor: 'var(--color-success)',
                             color: '#FFFFFF',
                             border: 'none',
                             fontSize: '11px',
@@ -248,7 +248,7 @@ export default function ApprovalsPage({ searchParams }: PageProps) {
                             borderRadius: 4,
                             backgroundColor: 'var(--bg-surface)',
                             color: '#DC2626',
-                            border: '1px solid #FCA5A5',
+                            border: '1px solid var(--color-danger-border)',
                             fontSize: '11px',
                             fontWeight: 700,
                             cursor: 'pointer',

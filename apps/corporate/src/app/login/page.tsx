@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
+import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
-  Building2,
   ShieldCheck,
   ArrowRight,
   Lock,
@@ -293,7 +293,7 @@ function LoginContent() {
         padding: '1rem',
         backgroundColor: 'var(--bg-canvas, #F8FAFC)',
         background:
-          'radial-gradient(ellipse 90% 70% at 50% 0%, var(--brand-primary-subtle, rgba(87, 40, 178, 0.22)), var(--bg-canvas, #F8FAFC))',
+          'radial-gradient(ellipse 90% 70% at 50% 0%, var(--brand-primary-subtle), var(--bg-canvas, #F8FAFC))',
         fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
         position: 'relative',
         overflow: 'hidden',
@@ -315,7 +315,7 @@ function LoginContent() {
           width: '380px',
           height: '380px',
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(87, 40, 178, 0.18) 0%, rgba(0,0,0,0) 70%)',
+          background: 'radial-gradient(circle, rgba(var(--brand-primary-rgb), 0.18) 0%, rgba(0,0,0,0) 70%)',
           pointerEvents: 'none',
           filter: 'blur(45px)',
         }}
@@ -329,7 +329,7 @@ function LoginContent() {
           width: '360px',
           height: '360px',
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, rgba(0,0,0,0) 70%)',
+          background: 'radial-gradient(circle, rgba(var(--login-glow-rgb), 0.15) 0%, rgba(0,0,0,0) 70%)',
           pointerEvents: 'none',
           filter: 'blur(45px)',
         }}
@@ -351,22 +351,14 @@ function LoginContent() {
       >
         {/* Header & Brand Logo */}
         <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 44,
-              height: 44,
-              borderRadius: '12px',
-              background: 'linear-gradient(135deg, #5728B2 0%, #3B82F6 100%)',
-              color: '#FFFFFF',
-              boxShadow: '0 4px 14px rgba(87, 40, 178, 0.35)',
-              marginBottom: '0.65rem',
-            }}
-          >
-            <Building2 size={22} strokeWidth={2.2} />
-          </div>
+          <Image
+            src="/adhocx_logo.png"
+            alt="AdhocX"
+            width={760}
+            height={253}
+            unoptimized
+            style={{ display: 'block', width: '160px', height: 'auto', margin: '0 auto 0.75rem', objectFit: 'contain' }}
+          />
 
           <div
             style={{
@@ -381,9 +373,7 @@ function LoginContent() {
               lineHeight: 1.2,
             }}
           >
-            <span>Adhoc</span>
-            <span style={{ color: '#FF5F09', fontWeight: 900 }}>X</span>
-            <span style={{ marginLeft: '6px', color: 'var(--text-primary, #0F172A)', fontWeight: 800 }}>Corporate</span>
+            Corporate Portal
           </div>
 
           <p
@@ -409,8 +399,8 @@ function LoginContent() {
               gap: '0.55rem',
               padding: '0.65rem 0.8rem',
               borderRadius: '8px',
-              backgroundColor: 'var(--color-danger-bg, #FEE2E2)',
-              border: '1px solid var(--color-danger-border, #FCA5A5)',
+              backgroundColor: 'var(--color-danger-bg)',
+              border: '1px solid var(--color-danger-border)',
               color: 'var(--color-danger, #DC2626)',
               fontSize: '0.78rem',
               lineHeight: 1.4,
@@ -449,7 +439,7 @@ function LoginContent() {
               borderRadius: '7px',
               border: 'none',
               backgroundColor: authMode === 'otp' ? 'var(--bg-surface, #FFFFFF)' : 'transparent',
-              color: authMode === 'otp' ? '#5728B2' : 'var(--text-secondary, #64748B)',
+              color: authMode === 'otp' ? 'var(--brand-primary)' : 'var(--text-secondary, #64748B)',
               fontWeight: authMode === 'otp' ? 700 : 500,
               fontSize: '0.8rem',
               cursor: 'pointer',
@@ -478,7 +468,7 @@ function LoginContent() {
               borderRadius: '7px',
               border: 'none',
               backgroundColor: authMode === 'password' ? 'var(--bg-surface, #FFFFFF)' : 'transparent',
-              color: authMode === 'password' ? '#5728B2' : 'var(--text-secondary, #64748B)',
+              color: authMode === 'password' ? 'var(--brand-primary)' : 'var(--text-secondary, #64748B)',
               fontWeight: authMode === 'password' ? 700 : 500,
               fontSize: '0.8rem',
               cursor: 'pointer',
@@ -507,8 +497,8 @@ function LoginContent() {
                   style={{
                     width: '100%',
                     height: 38,
-                    backgroundColor: '#5728B2',
-                    backgroundImage: 'linear-gradient(135deg, #5728B2 0%, #431E8E 100%)',
+                    backgroundColor: 'var(--brand-action)',
+                    backgroundImage: 'linear-gradient(135deg, var(--brand-action) 0%, var(--brand-action-hover) 100%)',
                     color: '#FFFFFF',
                     border: 'none',
                     borderRadius: '8px',
@@ -551,7 +541,7 @@ function LoginContent() {
                     >
                       Enter 6-Digit Code
                     </label>
-                    <span style={{ fontSize: '0.7rem', color: '#16A34A', fontWeight: 600 }}>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--color-success)', fontWeight: 600 }}>
                       Code sent via SMS (MSG91)
                     </span>
                   </div>
@@ -572,7 +562,7 @@ function LoginContent() {
                       fontSize: '1.2rem',
                       fontWeight: 800,
                       borderRadius: '8px',
-                      border: '2px solid #5728B2',
+                      border: '2px solid var(--brand-primary)',
                       backgroundColor: 'var(--bg-input, #FFFFFF)',
                       color: 'var(--text-primary, #0F172A)',
                       outline: 'none',
@@ -609,7 +599,7 @@ function LoginContent() {
                     style={{
                       background: 'none',
                       border: 'none',
-                      color: countdown > 0 ? 'var(--text-muted, #94A3B8)' : '#5728B2',
+                      color: countdown > 0 ? 'var(--text-muted, #94A3B8)' : 'var(--brand-primary)',
                       fontSize: '0.72rem',
                       fontWeight: 700,
                       cursor: countdown > 0 ? 'not-allowed' : 'pointer',
@@ -630,7 +620,7 @@ function LoginContent() {
                   style={{
                     width: '100%',
                     height: 40,
-                    backgroundColor: '#16A34A',
+                    backgroundColor: 'var(--color-success)',
                     color: '#FFFFFF',
                     border: 'none',
                     borderRadius: '8px',
@@ -673,7 +663,7 @@ function LoginContent() {
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: '#5728B2',
+                  color: 'var(--brand-primary)',
                   fontSize: '0.74rem',
                   fontWeight: 600,
                   cursor: 'pointer',
@@ -822,7 +812,7 @@ function LoginContent() {
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: '#5728B2',
+                  color: 'var(--brand-primary)',
                   fontSize: '0.74rem',
                   fontWeight: 600,
                   cursor: 'pointer',
@@ -846,8 +836,8 @@ function LoginContent() {
                 marginTop: '0.25rem',
                 width: '100%',
                 height: 40,
-                backgroundColor: '#5728B2',
-                backgroundImage: 'linear-gradient(135deg, #5728B2 0%, #431E8E 100%)',
+                backgroundColor: 'var(--brand-action)',
+                backgroundImage: 'linear-gradient(135deg, var(--brand-action) 0%, var(--brand-action-hover) 100%)',
                 color: '#FFFFFF',
                 border: 'none',
                 borderRadius: '8px',
@@ -858,7 +848,7 @@ function LoginContent() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '0.45rem',
-                boxShadow: '0 4px 12px rgba(87, 40, 178, 0.3)',
+                boxShadow: '0 4px 12px rgba(var(--brand-primary-rgb), 0.3)',
                 opacity: isLoading ? 0.8 : 1,
                 boxSizing: 'border-box',
               }}
@@ -891,7 +881,7 @@ function LoginContent() {
             fontWeight: 600,
           }}
         >
-          <ShieldCheck size={14} color="#16A34A" />
+          <ShieldCheck size={14} color="var(--color-success)" />
           <span>Encrypted with Corporate Multi-Tenant Isolation</span>
         </div>
       </div>

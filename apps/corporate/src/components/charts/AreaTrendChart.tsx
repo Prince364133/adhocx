@@ -22,7 +22,7 @@ export const AreaTrendChart: React.FC<AreaTrendChartProps> = ({
   strokeColor,
   metricLabel = 'Trips',
 }) => {
-  const effectiveLineColor = strokeColor || lineColor || '#6366F1';
+  const effectiveLineColor = strokeColor || lineColor || 'var(--color-chart-indigo)';
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
 
   const paddingLeft = 40;
