@@ -1,7 +1,7 @@
-  'use client';
+"use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import Link from 'next/link';
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import Link from "next/link";
 import {
   Route,
   ArrowLeft,
@@ -17,40 +17,54 @@ import {
   SlidersHorizontal,
   ChevronRight,
   ShieldCheck,
-} from 'lucide-react';
-import { adminApi } from '@/lib/api/client';
+} from "lucide-react";
+import { adminApi } from "@/lib/api/client";
 import {
   DistancePricingPlan,
   CreatePricingSlabInput,
   VehicleCategory,
   DistanceSimulationResult,
-} from '@/lib/api/types';
-import { Card, Button, StatusBadge, Drawer } from '@/components/common';
+} from "@/lib/api/types";
+import { Card, Button, StatusBadge, Drawer } from "@/components/common";
 
-export type MatrixRole = 'vendor' | 'driver' | 'unified';
+export type MatrixRole = "vendor" | "driver" | "unified";
 
 interface PricingMatrixWorkspaceProps {
   initialRole?: MatrixRole;
 }
 
-const inr = (rupees: number | undefined) => `₹${Number(rupees ?? 0).toLocaleString('en-IN')}`;
+const inr = (rupees: number | undefined) =>
+  `₹${Number(rupees ?? 0).toLocaleString("en-IN")}`;
 
-export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: PricingMatrixWorkspaceProps) {
+export default function PricingMatrixWorkspace({
+  initialRole = "vendor",
+}: PricingMatrixWorkspaceProps) {
   const [role, setRole] = useState<MatrixRole>(initialRole);
   const [plans, setPlans] = useState<DistancePricingPlan[]>([]);
-  const [vehicleCategories, setVehicleCategories] = useState<VehicleCategory[]>([]);
-  const [selectedPlanId, setSelectedPlanId] = useState<string>('');
+  const [vehicleCategories, setVehicleCategories] = useState<VehicleCategory[]>(
+    [],
+  );
+  const [selectedPlanId, setSelectedPlanId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [alert, setAlert] = useState<{ type: 'success' | 'error' | 'warning'; message: string } | null>(null);
+  const [alert, setAlert] = useState<{
+    type: "success" | "error" | "warning";
+    message: string;
+  } | null>(null);
 
   // Slabs & Overrides State
-  const [editingSlabs, setEditingSlabs] = useState<CreatePricingSlabInput[]>([]);
-  const [overriddenSlabKeys, setOverriddenSlabKeys] = useState<Set<string>>(new Set());
+  const [editingSlabs, setEditingSlabs] = useState<CreatePricingSlabInput[]>(
+    [],
+  );
+  const [overriddenSlabKeys, setOverriddenSlabKeys] = useState<Set<string>>(
+    new Set(),
+  );
 
   // Search & Filter State
-  const [searchQuery, setSearchQuery] = useState('');
-  const [distanceFilter, setDistanceFilter] = useState<'ALL' | '0-25' | '25-50' | '50-100' | '100-200' | 'OVERRIDDEN'>('ALL');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [distanceFilter, setDistanceFilter] = useState<
+    "ALL" | "0-25" | "25-50" | "50-100" | "100-200" | "OVERRIDDEN"
+  >("ALL");
 
   // Generator Drawer State
   const [isFormulaDrawerOpen, setIsFormulaDrawerOpen] = useState(false);
@@ -61,14 +75,18 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
   // Vendor Formula
   const [genBaseVendor, setGenBaseVendor] = useState<number>(400);
   const [genStepVendor, setGenStepVendor] = useState<number>(100);
-  const [genVendorPeakExtraBase, setGenVendorPeakExtraBase] = useState<number>(80);
-  const [genVendorPeakExtraStep, setGenVendorPeakExtraStep] = useState<number>(60);
+  const [genVendorPeakExtraBase, setGenVendorPeakExtraBase] =
+    useState<number>(80);
+  const [genVendorPeakExtraStep, setGenVendorPeakExtraStep] =
+    useState<number>(60);
 
   // Driver Formula
   const [genBaseDriver, setGenBaseDriver] = useState<number>(300);
   const [genStepDriver, setGenStepDriver] = useState<number>(70);
-  const [genDriverPeakExtraBase, setGenDriverPeakExtraBase] = useState<number>(50);
-  const [genDriverPeakExtraStep, setGenDriverPeakExtraStep] = useState<number>(40);
+  const [genDriverPeakExtraBase, setGenDriverPeakExtraBase] =
+    useState<number>(50);
+  const [genDriverPeakExtraStep, setGenDriverPeakExtraStep] =
+    useState<number>(40);
 
   // Escort Formula
   const [genEscortBaseVendor, setGenEscortBaseVendor] = useState<number>(300);
@@ -83,15 +101,19 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
   const [batchMinKm, setBatchMinKm] = useState<number>(50);
   const [batchMaxKm, setBatchMaxKm] = useState<number>(200);
-  const [batchTarget, setBatchTarget] = useState<'vendor' | 'driver' | 'both'>('vendor');
-  const [batchType, setBatchType] = useState<'flat' | 'percent'>('flat');
+  const [batchTarget, setBatchTarget] = useState<"vendor" | "driver" | "both">(
+    "vendor",
+  );
+  const [batchType, setBatchType] = useState<"flat" | "percent">("flat");
   const [batchAmount, setBatchAmount] = useState<number>(50);
 
   // Live Simulator State
   const [simDistanceKm, setSimDistanceKm] = useState<number>(62.5);
-  const [simTimeOfDay, setSimTimeOfDay] = useState<string>('09:30');
+  const [simTimeOfDay, setSimTimeOfDay] = useState<string>("09:30");
   const [simIncludeEscort, setSimIncludeEscort] = useState<boolean>(false);
-  const [simResult, setSimResult] = useState<DistanceSimulationResult | null>(null);
+  const [simResult, setSimResult] = useState<DistanceSimulationResult | null>(
+    null,
+  );
   const [simulating, setSimulating] = useState(false);
 
   // Load Pricing Plans and Categories
@@ -107,7 +129,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
 
       const planToSelect =
         (preferredPlanId && plansData.find((p) => p.id === preferredPlanId)) ||
-        plansData.find((p) => p.status === 'ACTIVE') ||
+        plansData.find((p) => p.status === "ACTIVE") ||
         plansData[0];
 
       if (planToSelect) {
@@ -115,7 +137,10 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
         initFromPlan(planToSelect);
       }
     } catch (err: any) {
-      setAlert({ type: 'error', message: err?.message || 'Failed to load pricing data.' });
+      setAlert({
+        type: "error",
+        message: err?.message || "Failed to load pricing data.",
+      });
     } finally {
       setLoading(false);
     }
@@ -132,34 +157,52 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
           vendorPeakPricePaise: s.vendorPeakPricePaise ?? s.vendorPricePaise,
           driverPeakPayoutPaise: s.driverPeakPayoutPaise ?? s.driverPayoutPaise,
           active: s.active,
-        }))
+        })),
       );
     }
 
     // Hydrate generator parameters if stored in rateConfigJson
     const cfg = (plan as any).rateConfigJson || plan.config;
-    if (cfg && typeof cfg === 'object') {
-      if (typeof cfg.baseKm === 'number' && cfg.baseKm > 0) setGenBaseKm(cfg.baseKm);
-      if (typeof cfg.stepKm === 'number' && cfg.stepKm > 0) setGenStepKm(cfg.stepKm);
-      if (typeof cfg.maxKm === 'number' && cfg.maxKm > 0) setGenMaxKm(cfg.maxKm);
-      if (typeof cfg.baseVendorRupees === 'number') setGenBaseVendor(cfg.baseVendorRupees);
-      if (typeof cfg.stepVendorRupees === 'number') setGenStepVendor(cfg.stepVendorRupees);
-      if (typeof cfg.vendorPeakExtraBaseRupees === 'number') setGenVendorPeakExtraBase(cfg.vendorPeakExtraBaseRupees);
-      if (typeof cfg.vendorPeakExtraStepRupees === 'number') setGenVendorPeakExtraStep(cfg.vendorPeakExtraStepRupees);
-      if (typeof cfg.baseDriverRupees === 'number') setGenBaseDriver(cfg.baseDriverRupees);
-      if (typeof cfg.stepDriverRupees === 'number') setGenStepDriver(cfg.stepDriverRupees);
-      if (typeof cfg.driverPeakExtraBaseRupees === 'number') setGenDriverPeakExtraBase(cfg.driverPeakExtraBaseRupees);
-      if (typeof cfg.driverPeakExtraStepRupees === 'number') setGenDriverPeakExtraStep(cfg.driverPeakExtraStepRupees);
-      if (typeof cfg.escortBaseVendorRupees === 'number') setGenEscortBaseVendor(cfg.escortBaseVendorRupees);
-      if (typeof cfg.escortStepVendorRupees === 'number') setGenEscortStepVendor(cfg.escortStepVendorRupees);
-      if (typeof cfg.escortBaseDriverRupees === 'number') setGenEscortBaseDriver(cfg.escortBaseDriverRupees);
-      if (typeof cfg.escortStepDriverRupees === 'number') setGenEscortStepDriver(cfg.escortStepDriverRupees);
+    if (cfg && typeof cfg === "object") {
+      if (typeof cfg.baseKm === "number" && cfg.baseKm > 0)
+        setGenBaseKm(cfg.baseKm);
+      if (typeof cfg.stepKm === "number" && cfg.stepKm > 0)
+        setGenStepKm(cfg.stepKm);
+      if (typeof cfg.maxKm === "number" && cfg.maxKm > 0)
+        setGenMaxKm(cfg.maxKm);
+      if (typeof cfg.baseVendorRupees === "number")
+        setGenBaseVendor(cfg.baseVendorRupees);
+      if (typeof cfg.stepVendorRupees === "number")
+        setGenStepVendor(cfg.stepVendorRupees);
+      if (typeof cfg.vendorPeakExtraBaseRupees === "number")
+        setGenVendorPeakExtraBase(cfg.vendorPeakExtraBaseRupees);
+      if (typeof cfg.vendorPeakExtraStepRupees === "number")
+        setGenVendorPeakExtraStep(cfg.vendorPeakExtraStepRupees);
+      if (typeof cfg.baseDriverRupees === "number")
+        setGenBaseDriver(cfg.baseDriverRupees);
+      if (typeof cfg.stepDriverRupees === "number")
+        setGenStepDriver(cfg.stepDriverRupees);
+      if (typeof cfg.driverPeakExtraBaseRupees === "number")
+        setGenDriverPeakExtraBase(cfg.driverPeakExtraBaseRupees);
+      if (typeof cfg.driverPeakExtraStepRupees === "number")
+        setGenDriverPeakExtraStep(cfg.driverPeakExtraStepRupees);
+      if (typeof cfg.escortBaseVendorRupees === "number")
+        setGenEscortBaseVendor(cfg.escortBaseVendorRupees);
+      if (typeof cfg.escortStepVendorRupees === "number")
+        setGenEscortStepVendor(cfg.escortStepVendorRupees);
+      if (typeof cfg.escortBaseDriverRupees === "number")
+        setGenEscortBaseDriver(cfg.escortBaseDriverRupees);
+      if (typeof cfg.escortStepDriverRupees === "number")
+        setGenEscortStepDriver(cfg.escortStepDriverRupees);
 
       // Hydrate custom overrides set
       if (Array.isArray(cfg.overriddenSlabs)) {
         const keys = new Set<string>();
         cfg.overriddenSlabs.forEach((item: any) => {
-          if (typeof item?.minM === 'number' && typeof item?.maxM === 'number') {
+          if (
+            typeof item?.minM === "number" &&
+            typeof item?.maxM === "number"
+          ) {
             keys.add(`${item.minM}-${item.maxM}`);
           }
         });
@@ -174,21 +217,30 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
 
   const activePlan = useMemo(
     () => plans.find((p) => p.id === selectedPlanId) || plans[0],
-    [plans, selectedPlanId]
+    [plans, selectedPlanId],
   );
 
   // Generator: Generate full table from formula
   const handleGenerateFullTable = () => {
     if (genMaxKm <= 0 || genStepKm <= 0 || genBaseKm <= 0) {
-      setAlert({ type: 'error', message: 'Base, step, and maximum distance must be positive values.' });
+      setAlert({
+        type: "error",
+        message: "Base, step, and maximum distance must be positive values.",
+      });
       return;
     }
     if (genMaxKm < genBaseKm) {
-      setAlert({ type: 'error', message: 'Maximum distance cannot be less than initial base distance.' });
+      setAlert({
+        type: "error",
+        message: "Maximum distance cannot be less than initial base distance.",
+      });
       return;
     }
     if (genBaseVendor < genBaseDriver) {
-      setAlert({ type: 'error', message: 'Vendor Base fare cannot be less than Driver Base payout.' });
+      setAlert({
+        type: "error",
+        message: "Vendor Base fare cannot be less than Driver Base payout.",
+      });
       return;
     }
 
@@ -198,7 +250,10 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
 
     const existingMap = new Map<string, CreatePricingSlabInput>();
     editingSlabs.forEach((s) => {
-      existingMap.set(`${s.minDistanceMExclusive}-${s.maxDistanceMInclusive}`, s);
+      existingMap.set(
+        `${s.minDistanceMExclusive}-${s.maxDistanceMInclusive}`,
+        s,
+      );
     });
 
     const newSlabs: CreatePricingSlabInput[] = [];
@@ -214,8 +269,12 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
         maxDistanceMInclusive: Math.min(baseMeters, maxMeters),
         vendorPricePaise: Math.round(genBaseVendor * 100),
         driverPayoutPaise: Math.round(genBaseDriver * 100),
-        vendorPeakPricePaise: Math.round((genBaseVendor + genVendorPeakExtraBase) * 100),
-        driverPeakPayoutPaise: Math.round((genBaseDriver + genDriverPeakExtraBase) * 100),
+        vendorPeakPricePaise: Math.round(
+          (genBaseVendor + genVendorPeakExtraBase) * 100,
+        ),
+        driverPeakPayoutPaise: Math.round(
+          (genBaseDriver + genDriverPeakExtraBase) * 100,
+        ),
         active: true,
       });
     }
@@ -231,10 +290,24 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
       if (preserveOverrides && existingStep && overriddenSlabKeys.has(key)) {
         newSlabs.push(existingStep);
       } else {
-        const vStd = Math.round((genBaseVendor + stepIdx * genStepVendor) * 100);
-        const dStd = Math.round((genBaseDriver + stepIdx * genStepDriver) * 100);
-        const vPeak = Math.round((genBaseVendor + genVendorPeakExtraBase + stepIdx * (genStepVendor + genVendorPeakExtraStep)) * 100);
-        const dPeak = Math.round((genBaseDriver + genDriverPeakExtraBase + stepIdx * (genStepDriver + genDriverPeakExtraStep)) * 100);
+        const vStd = Math.round(
+          (genBaseVendor + stepIdx * genStepVendor) * 100,
+        );
+        const dStd = Math.round(
+          (genBaseDriver + stepIdx * genStepDriver) * 100,
+        );
+        const vPeak = Math.round(
+          (genBaseVendor +
+            genVendorPeakExtraBase +
+            stepIdx * (genStepVendor + genVendorPeakExtraStep)) *
+            100,
+        );
+        const dPeak = Math.round(
+          (genBaseDriver +
+            genDriverPeakExtraBase +
+            stepIdx * (genStepDriver + genDriverPeakExtraStep)) *
+            100,
+        );
 
         newSlabs.push({
           minDistanceMExclusive: currentMin,
@@ -254,8 +327,8 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
     setEditingSlabs(newSlabs);
     setIsFormulaDrawerOpen(false);
     setAlert({
-      type: 'success',
-      message: `Generated ${newSlabs.length} slabs up to ${genMaxKm} km (Base: 0-${genBaseKm}km, Steps: +${genStepKm}km). ${preserveOverrides ? 'Preserved existing custom overrides.' : ''}`,
+      type: "success",
+      message: `Generated ${newSlabs.length} slabs up to ${genMaxKm} km (Base: 0-${genBaseKm}km, Steps: +${genStepKm}km). ${preserveOverrides ? "Preserved existing custom overrides." : ""}`,
     });
   };
 
@@ -269,17 +342,35 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
         return {
           vendorPricePaise: Math.round(genBaseVendor * 100),
           driverPayoutPaise: Math.round(genBaseDriver * 100),
-          vendorPeakPricePaise: Math.round((genBaseVendor + genVendorPeakExtraBase) * 100),
-          driverPeakPayoutPaise: Math.round((genBaseDriver + genDriverPeakExtraBase) * 100),
+          vendorPeakPricePaise: Math.round(
+            (genBaseVendor + genVendorPeakExtraBase) * 100,
+          ),
+          driverPeakPayoutPaise: Math.round(
+            (genBaseDriver + genDriverPeakExtraBase) * 100,
+          ),
         };
       }
 
       const stepIndex = Math.max(1, Math.round((maxM - baseM) / stepM));
       return {
-        vendorPricePaise: Math.round((genBaseVendor + stepIndex * genStepVendor) * 100),
-        driverPayoutPaise: Math.round((genBaseDriver + stepIndex * genStepDriver) * 100),
-        vendorPeakPricePaise: Math.round((genBaseVendor + genVendorPeakExtraBase + stepIndex * (genStepVendor + genVendorPeakExtraStep)) * 100),
-        driverPeakPayoutPaise: Math.round((genBaseDriver + genDriverPeakExtraBase + stepIndex * (genStepDriver + genDriverPeakExtraStep)) * 100),
+        vendorPricePaise: Math.round(
+          (genBaseVendor + stepIndex * genStepVendor) * 100,
+        ),
+        driverPayoutPaise: Math.round(
+          (genBaseDriver + stepIndex * genStepDriver) * 100,
+        ),
+        vendorPeakPricePaise: Math.round(
+          (genBaseVendor +
+            genVendorPeakExtraBase +
+            stepIndex * (genStepVendor + genVendorPeakExtraStep)) *
+            100,
+        ),
+        driverPeakPayoutPaise: Math.round(
+          (genBaseDriver +
+            genDriverPeakExtraBase +
+            stepIndex * (genStepDriver + genDriverPeakExtraStep)) *
+            100,
+        ),
       };
     },
     [
@@ -293,7 +384,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
       genStepDriver,
       genDriverPeakExtraBase,
       genDriverPeakExtraStep,
-    ]
+    ],
   );
 
   // Escort calculation per distance
@@ -306,11 +397,21 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
       const driverEscort = genEscortBaseDriver + steps * genEscortStepDriver;
       return { vendorEscort, driverEscort };
     },
-    [genBaseKm, genStepKm, genEscortBaseVendor, genEscortStepVendor, genEscortBaseDriver, genEscortStepDriver]
+    [
+      genBaseKm,
+      genStepKm,
+      genEscortBaseVendor,
+      genEscortStepVendor,
+      genEscortBaseDriver,
+      genEscortStepDriver,
+    ],
   );
 
   // Inline slab edit handler
-  const handleUpdateSlab = (index: number, updates: Partial<CreatePricingSlabInput>) => {
+  const handleUpdateSlab = (
+    index: number,
+    updates: Partial<CreatePricingSlabInput>,
+  ) => {
     const updated = [...editingSlabs];
     const target = updated[index];
     const newSlab = { ...target, ...updates };
@@ -328,7 +429,10 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
   // Reset individual slab to formula
   const handleResetSlabToFormula = (index: number) => {
     const target = editingSlabs[index];
-    const formulaRates = getFormulaRatesForSlab(target.minDistanceMExclusive, target.maxDistanceMInclusive);
+    const formulaRates = getFormulaRatesForSlab(
+      target.minDistanceMExclusive,
+      target.maxDistanceMInclusive,
+    );
 
     const updated = [...editingSlabs];
     updated[index] = {
@@ -343,7 +447,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
     setEditingSlabs(updated);
     setOverriddenSlabKeys(newOverrides);
     setAlert({
-      type: 'success',
+      type: "success",
       message: `Reset slab ${target.minDistanceMExclusive / 1000}–${target.maxDistanceMInclusive / 1000} km back to mathematical formula.`,
     });
   };
@@ -351,7 +455,10 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
   // Batch Adjust
   const handleApplyBatchAdjustment = () => {
     if (batchMinKm >= batchMaxKm) {
-      setAlert({ type: 'error', message: 'Min distance must be less than max distance.' });
+      setAlert({
+        type: "error",
+        message: "Min distance must be less than max distance.",
+      });
       return;
     }
 
@@ -371,23 +478,23 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
         let vPeak = s.vendorPeakPricePaise ?? s.vendorPricePaise;
         let dPeak = s.driverPeakPayoutPaise ?? s.driverPayoutPaise;
 
-        if (batchType === 'flat') {
+        if (batchType === "flat") {
           const deltaPaise = Math.round(batchAmount * 100);
-          if (batchTarget === 'vendor' || batchTarget === 'both') {
+          if (batchTarget === "vendor" || batchTarget === "both") {
             vPrice = Math.max(0, vPrice + deltaPaise);
             vPeak = Math.max(0, vPeak + deltaPaise);
           }
-          if (batchTarget === 'driver' || batchTarget === 'both') {
+          if (batchTarget === "driver" || batchTarget === "both") {
             dPayout = Math.max(0, dPayout + deltaPaise);
             dPeak = Math.max(0, dPeak + deltaPaise);
           }
         } else {
           const factor = 1 + batchAmount / 100;
-          if (batchTarget === 'vendor' || batchTarget === 'both') {
+          if (batchTarget === "vendor" || batchTarget === "both") {
             vPrice = Math.round(vPrice * factor);
             vPeak = Math.round(vPeak * factor);
           }
-          if (batchTarget === 'driver' || batchTarget === 'both') {
+          if (batchTarget === "driver" || batchTarget === "both") {
             dPayout = Math.round(dPayout * factor);
             dPeak = Math.round(dPeak * factor);
           }
@@ -408,7 +515,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
     setOverriddenSlabKeys(newOverrides);
     setIsBatchModalOpen(false);
     setAlert({
-      type: 'success',
+      type: "success",
       message: `Applied batch adjustment to ${count} slabs between ${batchMinKm} km and ${batchMaxKm} km.`,
     });
   };
@@ -416,10 +523,13 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
   // Validation: Loss Prevention & Negative Margin Guard
   const validation = useMemo(() => {
     if (editingSlabs.length === 0) {
-      return { valid: false, error: 'No slabs configured. Please generate or add slabs.' };
+      return {
+        valid: false,
+        error: "No slabs configured. Please generate or add slabs.",
+      };
     }
     if (editingSlabs[0].minDistanceMExclusive !== 0) {
-      return { valid: false, error: 'First distance band must start at 0 km.' };
+      return { valid: false, error: "First distance band must start at 0 km." };
     }
 
     for (let i = 0; i < editingSlabs.length; i++) {
@@ -428,7 +538,10 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
       const maxKm = s.maxDistanceMInclusive / 1000;
 
       if (s.maxDistanceMInclusive <= s.minDistanceMExclusive) {
-        return { valid: false, error: `Slab #${i + 1} (${minKm}–${maxKm} km): Max distance must exceed min distance.` };
+        return {
+          valid: false,
+          error: `Slab #${i + 1} (${minKm}–${maxKm} km): Max distance must exceed min distance.`,
+        };
       }
 
       if (s.vendorPricePaise < s.driverPayoutPaise) {
@@ -464,14 +577,17 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
   // Save Slabs Draft / Live Update
   const handleSaveMatrix = async () => {
     if (!validation.valid) {
-      setAlert({ type: 'error', message: validation.error || 'Please correct errors before saving.' });
+      setAlert({
+        type: "error",
+        message: validation.error || "Please correct errors before saving.",
+      });
       return;
     }
 
     setSaving(true);
     try {
       const overriddenArray = Array.from(overriddenSlabKeys).map((key) => {
-        const [minM, maxM] = key.split('-').map(Number);
+        const [minM, maxM] = key.split("-").map(Number);
         return { minM, maxM, updatedAt: new Date().toISOString() };
       });
 
@@ -495,17 +611,25 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
       };
 
       if (activePlan) {
-        await adminApi.updateDistancePricingSlabs(activePlan.id, editingSlabs, undefined, {
-          config: configPayload as any,
-        });
+        await adminApi.updateDistancePricingSlabs(
+          activePlan.id,
+          editingSlabs,
+          undefined,
+          {
+            config: configPayload as any,
+          },
+        );
         setAlert({
-          type: 'success',
+          type: "success",
           message: `Saved matrix with ${editingSlabs.length} distance bands and ${overriddenArray.length} custom overrides.`,
         });
         await loadPlans(activePlan.id);
       }
     } catch (err: any) {
-      setAlert({ type: 'error', message: err?.message || 'Failed to save matrix.' });
+      setAlert({
+        type: "error",
+        message: err?.message || "Failed to save matrix.",
+      });
     } finally {
       setSaving(false);
     }
@@ -519,12 +643,16 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
     async function runSim() {
       setSimulating(true);
       try {
-        const istToday = new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10);
-        const hhmm = /^\d{2}:\d{2}$/.test(simTimeOfDay) ? simTimeOfDay : '12:00';
+        const istToday = new Date(Date.now() + 330 * 60_000)
+          .toISOString()
+          .slice(0, 10);
+        const hhmm = /^\d{2}:\d{2}$/.test(simTimeOfDay)
+          ? simTimeOfDay
+          : "12:00";
 
         const res = await adminApi.simulateDistancePricing({
           distanceKm: Number(simDistanceKm),
-          vehicleCategory: activePlan?.vehicleCategory || 'ALL',
+          vehicleCategory: activePlan?.vehicleCategory || "ALL",
           pickupTime: `${istToday}T${hhmm}:00+05:30`,
           hasEscort: simIncludeEscort,
         });
@@ -554,17 +682,20 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
         const key = `${slab.minDistanceMExclusive}-${slab.maxDistanceMInclusive}`;
         const isOverridden = overriddenSlabKeys.has(key);
 
-        if (distanceFilter === '0-25' && maxKm > 25) return false;
-        if (distanceFilter === '25-50' && (maxKm <= 25 || maxKm > 50)) return false;
-        if (distanceFilter === '50-100' && (maxKm <= 50 || maxKm > 100)) return false;
-        if (distanceFilter === '100-200' && maxKm <= 100) return false;
-        if (distanceFilter === 'OVERRIDDEN' && !isOverridden) return false;
+        if (distanceFilter === "0-25" && maxKm > 25) return false;
+        if (distanceFilter === "25-50" && (maxKm <= 25 || maxKm > 50))
+          return false;
+        if (distanceFilter === "50-100" && (maxKm <= 50 || maxKm > 100))
+          return false;
+        if (distanceFilter === "100-200" && maxKm <= 100) return false;
+        if (distanceFilter === "OVERRIDDEN" && !isOverridden) return false;
 
         if (searchQuery.trim()) {
           const q = searchQuery.toLowerCase();
           const matchKm = `${minKm}`.includes(q) || `${maxKm}`.includes(q);
           const matchPrice =
-            `${slab.vendorPricePaise / 100}`.includes(q) || `${slab.driverPayoutPaise / 100}`.includes(q);
+            `${slab.vendorPricePaise / 100}`.includes(q) ||
+            `${slab.driverPayoutPaise / 100}`.includes(q);
           if (!matchKm && !matchPrice) return false;
         }
 
@@ -574,35 +705,64 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
 
   if (loading) {
     return (
-      <div style={{ maxWidth: '1440px', margin: '0 auto', padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+      <div
+        className="my-0 mx-auto p-12 text-center text-secondary"
+        style={{ maxWidth: "1440px" }}
+      >
         Loading Distance Pricing Matrix Workspace...
       </div>
     );
   }
 
   return (
-    <div style={{ maxWidth: '1440px', margin: '0 auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div
+      className="pricing-matrix-workspace my-0 mx-auto p-6 flex flex-col gap-6"
+      style={{ maxWidth: "1440px" }}
+    >
       {/* Breadcrumbs & Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+      <div className="flex justify-between items-center flex-wrap gap-4">
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
-            <Link href="/pricing" style={{ color: 'var(--brand-primary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+          <div className="flex items-center gap-2 text-secondary mb-1 text-body">
+            <Link
+              href="/pricing"
+              style={{
+                color: "var(--text-brand)",
+                textDecoration: "none",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.25rem",
+              }}
+            >
               <ArrowLeft size={14} /> Pricing Overview
             </Link>
             <ChevronRight size={13} />
-            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-              {role === 'vendor' ? 'Vendor Rate Matrix (Client Billing)' : role === 'driver' ? 'Driver Payout Matrix' : 'Unified Rate Matrix'}
+            <span className="font-semibold text-primary">
+              {role === "vendor"
+                ? "Vendor Rate Matrix (Client Billing)"
+                : role === "driver"
+                  ? "Driver Payout Matrix"
+                  : "Unified Rate Matrix"}
             </span>
           </div>
-          <h1 style={{ margin: 0, fontSize: '1.65rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Route size={24} color="var(--brand-primary)" />
-            {role === 'vendor' ? 'Vendor Rate Matrix' : role === 'driver' ? 'Driver Guaranteed Payouts' : 'Unified Distance Slabs Matrix'}
-            <StatusBadge status={activePlan?.status === 'ACTIVE' ? 'APPROVED' : 'PENDING'} label={activePlan?.status || 'DRAFT'} />
+          <h1
+            className="m-0 font-extrabold text-primary flex items-center gap-2"
+            style={{ fontSize: "1.65rem" }}
+          >
+            <Route size={24} color="var(--text-brand)" />
+            {role === "vendor"
+              ? "Vendor Rate Matrix"
+              : role === "driver"
+                ? "Driver Guaranteed Payouts"
+                : "Unified Distance Slabs Matrix"}
+            <StatusBadge
+              status={activePlan?.status === "ACTIVE" ? "APPROVED" : "PENDING"}
+              label={activePlan?.status || "DRAFT"}
+            />
           </h1>
         </div>
 
         {/* Global Action CTAs */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <div className="pricing-matrix-actions flex items-center gap-3">
           <Button
             variant="outline"
             leftIcon={<Sliders size={15} />}
@@ -632,37 +792,44 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
       {/* Alert Banner */}
       {alert && (
         <div
+          className="rounded-md text-md flex justify-between items-center"
           style={{
-            padding: '0.85rem 1.25rem',
-            borderRadius: 'var(--radius-md)',
-            background: alert.type === 'error' ? 'rgba(239, 68, 68, 0.1)' : alert.type === 'warning' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(16, 185, 129, 0.1)',
-            border: `1px solid ${alert.type === 'error' ? 'var(--color-error)' : alert.type === 'warning' ? 'var(--color-warning)' : 'var(--color-success)'}`,
-            color: alert.type === 'error' ? 'var(--color-error)' : alert.type === 'warning' ? 'var(--color-warning)' : 'var(--color-success)',
-            fontSize: '0.875rem',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
+            padding: "0.85rem 1.25rem",
+            background:
+              alert.type === "error"
+                ? "rgba(239, 68, 68, 0.1)"
+                : alert.type === "warning"
+                  ? "rgba(245, 158, 11, 0.1)"
+                  : "rgba(16, 185, 129, 0.1)",
+            border: `1px solid ${alert.type === "error" ? "var(--color-error)" : alert.type === "warning" ? "var(--color-warning)" : "var(--color-success)"}`,
+            color:
+              alert.type === "error"
+                ? "var(--color-error)"
+                : alert.type === "warning"
+                  ? "var(--color-warning)"
+                  : "var(--color-success)",
           }}
         >
           <span>{alert.message}</span>
-          <button onClick={() => setAlert(null)} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontWeight: 700 }}>×</button>
+          <button
+            onClick={() => setAlert(null)}
+            className="border-0 cursor-pointer font-bold"
+            style={{ background: "none", color: "inherit" }}
+          >
+            ×
+          </button>
         </div>
       )}
 
       {/* Loss-Prevention Validation Warning */}
       {!validation.valid && (
         <div
+          className="rounded-md text-md flex items-center gap-2 font-semibold"
           style={{
-            padding: '0.85rem 1.25rem',
-            borderRadius: 'var(--radius-md)',
-            background: 'rgba(239, 68, 68, 0.12)',
-            border: '1px solid var(--color-error)',
-            color: 'var(--color-error)',
-            fontSize: '0.875rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            fontWeight: 600,
+            padding: "0.85rem 1.25rem",
+            background: "rgba(239, 68, 68, 0.12)",
+            border: "1px solid var(--color-error)",
+            color: "var(--color-error)",
           }}
         >
           <AlertTriangle size={18} />
@@ -671,59 +838,41 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
       )}
 
       {/* Control Bar: Role Tabs & Plan Version */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', background: 'var(--bg-surface)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)' }}>
+      <div className="pricing-matrix-controls flex justify-between items-center flex-wrap gap-4 bg-surface py-3 px-4 rounded-lg border">
         {/* Role Switcher */}
-        <div style={{ display: 'flex', gap: '0.5rem', background: 'var(--bg-surface-elevated)', padding: '0.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
+        <div className="pricing-matrix-role-tabs flex gap-2 bg-surface-elevated p-1 rounded-md border">
           <button
-            onClick={() => setRole('vendor')}
+            onClick={() => setRole("vendor")}
+            className="py-2 px-4 rounded-sm border-0 font-semibold text-md cursor-pointer flex items-center gap-tight"
             style={{
-              padding: '0.5rem 1rem',
-              borderRadius: 'var(--radius-sm)',
-              border: 'none',
-              background: role === 'vendor' ? 'var(--brand-primary)' : 'transparent',
-              color: role === 'vendor' ? '#fff' : 'var(--text-secondary)',
-              fontWeight: 600,
-              fontSize: '0.875rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.35rem',
+              background:
+                role === "vendor" ? "var(--brand-primary)" : "transparent",
+              color: role === "vendor" ? "#fff" : "var(--text-secondary)",
             }}
           >
             <Building2 size={15} /> Vendor Billing (Client)
           </button>
           <button
-            onClick={() => setRole('driver')}
+            onClick={() => setRole("driver")}
+            className="py-2 px-4 rounded-sm border-0 font-semibold text-md cursor-pointer flex items-center gap-tight"
             style={{
-              padding: '0.5rem 1rem',
-              borderRadius: 'var(--radius-sm)',
-              border: 'none',
-              background: role === 'driver' ? 'var(--color-success)' : 'transparent',
-              color: role === 'driver' ? '#fff' : 'var(--text-secondary)',
-              fontWeight: 600,
-              fontSize: '0.875rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.35rem',
+              background:
+                role === "driver" ? "var(--color-success)" : "transparent",
+              color: role === "driver" ? "#fff" : "var(--text-secondary)",
             }}
           >
             <Car size={15} /> Driver Payouts
           </button>
           <button
-            onClick={() => setRole('unified')}
+            onClick={() => setRole("unified")}
+            className="py-2 px-4 rounded-sm border-0 font-semibold text-md cursor-pointer flex items-center gap-tight"
             style={{
-              padding: '0.5rem 1rem',
-              borderRadius: 'var(--radius-sm)',
-              border: 'none',
-              background: role === 'unified' ? 'var(--text-primary)' : 'transparent',
-              color: role === 'unified' ? 'var(--bg-surface)' : 'var(--text-secondary)',
-              fontWeight: 600,
-              fontSize: '0.875rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.35rem',
+              background:
+                role === "unified" ? "var(--text-primary)" : "transparent",
+              color:
+                role === "unified"
+                  ? "var(--bg-surface)"
+                  : "var(--text-secondary)",
             }}
           >
             <Layers size={15} /> Unified Side-by-Side
@@ -731,23 +880,30 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
         </div>
 
         {/* Plan & Category Dropdowns */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Category:</span>
+        <div className="pricing-matrix-selectors flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-base font-semibold text-secondary">
+              Category:
+            </span>
             <select
-              value={activePlan?.vehicleCategory || 'ALL'}
+              value={activePlan?.vehicleCategory || "ALL"}
               disabled
-              style={{ padding: '0.45rem 0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)', fontSize: '0.85rem' }}
+              className="rounded-md border bg-surface-elevated text-primary text-body"
+              style={{ padding: "0.45rem 0.75rem" }}
             >
               <option value="ALL">All Categories (Default)</option>
               {vehicleCategories.map((c) => (
-                <option key={c.id} value={c.vehicleType}>{c.categoryLabel}</option>
+                <option key={c.id} value={c.vehicleType}>
+                  {c.categoryLabel}
+                </option>
               ))}
             </select>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Version:</span>
+          <div className="flex items-center gap-2">
+            <span className="text-base font-semibold text-secondary">
+              Version:
+            </span>
             <select
               value={selectedPlanId}
               onChange={(e) => {
@@ -755,10 +911,13 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
                 const p = plans.find((x) => x.id === e.target.value);
                 if (p) initFromPlan(p);
               }}
-              style={{ padding: '0.45rem 0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)', fontSize: '0.85rem' }}
+              className="rounded-md border bg-surface-elevated text-primary text-body"
+              style={{ padding: "0.45rem 0.75rem" }}
             >
               {plans.map((p) => (
-                <option key={p.id} value={p.id}>v{p.version} ({p.status})</option>
+                <option key={p.id} value={p.id}>
+                  v{p.version} ({p.status})
+                </option>
               ))}
             </select>
           </div>
@@ -766,128 +925,218 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
       </div>
 
       {/* KPI Overview Strip */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-        <Card style={{ padding: '1rem', borderLeft: '4px solid var(--brand-primary)' }}>
-          <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: 700 }}>Base Rule</div>
-          <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.25rem' }}>
+      <div
+        className="grid gap-4"
+        style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}
+      >
+        <Card
+          style={{
+            padding: "1rem",
+            borderLeft: "4px solid var(--border-focus)",
+          }}
+        >
+          <div className="text-sm uppercase text-secondary font-bold">
+            Base Rule
+          </div>
+          <div className="text-2xl font-extrabold text-primary mt-1">
             0 – {genBaseKm} km
           </div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+          <div className="text-secondary text-body-sm mt-compact">
             Vendor: {inr(genBaseVendor)} | Driver: {inr(genBaseDriver)}
           </div>
         </Card>
 
-        <Card style={{ padding: '1rem', borderLeft: '4px solid #8B5CF6' }}>
-          <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: 700 }}>Step Increment</div>
-          <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.25rem' }}>
+        <Card style={{ padding: "1rem", borderLeft: "4px solid var(--brand-violet-text)" }}>
+          <div className="text-sm uppercase text-secondary font-bold">
+            Step Increment
+          </div>
+          <div className="text-2xl font-extrabold text-primary mt-1">
             +{genStepKm} km
           </div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+          <div className="text-secondary text-body-sm mt-compact">
             +{inr(genStepVendor)} / +{inr(genStepDriver)} per step
           </div>
         </Card>
 
-        <Card style={{ padding: '1rem', borderLeft: '4px solid #10B981' }}>
-          <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: 700 }}>Total Slabs</div>
-          <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.25rem' }}>
+        <Card style={{ padding: "1rem", borderLeft: "4px solid #10B981" }}>
+          <div className="text-sm uppercase text-secondary font-bold">
+            Total Slabs
+          </div>
+          <div className="text-2xl font-extrabold text-primary mt-1">
             {editingSlabs.length} Bands
           </div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+          <div className="text-secondary text-body-sm mt-compact">
             Coverage up to {genMaxKm} km
           </div>
         </Card>
 
-        <Card style={{ padding: '1rem', borderLeft: '4px solid #F59E0B' }}>
-          <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: 700 }}>Custom Overrides</div>
-          <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#F59E0B', marginTop: '0.25rem' }}>
+        <Card style={{ padding: "1rem", borderLeft: "4px solid #F59E0B" }}>
+          <div className="text-sm uppercase text-secondary font-bold">
+            Custom Overrides
+          </div>
+          <div
+            className="text-2xl font-extrabold mt-1"
+            style={{ color: "#F59E0B" }}
+          >
             {overriddenSlabKeys.size} Overrides
           </div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+          <div className="text-secondary text-body-sm mt-compact">
             Manually tuned distance bands
           </div>
         </Card>
       </div>
 
       {/* Slabs Filter & Search Bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
-        <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-          {(['ALL', '0-25', '25-50', '50-100', '100-200', 'OVERRIDDEN'] as const).map((filter) => (
+      <div className="flex justify-between items-center flex-wrap gap-3">
+        <div className="flex flex-wrap gap-tight">
+          {(
+            ["ALL", "0-25", "25-50", "50-100", "100-200", "OVERRIDDEN"] as const
+          ).map((filter) => (
             <button
               key={filter}
               onClick={() => setDistanceFilter(filter)}
+              className="rounded-full border font-semibold cursor-pointer text-body-sm"
               style={{
-                padding: '0.4rem 0.85rem',
-                borderRadius: 'var(--radius-full)',
-                border: '1px solid var(--border)',
-                background: distanceFilter === filter ? 'var(--brand-primary)' : 'var(--bg-surface)',
-                color: distanceFilter === filter ? '#fff' : 'var(--text-secondary)',
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                cursor: 'pointer',
+                padding: "0.4rem 0.85rem",
+                background:
+                  distanceFilter === filter
+                    ? "var(--brand-primary)"
+                    : "var(--bg-surface)",
+                color:
+                  distanceFilter === filter ? "#fff" : "var(--text-secondary)",
               }}
             >
-              {filter === 'ALL' ? 'All Bands' : filter === 'OVERRIDDEN' ? `Overrides (${overriddenSlabKeys.size})` : `${filter} km`}
+              {filter === "ALL"
+                ? "All Bands"
+                : filter === "OVERRIDDEN"
+                  ? `Overrides (${overriddenSlabKeys.size})`
+                  : `${filter} km`}
             </button>
           ))}
         </div>
 
-        <div style={{ position: 'relative', minWidth: '240px' }}>
-          <Search size={15} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+        <div className="relative" style={{ minWidth: "240px" }}>
+          <Search
+            size={15}
+            style={{
+              position: "absolute",
+              left: "0.75rem",
+              top: "50%",
+              transform: "translateY(-50%)",
+              color: "var(--text-secondary)",
+            }}
+          />
           <input
             type="text"
             placeholder="Search km or fare..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '0.45rem 0.75rem 0.45rem 2.25rem',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border)',
-              background: 'var(--bg-surface)',
-              color: 'var(--text-primary)',
-              fontSize: '0.85rem',
-            }}
+            className="w-full rounded-md border bg-surface text-primary text-body"
+            style={{ padding: "0.45rem 0.75rem 0.45rem 2.25rem" }}
           />
         </div>
       </div>
 
       {/* Interactive Slabs Matrix Table */}
-      <Card style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ overflowX: 'auto', maxHeight: '680px' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+      <Card style={{ padding: 0, overflow: "hidden" }}>
+        <div className="overflow-x-auto" style={{ maxHeight: "680px" }}>
+          <table
+            className="w-full text-left text-md"
+            style={{ borderCollapse: "collapse" }}
+          >
             <thead>
-              <tr style={{ background: 'var(--bg-surface-elevated)', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, zIndex: 10 }}>
-                <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Distance Band</th>
+              <tr
+                className="bg-surface-elevated border-b top-0"
+                style={{ position: "sticky", zIndex: 10 }}
+              >
+                <th
+                  className="font-bold text-secondary"
+                  style={{ padding: "0.85rem 1rem" }}
+                >
+                  Distance Band
+                </th>
 
                 {/* Vendor Columns */}
-                {(role === 'vendor' || role === 'unified') && (
+                {(role === "vendor" || role === "unified") && (
                   <>
-                    <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--brand-primary)' }}>Vendor Std (₹)</th>
-                    <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--brand-primary)' }}>Peak Extra (₹)</th>
-                    <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--brand-primary)' }}>Total Peak (₹)</th>
+                    <th
+                      className="font-bold text-brand"
+                      style={{ padding: "0.85rem 1rem" }}
+                    >
+                      Vendor Std (₹)
+                    </th>
+                    <th
+                      className="font-bold text-brand"
+                      style={{ padding: "0.85rem 1rem" }}
+                    >
+                      Peak Extra (₹)
+                    </th>
+                    <th
+                      className="font-bold text-brand"
+                      style={{ padding: "0.85rem 1rem" }}
+                    >
+                      Total Peak (₹)
+                    </th>
                   </>
                 )}
 
                 {/* Driver Columns */}
-                {(role === 'driver' || role === 'unified') && (
+                {(role === "driver" || role === "unified") && (
                   <>
-                    <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--color-success)' }}>Driver Std (₹)</th>
-                    <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--color-success)' }}>Driver Peak (+₹)</th>
-                    <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--color-success)' }}>Total Peak (₹)</th>
+                    <th
+                      className="font-bold text-success"
+                      style={{ padding: "0.85rem 1rem" }}
+                    >
+                      Driver Std (₹)
+                    </th>
+                    <th
+                      className="font-bold text-success"
+                      style={{ padding: "0.85rem 1rem" }}
+                    >
+                      Driver Peak (+₹)
+                    </th>
+                    <th
+                      className="font-bold text-success"
+                      style={{ padding: "0.85rem 1rem" }}
+                    >
+                      Total Peak (₹)
+                    </th>
                   </>
                 )}
 
-                <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Security Escort</th>
-                <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Platform Net Margin</th>
-                <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Status</th>
-                <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-secondary)', textAlign: 'center' }}>Actions</th>
+                <th
+                  className="font-bold text-secondary"
+                  style={{ padding: "0.85rem 1rem" }}
+                >
+                  Security Escort
+                </th>
+                <th
+                  className="font-bold text-secondary"
+                  style={{ padding: "0.85rem 1rem" }}
+                >
+                  Platform Net Margin
+                </th>
+                <th
+                  className="font-bold text-secondary"
+                  style={{ padding: "0.85rem 1rem" }}
+                >
+                  Status
+                </th>
+                <th
+                  className="font-bold text-secondary text-center"
+                  style={{ padding: "0.85rem 1rem" }}
+                >
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody>
               {filteredSlabs.length === 0 ? (
                 <tr>
-                  <td colSpan={10} style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                    No distance slabs match your filter. Click <strong>Configure Formula</strong> to generate slabs up to {genMaxKm} km.
+                  <td colSpan={10} className="p-12 text-center text-secondary">
+                    No distance slabs match your filter. Click{" "}
+                    <strong>Configure Formula</strong> to generate slabs up to{" "}
+                    {genMaxKm} km.
                   </td>
                 </tr>
               ) : (
@@ -899,50 +1148,73 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
 
                   // Fares
                   const vStd = slab.vendorPricePaise / 100;
-                  const vPeakExtra = Math.max(0, (slab.vendorPeakPricePaise ?? slab.vendorPricePaise) / 100 - vStd);
+                  const vPeakExtra = Math.max(
+                    0,
+                    (slab.vendorPeakPricePaise ?? slab.vendorPricePaise) / 100 -
+                      vStd,
+                  );
                   const vPeakTotal = vStd + vPeakExtra;
 
                   const dStd = slab.driverPayoutPaise / 100;
-                  const dPeakExtra = Math.max(0, (slab.driverPeakPayoutPaise ?? slab.driverPayoutPaise) / 100 - dStd);
+                  const dPeakExtra = Math.max(
+                    0,
+                    (slab.driverPeakPayoutPaise ?? slab.driverPayoutPaise) /
+                      100 -
+                      dStd,
+                  );
                   const dPeakTotal = dStd + dPeakExtra;
 
                   // Margins
                   const marginStd = vStd - dStd;
-                  const marginStdPct = vStd > 0 ? ((marginStd / vStd) * 100).toFixed(1) : '0';
+                  const marginStdPct =
+                    vStd > 0 ? ((marginStd / vStd) * 100).toFixed(1) : "0";
                   const isNegativeMargin = marginStd <= 0;
 
                   // Escort
-                  const escort = getEscortFeeForDistance(slab.maxDistanceMInclusive);
+                  const escort = getEscortFeeForDistance(
+                    slab.maxDistanceMInclusive,
+                  );
 
                   return (
                     <tr
                       key={key}
+                      className="border-b"
                       style={{
-                        borderBottom: '1px solid var(--border)',
                         background: isNegativeMargin
-                          ? 'rgba(239, 68, 68, 0.08)'
+                          ? "rgba(239, 68, 68, 0.08)"
                           : isOverridden
-                          ? 'rgba(245, 158, 11, 0.04)'
-                          : 'transparent',
+                            ? "rgba(245, 158, 11, 0.04)"
+                            : "transparent",
                       }}
                     >
                       {/* Distance Band */}
-                      <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      <td className="py-3 px-4 font-bold text-primary">
                         {originalIndex === 0 ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <div className="flex items-center gap-tight">
                             <span>0 – {maxKm} km</span>
-                            <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.4rem', borderRadius: '4px', background: 'var(--brand-primary)', color: '#fff', fontWeight: 800 }}>BASE</span>
+                            <span
+                              className="bg-brand font-extrabold text-caption"
+                              style={{
+                                padding: "0.15rem 0.4rem",
+                                borderRadius: "4px",
+                                color: "#fff",
+                              }}
+                            >
+                              BASE
+                            </span>
                           </div>
                         ) : (
-                          <span>&gt;{minKm} – {maxKm} km</span>
+                          <span>
+                            &gt;{minKm} – {maxKm} km
+                          </span>
                         )}
                       </td>
 
                       {/* Vendor Columns */}
-                      {(role === 'vendor' || role === 'unified') && (
+                      {(role === "vendor" || role === "unified") && (
                         <>
-                          <td style={{ padding: '0.5rem 1rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <td className="py-2 px-4">
+                            <div className="flex items-center gap-1">
                               <span>₹</span>
                               <input
                                 type="number"
@@ -950,24 +1222,25 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
                                 value={vStd}
                                 onChange={(e) =>
                                   handleUpdateSlab(originalIndex, {
-                                    vendorPricePaise: Math.round(Number(e.target.value) * 100),
+                                    vendorPricePaise: Math.round(
+                                      Number(e.target.value) * 100,
+                                    ),
                                   })
                                 }
+                                className="rounded-sm bg-surface-elevated text-primary font-bold"
                                 style={{
-                                  width: '85px',
-                                  padding: '0.35rem 0.5rem',
-                                  borderRadius: 'var(--radius-sm)',
-                                  border: isNegativeMargin ? '1px solid var(--color-error)' : '1px solid var(--border)',
-                                  background: 'var(--bg-surface-elevated)',
-                                  color: 'var(--text-primary)',
-                                  fontWeight: 700,
+                                  width: "85px",
+                                  padding: "0.35rem 0.5rem",
+                                  border: isNegativeMargin
+                                    ? "1px solid var(--color-error)"
+                                    : "1px solid var(--border)",
                                 }}
                               />
                             </div>
                           </td>
 
-                          <td style={{ padding: '0.5rem 1rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <td className="py-2 px-4">
+                            <div className="flex items-center gap-1">
                               <span>+₹</span>
                               <input
                                 type="number"
@@ -975,32 +1248,34 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
                                 value={vPeakExtra}
                                 onChange={(e) =>
                                   handleUpdateSlab(originalIndex, {
-                                    vendorPeakPricePaise: Math.round((vStd + Number(e.target.value)) * 100),
+                                    vendorPeakPricePaise: Math.round(
+                                      (vStd + Number(e.target.value)) * 100,
+                                    ),
                                   })
                                 }
+                                className="rounded-sm border bg-surface-elevated text-primary"
                                 style={{
-                                  width: '75px',
-                                  padding: '0.35rem 0.5rem',
-                                  borderRadius: 'var(--radius-sm)',
-                                  border: '1px solid var(--border)',
-                                  background: 'var(--bg-surface-elevated)',
-                                  color: 'var(--text-primary)',
+                                  width: "75px",
+                                  padding: "0.35rem 0.5rem",
                                 }}
                               />
                             </div>
                           </td>
 
-                          <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: '#F59E0B' }}>
+                          <td
+                            className="py-3 px-4 font-bold"
+                            style={{ color: "#F59E0B" }}
+                          >
                             {inr(vPeakTotal)}
                           </td>
                         </>
                       )}
 
                       {/* Driver Columns */}
-                      {(role === 'driver' || role === 'unified') && (
+                      {(role === "driver" || role === "unified") && (
                         <>
-                          <td style={{ padding: '0.5rem 1rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <td className="py-2 px-4">
+                            <div className="flex items-center gap-1">
                               <span>₹</span>
                               <input
                                 type="number"
@@ -1008,24 +1283,25 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
                                 value={dStd}
                                 onChange={(e) =>
                                   handleUpdateSlab(originalIndex, {
-                                    driverPayoutPaise: Math.round(Number(e.target.value) * 100),
+                                    driverPayoutPaise: Math.round(
+                                      Number(e.target.value) * 100,
+                                    ),
                                   })
                                 }
+                                className="rounded-sm bg-surface-elevated text-success font-bold"
                                 style={{
-                                  width: '85px',
-                                  padding: '0.35rem 0.5rem',
-                                  borderRadius: 'var(--radius-sm)',
-                                  border: isNegativeMargin ? '1px solid var(--color-error)' : '1px solid var(--border)',
-                                  background: 'var(--bg-surface-elevated)',
-                                  color: 'var(--color-success)',
-                                  fontWeight: 700,
+                                  width: "85px",
+                                  padding: "0.35rem 0.5rem",
+                                  border: isNegativeMargin
+                                    ? "1px solid var(--color-error)"
+                                    : "1px solid var(--border)",
                                 }}
                               />
                             </div>
                           </td>
 
-                          <td style={{ padding: '0.5rem 1rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <td className="py-2 px-4">
+                            <div className="flex items-center gap-1">
                               <span>+₹</span>
                               <input
                                 type="number"
@@ -1033,51 +1309,49 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
                                 value={dPeakExtra}
                                 onChange={(e) =>
                                   handleUpdateSlab(originalIndex, {
-                                    driverPeakPayoutPaise: Math.round((dStd + Number(e.target.value)) * 100),
+                                    driverPeakPayoutPaise: Math.round(
+                                      (dStd + Number(e.target.value)) * 100,
+                                    ),
                                   })
                                 }
+                                className="rounded-sm border bg-surface-elevated text-primary"
                                 style={{
-                                  width: '75px',
-                                  padding: '0.35rem 0.5rem',
-                                  borderRadius: 'var(--radius-sm)',
-                                  border: '1px solid var(--border)',
-                                  background: 'var(--bg-surface-elevated)',
-                                  color: 'var(--text-primary)',
+                                  width: "75px",
+                                  padding: "0.35rem 0.5rem",
                                 }}
                               />
                             </div>
                           </td>
 
-                          <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: 'var(--color-success)' }}>
+                          <td className="py-3 px-4 font-bold text-success">
                             {inr(dPeakTotal)}
                           </td>
                         </>
                       )}
 
                       {/* Security Escort */}
-                      <td style={{ padding: '0.75rem 1rem', fontSize: '0.8125rem' }}>
+                      <td className="py-3 px-4 text-base">
                         <div>{inr(escort.vendorEscort)} client</div>
-                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{inr(escort.driverEscort)} driver</div>
+                        <div className="text-secondary text-sm">
+                          {inr(escort.driverEscort)} driver
+                        </div>
                       </td>
 
                       {/* Platform Net Margin */}
-                      <td style={{ padding: '0.75rem 1rem' }}>
+                      <td className="py-3 px-4">
                         <span
+                          className="py-1 px-2 rounded-full font-bold text-body-sm"
                           style={{
-                            padding: '0.25rem 0.5rem',
-                            borderRadius: 'var(--radius-full)',
-                            fontSize: '0.8rem',
-                            fontWeight: 700,
                             background: isNegativeMargin
-                              ? 'rgba(239, 68, 68, 0.15)'
+                              ? "rgba(239, 68, 68, 0.15)"
                               : Number(marginStdPct) < 15
-                              ? 'rgba(245, 158, 11, 0.15)'
-                              : 'rgba(16, 185, 129, 0.15)',
+                                ? "rgba(245, 158, 11, 0.15)"
+                                : "rgba(16, 185, 129, 0.15)",
                             color: isNegativeMargin
-                              ? 'var(--color-error)'
+                              ? "var(--color-error)"
                               : Number(marginStdPct) < 15
-                              ? 'var(--color-warning)'
-                              : 'var(--color-success)',
+                                ? "var(--color-warning)"
+                                : "var(--color-success)",
                           }}
                         >
                           +{inr(marginStd)} ({marginStdPct}%)
@@ -1085,26 +1359,43 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
                       </td>
 
                       {/* Status */}
-                      <td style={{ padding: '0.75rem 1rem' }}>
+                      <td className="py-3 px-4">
                         {isOverridden ? (
-                          <span style={{ padding: '0.2rem 0.5rem', borderRadius: '4px', background: 'rgba(245, 158, 11, 0.15)', color: '#F59E0B', fontSize: '0.75rem', fontWeight: 700 }}>
+                          <span
+                            className="text-sm font-bold"
+                            style={{
+                              padding: "0.2rem 0.5rem",
+                              borderRadius: "4px",
+                              background: "rgba(245, 158, 11, 0.15)",
+                              color: "#F59E0B",
+                            }}
+                          >
                             Custom Override
                           </span>
                         ) : (
-                          <span style={{ padding: '0.2rem 0.5rem', borderRadius: '4px', background: 'rgba(107, 114, 128, 0.15)', color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
+                          <span
+                            className="text-secondary text-sm"
+                            style={{
+                              padding: "0.2rem 0.5rem",
+                              borderRadius: "4px",
+                              background: "rgba(107, 114, 128, 0.15)",
+                            }}
+                          >
                             Formula
                           </span>
                         )}
                       </td>
 
                       {/* Actions */}
-                      <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
+                      <td className="py-3 px-4 text-center">
                         {isOverridden && (
                           <Button
                             variant="outline"
                             size="sm"
                             leftIcon={<RotateCcw size={12} />}
-                            onClick={() => handleResetSlabToFormula(originalIndex)}
+                            onClick={() =>
+                              handleResetSlabToFormula(originalIndex)
+                            }
                             title="Reset this distance band back to the formula"
                           >
                             Reset
@@ -1121,74 +1412,120 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
       </Card>
 
       {/* Live Rate Simulator Drawer / Widget at Bottom */}
-      <Card style={{ padding: '1.25rem', background: 'var(--bg-surface)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Sparkles size={18} color="var(--brand-primary)" />
-            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+      <Card style={{ padding: "1.25rem", background: "var(--bg-surface)" }}>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Sparkles size={18} color="var(--text-brand)" />
+            <h3 className="m-0 text-lg font-bold text-primary">
               Live Quote Simulator
             </h3>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+            <span className="text-sm text-secondary">
               Test any arbitrary distance against your configured matrix
             </span>
           </div>
-          {simulating && <span style={{ fontSize: '0.75rem', color: 'var(--brand-primary)' }}>Calculating...</span>}
+          {simulating && (
+            <span className="text-sm text-brand">Calculating...</span>
+          )}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', alignItems: 'flex-end' }}>
+        <div
+          className="grid gap-4 items-end"
+          style={{
+            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          }}
+        >
           <div>
-            <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Distance (km)</label>
+            <label className="text-base font-semibold text-secondary">
+              Distance (km)
+            </label>
             <input
               type="number"
               min={1}
               step={0.5}
               value={simDistanceKm}
               onChange={(e) => setSimDistanceKm(Number(e.target.value))}
-              style={{ width: '100%', marginTop: '0.35rem', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)' }}
+              className="w-full py-2 px-3 rounded-md border bg-surface-elevated text-primary mt-tight"
             />
           </div>
 
           <div>
-            <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Pickup Time (IST)</label>
+            <label className="text-base font-semibold text-secondary">
+              Pickup Time (IST)
+            </label>
             <input
               type="time"
               value={simTimeOfDay}
               onChange={(e) => setSimTimeOfDay(e.target.value)}
-              style={{ width: '100%', marginTop: '0.35rem', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)' }}
+              className="w-full py-2 px-3 rounded-md border bg-surface-elevated text-primary mt-tight"
             />
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', paddingBottom: '0.65rem' }}>
+          <div
+            className="flex items-center gap-2"
+            style={{ paddingBottom: "0.65rem" }}
+          >
             <input
               type="checkbox"
               id="simEscort"
               checked={simIncludeEscort}
               onChange={(e) => setSimIncludeEscort(e.target.checked)}
-              style={{ width: '16px', height: '16px', accentColor: 'var(--brand-primary)' }}
+              style={{
+                width: "16px",
+                height: "16px",
+                accentColor: "var(--text-brand)",
+              }}
             />
-            <label htmlFor="simEscort" style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', cursor: 'pointer' }}>
+            <label
+              htmlFor="simEscort"
+              className="font-semibold text-primary cursor-pointer text-body"
+            >
               Include Security Escort Guard
             </label>
           </div>
 
           {/* Simulation Output Card */}
           {simResult && (
-            <div style={{ gridColumn: 'span 2', display: 'flex', gap: '1rem', background: 'var(--bg-surface-elevated)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
+            <div
+              className="flex gap-4 bg-surface-elevated py-3 px-4 rounded-md border"
+              style={{ gridColumn: "span 2" }}
+            >
               <div>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Vendor Charge</span>
-                <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--brand-primary)' }}>{inr(simResult.vendorPriceRupees)}</div>
+                <span className="text-secondary uppercase text-caption">
+                  Vendor Charge
+                </span>
+                <div className="font-extrabold text-brand text-title-lg">
+                  {inr(simResult.vendorPriceRupees)}
+                </div>
               </div>
-              <div style={{ borderLeft: '1px solid var(--border)', paddingLeft: '1rem' }}>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Driver Payout</span>
-                <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--color-success)' }}>{inr(simResult.driverPayoutRupees)}</div>
+              <div className="border-l pl-4">
+                <span className="text-secondary uppercase text-caption">
+                  Driver Payout
+                </span>
+                <div className="font-extrabold text-success text-title-lg">
+                  {inr(simResult.driverPayoutRupees)}
+                </div>
               </div>
-              <div style={{ borderLeft: '1px solid var(--border)', paddingLeft: '1rem' }}>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Platform Margin</span>
-                <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#10B981' }}>
-                  +{inr(simResult.vendorPriceRupees - simResult.driverPayoutRupees)} (
+              <div className="border-l pl-4">
+                <span className="text-secondary uppercase text-caption">
+                  Platform Margin
+                </span>
+                <div
+                  className="font-extrabold text-title-lg"
+                  style={{ color: "#10B981" }}
+                >
+                  +
+                  {inr(
+                    simResult.vendorPriceRupees - simResult.driverPayoutRupees,
+                  )}{" "}
+                  (
                   {simResult.vendorPriceRupees > 0
-                    ? (((simResult.vendorPriceRupees - simResult.driverPayoutRupees) / simResult.vendorPriceRupees) * 100).toFixed(1)
-                    : '0'}
+                    ? (
+                        ((simResult.vendorPriceRupees -
+                          simResult.driverPayoutRupees) /
+                          simResult.vendorPriceRupees) *
+                        100
+                      ).toFixed(1)
+                    : "0"}
                   %)
                 </div>
               </div>
@@ -1203,189 +1540,259 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
         onClose={() => setIsFormulaDrawerOpen(false)}
         title="Configure Distance & Step Formula"
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-            Set standard mathematical rules for your continuous distance slabs. Generating the table will populate all bands up to the maximum target reach.
+        <div className="flex flex-col gap-5">
+          <p className="m-0 text-secondary text-body">
+            Set standard mathematical rules for your continuous distance slabs.
+            Generating the table will populate all bands up to the maximum
+            target reach.
           </p>
 
           {/* Distance Geometry */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+          <div
+            className="grid gap-3"
+            style={{ gridTemplateColumns: "1fr 1fr" }}
+          >
             <div>
-              <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Base Distance (km)</label>
+              <label className="text-base font-semibold text-secondary">
+                Base Distance (km)
+              </label>
               <input
                 type="number"
                 min={1}
                 value={genBaseKm}
                 onChange={(e) => setGenBaseKm(Number(e.target.value))}
-                style={{ width: '100%', marginTop: '0.35rem', padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)' }}
+                className="w-full p-2 rounded-sm border bg-surface-elevated text-primary mt-tight"
               />
             </div>
             <div>
-              <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Step Increment (km)</label>
+              <label className="text-base font-semibold text-secondary">
+                Step Increment (km)
+              </label>
               <input
                 type="number"
                 min={1}
                 value={genStepKm}
                 onChange={(e) => setGenStepKm(Number(e.target.value))}
-                style={{ width: '100%', marginTop: '0.35rem', padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)' }}
+                className="w-full p-2 rounded-sm border bg-surface-elevated text-primary mt-tight"
               />
             </div>
           </div>
 
           <div>
-            <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Maximum Target Reach (km)</label>
+            <label className="text-base font-semibold text-secondary">
+              Maximum Target Reach (km)
+            </label>
             <input
               type="number"
               min={genBaseKm}
               step={10}
               value={genMaxKm}
               onChange={(e) => setGenMaxKm(Number(e.target.value))}
-              style={{ width: '100%', marginTop: '0.35rem', padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)' }}
+              className="w-full p-2 rounded-sm border bg-surface-elevated text-primary mt-tight"
             />
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>e.g. 100 km, 200 km, or 500 km</span>
+            <span className="text-sm text-secondary">
+              e.g. 100 km, 200 km, or 500 km
+            </span>
           </div>
 
           {/* Vendor Rates */}
-          <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
-            <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem', fontWeight: 700, color: 'var(--brand-primary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <div className="border-t pt-3">
+            <h4 className="mt-0 mr-0 mb-2 ml-0 text-md font-bold text-brand flex items-center gap-tight">
               <Building2 size={15} /> Vendor Client Pricing
             </h4>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+            <div
+              className="grid gap-3"
+              style={{ gridTemplateColumns: "1fr 1fr" }}
+            >
               <div>
-                <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Base Fare (₹)</label>
+                <label className="text-base font-semibold text-secondary">
+                  Base Fare (₹)
+                </label>
                 <input
                   type="number"
                   min={1}
                   value={genBaseVendor}
                   onChange={(e) => setGenBaseVendor(Number(e.target.value))}
-                  style={{ width: '100%', marginTop: '0.35rem', padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)' }}
+                  className="w-full p-2 rounded-sm border bg-surface-elevated text-primary mt-tight"
                 />
               </div>
               <div>
-                <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Price per Step (+₹)</label>
+                <label className="text-base font-semibold text-secondary">
+                  Price per Step (+₹)
+                </label>
                 <input
                   type="number"
                   min={1}
                   value={genStepVendor}
                   onChange={(e) => setGenStepVendor(Number(e.target.value))}
-                  style={{ width: '100%', marginTop: '0.35rem', padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)' }}
+                  className="w-full p-2 rounded-sm border bg-surface-elevated text-primary mt-tight"
                 />
               </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginTop: '0.5rem' }}>
+            <div
+              className="grid gap-3 mt-2"
+              style={{ gridTemplateColumns: "1fr 1fr" }}
+            >
               <div>
-                <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Peak Extra Base (+₹)</label>
+                <label className="text-base font-semibold text-secondary">
+                  Peak Extra Base (+₹)
+                </label>
                 <input
                   type="number"
                   min={0}
                   value={genVendorPeakExtraBase}
-                  onChange={(e) => setGenVendorPeakExtraBase(Number(e.target.value))}
-                  style={{ width: '100%', marginTop: '0.35rem', padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)' }}
+                  onChange={(e) =>
+                    setGenVendorPeakExtraBase(Number(e.target.value))
+                  }
+                  className="w-full p-2 rounded-sm border bg-surface-elevated text-primary mt-tight"
                 />
               </div>
               <div>
-                <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Peak Extra Step (+₹)</label>
+                <label className="text-base font-semibold text-secondary">
+                  Peak Extra Step (+₹)
+                </label>
                 <input
                   type="number"
                   min={0}
                   value={genVendorPeakExtraStep}
-                  onChange={(e) => setGenVendorPeakExtraStep(Number(e.target.value))}
-                  style={{ width: '100%', marginTop: '0.35rem', padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)' }}
+                  onChange={(e) =>
+                    setGenVendorPeakExtraStep(Number(e.target.value))
+                  }
+                  className="w-full p-2 rounded-sm border bg-surface-elevated text-primary mt-tight"
                 />
               </div>
             </div>
           </div>
 
           {/* Driver Payouts */}
-          <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
-            <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-success)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <div className="border-t pt-3">
+            <h4 className="mt-0 mr-0 mb-2 ml-0 text-md font-bold text-success flex items-center gap-tight">
               <Car size={15} /> Driver Guaranteed Payouts
             </h4>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+            <div
+              className="grid gap-3"
+              style={{ gridTemplateColumns: "1fr 1fr" }}
+            >
               <div>
-                <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Base Payout (₹)</label>
+                <label className="text-base font-semibold text-secondary">
+                  Base Payout (₹)
+                </label>
                 <input
                   type="number"
                   min={1}
                   value={genBaseDriver}
                   onChange={(e) => setGenBaseDriver(Number(e.target.value))}
-                  style={{ width: '100%', marginTop: '0.35rem', padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)' }}
+                  className="w-full p-2 rounded-sm border bg-surface-elevated text-primary mt-tight"
                 />
               </div>
               <div>
-                <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Payout per Step (+₹)</label>
+                <label className="text-base font-semibold text-secondary">
+                  Payout per Step (+₹)
+                </label>
                 <input
                   type="number"
                   min={1}
                   value={genStepDriver}
                   onChange={(e) => setGenStepDriver(Number(e.target.value))}
-                  style={{ width: '100%', marginTop: '0.35rem', padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)' }}
+                  className="w-full p-2 rounded-sm border bg-surface-elevated text-primary mt-tight"
                 />
               </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginTop: '0.5rem' }}>
+            <div
+              className="grid gap-3 mt-2"
+              style={{ gridTemplateColumns: "1fr 1fr" }}
+            >
               <div>
-                <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Driver Peak Base (+₹)</label>
+                <label className="text-base font-semibold text-secondary">
+                  Driver Peak Base (+₹)
+                </label>
                 <input
                   type="number"
                   min={0}
                   value={genDriverPeakExtraBase}
-                  onChange={(e) => setGenDriverPeakExtraBase(Number(e.target.value))}
-                  style={{ width: '100%', marginTop: '0.35rem', padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)' }}
+                  onChange={(e) =>
+                    setGenDriverPeakExtraBase(Number(e.target.value))
+                  }
+                  className="w-full p-2 rounded-sm border bg-surface-elevated text-primary mt-tight"
                 />
               </div>
               <div>
-                <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Driver Peak Step (+₹)</label>
+                <label className="text-base font-semibold text-secondary">
+                  Driver Peak Step (+₹)
+                </label>
                 <input
                   type="number"
                   min={0}
                   value={genDriverPeakExtraStep}
-                  onChange={(e) => setGenDriverPeakExtraStep(Number(e.target.value))}
-                  style={{ width: '100%', marginTop: '0.35rem', padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)' }}
+                  onChange={(e) =>
+                    setGenDriverPeakExtraStep(Number(e.target.value))
+                  }
+                  className="w-full p-2 rounded-sm border bg-surface-elevated text-primary mt-tight"
                 />
               </div>
             </div>
           </div>
 
           {/* Security Escort */}
-          <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
-            <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.875rem', fontWeight: 700, color: '#3B82F6', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <div className="border-t pt-3">
+            <h4
+              className="mt-0 mr-0 mb-2 ml-0 text-md font-bold flex items-center gap-tight"
+              style={{ color: "#3B82F6" }}
+            >
               <ShieldCheck size={15} /> Distance-Based Security Escort Add-on
             </h4>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+            <div
+              className="grid gap-3"
+              style={{ gridTemplateColumns: "1fr 1fr" }}
+            >
               <div>
-                <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Client Base (₹)</label>
+                <label className="text-base font-semibold text-secondary">
+                  Client Base (₹)
+                </label>
                 <input
                   type="number"
                   min={0}
                   value={genEscortBaseVendor}
-                  onChange={(e) => setGenEscortBaseVendor(Number(e.target.value))}
-                  style={{ width: '100%', marginTop: '0.35rem', padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)' }}
+                  onChange={(e) =>
+                    setGenEscortBaseVendor(Number(e.target.value))
+                  }
+                  className="w-full p-2 rounded-sm border bg-surface-elevated text-primary mt-tight"
                 />
               </div>
               <div>
-                <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Client Step (+₹)</label>
+                <label className="text-base font-semibold text-secondary">
+                  Client Step (+₹)
+                </label>
                 <input
                   type="number"
                   min={0}
                   value={genEscortStepVendor}
-                  onChange={(e) => setGenEscortStepVendor(Number(e.target.value))}
-                  style={{ width: '100%', marginTop: '0.35rem', padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)' }}
+                  onChange={(e) =>
+                    setGenEscortStepVendor(Number(e.target.value))
+                  }
+                  className="w-full p-2 rounded-sm border bg-surface-elevated text-primary mt-tight"
                 />
               </div>
             </div>
           </div>
 
           {/* Override Preservation Checkbox */}
-          <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div className="border-t pt-3 flex items-center gap-2">
             <input
               type="checkbox"
               id="preserveOverrides"
               checked={preserveOverrides}
               onChange={(e) => setPreserveOverrides(e.target.checked)}
-              style={{ width: '16px', height: '16px', accentColor: 'var(--brand-primary)' }}
+              style={{
+                width: "16px",
+                height: "16px",
+                accentColor: "var(--text-brand)",
+              }}
             />
-            <label htmlFor="preserveOverrides" style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', cursor: 'pointer' }}>
+            <label
+              htmlFor="preserveOverrides"
+              className="font-semibold text-primary cursor-pointer text-body"
+            >
               Preserve manual overrides on custom-edited slabs
             </label>
           </div>
@@ -1395,7 +1802,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
             size="lg"
             leftIcon={<Sparkles size={16} />}
             onClick={handleGenerateFullTable}
-            style={{ width: '100%', marginTop: '0.5rem' }}
+            style={{ width: "100%", marginTop: "0.5rem" }}
           >
             Generate Slabs Table up to {genMaxKm} km
           </Button>
@@ -1408,40 +1815,50 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
         onClose={() => setIsBatchModalOpen(false)}
         title="Batch Adjust Slabs Range"
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-            Apply a flat (+₹) or percentage (+%) adjustment across an entire corridor range (e.g. all slabs beyond 50 km).
+        <div className="flex flex-col gap-5">
+          <p className="m-0 text-secondary text-body">
+            Apply a flat (+₹) or percentage (+%) adjustment across an entire
+            corridor range (e.g. all slabs beyond 50 km).
           </p>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+          <div
+            className="grid gap-3"
+            style={{ gridTemplateColumns: "1fr 1fr" }}
+          >
             <div>
-              <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>From Distance (km)</label>
+              <label className="text-base font-semibold text-secondary">
+                From Distance (km)
+              </label>
               <input
                 type="number"
                 min={0}
                 value={batchMinKm}
                 onChange={(e) => setBatchMinKm(Number(e.target.value))}
-                style={{ width: '100%', marginTop: '0.35rem', padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)' }}
+                className="w-full p-2 rounded-sm border bg-surface-elevated text-primary mt-tight"
               />
             </div>
             <div>
-              <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>To Distance (km)</label>
+              <label className="text-base font-semibold text-secondary">
+                To Distance (km)
+              </label>
               <input
                 type="number"
                 min={batchMinKm}
                 value={batchMaxKm}
                 onChange={(e) => setBatchMaxKm(Number(e.target.value))}
-                style={{ width: '100%', marginTop: '0.35rem', padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)' }}
+                className="w-full p-2 rounded-sm border bg-surface-elevated text-primary mt-tight"
               />
             </div>
           </div>
 
           <div>
-            <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Target Rate Card</label>
+            <label className="text-base font-semibold text-secondary">
+              Target Rate Card
+            </label>
             <select
               value={batchTarget}
               onChange={(e) => setBatchTarget(e.target.value as any)}
-              style={{ width: '100%', marginTop: '0.35rem', padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)' }}
+              className="w-full p-2 rounded-sm border bg-surface-elevated text-primary mt-tight"
             >
               <option value="vendor">Vendor Rates Only (Client Billing)</option>
               <option value="driver">Driver Payouts Only</option>
@@ -1449,27 +1866,32 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
             </select>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+          <div
+            className="grid gap-3"
+            style={{ gridTemplateColumns: "1fr 1fr" }}
+          >
             <div>
-              <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Adjustment Type</label>
+              <label className="text-base font-semibold text-secondary">
+                Adjustment Type
+              </label>
               <select
                 value={batchType}
                 onChange={(e) => setBatchType(e.target.value as any)}
-                style={{ width: '100%', marginTop: '0.35rem', padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)' }}
+                className="w-full p-2 rounded-sm border bg-surface-elevated text-primary mt-tight"
               >
                 <option value="flat">Flat Amount (₹)</option>
                 <option value="percent">Percentage (%)</option>
               </select>
             </div>
             <div>
-              <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                {batchType === 'flat' ? 'Amount (₹)' : 'Percentage (%)'}
+              <label className="text-base font-semibold text-secondary">
+                {batchType === "flat" ? "Amount (₹)" : "Percentage (%)"}
               </label>
               <input
                 type="number"
                 value={batchAmount}
                 onChange={(e) => setBatchAmount(Number(e.target.value))}
-                style={{ width: '100%', marginTop: '0.35rem', padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)' }}
+                className="w-full p-2 rounded-sm border bg-surface-elevated text-primary mt-tight"
               />
             </div>
           </div>
@@ -1479,7 +1901,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
             size="lg"
             leftIcon={<SlidersHorizontal size={16} />}
             onClick={handleApplyBatchAdjustment}
-            style={{ width: '100%', marginTop: '0.5rem' }}
+            style={{ width: "100%", marginTop: "0.5rem" }}
           >
             Apply Adjustment to Slabs
           </Button>

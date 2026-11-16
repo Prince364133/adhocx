@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from "react";
 import {
   ShieldCheck,
   Play,
@@ -16,14 +16,14 @@ import {
   UserCheck,
   DownloadCloud,
   Landmark,
-} from 'lucide-react';
+} from "lucide-react";
 import {
   DigioComplianceAlert,
   DigioEntityVerificationsResponse,
   DigioVerificationItem,
   VerificationItem,
-} from '../../lib/api/types';
-import { adminApi } from '../../lib/api/client';
+} from "../../lib/api/types";
+import { adminApi } from "../../lib/api/client";
 
 interface DigioVerificationPanelProps {
   item: VerificationItem;
@@ -32,33 +32,38 @@ interface DigioVerificationPanelProps {
 }
 
 const DRIVER_CHECK_LABELS: Array<{ key: string; label: string }> = [
-  { key: 'DIGILOCKER', label: 'DigiLocker' },
-  { key: 'ID_OCR', label: 'ID OCR & Quality' },
-  { key: 'AADHAAR_MASK', label: 'Aadhaar Masked' },
-  { key: 'PAN', label: 'PAN Card' },
-  { key: 'DRIVING_LICENSE', label: 'Driving License' },
-  { key: 'VEHICLE_RC', label: 'Vehicle RC (Vahan)' },
-  { key: 'FACE_MATCH', label: 'Face Match' },
-  { key: 'LIVENESS', label: 'Selfie Liveness' },
-  { key: 'FUZZY_MATCH', label: 'Name Cross-Match' },
-  { key: 'BANK_ACCOUNT', label: 'Bank Account' },
-  { key: 'UPI_VPA', label: 'UPI VPA' },
+  { key: "DIGILOCKER", label: "DigiLocker" },
+  { key: "ID_OCR", label: "ID OCR & Quality" },
+  { key: "AADHAAR_MASK", label: "Aadhaar Masked" },
+  { key: "PAN", label: "PAN Card" },
+  { key: "DRIVING_LICENSE", label: "Driving License" },
+  { key: "VEHICLE_RC", label: "Vehicle RC (Vahan)" },
+  { key: "FACE_MATCH", label: "Face Match" },
+  { key: "LIVENESS", label: "Selfie Liveness" },
+  { key: "FUZZY_MATCH", label: "Name Cross-Match" },
+  { key: "BANK_ACCOUNT", label: "Bank Account" },
+  { key: "UPI_VPA", label: "UPI VPA" },
 ];
 
-export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ item, onAlertsChange }) => {
-  const [data, setData] = useState<DigioEntityVerificationsResponse | null>(null);
+export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({
+  item,
+  onAlertsChange,
+}) => {
+  const [data, setData] = useState<DigioEntityVerificationsResponse | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [statusBanner, setStatusBanner] = useState<string | null>(null);
 
   // Manual override inputs when driver skipped pre-verification on onboarding
-  const [panInput, setPanInput] = useState('');
-  const [dlInput, setDlInput] = useState('');
-  const [dobInput, setDobInput] = useState('');
-  const [rcInput, setRcInput] = useState(item.vehiclePlate || '');
+  const [panInput, setPanInput] = useState("");
+  const [dlInput, setDlInput] = useState("");
+  const [dobInput, setDobInput] = useState("");
+  const [rcInput, setRcInput] = useState(item.vehiclePlate || "");
 
-  const isDriver = item.entityType === 'DRIVER';
+  const isDriver = item.entityType === "DRIVER";
 
   const loadVerifications = useCallback(async () => {
     if (!isDriver) return;
@@ -68,14 +73,16 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
       const res = await adminApi.getDriverDigioVerifications(item.id);
       setData(res);
     } catch (err: any) {
-      setErrorMsg(err?.message || 'Unable to load Digio verification telemetry');
+      setErrorMsg(
+        err?.message || "Unable to load Digio verification telemetry",
+      );
     } finally {
       setLoading(false);
     }
   }, [item.id, isDriver]);
 
   useEffect(() => {
-    setRcInput(item.vehiclePlate || '');
+    setRcInput(item.vehiclePlate || "");
     loadVerifications();
   }, [loadVerifications, item.vehiclePlate]);
 
@@ -94,7 +101,9 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
     try {
       const res = await adminApi.runDriverDigioSuite(item.id, {
         includeFuzzyMatch: true,
-        ...(panInput.trim() ? { panOverride: panInput.trim().toUpperCase() } : {}),
+        ...(panInput.trim()
+          ? { panOverride: panInput.trim().toUpperCase() }
+          : {}),
         ...(dlInput.trim() ? { dlOverride: dlInput.trim().toUpperCase() } : {}),
         ...(dobInput.trim() ? { dobOverride: dobInput.trim() } : {}),
         ...(rcInput.trim() ? { rcOverride: rcInput.trim().toUpperCase() } : {}),
@@ -105,13 +114,13 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
           errCount
             ? ` (${errCount} skipped/error: ${Object.entries(res.errors)
                 .map(([k, v]) => `${k}: ${v}`)
-                .join('; ')})`
-            : ' cleanly'
+                .join("; ")})`
+            : " cleanly"
         }`,
       );
       await loadVerifications();
     } catch (err: any) {
-      setErrorMsg(err?.message || 'Automated suite execution failed');
+      setErrorMsg(err?.message || "Automated suite execution failed");
     } finally {
       setRunning(false);
     }
@@ -123,10 +132,12 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
     setStatusBanner(null);
     try {
       const res = await action();
-      setStatusBanner(`${label}: ${res?.complianceNotes || res?.status || 'Completed'}`);
+      setStatusBanner(
+        `${label}: ${res?.complianceNotes || res?.status || "Completed"}`,
+      );
       await loadVerifications();
     } catch (err: any) {
-      setErrorMsg(`${label} failed: ${err?.message || 'Unknown error'}`);
+      setErrorMsg(`${label} failed: ${err?.message || "Unknown error"}`);
     } finally {
       setRunning(false);
     }
@@ -135,7 +146,7 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
   const renderBadge = (rec?: DigioVerificationItem) => {
     if (!rec) {
       return (
-        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+        <span className="text-caption text-muted font-semibold">
           Not Checked
         </span>
       );
@@ -143,31 +154,21 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
     if (rec.verified && rec.complianceOk !== false) {
       return (
         <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.25rem',
-            fontSize: '0.7rem',
-            fontWeight: 700,
-            color: '#10b981',
-          }}
+          className="inline-flex items-center gap-1 text-caption font-bold"
+          style={{ color: "#10b981" }}
         >
           <CheckCircle2 size={12} /> Verified
-          {rec.matchScore !== null && rec.matchScore !== undefined ? ` (${rec.matchScore}%)` : ''}
+          {rec.matchScore !== null && rec.matchScore !== undefined
+            ? ` (${rec.matchScore}%)`
+            : ""}
         </span>
       );
     }
     if (rec.verified && rec.complianceOk === false) {
       return (
         <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.25rem',
-            fontSize: '0.7rem',
-            fontWeight: 700,
-            color: '#f59e0b',
-          }}
+          className="inline-flex items-center gap-1 text-caption font-bold"
+          style={{ color: "#f59e0b" }}
         >
           <AlertTriangle size={12} /> Warning
         </span>
@@ -175,14 +176,8 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
     }
     return (
       <span
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '0.25rem',
-          fontSize: '0.7rem',
-          fontWeight: 700,
-          color: '#f43f5e',
-        }}
+        className="inline-flex items-center gap-1 text-caption font-bold"
+        style={{ color: "#f43f5e" }}
       >
         <XCircle size={12} /> Failed
       </span>
@@ -192,66 +187,57 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
   const latest = data?.latestByType || {};
   const alerts: DigioComplianceAlert[] = data?.complianceAlerts || [];
   const aadharFrontDoc = item.documents?.find((d) =>
-    String(d.documentType || '').toUpperCase().includes('AADHAR'),
+    String(d.documentType || "")
+      .toUpperCase()
+      .includes("AADHAR"),
   );
-  const digilockerReqId = latest['DIGILOCKER']?.digioRequestId;
-  const rcRec = latest['VEHICLE_RC'];
-  const dlRec = latest['DRIVING_LICENSE'];
-  const bankRec = latest['BANK_ACCOUNT'];
+  const digilockerReqId = latest["DIGILOCKER"]?.digioRequestId;
+  const rcRec = latest["VEHICLE_RC"];
+  const dlRec = latest["DRIVING_LICENSE"];
+  const bankRec = latest["BANK_ACCOUNT"];
   const referenceName =
-    dlRec?.verifiedName || latest['PAN']?.verifiedName || bankRec?.verifiedName;
+    dlRec?.verifiedName || latest["PAN"]?.verifiedName || bankRec?.verifiedName;
 
   return (
     <div
+      className="mt-5"
       style={{
-        marginTop: '1.25rem',
-        padding: '1.1rem',
-        borderRadius: '12px',
-        background: 'rgba(87, 40, 178, 0.04)',
-        border: '1px solid rgba(87, 40, 178, 0.22)',
+        padding: "1.1rem",
+        borderRadius: "12px",
+        background: "rgba(var(--brand-primary-rgb), 0.04)",
+        border: "1px solid rgba(var(--brand-primary-rgb), 0.22)",
       }}
     >
       <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: '0.75rem',
-          paddingTop: '0.15rem',
-          marginBottom: '0.9rem',
-          flexWrap: 'wrap',
-        }}
+        className="flex justify-between items-center gap-3 flex-wrap"
+        style={{ paddingTop: "0.15rem", marginBottom: "0.9rem" }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-          <ShieldCheck size={18} style={{ color: 'var(--brand-primary)' }} />
+        <div className="flex items-center" style={{ gap: "0.625rem" }}>
+          <ShieldCheck size={18} style={{ color: "var(--text-brand)" }} />
           <div>
-            <h3 style={{ margin: 0, fontSize: '1.06rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+            <h3
+              className="m-0 font-bold text-primary"
+              style={{ fontSize: "1.06rem" }}
+            >
               Digio Driver Identity, DL & Vehicle RC Engine
             </h3>
-            <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              Parivahan RC, Commercial DL, PAN, Aadhaar Masking, Liveness, Face Match & Payout checks
+            <p className="m-0 text-sm text-muted">
+              Parivahan RC, Commercial DL, PAN, Aadhaar Masking, Liveness, Face
+              Match & Payout checks
             </p>
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <div className="flex gap-2 flex-wrap">
           <button
             type="button"
             onClick={loadVerifications}
             disabled={loading || running}
+            className="bg-surface border text-secondary text-sm font-semibold cursor-pointer flex items-center gap-tight"
             style={{
-              padding: '0.45rem 0.75rem',
-              borderRadius: '8px',
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border)',
-              color: 'var(--text-secondary)',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.35rem',
-              transition: 'all 0.15s ease',
+              padding: "0.45rem 0.75rem",
+              borderRadius: "8px",
+              transition: "all 0.15s ease",
             }}
           >
             <RefreshCw size={13} /> Refresh
@@ -261,23 +247,20 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
             type="button"
             onClick={handleRunDriverSuite}
             disabled={running}
+            className="bg-brand border-0 text-sm font-semibold flex items-center gap-compact shadow-sm"
             style={{
-              padding: '0.45rem 0.9rem',
-              borderRadius: '8px',
-              background: 'var(--brand-primary)',
-              border: 'none',
-              color: '#ffffff',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              cursor: running ? 'wait' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              boxShadow: 'var(--shadow-sm)',
-              transition: 'all 0.15s ease',
+              padding: "0.45rem 0.9rem",
+              borderRadius: "8px",
+              color: "#ffffff",
+              cursor: running ? "wait" : "pointer",
+              transition: "all 0.15s ease",
             }}
           >
-            {running ? <Loader2 size={13} className="animate-spin" /> : <Play size={13} />}
+            {running ? (
+              <Loader2 size={13} className="animate-spin" />
+            ) : (
+              <Play size={13} />
+            )}
             Run Full Digio Suite
           </button>
         </div>
@@ -285,23 +268,24 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
 
       {/* Compliance Blockers & Warnings */}
       {alerts.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '0.85rem' }}>
+        <div
+          className="flex flex-col gap-compact"
+          style={{ marginBottom: "0.85rem" }}
+        >
           {alerts.map((al, i) => {
-            const isBlocker = al.severity === 'BLOCKER';
+            const isBlocker = al.severity === "BLOCKER";
             return (
               <div
                 key={`${al.code}-${i}`}
+                className="text-sm font-semibold flex items-center gap-snug"
                 style={{
-                  padding: '0.55rem 0.85rem',
-                  borderRadius: '8px',
-                  background: isBlocker ? 'rgba(244, 63, 94, 0.12)' : 'rgba(245, 158, 11, 0.12)',
-                  border: `1px solid ${isBlocker ? 'rgba(244, 63, 94, 0.35)' : 'rgba(245, 158, 11, 0.35)'}`,
-                  color: isBlocker ? '#f43f5e' : '#d97706',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.45rem',
+                  padding: "0.55rem 0.85rem",
+                  borderRadius: "8px",
+                  background: isBlocker
+                    ? "rgba(244, 63, 94, 0.12)"
+                    : "rgba(245, 158, 11, 0.12)",
+                  border: `1px solid ${isBlocker ? "rgba(244, 63, 94, 0.35)" : "rgba(245, 158, 11, 0.35)"}`,
+                  color: isBlocker ? "#f43f5e" : "#d97706",
                 }}
               >
                 <ShieldAlert size={14} />
@@ -316,16 +300,11 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
 
       {statusBanner && (
         <div
-          className="animate-banner"
+          className="animate-banner mb-3 bg-success-subtle text-success text-compact font-semibold"
           style={{
-            marginBottom: '0.75rem',
-            padding: '0.6rem 0.85rem',
-            borderRadius: '8px',
-            background: 'var(--color-success-bg)',
-            border: '1px solid var(--color-success-border)',
-            color: 'var(--color-success)',
-            fontSize: '0.78rem',
-            fontWeight: 600,
+            padding: "0.6rem 0.85rem",
+            borderRadius: "8px",
+            border: "1px solid var(--color-success-border)",
           }}
         >
           {statusBanner}
@@ -334,16 +313,11 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
 
       {errorMsg && (
         <div
-          className="animate-banner"
+          className="animate-banner mb-3 bg-danger-subtle text-danger text-compact font-semibold"
           style={{
-            marginBottom: '0.75rem',
-            padding: '0.6rem 0.85rem',
-            borderRadius: '8px',
-            background: 'var(--color-danger-bg)',
-            border: '1px solid var(--color-danger-border)',
-            color: 'var(--color-danger)',
-            fontSize: '0.78rem',
-            fontWeight: 600,
+            padding: "0.6rem 0.85rem",
+            borderRadius: "8px",
+            border: "1px solid var(--color-danger-border)",
           }}
         >
           {errorMsg}
@@ -352,16 +326,15 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
 
       {/* Status Matrix */}
       {loading ? (
-        <div style={{ padding: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+        <div className="p-4 text-body-sm text-muted">
           Loading Digio verification records...
         </div>
       ) : (
         <div
+          className="grid mb-4"
           style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(195px, 1fr))',
-            gap: '0.65rem',
-            marginBottom: '1rem',
+            gridTemplateColumns: "repeat(auto-fill, minmax(195px, 1fr))",
+            gap: "0.65rem",
           }}
         >
           {DRIVER_CHECK_LABELS.map((def) => {
@@ -369,31 +342,27 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
             return (
               <div
                 key={def.key}
-                style={{
-                  padding: '0.7rem 0.85rem',
-                  borderRadius: '8px',
-                  background: 'var(--bg-surface)',
-                  border: '1px solid var(--border)',
-                }}
+                className="bg-surface border"
+                style={{ padding: "0.7rem 0.85rem", borderRadius: "8px" }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                <div className="flex justify-between items-center gap-2">
+                  <span className="text-sm font-bold text-primary">
                     {def.label}
                   </span>
                   {renderBadge(rec)}
                 </div>
                 {rec?.identifier && (
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                  <div className="text-caption text-muted mt-1">
                     {rec.identifier}
                   </div>
                 )}
                 {rec?.verifiedName && (
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.15rem', fontWeight: 600 }}>
+                  <div className="text-caption text-secondary mt-snug font-semibold">
                     {rec.verifiedName}
                   </div>
                 )}
                 {rec?.complianceNotes && (
-                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                  <div className="text-micro text-muted mt-compact">
                     {rec.complianceNotes}
                   </div>
                 )}
@@ -406,35 +375,46 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
       {/* Verified Vahan RC / Commercial DL Compliance Breakdown */}
       {(rcRec?.summary || dlRec?.summary) && (
         <div
+          className="grid gap-3 mb-4"
           style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-            gap: '0.75rem',
-            marginBottom: '1rem',
+            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
           }}
         >
           {rcRec?.summary && (
             <div
+              className="bg-surface border text-secondary"
               style={{
-                padding: '0.75rem 0.9rem',
-                borderRadius: '8px',
-                background: 'var(--bg-surface)',
-                border: '1px solid var(--border)',
-                fontSize: '0.73rem',
-                color: 'var(--text-secondary)',
+                padding: "0.75rem 0.9rem",
+                borderRadius: "8px",
+                fontSize: "0.73rem",
               }}
             >
-              <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.35rem' }}>
-                Vahan RC Breakdown ({rcRec.summary.rcNumber || rcRec.identifier})
-              </div>
-              <div>Model: {rcRec.summary.makerModel || '—'} ({rcRec.summary.fuelType || '—'})</div>
-              <div>Status: {rcRec.summary.rcStatus || '—'} • Blacklist: {rcRec.summary.blacklistStatus || 'NONE'}</div>
-              <div>Fitness Upto: {rcRec.summary.fitUpto || '—'} • PUCC Upto: {rcRec.summary.puccUpto || '—'}</div>
-              <div>
-                Insurance: {rcRec.summary.insuranceCompany || '—'} (Till {rcRec.summary.insuranceUpto || '—'})
+              <div className="font-bold text-primary mb-tight">
+                Vahan RC Breakdown ({rcRec.summary.rcNumber || rcRec.identifier}
+                )
               </div>
               <div>
-                Permit: {rcRec.summary.permitType || '—'} (Till {rcRec.summary.nationalPermitUpto || rcRec.summary.permitValidUpto || '—'})
+                Model: {rcRec.summary.makerModel || "—"} (
+                {rcRec.summary.fuelType || "—"})
+              </div>
+              <div>
+                Status: {rcRec.summary.rcStatus || "—"} • Blacklist:{" "}
+                {rcRec.summary.blacklistStatus || "NONE"}
+              </div>
+              <div>
+                Fitness Upto: {rcRec.summary.fitUpto || "—"} • PUCC Upto:{" "}
+                {rcRec.summary.puccUpto || "—"}
+              </div>
+              <div>
+                Insurance: {rcRec.summary.insuranceCompany || "—"} (Till{" "}
+                {rcRec.summary.insuranceUpto || "—"})
+              </div>
+              <div>
+                Permit: {rcRec.summary.permitType || "—"} (Till{" "}
+                {rcRec.summary.nationalPermitUpto ||
+                  rcRec.summary.permitValidUpto ||
+                  "—"}
+                )
               </div>
               <div>Challans Recorded: {rcRec.summary.challanCount ?? 0}</div>
             </div>
@@ -442,22 +422,32 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
 
           {dlRec?.summary && (
             <div
+              className="bg-surface border text-secondary"
               style={{
-                padding: '0.75rem 0.9rem',
-                borderRadius: '8px',
-                background: 'var(--bg-surface)',
-                border: '1px solid var(--border)',
-                fontSize: '0.73rem',
-                color: 'var(--text-secondary)',
+                padding: "0.75rem 0.9rem",
+                borderRadius: "8px",
+                fontSize: "0.73rem",
               }}
             >
-              <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.35rem' }}>
-                Driving License Details ({dlRec.summary.dlNumber || dlRec.identifier})
+              <div className="font-bold text-primary mb-tight">
+                Driving License Details (
+                {dlRec.summary.dlNumber || dlRec.identifier})
               </div>
-              <div>Holder: {dlRec.summary.holderName || dlRec.verifiedName || '—'}</div>
-              <div>Status: {dlRec.summary.status || '—'} • Issue Date: {dlRec.summary.issueDate || '—'}</div>
-              <div>Non-Transport Valid To: {dlRec.summary.nonTransportValidTo || '—'}</div>
-              <div>Transport (Commercial) Valid To: {dlRec.summary.transportValidTo || '—'}</div>
+              <div>
+                Holder: {dlRec.summary.holderName || dlRec.verifiedName || "—"}
+              </div>
+              <div>
+                Status: {dlRec.summary.status || "—"} • Issue Date:{" "}
+                {dlRec.summary.issueDate || "—"}
+              </div>
+              <div>
+                Non-Transport Valid To:{" "}
+                {dlRec.summary.nonTransportValidTo || "—"}
+              </div>
+              <div>
+                Transport (Commercial) Valid To:{" "}
+                {dlRec.summary.transportValidTo || "—"}
+              </div>
             </div>
           )}
         </div>
@@ -465,34 +455,22 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
 
       {/* Quick Manual Triggers & Biometric/Aadhaar/DigiLocker Actions */}
       <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: '0.75rem',
-          paddingTop: '0.75rem',
-          borderTop: '1px solid var(--border)',
-        }}
+        className="grid gap-3 pt-3 border-t"
+        style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}
       >
-        <div style={{ display: 'flex', gap: '0.4rem' }}>
+        <div className="flex gap-compact">
           <input
             placeholder="PAN Override (ABCDE1234F)"
             value={panInput}
             onChange={(e) => setPanInput(e.target.value.toUpperCase())}
-            style={{
-              flex: 1,
-              padding: '0.4rem 0.6rem',
-              borderRadius: '6px',
-              border: '1px solid var(--border)',
-              background: 'var(--bg-surface)',
-              color: 'var(--text-primary)',
-              fontSize: '0.75rem',
-            }}
+            className="flex-1 border bg-surface text-primary text-sm"
+            style={{ padding: "0.4rem 0.6rem", borderRadius: "6px" }}
           />
           <button
             type="button"
             disabled={running || panInput.trim().length !== 10}
             onClick={() =>
-              runSingleAction('PAN Check', () =>
+              runSingleAction("PAN Check", () =>
                 adminApi.verifyPanDigio({
                   panNumber: panInput.trim(),
                   name: item.name,
@@ -500,55 +478,43 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
                 }),
               )
             }
-            style={{
-              padding: '0.4rem 0.65rem',
-              borderRadius: '6px',
-              border: '1px solid var(--border)',
-              background: 'var(--bg-surface-elevated)',
-              color: 'var(--text-primary)',
-              fontSize: '0.72rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
+            className="border bg-surface-elevated text-primary text-label font-semibold cursor-pointer"
+            style={{ padding: "0.4rem 0.65rem", borderRadius: "6px" }}
           >
             <CreditCard size={12} /> PAN
           </button>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.4rem' }}>
+        <div className="flex gap-compact">
           <input
             placeholder="DL No."
             value={dlInput}
             onChange={(e) => setDlInput(e.target.value.toUpperCase())}
+            className="border bg-surface text-primary text-sm"
             style={{
-              width: '48%',
-              padding: '0.4rem 0.6rem',
-              borderRadius: '6px',
-              border: '1px solid var(--border)',
-              background: 'var(--bg-surface)',
-              color: 'var(--text-primary)',
-              fontSize: '0.75rem',
+              width: "48%",
+              padding: "0.4rem 0.6rem",
+              borderRadius: "6px",
             }}
           />
           <input
             placeholder="DOB (DD/MM/YYYY)"
             value={dobInput}
             onChange={(e) => setDobInput(e.target.value)}
+            className="border bg-surface text-primary text-sm"
             style={{
-              width: '36%',
-              padding: '0.4rem 0.5rem',
-              borderRadius: '6px',
-              border: '1px solid var(--border)',
-              background: 'var(--bg-surface)',
-              color: 'var(--text-primary)',
-              fontSize: '0.75rem',
+              width: "36%",
+              padding: "0.4rem 0.5rem",
+              borderRadius: "6px",
             }}
           />
           <button
             type="button"
-            disabled={running || dlInput.trim().length < 6 || dobInput.trim().length < 8}
+            disabled={
+              running || dlInput.trim().length < 6 || dobInput.trim().length < 8
+            }
             onClick={() =>
-              runSingleAction('DL Check', () =>
+              runSingleAction("DL Check", () =>
                 adminApi.verifyDlDigio({
                   dlNumber: dlInput.trim(),
                   dob: dobInput.trim(),
@@ -557,61 +523,38 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
                 }),
               )
             }
-            style={{
-              padding: '0.4rem 0.6rem',
-              borderRadius: '6px',
-              border: '1px solid var(--border)',
-              background: 'var(--bg-surface-elevated)',
-              color: 'var(--text-primary)',
-              fontSize: '0.72rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
+            className="border bg-surface-elevated text-primary text-label font-semibold cursor-pointer"
+            style={{ padding: "0.4rem 0.6rem", borderRadius: "6px" }}
           >
             DL
           </button>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+        <div className="flex gap-compact flex-wrap">
           <input
             placeholder="Vehicle Plate (RC)"
             value={rcInput}
             onChange={(e) => setRcInput(e.target.value.toUpperCase())}
+            className="flex-1 border bg-surface text-primary text-sm"
             style={{
-              flex: 1,
-              minWidth: '120px',
-              padding: '0.4rem 0.6rem',
-              borderRadius: '6px',
-              border: '1px solid var(--border)',
-              background: 'var(--bg-surface)',
-              color: 'var(--text-primary)',
-              fontSize: '0.75rem',
+              minWidth: "120px",
+              padding: "0.4rem 0.6rem",
+              borderRadius: "6px",
             }}
           />
           <button
             type="button"
             disabled={running || rcInput.trim().length < 6}
             onClick={() =>
-              runSingleAction('Vehicle RC Check', () =>
+              runSingleAction("Vehicle RC Check", () =>
                 adminApi.verifyRcDigio({
                   registrationNumber: rcInput.trim(),
                   targetDriverId: item.id,
                 }),
               )
             }
-            style={{
-              padding: '0.4rem 0.65rem',
-              borderRadius: '6px',
-              border: '1px solid var(--border)',
-              background: 'var(--bg-surface-elevated)',
-              color: 'var(--text-primary)',
-              fontSize: '0.72rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.25rem',
-            }}
+            className="border bg-surface-elevated text-primary text-label font-semibold cursor-pointer flex items-center gap-1"
+            style={{ padding: "0.4rem 0.65rem", borderRadius: "6px" }}
           >
             <Car size={12} /> RC
           </button>
@@ -619,24 +562,17 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
       </div>
 
       {/* Biometric, Aadhaar Masking, Name Match & DigiLocker Secondary Row */}
-      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.7rem' }}>
+      <div className="flex gap-2 flex-wrap" style={{ marginTop: "0.7rem" }}>
         <button
           type="button"
           disabled={running}
-          onClick={() => runSingleAction('Face Match', () => adminApi.faceMatchDriverDigio(item.id))}
-          style={{
-            padding: '0.4rem 0.65rem',
-            borderRadius: '6px',
-            border: '1px solid var(--border)',
-            background: 'var(--bg-surface-elevated)',
-            color: 'var(--text-primary)',
-            fontSize: '0.72rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.25rem',
-          }}
+          onClick={() =>
+            runSingleAction("Face Match", () =>
+              adminApi.faceMatchDriverDigio(item.id),
+            )
+          }
+          className="border bg-surface-elevated text-primary text-label font-semibold cursor-pointer flex items-center gap-1"
+          style={{ padding: "0.4rem 0.65rem", borderRadius: "6px" }}
         >
           <ScanFace size={12} /> Face Match
         </button>
@@ -644,20 +580,13 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
         <button
           type="button"
           disabled={running}
-          onClick={() => runSingleAction('Selfie Liveness', () => adminApi.livenessDriverDigio(item.id))}
-          style={{
-            padding: '0.4rem 0.65rem',
-            borderRadius: '6px',
-            border: '1px solid var(--border)',
-            background: 'var(--bg-surface-elevated)',
-            color: 'var(--text-primary)',
-            fontSize: '0.72rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.25rem',
-          }}
+          onClick={() =>
+            runSingleAction("Selfie Liveness", () =>
+              adminApi.livenessDriverDigio(item.id),
+            )
+          }
+          className="border bg-surface-elevated text-primary text-label font-semibold cursor-pointer flex items-center gap-1"
+          style={{ padding: "0.4rem 0.65rem", borderRadius: "6px" }}
         >
           <UserCheck size={12} /> Selfie Liveness
         </button>
@@ -667,27 +596,16 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
             type="button"
             disabled={running}
             onClick={() =>
-              runSingleAction('Aadhaar Mask', () =>
+              runSingleAction("Aadhaar Mask", () =>
                 adminApi.maskAadhaarDriverDigio({
                   documentUrl: aadharFrontDoc.fileUrl,
-                  side: 'FRONT',
+                  side: "FRONT",
                   targetDriverId: item.id,
                 }),
               )
             }
-            style={{
-              padding: '0.4rem 0.65rem',
-              borderRadius: '6px',
-              border: '1px solid var(--border)',
-              background: 'var(--bg-surface-elevated)',
-              color: 'var(--text-primary)',
-              fontSize: '0.72rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.25rem',
-            }}
+            className="border bg-surface-elevated text-primary text-label font-semibold cursor-pointer flex items-center gap-1"
+            style={{ padding: "0.4rem 0.65rem", borderRadius: "6px" }}
           >
             <Landmark size={12} /> Mask Aadhaar
           </button>
@@ -698,26 +616,18 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
             type="button"
             disabled={running}
             onClick={() =>
-              runSingleAction('Fuzzy Name Match', () =>
+              runSingleAction("Fuzzy Name Match", () =>
                 adminApi.fuzzyMatchDriverDigio({
                   sourceText: item.name,
                   targetText: String(referenceName),
-                  context: 'name',
+                  context: "name",
                   minConfidence: 75,
                   targetDriverId: item.id,
                 }),
               )
             }
-            style={{
-              padding: '0.4rem 0.65rem',
-              borderRadius: '6px',
-              border: '1px solid var(--border)',
-              background: 'var(--bg-surface-elevated)',
-              color: 'var(--text-primary)',
-              fontSize: '0.72rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
+            className="border bg-surface-elevated text-primary text-label font-semibold cursor-pointer"
+            style={{ padding: "0.4rem 0.65rem", borderRadius: "6px" }}
           >
             Cross-Check Name
           </button>
@@ -728,24 +638,13 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({ 
             type="button"
             disabled={running}
             onClick={() =>
-              runSingleAction('Sync DigiLocker Media', async () => {
+              runSingleAction("Sync DigiLocker Media", async () => {
                 await adminApi.syncDigilockerStatusDigio(digilockerReqId);
                 return adminApi.syncDigilockerMediaDigio(digilockerReqId);
               })
             }
-            style={{
-              padding: '0.4rem 0.65rem',
-              borderRadius: '6px',
-              border: '1px solid var(--border)',
-              background: 'var(--bg-surface-elevated)',
-              color: 'var(--text-primary)',
-              fontSize: '0.72rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.25rem',
-            }}
+            className="border bg-surface-elevated text-primary text-label font-semibold cursor-pointer flex items-center gap-1"
+            style={{ padding: "0.4rem 0.65rem", borderRadius: "6px" }}
           >
             <DownloadCloud size={12} /> Sync DigiLocker Docs
           </button>

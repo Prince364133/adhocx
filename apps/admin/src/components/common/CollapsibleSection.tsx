@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import React, { useState } from "react";
+import { ChevronDown } from "lucide-react";
 
 export interface CollapsibleSectionProps {
   title: string;
@@ -42,7 +42,7 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
       className="card"
       style={{
         padding: 0,
-        overflow: 'hidden',
+        overflow: "hidden",
         ...style,
       }}
     >
@@ -50,58 +50,63 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
         type="button"
         onClick={handleToggle}
         aria-expanded={open}
+        className="w-full flex items-center justify-between bg-card border-0 cursor-pointer text-left text-primary"
         style={{
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '0.65rem',
-          padding: '1rem 1.05rem 0.84rem',
-          background: 'var(--bg-card)',
-          border: 'none',
-          cursor: 'pointer',
-          textAlign: 'left',
-          color: 'var(--text-primary)',
-          transition: 'background-color 0.15s ease',
+          gap: "0.65rem",
+          padding: "1rem 1.05rem 0.84rem",
+          transition: "background-color 0.15s ease",
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = 'var(--bg-card-elevated)';
+          e.currentTarget.style.backgroundColor = "var(--bg-card-elevated)";
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = 'var(--bg-card)';
+          e.currentTarget.style.backgroundColor = "var(--bg-card)";
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', minWidth: 0, flex: 1 }}>
+        <div className="flex items-center gap-medium min-w-0 flex-1">
           {icon && (
-            <span style={{ color: 'var(--brand-primary)', display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
+            <span className="text-brand inline-flex items-center flex-shrink-0">
               {icon}
             </span>
           )}
-          <div style={{ minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.3 }}>{title}</span>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span
+                className="text-title-sm font-bold text-primary"
+                style={{ lineHeight: 1.3 }}
+              >
+                {title}
+              </span>
               {badge}
             </div>
             {subtitle && (
-              <div style={{ fontSize: '0.71rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>{subtitle}</div>
+              <div
+                className="text-muted"
+                style={{ fontSize: "0.71rem", marginTop: "0.1rem" }}
+              >
+                {subtitle}
+              </div>
             )}
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexShrink: 0 }}>
+        <div
+          className="flex items-center flex-shrink-0"
+          style={{ gap: "0.65rem" }}
+        >
           {headerRight && (
-            <div onClick={(e) => e.stopPropagation()} style={{ display: 'inline-flex', alignItems: 'center' }}>
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex items-center"
+            >
               {headerRight}
             </div>
           )}
           <span
+            className="inline-flex items-center justify-center text-muted"
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--text-muted)',
-              transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
-              transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+              transform: open ? "rotate(180deg)" : "rotate(0deg)",
+              transition: "transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
             }}
           >
             <ChevronDown size={16} />
@@ -109,14 +114,11 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
         </div>
       </button>
 
-      <div className={`collapsible-grid${open ? ' is-open' : ''}`}>
+      <div className={`collapsible-grid${open ? " is-open" : ""}`}>
         <div className="collapsible-inner">
           <div
-            style={{
-              padding: '0.95rem 1.15rem 1.15rem',
-              borderTop: '1px solid var(--border)',
-              background: 'var(--bg-card)',
-            }}
+            className="border-t bg-card"
+            style={{ padding: "0.95rem 1.15rem 1.15rem" }}
           >
             {children}
           </div>

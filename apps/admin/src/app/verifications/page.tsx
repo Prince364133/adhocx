@@ -1,15 +1,15 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { Bell, Clock, ShieldCheck } from 'lucide-react';
-import { Button, FeedbackBanner, PageHeader } from '../../components/common';
-import { VerificationStatsHeader } from '../../components/verifications/VerificationStatsHeader';
-import { VerificationFilterBar } from '../../components/verifications/VerificationFilterBar';
-import { VerificationCard } from '../../components/verifications/VerificationCard';
-import { VerificationDetailModal } from '../../components/verifications/VerificationDetailModal';
-import { DeclineReasonModal } from '../../components/verifications/DeclineReasonModal';
-import { useVerificationCenter } from '../../hooks/useVerificationCenter';
-import { useVerificationActions } from '../../hooks/useVerificationActions';
+import React from "react";
+import { Bell, Clock, ShieldCheck } from "lucide-react";
+import { Button, FeedbackBanner, PageHeader } from "../../components/common";
+import { VerificationStatsHeader } from "../../components/verifications/VerificationStatsHeader";
+import { VerificationFilterBar } from "../../components/verifications/VerificationFilterBar";
+import { VerificationCard } from "../../components/verifications/VerificationCard";
+import { VerificationDetailModal } from "../../components/verifications/VerificationDetailModal";
+import { DeclineReasonModal } from "../../components/verifications/DeclineReasonModal";
+import { useVerificationCenter } from "../../hooks/useVerificationCenter";
+import { useVerificationActions } from "../../hooks/useVerificationActions";
 
 export default function VerificationCenterPage() {
   const {
@@ -53,30 +53,23 @@ export default function VerificationCenterPage() {
         liveStatus="KYC Pipeline Active"
       />
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <div className="flex flex-col gap-4">
         {/* Toast Feedback Notification */}
         {toastMessage && (
           <div
-            className="animate-toast-in"
+            className="animate-toast-in bg-surface text-primary font-semibold flex items-center fixed text-body-lg"
             style={{
-              position: 'fixed',
-              top: '20px',
-              right: '20px',
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--brand-primary)',
-              color: 'var(--text-primary)',
-              padding: '0.75rem 1.15rem',
-              borderRadius: '10px',
-              boxShadow: 'var(--shadow-lg)',
+              top: "20px",
+              right: "20px",
+              border: "1px solid var(--border-focus)",
+              padding: "0.75rem 1.15rem",
+              borderRadius: "10px",
+              boxShadow: "var(--shadow-lg)",
               zIndex: 200,
-              fontSize: '0.84rem',
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.625rem',
+              gap: "0.625rem",
             }}
           >
-            <Bell size={16} color="var(--brand-primary)" />
+            <Bell size={16} color="var(--text-brand)" />
             <span>{toastMessage}</span>
           </div>
         )}
@@ -102,66 +95,42 @@ export default function VerificationCenterPage() {
 
         {isLoading ? (
           <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '3.25rem 1.5rem',
-              gap: '0.75rem',
-              color: 'var(--text-muted)',
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border)',
-              borderRadius: '12px',
-              fontSize: '0.84rem',
-            }}
+            className="flex flex-col items-center justify-center gap-3 text-muted bg-surface border text-body-lg"
+            style={{ padding: "3.25rem 1.5rem", borderRadius: "12px" }}
           >
-            <Clock size={26} color="var(--brand-primary)" />
+            <Clock size={26} color="var(--text-brand)" />
             <div>Loading verification queue from secure storage...</div>
           </div>
         ) : items.length === 0 ? (
           <div
-            style={{
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border)',
-              borderRadius: '12px',
-              padding: '3rem 1.5rem',
-              textAlign: 'center',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '0.85rem',
-            }}
+            className="bg-surface border py-12 px-6 text-center flex flex-col items-center gap-relaxed"
+            style={{ borderRadius: "12px" }}
           >
             <div
-              style={{
-                width: '52px',
-                height: '52px',
-                borderRadius: '50%',
-                background: 'var(--brand-primary-subtle)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--brand-primary)',
-              }}
+              className="rounded-full bg-brand-subtle flex items-center justify-center text-brand"
+              style={{ width: "52px", height: "52px" }}
             >
               <ShieldCheck size={20} />
             </div>
             <div>
-              <h3 style={{ fontSize: '1.06rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+              <h3
+                className="font-bold text-primary m-0"
+                style={{ fontSize: "1.06rem" }}
+              >
                 No Applications in This Filter
               </h3>
-              <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                All submitted driver and vendor KYC applications have been reviewed or match no search query.
+              <p className="text-base text-muted mt-1">
+                All submitted driver and vendor KYC applications have been
+                reviewed or match no search query.
               </p>
             </div>
             <Button
               variant="outline"
               size="sm"
               onClick={() => {
-                setSearchQuery('');
-                setEntityFilter('ALL');
-                setStatusFilter('ALL');
+                setSearchQuery("");
+                setEntityFilter("ALL");
+                setStatusFilter("ALL");
               }}
             >
               Reset Filters
@@ -169,11 +138,7 @@ export default function VerificationCenterPage() {
           </div>
         ) : (
           <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-              gap: '1rem',
-            }}
+            className="verification-card-grid grid gap-4"
           >
             {items.map((item) => (
               <VerificationCard
@@ -192,11 +157,17 @@ export default function VerificationCenterPage() {
       <VerificationDetailModal
         item={selectedItem}
         onClose={() => setSelectedItem(null)}
-        onApprove={(target, overrideReason) => approveApplication(target, undefined, overrideReason)}
+        onApprove={(target, overrideReason) =>
+          approveApplication(target, undefined, overrideReason)
+        }
         onDecline={(target) => openDeclineDialog(target)}
         isProcessing={isProcessing}
         approvalBlockers={
-          approvalBlockers && selectedItem && approvalBlockers.itemId === selectedItem.id ? approvalBlockers.issues : undefined
+          approvalBlockers &&
+          selectedItem &&
+          approvalBlockers.itemId === selectedItem.id
+            ? approvalBlockers.issues
+            : undefined
         }
       />
 

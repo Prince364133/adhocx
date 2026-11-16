@@ -1,9 +1,11 @@
-import React from 'react';
+"use client";
 
-export const TableLoadingSkeleton: React.FC<{ rows?: number; columns?: number }> = ({
-  rows = 5,
-  columns = 5,
-}) => {
+import React from "react";
+
+export const TableLoadingSkeleton: React.FC<{
+  rows?: number;
+  columns?: number;
+}> = ({ rows = 5, columns = 5 }) => {
   return (
     <div className="table-container">
       <table className="data-table">
@@ -12,8 +14,8 @@ export const TableLoadingSkeleton: React.FC<{ rows?: number; columns?: number }>
             {[...Array(columns)].map((_, i) => (
               <th key={i}>
                 <div
-                  className="animate-shimmer"
-                  style={{ height: '11px', width: '64%', borderRadius: 'var(--radius-xs)' }}
+                  className="animate-shimmer skeleton-line"
+                  style={{ width: "64%" }}
                 />
               </th>
             ))}
@@ -25,11 +27,10 @@ export const TableLoadingSkeleton: React.FC<{ rows?: number; columns?: number }>
               {[...Array(columns)].map((_, colIndex) => (
                 <td key={colIndex}>
                   <div
-                    className="animate-shimmer"
+                    className="animate-shimmer skeleton-line"
                     style={{
-                      height: '13px',
-                      width: colIndex === 0 ? '80%' : '62%',
-                      borderRadius: 'var(--radius-xs)',
+                      height: "13px",
+                      width: colIndex === 0 ? "80%" : "62%",
                     }}
                   />
                 </td>
@@ -42,12 +43,27 @@ export const TableLoadingSkeleton: React.FC<{ rows?: number; columns?: number }>
   );
 };
 
-export const CardLoadingSkeleton: React.FC = () => {
+export const CardLoadingSkeleton: React.FC<{ count?: number }> = ({
+  count = 1,
+}) => {
   return (
-    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem', padding: '1rem' }}>
-      <div className="animate-shimmer" style={{ height: '12px', width: '42%', borderRadius: 'var(--radius-xs)' }} />
-      <div className="animate-shimmer" style={{ height: '24px', width: '58%', borderRadius: 'var(--radius-sm)' }} />
-      <div className="animate-shimmer" style={{ height: '11px', width: '76%', borderRadius: 'var(--radius-xs)' }} />
-    </div>
+    <>
+      {[...Array(count)].map((_, idx) => (
+        <div key={idx} className="card flex flex-col gap-2 p-4">
+          <div
+            className="animate-shimmer skeleton-line"
+            style={{ width: "42%" }}
+          />
+          <div
+            className="animate-shimmer skeleton-line"
+            style={{ height: "22px", width: "58%" }}
+          />
+          <div
+            className="animate-shimmer skeleton-line"
+            style={{ width: "76%" }}
+          />
+        </div>
+      ))}
+    </>
   );
 };

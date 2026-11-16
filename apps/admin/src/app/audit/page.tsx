@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import React, { useEffect, useState, useMemo } from 'react';
-import { FileText, ShieldCheck, Car, Wallet } from 'lucide-react';
-import { adminApi } from '../../lib/api/client';
-import { AuditLogItem } from '../../lib/api/types';
+import React, { useEffect, useState, useMemo } from "react";
+import { FileText, ShieldCheck, Car, Wallet } from "lucide-react";
+import { adminApi } from "../../lib/api/client";
+import { AuditLogItem } from "../../lib/api/types";
 import {
   PageHeader,
   KpiStrip,
@@ -12,21 +12,21 @@ import {
   StatusBadge,
   Button,
   Drawer,
-} from '../../components/common';
+} from "../../components/common";
 
 const ROLE_TABS = [
-  { id: 'ALL', label: 'All Events' },
-  { id: 'ADMIN', label: 'Admin Actions' },
-  { id: 'DRIVER', label: 'Driver Activity' },
-  { id: 'VENDOR', label: 'Enterprise / Vendor' },
-  { id: 'SYSTEM', label: 'System Automated' },
+  { id: "ALL", label: "All Events" },
+  { id: "ADMIN", label: "Admin Actions" },
+  { id: "DRIVER", label: "Driver Activity" },
+  { id: "VENDOR", label: "Enterprise / Vendor" },
+  { id: "SYSTEM", label: "System Automated" },
 ];
 
 export default function AuditLogsPage() {
   const [logs, setLogs] = useState<AuditLogItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('ALL');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedLog, setSelectedLog] = useState<AuditLogItem | null>(null);
 
   useEffect(() => {
@@ -36,7 +36,9 @@ export default function AuditLogsPage() {
   async function loadAuditLogs() {
     setLoading(true);
     try {
-      const data = await adminApi.getAuditLogs(100).catch(() => [] as AuditLogItem[]);
+      const data = await adminApi
+        .getAuditLogs(100)
+        .catch(() => [] as AuditLogItem[]);
       setLogs(data);
     } finally {
       setLoading(false);
@@ -45,7 +47,7 @@ export default function AuditLogsPage() {
 
   const filteredLogs = useMemo(() => {
     return logs.filter((log) => {
-      if (activeTab !== 'ALL' && log.actorRole?.toUpperCase() !== activeTab) {
+      if (activeTab !== "ALL" && log.actorRole?.toUpperCase() !== activeTab) {
         return false;
       }
       if (!searchQuery.trim()) return true;
@@ -61,10 +63,10 @@ export default function AuditLogsPage() {
 
   // Aggregate metrics
   const metrics = useMemo(() => {
-    const adminEvents = logs.filter((l) => l.actorRole === 'ADMIN').length;
-    const supplyEvents = logs.filter((l) => l.actorRole === 'DRIVER').length;
+    const adminEvents = logs.filter((l) => l.actorRole === "ADMIN").length;
+    const supplyEvents = logs.filter((l) => l.actorRole === "DRIVER").length;
     const financialEvents = logs.filter(
-      (l) => l.entityName === 'SETTLEMENT' || l.entityName === 'PAYMENT'
+      (l) => l.entityName === "SETTLEMENT" || l.entityName === "PAYMENT",
     ).length;
 
     return {
@@ -83,7 +85,12 @@ export default function AuditLogsPage() {
         subtitle="Immutable compliance ledger tracing every administrative mutation across the platform"
         liveStatus="Append-Only Ledger"
         actions={
-          <Button variant="secondary" size="sm" onClick={loadAuditLogs} leftIcon="↻">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={loadAuditLogs}
+            leftIcon="↻"
+          >
             Refresh
           </Button>
         }
@@ -94,31 +101,31 @@ export default function AuditLogsPage() {
         columns={4}
         items={[
           {
-            label: 'Total Audit Events',
+            label: "Total Audit Events",
             value: metrics.total,
-            subtext: 'Fetched ledger batch',
-            tone: 'primary',
+            subtext: "Fetched ledger batch",
+            tone: "primary",
             icon: <FileText size={14} />,
           },
           {
-            label: 'Admin Interventions',
+            label: "Admin Interventions",
             value: metrics.adminEvents,
-            subtext: 'Manual operator actions',
-            tone: 'warning',
+            subtext: "Manual operator actions",
+            tone: "warning",
             icon: <ShieldCheck size={14} />,
           },
           {
-            label: 'Supply Transitions',
+            label: "Supply Transitions",
             value: metrics.supplyEvents,
-            subtext: 'Driver & vehicle updates',
-            tone: 'success',
+            subtext: "Driver & vehicle updates",
+            tone: "success",
             icon: <Car size={14} />,
           },
           {
-            label: 'Financial Actions',
+            label: "Financial Actions",
             value: metrics.financialEvents,
-            subtext: 'Payout & settlement entries',
-            tone: 'info',
+            subtext: "Payout & settlement entries",
+            tone: "info",
             icon: <Wallet size={14} />,
           },
         ]}
@@ -135,9 +142,10 @@ export default function AuditLogsPage() {
               id: t.id,
               label: t.label,
               count:
-                t.id === 'ALL'
+                t.id === "ALL"
                   ? logs.length
-                  : logs.filter((l) => l.actorRole?.toUpperCase() === t.id).length,
+                  : logs.filter((l) => l.actorRole?.toUpperCase() === t.id)
+                      .length,
             }))}
             activeTab={activeTab}
             onTabChange={setActiveTab}
@@ -149,54 +157,61 @@ export default function AuditLogsPage() {
         }
         columns={[
           {
-            header: 'TIMESTAMP',
+            header: "TIMESTAMP",
             accessor: (log) => (
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+              <div className="text-sm text-secondary whitespace-nowrap">
                 <div>{new Date(log.createdAt).toLocaleDateString()}</div>
-                <div style={{ color: 'var(--text-muted)', fontSize: '0.6875rem' }}>
+                <div className="text-muted text-xs">
                   {new Date(log.createdAt).toLocaleTimeString()}
                 </div>
               </div>
             ),
           },
           {
-            header: 'ACTOR & ROLE',
+            header: "ACTOR & ROLE",
             accessor: (log) => (
               <div>
-                <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.78125rem' }}>
-                  {log.actorPhone || 'System'}
+                <div
+                  className="font-semibold text-primary"
+                  style={{ fontSize: "0.78125rem" }}
+                >
+                  {log.actorPhone || "System"}
                 </div>
-                <div style={{ fontSize: '0.625rem', fontFamily: 'monospace', color: 'var(--brand-primary)', marginTop: '0.1rem' }}>
-                  {log.actorRole || 'SYSTEM'}
+                <div
+                  className="text-2xs text-mono text-brand"
+                  style={{ marginTop: "0.1rem" }}
+                >
+                  {log.actorRole || "SYSTEM"}
                 </div>
               </div>
             ),
           },
           {
-            header: 'ACTION',
+            header: "ACTION",
             accessor: (log) => <StatusBadge status={log.action} size="sm" />,
           },
           {
-            header: 'TARGET ENTITY',
+            header: "TARGET ENTITY",
             accessor: (log) => (
               <div>
-                <span style={{ fontWeight: 600, fontSize: '0.75rem', color: 'var(--text-primary)' }}>
+                <span className="font-semibold text-sm text-primary">
                   {log.entityName}
                 </span>
                 <div
                   title={log.entityId || undefined}
-                  style={{ fontFamily: 'monospace', fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}
+                  className="text-mono text-xs text-muted"
+                  style={{ marginTop: "0.1rem" }}
                 >
                   {log.entityId
                     ? `#${log.entityId.length > 10 ? `${log.entityId.slice(0, 8)}…` : log.entityId}`
-                    : '—'}
+                    : "—"}
                 </div>
               </div>
             ),
           },
           {
-            header: 'PAYLOAD',
-            align: 'right',
+            header: "PAYLOAD",
+            align: "right",
             accessor: (log) => (
               <Button
                 variant="outline"
@@ -223,84 +238,86 @@ export default function AuditLogsPage() {
       <Drawer
         isOpen={!!selectedLog}
         onClose={() => setSelectedLog(null)}
-        title={selectedLog ? `Audit Event: ${selectedLog.action}` : 'Audit Event'}
-        subtitle={selectedLog ? `Journal Entry #${selectedLog.id}` : ''}
+        title={
+          selectedLog ? `Audit Event: ${selectedLog.action}` : "Audit Event"
+        }
+        subtitle={selectedLog ? `Journal Entry #${selectedLog.id}` : ""}
         footer={
-          <Button variant="secondary" size="sm" onClick={() => setSelectedLog(null)}>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setSelectedLog(null)}
+          >
             Close Inspector
           </Button>
         }
       >
         {selectedLog && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+          <div className="flex flex-col" style={{ gap: "0.9rem" }}>
             {/* Event Summary Card */}
             <div
-              style={{
-                padding: '0.9rem',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--bg-card)',
-                border: '1px solid var(--border-subtle)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.5rem',
-              }}
+              className="rounded-md bg-card border border-subtle flex flex-col gap-2"
+              style={{ padding: "0.9rem" }}
             >
-              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.4rem' }}>
+              <div
+                className="text-sm font-semibold text-primary border-b border-subtle"
+                style={{ paddingBottom: "0.4rem" }}
+              >
                 Event Metadata
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Actor Identity:</span>
-                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{selectedLog.actorPhone || 'System'}</span>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted">Actor Identity:</span>
+                <span className="font-semibold text-primary">
+                  {selectedLog.actorPhone || "System"}
+                </span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Role Authority:</span>
-                <span style={{ fontFamily: 'monospace', color: 'var(--brand-primary)' }}>{selectedLog.actorRole || 'SYSTEM'}</span>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted">Role Authority:</span>
+                <span className="text-mono text-brand">
+                  {selectedLog.actorRole || "SYSTEM"}
+                </span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Target Entity:</span>
-                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{selectedLog.entityName}</span>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted">Target Entity:</span>
+                <span className="font-semibold text-primary">
+                  {selectedLog.entityName}
+                </span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Target Entity ID:</span>
-                <span style={{ fontFamily: 'monospace', color: 'var(--text-secondary)' }}>{selectedLog.entityId || 'N/A'}</span>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted">Target Entity ID:</span>
+                <span className="text-mono text-secondary">
+                  {selectedLog.entityId || "N/A"}
+                </span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Origin IP Address:</span>
-                <span style={{ fontFamily: 'monospace', color: 'var(--text-muted)' }}>{selectedLog.ipAddress || '—'}</span>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted">Origin IP Address:</span>
+                <span className="text-mono text-muted">
+                  {selectedLog.ipAddress || "—"}
+                </span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Recorded Timestamp:</span>
-                <span style={{ color: 'var(--text-primary)' }}>{new Date(selectedLog.createdAt).toLocaleString()}</span>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted">Recorded Timestamp:</span>
+                <span className="text-primary">
+                  {new Date(selectedLog.createdAt).toLocaleString()}
+                </span>
               </div>
             </div>
 
             {/* JSON Payload Viewer */}
             <div
-              style={{
-                padding: '0.9rem',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--bg-card)',
-                border: '1px solid var(--border-subtle)',
-              }}
+              className="rounded-md bg-card border border-subtle"
+              style={{ padding: "0.9rem" }}
             >
-              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+              <div className="text-sm font-semibold text-primary mb-2">
                 Journal Payload Data (Immutable JSON)
               </div>
               <pre
-                style={{
-                  margin: 0,
-                  fontFamily: 'monospace',
-                  fontSize: '0.75rem',
-                  color: 'var(--brand-secondary)',
-                  backgroundColor: 'var(--bg-canvas)',
-                  border: '1px solid var(--border-subtle)',
-                  padding: '0.75rem',
-                  borderRadius: 'var(--radius-sm)',
-                  overflowX: 'auto',
-                  lineHeight: 1.45,
-                }}
+                className="m-0 text-mono text-sm bg-base border border-subtle p-3 rounded-sm overflow-x-auto"
+                style={{ color: "var(--brand-secondary)", lineHeight: 1.45 }}
               >
-                {selectedLog.payload ? JSON.stringify(selectedLog.payload, null, 2) : '// No structured payload recorded'}
+                {selectedLog.payload
+                  ? JSON.stringify(selectedLog.payload, null, 2)
+                  : "// No structured payload recorded"}
               </pre>
             </div>
           </div>

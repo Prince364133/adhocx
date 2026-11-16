@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Headphones,
   Clock,
@@ -13,14 +13,14 @@ import {
   Send,
   RefreshCw,
   RotateCcw,
-} from 'lucide-react';
-import { adminApi } from '../../lib/api/client';
+} from "lucide-react";
+import { adminApi } from "../../lib/api/client";
 import {
   SupportTicketItem,
   CorporateSupportTicket,
   CorporateTicketMessage,
   CorporateTicketStatus,
-} from '../../lib/api/types';
+} from "../../lib/api/types";
 import {
   PageHeader,
   KpiStrip,
@@ -32,62 +32,77 @@ import {
   Drawer,
   FeedbackBanner,
   ConfirmDialog,
-} from '../../components/common';
+  Form,
+  Input,
+  Textarea,
+} from "../../components/common";
 
 const DESK_TABS = [
-  { id: 'CORPORATE_ETS', label: 'Corporate ETS Support' },
-  { id: 'ON_DEMAND', label: 'On-Demand Helpdesk & Disputes' },
+  { id: "CORPORATE_ETS", label: "Corporate ETS Support" },
+  { id: "ON_DEMAND", label: "On-Demand Helpdesk & Disputes" },
 ];
 
 const CORP_STATUS_TABS = [
-  { id: 'ALL', label: 'All Tickets' },
-  { id: 'OPEN', label: 'Open' },
-  { id: 'IN_PROGRESS', label: 'In Progress' },
-  { id: 'RESOLVED', label: 'Resolved' },
-  { id: 'CLOSED', label: 'Closed' },
+  { id: "ALL", label: "All Tickets" },
+  { id: "OPEN", label: "Open" },
+  { id: "IN_PROGRESS", label: "In Progress" },
+  { id: "RESOLVED", label: "Resolved" },
+  { id: "CLOSED", label: "Closed" },
 ];
 
 const ON_DEMAND_STATUS_TABS = [
-  { id: 'ALL', label: 'All Tickets' },
-  { id: 'PENDING', label: 'Pending' },
-  { id: 'UNDER_REVIEW', label: 'Under Review' },
-  { id: 'RESOLVED', label: 'Resolved' },
+  { id: "ALL", label: "All Tickets" },
+  { id: "PENDING", label: "Pending" },
+  { id: "UNDER_REVIEW", label: "Under Review" },
+  { id: "RESOLVED", label: "Resolved" },
 ];
 
 export default function SupportPage() {
-  const [activeDesk, setActiveDesk] = useState<'CORPORATE_ETS' | 'ON_DEMAND'>('CORPORATE_ETS');
-  const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [activeDesk, setActiveDesk] = useState<"CORPORATE_ETS" | "ON_DEMAND">(
+    "CORPORATE_ETS",
+  );
+  const [alert, setAlert] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
 
   // ---------------------------------------------------------------------------
   // Corporate ETS State
   // ---------------------------------------------------------------------------
   const [corpTickets, setCorpTickets] = useState<CorporateSupportTicket[]>([]);
   const [corpLoading, setCorpLoading] = useState(true);
-  const [corpActiveTab, setCorpActiveTab] = useState('ALL');
-  const [corpSearchQuery, setCorpSearchQuery] = useState('');
-  const [selectedCorpTicket, setSelectedCorpTicket] = useState<CorporateSupportTicket | null>(null);
+  const [corpActiveTab, setCorpActiveTab] = useState("ALL");
+  const [corpSearchQuery, setCorpSearchQuery] = useState("");
+  const [selectedCorpTicket, setSelectedCorpTicket] =
+    useState<CorporateSupportTicket | null>(null);
 
   // Corporate message thread state
-  const [corpMessages, setCorpMessages] = useState<CorporateTicketMessage[]>([]);
+  const [corpMessages, setCorpMessages] = useState<CorporateTicketMessage[]>(
+    [],
+  );
   const [corpMessagesLoading, setCorpMessagesLoading] = useState(false);
-  const [replyMessage, setReplyMessage] = useState('');
+  const [replyMessage, setReplyMessage] = useState("");
   const [isInternalReply, setIsInternalReply] = useState(false);
   const [sendingReply, setSendingReply] = useState(false);
 
   // Corporate status update state
-  const [corpStatusNote, setCorpStatusNote] = useState('');
-  const [corpTargetStatus, setCorpTargetStatus] = useState<CorporateTicketStatus>('IN_PROGRESS');
+  const [corpStatusNote, setCorpStatusNote] = useState("");
+  const [corpTargetStatus, setCorpTargetStatus] =
+    useState<CorporateTicketStatus>("IN_PROGRESS");
   const [corpStatusLoading, setCorpStatusLoading] = useState(false);
 
   // ---------------------------------------------------------------------------
   // On-Demand Helpdesk State (Preserving existing functionality)
   // ---------------------------------------------------------------------------
-  const [onDemandTickets, setOnDemandTickets] = useState<SupportTicketItem[]>([]);
+  const [onDemandTickets, setOnDemandTickets] = useState<SupportTicketItem[]>(
+    [],
+  );
   const [onDemandLoading, setOnDemandLoading] = useState(false);
-  const [onDemandActiveTab, setOnDemandActiveTab] = useState('ALL');
-  const [onDemandSearchQuery, setOnDemandSearchQuery] = useState('');
-  const [selectedOnDemandTicket, setSelectedOnDemandTicket] = useState<SupportTicketItem | null>(null);
-  const [resolutionNotes, setResolutionNotes] = useState('');
+  const [onDemandActiveTab, setOnDemandActiveTab] = useState("ALL");
+  const [onDemandSearchQuery, setOnDemandSearchQuery] = useState("");
+  const [selectedOnDemandTicket, setSelectedOnDemandTicket] =
+    useState<SupportTicketItem | null>(null);
+  const [resolutionNotes, setResolutionNotes] = useState("");
   const [onDemandActionLoading, setOnDemandActionLoading] = useState(false);
   const [confirmResolveOpen, setConfirmResolveOpen] = useState(false);
 
@@ -97,10 +112,15 @@ export default function SupportPage() {
   const loadCorpTickets = useCallback(async (status?: string) => {
     setCorpLoading(true);
     try {
-      const data = await adminApi.listCorporateSupportTickets({
-        status: status && status !== 'ALL' ? (status as CorporateTicketStatus) : undefined,
-        limit: 100,
-      }).catch(() => [] as CorporateSupportTicket[]);
+      const data = await adminApi
+        .listCorporateSupportTickets({
+          status:
+            status && status !== "ALL"
+              ? (status as CorporateTicketStatus)
+              : undefined,
+          limit: 100,
+        })
+        .catch(() => [] as CorporateSupportTicket[]);
       setCorpTickets(Array.isArray(data) ? data : []);
     } finally {
       setCorpLoading(false);
@@ -110,7 +130,9 @@ export default function SupportPage() {
   const loadCorpMessages = useCallback(async (ticketId: string) => {
     setCorpMessagesLoading(true);
     try {
-      const msgs = await adminApi.listCorporateTicketMessages(ticketId).catch(() => [] as CorporateTicketMessage[]);
+      const msgs = await adminApi
+        .listCorporateTicketMessages(ticketId)
+        .catch(() => [] as CorporateTicketMessage[]);
       setCorpMessages(Array.isArray(msgs) ? msgs : []);
     } finally {
       setCorpMessagesLoading(false);
@@ -118,7 +140,7 @@ export default function SupportPage() {
   }, []);
 
   useEffect(() => {
-    if (activeDesk === 'CORPORATE_ETS') {
+    if (activeDesk === "CORPORATE_ETS") {
       loadCorpTickets(corpActiveTab);
     } else {
       loadOnDemandTickets(onDemandActiveTab);
@@ -127,17 +149,17 @@ export default function SupportPage() {
 
   const handleSelectCorpTicket = (ticket: CorporateSupportTicket) => {
     setSelectedCorpTicket(ticket);
-    setCorpStatusNote(ticket.resolutionNotes || ticket.adminNotes || '');
+    setCorpStatusNote(ticket.resolutionNotes || ticket.adminNotes || "");
     setCorpTargetStatus(
-      ticket.status === 'OPEN'
-        ? 'IN_PROGRESS'
-        : ticket.status === 'IN_PROGRESS'
-        ? 'RESOLVED'
-        : ticket.status === 'RESOLVED'
-        ? 'CLOSED'
-        : 'IN_PROGRESS',
+      ticket.status === "OPEN"
+        ? "IN_PROGRESS"
+        : ticket.status === "IN_PROGRESS"
+          ? "RESOLVED"
+          : ticket.status === "RESOLVED"
+            ? "CLOSED"
+            : "IN_PROGRESS",
     );
-    setReplyMessage('');
+    setReplyMessage("");
     setIsInternalReply(false);
     loadCorpMessages(ticket.id);
   };
@@ -148,27 +170,36 @@ export default function SupportPage() {
 
     setSendingReply(true);
     try {
-      const newMsg = await adminApi.sendCorporateTicketMessage(selectedCorpTicket.id, {
-        message: replyMessage.trim(),
-        isInternal: isInternalReply,
-      });
+      const newMsg = await adminApi.sendCorporateTicketMessage(
+        selectedCorpTicket.id,
+        {
+          message: replyMessage.trim(),
+          isInternal: isInternalReply,
+        },
+      );
       setCorpMessages((prev) => [...prev, newMsg]);
-      setReplyMessage('');
+      setReplyMessage("");
       setAlert({
-        type: 'success',
+        type: "success",
         message: isInternalReply
-          ? 'Internal ops note recorded.'
-          : 'Reply sent. Visible in Corporate Portal.',
+          ? "Internal ops note recorded."
+          : "Reply sent. Visible in Corporate Portal.",
       });
       loadCorpTickets(corpActiveTab);
     } catch (err: any) {
-      setAlert({ type: 'error', message: err.message || 'Failed to send reply' });
+      setAlert({
+        type: "error",
+        message: err.message || "Failed to send reply",
+      });
     } finally {
       setSendingReply(false);
     }
   };
 
-  const handleUpdateCorpStatus = async (status: CorporateTicketStatus, customNote?: string) => {
+  const handleUpdateCorpStatus = async (
+    status: CorporateTicketStatus,
+    customNote?: string,
+  ) => {
     if (!selectedCorpTicket) return;
 
     setCorpStatusLoading(true);
@@ -181,13 +212,16 @@ export default function SupportPage() {
       );
       setSelectedCorpTicket(updated);
       setAlert({
-        type: 'success',
+        type: "success",
         message: `Corporate support ticket #${updated.ticketNumber || updated.id.slice(0, 8).toUpperCase()} updated to ${status}.`,
       });
       loadCorpTickets(corpActiveTab);
       loadCorpMessages(updated.id);
     } catch (err: any) {
-      setAlert({ type: 'error', message: err.message || 'Failed to update ticket status' });
+      setAlert({
+        type: "error",
+        message: err.message || "Failed to update ticket status",
+      });
     } finally {
       setCorpStatusLoading(false);
     }
@@ -206,10 +240,13 @@ export default function SupportPage() {
         (t.category && t.category.toLowerCase().includes(q)) ||
         (t.tenant?.name && t.tenant.name.toLowerCase().includes(q)) ||
         (t.tenant?.code && t.tenant.code.toLowerCase().includes(q)) ||
-        (t.employee?.fullName && t.employee.fullName.toLowerCase().includes(q)) ||
-        (t.employee?.employeeCode && t.employee.employeeCode.toLowerCase().includes(q)) ||
+        (t.employee?.fullName &&
+          t.employee.fullName.toLowerCase().includes(q)) ||
+        (t.employee?.employeeCode &&
+          t.employee.employeeCode.toLowerCase().includes(q)) ||
         (t.employee?.phone && t.employee.phone.toLowerCase().includes(q)) ||
-        (t.employee?.phoneNumber && t.employee.phoneNumber.toLowerCase().includes(q)) ||
+        (t.employee?.phoneNumber &&
+          t.employee.phoneNumber.toLowerCase().includes(q)) ||
         (t.driver?.name && t.driver.name.toLowerCase().includes(q)) ||
         (t.driver?.phone && t.driver.phone.toLowerCase().includes(q)) ||
         (t.routeId && t.routeId.toLowerCase().includes(q))
@@ -219,9 +256,13 @@ export default function SupportPage() {
 
   // Corporate Metrics
   const corpMetrics = useMemo(() => {
-    const open = corpTickets.filter((t) => t.status === 'OPEN').length;
-    const inProgress = corpTickets.filter((t) => t.status === 'IN_PROGRESS').length;
-    const resolved = corpTickets.filter((t) => t.status === 'RESOLVED' || t.status === 'CLOSED').length;
+    const open = corpTickets.filter((t) => t.status === "OPEN").length;
+    const inProgress = corpTickets.filter(
+      (t) => t.status === "IN_PROGRESS",
+    ).length;
+    const resolved = corpTickets.filter(
+      (t) => t.status === "RESOLVED" || t.status === "CLOSED",
+    ).length;
     return { total: corpTickets.length, open, inProgress, resolved };
   }, [corpTickets]);
 
@@ -231,9 +272,11 @@ export default function SupportPage() {
   async function loadOnDemandTickets(status: string) {
     setOnDemandLoading(true);
     try {
-      const data = await adminApi.getSupportTickets({
-        status: status !== 'ALL' ? status : undefined,
-      }).catch(() => [] as SupportTicketItem[]);
+      const data = await adminApi
+        .getSupportTickets({
+          status: status !== "ALL" ? status : undefined,
+        })
+        .catch(() => [] as SupportTicketItem[]);
       setOnDemandTickets(Array.isArray(data) ? data : []);
     } finally {
       setOnDemandLoading(false);
@@ -255,32 +298,46 @@ export default function SupportPage() {
   }, [onDemandTickets, onDemandSearchQuery]);
 
   const onDemandMetrics = useMemo(() => {
-    const pending = onDemandTickets.filter((t) => t.status === 'PENDING').length;
-    const review = onDemandTickets.filter((t) => t.status === 'UNDER_REVIEW').length;
-    const resolved = onDemandTickets.filter((t) => t.status === 'RESOLVED').length;
+    const pending = onDemandTickets.filter(
+      (t) => t.status === "PENDING",
+    ).length;
+    const review = onDemandTickets.filter(
+      (t) => t.status === "UNDER_REVIEW",
+    ).length;
+    const resolved = onDemandTickets.filter(
+      (t) => t.status === "RESOLVED",
+    ).length;
     return { total: onDemandTickets.length, pending, review, resolved };
   }, [onDemandTickets]);
 
-  async function handleResolveOnDemand(status: 'PENDING' | 'UNDER_REVIEW' | 'RESOLVED') {
+  async function handleResolveOnDemand(
+    status: "PENDING" | "UNDER_REVIEW" | "RESOLVED",
+  ) {
     if (!selectedOnDemandTicket) return;
 
     setOnDemandActionLoading(true);
     try {
       await adminApi.resolveSupportTicket(selectedOnDemandTicket.id, {
         status,
-        notes: resolutionNotes || selectedOnDemandTicket.operatorNotes || 'Processed by Administrator',
+        notes:
+          resolutionNotes ||
+          selectedOnDemandTicket.operatorNotes ||
+          "Processed by Administrator",
       });
 
       setAlert({
-        type: 'success',
+        type: "success",
         message: `Support ticket #${selectedOnDemandTicket.id.slice(0, 8).toUpperCase()} updated to ${status}.`,
       });
       setConfirmResolveOpen(false);
       setSelectedOnDemandTicket(null);
-      setResolutionNotes('');
+      setResolutionNotes("");
       loadOnDemandTickets(onDemandActiveTab);
     } catch (err: any) {
-      setAlert({ type: 'error', message: err.message || 'Failed to update support ticket' });
+      setAlert({
+        type: "error",
+        message: err.message || "Failed to update support ticket",
+      });
     } finally {
       setOnDemandActionLoading(false);
     }
@@ -308,46 +365,46 @@ export default function SupportPage() {
       <SegmentedTabs
         tabs={DESK_TABS}
         activeTab={activeDesk}
-        onChange={(tab) => setActiveDesk(tab as 'CORPORATE_ETS' | 'ON_DEMAND')}
+        onChange={(tab) => setActiveDesk(tab as "CORPORATE_ETS" | "ON_DEMAND")}
       />
 
-      {activeDesk === 'CORPORATE_ETS' ? (
+      {activeDesk === "CORPORATE_ETS" ? (
         <>
           {/* Corporate ETS KPI Metrics */}
           <KpiStrip
             columns={4}
             items={[
               {
-                id: 'total',
-                label: 'Corporate Tickets',
+                id: "total",
+                label: "Corporate Tickets",
                 value: corpMetrics.total,
-                subtext: 'Active ETS support queue',
-                icon: <Headphones size={16} color="var(--brand-primary)" />,
-                tone: 'indigo',
+                subtext: "Active ETS support queue",
+                icon: <Headphones size={16} color="var(--text-brand)" />,
+                tone: "indigo",
               },
               {
-                id: 'open',
-                label: 'Open / Triage Pending',
+                id: "open",
+                label: "Open / Triage Pending",
                 value: corpMetrics.open,
-                subtext: 'Awaiting operator response',
+                subtext: "Awaiting operator response",
                 icon: <Clock size={16} color="var(--color-danger)" />,
-                tone: 'danger',
+                tone: "danger",
               },
               {
-                id: 'in_progress',
-                label: 'Under Investigation',
+                id: "in_progress",
+                label: "Under Investigation",
                 value: corpMetrics.inProgress,
-                subtext: 'Active resolution & driver inquiry',
+                subtext: "Active resolution & driver inquiry",
                 icon: <Search size={16} color="var(--color-warning)" />,
-                tone: 'warning',
+                tone: "warning",
               },
               {
-                id: 'resolved',
-                label: 'Resolved / Closed Cases',
+                id: "resolved",
+                label: "Resolved / Closed Cases",
                 value: corpMetrics.resolved,
-                subtext: 'Completed interventions',
+                subtext: "Completed interventions",
                 icon: <CheckCircle2 size={16} color="var(--color-success)" />,
-                tone: 'success',
+                tone: "success",
               },
             ]}
           />
@@ -369,49 +426,72 @@ export default function SupportPage() {
           <DataTable
             columns={[
               {
-                key: 'id',
-                label: 'TICKET # & SLA',
+                key: "id",
+                label: "TICKET # & SLA",
                 render: (t: CorporateSupportTicket) => (
                   <div>
-                    <div style={{ fontFamily: 'monospace', fontWeight: 700, color: '#5728B2', fontSize: '0.8125rem' }}>
+                    <div
+                      className="text-mono font-bold text-base"
+                      style={{ color: "var(--text-brand)" }}
+                    >
                       #{t.ticketNumber || t.id.slice(0, 8).toUpperCase()}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                      {new Date(t.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}{' '}
-                      {new Date(t.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    <div className="text-sm text-muted mt-compact">
+                      {new Date(t.createdAt).toLocaleDateString([], {
+                        month: "short",
+                        day: "numeric",
+                      })}{" "}
+                      {new Date(t.createdAt).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </div>
-                    <div style={{ display: 'inline-block', marginTop: '0.25rem', fontSize: '0.6875rem', fontWeight: 600, color: '#4338CA', backgroundColor: '#EEF2FF', padding: '1px 6px', borderRadius: 4 }}>
+                    <div
+                      className="inline-block mt-1 text-xs font-semibold"
+                      style={{
+                        color: "var(--support-accent)",
+                        backgroundColor: "var(--support-accent-soft)",
+                        padding: "1px 6px",
+                        borderRadius: 4,
+                      }}
+                    >
                       SLA: {t.slaMinutes}m
                     </div>
                   </div>
                 ),
               },
               {
-                key: 'tenant',
-                label: 'CORPORATE CLIENT',
+                key: "tenant",
+                label: "CORPORATE CLIENT",
                 render: (t: CorporateSupportTicket) => (
                   <div>
-                    <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.8125rem' }}>
-                      {t.tenant?.name || 'Corporate Client'}
+                    <div className="font-semibold text-primary text-base">
+                      {t.tenant?.name || "Corporate Client"}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.125rem' }}>
-                      Code: <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{t.tenant?.code || '—'}</span>
+                    <div className="text-sm text-muted mt-micro">
+                      Code:{" "}
+                      <span className="text-mono font-semibold">
+                        {t.tenant?.code || "—"}
+                      </span>
                     </div>
                   </div>
                 ),
               },
               {
-                key: 'employee',
-                label: 'COMMUTER / EMPLOYEE',
+                key: "employee",
+                label: "COMMUTER / EMPLOYEE",
                 render: (t: CorporateSupportTicket) => (
                   <div>
-                    <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.8rem' }}>
-                      {t.employee?.fullName || 'Employee'}
+                    <div className="font-semibold text-primary text-body-sm">
+                      {t.employee?.fullName || "Employee"}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.125rem' }}>
-                      {t.employee?.phoneNumber || t.employee?.phone || '—'}
+                    <div className="text-sm text-muted mt-micro">
+                      {t.employee?.phoneNumber || t.employee?.phone || "—"}
                       {t.employee?.employeeCode && (
-                        <span style={{ marginLeft: 6, color: 'var(--brand-primary)', fontWeight: 500 }}>
+                        <span
+                          className="text-brand font-medium"
+                          style={{ marginLeft: 6 }}
+                        >
                           ({t.employee.employeeCode})
                         </span>
                       )}
@@ -420,79 +500,87 @@ export default function SupportPage() {
                 ),
               },
               {
-                key: 'driver',
-                label: 'DRIVER & ROUTE',
+                key: "driver",
+                label: "DRIVER & ROUTE",
                 render: (t: CorporateSupportTicket) => (
-                  <div style={{ fontSize: '0.75rem' }}>
+                  <div className="text-sm">
                     {t.driver ? (
                       <div>
-                        <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{t.driver.name}</div>
-                        <div style={{ color: 'var(--text-muted)' }}>{t.driver.phone || t.driver.licenseNumber || 'Assigned Driver'}</div>
+                        <div className="font-semibold text-primary">
+                          {t.driver.name}
+                        </div>
+                        <div className="text-muted">
+                          {t.driver.phone ||
+                            t.driver.licenseNumber ||
+                            "Assigned Driver"}
+                        </div>
                         {t.driver.vehiclePlate && (
-                          <div style={{ fontFamily: 'monospace', color: '#5728B2', fontWeight: 700 }}>
+                          <div
+                            className="text-mono font-bold"
+                            style={{ color: "var(--text-brand)" }}
+                          >
                             {t.driver.vehiclePlate}
                           </div>
                         )}
                       </div>
                     ) : t.routeId ? (
                       <div>
-                        <span style={{ color: 'var(--text-secondary)' }}>Route Linked:</span>
-                        <div style={{ fontFamily: 'monospace', color: 'var(--brand-primary)', fontWeight: 600 }}>
+                        <span className="text-secondary">Route Linked:</span>
+                        <div className="text-mono text-brand font-semibold">
                           {t.routeId.slice(0, 8).toUpperCase()}
                         </div>
                       </div>
                     ) : (
-                      <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Direct Portal Issue</span>
+                      <span
+                        className="text-muted"
+                        style={{ fontStyle: "italic" }}
+                      >
+                        Direct Portal Issue
+                      </span>
                     )}
                   </div>
                 ),
               },
               {
-                key: 'issue',
-                label: 'CATEGORY & SUMMARY',
+                key: "issue",
+                label: "CATEGORY & SUMMARY",
                 render: (t: CorporateSupportTicket) => (
-                  <div style={{ maxWidth: '280px' }}>
-                    <div style={{ marginBottom: '0.25rem' }}>
+                  <div style={{ maxWidth: "280px" }}>
+                    <div className="mb-1">
                       <span
-                        style={{
-                          padding: '0.15rem 0.5rem',
-                          borderRadius: 'var(--radius-sm)',
-                          backgroundColor: 'var(--bg-card-elevated)',
-                          border: '1px solid var(--border-subtle)',
-                          fontSize: '0.6875rem',
-                          fontWeight: 700,
-                          color: '#475569',
-                          textTransform: 'uppercase',
-                        }}
+                        className="rounded-sm bg-card-elevated border border-subtle text-xs font-bold uppercase"
+                        style={{ padding: "0.15rem 0.5rem", color: "#475569" }}
                       >
-                        {t.category.replace(/_/g, ' ')}
+                        {t.category.replace(/_/g, " ")}
                       </span>
                     </div>
-                    <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <div className="text-base font-semibold text-primary whitespace-nowrap overflow-hidden text-ellipsis">
                       {t.subject}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '0.1rem' }}>
+                    <div
+                      className="text-sm text-muted whitespace-nowrap overflow-hidden text-ellipsis"
+                      style={{ marginTop: "0.1rem" }}
+                    >
                       {t.description}
                     </div>
                   </div>
                 ),
               },
               {
-                key: 'priority',
-                label: 'PRIORITY',
+                key: "priority",
+                label: "PRIORITY",
                 render: (t: CorporateSupportTicket) => {
-                  const p = (t.priority || 'MEDIUM').toUpperCase();
-                  const isHigh = p === 'CRITICAL' || p === 'HIGH';
+                  const p = (t.priority || "MEDIUM").toUpperCase();
+                  const isHigh = p === "CRITICAL" || p === "HIGH";
                   return (
                     <span
+                      className="text-xs font-bold"
                       style={{
-                        padding: '0.2rem 0.5rem',
+                        padding: "0.2rem 0.5rem",
                         borderRadius: 4,
-                        fontSize: '0.6875rem',
-                        fontWeight: 700,
-                        backgroundColor: isHigh ? '#FEE2E2' : '#EFF6FF',
-                        color: isHigh ? '#DC2626' : '#4338CA',
-                        border: `1px solid ${isHigh ? '#FECACA' : '#DBEAFE'}`,
+                        backgroundColor: isHigh ? "#FEE2E2" : "var(--support-blue-soft)",
+                        color: isHigh ? "#DC2626" : "var(--support-accent)",
+                        border: `1px solid ${isHigh ? "#FECACA" : "var(--support-accent-border)"}`,
                       }}
                     >
                       {p}
@@ -501,14 +589,16 @@ export default function SupportPage() {
                 },
               },
               {
-                key: 'status',
-                label: 'STATUS',
-                render: (t: CorporateSupportTicket) => <StatusBadge status={t.status} />,
+                key: "status",
+                label: "STATUS",
+                render: (t: CorporateSupportTicket) => (
+                  <StatusBadge status={t.status} />
+                ),
               },
               {
-                key: 'actions',
-                label: 'ACTIONS',
-                align: 'right',
+                key: "actions",
+                label: "ACTIONS",
+                align: "right",
                 render: (t: CorporateSupportTicket) => (
                   <Button
                     variant="primary"
@@ -531,53 +621,73 @@ export default function SupportPage() {
           <Drawer
             isOpen={!!selectedCorpTicket}
             onClose={() => setSelectedCorpTicket(null)}
-            title={selectedCorpTicket ? `Support Ticket #${selectedCorpTicket.ticketNumber || selectedCorpTicket.id.slice(0, 8).toUpperCase()}` : 'Support Ticket'}
-            subtitle={selectedCorpTicket ? `Category: ${selectedCorpTicket.category.replace(/_/g, ' ')} · Priority: ${selectedCorpTicket.priority}` : ''}
+            title={
+              selectedCorpTicket
+                ? `Support Ticket #${selectedCorpTicket.ticketNumber || selectedCorpTicket.id.slice(0, 8).toUpperCase()}`
+                : "Support Ticket"
+            }
+            subtitle={
+              selectedCorpTicket
+                ? `Category: ${selectedCorpTicket.category.replace(/_/g, " ")} · Priority: ${selectedCorpTicket.priority}`
+                : ""
+            }
             footer={
               selectedCorpTicket ? (
-                <div style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Button variant="secondary" size="sm" onClick={() => setSelectedCorpTicket(null)}>
+                <div className="flex gap-3 w-full justify-between items-center">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setSelectedCorpTicket(null)}
+                  >
                     Close
                   </Button>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    {selectedCorpTicket.status === 'OPEN' && (
+                  <div className="flex gap-2">
+                    {selectedCorpTicket.status === "OPEN" && (
                       <Button
                         variant="secondary"
                         size="sm"
                         disabled={corpStatusLoading}
-                        onClick={() => handleUpdateCorpStatus('IN_PROGRESS')}
+                        onClick={() => handleUpdateCorpStatus("IN_PROGRESS")}
                       >
                         Start Investigation
                       </Button>
                     )}
-                    {selectedCorpTicket.status !== 'RESOLVED' && selectedCorpTicket.status !== 'CLOSED' && (
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        disabled={corpStatusLoading}
-                        onClick={() => handleUpdateCorpStatus('RESOLVED')}
-                      >
-                        Resolve Ticket
-                      </Button>
-                    )}
-                    {selectedCorpTicket.status === 'RESOLVED' && (
+                    {selectedCorpTicket.status !== "RESOLVED" &&
+                      selectedCorpTicket.status !== "CLOSED" && (
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          disabled={corpStatusLoading}
+                          onClick={() => handleUpdateCorpStatus("RESOLVED")}
+                        >
+                          Resolve Ticket
+                        </Button>
+                      )}
+                    {selectedCorpTicket.status === "RESOLVED" && (
                       <Button
                         variant="secondary"
                         size="sm"
                         disabled={corpStatusLoading}
-                        onClick={() => handleUpdateCorpStatus('CLOSED')}
+                        onClick={() => handleUpdateCorpStatus("CLOSED")}
                       >
                         Close Ticket
                       </Button>
                     )}
-                    {(selectedCorpTicket.status === 'RESOLVED' || selectedCorpTicket.status === 'CLOSED') && (
+                    {(selectedCorpTicket.status === "RESOLVED" ||
+                      selectedCorpTicket.status === "CLOSED") && (
                       <Button
                         variant="secondary"
                         size="sm"
                         disabled={corpStatusLoading}
-                        onClick={() => handleUpdateCorpStatus('IN_PROGRESS', 'Reopened by Admin Operator')}
+                        onClick={() =>
+                          handleUpdateCorpStatus(
+                            "IN_PROGRESS",
+                            "Reopened by Admin Operator",
+                          )
+                        }
                       >
-                        <RotateCcw size={13} style={{ marginRight: 4 }} /> Reopen
+                        <RotateCcw size={13} style={{ marginRight: 4 }} />{" "}
+                        Reopen
                       </Button>
                     )}
                   </div>
@@ -586,132 +696,146 @@ export default function SupportPage() {
             }
           >
             {selectedCorpTicket && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div className="flex flex-col gap-5">
                 {/* Status Summary & Quick Status Switcher */}
                 <div
-                  style={{
-                    padding: '1rem',
-                    borderRadius: 'var(--radius-md)',
-                    backgroundColor: 'var(--bg-surface-elevated)',
-                    border: '1px solid var(--border-subtle)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.875rem',
-                  }}
+                  className="p-4 rounded-md bg-surface-elevated border border-subtle flex flex-col"
+                  style={{ gap: "0.875rem" }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div className="flex justify-between items-center">
                     <div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Current Lifecycle Status</div>
-                      <div style={{ marginTop: '0.25rem' }}>
+                      <div className="text-sm text-muted">
+                        Current Lifecycle Status
+                      </div>
+                      <div className="mt-1">
                         <StatusBadge status={selectedCorpTicket.status} />
                       </div>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Created At & SLA</div>
-                      <div style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', marginTop: '0.25rem', fontWeight: 600 }}>
-                        {new Date(selectedCorpTicket.createdAt).toLocaleString()}
+                    <div className="text-right">
+                      <div className="text-sm text-muted">Created At & SLA</div>
+                      <div className="text-base text-primary mt-1 font-semibold">
+                        {new Date(
+                          selectedCorpTicket.createdAt,
+                        ).toLocaleString()}
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: '#4338CA', fontWeight: 600 }}>
+                      <div
+                        className="text-sm font-semibold"
+                        style={{ color: "var(--support-accent)" }}
+                      >
                         SLA Window: {selectedCorpTicket.slaMinutes} mins
                       </div>
                     </div>
                   </div>
 
                   {/* Operator Status Changer */}
-                  <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem' }}>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.375rem' }}>
+                  <div className="border-t border-subtle pt-3">
+                    <div
+                      className="text-sm font-semibold text-primary"
+                      style={{ marginBottom: "0.375rem" }}
+                    >
                       Update Ticket Status & Notes:
                     </div>
-                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                      {(['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'] as CorporateTicketStatus[]).map((st) => (
+                    <div className="flex gap-2 flex-wrap items-center">
+                      {(
+                        [
+                          "OPEN",
+                          "IN_PROGRESS",
+                          "RESOLVED",
+                          "CLOSED",
+                        ] as CorporateTicketStatus[]
+                      ).map((st) => (
                         <button
                           key={st}
                           type="button"
                           onClick={() => setCorpTargetStatus(st)}
+                          className="text-sm font-bold cursor-pointer"
                           style={{
-                            padding: '4px 10px',
+                            padding: "4px 10px",
                             borderRadius: 4,
-                            border: corpTargetStatus === st ? '2px solid #5728B2' : '1px solid var(--border-color)',
-                            backgroundColor: corpTargetStatus === st ? '#F5F3FF' : 'var(--bg-surface)',
-                            color: corpTargetStatus === st ? '#5728B2' : 'var(--text-secondary)',
-                            fontSize: '0.75rem',
-                            fontWeight: 700,
-                            cursor: 'pointer',
+                            border:
+                              corpTargetStatus === st
+                                ? "2px solid var(--border-focus)"
+                                : "1px solid var(--border-color)",
+                            backgroundColor:
+                              corpTargetStatus === st
+                                ? "var(--support-accent-softer)"
+                                : "var(--bg-surface)",
+                            color:
+                              corpTargetStatus === st
+                                ? "var(--text-brand)"
+                                : "var(--text-secondary)",
                           }}
                         >
-                          {st.replace(/_/g, ' ')}
+                          {st.replace(/_/g, " ")}
                         </button>
                       ))}
                       <Button
                         variant="secondary"
                         size="sm"
-                        disabled={corpStatusLoading || corpTargetStatus === selectedCorpTicket.status}
+                        disabled={
+                          corpStatusLoading ||
+                          corpTargetStatus === selectedCorpTicket.status
+                        }
                         onClick={() => handleUpdateCorpStatus(corpTargetStatus)}
                       >
-                        {corpStatusLoading ? 'Saving...' : 'Apply Status'}
+                        {corpStatusLoading ? "Saving..." : "Apply Status"}
                       </Button>
                     </div>
-                    <input
-                      type="text"
+                    <Input
+                      size="sm"
                       value={corpStatusNote}
                       onChange={(e) => setCorpStatusNote(e.target.value)}
                       placeholder="Add status change remark or operator notes..."
-                      style={{
-                        width: '100%',
-                        marginTop: '0.5rem',
-                        padding: '6px 10px',
-                        borderRadius: 6,
-                        border: '1px solid var(--border-subtle)',
-                        backgroundColor: 'var(--bg-surface)',
-                        color: 'var(--text-primary)',
-                        fontSize: '0.75rem',
-                      }}
+                      wrapperClassName="!mb-0 mt-2"
                     />
                   </div>
                 </div>
 
                 {/* Information Cards: Company, Employee, Driver */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div
+                  className="grid gap-3"
+                  style={{ gridTemplateColumns: "1fr 1fr" }}
+                >
                   {/* Company Info */}
-                  <div
-                    style={{
-                      padding: '1rem',
-                      borderRadius: 'var(--radius-md)',
-                      backgroundColor: 'var(--bg-surface-elevated)',
-                      border: '1px solid var(--border-subtle)',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', fontWeight: 700, color: '#5728B2', marginBottom: '0.5rem' }}>
+                  <div className="p-4 rounded-md bg-surface-elevated border border-subtle">
+                    <div
+                      className="flex items-center text-sm font-bold mb-2"
+                      style={{ gap: 6, color: "var(--text-brand)" }}
+                    >
                       <Building2 size={14} /> Corporate Account
                     </div>
-                    <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {selectedCorpTicket.tenant?.name || 'Corporate Client'}
+                    <div className="text-base font-semibold text-primary">
+                      {selectedCorpTicket.tenant?.name || "Corporate Client"}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                      Code: <span style={{ fontFamily: 'monospace' }}>{selectedCorpTicket.tenant?.code || '—'}</span>
+                    <div className="text-sm text-muted mt-compact">
+                      Code:{" "}
+                      <span className="text-mono">
+                        {selectedCorpTicket.tenant?.code || "—"}
+                      </span>
                     </div>
                   </div>
 
                   {/* Employee Info */}
-                  <div
-                    style={{
-                      padding: '1rem',
-                      borderRadius: 'var(--radius-md)',
-                      backgroundColor: 'var(--bg-surface-elevated)',
-                      border: '1px solid var(--border-subtle)',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', fontWeight: 700, color: '#4338CA', marginBottom: '0.5rem' }}>
+                  <div className="p-4 rounded-md bg-surface-elevated border border-subtle">
+                    <div
+                      className="flex items-center text-sm font-bold mb-2"
+                      style={{ gap: 6, color: "var(--support-accent)" }}
+                    >
                       <User size={14} /> Affected Employee
                     </div>
-                    <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {selectedCorpTicket.employee?.fullName || 'Employee'}
+                    <div className="text-base font-semibold text-primary">
+                      {selectedCorpTicket.employee?.fullName || "Employee"}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                      Phone: <span style={{ fontFamily: 'monospace' }}>{selectedCorpTicket.employee?.phoneNumber || selectedCorpTicket.employee?.phone || '—'}</span>
+                    <div className="text-sm text-muted mt-compact">
+                      Phone:{" "}
+                      <span className="text-mono">
+                        {selectedCorpTicket.employee?.phoneNumber ||
+                          selectedCorpTicket.employee?.phone ||
+                          "—"}
+                      </span>
                     </div>
                     {selectedCorpTicket.employee?.email && (
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      <div className="text-sm text-muted">
                         {selectedCorpTicket.employee.email}
                       </div>
                     )}
@@ -720,209 +844,212 @@ export default function SupportPage() {
 
                 {/* Driver / Route Information */}
                 {(selectedCorpTicket.driver || selectedCorpTicket.routeId) && (
-                  <div
-                    style={{
-                      padding: '1rem',
-                      borderRadius: 'var(--radius-md)',
-                      backgroundColor: 'var(--bg-surface-elevated)',
-                      border: '1px solid var(--border-subtle)',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', fontWeight: 700, color: '#047857', marginBottom: '0.5rem' }}>
+                  <div className="p-4 rounded-md bg-surface-elevated border border-subtle">
+                    <div
+                      className="flex items-center text-sm font-bold mb-2"
+                      style={{ gap: 6, color: "#047857" }}
+                    >
                       <Car size={14} /> Driver & Vehicle Telemetry
                     </div>
                     {selectedCorpTicket.driver ? (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+                      <div className="flex justify-between text-base">
                         <div>
-                          <span style={{ color: 'var(--text-muted)' }}>Driver:</span>{' '}
+                          <span className="text-muted">Driver:</span>{" "}
                           <strong>{selectedCorpTicket.driver.name}</strong>
-                          {selectedCorpTicket.driver.phone && <span> ({selectedCorpTicket.driver.phone})</span>}
+                          {selectedCorpTicket.driver.phone && (
+                            <span> ({selectedCorpTicket.driver.phone})</span>
+                          )}
                         </div>
                         {selectedCorpTicket.driver.vehiclePlate && (
                           <div>
-                            <span style={{ color: 'var(--text-muted)' }}>Vehicle:</span>{' '}
-                            <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{selectedCorpTicket.driver.vehiclePlate}</span>
+                            <span className="text-muted">Vehicle:</span>{" "}
+                            <span className="text-mono font-bold">
+                              {selectedCorpTicket.driver.vehiclePlate}
+                            </span>
                           </div>
                         )}
                       </div>
                     ) : (
-                      <div style={{ fontSize: '0.8125rem', color: 'var(--text-primary)' }}>
-                        Linked Route ID: <span style={{ fontFamily: 'monospace', color: 'var(--brand-primary)' }}>{selectedCorpTicket.routeId}</span>
+                      <div className="text-base text-primary">
+                        Linked Route ID:{" "}
+                        <span className="text-mono text-brand">
+                          {selectedCorpTicket.routeId}
+                        </span>
                       </div>
                     )}
                   </div>
                 )}
 
                 {/* Original Issue Description */}
-                <div
-                  style={{
-                    padding: '1rem',
-                    borderRadius: 'var(--radius-md)',
-                    backgroundColor: 'var(--bg-surface-elevated)',
-                    border: '1px solid var(--border-subtle)',
-                  }}
-                >
-                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.35rem' }}>
+                <div className="p-4 rounded-md bg-surface-elevated border border-subtle">
+                  <div className="text-sm font-bold text-muted uppercase mb-tight">
                     Issue Reported
                   </div>
-                  <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+                  <div className="text-md font-bold text-primary mb-2">
                     {selectedCorpTicket.subject}
                   </div>
                   <p
-                    style={{
-                      fontSize: '0.8125rem',
-                      lineHeight: 1.5,
-                      color: 'var(--text-secondary)',
-                      padding: '0.75rem',
-                      borderRadius: 'var(--radius-sm)',
-                      backgroundColor: 'var(--bg-surface)',
-                      border: '1px solid var(--border-subtle)',
-                      margin: 0,
-                      whiteSpace: 'pre-wrap',
-                    }}
+                    className="text-base text-secondary p-3 rounded-sm bg-surface border border-subtle m-0 whitespace-pre-wrap"
+                    style={{ lineHeight: 1.5 }}
                   >
-                    {selectedCorpTicket.description || 'No description provided.'}
+                    {selectedCorpTicket.description ||
+                      "No description provided."}
                   </p>
                 </div>
 
                 {/* Resolution Summary (If present) */}
                 {selectedCorpTicket.resolutionNotes && (
                   <div
+                    className="p-4 rounded-md flex flex-col"
                     style={{
-                      padding: '1rem',
-                      borderRadius: 'var(--radius-md)',
-                      backgroundColor: '#F0FDF4',
-                      border: '1px solid #BBF7D0',
-                      display: 'flex',
-                      flexDirection: 'column',
+                      backgroundColor: "#F0FDF4",
+                      border: "1px solid #BBF7D0",
                       gap: 4,
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', fontWeight: 700, color: '#166534' }}>
-                      <CheckCircle2 size={15} color="#16A34A" /> Official Resolution Notes
+                    <div
+                      className="flex items-center text-sm font-bold"
+                      style={{ gap: 6, color: "#166534" }}
+                    >
+                      <CheckCircle2 size={15} color="#16A34A" /> Official
+                      Resolution Notes
                     </div>
-                    <div style={{ fontSize: '0.8125rem', color: '#14532D', lineHeight: 1.5 }}>
+                    <div
+                      className="text-base"
+                      style={{ color: "#14532D", lineHeight: 1.5 }}
+                    >
                       {selectedCorpTicket.resolutionNotes}
                     </div>
                     {selectedCorpTicket.resolvedAt && (
-                      <div style={{ fontSize: '0.75rem', color: '#16A34A', marginTop: 4 }}>
-                        Resolved at: {new Date(selectedCorpTicket.resolvedAt).toLocaleString()}
+                      <div
+                        className="text-sm"
+                        style={{ color: "#16A34A", marginTop: 4 }}
+                      >
+                        Resolved at:{" "}
+                        {new Date(
+                          selectedCorpTicket.resolvedAt,
+                        ).toLocaleString()}
                       </div>
                     )}
                   </div>
                 )}
 
                 {/* Two-Way Message Conversation Thread */}
-                <div
-                  style={{
-                    padding: '1rem',
-                    borderRadius: 'var(--radius-md)',
-                    backgroundColor: 'var(--bg-surface-elevated)',
-                    border: '1px solid var(--border-subtle)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.75rem',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      <MessageSquare size={15} color="#5728B2" /> Conversation History ({corpMessages.length})
+                <div className="p-4 rounded-md bg-surface-elevated border border-subtle flex flex-col gap-3">
+                  <div className="flex justify-between items-center">
+                    <div
+                      className="flex items-center text-base font-bold text-primary"
+                      style={{ gap: 6 }}
+                    >
+                      <MessageSquare size={15} color="var(--text-brand)" /> Conversation
+                      History ({corpMessages.length})
                     </div>
                     <button
                       type="button"
                       onClick={() => loadCorpMessages(selectedCorpTicket.id)}
                       disabled={corpMessagesLoading}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        color: 'var(--text-muted)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 4,
-                        fontSize: '0.75rem',
-                      }}
+                      className="border-0 cursor-pointer text-muted flex items-center text-sm"
+                      style={{ background: "none", gap: 4 }}
                     >
-                      <RefreshCw size={12} style={{ animation: corpMessagesLoading ? 'spin 1s linear infinite' : undefined }} /> Refresh
+                      <RefreshCw
+                        size={12}
+                        style={{
+                          animation: corpMessagesLoading
+                            ? "spin 1s linear infinite"
+                            : undefined,
+                        }}
+                      />{" "}
+                      Refresh
                     </button>
                   </div>
 
                   {/* Messages Stream */}
                   <div
-                    style={{
-                      maxHeight: '260px',
-                      overflowY: 'auto',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '0.625rem',
-                      padding: '0.5rem',
-                      backgroundColor: 'var(--bg-surface)',
-                      borderRadius: 'var(--radius-sm)',
-                      border: '1px solid var(--border-subtle)',
-                    }}
+                    className="overflow-y-auto flex flex-col p-2 bg-surface rounded-sm border border-subtle"
+                    style={{ maxHeight: "260px", gap: "0.625rem" }}
                   >
                     {corpMessagesLoading && corpMessages.length === 0 ? (
-                      <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                      <div className="text-center p-6 text-muted text-sm">
                         Loading message history...
                       </div>
                     ) : corpMessages.length === 0 ? (
-                      <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-                        No messages recorded yet. Reply below to communicate with the company, driver, or employee.
+                      <div className="text-center p-6 text-muted text-sm">
+                        No messages recorded yet. Reply below to communicate
+                        with the company, driver, or employee.
                       </div>
                     ) : (
                       corpMessages.map((m) => {
-                        const isPlatformStaff = m.senderRole === 'ADMIN' || m.senderRole === 'OPS';
+                        const isPlatformStaff =
+                          m.senderRole === "ADMIN" || m.senderRole === "OPS";
                         const isInternal = Boolean(m.isInternal);
 
                         return (
                           <div
                             key={m.id}
+                            className="rounded-sm"
                             style={{
-                              padding: '0.625rem 0.875rem',
-                              borderRadius: 'var(--radius-sm)',
+                              padding: "0.625rem 0.875rem",
                               backgroundColor: isInternal
-                                ? '#FEF3C7'
+                                ? "#FEF3C7"
                                 : isPlatformStaff
-                                ? '#EEF2FF'
-                                : 'var(--bg-surface-elevated)',
+                                  ? "var(--support-accent-soft)"
+                                  : "var(--bg-surface-elevated)",
                               border: `1px solid ${
                                 isInternal
-                                  ? '#FCD34D'
+                                  ? "#FCD34D"
                                   : isPlatformStaff
-                                  ? '#C7D2FE'
-                                  : 'var(--border-subtle)'
+                                    ? "var(--support-accent-border-strong)"
+                                    : "var(--border-subtle)"
                               }`,
-                              marginLeft: isPlatformStaff ? '1rem' : 0,
-                              marginRight: isPlatformStaff ? 0 : '1rem',
+                              marginLeft: isPlatformStaff ? "1rem" : 0,
+                              marginRight: isPlatformStaff ? 0 : "1rem",
                             }}
                           >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-                              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: isPlatformStaff ? '#4338CA' : 'var(--text-primary)' }}>
-                                {m.senderName || (isPlatformStaff ? 'AdhocX Support Desk' : 'Client User')}
-                                <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--text-muted)', marginLeft: 6 }}>
+                            <div className="flex justify-between items-center mb-1">
+                              <div
+                                className="text-sm font-bold"
+                                style={{
+                                  color: isPlatformStaff
+                                    ? "var(--support-accent)"
+                                    : "var(--text-primary)",
+                                }}
+                              >
+                                {m.senderName ||
+                                  (isPlatformStaff
+                                    ? "AdhocX Support Desk"
+                                    : "Client User")}
+                                <span
+                                  className="text-xs font-semibold text-muted"
+                                  style={{ marginLeft: 6 }}
+                                >
                                   ({m.senderRole})
                                 </span>
                                 {isInternal && (
                                   <span
+                                    className="text-2xs font-extrabold"
                                     style={{
                                       marginLeft: 6,
-                                      padding: '1px 5px',
-                                      backgroundColor: '#F59E0B',
-                                      color: '#FFFFFF',
+                                      padding: "1px 5px",
+                                      backgroundColor: "#F59E0B",
+                                      color: "#FFFFFF",
                                       borderRadius: 3,
-                                      fontSize: '0.625rem',
-                                      fontWeight: 800,
                                     }}
                                   >
                                     INTERNAL NOTE
                                   </span>
                                 )}
                               </div>
-                              <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
-                                {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              <span className="text-xs text-muted">
+                                {new Date(m.createdAt).toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
                               </span>
                             </div>
-                            <div style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>
+                            <div
+                              className="text-base text-primary whitespace-pre-wrap"
+                              style={{ lineHeight: 1.4 }}
+                            >
                               {m.message}
                             </div>
                           </div>
@@ -932,30 +1059,32 @@ export default function SupportPage() {
                   </div>
 
                   {/* Reply Form */}
-                  <form onSubmit={handleSendCorpReply} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.25rem' }}>
-                    <textarea
+                  <Form
+                    onSubmit={handleSendCorpReply}
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "0.5rem",
+                      marginTop: "0.25rem",
+                    }}
+                  >
+                    <Textarea
                       rows={3}
                       value={replyMessage}
                       onChange={(e) => setReplyMessage(e.target.value)}
                       placeholder="Type a response to the company, employee, or driver..."
-                      style={{
-                        width: '100%',
-                        padding: '0.625rem 0.875rem',
-                        borderRadius: 'var(--radius-md)',
-                        backgroundColor: 'var(--bg-surface)',
-                        border: '1px solid var(--border-subtle)',
-                        color: 'var(--text-primary)',
-                        fontSize: '0.8125rem',
-                        resize: 'vertical',
-                      }}
+                      wrapperClassName="!mb-0"
                     />
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+                    <div className="flex justify-between items-center">
+                      <label
+                        className="flex items-center text-sm text-secondary cursor-pointer"
+                        style={{ gap: 6 }}
+                      >
                         <input
                           type="checkbox"
                           checked={isInternalReply}
                           onChange={(e) => setIsInternalReply(e.target.checked)}
-                          style={{ cursor: 'pointer' }}
+                          className="cursor-pointer"
                         />
                         Internal ops note only (hidden from Corporate Portal)
                       </label>
@@ -966,10 +1095,10 @@ export default function SupportPage() {
                         disabled={sendingReply || !replyMessage.trim()}
                       >
                         <Send size={13} style={{ marginRight: 4 }} />
-                        {sendingReply ? 'Sending...' : 'Send Reply'}
+                        {sendingReply ? "Sending..." : "Send Reply"}
                       </Button>
                     </div>
-                  </form>
+                  </Form>
                 </div>
               </div>
             )}
@@ -982,36 +1111,36 @@ export default function SupportPage() {
             columns={4}
             items={[
               {
-                id: 'total',
-                label: 'Total Support Cases',
+                id: "total",
+                label: "Total Support Cases",
                 value: onDemandMetrics.total,
-                subtext: 'Active ticket queue',
-                icon: <Headphones size={16} color="var(--brand-primary)" />,
-                tone: 'indigo',
+                subtext: "Active ticket queue",
+                icon: <Headphones size={16} color="var(--text-brand)" />,
+                tone: "indigo",
               },
               {
-                id: 'pending',
-                label: 'Pending Triage',
+                id: "pending",
+                label: "Pending Triage",
                 value: onDemandMetrics.pending,
-                subtext: 'Unassigned tickets',
+                subtext: "Unassigned tickets",
                 icon: <Clock size={16} color="var(--color-danger)" />,
-                tone: 'danger',
+                tone: "danger",
               },
               {
-                id: 'review',
-                label: 'Under Investigation',
+                id: "review",
+                label: "Under Investigation",
                 value: onDemandMetrics.review,
-                subtext: 'Operator active handling',
+                subtext: "Operator active handling",
                 icon: <Search size={16} color="var(--color-warning)" />,
-                tone: 'warning',
+                tone: "warning",
               },
               {
-                id: 'resolved',
-                label: 'Resolved Cases',
+                id: "resolved",
+                label: "Resolved Cases",
                 value: onDemandMetrics.resolved,
-                subtext: 'Completed interventions',
+                subtext: "Completed interventions",
                 icon: <CheckCircle2 size={16} color="var(--color-success)" />,
-                tone: 'success',
+                tone: "success",
               },
             ]}
           />
@@ -1033,62 +1162,61 @@ export default function SupportPage() {
           <DataTable
             columns={[
               {
-                key: 'id',
-                label: 'TICKET #',
+                key: "id",
+                label: "TICKET #",
                 render: (t: SupportTicketItem) => (
                   <div>
-                    <div style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--brand-primary)', fontSize: '0.8125rem' }}>
+                    <div className="text-mono font-bold text-brand text-base">
                       #{t.id.slice(0, 8).toUpperCase()}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                      {new Date(t.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    <div className="text-sm text-muted mt-compact">
+                      {new Date(t.createdAt).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </div>
                   </div>
                 ),
               },
               {
-                key: 'reporterName',
-                label: 'REPORTER & CONTACT',
+                key: "reporterName",
+                label: "REPORTER & CONTACT",
                 render: (t: SupportTicketItem) => (
                   <div>
-                    <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.8rem' }}>
+                    <div className="font-semibold text-primary text-body-sm">
                       {t.reporterName}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.125rem' }}>
-                      <span style={{ color: 'var(--brand-primary)', fontWeight: 500 }}>{t.reporterRole}</span> • {t.reporterPhone || '—'}
+                    <div className="text-sm text-muted mt-micro">
+                      <span className="text-brand font-medium">
+                        {t.reporterRole}
+                      </span>{" "}
+                      • {t.reporterPhone || "—"}
                     </div>
                   </div>
                 ),
               },
               {
-                key: 'issueType',
-                label: 'ISSUE CATEGORY',
+                key: "issueType",
+                label: "ISSUE CATEGORY",
                 render: (t: SupportTicketItem) => (
                   <span
-                    style={{
-                      padding: '0.2rem 0.5rem',
-                      borderRadius: 'var(--radius-sm)',
-                      backgroundColor: 'var(--bg-card-elevated)',
-                      border: '1px solid var(--border-subtle)',
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      color: 'var(--text-secondary)',
-                    }}
+                    className="rounded-sm bg-card-elevated border border-subtle text-sm font-semibold text-secondary"
+                    style={{ padding: "0.2rem 0.5rem" }}
                   >
-                    {t.issueType.replace(/_/g, ' ')}
+                    {t.issueType.replace(/_/g, " ")}
                   </span>
                 ),
               },
               {
-                key: 'description',
-                label: 'DESCRIPTION & CONTEXT',
+                key: "description",
+                label: "DESCRIPTION & CONTEXT",
                 render: (t: SupportTicketItem) => (
-                  <div style={{ maxWidth: '320px' }}>
-                    <div style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {t.description || 'No description provided'}
+                  <div style={{ maxWidth: "320px" }}>
+                    <div className="text-base text-primary whitespace-nowrap overflow-hidden text-ellipsis">
+                      {t.description || "No description provided"}
                     </div>
                     {t.relatedTripId && (
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
+                      <div className="text-sm text-muted mt-snug">
                         Trip: {t.relatedTripId.slice(0, 8).toUpperCase()}
                       </div>
                     )}
@@ -1096,21 +1224,23 @@ export default function SupportPage() {
                 ),
               },
               {
-                key: 'status',
-                label: 'STATUS',
-                render: (t: SupportTicketItem) => <StatusBadge status={t.status} />,
+                key: "status",
+                label: "STATUS",
+                render: (t: SupportTicketItem) => (
+                  <StatusBadge status={t.status} />
+                ),
               },
               {
-                key: 'actions',
-                label: 'ACTIONS',
-                align: 'right',
+                key: "actions",
+                label: "ACTIONS",
+                align: "right",
                 render: (t: SupportTicketItem) => (
                   <Button
                     variant="secondary"
                     size="sm"
                     onClick={() => {
                       setSelectedOnDemandTicket(t);
-                      setResolutionNotes(t.operatorNotes || '');
+                      setResolutionNotes(t.operatorNotes || "");
                     }}
                   >
                     Inspect Ticket
@@ -1129,21 +1259,44 @@ export default function SupportPage() {
           <Drawer
             isOpen={!!selectedOnDemandTicket}
             onClose={() => setSelectedOnDemandTicket(null)}
-            title={selectedOnDemandTicket ? `Support Ticket #${selectedOnDemandTicket.id.slice(0, 8).toUpperCase()}` : 'Support Ticket'}
-            subtitle={selectedOnDemandTicket ? `Issue: ${selectedOnDemandTicket.issueType}` : ''}
+            title={
+              selectedOnDemandTicket
+                ? `Support Ticket #${selectedOnDemandTicket.id.slice(0, 8).toUpperCase()}`
+                : "Support Ticket"
+            }
+            subtitle={
+              selectedOnDemandTicket
+                ? `Issue: ${selectedOnDemandTicket.issueType}`
+                : ""
+            }
             footer={
               selectedOnDemandTicket ? (
-                <div style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'flex-end' }}>
-                  <Button variant="secondary" size="sm" onClick={() => setSelectedOnDemandTicket(null)}>
+                <div className="flex gap-3 w-full justify-end">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setSelectedOnDemandTicket(null)}
+                  >
                     Close
                   </Button>
-                  {selectedOnDemandTicket.status !== 'UNDER_REVIEW' && selectedOnDemandTicket.status !== 'RESOLVED' && (
-                    <Button variant="secondary" size="sm" onClick={() => handleResolveOnDemand('UNDER_REVIEW')} disabled={onDemandActionLoading}>
-                      Mark In Review
-                    </Button>
-                  )}
-                  {selectedOnDemandTicket.status !== 'RESOLVED' && (
-                    <Button variant="primary" size="sm" onClick={() => setConfirmResolveOpen(true)} disabled={onDemandActionLoading}>
+                  {selectedOnDemandTicket.status !== "UNDER_REVIEW" &&
+                    selectedOnDemandTicket.status !== "RESOLVED" && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleResolveOnDemand("UNDER_REVIEW")}
+                        disabled={onDemandActionLoading}
+                      >
+                        Mark In Review
+                      </Button>
+                    )}
+                  {selectedOnDemandTicket.status !== "RESOLVED" && (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => setConfirmResolveOpen(true)}
+                      disabled={onDemandActionLoading}
+                    >
                       Resolve Ticket
                     </Button>
                   )}
@@ -1152,121 +1305,77 @@ export default function SupportPage() {
             }
           >
             {selectedOnDemandTicket && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                <div
-                  style={{
-                    padding: '1rem',
-                    borderRadius: 'var(--radius-md)',
-                    backgroundColor: 'var(--bg-surface-elevated)',
-                    border: '1px solid var(--border-subtle)',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                  }}
-                >
+              <div className="flex flex-col gap-5">
+                <div className="p-4 rounded-md bg-surface-elevated border border-subtle flex justify-between items-center">
                   <div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Ticket Status</div>
-                    <div style={{ marginTop: '0.25rem' }}>
+                    <div className="text-sm text-muted">Ticket Status</div>
+                    <div className="mt-1">
                       <StatusBadge status={selectedOnDemandTicket.status} />
                     </div>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Timestamp</div>
-                    <div style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', marginTop: '0.25rem' }}>
-                      {new Date(selectedOnDemandTicket.createdAt).toLocaleString()}
+                  <div className="text-right">
+                    <div className="text-sm text-muted">Timestamp</div>
+                    <div className="text-base text-primary mt-1">
+                      {new Date(
+                        selectedOnDemandTicket.createdAt,
+                      ).toLocaleString()}
                     </div>
                   </div>
                 </div>
 
-                <div
-                  style={{
-                    padding: '1.25rem',
-                    borderRadius: 'var(--radius-md)',
-                    backgroundColor: 'var(--bg-surface-elevated)',
-                    border: '1px solid var(--border-subtle)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.75rem',
-                  }}
-                >
-                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.5rem' }}>
+                <div className="p-5 rounded-md bg-surface-elevated border border-subtle flex flex-col gap-3">
+                  <div className="text-base font-semibold text-primary border-b border-subtle pb-2">
                     Reporter Details
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>Name:</span>
-                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{selectedOnDemandTicket.reporterName}</span>
+                  <div className="flex justify-between text-base">
+                    <span className="text-muted">Name:</span>
+                    <span className="font-semibold text-primary">
+                      {selectedOnDemandTicket.reporterName}
+                    </span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>Role:</span>
-                    <span style={{ color: 'var(--brand-primary)', fontWeight: 600 }}>{selectedOnDemandTicket.reporterRole}</span>
+                  <div className="flex justify-between text-base">
+                    <span className="text-muted">Role:</span>
+                    <span className="text-brand font-semibold">
+                      {selectedOnDemandTicket.reporterRole}
+                    </span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>Phone Number:</span>
-                    <span style={{ fontFamily: 'monospace', color: 'var(--text-primary)' }}>{selectedOnDemandTicket.reporterPhone || '—'}</span>
+                  <div className="flex justify-between text-base">
+                    <span className="text-muted">Phone Number:</span>
+                    <span className="text-mono text-primary">
+                      {selectedOnDemandTicket.reporterPhone || "—"}
+                    </span>
                   </div>
                   {selectedOnDemandTicket.relatedTripId && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
-                      <span style={{ color: 'var(--text-muted)' }}>Related Trip:</span>
-                      <span style={{ fontFamily: 'monospace', color: 'var(--brand-primary)' }}>{selectedOnDemandTicket.relatedTripId}</span>
+                    <div className="flex justify-between text-base">
+                      <span className="text-muted">Related Trip:</span>
+                      <span className="text-mono text-brand">
+                        {selectedOnDemandTicket.relatedTripId}
+                      </span>
                     </div>
                   )}
                 </div>
 
-                <div
-                  style={{
-                    padding: '1.25rem',
-                    borderRadius: 'var(--radius-md)',
-                    backgroundColor: 'var(--bg-surface-elevated)',
-                    border: '1px solid var(--border-subtle)',
-                  }}
-                >
-                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+                <div className="p-5 rounded-md bg-surface-elevated border border-subtle">
+                  <div className="text-base font-semibold text-primary mb-2">
                     Issue Description ({selectedOnDemandTicket.issueType})
                   </div>
                   <p
-                    style={{
-                      fontSize: '0.8125rem',
-                      lineHeight: 1.5,
-                      color: 'var(--text-secondary)',
-                      padding: '0.875rem',
-                      borderRadius: 'var(--radius-sm)',
-                      backgroundColor: 'var(--bg-surface)',
-                      border: '1px solid var(--border-subtle)',
-                    }}
+                    className="text-base text-secondary rounded-sm bg-surface border border-subtle"
+                    style={{ lineHeight: 1.5, padding: "0.875rem" }}
                   >
-                    {selectedOnDemandTicket.description || 'No description provided.'}
+                    {selectedOnDemandTicket.description ||
+                      "No description provided."}
                   </p>
                 </div>
 
-                <div
-                  style={{
-                    padding: '1.25rem',
-                    borderRadius: 'var(--radius-md)',
-                    backgroundColor: 'var(--bg-surface-elevated)',
-                    border: '1px solid var(--border-subtle)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.75rem',
-                  }}
-                >
-                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                    Operator Triage & Resolution Notes
-                  </div>
-                  <textarea
+                <div className="p-5 rounded-md bg-surface-elevated border border-subtle flex flex-col gap-3">
+                  <Textarea
+                    label="Operator Triage & Resolution Notes"
                     rows={3}
                     value={resolutionNotes}
                     onChange={(e) => setResolutionNotes(e.target.value)}
                     placeholder="Log internal telemetry review, FASTag reconciliation, or action taken..."
-                    style={{
-                      width: '100%',
-                      padding: '0.625rem 0.875rem',
-                      borderRadius: 'var(--radius-md)',
-                      backgroundColor: 'var(--bg-surface)',
-                      border: '1px solid var(--border-subtle)',
-                      color: 'var(--text-primary)',
-                      fontSize: '0.8125rem',
-                      resize: 'vertical',
-                    }}
+                    wrapperClassName="!mb-0"
                   />
                 </div>
               </div>
@@ -1275,16 +1384,24 @@ export default function SupportPage() {
 
           <ConfirmDialog
             isOpen={confirmResolveOpen && !!selectedOnDemandTicket}
-            onClose={() => !onDemandActionLoading && setConfirmResolveOpen(false)}
-            onConfirm={() => handleResolveOnDemand('RESOLVED')}
+            onClose={() =>
+              !onDemandActionLoading && setConfirmResolveOpen(false)
+            }
+            onConfirm={() => handleResolveOnDemand("RESOLVED")}
             variant="success"
             isLoading={onDemandActionLoading}
             title="Mark Support Ticket Resolved?"
-            subtitle={selectedOnDemandTicket ? `Ticket #${selectedOnDemandTicket.id.slice(0, 8).toUpperCase()}` : undefined}
+            subtitle={
+              selectedOnDemandTicket
+                ? `Ticket #${selectedOnDemandTicket.id.slice(0, 8).toUpperCase()}`
+                : undefined
+            }
             description={
               <span>
-                Confirm resolving this {selectedOnDemandTicket?.issueType} case reported by{' '}
-                <strong>{selectedOnDemandTicket?.reporterName}</strong> and persisting operator triage notes.
+                Confirm resolving this {selectedOnDemandTicket?.issueType} case
+                reported by{" "}
+                <strong>{selectedOnDemandTicket?.reporterName}</strong> and
+                persisting operator triage notes.
               </span>
             }
             confirmLabel="Resolve Ticket"

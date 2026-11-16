@@ -1,746 +1,946 @@
-'use client';
+"use client";
 
-import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ShieldCheck,
-  ClipboardList,
-  Car,
-  Users,
+  Activity,
   Building2,
-  ArrowRight,
-  DollarSign,
-  MapPin,
-} from 'lucide-react';
-import { adminApi, getOpsBaseUrl } from '../../lib/api/client';
+  Car,
+  ClipboardList,
+  RefreshCw,
+  Store,
+  TrendingUp,
+  Users,
+  Wallet,
+} from "lucide-react";
 import {
+  Button,
+  MetricCard,
+  PageHeader,
+} from "../../components/common";
+import { adminApi } from "../../lib/api/client";
+import type {
   AdminMetrics,
-  AuditLogItem,
-  CorridorAnalytics,
-  DailyFinancialReport,
-  FinancialCompanyOption,
-  OperationalReportData,
+  CorporateTenantListItem,
+  DriverListItem,
+  FinanceDashboardData,
+  FinanceSettlementReportItem,
   RequirementListItem,
-} from '../../lib/api/types';
-import {
-  RevenueIncomeChart,
-  EcosystemGrowthChart,
-  FleetCategoryDistributionChart,
-  CorridorMatrixChart,
-} from '../../components/dashboard/ExecutiveCharts';
-import TripFrequencyCharts from '../../components/dashboard/TripFrequencyCharts';
-import { CompanyFilterDropdown } from '../../components/dashboard/CompanyFilterDropdown';
+  TripFrequencyReport,
+  UserListItem,
+  VendorListItem,
+} from "../../lib/api/types";
 
+interface DashboardData {
+  metrics: AdminMetrics | null;
+  drivers: DriverListItem[];
+  vendors: VendorListItem[];
+  corporateClients: CorporateTenantListItem[];
+  corporateClientCount: number | null;
+  employees: UserListItem[];
+  employeeCount: number | null;
+  requirements: RequirementListItem[];
+  finance: FinanceDashboardData | null;
+  tripReport: TripFrequencyReport | null;
+}
+
+interface ChartDatum {
+  label: string;
+  value: number;
+}
+
+interface GrowthMonth {
+  key: string;
+  label: string;
+}
+
+interface GrowthSeries {
+  name: string;
+  color: string;
+  values: number[];
+  current: number;
+  previous: number;
+}
+
+const EMPTY_DASHBOARD_DATA: DashboardData = {
+  metrics: null,
+  drivers: [],
+  vendors: [],
+  corporateClients: [],
+  corporateClientCount: null,
+  employees: [],
+  employeeCount: null,
+  requirements: [],
+  finance: null,
+  tripReport: null,
+};
+
+const ACTIVE_REQUIREMENT_STATUSES = new Set([
+  "OPEN",
+  "POSTED",
+  "DISPATCHING",
+  "PARTIALLY_FULFILLED",
+  "ASSIGNED",
+  "ACTIVE",
+]);
+const PENDING_PAYOUT_STATUSES = new Set([
+  "PENDING",
+  "PROCESSING",
+  "INITIATED",
+  "APPROVED",
+]);
 function getIndiaDateInputValue() {
-  const dateParts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Asia/Kolkata',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
+  const dateParts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
   }).formatToParts(new Date());
-  const parts = Object.fromEntries(dateParts.map(({ type, value }) => [type, value]));
+  const parts = Object.fromEntries(
+    dateParts.map(({ type, value }) => [type, value]),
+  );
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
-export default function DashboardPage() {
-  const [opsBaseUrl, setOpsBaseUrl] = useState<string>(
-    () => process.env.NEXT_PUBLIC_OPS_URL?.trim().replace(/\/+$/, '') || 'http://localhost:7004',
+function getIndiaMonth() {
+  const dateParts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(new Date());
+  const parts = Object.fromEntries(
+    dateParts.map(({ type, value }) => [type, value]),
   );
-  useEffect(() => {
-    setOpsBaseUrl(getOpsBaseUrl());
-  }, []);
-  const [metrics, setMetrics] = useState<AdminMetrics>({
-    totalDrivers: 0,
-    verifiedDrivers: 0,
-    pendingDriversKyc: 0,
-    totalVendors: 0,
-    verifiedVendors: 0,
-    totalUsers: 0,
-    activeRequirements: 0,
-    activeTrips: 0,
-    completedTrips: 0,
-    pendingSettlements: 0,
+  return { year: Number(parts.year), month: Number(parts.month) };
+}
+
+function getIndiaDateKey(value?: string | null) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return /^\d{4}-\d{2}-\d{2}/.test(value) ? value.slice(0, 10) : null;
+  }
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const values = Object.fromEntries(
+    parts.map(({ type, value: partValue }) => [type, partValue]),
+  );
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function getMonthKey(value?: string | null) {
+  const dateKey = getIndiaDateKey(value);
+  return dateKey ? dateKey.slice(0, 7) : null;
+}
+
+function formatINR(value?: number | null) {
+  if (value == null || !Number.isFinite(value)) return "—";
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function formatCompactINR(value: number) {
+  return `₹${new Intl.NumberFormat("en-IN", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(value)}`;
+}
+
+function formatCompactNumber(value: number) {
+  return new Intl.NumberFormat("en-IN", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
+function isActiveRequirement(requirement: RequirementListItem) {
+  return ACTIVE_REQUIREMENT_STATUSES.has(
+    (requirement.status || "").toUpperCase(),
+  );
+}
+
+function isPendingPayout(settlement: FinanceSettlementReportItem) {
+  return PENDING_PAYOUT_STATUSES.has(settlement.status.toUpperCase());
+}
+
+function getRecentGrowthMonths(count = 6): GrowthMonth[] {
+  const { year, month } = getIndiaMonth();
+  return Array.from({ length: count }, (_, index) => {
+    const date = new Date(Date.UTC(year, month - 1 - (count - index - 1), 1));
+    const monthKey = `${date.getUTCFullYear()}-${String(
+      date.getUTCMonth() + 1,
+    ).padStart(2, "0")}`;
+    return {
+      key: monthKey,
+      label: new Intl.DateTimeFormat("en-IN", {
+        month: "short",
+        timeZone: "UTC",
+      }).format(date),
+    };
   });
+}
 
-  const [selectedFinancialDate, setSelectedFinancialDate] = useState(getIndiaDateInputValue);
-  const [financialCompanies, setFinancialCompanies] = useState<FinancialCompanyOption[]>([]);
-  const [financialCompaniesLoading, setFinancialCompaniesLoading] = useState(true);
-  const [selectedFinancialCompany, setSelectedFinancialCompany] = useState<FinancialCompanyOption | null>(null);
-  const [dailyFinancialReport, setDailyFinancialReport] = useState<DailyFinancialReport | null>(null);
-  const [financialReportLoading, setFinancialReportLoading] = useState(true);
-  const [financialReportError, setFinancialReportError] = useState<string | null>(null);
-  const [operationalReport, setOperationalReport] = useState<OperationalReportData | null>(null);
-  const [corridors, setCorridors] = useState<CorridorAnalytics[]>([]);
-  const [recentLogs, setRecentLogs] = useState<AuditLogItem[]>([]);
-  const [recentRequirements, setRecentRequirements] = useState<RequirementListItem[]>([]);
-  const [activeChartTab, setActiveChartTab] = useState<'REVENUE' | 'ECOSYSTEM' | 'FLEET' | 'CORRIDORS'>('REVENUE');
+function getMonthlyRegistrations(
+  records: Array<{ createdAt?: string | null }>,
+  months: GrowthMonth[],
+) {
+  const counts = new Map(months.map(({ key }) => [key, 0]));
+  records.forEach(({ createdAt }) => {
+    const key = getMonthKey(createdAt);
+    if (key && counts.has(key)) counts.set(key, (counts.get(key) ?? 0) + 1);
+  });
+  return months.map(({ key }) => counts.get(key) ?? 0);
+}
 
-  const [, setLoading] = useState(true);
+function ChartCard({
+  title,
+  subtitle,
+  action,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="card dashboard-chart-card">
+      <div className="dashboard-chart-heading">
+        <div className="min-w-0">
+          <h2 className="dashboard-section-title">{title}</h2>
+          <p className="dashboard-section-subtitle">{subtitle}</p>
+        </div>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
 
-  async function loadDashboardData() {
-    try {
-      const [
-        metricsRes,
-        reportsRes,
-        corridorsRes,
-        logsRes,
-        requirementsRes,
-        companiesRes,
-      ] = await Promise.allSettled([
-        adminApi.getMetrics(),
-        adminApi.getOperationalReports(),
-        adminApi.getCorridorAnalytics(),
-        adminApi.getAuditLogs(8),
-        adminApi.getRequirements('ALL'),
-        adminApi.getFinancialCompanies(),
-      ]);
+function BarChart({
+  data,
+  color = "var(--color-info)",
+  currency = false,
+}: {
+  data: ChartDatum[];
+  color?: string;
+  currency?: boolean;
+}) {
+  const width = 720;
+  const height = 232;
+  const padding = { top: 16, right: 12, bottom: 34, left: 54 };
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
+  const maxValue = Math.max(0, ...data.map(({ value }) => value));
+  const minValue = Math.min(0, ...data.map(({ value }) => value));
+  const chartMaxValue = maxValue === 0 && minValue === 0 ? 1 : maxValue;
+  const valueRange = chartMaxValue - minValue || 1;
+  const valueY = (value: number) =>
+    padding.top + ((chartMaxValue - value) / valueRange) * chartHeight;
+  const zeroY = valueY(0);
+  const ticks = [
+    chartMaxValue,
+    (chartMaxValue + minValue) / 2,
+    minValue,
+  ];
+  const slotWidth = data.length ? chartWidth / data.length : chartWidth;
+  const barWidth = Math.max(5, Math.min(34, slotWidth * 0.62));
+  const labelStep = Math.max(1, Math.ceil(data.length / 12));
+  const formatValue = currency ? formatCompactINR : formatCompactNumber;
 
-      if (metricsRes.status === 'fulfilled' && metricsRes.value) {
-        setMetrics((prev) => ({ ...prev, ...metricsRes.value }));
-      }
-      if (reportsRes.status === 'fulfilled') setOperationalReport(reportsRes.value);
-      if (corridorsRes.status === 'fulfilled') setCorridors(Array.isArray(corridorsRes.value) ? corridorsRes.value : []);
-      if (logsRes.status === 'fulfilled') setRecentLogs(Array.isArray(logsRes.value) ? logsRes.value : []);
-      if (requirementsRes.status === 'fulfilled') {
-        const reqs = Array.isArray(requirementsRes.value) ? requirementsRes.value : [];
-        setRecentRequirements(reqs.slice(0, 6));
-      }
-      if (companiesRes.status === 'fulfilled' && Array.isArray(companiesRes.value)) {
-        setFinancialCompanies(companiesRes.value);
-      }
-    } finally {
-      setLoading(false);
-      setFinancialCompaniesLoading(false);
-    }
+  if (data.length === 0) {
+    return (
+      <div className="dashboard-chart-empty">
+        No report data is available for this period.
+      </div>
+    );
   }
 
-  useEffect(() => {
-    loadDashboardData();
-    const interval = setInterval(loadDashboardData, 20000);
-    return () => clearInterval(interval);
-  }, []);
+  return (
+    <div className="dashboard-chart-scroll">
+      <svg
+        className="dashboard-chart-svg"
+        viewBox={`0 0 ${width} ${height}`}
+        role="img"
+        aria-label={`${data.length} data points`}
+        style={{ minWidth: data.length > 14 ? 620 : 500 }}
+      >
+        {ticks.map((tick, index) => {
+          const y = valueY(tick);
+          return (
+            <g key={`tick-${index}`}>
+              <line
+                x1={padding.left}
+                y1={y}
+                x2={width - padding.right}
+                y2={y}
+                stroke="var(--border-subtle)"
+                strokeDasharray={index === 0 ? undefined : "4 4"}
+              />
+              <text
+                x={padding.left - 8}
+                y={y + 4}
+                textAnchor="end"
+                fontSize="10"
+                fill="var(--text-muted)"
+              >
+                {formatValue(tick)}
+              </text>
+            </g>
+          );
+        })}
+        {data.map(({ label, value }, index) => {
+          const endY = valueY(value);
+          const barHeight = Math.abs(zeroY - endY);
+          const x =
+            padding.left + index * slotWidth + (slotWidth - barWidth) / 2;
+          const showLabel =
+            index % labelStep === 0 || index === data.length - 1;
+          return (
+            <g key={`${label}-${index}`}>
+              <rect
+                x={x}
+                y={Math.min(zeroY, endY)}
+                width={barWidth}
+                height={barHeight}
+                rx="4"
+                fill={color}
+              >
+                <title>{`${label}: ${formatValue(value)}`}</title>
+              </rect>
+              {showLabel && (
+                <text
+                  x={padding.left + index * slotWidth + slotWidth / 2}
+                  y={height - 11}
+                  textAnchor="middle"
+                  fontSize="10"
+                  fill="var(--text-muted)"
+                >
+                  {label}
+                </text>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
 
-  useEffect(() => {
-    let active = true;
-    setFinancialReportLoading(true);
-    setFinancialReportError(null);
-    setDailyFinancialReport(null);
+function GroupedBarChart({
+  months,
+  series,
+}: {
+  months: GrowthMonth[];
+  series: GrowthSeries[];
+}) {
+  if (months.length === 0 || series.length === 0) {
+    return (
+      <div className="dashboard-chart-empty">
+        Registration history is not available.
+      </div>
+    );
+  }
 
-    adminApi
-      .getDailyFinancialReport(
-        selectedFinancialDate,
-        selectedFinancialCompany?.entityId,
-        selectedFinancialCompany?.companyType,
-      )
-      .then((report) => {
-        if (active) setDailyFinancialReport(report);
-      })
-      .catch(() => {
-        if (active) setFinancialReportError('Could not load financial metrics for this date. Please try again.');
-      })
-      .finally(() => {
-        if (active) setFinancialReportLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [selectedFinancialDate, selectedFinancialCompany]);
+  const width = 720;
+  const height = 240;
+  const padding = { top: 16, right: 12, bottom: 36, left: 42 };
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
+  const maxValue = Math.max(
+    1,
+    ...series.flatMap(({ values }) => values.map((value) => value)),
+  );
+  const slotWidth = chartWidth / months.length;
+  const barWidth = Math.max(
+    4,
+    Math.min(20, (slotWidth * 0.72) / series.length),
+  );
 
   return (
-    <div className="admin-page">
-      {/* ─────────────────────────────────────────────────────────────
-       * 1. Production-Grade Executive KPI Header Bar & Financial Strip
-       * ───────────────────────────────────────────────────────────── */}
-      <div className="module-bar" style={{ padding: '0.88rem 1.15rem 0.82rem', marginTop: '0.15rem' }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: '1.08rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.015em' }}>
-            Financial Metrics
-          </h2>
-          <p style={{ margin: '0.2rem 0 0', fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
-            Selected India business date · INR
-          </p>
-        </div>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.75rem',
-            flexWrap: 'wrap',
-          }}
-        >
-          <CompanyFilterDropdown
-            companies={financialCompanies}
-            selectedCompanyId={selectedFinancialCompany?.id ?? null}
-            onChange={setSelectedFinancialCompany}
-            loading={financialCompaniesLoading}
-          />
-          <label
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              color: 'var(--text-secondary)',
-              fontSize: '0.78rem',
-              fontWeight: 600,
-            }}
-          >
-            <span>Select date</span>
-            <input
-              aria-label="Financial metrics date"
-              type="date"
-              value={selectedFinancialDate}
-              max={getIndiaDateInputValue()}
-              onChange={(event) => {
-                if (event.target.value) setSelectedFinancialDate(event.target.value);
-              }}
-              className="form-input"
-              style={{
-                width: 'auto',
-                padding: '0.36rem 0.65rem',
-                fontSize: '0.78rem',
-              }}
-            />
-          </label>
-        </div>
-      </div>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
-          gap: '0.85rem',
-        }}
+    <div className="dashboard-chart-scroll">
+      <svg
+        className="dashboard-chart-svg"
+        viewBox={`0 0 ${width} ${height}`}
+        role="img"
+        aria-label="Monthly registrations for corporate clients, vendors, drivers, and employees"
+        style={{ minWidth: 520 }}
       >
-        {/* KPI 1: Gross Booking Value (GMV) */}
-        <div
-          className="stat-card"
-          style={{
-            borderTop: '2px solid var(--brand-primary)',
-            gap: '0.55rem',
-            order: 1,
-          }}
-        >
-          <div>
-            <div style={{ marginBottom: '0.35rem' }}>
-              <span style={{ fontSize: '0.74rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                Gross Merchandise Value
-              </span>
-            </div>
-            <div style={{ fontSize: '1.375rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1.2, fontVariantNumeric: 'tabular-nums' }}>
-              {financialReportLoading ? '…' : dailyFinancialReport ? `₹ ${dailyFinancialReport.grossBookingValue.toLocaleString('en-IN')}` : '—'}
-            </div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.22rem' }}>
-              Captured payment value on the selected date
-            </div>
-          </div>
-          <div style={{ paddingTop: '0.42rem', borderTop: '1px solid var(--border-subtle)', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-            {dailyFinancialReport ? `${dailyFinancialReport.capturedPaymentCount} captured payments` : 'Recorded payment data'}
-          </div>
-        </div>
+        {[0, maxValue / 2, maxValue].map((tick, index) => {
+          const y = padding.top + chartHeight - (tick / maxValue) * chartHeight;
+          return (
+            <g key={`growth-tick-${index}`}>
+              <line
+                x1={padding.left}
+                y1={y}
+                x2={width - padding.right}
+                y2={y}
+                stroke="var(--border-subtle)"
+                strokeDasharray={index === 0 ? undefined : "4 4"}
+              />
+              <text
+                x={padding.left - 8}
+                y={y + 4}
+                textAnchor="end"
+                fontSize="10"
+                fill="var(--text-muted)"
+              >
+                {formatCompactNumber(tick)}
+              </text>
+            </g>
+          );
+        })}
+        {months.map((month, monthIndex) => {
+          const groupWidth = barWidth * series.length;
+          const groupStart =
+            padding.left +
+            monthIndex * slotWidth +
+            (slotWidth - groupWidth) / 2;
+          return (
+            <g key={month.key}>
+              {series.map((item, seriesIndex) => {
+                const value = item.values[monthIndex] ?? 0;
+                const barHeight = (value / maxValue) * chartHeight;
+                return (
+                  <rect
+                    key={item.name}
+                    x={groupStart + seriesIndex * barWidth}
+                    y={padding.top + chartHeight - barHeight}
+                    width={Math.max(3, barWidth - 2)}
+                    height={barHeight}
+                    rx="3"
+                    fill={item.color}
+                  >
+                    <title>{`${month.label} ${item.name}: ${value}`}</title>
+                  </rect>
+                );
+              })}
+              <text
+                x={padding.left + monthIndex * slotWidth + slotWidth / 2}
+                y={height - 12}
+                textAnchor="middle"
+                fontSize="10"
+                fill="var(--text-muted)"
+              >
+                {month.label}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
 
-        {/* KPI 3: Live Escrow In Transit */}
-        <div
-          className="stat-card"
-          style={{
-            borderTop: '2px solid #0284C7',
-            gap: '0.55rem',
-            order: 4,
-          }}
-        >
-          <div>
-            <div style={{ marginBottom: '0.35rem' }}>
-              <span style={{ fontSize: '0.74rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                Active Escrow Locked
-              </span>
-            </div>
-            <div style={{ fontSize: '1.375rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1.2, fontVariantNumeric: 'tabular-nums' }}>
-              {financialReportLoading ? '…' : dailyFinancialReport ? `₹ ${dailyFinancialReport.activeEscrowHoldValue.toLocaleString('en-IN')}` : '—'}
-            </div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.22rem' }}>
-              Active pending/authorized holds opened on this date
-            </div>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: '0.42rem', borderTop: '1px solid var(--border-subtle)' }}>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-              Active holds: <strong>{dailyFinancialReport?.activeEscrowHoldCount ?? '—'} Txns</strong>
-            </span>
-          </div>
-        </div>
+function ChartLegend({ series }: { series: GrowthSeries[] }) {
+  return (
+    <div className="dashboard-chart-legend">
+      {series.map((item) => (
+        <span key={item.name} className="dashboard-chart-legend-item">
+          <span
+            className="dashboard-chart-legend-dot"
+            style={{ background: item.color }}
+          />
+          {item.name}
+        </span>
+      ))}
+    </div>
+  );
+}
 
-        {/* KPI 4: Driver Settlements Disbursed */}
-        <div
-          className="stat-card"
-          style={{
-            borderTop: '2px solid var(--color-success)',
-            gap: '0.55rem',
-            order: 2,
-          }}
-        >
-          <div>
-            <div style={{ marginBottom: '0.35rem' }}>
-              <span style={{ fontSize: '0.74rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                Driver Settlements Disbursed
+export default function DashboardPage() {
+  const { year, month } = getIndiaMonth();
+  const indiaToday = getIndiaDateInputValue();
+  const [data, setData] = useState(EMPTY_DASHBOARD_DATA);
+  const [sourceErrors, setSourceErrors] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const mountedRef = useRef(false);
+  const requestInFlightRef = useRef(false);
+
+  const loadDashboardData = useCallback(async () => {
+    if (requestInFlightRef.current) return;
+    requestInFlightRef.current = true;
+    if (mountedRef.current) setIsRefreshing(true);
+
+    const results = await Promise.allSettled([
+      adminApi.getMetrics(),
+      adminApi.getDrivers("ALL"),
+      adminApi.getVendors("ALL"),
+      adminApi.getCorporateTenants({ page: 1, limit: 100 }),
+      adminApi.getUsers({ role: "EMPLOYEE", page: 1, limit: 100 }),
+      adminApi.getUserCount({ role: "EMPLOYEE" }),
+      adminApi.getRequirements("ALL"),
+      adminApi.getFinanceDashboard({ range: "30D" }),
+      adminApi.getTripFrequencyReport(year, month),
+    ]);
+
+    if (mountedRef.current) {
+      const sourceNames = [
+        "Summary metrics",
+        "Drivers",
+        "Vendors",
+        "Corporate clients",
+        "Employees",
+        "Employee count",
+        "Requirements",
+        "Finance",
+        "Daily booking usage",
+      ];
+      setSourceErrors(
+        results.flatMap((result, index) =>
+          result.status === "rejected" ? [sourceNames[index]] : [],
+        ),
+      );
+
+      setData((current) => {
+        const corporateClients =
+          results[3].status === "fulfilled"
+            ? results[3].value.items
+            : current.corporateClients;
+        const corporateClientCount =
+          results[3].status === "fulfilled"
+            ? results[3].value.pagination.total
+            : current.corporateClientCount;
+        const employees =
+          results[4].status === "fulfilled"
+            ? results[4].value.filter(
+                (user) =>
+                  typeof user.role === "string" &&
+                  user.role.toUpperCase().includes("EMPLOYEE"),
+              )
+            : current.employees;
+
+        return {
+          metrics:
+            results[0].status === "fulfilled"
+              ? results[0].value
+              : current.metrics,
+          drivers:
+            results[1].status === "fulfilled"
+              ? results[1].value
+              : current.drivers,
+          vendors:
+            results[2].status === "fulfilled"
+              ? results[2].value
+              : current.vendors,
+          corporateClients,
+          corporateClientCount,
+          employees,
+          employeeCount:
+            results[5].status === "fulfilled"
+              ? results[5].value
+              : current.employeeCount,
+          requirements:
+            results[6].status === "fulfilled"
+              ? results[6].value
+              : current.requirements,
+          finance:
+            results[7].status === "fulfilled"
+              ? results[7].value
+              : current.finance,
+          tripReport:
+            results[8].status === "fulfilled"
+              ? results[8].value
+              : current.tripReport,
+        };
+      });
+      setLastUpdated(new Date());
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+
+    requestInFlightRef.current = false;
+  }, [year, month]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    void loadDashboardData();
+    const intervalId = window.setInterval(() => {
+      void loadDashboardData();
+    }, 60_000);
+    return () => {
+      mountedRef.current = false;
+      window.clearInterval(intervalId);
+    };
+  }, [loadDashboardData]);
+
+  const activeRequirements = useMemo(
+    () => data.requirements.filter(isActiveRequirement),
+    [data.requirements],
+  );
+  const activeRequirementsByStatus = useMemo(() => {
+    const counts = new Map<string, number>();
+    activeRequirements.forEach(({ status }) => {
+      const label = status.replaceAll("_", " ");
+      counts.set(label, (counts.get(label) ?? 0) + 1);
+    });
+    return [...counts.entries()]
+      .map(([label, value]) => ({ label, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [activeRequirements]);
+
+  const todayBookings = useMemo(() => {
+    if (!data.tripReport) return null;
+    return (
+      data.tripReport.dailyTrips.find((trip) => trip.date === indiaToday)
+        ?.count ?? 0
+    );
+  }, [data.tripReport, indiaToday]);
+
+  const dailyBookingData = useMemo(
+    () =>
+      (data.tripReport?.dailyTrips ?? [])
+        .filter((trip) => trip.date <= indiaToday)
+        .slice(-30)
+        .map((trip) => ({
+          label: trip.date.slice(-2),
+          value: trip.count,
+        })),
+    [data.tripReport, indiaToday],
+  );
+
+  const payoutRequestedData = useMemo(() => {
+    const byDate = new Map<string, number>();
+    (data.finance?.settlements ?? []).forEach((settlement) => {
+      const date = getIndiaDateKey(settlement.requestedDate);
+      if (!date) return;
+      byDate.set(
+        date,
+        (byDate.get(date) ?? 0) + Number(settlement.amount || 0),
+      );
+    });
+    return [...byDate.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-30)
+      .map(([date, value]) => ({ label: date.slice(5), value }));
+  }, [data.finance]);
+
+  const marginData = useMemo(
+    () =>
+      (data.finance?.revenueAnalytics.daily ?? [])
+        .filter((point) => point.revenue != null && point.driverEarnings != null)
+        .slice(-30)
+        .map((point) => ({
+          label: point.date?.slice(5) ?? point.label,
+          value: point.revenue - point.driverEarnings,
+        })),
+    [data.finance],
+  );
+
+  const growthMonths = useMemo(() => getRecentGrowthMonths(), []);
+  const growthSeries = useMemo<GrowthSeries[]>(() => {
+    const sources = [
+      {
+        name: "Corporate clients",
+        color: "var(--brand-secondary)",
+        records: data.corporateClients,
+      },
+      {
+        name: "Vendors",
+        color: "var(--color-info)",
+        records: data.vendors,
+      },
+      {
+        name: "Drivers",
+        color: "var(--color-success)",
+        records: data.drivers,
+      },
+      {
+        name: "Employees",
+        color: "var(--text-brand)",
+        records: data.employees,
+      },
+    ];
+
+    return sources.map(({ name, color, records }) => {
+      const values = getMonthlyRegistrations(records, growthMonths);
+      return {
+        name,
+        color,
+        values,
+        current: values.at(-1) ?? 0,
+        previous: values.at(-2) ?? 0,
+      };
+    });
+  }, [
+    data.corporateClients,
+    data.drivers,
+    data.employees,
+    data.vendors,
+    growthMonths,
+  ]);
+
+  const payoutRequestedTotal =
+    data.finance?.metrics.pendingDriverPayments ??
+    (data.finance?.settlements ?? [])
+      .filter(isPendingPayout)
+      .reduce((sum, settlement) => sum + Number(settlement.amount || 0), 0);
+  const platformMargin =
+    data.finance == null
+      ? null
+      : data.finance.metrics.totalRevenue -
+        data.finance.metrics.totalPaidToDrivers;
+  const activeRequirementTotal =
+    data.metrics?.activeRequirements ?? activeRequirements.length;
+
+  const corporateGrowthRate = (series: GrowthSeries) =>
+    series.previous > 0
+      ? ((series.current - series.previous) / series.previous) * 100
+      : null;
+
+  return (
+    <main className="admin-page dashboard-page">
+      <PageHeader
+        title="Business Dashboard"
+        subtitle="Marketplace activity, financial performance, and driver operations."
+        actions={
+          <div className="dashboard-header-actions">
+            {lastUpdated && (
+              <span className="dashboard-updated-label">
+                Updated{" "}
+                {new Intl.DateTimeFormat("en-IN", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }).format(lastUpdated)}
               </span>
-            </div>
-            <div style={{ fontSize: '1.375rem', fontWeight: 700, color: 'var(--color-success)', letterSpacing: '-0.02em', lineHeight: 1.2, fontVariantNumeric: 'tabular-nums' }}>
-              {financialReportLoading ? '…' : dailyFinancialReport ? `₹ ${dailyFinancialReport.expenditure.toLocaleString('en-IN')}` : '—'}
-            </div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.22rem' }}>
-              Settled payout value on the selected date
-            </div>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void loadDashboardData()}
+              disabled={isRefreshing}
+              leftIcon={
+                <RefreshCw
+                  size={14}
+                  className={isRefreshing ? "animate-spin" : ""}
+                />
+              }
+            >
+              {isRefreshing ? "Refreshing" : "Refresh"}
+            </Button>
           </div>
-          <div style={{ paddingTop: '0.5rem', borderTop: '1px solid var(--border-subtle)', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-            {dailyFinancialReport ? `${dailyFinancialReport.settledPayoutCount} settled payouts` : 'Recorded settlement data'}
-          </div>
+        }
+      />
+
+      {sourceErrors.length > 0 && (
+        <div className="dashboard-load-alert" role="status">
+          Some dashboard data could not be refreshed:{" "}
+          {sourceErrors.join(", ")}. Previously loaded values remain visible.
         </div>
-      </div>
-      {financialReportError && (
-        <p role="alert" style={{ margin: '-1rem 0 0', color: 'var(--color-error)', fontSize: '0.8rem' }}>
-          {financialReportError}
-        </p>
       )}
 
-      {/* ─────────────────────────────────────────────────────────────
-       * 3. Operational Pulse Metrics (Unified Reference Strip)
-       * ───────────────────────────────────────────────────────────── */}
-      <div className="kpi-strip">
-        <div className="kpi-strip-cell">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.74rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-            <ClipboardList size={14} color="var(--brand-primary)" />
-            <span>Active Requirements</span>
-          </div>
-          <div style={{ fontSize: '1.3125rem', fontWeight: 700, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
-            {metrics.activeRequirements}
-          </div>
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Live booking demands</div>
-        </div>
+      <section className="dashboard-kpi-grid" aria-label="Business summary">
+        <MetricCard
+          label="Driver payouts requested"
+          value={
+            isLoading
+              ? "…"
+              : data.finance
+                ? formatINR(payoutRequestedTotal)
+                : "—"
+          }
+          subtext="Outstanding driver withdrawal requests"
+          icon={<Wallet size={15} />}
+          accentColor="var(--brand-secondary)"
+        />
+        <MetricCard
+          label="Adhocx platform margin"
+          value={
+            isLoading
+              ? "…"
+              : platformMargin == null
+                ? "—"
+                : formatINR(platformMargin)
+          }
+          subtext="Last 30 days · revenue less driver payouts"
+          icon={<TrendingUp size={15} />}
+          accentColor="var(--color-info)"
+        />
+        <MetricCard
+          label="Active requirements"
+          value={
+            isLoading && data.metrics == null
+              ? "…"
+              : activeRequirementTotal.toLocaleString("en-IN")
+          }
+          subtext="Open and in-flight demand"
+          icon={<ClipboardList size={15} />}
+          accentColor="var(--color-success)"
+        />
+        <MetricCard
+          label="Daily cab bookings"
+          value={
+            isLoading && todayBookings == null
+              ? "…"
+              : todayBookings == null
+                ? "—"
+                : todayBookings.toLocaleString("en-IN")
+          }
+          subtext="Trips created today · India time"
+          icon={<Car size={15} />}
+          accentColor="var(--text-brand)"
+        />
+      </section>
 
-        <div className="kpi-strip-cell">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.74rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-            <Car size={14} color="#0284C7" />
-            <span>Fleet In Transit</span>
-          </div>
-          <div style={{ fontSize: '1.3125rem', fontWeight: 700, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
-            {metrics.activeTrips}
-          </div>
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Cabs currently on duty</div>
-        </div>
-
-        <div className="kpi-strip-cell">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.74rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-            <ShieldCheck size={14} color="var(--color-success)" />
-            <span>Verified Drivers</span>
-          </div>
-          <div style={{ fontSize: '1.3125rem', fontWeight: 700, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
-            {metrics.verifiedDrivers}
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}> / {metrics.totalDrivers}</span>
-          </div>
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{metrics.pendingDriversKyc} pending KYC review</div>
-        </div>
-
-        <div className="kpi-strip-cell">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.74rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-            <Building2 size={14} color="var(--brand-secondary)" />
-            <span>Corporate Vendors</span>
-          </div>
-          <div style={{ fontSize: '1.3125rem', fontWeight: 700, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
-            {metrics.totalVendors}
-          </div>
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{metrics.verifiedVendors} verified B2B clients</div>
-        </div>
-      </div>
-
-      <TripFrequencyCharts />
-
-      {/* ─────────────────────────────────────────────────────────────
-       * 4. Multi-Graph Command Center (Production Grade Charts)
-       * ───────────────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem', marginTop: '0.2rem' }}>
-        {/* Graph Selection Tabs Bar */}
-        <div className="module-bar" style={{ padding: '0.68rem 1rem' }}>
-          <div className="module-bar-title">Analytics & Telemetry</div>
-          <div className="module-bar-tabs">
-            <button
-              type="button"
-              onClick={() => setActiveChartTab('REVENUE')}
-              className={`module-tab-btn${activeChartTab === 'REVENUE' ? ' active' : ''}`}
-            >
-              <DollarSign size={14} />
-              <span>Revenue & Income</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveChartTab('ECOSYSTEM')}
-              className={`module-tab-btn${activeChartTab === 'ECOSYSTEM' ? ' active' : ''}`}
-            >
-              <Users size={14} />
-              <span>Driver & Vendor Growth</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveChartTab('FLEET')}
-              className={`module-tab-btn${activeChartTab === 'FLEET' ? ' active' : ''}`}
-            >
-              <Car size={14} />
-              <span>Fleet Category Demand</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveChartTab('CORRIDORS')}
-              className={`module-tab-btn${activeChartTab === 'CORRIDORS' ? ' active' : ''}`}
-            >
-              <MapPin size={14} />
-              <span>Corridor Intelligence</span>
-            </button>
-          </div>
-
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-            Enterprise BI Visualizer • Real-Time Engine
-          </div>
-        </div>
-
-        {/* Dynamic Chart Display based on active tab */}
-        {activeChartTab === 'REVENUE' && (
-          <RevenueIncomeChart />
-        )}
-        {activeChartTab === 'ECOSYSTEM' && (
-          <EcosystemGrowthChart
-            totalDrivers={metrics.totalDrivers}
-            totalVendors={metrics.totalVendors}
-            totalUsers={metrics.totalUsers}
-          />
-        )}
-        {activeChartTab === 'FLEET' && (
-          <FleetCategoryDistributionChart categories={(operationalReport as any)?.categoryBreakdown} />
-        )}
-        {activeChartTab === 'CORRIDORS' && (
-          <CorridorMatrixChart corridors={corridors.length > 0 ? corridors : operationalReport?.corridorAnalytics} />
-        )}
-      </div>
-
-      {/* ─────────────────────────────────────────────────────────────
-       * 5. Live Operations Dispatch Grid & Fleet Telemetry Stream
-       * ───────────────────────────────────────────────────────────── */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
-          gap: '1.15rem',
-          marginTop: '0.15rem',
-        }}
-      >
-        {/* Active Requirements Board */}
-        <div
-          className="card"
-          style={{
-            padding: '1.22rem 1.2rem 1.1rem',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.95rem',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.18rem 0' }}>
-                Live Requirements Dispatch Queue
-              </h3>
-              <p style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', margin: 0 }}>
-                Active direct dispatch and corporate transport requests
-              </p>
-            </div>
-            <a
-              href={`${opsBaseUrl || 'http://localhost:7004'}/requirements`}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                fontSize: '0.78rem',
-                fontWeight: 700,
-                color: 'var(--brand-primary)',
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.25rem',
-              }}
-            >
-              <span>View All</span>
-              <ArrowRight size={14} />
-            </a>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {recentRequirements.length > 0 ? (
-              recentRequirements.map((req) => (
-                <div
-                  key={req.id}
-                  style={{
-                    padding: '0.85rem 1rem',
-                    borderRadius: 'var(--radius-lg)',
-                    background: 'var(--bg-canvas)',
-                    border: '1px solid var(--border-subtle)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '0.75rem',
-                    transition: 'border-color 0.15s ease',
-                  }}
-                >
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span style={{ fontWeight: 800, fontSize: '0.84rem', color: 'var(--text-primary)' }}>
-                        {req.vendorName}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: '0.6875rem',
-                          fontWeight: 700,
-                          padding: '0.1rem 0.45rem',
-                          borderRadius: 'var(--radius-sm)',
-                          background: 'var(--brand-primary-subtle)',
-                          color: 'var(--brand-primary)',
-                        }}
-                      >
-                        {req.vehicleType}
-                      </span>
-                    </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                      <MapPin size={12} color="var(--text-muted)" />
-                      <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {req.pickupAddress} ➔ {req.dropAddress}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem', flexShrink: 0 }}>
-                    <span style={{ fontWeight: 800, fontSize: '0.875rem', color: 'var(--text-primary)' }}>
-                      ₹ {Number(req.vendorRate || req.suggestedBudget || 0).toLocaleString('en-IN')}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: '0.6875rem',
-                        fontWeight: 700,
-                        padding: '0.15rem 0.45rem',
-                        borderRadius: 'var(--radius-pill)',
-                        background: req.status === 'FULFILLED' ? 'var(--color-success-bg)' : 'var(--brand-orange-subtle)',
-                        color: req.status === 'FULFILLED' ? 'var(--color-success)' : 'var(--brand-secondary)',
-                      }}
-                    >
-                      {req.status}
-                    </span>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div
-                style={{
-                  padding: '2rem',
-                  textAlign: 'center',
-                  background: 'var(--bg-canvas)',
-                  borderRadius: 'var(--radius-lg)',
-                  color: 'var(--text-muted)',
-                  fontSize: '0.85rem',
-                }}
-              >
-                No active requirements in dispatch queue.
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* SLA & Governance Radar */}
-        <div
-          className="card"
-          style={{
-            padding: '1.22rem 1.2rem 1.1rem',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.95rem',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.18rem 0' }}>
-                Operational SLA Performance Radar
-              </h3>
-              <p style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', margin: 0 }}>
-                Enterprise contract commitments and compliance adherence
-              </p>
-            </div>
-            <span
-              style={{
-                fontSize: '0.72rem',
-                fontWeight: 800,
-                color: 'var(--color-success)',
-                background: 'var(--color-success-bg)',
-                padding: '0.2rem 0.6rem',
-                borderRadius: 'var(--radius-pill)',
-                border: '1px solid var(--color-success-border)',
-              }}
-            >
-              {metrics.completedTrips > 0 ? '100% HEALTHY' : 'OPERATIONAL'}
-            </span>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-            {(operationalReport?.slaHealth && operationalReport.slaHealth.length > 0
-              ? operationalReport.slaHealth
-              : [
-                  {
-                    metric: 'On-Time Pickup Reliability',
-                    value: 'N/A',
-                    sla: 'Threshold: 92.0%',
-                    desc: 'Vehicle arrives within ±10 mins of scheduled time',
-                  },
-                  {
-                    metric: 'Driver No-Show Guarantee',
-                    value: '0.0%',
-                    sla: 'Threshold: < 1.5%',
-                    desc: 'Automatic backup driver reassignment triggered',
-                  },
-                  {
-                    metric: 'KYC Document Verification SLA',
-                    value: 'N/A',
-                    sla: 'Threshold: < 6.0 Hours',
-                    desc: 'Average turnaround from driver doc upload to approval',
-                  },
-                  {
-                    metric: 'Bank Settlement Payout Cycle',
-                    value: 'N/A',
-                    sla: 'Threshold: < 24.0 Hours',
-                    desc: 'Average time from withdrawal request to UTR dispatch',
-                  },
-                ]
-            ).map((sla, idx) => (
-              <div
-                key={idx}
-                style={{
-                  padding: '0.85rem 1rem',
-                  borderRadius: 'var(--radius-lg)',
-                  background: 'var(--bg-canvas)',
-                  border: '1px solid var(--border-subtle)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '0.75rem',
-                }}
-              >
-                <div>
-                  <div style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                    {sla.metric}
-                  </div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                    {sla.desc}
-                  </div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '1rem', fontWeight: 700, color: sla.value !== 'N/A' ? 'var(--color-success)' : 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
-                    {sla.value}
-                  </div>
-                  <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                    {sla.sla}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ─────────────────────────────────────────────────────────────
-       * 6. Live Audit & Governance Event Stream
-       * ───────────────────────────────────────────────────────────── */}
-      <div
-        className="card"
-        style={{
-          padding: 0,
-          overflow: 'hidden',
-          marginTop: '0.15rem',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '1.08rem 1.2rem 0.95rem',
-            borderBottom: '1px solid var(--border)',
-          }}
-        >
+      <section className="dashboard-entity-section" aria-label="Registered accounts">
+        <div className="dashboard-section-heading">
           <div>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.18rem 0' }}>
-              Security, Financial & Administrative Audit Stream
-            </h3>
-            <p style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', margin: 0 }}>
-              Immutable system ledger logs across KYC, settlements, and contracts
+            <h2 className="dashboard-section-title">Registered accounts</h2>
+          </div>
+        </div>
+
+        <div className="dashboard-account-grid">
+          {[
+            {
+              title: "Total Drivers",
+              count: data.metrics?.totalDrivers,
+              icon: <Car size={18} strokeWidth={1.8} />,
+              type: "drivers",
+            },
+            {
+              title: "Total Vendors",
+              count: data.metrics?.totalVendors,
+              icon: <Store size={18} strokeWidth={1.8} />,
+              type: "vendors",
+            },
+            {
+              title: "Total Corporate Clients",
+              count: data.corporateClientCount,
+              icon: <Building2 size={18} strokeWidth={1.8} />,
+              type: "clients",
+            },
+            {
+              title: "Total Employees",
+              count: data.employeeCount,
+              icon: <Users size={18} strokeWidth={1.8} />,
+              type: "employees",
+            },
+          ].map(({ title, count, icon, type }) => (
+            <article
+              className={`dashboard-account-card dashboard-account-card--${type}`}
+              key={title}
+            >
+              <div className="dashboard-account-card-heading">
+                <h3>{title}</h3>
+                <span className="dashboard-account-card-icon" aria-hidden="true">
+                  {icon}
+                </span>
+              </div>
+              <p className="dashboard-account-card-value">
+                {count == null
+                  ? isLoading
+                    ? "…"
+                    : "—"
+                  : count.toLocaleString("en-IN")}
+              </p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="dashboard-analytics-section">
+        <div className="dashboard-section-heading">
+          <div>
+            <h2 className="dashboard-section-title">Analytics &amp; trends</h2>
+            <p className="dashboard-section-subtitle">
+              Current-month booking usage and 30-day financial activity.
             </p>
           </div>
-          <Link
-            href="/audit"
-            style={{
-              fontSize: '0.78rem',
-              fontWeight: 600,
-              color: 'var(--brand-primary)',
-              textDecoration: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.25rem',
-            }}
-          >
-            <span>Full Audit Trail</span>
-            <ArrowRight size={14} />
-          </Link>
+          <span className="dashboard-period-label">
+            <Activity size={14} />
+            Live operational data
+          </span>
         </div>
 
-        <div style={{ overflowX: 'auto' }}>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Timestamp</th>
-                <th>Action</th>
-                <th>Entity</th>
-                <th>Actor</th>
-                <th style={{ textAlign: 'right' }}>Integrity</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentLogs.length > 0 ? (
-                recentLogs.map((log) => (
-                  <tr key={log.id}>
-                    <td style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                      {new Date(log.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
-                    </td>
-                    <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {log.action}
-                    </td>
-                    <td>
-                      <span className="code-tag">
-                        {log.entityType} ({log.entityId ? log.entityId.slice(0, 8) + '...' : 'SYSTEM'})
-                      </span>
-                    </td>
-                    <td style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>
-                      {log.actor?.phone || log.actor?.role || 'SYSTEM_DAEMON'}
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <span className="badge badge-success">
-                        <ShieldCheck size={12} />
-                        <span>Verified</span>
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={5} style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                    System operating nominally. All events ledgered.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+        <div className="dashboard-chart-grid">
+          <ChartCard
+            title="Daily cab booking usage"
+            subtitle="Bookings created each day this month"
+            action={<Car size={16} className="text-muted" />}
+          >
+            <BarChart data={dailyBookingData} color="var(--brand-secondary)" />
+          </ChartCard>
+
+          <ChartCard
+            title="Driver payouts requested"
+            subtitle="Requested payout amount by day · last 30 days"
+            action={<Wallet size={16} className="text-muted" />}
+          >
+            <BarChart
+              data={payoutRequestedData}
+              color="var(--color-info)"
+              currency
+            />
+          </ChartCard>
+
+          <ChartCard
+            title="Adhocx platform margin"
+            subtitle="Daily revenue less driver earnings · last 30 days"
+            action={<TrendingUp size={16} className="text-muted" />}
+          >
+            <BarChart data={marginData} color="var(--color-success)" currency />
+          </ChartCard>
+
+          <ChartCard
+            title="Active requirements"
+            subtitle="Currently open or in-flight requirements by status"
+            action={<ClipboardList size={16} className="text-muted" />}
+          >
+            <BarChart
+              data={activeRequirementsByStatus}
+              color="var(--text-brand)"
+            />
+          </ChartCard>
+
+          <ChartCard
+            title="User growth rate"
+            subtitle="Monthly registrations from available records; current month is to date"
+            action={<Users size={16} className="text-muted" />}
+          >
+            <GroupedBarChart months={growthMonths} series={growthSeries} />
+            <ChartLegend series={growthSeries} />
+            <div className="dashboard-growth-summary">
+              {growthSeries.map((series) => {
+                const rate = corporateGrowthRate(series);
+                return (
+                  <div key={series.name} className="dashboard-growth-item">
+                    <span>{series.name}</span>
+                    <strong>
+                      {series.current.toLocaleString("en-IN")} this month
+                    </strong>
+                    <small>
+                      {rate == null
+                        ? series.current > 0
+                          ? "New registrations"
+                          : "No prior-month baseline"
+                        : `${rate >= 0 ? "+" : ""}${rate.toFixed(1)}% vs. last month`}
+                    </small>
+                  </div>
+                );
+              })}
+            </div>
+          </ChartCard>
         </div>
-      </div>
-    </div>
+      </section>
+
+      <footer className="dashboard-footer-note">
+        <Building2 size={14} />
+        Platform margin is calculated as reported revenue minus driver payouts.
+        {lastUpdated
+          ? ` Last refreshed ${new Intl.DateTimeFormat("en-IN", {
+              dateStyle: "medium",
+              timeStyle: "short",
+            }).format(lastUpdated)}.`
+          : " Data refreshes automatically every minute."}
+      </footer>
+    </main>
   );
 }

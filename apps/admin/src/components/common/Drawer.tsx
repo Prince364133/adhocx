@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import React, { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
-import { acquireScrollLock } from './scrollLock';
+import React, { useEffect, useState } from "react";
+import { X } from "lucide-react";
+import { acquireScrollLock } from "./scrollLock";
 
 export interface DrawerProps {
   isOpen: boolean;
@@ -26,7 +26,7 @@ export const Drawer: React.FC<DrawerProps> = ({
   subtitle,
   children,
   footer,
-  width = '560px',
+  width = "560px",
   icon,
   badge,
   closeOnBackdrop = true,
@@ -53,12 +53,12 @@ export const Drawer: React.FC<DrawerProps> = ({
   useEffect(() => {
     if (!isOpen) return;
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === "Escape") onClose();
     };
-    document.addEventListener('keydown', handleEsc);
+    document.addEventListener("keydown", handleEsc);
     const releaseScroll = acquireScrollLock();
     return () => {
-      document.removeEventListener('keydown', handleEsc);
+      document.removeEventListener("keydown", handleEsc);
       releaseScroll();
     };
   }, [isOpen, onClose]);
@@ -67,7 +67,7 @@ export const Drawer: React.FC<DrawerProps> = ({
 
   return (
     <div
-      className={`drawer-overlay${closing ? ' is-closing' : ''}`}
+      className={`drawer-overlay${closing ? " is-closing" : ""}`}
       onClick={() => {
         if (closeOnBackdrop) onClose();
       }}
@@ -76,39 +76,28 @@ export const Drawer: React.FC<DrawerProps> = ({
       aria-label={title}
     >
       <div
-        className={`drawer-content${closing ? ' is-closing' : ''}`}
+        className={`drawer-content${closing ? " is-closing" : ""}`}
         style={{ maxWidth: `min(100vw, ${width})` }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="drawer-header">
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem', minWidth: 0, flex: 1 }}>
+          <div
+            className="flex items-start min-w-0 flex-1"
+            style={{ gap: "0.65rem" }}
+          >
             {icon && (
               <div
-                style={{
-                  width: '34px',
-                  height: '34px',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'var(--brand-primary-subtle)',
-                  color: 'var(--brand-primary)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}
+                className="rounded-md bg-brand-subtle text-brand inline-flex items-center justify-center flex-shrink-0"
+                style={{ width: "34px", height: "34px" }}
               >
                 {icon}
               </div>
             )}
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h2
-                  style={{
-                    fontSize: '1.125rem',
-                    fontWeight: 700,
-                    color: 'var(--text-primary)',
-                    margin: 0,
-                    lineHeight: 1.3,
-                  }}
+                  className="text-xl font-bold text-primary m-0"
+                  style={{ lineHeight: 1.3 }}
                 >
                   {title}
                 </h2>
@@ -116,12 +105,8 @@ export const Drawer: React.FC<DrawerProps> = ({
               </div>
               {subtitle && (
                 <p
-                  style={{
-                    fontSize: '0.78rem',
-                    color: 'var(--text-secondary)',
-                    margin: '0.2rem 0 0',
-                    lineHeight: 1.35,
-                  }}
+                  className="text-compact text-secondary"
+                  style={{ margin: "0.2rem 0 0", lineHeight: 1.35 }}
                 >
                   {subtitle}
                 </p>
@@ -133,27 +118,7 @@ export const Drawer: React.FC<DrawerProps> = ({
             type="button"
             onClick={onClose}
             aria-label="Close drawer"
-            style={{
-              background: 'var(--bg-card-elevated)',
-              border: '1px solid var(--border)',
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-              padding: '0.375rem',
-              borderRadius: 'var(--radius-md)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'all 0.15s ease',
-              flexShrink: 0,
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = 'var(--text-primary)';
-              e.currentTarget.style.backgroundColor = 'var(--bg-surface-hover)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = 'var(--text-secondary)';
-              e.currentTarget.style.backgroundColor = 'var(--bg-card-elevated)';
-            }}
+            className="drawer-close-btn"
           >
             <X size={16} />
           </button>

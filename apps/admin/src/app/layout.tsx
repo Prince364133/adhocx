@@ -1,16 +1,17 @@
-import type { Metadata } from 'next';
-import './globals.css';
-import { AdminShell } from '../components/AdminShell';
+import type { Metadata } from "next";
+import "../styles/style.css";
+import "./globals.css";
+import { AdminShell } from "../components/AdminShell";
 
 export const metadata: Metadata = {
-  title: 'AdhocX Control Portal',
-  description: 'Operations, Compliance and Financial Management for AdhocX',
+  title: "AdhocX Control Portal",
+  description: "Operations, Compliance and Financial Management for AdhocX",
   icons: {
     icon: [
-      { url: '/favicon.svg', type: 'image/svg+xml' },
-      { url: '/favicon.png', type: 'image/png' },
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.png", type: "image/png" },
     ],
-    apple: '/adhocx_icon.png',
+    apple: "/adhocx_icon.png",
   },
 };
 

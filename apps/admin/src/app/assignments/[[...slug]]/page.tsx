@@ -1,8 +1,12 @@
-'use client';
+"use client";
 
-import { OpsModuleRedirect } from '../../../components/common/OpsModuleRedirect';
+import { OpsModuleRedirect } from "../../../components/common/OpsModuleRedirect";
 
 export default function AssignmentsRedirectPage() {
-  return <OpsModuleRedirect opsPath="/assignments" moduleTitle="Assignment Operations" />;
+  return (
+    <OpsModuleRedirect
+      opsPath="/assignments"
+      moduleTitle="Assignment Operations"
+    />
+  );
 }
-

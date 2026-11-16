@@ -663,6 +663,52 @@ export const adminApi = {
     }));
   },
 
+  getUserCount: async (params?: { role?: string }): Promise<number> => {
+    const limit = 100;
+    type UserPage =
+      | UserListItem[]
+      | {
+          items: UserListItem[];
+          pagination?: { total?: number };
+          meta?: { total?: number };
+        };
+    const getPage = (page: number) => {
+      const queryParams = new URLSearchParams({
+        page: String(page),
+        limit: String(limit),
+      });
+      if (params?.role) queryParams.set('role', params.role);
+      return apiClient<UserPage>(`/admin/users?${queryParams.toString()}`);
+    };
+    const getItems = (response: UserPage): UserListItem[] => {
+      if (Array.isArray(response)) return response;
+      if (response && Array.isArray(response.items)) return response.items;
+      throw new Error('The users API returned an unsupported response.');
+    };
+
+    const firstPage = await getPage(1);
+    const total = Array.isArray(firstPage)
+      ? undefined
+      : firstPage.pagination?.total ?? firstPage.meta?.total;
+    if (typeof total === 'number' && Number.isFinite(total)) return total;
+
+    const seenIds = new Set<string>();
+    let items = getItems(firstPage);
+    let page = 1;
+    items.forEach((user) => seenIds.add(user.id));
+    while (items.length >= limit) {
+      page += 1;
+      const nextPage = await getPage(page);
+      const nextItems = getItems(nextPage);
+      const previousSize = seenIds.size;
+      nextItems.forEach((user) => seenIds.add(user.id));
+      if (seenIds.size === previousSize) break;
+      items = nextItems;
+    }
+
+    return seenIds.size;
+  },
+
   getUserDetails: async (id: string): Promise<UserProfileDetail> => {
     try {
       const res = await apiClient<any>(`/admin/users/${id}`);

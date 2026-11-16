@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import React from 'react';
+import React from "react";
 
 export interface SegmentedTabItem<T extends string = string> {
   id: T;
@@ -32,10 +32,13 @@ export function SegmentedTabs<T extends string = string>({
   return (
     <div className="module-bar" style={style}>
       {(title || subtitle) && (
-        <div style={{ minWidth: 0 }}>
+        <div className="min-w-0">
           {title && <div className="module-bar-title">{title}</div>}
           {subtitle && (
-            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
+            <div
+              className="text-control text-muted"
+              style={{ marginTop: "0.1rem" }}
+            >
               {subtitle}
             </div>
           )}
@@ -44,7 +47,10 @@ export function SegmentedTabs<T extends string = string>({
 
       <div
         className="module-bar-tabs"
-        style={{ marginLeft: !title && !subtitle ? 0 : 'auto', flex: !title && !subtitle ? 1 : undefined }}
+        style={{
+          marginLeft: !title && !subtitle ? 0 : "auto",
+          flex: !title && !subtitle ? 1 : undefined,
+        }}
       >
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
@@ -54,19 +60,21 @@ export function SegmentedTabs<T extends string = string>({
               type="button"
               onClick={() => onChange(tab.id)}
               aria-pressed={isActive}
-              className={`module-tab-btn${isActive ? ' active' : ''}`}
+              className={`module-tab-btn${isActive ? " active" : ""}`}
             >
-              {tab.icon && <span style={{ display: 'inline-flex', alignItems: 'center' }}>{tab.icon}</span>}
+              {tab.icon && (
+                <span className="inline-flex items-center">{tab.icon}</span>
+              )}
               <span>{tab.label}</span>
               {tab.count !== undefined && (
                 <span
+                  className="text-caption font-bold rounded-full"
                   style={{
-                    fontSize: '0.7rem',
-                    fontWeight: 700,
-                    padding: '0.05rem 0.42rem',
-                    borderRadius: 'var(--radius-pill)',
-                    background: isActive ? 'rgba(255, 255, 255, 0.22)' : 'var(--bg-surface-elevated)',
-                    color: isActive ? '#ffffff' : 'var(--text-secondary)',
+                    padding: "0.05rem 0.42rem",
+                    background: isActive
+                      ? "rgba(255, 255, 255, 0.22)"
+                      : "var(--bg-surface-elevated)",
+                    color: isActive ? "#ffffff" : "var(--text-secondary)",
                   }}
                 >
                   {tab.count}
@@ -74,13 +82,14 @@ export function SegmentedTabs<T extends string = string>({
               )}
               {tab.badge && (
                 <span
+                  className="font-bold rounded-full"
                   style={{
-                    fontSize: '0.65rem',
-                    fontWeight: 700,
-                    padding: '0.05rem 0.35rem',
-                    borderRadius: 'var(--radius-pill)',
-                    background: isActive ? 'rgba(255, 255, 255, 0.22)' : 'var(--brand-primary-subtle)',
-                    color: isActive ? '#ffffff' : 'var(--brand-primary)',
+                    fontSize: "0.65rem",
+                    padding: "0.05rem 0.35rem",
+                    background: isActive
+                      ? "rgba(255, 255, 255, 0.22)"
+                      : "var(--brand-primary-subtle)",
+                    color: isActive ? "#ffffff" : "var(--text-brand)",
                   }}
                 >
                   {tab.badge}
@@ -94,4 +103,3 @@ export function SegmentedTabs<T extends string = string>({
     </div>
   );
 }
-

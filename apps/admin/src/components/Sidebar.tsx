@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import React from 'react';
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import React from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LucideIcon,
   LayoutDashboard,
@@ -24,10 +24,10 @@ import {
   ExternalLink,
   Building2,
   Sliders,
-} from 'lucide-react';
-import { AdhocxBrandLogo } from './AdhocxBrandLogo';
-import { ConfirmDialog } from './common/ConfirmDialog';
-import { adminApi, getStoredAdminUser } from '../lib/api/client';
+} from "lucide-react";
+import { AdhocxBrandLogo } from "./AdhocxBrandLogo";
+import { ConfirmDialog } from "./common/ConfirmDialog";
+import { adminApi, getStoredAdminUser } from "../lib/api/client";
 
 interface NavSection {
   title?: string;
@@ -41,43 +41,50 @@ interface NavSection {
 
 const navSections: NavSection[] = [
   {
+    items: [{ href: "/dashboard", label: "Dashboard", icon: LayoutDashboard }],
+  },
+  {
+    title: "MARKETPLACE",
     items: [
-      { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { href: "/companies", label: "Companies", icon: Building2 },
+      {
+        href: "/verifications",
+        label: "Verification Center",
+        icon: ShieldCheck,
+      },
+      { href: "/drivers", label: "Driver Fleet", icon: Car },
+      { href: "/users", label: "Users & Vendors", icon: Users },
     ],
   },
   {
-    title: 'MARKETPLACE',
+    title: "FINANCE & BILLING",
     items: [
-      { href: '/companies', label: 'Companies', icon: Building2 },
-      { href: '/verifications', label: 'Verification Center', icon: ShieldCheck },
-      { href: '/drivers', label: 'Driver Fleet', icon: Car },
-      { href: '/users', label: 'Users & Vendors', icon: Users },
+      { href: "/settlements", label: "Settlements", icon: CreditCard },
+      { href: "/payments", label: "Payments & Escrow", icon: Wallet },
+      { href: "/pricing", label: "Pricing & Tariffs", icon: Tag },
     ],
   },
   {
-    title: 'FINANCE & BILLING',
+    title: "GROWTH & SUPPORT",
     items: [
-      { href: '/settlements', label: 'Settlements', icon: CreditCard },
-      { href: '/payments', label: 'Payments & Escrow', icon: Wallet },
-      { href: '/pricing', label: 'Pricing & Tariffs', icon: Tag },
+      { href: "/support", label: "Support & Helpdesk", icon: Headphones },
+      { href: "/disputes", label: "Disputes & Claims", icon: Scale },
+      {
+        href: "/notifications",
+        label: "Push Notifications",
+        icon: BellRing,
+        badge: "FCM",
+      },
+      { href: "/coupons", label: "Coupons & Promos", icon: Ticket },
+      { href: "/blogs", label: "Blog & Content", icon: Newspaper },
     ],
   },
   {
-    title: 'GROWTH & SUPPORT',
+    title: "GOVERNANCE",
     items: [
-      { href: '/support', label: 'Support & Helpdesk', icon: Headphones },
-      { href: '/disputes', label: 'Disputes & Claims', icon: Scale },
-      { href: '/notifications', label: 'Push Notifications', icon: BellRing, badge: 'FCM' },
-      { href: '/coupons', label: 'Coupons & Promos', icon: Ticket },
-      { href: '/blogs', label: 'Blog & Content', icon: Newspaper },
-    ],
-  },
-  {
-    title: 'GOVERNANCE',
-    items: [
-      { href: '/feature-flags', label: 'Feature Flags', icon: Sliders },
-      { href: '/finance', label: 'Finance', icon: WalletCards },
-      { href: '/audit', label: 'Audit Logs', icon: FileText },
+      { href: "/feature-flags", label: "Feature Flags", icon: Sliders },
+      { href: "/finance", label: "Finance", icon: WalletCards },
+      { href: "/audit", label: "Audit Logs", icon: FileText },
     ],
   },
 ];
@@ -102,45 +109,41 @@ export const Sidebar: React.FC = () => {
     try {
       await adminApi.logoutAdmin();
     } finally {
-      router.replace('/login');
+      router.replace("/login");
     }
   };
 
   return (
     <aside
-      className={`admin-sidebar ${isHovered ? 'is-expanded' : ''}`}
+      className={`admin-sidebar ${isHovered ? "is-expanded" : ""}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100vh',
-        width: isHovered ? '240px' : '64px',
-        transition: 'width 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease',
+        display: "flex",
+        flexDirection: "column",
+        height: "100vh",
+        width: isHovered ? "240px" : "64px",
+        transition:
+          "width 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease",
         boxShadow: isHovered
-          ? '10px 0 36px rgba(0, 0, 0, 0.16), 0 0 0 1px var(--border)'
-          : 'var(--shadow-sm)',
-        overflowX: 'hidden',
+          ? "10px 0 36px rgba(0, 0, 0, 0.16), 0 0 0 1px var(--border)"
+          : "var(--shadow-sm)",
+        overflowX: "hidden",
       }}
     >
       {/* Brand Header */}
       <div
+        className="border-b bg-surface flex items-center box-border overflow-hidden"
         style={{
-          padding: isHovered ? '0.85rem 1.15rem' : '0.85rem 0',
-          borderBottom: '1px solid var(--border)',
-          background: 'var(--bg-surface)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: isHovered ? 'flex-start' : 'center',
-          minHeight: '50px',
-          boxSizing: 'border-box',
-          overflow: 'hidden',
+          padding: isHovered ? "0.85rem 1.15rem" : "0.85rem 0",
+          justifyContent: isHovered ? "flex-start" : "center",
+          minHeight: "50px",
         }}
       >
         {isHovered ? (
           <AdhocxBrandLogo size={26} subtitle="Control Portal" />
         ) : (
-          <div style={{ transform: 'scale(0.92)' }}>
+          <div style={{ transform: "scale(0.92)" }}>
             <AdhocxBrandLogo variant="icon" size={28} />
           </div>
         )}
@@ -148,120 +151,105 @@ export const Sidebar: React.FC = () => {
 
       {/* Navigation Items */}
       <nav
+        className="flex flex-col flex-1 overflow-y-auto"
         style={{
-          padding: isHovered ? '1rem 0.75rem' : '1rem 0.5rem',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: isHovered ? '1.25rem' : '0.85rem',
-          flex: 1,
-          overflowY: 'auto',
-          overflowX: 'hidden',
+          padding: isHovered ? "1rem 0.75rem" : "1rem 0.5rem",
+          gap: isHovered ? "1.25rem" : "0.85rem",
+          overflowX: "hidden",
         }}
       >
         {navSections.map((sec, sIdx) => (
           <div key={sIdx}>
-            {sec.title && (
-              isHovered ? (
+            {sec.title &&
+              (isHovered ? (
                 <div
-                  style={{
-                    fontSize: '0.6875rem',
-                    fontWeight: 700,
-                    color: 'var(--text-muted)',
-                    letterSpacing: '0.08em',
-                    padding: '0 0.75rem',
-                    marginBottom: '0.4rem',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
+                  className="text-xs font-bold text-muted py-0 px-3 mb-compact whitespace-nowrap overflow-hidden text-ellipsis"
+                  style={{ letterSpacing: "0.08em" }}
                 >
                   {sec.title}
                 </div>
               ) : (
                 <div
                   style={{
-                    height: '1px',
-                    background: 'var(--border)',
-                    margin: '0.4rem 0.5rem',
+                    height: "1px",
+                    background: "var(--border)",
+                    margin: "0.4rem 0.5rem",
                     opacity: 0.6,
                   }}
                 />
-              )
-            )}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              ))}
+            <div className="flex flex-col gap-1">
               {sec.items.map((item) => {
                 const isActive =
                   pathname === item.href ||
-                  (item.href !== '/dashboard' && pathname.startsWith(item.href));
+                  (item.href !== "/dashboard" &&
+                    pathname.startsWith(item.href));
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
                     title={item.label}
                     style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: isHovered ? 'space-between' : 'center',
-                      padding: isHovered ? '0.46rem 0.68rem' : '0.48rem 0',
-                      borderRadius: 'var(--radius-md)',
-                      fontSize: '0.79rem',
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: isHovered ? "space-between" : "center",
+                      padding: isHovered ? "0.46rem 0.68rem" : "0.48rem 0",
+                      borderRadius: "var(--radius-md)",
+                      fontSize: "0.79rem",
                       fontWeight: isActive ? 700 : 500,
-                      color: isActive ? '#ffffff' : 'var(--text-secondary)',
-                      backgroundColor: isActive ? 'var(--brand-primary)' : 'transparent',
-                      boxShadow: isActive ? 'var(--shadow-glow-purple)' : 'none',
-                      transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
-                      textDecoration: 'none',
-                      width: isHovered ? '100%' : '38px',
-                      margin: isHovered ? '0' : '0 auto',
-                      boxSizing: 'border-box',
+                      color: isActive ? "#ffffff" : "var(--text-secondary)",
+                      backgroundColor: isActive
+                        ? "var(--brand-primary)"
+                        : "transparent",
+                      boxShadow: isActive
+                        ? "var(--shadow-glow-purple)"
+                        : "none",
+                      transition: "all 0.18s cubic-bezier(0.16, 1, 0.3, 1)",
+                      textDecoration: "none",
+                      width: isHovered ? "100%" : "38px",
+                      margin: isHovered ? "0" : "0 auto",
+                      boxSizing: "border-box",
                     }}
                     onMouseEnter={(e) => {
                       if (!isActive) {
-                        e.currentTarget.style.backgroundColor = 'var(--bg-surface-elevated)';
-                        e.currentTarget.style.color = 'var(--text-primary)';
-                        if (isHovered) e.currentTarget.style.transform = 'translateX(2px)';
+                        e.currentTarget.style.backgroundColor =
+                          "var(--bg-surface-elevated)";
+                        e.currentTarget.style.color = "var(--text-primary)";
+                        if (isHovered)
+                          e.currentTarget.style.transform = "translateX(2px)";
                       }
                     }}
                     onMouseLeave={(e) => {
                       if (!isActive) {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                        e.currentTarget.style.color = 'var(--text-secondary)';
-                        e.currentTarget.style.transform = 'translateX(0)';
+                        e.currentTarget.style.backgroundColor = "transparent";
+                        e.currentTarget.style.color = "var(--text-secondary)";
+                        e.currentTarget.style.transform = "translateX(0)";
                       }
                     }}
                   >
                     <div
+                      className="flex items-center min-w-0"
                       style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: isHovered ? 'flex-start' : 'center',
-                        gap: isHovered ? '0.65rem' : '0',
-                        minWidth: 0,
+                        justifyContent: isHovered ? "flex-start" : "center",
+                        gap: isHovered ? "0.65rem" : "0",
                       }}
                     >
                       <item.icon size={16} style={{ flexShrink: 0 }} />
                       {isHovered && (
-                        <span
-                          style={{
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                          }}
-                        >
+                        <span className="whitespace-nowrap overflow-hidden text-ellipsis">
                           {item.label}
                         </span>
                       )}
                     </div>
                     {isHovered && item.badge && (
                       <span
+                        className="text-xs font-bold rounded-full flex-shrink-0"
                         style={{
-                          fontSize: '0.6875rem',
-                          fontWeight: 700,
-                          padding: '0.1rem 0.45rem',
-                          borderRadius: 'var(--radius-pill)',
-                          backgroundColor: isActive ? 'rgba(255, 255, 255, 0.25)' : 'var(--brand-primary-subtle)',
-                          color: isActive ? '#ffffff' : 'var(--brand-primary)',
-                          flexShrink: 0,
+                          padding: "0.1rem 0.45rem",
+                          backgroundColor: isActive
+                            ? "rgba(255, 255, 255, 0.25)"
+                            : "var(--brand-primary-subtle)",
+                          color: isActive ? "#ffffff" : "var(--text-brand)",
                         }}
                       >
                         {item.badge}
@@ -276,30 +264,33 @@ export const Sidebar: React.FC = () => {
       </nav>
 
       {/* Tactical Fleet Flight Control Launcher (:7004) */}
-      <div style={{ padding: isHovered ? '0.5rem 0.75rem' : '0.5rem 0.4rem', borderTop: '1px solid var(--border)' }}>
+      <div
+        className="border-t"
+        style={{ padding: isHovered ? "0.5rem 0.75rem" : "0.5rem 0.4rem" }}
+      >
         <a
           href="http://localhost:7004"
           target="_blank"
           rel="noopener noreferrer"
           title="Open Tactical Fleet Operations (:7004)"
+          className="flex items-center rounded-md no-underline text-compact font-bold box-border"
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: isHovered ? 'space-between' : 'center',
-            padding: isHovered ? '0.5rem 0.75rem' : '0.55rem 0',
-            borderRadius: 'var(--radius-md)',
-            backgroundColor: 'rgba(87, 40, 178, 0.1)',
-            border: '1px solid rgba(87, 40, 178, 0.25)',
-            color: '#5728B2',
-            textDecoration: 'none',
-            fontSize: '0.78rem',
-            fontWeight: 700,
-            width: isHovered ? '100%' : '38px',
-            margin: isHovered ? '0' : '0 auto',
-            boxSizing: 'border-box',
+            justifyContent: isHovered ? "space-between" : "center",
+            padding: isHovered ? "0.5rem 0.75rem" : "0.55rem 0",
+            backgroundColor: "rgba(var(--brand-primary-rgb), 0.1)",
+            border: "1px solid rgba(var(--brand-primary-rgb), 0.25)",
+            color: "var(--text-brand)",
+            width: isHovered ? "100%" : "38px",
+            margin: isHovered ? "0" : "0 auto",
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: isHovered ? 'flex-start' : 'center', width: isHovered ? 'auto' : '100%' }}>
+          <div
+            className="flex items-center gap-2"
+            style={{
+              justifyContent: isHovered ? "flex-start" : "center",
+              width: isHovered ? "auto" : "100%",
+            }}
+          >
             <Radio size={15} style={{ flexShrink: 0 }} />
             {isHovered && <span>Fleet Ops (:7004)</span>}
           </div>
@@ -309,69 +300,46 @@ export const Sidebar: React.FC = () => {
 
       {/* Administrative User & Logout Footer */}
       <div
+        className="border-t bg-surface flex flex-col gap-medium overflow-hidden"
         style={{
-          padding: isHovered ? '0.75rem 0.95rem' : '0.7rem 0.4rem',
-          borderTop: '1px solid var(--border)',
-          background: 'var(--bg-surface)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: isHovered ? 'stretch' : 'center',
-          gap: '0.6rem',
-          overflow: 'hidden',
+          padding: isHovered ? "0.75rem 0.95rem" : "0.7rem 0.4rem",
+          alignItems: isHovered ? "stretch" : "center",
         }}
       >
         <div
+          className="flex items-center w-full"
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: isHovered ? 'flex-start' : 'center',
-            gap: isHovered ? '0.6rem' : '0',
-            width: '100%',
+            justifyContent: isHovered ? "flex-start" : "center",
+            gap: isHovered ? "0.6rem" : "0",
           }}
-          title={!isHovered ? `${adminUser?.fullName || 'Administrator'} (${adminUser?.email || 'admin@adhocx.com'})` : undefined}
+          title={
+            !isHovered
+              ? `${adminUser?.fullName || "Administrator"} (${adminUser?.email || "admin@adhocx.com"})`
+              : undefined
+          }
         >
           <div
+            className="rounded-full flex items-center justify-center font-extrabold text-sm flex-shrink-0"
             style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              background: 'var(--brand-primary-gradient)',
-              color: '#ffffff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 800,
-              fontSize: '0.75rem',
-              boxShadow: '0 2px 8px rgba(91, 66, 243, 0.3)',
-              flexShrink: 0,
+              width: "32px",
+              height: "32px",
+              background: "var(--brand-primary-gradient)",
+              color: "#ffffff",
+              boxShadow: "0 2px 8px rgba(var(--brand-accent-rgb), 0.3)",
             }}
           >
             AD
           </div>
           {isHovered && (
-            <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+            <div className="flex flex-col min-w-0 flex-1">
               <span
-                style={{
-                  fontSize: '0.775rem',
-                  fontWeight: 700,
-                  color: 'var(--text-primary)',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}
+                className="font-bold text-primary whitespace-nowrap overflow-hidden text-ellipsis"
+                style={{ fontSize: "0.775rem" }}
               >
-                {adminUser?.fullName || 'Administrator'}
+                {adminUser?.fullName || "Administrator"}
               </span>
-              <span
-                style={{
-                  fontSize: '0.68rem',
-                  color: 'var(--text-muted)',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}
-              >
-                {adminUser?.email || 'admin@adhocx.com'}
+              <span className="text-micro text-muted whitespace-nowrap overflow-hidden text-ellipsis">
+                {adminUser?.email || "admin@adhocx.com"}
               </span>
             </div>
           )}
@@ -382,35 +350,30 @@ export const Sidebar: React.FC = () => {
           id="sidebar-logout-btn"
           onClick={() => setShowLogoutConfirm(true)}
           disabled={isLoggingOut}
-          title={!isHovered ? 'Log Out' : undefined}
+          title={!isHovered ? "Log Out" : undefined}
+          className="flex items-center justify-center rounded-md bg-danger-subtle text-danger text-body-sm font-semibold"
           style={{
-            width: isHovered ? '100%' : '34px',
-            height: isHovered ? 'auto' : '34px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: isHovered ? '0.45rem' : '0',
-            padding: isHovered ? '0.45rem 0.72rem' : '0',
-            borderRadius: 'var(--radius-md)',
-            background: 'var(--color-danger-bg)',
-            border: '1px solid var(--color-danger-border)',
-            color: 'var(--color-danger)',
-            fontSize: '0.8rem',
-            fontWeight: 600,
-            cursor: isLoggingOut ? 'not-allowed' : 'pointer',
-            transition: 'all 0.15s ease',
+            width: isHovered ? "100%" : "34px",
+            height: isHovered ? "auto" : "34px",
+            gap: isHovered ? "0.45rem" : "0",
+            padding: isHovered ? "0.45rem 0.72rem" : "0",
+            border: "1px solid var(--color-danger-border)",
+            cursor: isLoggingOut ? "not-allowed" : "pointer",
+            transition: "all 0.15s ease",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--color-danger)';
-            e.currentTarget.style.color = '#ffffff';
+            e.currentTarget.style.backgroundColor = "var(--color-danger)";
+            e.currentTarget.style.color = "#ffffff";
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--color-danger-bg)';
-            e.currentTarget.style.color = 'var(--color-danger)';
+            e.currentTarget.style.backgroundColor = "var(--color-danger-bg)";
+            e.currentTarget.style.color = "var(--color-danger)";
           }}
         >
           <LogOut size={16} />
-          {isHovered && <span>{isLoggingOut ? 'Signing Out...' : 'Log Out'}</span>}
+          {isHovered && (
+            <span>{isLoggingOut ? "Signing Out..." : "Log Out"}</span>
+          )}
         </button>
       </div>
 

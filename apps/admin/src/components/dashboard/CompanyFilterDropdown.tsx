@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Building2, Check, ChevronDown, Search, X } from 'lucide-react';
-import { FinancialCompanyOption } from '../../lib/api/types';
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Building2, Check, ChevronDown, Search, X } from "lucide-react";
+import { FinancialCompanyOption } from "../../lib/api/types";
 
 interface CompanyFilterDropdownProps {
   companies: FinancialCompanyOption[];
@@ -18,13 +18,13 @@ export const CompanyFilterDropdown: React.FC<CompanyFilterDropdownProps> = ({
   loading = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const sortedCompanies = useMemo(() => {
     return [...companies].sort((a, b) =>
-      a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }),
+      a.name.localeCompare(b.name, "en", { sensitivity: "base" }),
     );
   }, [companies]);
 
@@ -51,7 +51,9 @@ export const CompanyFilterDropdown: React.FC<CompanyFilterDropdownProps> = ({
   }, [sortedCompanies, normalizedQuery]);
 
   const selectedCompany = useMemo(
-    () => sortedCompanies.find((company) => company.id === selectedCompanyId) ?? null,
+    () =>
+      sortedCompanies.find((company) => company.id === selectedCompanyId) ??
+      null,
     [sortedCompanies, selectedCompanyId],
   );
 
@@ -63,36 +65,39 @@ export const CompanyFilterDropdown: React.FC<CompanyFilterDropdownProps> = ({
     }, 0);
 
     const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
-        setSearchQuery('');
+        setSearchQuery("");
       }
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         setIsOpen(false);
-        setSearchQuery('');
+        setSearchQuery("");
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
     return () => {
       window.clearTimeout(timer);
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [isOpen]);
 
   const handleSelect = (company: FinancialCompanyOption | null) => {
     onChange(company);
     setIsOpen(false);
-    setSearchQuery('');
+    setSearchQuery("");
   };
 
   return (
-    <div ref={containerRef} style={{ position: 'relative' }}>
+    <div ref={containerRef} className="relative">
       <button
         type="button"
         aria-haspopup="listbox"
@@ -101,47 +106,28 @@ export const CompanyFilterDropdown: React.FC<CompanyFilterDropdownProps> = ({
         onClick={() => {
           setIsOpen((prev) => {
             const next = !prev;
-            if (!next) setSearchQuery('');
+            if (!next) setSearchQuery("");
             return next;
           });
         }}
-        className="form-input"
+        className="form-input inline-flex items-center justify-between gap-snug text-compact font-medium cursor-pointer bg-surface text-primary"
         style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '0.45rem',
-          width: 'auto',
-          minWidth: '175px',
-          maxWidth: '235px',
-          padding: '0.36rem 0.65rem',
-          fontSize: '0.78rem',
-          fontWeight: 500,
-          cursor: 'pointer',
-          backgroundColor: 'var(--bg-surface)',
-          borderColor: isOpen ? 'var(--brand-primary)' : 'var(--border)',
-          boxShadow: isOpen ? '0 0 0 3px var(--brand-primary-subtle)' : 'none',
-          color: 'var(--text-primary)',
+          width: "auto",
+          minWidth: "175px",
+          maxWidth: "235px",
+          padding: "0.36rem 0.65rem",
+          borderColor: isOpen ? "var(--border-focus)" : "var(--border)",
+          boxShadow: isOpen ? "0 0 0 3px var(--brand-primary-subtle)" : "none",
         }}
       >
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.4rem',
-            minWidth: 0,
-            flex: 1,
-          }}
-        >
-          <Building2 size={13} color="var(--text-muted)" style={{ flexShrink: 0 }} />
-          <span
-            style={{
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {selectedCompany ? selectedCompany.name : 'All Companies'}
+        <span className="inline-flex items-center gap-compact min-w-0 flex-1">
+          <Building2
+            size={13}
+            color="var(--text-muted)"
+            style={{ flexShrink: 0 }}
+          />
+          <span className="overflow-hidden text-ellipsis whitespace-nowrap">
+            {selectedCompany ? selectedCompany.name : "All Companies"}
           </span>
         </span>
         <ChevronDown
@@ -149,44 +135,32 @@ export const CompanyFilterDropdown: React.FC<CompanyFilterDropdownProps> = ({
           color="var(--text-muted)"
           style={{
             flexShrink: 0,
-            transition: 'transform 0.15s ease',
-            transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+            transition: "transform 0.15s ease",
+            transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
           }}
         />
       </button>
 
       {isOpen && (
         <div
+          className="absolute right-0 bg-card border rounded-lg shadow-elevated overflow-hidden"
           style={{
-            position: 'absolute',
-            top: 'calc(100% + 0.35rem)',
-            right: 0,
-            width: '270px',
-            maxWidth: 'min(90vw, 300px)',
-            backgroundColor: 'var(--bg-card)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-lg)',
-            boxShadow: 'var(--shadow-elevated)',
+            top: "calc(100% + 0.35rem)",
+            width: "270px",
+            maxWidth: "min(90vw, 300px)",
             zIndex: 60,
-            overflow: 'hidden',
           }}
         >
           {/* Search box inside dropdown */}
-          <div
-            style={{
-              padding: '0.5rem',
-              borderBottom: '1px solid var(--border)',
-              backgroundColor: 'var(--bg-surface)',
-            }}
-          >
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+          <div className="p-2 border-b bg-surface">
+            <div className="relative flex items-center">
               <Search
                 size={13}
                 color="var(--text-muted)"
                 style={{
-                  position: 'absolute',
-                  left: '0.55rem',
-                  pointerEvents: 'none',
+                  position: "absolute",
+                  left: "0.55rem",
+                  pointerEvents: "none",
                 }}
               />
               <input
@@ -196,34 +170,19 @@ export const CompanyFilterDropdown: React.FC<CompanyFilterDropdownProps> = ({
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search companies..."
                 aria-label="Search companies"
-                className="form-input"
-                style={{
-                  padding: '0.34rem 1.75rem 0.34rem 1.85rem',
-                  fontSize: '0.76rem',
-                }}
+                className="form-input text-control-lg"
+                style={{ padding: "0.34rem 1.75rem 0.34rem 1.85rem" }}
               />
               {searchQuery && (
                 <button
                   type="button"
                   aria-label="Clear company search"
                   onClick={() => {
-                    setSearchQuery('');
+                    setSearchQuery("");
                     searchInputRef.current?.focus();
                   }}
-                  style={{
-                    position: 'absolute',
-                    right: '0.4rem',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '18px',
-                    height: '18px',
-                    borderRadius: 'var(--radius-sm)',
-                    border: 'none',
-                    background: 'transparent',
-                    color: 'var(--text-muted)',
-                    cursor: 'pointer',
-                  }}
+                  className="absolute inline-flex items-center justify-center rounded-sm border-0 bg-transparent text-muted cursor-pointer"
+                  style={{ right: "0.4rem", width: "18px", height: "18px" }}
                 >
                   <X size={12} />
                 </button>
@@ -235,14 +194,8 @@ export const CompanyFilterDropdown: React.FC<CompanyFilterDropdownProps> = ({
           <div
             role="listbox"
             aria-label="Companies"
-            style={{
-              maxHeight: '240px',
-              overflowY: 'auto',
-              padding: '0.35rem',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.12rem',
-            }}
+            className="overflow-y-auto flex flex-col"
+            style={{ maxHeight: "240px", padding: "0.35rem", gap: "0.12rem" }}
           >
             {!normalizedQuery && (
               <>
@@ -251,45 +204,43 @@ export const CompanyFilterDropdown: React.FC<CompanyFilterDropdownProps> = ({
                   role="option"
                   aria-selected={selectedCompanyId === null}
                   onClick={() => handleSelect(null)}
+                  className="flex items-center justify-between gap-2 w-full text-left rounded-md border-0 text-compact cursor-pointer"
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '0.5rem',
-                    width: '100%',
-                    textAlign: 'left',
-                    padding: '0.42rem 0.58rem',
-                    borderRadius: 'var(--radius-md)',
-                    border: 'none',
+                    padding: "0.42rem 0.58rem",
                     backgroundColor:
-                      selectedCompanyId === null ? 'var(--brand-primary-subtle)' : 'transparent',
+                      selectedCompanyId === null
+                        ? "var(--brand-primary-subtle)"
+                        : "transparent",
                     color:
-                      selectedCompanyId === null ? 'var(--brand-primary)' : 'var(--text-primary)',
-                    fontSize: '0.78rem',
+                      selectedCompanyId === null
+                        ? "var(--text-brand)"
+                        : "var(--text-primary)",
                     fontWeight: selectedCompanyId === null ? 600 : 500,
-                    cursor: 'pointer',
-                    transition: 'background-color 0.12s ease',
+                    transition: "background-color 0.12s ease",
                   }}
                   onMouseEnter={(e) => {
                     if (selectedCompanyId !== null) {
-                      e.currentTarget.style.backgroundColor = 'var(--bg-surface-elevated)';
+                      e.currentTarget.style.backgroundColor =
+                        "var(--bg-surface-elevated)";
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (selectedCompanyId !== null) {
-                      e.currentTarget.style.backgroundColor = 'transparent';
+                      e.currentTarget.style.backgroundColor = "transparent";
                     }
                   }}
                 >
                   <span>All Companies</span>
-                  {selectedCompanyId === null && <Check size={13} style={{ flexShrink: 0 }} />}
+                  {selectedCompanyId === null && (
+                    <Check size={13} style={{ flexShrink: 0 }} />
+                  )}
                 </button>
                 {sortedCompanies.length > 0 && (
                   <div
                     style={{
-                      height: '1px',
-                      backgroundColor: 'var(--border)',
-                      margin: '0.2rem 0.25rem',
+                      height: "1px",
+                      backgroundColor: "var(--border)",
+                      margin: "0.2rem 0.25rem",
                     }}
                   />
                 )}
@@ -298,30 +249,24 @@ export const CompanyFilterDropdown: React.FC<CompanyFilterDropdownProps> = ({
 
             {loading && sortedCompanies.length === 0 ? (
               <div
-                style={{
-                  padding: '0.85rem 0.6rem',
-                  textAlign: 'center',
-                  fontSize: '0.75rem',
-                  color: 'var(--text-muted)',
-                }}
+                className="text-center text-sm text-muted"
+                style={{ padding: "0.85rem 0.6rem" }}
               >
                 Loading companies...
               </div>
             ) : filteredCompanies.length === 0 ? (
               <div
-                style={{
-                  padding: '0.85rem 0.6rem',
-                  textAlign: 'center',
-                  fontSize: '0.75rem',
-                  color: 'var(--text-muted)',
-                }}
+                className="text-center text-sm text-muted"
+                style={{ padding: "0.85rem 0.6rem" }}
               >
                 No matching companies
               </div>
             ) : (
               filteredCompanies.map((company) => {
                 const isSelected = selectedCompanyId === company.id;
-                const isDuplicateName = duplicateNames.has(company.name.trim().toLowerCase());
+                const isDuplicateName = duplicateNames.has(
+                  company.name.trim().toLowerCase(),
+                );
                 return (
                   <button
                     key={company.id}
@@ -329,70 +274,51 @@ export const CompanyFilterDropdown: React.FC<CompanyFilterDropdownProps> = ({
                     role="option"
                     aria-selected={isSelected}
                     onClick={() => handleSelect(company)}
+                    className="flex items-center justify-between gap-2 w-full text-left rounded-md border-0 text-compact cursor-pointer"
                     style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '0.5rem',
-                      width: '100%',
-                      textAlign: 'left',
-                      padding: '0.42rem 0.58rem',
-                      borderRadius: 'var(--radius-md)',
-                      border: 'none',
-                      backgroundColor: isSelected ? 'var(--brand-primary-subtle)' : 'transparent',
-                      color: isSelected ? 'var(--brand-primary)' : 'var(--text-primary)',
-                      fontSize: '0.78rem',
+                      padding: "0.42rem 0.58rem",
+                      backgroundColor: isSelected
+                        ? "var(--brand-primary-subtle)"
+                        : "transparent",
+                      color: isSelected
+                        ? "var(--text-brand)"
+                        : "var(--text-primary)",
                       fontWeight: isSelected ? 600 : 400,
-                      cursor: 'pointer',
-                      transition: 'background-color 0.12s ease',
+                      transition: "background-color 0.12s ease",
                     }}
                     onMouseEnter={(e) => {
                       if (!isSelected) {
-                        e.currentTarget.style.backgroundColor = 'var(--bg-surface-elevated)';
+                        e.currentTarget.style.backgroundColor =
+                          "var(--bg-surface-elevated)";
                       }
                     }}
                     onMouseLeave={(e) => {
                       if (!isSelected) {
-                        e.currentTarget.style.backgroundColor = 'transparent';
+                        e.currentTarget.style.backgroundColor = "transparent";
                       }
                     }}
                   >
-                    <span
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.4rem',
-                        minWidth: 0,
-                        flex: 1,
-                      }}
-                    >
-                      <span
-                        style={{
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
+                    <span className="flex items-center gap-compact min-w-0 flex-1">
+                      <span className="overflow-hidden text-ellipsis whitespace-nowrap">
                         {company.name}
                       </span>
                       {isDuplicateName && (
                         <span
+                          className="text-muted bg-surface-elevated rounded-sm flex-shrink-0"
                           style={{
-                            fontSize: '0.64rem',
-                            color: 'var(--text-muted)',
-                            backgroundColor: 'var(--bg-surface-elevated)',
-                            padding: '0.06rem 0.34rem',
-                            borderRadius: 'var(--radius-sm)',
-                            flexShrink: 0,
+                            fontSize: "0.64rem",
+                            padding: "0.06rem 0.34rem",
                           }}
                         >
-                          {company.companyType === 'CORPORATE_TENANT'
-                            ? company.code || 'Corporate'
-                            : 'Vendor'}
+                          {company.companyType === "CORPORATE_TENANT"
+                            ? company.code || "Corporate"
+                            : "Vendor"}
                         </span>
                       )}
                     </span>
-                    {isSelected && <Check size={13} style={{ flexShrink: 0 }} />}
+                    {isSelected && (
+                      <Check size={13} style={{ flexShrink: 0 }} />
+                    )}
                   </button>
                 );
               })
