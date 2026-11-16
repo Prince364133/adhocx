@@ -118,6 +118,14 @@ export class RateCardConfigDto {
   @IsOptional()
   @IsObject()
   vehicleSurges?: Record<string, any>;
+
+  @IsOptional()
+  @IsObject()
+  slabEscorts?: Record<string, any>;
+
+  @IsOptional()
+  @IsArray()
+  peakSlots?: Array<any>;
 }
 
 export class CreatePricingSlabInputDto {
@@ -185,9 +193,8 @@ export class CreateDistancePricingPlanDto {
   peakWindows?: PeakHourWindowDto[];
 
   @IsOptional()
-  @ValidateNested()
-  @Type(() => RateCardConfigDto)
-  config?: RateCardConfigDto;
+  @IsObject()
+  config?: RateCardConfigDto | Record<string, any>;
 }
 
 export class UpdateDistancePricingSlabsDto {
@@ -205,9 +212,8 @@ export class UpdateDistancePricingSlabsDto {
   peakWindows?: PeakHourWindowDto[];
 
   @IsOptional()
-  @ValidateNested()
-  @Type(() => RateCardConfigDto)
-  config?: RateCardConfigDto;
+  @IsObject()
+  config?: RateCardConfigDto | Record<string, any>;
 
   /** Why the rates change (stored in the pricing audit trail). */
   @IsOptional()

@@ -637,16 +637,16 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
         baseKm: genBaseKm,
         stepKm: genStepKm,
         maxKm: genMaxKm,
-        baseVendorRupees: genBaseVendor,
-        stepVendorRupees: genStepVendor,
+        baseVendorRupees: Number(genBaseVendor) || 0,
+        stepVendorRupees: Number(genStepVendor) || 0,
         vendorPeakExtraBaseRupees: maxVBaseExtra,
         vendorPeakExtraStepRupees: maxVStepExtra,
-        baseDriverRupees: genBaseDriver,
-        stepDriverRupees: genStepDriver,
+        baseDriverRupees: Number(genBaseDriver) || 0,
+        stepDriverRupees: Number(genStepDriver) || 0,
         driverPeakExtraBaseRupees: maxDBaseExtra,
         driverPeakExtraStepRupees: maxDStepExtra,
-        escortBaseVendorRupees: genEscortBaseVendor,
-        escortStepVendorRupees: genEscortStepVendor,
+        escortBaseVendorRupees: Number(genEscortBaseVendor) || 0,
+        escortStepVendorRupees: Number(genEscortStepVendor) || 0,
         slabEscorts,
         overriddenSlabs: Array.from(overriddenSlabKeys),
         peakSlots,
@@ -669,6 +669,16 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
           peakWindows: peakWindowsPayload,
         });
         await loadPlans(existingPlan.id);
+      } else if (updated.length > 0) {
+        const newPlan = await adminApi.createDistancePricingPlan({
+          name: `${targetCategory} Distance Pricing Matrix`,
+          vehicleCategory: targetCategory,
+          slabs: updated,
+          config: configPayload as any,
+          peakWindows: peakWindowsPayload,
+        });
+        await adminApi.publishDistancePricingPlan(newPlan.id, `Initial activation with peak surcharges for ${targetCategory}`);
+        await loadPlans(newPlan.id);
       }
 
       setAlert({
@@ -688,10 +698,10 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
   // Validation
   const validation = useMemo(() => {
     if (editingSlabs.length === 0) {
-      return { valid: false, error: 'No slabs configured. Please click "Configure Pricing" to generate slabs.' };
+      return { valid: false, isUnconfigured: true, error: 'No slabs configured. Please click "Configure Pricing" to generate slabs.' };
     }
     if (editingSlabs[0].minDistanceMExclusive !== 0) {
-      return { valid: false, error: 'First distance band must start at 0 km.' };
+      return { valid: false, isUnconfigured: false, error: 'First distance band must start at 0 km.' };
     }
 
     for (let i = 0; i < editingSlabs.length; i++) {
@@ -700,19 +710,20 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
       const maxKm = s.maxDistanceMInclusive / 1000;
 
       if (s.maxDistanceMInclusive <= s.minDistanceMExclusive) {
-        return { valid: false, error: `Slab #${i + 1} (${minKm}–${maxKm} km): Max distance must exceed min distance.` };
+        return { valid: false, isUnconfigured: false, error: `Slab #${i + 1} (${minKm}–${maxKm} km): Max distance must exceed min distance.` };
       }
 
       // If unified or vendor, ensure vendor >= driver
       if (s.vendorPricePaise < s.driverPayoutPaise) {
         return {
           valid: false,
+          isUnconfigured: false,
           error: `Negative Margin Detected on ${minKm}–${maxKm} km! Vendor fare (₹${s.vendorPricePaise / 100}) cannot be less than Driver payout (₹${s.driverPayoutPaise / 100}).`,
         };
       }
     }
 
-    return { valid: true, error: null };
+    return { valid: true, isUnconfigured: false, error: null };
   }, [editingSlabs]);
 
   // Save Slabs Draft / Live Update to PostgreSQL
@@ -929,7 +940,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
       )}
 
       {/* Loss Prevention Validation Warning */}
-      {!validation.valid && (
+      {!validation.valid && !validation.isUnconfigured && (
         <div
           style={{
             padding: '0.85rem 1.25rem',
