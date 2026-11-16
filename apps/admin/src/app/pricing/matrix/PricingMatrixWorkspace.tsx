@@ -339,8 +339,8 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
     [genBaseKm, genStepKm, genEscortBaseVendor, genEscortStepVendor]
   );
 
-  // Generator: Generate full table from formula for the selected vehicle type
-  const handleGenerateFullTable = () => {
+  // Generator: Generate full table from formula for the selected vehicle type and PERSIST DIRECTLY TO DATABASE
+  const handleGenerateFullTable = async () => {
     if (genMaxKm <= 0 || genStepKm <= 0 || genBaseKm <= 0) {
       setAlert({ type: 'error', message: 'Base, step, and maximum distance must be positive values.' });
       return;
@@ -409,13 +409,76 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
       stepIdx++;
     }
 
+    setSaving(true);
     setEditingSlabs(newSlabs);
     setSelectedVehicleChip(genVehicleType);
     setIsConfigureSheetOpen(false);
-    setAlert({
-      type: 'success',
-      message: `Generated ${newSlabs.length} slabs up to ${genMaxKm} km for ${genVehicleType}. Rates configured cleanly.`,
-    });
+
+    try {
+      const configPayload = {
+        baseKm: genBaseKm,
+        stepKm: genStepKm,
+        maxKm: genMaxKm,
+        baseVendorRupees: genBaseVendor,
+        stepVendorRupees: genStepVendor,
+        vendorPeakExtraBaseRupees: currentVendorPeakBase,
+        vendorPeakExtraStepRupees: currentVendorPeakStep,
+        baseDriverRupees: genBaseDriver,
+        stepDriverRupees: genStepDriver,
+        driverPeakExtraBaseRupees: currentDriverPeakBase,
+        driverPeakExtraStepRupees: currentDriverPeakStep,
+        escortBaseVendorRupees: genEscortBaseVendor,
+        escortStepVendorRupees: genEscortStepVendor,
+        overriddenSlabs: Array.from(overriddenSlabKeys),
+      };
+
+      const peakWindowsPayload: PeakHourWindow[] = peakSlots.map((slot) => ({
+        label: slot.label,
+        start: slot.start,
+        end: slot.end,
+      }));
+
+      const targetCategory = genVehicleType;
+      const existingMatchingPlan = plans.find(
+        (p) => p.vehicleCategory === targetCategory && p.status === 'ACTIVE'
+      ) || plans.find((p) => p.vehicleCategory === targetCategory);
+
+      let savedPlanId: string;
+      if (existingMatchingPlan) {
+        await adminApi.updateDistancePricingSlabs(existingMatchingPlan.id, newSlabs, undefined, {
+          config: configPayload as any,
+          peakWindows: peakWindowsPayload,
+        });
+        if (existingMatchingPlan.status !== 'ACTIVE') {
+          await adminApi.publishDistancePricingPlan(existingMatchingPlan.id, `Activated via pricing generator`);
+        }
+        savedPlanId = existingMatchingPlan.id;
+      } else {
+        const newPlan = await adminApi.createDistancePricingPlan({
+          name: `${targetCategory} Distance Pricing Matrix`,
+          vehicleCategory: targetCategory,
+          slabs: newSlabs,
+          config: configPayload as any,
+          peakWindows: peakWindowsPayload,
+        });
+        await adminApi.publishDistancePricingPlan(newPlan.id, `Initial activation for ${targetCategory}`);
+        savedPlanId = newPlan.id;
+      }
+
+      await loadPlans(savedPlanId);
+
+      setAlert({
+        type: 'success',
+        message: `Saved & activated ${newSlabs.length} distance slabs for ${targetCategory} directly in database! Vendor quotes and driver payouts are now live with these rates.`,
+      });
+    } catch (err: any) {
+      setAlert({
+        type: 'error',
+        message: `Generated slabs locally, but database save failed: ${err?.message || 'Server error'}. Please click 'Save Matrix Changes' to retry.`,
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Inline slab edit handler
@@ -474,8 +537,8 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
     });
   };
 
-  // Apply Peak Surcharges from configured slots across slabs
-  const handleApplyPeakSurcharges = () => {
+  // Apply Peak Surcharges from configured slots across slabs and persist to database
+  const handleApplyPeakSurcharges = async () => {
     // Find highest extra from configured peak slots matching vehicle chip
     let maxVBaseExtra = currentVendorPeakBase;
     let maxVStepExtra = currentVendorPeakStep;
@@ -516,12 +579,59 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
       };
     });
 
+    setSaving(true);
     setEditingSlabs(updated);
     setIsPeakSheetOpen(false);
-    setAlert({
-      type: 'success',
-      message: `Applied ${peakSlots.length} peak windows for ${selectedVehicleChip}. Peak rates updated across all slabs.`,
-    });
+
+    try {
+      const configPayload = {
+        baseKm: genBaseKm,
+        stepKm: genStepKm,
+        maxKm: genMaxKm,
+        baseVendorRupees: genBaseVendor,
+        stepVendorRupees: genStepVendor,
+        vendorPeakExtraBaseRupees: maxVBaseExtra,
+        vendorPeakExtraStepRupees: maxVStepExtra,
+        baseDriverRupees: genBaseDriver,
+        stepDriverRupees: genStepDriver,
+        driverPeakExtraBaseRupees: maxDBaseExtra,
+        driverPeakExtraStepRupees: maxDStepExtra,
+        escortBaseVendorRupees: genEscortBaseVendor,
+        escortStepVendorRupees: genEscortStepVendor,
+        overriddenSlabs: Array.from(overriddenSlabKeys),
+      };
+
+      const peakWindowsPayload: PeakHourWindow[] = peakSlots.map((slot) => ({
+        label: slot.label,
+        start: slot.start,
+        end: slot.end,
+      }));
+
+      const targetCategory = selectedVehicleChip || genVehicleType || 'SEDAN';
+      const existingPlan = plans.find(
+        (p) => p.vehicleCategory === targetCategory && p.status === 'ACTIVE'
+      ) || plans.find((p) => p.vehicleCategory === targetCategory);
+
+      if (existingPlan) {
+        await adminApi.updateDistancePricingSlabs(existingPlan.id, updated, undefined, {
+          config: configPayload as any,
+          peakWindows: peakWindowsPayload,
+        });
+        await loadPlans(existingPlan.id);
+      }
+
+      setAlert({
+        type: 'success',
+        message: `Applied and saved ${peakSlots.length} peak windows for ${selectedVehicleChip} directly in database! Peak rates are live for vendors and drivers.`,
+      });
+    } catch (err: any) {
+      setAlert({
+        type: 'error',
+        message: `Applied peak rates locally, but database save failed: ${err?.message || 'Server error'}. Please click 'Save Matrix Changes' to retry.`,
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Validation
@@ -1376,6 +1486,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
             variant="primary"
             size="lg"
             leftIcon={<Sparkles size={16} />}
+            loading={saving}
             onClick={handleGenerateFullTable}
             style={{
               width: '100%',
@@ -1384,7 +1495,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
               borderColor: role === 'driver' ? 'var(--color-success)' : 'var(--brand-primary)',
             }}
           >
-            Generate Slabs Table up to {genMaxKm} km for {genVehicleType}
+            Generate & Save Slabs Table up to {genMaxKm} km for {genVehicleType}
           </Button>
         </div>
       </BottomSheet>
@@ -1668,6 +1779,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
             variant="primary"
             size="lg"
             leftIcon={<Clock size={16} />}
+            loading={saving}
             onClick={handleApplyPeakSurcharges}
             style={{
               width: '100%',
@@ -1676,7 +1788,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
               borderColor: role === 'driver' ? 'var(--color-success)' : 'var(--brand-primary)',
             }}
           >
-            Apply Peak Surcharges Across Matrix
+            Apply & Save Peak Surcharges Across Matrix
           </Button>
         </div>
       </BottomSheet>
