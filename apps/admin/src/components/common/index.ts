@@ -12,3 +12,4 @@ export * from './ConfirmDialog';
 export * from './DataTable';
 export * from './FilterBar';
 export * from './Drawer';
+export * from './BottomSheet';

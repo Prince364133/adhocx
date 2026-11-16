@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { ToastProvider } from './common/ToastProvider';
 import { AdhocxBrandLogo } from './AdhocxBrandLogo';
 import {
+  ApiError,
   adminApi,
   getStoredAdminToken,
   clearAdminSession,
@@ -20,18 +21,12 @@ export const AdminShell: React.FC<{ children: React.ReactNode }> = ({ children }
   const [isVerifying, setIsVerifying] = useState(!isLoginPage);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const retryVerification = () => {
-    setErrorMessage(null);
-    setIsVerifying(true);
-    checkSession();
-  };
-
   const handleGoToLogin = () => {
     clearAdminSession();
     window.location.href = `/login?redirect=${encodeURIComponent(pathname)}`;
   };
 
-  async function checkSession() {
+  const checkSession = useCallback(async () => {
     const token = getStoredAdminToken();
     if (!token) {
       clearAdminSession();
@@ -44,12 +39,28 @@ export const AdminShell: React.FC<{ children: React.ReactNode }> = ({ children }
       await adminApi.verifyAdminSession();
       setIsVerifying(false);
       setErrorMessage(null);
-    } catch {
-      clearAdminSession();
-      const redirect = encodeURIComponent(pathname);
-      window.location.replace(`/login?redirect=${redirect}`);
+    } catch (error) {
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+        clearAdminSession();
+        const redirect = encodeURIComponent(pathname);
+        window.location.replace(`/login?redirect=${redirect}`);
+        return;
+      }
+
+      setIsVerifying(false);
+      setErrorMessage(
+        error instanceof Error
+          ? `Unable to verify your admin session: ${error.message}`
+          : 'Unable to verify your admin session. Check the API connection and retry.'
+      );
     }
-  }
+  }, [pathname]);
+
+  const retryVerification = useCallback(() => {
+    setErrorMessage(null);
+    setIsVerifying(true);
+    void checkSession();
+  }, [checkSession]);
 
   useEffect(() => {
     // If on the login page, no shell authentication verification is needed
@@ -58,7 +69,7 @@ export const AdminShell: React.FC<{ children: React.ReactNode }> = ({ children }
       return;
     }
 
-    checkSession();
+    void checkSession();
 
     // Safety timeout to prevent getting permanently stuck if backend is slow
     const timeout = setTimeout(() => {
@@ -73,7 +84,7 @@ export const AdminShell: React.FC<{ children: React.ReactNode }> = ({ children }
     return () => {
       clearTimeout(timeout);
     };
-  }, [pathname, isLoginPage]);
+  }, [checkSession, isLoginPage]);
 
   // If on login route, render standalone login screen without sidebar & header
   if (isLoginPage) {

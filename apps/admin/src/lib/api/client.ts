@@ -872,7 +872,7 @@ export const adminApi = {
     if (params?.vehicleCategory) q.set('vehicleCategory', params.vehicleCategory);
     if (params?.status) q.set('status', params.status);
     const qs = q.toString();
-    return apiClient<DistancePricingPlan[]>(`/admin/pricing/plans${qs ? `?${qs}` : ''}`);
+    return apiClient<DistancePricingPlan[]>(`/admin/pricing/plans${qs ? `?${qs}` : ''}`, { allowForbidden: true });
   },
 
   getDistancePricingPlan: (id: string) =>
@@ -1229,7 +1229,7 @@ export const adminApi = {
     }),
 
   verifyAdminSession: () =>
-    apiClient<{ valid: boolean; user: any }>('/auth/admin/verify'),
+    apiClient<{ valid: boolean; user: any }>('/auth/admin/verify', { allowForbidden: true }),
 
   // Corporate ETS
   getCorporateTenants: (params: { search?: string; status?: string; page?: number; limit?: number } = {}) => {

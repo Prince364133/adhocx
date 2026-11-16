@@ -1,300 +1,355 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Car, Truck, Bus, Sliders, Plus, Bike } from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import {
+  Building2,
+  Car,
+  ChevronRight,
+  ShieldCheck,
+  TrendingUp,
+  Layers,
+  Sparkles,
+  Zap,
+} from 'lucide-react';
 import { adminApi } from '../../lib/api/client';
-import { VehicleCategory } from '../../lib/api/types';
-import { PageHeader, SegmentedTabs, FeedbackBanner, Card, DataTable, Button, Drawer, StatusBadge } from '../../components/common';
-import { DynamicDistancePricingSection } from './DynamicDistancePricingSection';
+import { DistancePricingPlan, VehicleCategory } from '../../lib/api/types';
+import { Card, Button, PageHeader, FeedbackBanner, StatusBadge } from '../../components/common';
 
-type Section = 'DISTANCE_ENGINE' | 'CATEGORIES';
+const inr = (value: number | undefined) => `₹${Number(value ?? 0).toLocaleString('en-IN')}`;
 
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  marginTop: '0.35rem',
-  padding: '0.625rem 0.875rem',
-  borderRadius: 'var(--radius-md)',
-  border: '1px solid var(--border)',
-  background: 'var(--bg-surface-elevated)',
-  color: 'var(--text-primary)',
-  fontSize: '0.875rem',
-};
-
-const labelStyle: React.CSSProperties = { fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' };
-
-const emptyCategory = { vehicleType: '', categoryLabel: '', seatingCapacity: '', description: '', iconKey: 'car' };
-
-function CategoryIcon({ c }: { c: VehicleCategory }) {
-  const key = c.iconKey || '';
-  if (key === 'bike') return <Bike size={17} color="#F59E0B" />;
-  if (key === 'bus') return <Bus size={17} color="#10B981" />;
-  if (key === 'truck') return <Truck size={17} color="#8B5CF6" />;
-  return <Car size={17} color="var(--brand-primary)" />;
-}
-
-export default function PricingPage() {
-  const [activeSection, setActiveSection] = useState<Section>('DISTANCE_ENGINE');
+export default function PricingOverviewPage() {
+  const [plans, setPlans] = useState<DistancePricingPlan[]>([]);
   const [categories, setCategories] = useState<VehicleCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  // Category add / edit
-  const [editing, setEditing] = useState<VehicleCategory | null>(null);
-  const [isAddOpen, setIsAddOpen] = useState(false);
-  const [newCategory, setNewCategory] = useState(emptyCategory);
-  const [savingCategory, setSavingCategory] = useState(false);
-
-  async function loadAllData() {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const cats = await adminApi.getPricingTiers().catch(() => [] as VehicleCategory[]);
-      setCategories(Array.isArray(cats) ? cats : []);
+      const [plansData, tierData] = await Promise.all([
+        adminApi.getDistancePricingPlans(),
+        adminApi.getPricingTiers().catch(() => [] as VehicleCategory[]),
+      ]);
+      setPlans(plansData);
+      setCategories(tierData);
+    } catch (err: any) {
+      setAlert({ type: 'error', message: err?.message || 'Failed to load pricing configuration.' });
     } finally {
       setLoading(false);
     }
-  }
-
-  useEffect(() => {
-    loadAllData();
   }, []);
 
-  async function handleCreateCategory(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newCategory.vehicleType.trim() || !newCategory.categoryLabel.trim() || !newCategory.seatingCapacity.trim()) {
-      setAlert({ type: 'error', message: 'Code, name and seating capacity are required.' });
-      return;
-    }
-    setSavingCategory(true);
-    try {
-      const created = await adminApi.createPricingTier({
-        vehicleType: newCategory.vehicleType.trim(),
-        categoryLabel: newCategory.categoryLabel.trim(),
-        seatingCapacity: newCategory.seatingCapacity.trim(),
-        description: newCategory.description.trim() || undefined,
-        iconKey: newCategory.iconKey,
-      });
-      setAlert({
-        type: 'success',
-        message: `Category ${created.vehicleType} added. It has no price until a distance plan covers it (its own plan, or the ALL plan).`,
-      });
-      setIsAddOpen(false);
-      setNewCategory(emptyCategory);
-      loadAllData();
-    } catch (err: any) {
-      setAlert({ type: 'error', message: err.message || 'Failed to add vehicle category' });
-    } finally {
-      setSavingCategory(false);
-    }
-  }
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
-  async function handleSaveCategory(e: React.FormEvent) {
-    e.preventDefault();
-    if (!editing) return;
-    setSavingCategory(true);
-    try {
-      await adminApi.updatePricingTier(editing.vehicleType, {
-        categoryLabel: editing.categoryLabel,
-        seatingCapacity: editing.seatingCapacity,
-        description: editing.description,
-        iconKey: editing.iconKey || undefined,
-        isActive: editing.isActive,
-      });
-      setAlert({ type: 'success', message: `Category ${editing.vehicleType} updated.` });
-      setEditing(null);
-      loadAllData();
-    } catch (err: any) {
-      setAlert({ type: 'error', message: err.message || 'Failed to update vehicle category' });
-    } finally {
-      setSavingCategory(false);
-    }
-  }
+  const activePlan = plans.find((p) => p.status === 'ACTIVE') || plans[0];
+  const cfg = (activePlan as any)?.rateConfigJson || activePlan?.config || {};
+
+  const baseKm = cfg.baseKm ?? 10;
+  const stepKm = cfg.stepKm ?? 10;
+  const baseVendor = cfg.baseVendorRupees ?? 400;
+  const stepVendor = cfg.stepVendorRupees ?? 100;
+  const baseDriver = cfg.baseDriverRupees ?? 300;
+  const stepDriver = cfg.stepDriverRupees ?? 70;
+  const escortVendor = cfg.escortBaseVendorRupees ?? 300;
+  const escortDriver = cfg.escortBaseDriverRupees ?? 200;
+
+  const baseMargin = baseVendor - baseDriver;
+  const baseMarginPct = baseVendor > 0 ? ((baseMargin / baseVendor) * 100).toFixed(1) : '0';
 
   return (
-    <div className="admin-page">
-      {alert && (
-        <FeedbackBanner
-          type={alert.type}
-          message={alert.message}
-          onDismiss={() => setAlert(null)}
-        />
-      )}
+    <div style={{ maxWidth: '1280px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+      {alert && <FeedbackBanner type={alert.type} message={alert.message} onDismiss={() => setAlert(null)} />}
 
-      <PageHeader
-        title="Pricing"
-        subtitle="Condition-based rate cards for vendors and drivers with peak-hour configurations and distance step generators."
-      />
-
-      <SegmentedTabs
-        tabs={[
-          { id: 'DISTANCE_ENGINE', label: 'Rate Cards & Configuration' },
-          { id: 'CATEGORIES', label: 'Vehicle Categories' },
-        ]}
-        activeTab={activeSection}
-        onChange={setActiveSection}
-      />
-
-      {activeSection === 'DISTANCE_ENGINE' && <DynamicDistancePricingSection />}
-
-      {activeSection === 'CATEGORIES' && (
-        <Card>
-          <div style={{ marginBottom: '1.25rem', paddingTop: '0.15rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
-            <div>
-              <h3 style={{ fontSize: '1.08rem', fontWeight: 700, color: 'var(--text-primary)' }}>Vehicle Categories</h3>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                Names and seating shown in the apps. Prices are set per category in Distance Pricing; a category without its own plan uses the ALL plan.
-              </p>
-            </div>
-            <Button variant="primary" size="sm" leftIcon={<Plus size={15} />} onClick={() => setIsAddOpen(true)}>
-              Add Category
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+        <div>
+          <PageHeader
+            title="Pricing Studio"
+            subtitle="Authoritative distance pricing and payout matrices. Select a rate card below to customize distance slabs, peak surcharges, and security escort fees."
+          />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem' }}>
+          <Link href="/pricing/matrix?role=unified" style={{ textDecoration: 'none' }}>
+            <Button variant="outline" size="sm" leftIcon={<Layers size={15} />}>
+              Open Unified Matrix View
             </Button>
-          </div>
+          </Link>
+        </div>
+      </div>
 
-          <DataTable
-            columns={[
-              {
-                header: 'CATEGORY',
-                accessor: (c: VehicleCategory) => (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+      {loading ? (
+        <Card style={{ padding: '3.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+          <Sparkles size={24} style={{ animation: 'spin 2s linear infinite', margin: '0 auto 0.75rem auto', color: 'var(--brand-primary)' }} />
+          <div>Loading Pricing Studio from live database...</div>
+        </Card>
+      ) : (
+        <>
+          {/* Two Clean Primary Boxes */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.75rem' }}>
+            {/* Box 1: Vendor Rate Card */}
+            <Link href="/pricing/matrix?role=vendor" style={{ textDecoration: 'none', color: 'inherit' }}>
+              <Card
+                variant="interactive"
+                style={{
+                  height: '100%',
+                  padding: '2rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  borderRadius: '20px',
+                  border: '1.5px solid var(--border)',
+                  background: 'linear-gradient(135deg, var(--bg-surface) 0%, rgba(91, 66, 243, 0.04) 100%)',
+                  boxShadow: '0 8px 30px rgba(0, 0, 0, 0.04)',
+                  cursor: 'pointer',
+                  transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+                }}
+              >
+                <div>
+                  {/* Top Badge & Icon */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
                     <div
                       style={{
-                        width: '40px',
-                        height: '40px',
-                        borderRadius: 'var(--radius-md)',
-                        backgroundColor: 'rgba(91, 66, 243, 0.1)',
+                        width: '54px',
+                        height: '54px',
+                        borderRadius: '16px',
+                        background: 'rgba(91, 66, 243, 0.12)',
+                        color: 'var(--brand-primary)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                       }}
                     >
-                      <CategoryIcon c={c} />
+                      <Building2 size={26} />
                     </div>
-                    <div>
-                      <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.875rem' }}>{c.categoryLabel}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{c.vehicleType}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span
+                        style={{
+                          fontSize: '0.75rem',
+                          fontWeight: 800,
+                          padding: '0.3rem 0.7rem',
+                          borderRadius: '999px',
+                          background: 'rgba(91, 66, 243, 0.12)',
+                          color: 'var(--brand-primary)',
+                          letterSpacing: '0.04em',
+                        }}
+                      >
+                        CLIENT BILLING
+                      </span>
+                      <StatusBadge status="APPROVED" label="LIVE" />
                     </div>
                   </div>
-                ),
-              },
-              { header: 'SEATING', accessor: (c: VehicleCategory) => c.seatingCapacity },
-              { header: 'DESCRIPTION', accessor: (c: VehicleCategory) => c.description || '' },
-              {
-                header: 'STATUS',
-                accessor: (c: VehicleCategory) => <StatusBadge status={c.isActive === false ? 'INACTIVE' : 'ACTIVE'} size="sm" />,
-              },
-              {
-                header: 'ACTIONS',
-                align: 'right',
-                accessor: (c: VehicleCategory) => (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditing({ ...c });
-                    }}
-                  >
-                    Edit
-                  </Button>
-                ),
-              },
-            ]}
-            data={categories}
-            keyExtractor={(c) => c.vehicleType}
-            loading={loading}
-            emptyTitle="No vehicle categories"
-            emptySubtitle="Add a category to make it bookable."
-          />
-        </Card>
+
+                  <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                    Vendor Rate Card
+                  </h2>
+                  <p style={{ margin: '0 0 1.5rem 0', fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                    What enterprise clients are billed for trips. Customize base starting fare, step kilometer pricing, peak window add-ons, and security escort charges.
+                  </p>
+
+                  {/* Highlights Strip */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem', background: 'var(--bg-surface-elevated)', padding: '1rem', borderRadius: '14px', border: '1px solid var(--border)', marginBottom: '1.5rem' }}>
+                    <div>
+                      <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: 700 }}>Starting Base Fare</div>
+                      <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--brand-primary)', marginTop: '0.2rem' }}>
+                        {inr(baseVendor)}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>0 to {baseKm} km</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: 700 }}>Step Pricing</div>
+                      <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--brand-primary)', marginTop: '0.2rem' }}>
+                        +{inr(stepVendor)}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>per +{stepKm} km step</div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    <ShieldCheck size={15} color="#3B82F6" />
+                    <span>Security Escort Add-on: <strong>{inr(escortVendor)}</strong> base</span>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    marginTop: '2rem',
+                    paddingTop: '1rem',
+                    borderTop: '1px solid var(--border)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    color: 'var(--brand-primary)',
+                    fontWeight: 700,
+                    fontSize: '0.95rem',
+                  }}
+                >
+                  <span>Configure Vendor Rates</span>
+                  <ChevronRight size={18} />
+                </div>
+              </Card>
+            </Link>
+
+            {/* Box 2: Driver Rate Card */}
+            <Link href="/pricing/matrix?role=driver" style={{ textDecoration: 'none', color: 'inherit' }}>
+              <Card
+                variant="interactive"
+                style={{
+                  height: '100%',
+                  padding: '2rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  borderRadius: '20px',
+                  border: '1.5px solid var(--border)',
+                  background: 'linear-gradient(135deg, var(--bg-surface) 0%, rgba(16, 185, 129, 0.04) 100%)',
+                  boxShadow: '0 8px 30px rgba(0, 0, 0, 0.04)',
+                  cursor: 'pointer',
+                  transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+                }}
+              >
+                <div>
+                  {/* Top Badge & Icon */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+                    <div
+                      style={{
+                        width: '54px',
+                        height: '54px',
+                        borderRadius: '16px',
+                        background: 'rgba(16, 185, 129, 0.12)',
+                        color: 'var(--color-success)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Car size={26} />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span
+                        style={{
+                          fontSize: '0.75rem',
+                          fontWeight: 800,
+                          padding: '0.3rem 0.7rem',
+                          borderRadius: '999px',
+                          background: 'rgba(16, 185, 129, 0.12)',
+                          color: 'var(--color-success)',
+                          letterSpacing: '0.04em',
+                        }}
+                      >
+                        DRIVER PAYOUT
+                      </span>
+                      <StatusBadge status="APPROVED" label="LIVE" />
+                    </div>
+                  </div>
+
+                  <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                    Driver Rate Card
+                  </h2>
+                  <p style={{ margin: '0 0 1.5rem 0', fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                    Guaranteed trip earnings credited to verified fleet driver partners. Fully synced to driver app with unrounded meter calculation and peak slot bonuses.
+                  </p>
+
+                  {/* Highlights Strip */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem', background: 'var(--bg-surface-elevated)', padding: '1rem', borderRadius: '14px', border: '1px solid var(--border)', marginBottom: '1.5rem' }}>
+                    <div>
+                      <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: 700 }}>Starting Base Payout</div>
+                      <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--color-success)', marginTop: '0.2rem' }}>
+                        {inr(baseDriver)}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>0 to {baseKm} km</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: 700 }}>Step Increment</div>
+                      <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--color-success)', marginTop: '0.2rem' }}>
+                        +{inr(stepDriver)}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>per +{stepKm} km step</div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    <ShieldCheck size={15} color="#10B981" />
+                    <span>Driver Escort Share: <strong>{inr(escortDriver)}</strong> base payout</span>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    marginTop: '2rem',
+                    paddingTop: '1rem',
+                    borderTop: '1px solid var(--border)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    color: 'var(--color-success)',
+                    fontWeight: 700,
+                    fontSize: '0.95rem',
+                  }}
+                >
+                  <span>Configure Driver Payouts</span>
+                  <ChevronRight size={18} />
+                </div>
+              </Card>
+            </Link>
+          </div>
+
+          {/* Platform Health & Margin Strip */}
+          <Card
+            style={{
+              padding: '1.25rem 1.75rem',
+              borderRadius: '16px',
+              border: '1px solid var(--border)',
+              background: 'var(--bg-surface)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '1.25rem',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '12px',
+                  background: 'rgba(16, 185, 129, 0.1)',
+                  color: 'var(--color-success)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <TrendingUp size={22} />
+              </div>
+              <div>
+                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                  Platform Net Spread (Base Fare)
+                </div>
+                <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span>+{inr(baseMargin)}</span>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--color-success)', fontWeight: 700 }}>
+                    ({baseMarginPct}% margin)
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <Zap size={15} color="#F59E0B" />
+                <span>Active Categories: <strong>{categories.length || 'All'}</strong></span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <ShieldCheck size={15} color="#10B981" />
+                <span>100% Live Database Synced</span>
+              </div>
+            </div>
+          </Card>
+        </>
       )}
-
-      {/* Add category */}
-      <Drawer
-        isOpen={isAddOpen}
-        onClose={() => setIsAddOpen(false)}
-        title="Add Vehicle Category"
-        subtitle="Catalogue only. Set its price in Distance Pricing (or let the ALL plan cover it)."
-        icon={<Car size={18} />}
-        width="min(94vw, 520px)"
-        footer={
-          <div style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'flex-end' }}>
-            <Button variant="secondary" size="sm" onClick={() => setIsAddOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" size="sm" isLoading={savingCategory} onClick={handleCreateCategory}>
-              Add Category
-            </Button>
-          </div>
-        }
-      >
-        <form onSubmit={handleCreateCategory} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div>
-            <label style={labelStyle}>Code * (e.g. CUSTOM_VAN)</label>
-            <input value={newCategory.vehicleType} onChange={(e) => setNewCategory({ ...newCategory, vehicleType: e.target.value })} style={inputStyle} />
-          </div>
-          <div>
-            <label style={labelStyle}>Display name *</label>
-            <input value={newCategory.categoryLabel} onChange={(e) => setNewCategory({ ...newCategory, categoryLabel: e.target.value })} style={inputStyle} />
-          </div>
-          <div>
-            <label style={labelStyle}>Seating capacity * (e.g. 4 + 1 Passengers)</label>
-            <input value={newCategory.seatingCapacity} onChange={(e) => setNewCategory({ ...newCategory, seatingCapacity: e.target.value })} style={inputStyle} />
-          </div>
-          <div>
-            <label style={labelStyle}>Description</label>
-            <input value={newCategory.description} onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })} style={inputStyle} />
-          </div>
-          <div>
-            <label style={labelStyle}>Icon</label>
-            <select value={newCategory.iconKey} onChange={(e) => setNewCategory({ ...newCategory, iconKey: e.target.value })} style={inputStyle}>
-              <option value="car">Car</option>
-              <option value="truck">Van / Traveller</option>
-              <option value="bus">Bus</option>
-              <option value="bike">Bike</option>
-            </select>
-          </div>
-        </form>
-      </Drawer>
-
-      {/* Edit category */}
-      <Drawer
-        isOpen={!!editing}
-        onClose={() => setEditing(null)}
-        title={`Edit ${editing?.vehicleType || ''}`}
-        subtitle="Deactivated categories cannot be booked. Deactivation is refused while trips in the category are running."
-        icon={<Sliders size={18} />}
-        width="min(94vw, 520px)"
-        footer={
-          <div style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'flex-end' }}>
-            <Button variant="secondary" size="sm" onClick={() => setEditing(null)}>
-              Cancel
-            </Button>
-            <Button variant="primary" size="sm" isLoading={savingCategory} onClick={handleSaveCategory}>
-              Save
-            </Button>
-          </div>
-        }
-      >
-        {editing && (
-          <form onSubmit={handleSaveCategory} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div>
-              <label style={labelStyle}>Display name</label>
-              <input value={editing.categoryLabel} onChange={(e) => setEditing({ ...editing, categoryLabel: e.target.value })} style={inputStyle} />
-            </div>
-            <div>
-              <label style={labelStyle}>Seating capacity</label>
-              <input value={editing.seatingCapacity} onChange={(e) => setEditing({ ...editing, seatingCapacity: e.target.value })} style={inputStyle} />
-            </div>
-            <div>
-              <label style={labelStyle}>Description</label>
-              <input value={editing.description || ''} onChange={(e) => setEditing({ ...editing, description: e.target.value })} style={inputStyle} />
-            </div>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', color: 'var(--text-primary)' }}>
-              <input type="checkbox" checked={editing.isActive !== false} onChange={(e) => setEditing({ ...editing, isActive: e.target.checked })} />
-              Active (bookable)
-            </label>
-          </form>
-        )}
-      </Drawer>
     </div>
   );
 }
