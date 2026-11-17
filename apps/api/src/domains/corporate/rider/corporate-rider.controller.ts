@@ -93,7 +93,7 @@ export class CorporateRiderController {
 
   @Post('trips/:id/feedback')
   @Roles(UserRole.EMPLOYEE, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Submit 1-5 star rating and feedback for completed ride' })
+  @ApiOperation({ summary: 'Submit safety feedback and 1-5 star rating for completed ride' })
   async submitFeedback(
     @Req() req: any,
     @Param('id') stopId: string,

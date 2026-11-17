@@ -5,6 +5,7 @@ import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
+import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
 
 /// Home dashboard for an upcoming pickup (login) or drop (logout) trip:
@@ -63,6 +64,7 @@ class _HomeUpcomingTripViewState extends State<HomeUpcomingTripView> {
     final tripType = _trip?['type'] ?? widget.fallbackTitle;
     final date = _trip?['date'] ?? 'Today, 09 Dec 2026';
     final time = _trip?['time'] ?? widget.fallbackTime;
+    final driverStatus = '${_trip?['status'] ?? 'Assigned'}';
     final driver = _trip?['driver'] as Map<String, dynamic>?;
     final driverName = driver?['name'] ?? 'Suresh R';
     final vehicleNumber = driver?['vehicleNumber'] ?? 'TS09UB7845';
@@ -98,10 +100,13 @@ class _HomeUpcomingTripViewState extends State<HomeUpcomingTripView> {
                 driverName: driverName,
                 vehicleNumber: vehicleNumber,
                 primaryActionLabel: 'Track Cab',
-                onPrimaryAction: () => context.push(AppRoutes.tripAssigned),
+                onPrimaryAction: () =>
+                    context.push(AppRoutes.liveTrackingOverview),
                 secondaryActionLabel: 'Details',
                 onSecondaryAction: () => context.push(AppRoutes.tripDetails),
               ),
+              const SizedBox(height: AppSpacing.lg),
+              _DriverStatusCard(status: driverStatus),
               const SizedBox(height: AppSpacing.lg),
               EmployeeDriverCard(
                 name: driverName,
@@ -119,7 +124,7 @@ class _HomeUpcomingTripViewState extends State<HomeUpcomingTripView> {
                 child: EmployeePrimaryButton(
                   label: 'Track Trip',
                   icon: Icons.navigation_rounded,
-                  onPressed: () => context.push(AppRoutes.tripAssigned),
+                  onPressed: () => context.push(AppRoutes.liveTrackingOverview),
                 ),
               ),
               const SizedBox(height: AppSpacing.md),
@@ -156,6 +161,78 @@ class _HomeUpcomingTripViewState extends State<HomeUpcomingTripView> {
         ),
       ),
       bottomNavigationBar: const EmployeeBottomNavBar(currentIndex: 0),
+    );
+  }
+}
+
+class _DriverStatusCard extends StatelessWidget {
+  final String status;
+
+  const _DriverStatusCard({required this.status});
+
+  String get _statusLabel {
+    switch (status.trim().toUpperCase()) {
+      case 'APPROACHING':
+      case 'EN_ROUTE':
+      case 'IN_TRANSIT':
+        return 'Approaching';
+      case 'ARRIVED':
+        return 'Arrived';
+      default:
+        return 'Assigned';
+    }
+  }
+
+  int get _activeStep {
+    switch (_statusLabel) {
+      case 'Approaching':
+        return 1;
+      case 'Arrived':
+        return 2;
+      default:
+        return 0;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = EmployeePalette.of(context);
+
+    return AppCard(
+      padding: AppSpacing.paddingMd,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.directions_car_filled_rounded,
+                  size: 18, color: p.accent),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  'Driver Status',
+                  style: AppTypography.small(
+                    color: p.textPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Text(
+                _statusLabel,
+                style: AppTypography.caption(
+                  color: p.accent,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          EmployeeStepTracker(
+            currentStep: _activeStep,
+            labels: const ['Assigned', 'Approaching', 'Arrived'],
+          ),
+        ],
+      ),
     );
   }
 }

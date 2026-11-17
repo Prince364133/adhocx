@@ -640,7 +640,7 @@ export class CorporateRiderService {
 
   /**
    * POST /corporate/me/trips/:id/feedback
-   * Commuter submits 1-5 star rating and feedback tags.
+   * Commuter submits a safety response, 1-5 star rating, and feedback tags.
    */
   async submitTripFeedback(userId: string, stopId: string, dto: SubmitTripFeedbackDto): Promise<any> {
     const emp = await this.resolveEmployee(userId);
@@ -659,6 +659,18 @@ export class CorporateRiderService {
       throw new NotFoundException(`Stop ${stopId} not found for employee ${emp.fullName}`);
     }
 
+    if (stop.route.status !== CorporateRouteStatus.COMPLETED || stop.status === 'CANCELLED' || stop.status === 'NO_SHOW') {
+      throw new BadRequestException('Feedback can only be submitted for a completed trip');
+    }
+
+    if (!stop.route.driverId) {
+      throw new BadRequestException('A driver must be assigned before submitting trip feedback');
+    }
+
+    if (dto.feltSafe !== undefined && typeof dto.feltSafe !== 'boolean') {
+      throw new BadRequestException('feltSafe must be a boolean');
+    }
+
     const existing = await this.db.corporateTripFeedback.findUnique({
       where: { stopId },
     });
@@ -673,7 +685,9 @@ export class CorporateRiderService {
         employeeId: emp.id,
         routeId: stop.routeId,
         stopId: stop.id,
+        driverId: stop.route.driverId,
         rating,
+        feltSafe: dto.feltSafe ?? null,
         tags: dto.tags ?? [],
         comment: dto.comment?.trim() ?? null,
       },

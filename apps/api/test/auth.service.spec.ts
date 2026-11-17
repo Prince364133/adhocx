@@ -15,8 +15,18 @@ describe('AuthService Unit Tests', () => {
   let jwt: any;
   let redis: any;
   let notifications: any;
+  const initialAllowTestOtp = process.env.ALLOW_TEST_OTP;
+
+  afterAll(() => {
+    if (initialAllowTestOtp === undefined) {
+      delete process.env.ALLOW_TEST_OTP;
+    } else {
+      process.env.ALLOW_TEST_OTP = initialAllowTestOtp;
+    }
+  });
 
   beforeEach(async () => {
+    delete process.env.ALLOW_TEST_OTP;
     db = {
       user: {
         findUnique: jest.fn(),
@@ -102,6 +112,52 @@ describe('AuthService Unit Tests', () => {
         channel: 'SMS',
       }),
     );
+  });
+
+  it('uses the fixed OTP without sending SMS only for local test databases', async () => {
+    const previousEnv = {
+      allowTestOtp: process.env.ALLOW_TEST_OTP,
+      nodeEnv: process.env.NODE_ENV,
+      databaseUrl: process.env.DATABASE_URL,
+    };
+    process.env.ALLOW_TEST_OTP = 'true';
+    process.env.NODE_ENV = 'test';
+    process.env.DATABASE_URL =
+      'postgresql://test:test@127.0.0.1:5432/adhocx_test';
+    db.user.findFirst.mockResolvedValue({ role: UserRole.EMPLOYEE });
+
+    try {
+      const result = await service.requestOtp({
+        countryCode: '+91',
+        phone: '9876543210',
+        channel: 'SMS',
+        isRegister: false,
+      });
+
+      expect(result.message).toBe('Local test OTP is ready');
+      expect(redis.set).toHaveBeenCalledWith(
+        expect.stringContaining('otp:'),
+        '123456',
+        expect.any(Number),
+      );
+      expect(notifications.sendOtp).not.toHaveBeenCalled();
+    } finally {
+      if (previousEnv.allowTestOtp === undefined) {
+        delete process.env.ALLOW_TEST_OTP;
+      } else {
+        process.env.ALLOW_TEST_OTP = previousEnv.allowTestOtp;
+      }
+      if (previousEnv.nodeEnv === undefined) {
+        delete process.env.NODE_ENV;
+      } else {
+        process.env.NODE_ENV = previousEnv.nodeEnv;
+      }
+      if (previousEnv.databaseUrl === undefined) {
+        delete process.env.DATABASE_URL;
+      } else {
+        process.env.DATABASE_URL = previousEnv.databaseUrl;
+      }
+    }
   });
 
   it('should reject SMS OTP for roles outside the allowed app authentication flows', async () => {

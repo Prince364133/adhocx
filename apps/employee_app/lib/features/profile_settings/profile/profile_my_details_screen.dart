@@ -17,8 +17,9 @@ class ProfileMyDetailsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TripDataBuilder(
-      load: () async => (await MockDataService.getHistoryProfileData())['profile']
-          as Map<String, dynamic>?,
+      load: () async =>
+          (await MockDataService.getHistoryProfileData())['profile']
+              as Map<String, dynamic>?,
       builder: (context, profile) {
         final p = EmployeePalette.of(context);
 
@@ -63,7 +64,8 @@ class ProfileMyDetailsScreen extends StatelessWidget {
                             TripInfoItem(
                               icon: Icons.location_on_outlined,
                               label: 'Address',
-                              value: profile['address'] ?? 'Kondapur, Hyderabad',
+                              value:
+                                  profile['address'] ?? 'Kondapur, Hyderabad',
                             ),
                           ],
                         ),
@@ -74,16 +76,33 @@ class ProfileMyDetailsScreen extends StatelessWidget {
                         child: Column(
                           children: [
                             for (final (icon, title, route) in const [
-                              (Icons.edit_outlined, 'Edit Profile',
-                                  AppRoutes.editProfile),
+                              (
+                                Icons.edit_outlined,
+                                'Edit Profile',
+                                AppRoutes.editProfile
+                              ),
                               // Settings (appearance, language) was
                               // unreachable from the Profile tab.
-                              (Icons.settings_outlined, 'Settings',
-                                  AppRoutes.settingsOverview),
-                              (Icons.language_rounded, 'Language',
-                                  AppRoutes.settingsLanguage),
-                              (Icons.headset_mic_outlined, 'Support',
-                                  AppRoutes.safetyReportIncident),
+                              (
+                                Icons.settings_outlined,
+                                'Settings',
+                                AppRoutes.settingsOverview
+                              ),
+                              (
+                                Icons.language_rounded,
+                                'Language',
+                                AppRoutes.settingsLanguage
+                              ),
+                              (
+                                Icons.contact_phone_outlined,
+                                'Manage Contacts',
+                                AppRoutes.manageEmergencyContacts
+                              ),
+                              (
+                                Icons.headset_mic_outlined,
+                                'Support',
+                                AppRoutes.safetyReportIncident
+                              ),
                             ]) ...[
                               EmployeeNavTile(
                                 icon: icon,
@@ -96,7 +115,8 @@ class ProfileMyDetailsScreen extends StatelessWidget {
                               icon: Icons.logout_rounded,
                               title: 'Sign Out',
                               iconColor: AppColors.error,
-                              onTap: () => context.push(AppRoutes.logoutConfirm),
+                              onTap: () =>
+                                  context.push(AppRoutes.logoutConfirm),
                             ),
                           ],
                         ),
@@ -129,7 +149,10 @@ class _ProfileHeader extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppColors.primaryGradientStart, AppColors.primaryGradientEnd],
+          colors: [
+            AppColors.primaryGradientStart,
+            AppColors.primaryGradientEnd
+          ],
         ),
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(AppRadius.xxl * 2),

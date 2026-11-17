@@ -12,7 +12,9 @@ import '../widgets/boarding_widgets.dart';
 
 /// Screen 9: Drop Reached / Reached Destination
 class DropReachedScreen extends StatelessWidget {
-  const DropReachedScreen({super.key});
+  final Map<String, dynamic>? tripData;
+
+  const DropReachedScreen({super.key, this.tripData});
 
   @override
   Widget build(BuildContext context) {
@@ -80,7 +82,10 @@ class DropReachedScreen extends StatelessWidget {
             EmployeePrimaryButton(
               label: 'Confirm Drop',
               icon: Icons.check_circle_outline_rounded,
-              onPressed: () => context.push(AppRoutes.tripCompletedSummary),
+              onPressed: () => context.push(
+                AppRoutes.tripCompletedSummary,
+                extra: tripData,
+              ),
             ),
           ],
         );

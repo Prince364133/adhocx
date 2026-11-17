@@ -1,11 +1,17 @@
 import 'package:adhocx_employee/features/trips/trips.dart';
+import 'package:adhocx_employee/repositories/http_employee_rider_repository.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
+import 'package:adhocx_employee/services/employee_api_client.dart';
 import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 final _screens = <String, Widget Function()>{
   'Planning': () => const TripPlanningScreen(),
@@ -40,17 +46,35 @@ GoRouter _router(Widget screen) {
   );
 }
 
-Future<void> _pump(WidgetTester tester, Widget screen, {bool dark = false}) async {
+Future<void> _pump(WidgetTester tester, Widget screen,
+    {bool dark = false}) async {
   tester.view.physicalSize = const Size(360, 640);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
+  SharedPreferences.setMockInitialValues({});
   await tester.runAsync(MockDataService.loadData);
-  await tester.pumpWidget(MaterialApp.router(
-    theme: AppTheme.lightTheme,
-    darkTheme: AppTheme.darkTheme,
-    themeMode: dark ? ThemeMode.dark : ThemeMode.light,
-    routerConfig: _router(screen),
-  ));
+  final riderRepository = HttpEmployeeRiderRepository(
+    client: EmployeeApiClient(
+      httpClient: MockClient(
+        (_) async => http.Response(
+          '{"data":[]}',
+          200,
+          headers: {'content-type': 'application/json'},
+        ),
+      ),
+    ),
+  );
+  await tester.pumpWidget(
+    Provider<HttpEmployeeRiderRepository>.value(
+      value: riderRepository,
+      child: MaterialApp.router(
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: dark ? ThemeMode.dark : ThemeMode.light,
+        routerConfig: _router(screen),
+      ),
+    ),
+  );
   await tester.pumpAndSettle();
 }
 
@@ -78,13 +102,13 @@ void main() {
     expect(find.text('LANDED ${AppRoutes.contactDriverSheet}'), findsOneWidget);
   });
 
-  testWidgets('"Provide Feedback" opens the post-trip feedback form',
+  testWidgets('"Provide Feedback" opens completed trip details',
       (tester) async {
     await _pump(tester, const TripCompletedScreen());
     await tester.ensureVisible(find.text('Provide Feedback'));
     await tester.tap(find.text('Provide Feedback'));
     await tester.pumpAndSettle();
-    expect(find.text('LANDED ${AppRoutes.postTripFeedback}'), findsOneWidget);
+    expect(find.text('LANDED ${AppRoutes.tripDetails}'), findsOneWidget);
   });
 
   testWidgets('unserved "View Schedule" opens the schedule', (tester) async {

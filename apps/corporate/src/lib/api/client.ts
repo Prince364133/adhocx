@@ -22,23 +22,27 @@ export function configureCorporateApiSession(adapter: CorporateApiSessionAdapter
 }
 
 export function getApiBaseUrl(): string {
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
-  }
-
   if (typeof window !== 'undefined') {
     const host = window.location.hostname.toLowerCase();
     const port = window.location.port;
-
-    if (host.includes('adhocx.com')) {
-      return '/api/v1';
-    }
 
     if (port === '7005' || port === '7006' || host === 'localhost' || host === '127.0.0.1' || /^(\d{1,3}\.){3}\d{1,3}$/.test(host)) {
       return `${window.location.protocol}//${host}:7001/api/v1`;
     }
 
+    if (process.env.NEXT_PUBLIC_API_URL) {
+      return process.env.NEXT_PUBLIC_API_URL;
+    }
+
+    if (host.includes('adhocx.com')) {
+      return '/api/v1';
+    }
+
     return `${window.location.origin}/api/v1`;
+  }
+
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
   }
 
   return 'https://api.adhocx.com/api/v1';

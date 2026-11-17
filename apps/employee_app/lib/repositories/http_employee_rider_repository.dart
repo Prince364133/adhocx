@@ -22,7 +22,8 @@ class HttpEmployeeRiderRepository {
     if (startDate != null) params['startDate'] = startDate;
     if (endDate != null) params['endDate'] = endDate;
 
-    final res = await _client.get('/corporate/me/schedule', queryParams: params);
+    final res =
+        await _client.get('/corporate/me/schedule', queryParams: params);
     return (res['data'] ?? res) as Map<String, dynamic>;
   }
 
@@ -33,7 +34,8 @@ class HttpEmployeeRiderRepository {
   }
 
   /// Fetches past commute trip history
-  Future<List<dynamic>> getTripsHistory({int limit = 20, int offset = 0}) async {
+  Future<List<dynamic>> getTripsHistory(
+      {int limit = 20, int offset = 0}) async {
     final res = await _client.get(
       '/corporate/me/trips',
       queryParams: {'limit': limit.toString(), 'offset': offset.toString()},
@@ -68,6 +70,7 @@ class HttpEmployeeRiderRepository {
   Future<Map<String, dynamic>> submitFeedback(
     String stopId, {
     required int rating,
+    bool? feltSafe,
     String? comment,
     List<String>? tags,
   }) async {
@@ -75,6 +78,7 @@ class HttpEmployeeRiderRepository {
       '/corporate/me/trips/$stopId/feedback',
       body: {
         'rating': rating,
+        if (feltSafe != null) 'feltSafe': feltSafe,
         if (comment != null) 'comment': comment,
         if (tags != null) 'tags': tags,
       },

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:adhocx_employee/features/boarding/completion/driver_safety_rating_sheet.dart';
+import 'package:adhocx_employee/features/trips/summary/driver_rating_trip.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
 import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
 import 'package:adhocx_employee/shared/illustrations/tracking_illustrations.dart';
@@ -7,15 +9,54 @@ import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
 
-class TripHistoryDetailsScreen extends StatelessWidget {
-  const TripHistoryDetailsScreen({super.key});
+class TripHistoryDetailsScreen extends StatefulWidget {
+  final DriverRatingTrip? trip;
+
+  const TripHistoryDetailsScreen({super.key, this.trip});
+
+  @override
+  State<TripHistoryDetailsScreen> createState() =>
+      _TripHistoryDetailsScreenState();
+}
+
+class _TripHistoryDetailsScreenState extends State<TripHistoryDetailsScreen> {
+  bool _submitted = false;
+
+  Future<void> _rateDriver() async {
+    final trip = widget.trip;
+    if (trip == null || !trip.canRate) return;
+
+    final submitted = await showDriverSafetyRatingSheet(context, trip);
+    if (!mounted || submitted != true) return;
+
+    setState(() => _submitted = true);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Thank you! Your driver rating has been submitted.'),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final p = EmployeePalette.of(context);
+    final trip = widget.trip;
+    final title = trip?.title ?? 'Login Trip';
+    final status = trip?.displayStatus ?? 'Completed';
+    final date = trip?.displayDate ?? 'Tue, 09 Dec 2026';
+    final pickup = trip?.pickupAddress.isNotEmpty == true
+        ? trip!.pickupAddress
+        : 'Home (Kondapur)';
+    final destination = trip?.destinationAddress.isNotEmpty == true
+        ? trip!.destinationAddress
+        : 'HITEC City Office';
+    final shiftTime = trip?.shiftTime ?? '8:15 AM';
+    final hasVehicle = trip == null ||
+        trip.vehicleModel.isNotEmpty ||
+        trip.vehiclePlate.isNotEmpty;
 
-    Widget routePoint(IconData icon, Color color, String title,
-            String location, String time) =>
+    Widget routePoint(IconData icon, Color color, String label, String location,
+            String time) =>
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -25,7 +66,7 @@ class TripHistoryDetailsScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: AppTypography.caption(color: p.textMuted)),
+                  Text(label, style: AppTypography.caption(color: p.textMuted)),
                   Text(
                     location,
                     style: AppTypography.bodyMedium(
@@ -68,39 +109,88 @@ class TripHistoryDetailsScreen extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            'Login Trip',
+                            title,
                             style: AppTypography.h4(
                               color: p.textPrimary,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
                         ),
-                        EmployeeStatusBadge.fromString('Completed'),
+                        EmployeeStatusBadge.fromString(status),
                       ],
                     ),
-                    Text('Tue, 09 Dec 2026',
+                    Text(date,
                         style: AppTypography.caption(color: p.textMuted)),
                     Divider(color: p.border, height: AppSpacing.xxl),
-                    routePoint(Icons.my_location_rounded, AppColors.success,
-                        'Pickup', 'Home (Kondapur)', '8:15 AM'),
+                    routePoint(
+                      Icons.my_location_rounded,
+                      AppColors.success,
+                      'Pickup',
+                      pickup,
+                      shiftTime,
+                    ),
                     const SizedBox(height: AppSpacing.lg),
-                    routePoint(Icons.location_on_rounded, AppColors.brandOrange,
-                        'Drop', 'HITEC City Office', '9:02 AM'),
+                    routePoint(
+                      Icons.location_on_rounded,
+                      AppColors.brandOrange,
+                      'Drop',
+                      destination,
+                      '—',
+                    ),
                   ],
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
-              const TripDriverRow(
-                name: 'Suresh R',
-                rating: '4.8',
-                avatarRadius: 22,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              const TripVehicleCard(
-                model: 'Maruti Ertiga',
-                plate: 'TS09UB7845',
-                details: 'White • 7 Seater',
-              ),
+              if (trip == null)
+                const TripDriverRow(
+                  name: 'Suresh R',
+                  rating: '4.8',
+                  avatarRadius: 22,
+                )
+              else if (trip.driverName.isNotEmpty)
+                TripDriverRow(
+                  name: trip.driverName,
+                  rating: trip.driverRating?.toStringAsFixed(1) ?? '—',
+                  vehicleNumber:
+                      trip.vehiclePlate.isEmpty ? null : trip.vehiclePlate,
+                  avatarRadius: 22,
+                ),
+              if (hasVehicle) ...[
+                const SizedBox(height: AppSpacing.md),
+                TripVehicleCard(
+                  model: trip == null
+                      ? 'Maruti Ertiga'
+                      : trip.vehicleModel.isEmpty
+                          ? 'Vehicle model unavailable'
+                          : trip.vehicleModel,
+                  plate: trip == null
+                      ? 'TS09UB7845'
+                      : trip.vehiclePlate.isEmpty
+                          ? 'Plate unavailable'
+                          : trip.vehiclePlate,
+                  details: trip == null ? 'White • 7 Seater' : '',
+                ),
+              ],
+              if (trip?.canRate == true && !_submitted) ...[
+                const SizedBox(height: AppSpacing.lg),
+                EmployeePrimaryButton(
+                  label: 'Rate Driver',
+                  icon: Icons.star_rounded,
+                  onPressed: _rateDriver,
+                ),
+              ] else if (trip?.hasFeedback == true || _submitted) ...[
+                const SizedBox(height: AppSpacing.lg),
+                AppCard(
+                  child: Text(
+                    'Your rating has been submitted'
+                    '${trip?.feedbackRating == null ? '.' : ': ${trip!.feedbackRating} stars.'}',
+                    style: AppTypography.bodyMedium(
+                      color: p.textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),

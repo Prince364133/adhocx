@@ -1,7 +1,9 @@
 import 'package:adhocx_employee/features/profile_settings/profile_settings.dart';
 import 'package:adhocx_employee/models/employee_user.dart';
 import 'package:adhocx_employee/repositories/employee_auth_repository.dart';
+import 'package:adhocx_employee/repositories/http_employee_rider_repository.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
+import 'package:adhocx_employee/services/employee_api_client.dart';
 import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/state/employee_auth_provider.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
@@ -10,6 +12,8 @@ import 'package:adhocx_employee/theme/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -50,13 +54,25 @@ final _screens = <String, Widget Function()>{
 
 late ThemeProvider _theme;
 
-Future<void> _pump(WidgetTester tester, Widget screen, {bool dark = false}) async {
+Future<void> _pump(WidgetTester tester, Widget screen,
+    {bool dark = false}) async {
   tester.view.physicalSize = const Size(360, 640);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   SharedPreferences.setMockInitialValues({});
   await tester.runAsync(MockDataService.loadData);
   _theme = ThemeProvider();
+  final riderRepository = HttpEmployeeRiderRepository(
+    client: EmployeeApiClient(
+      httpClient: MockClient(
+        (_) async => http.Response(
+          '{"data":[]}',
+          200,
+          headers: {'content-type': 'application/json'},
+        ),
+      ),
+    ),
+  );
   Widget landed(String r) => Scaffold(body: Text('LANDED $r'));
   final router = GoRouter(
     initialLocation: '/screen',
@@ -71,6 +87,7 @@ Future<void> _pump(WidgetTester tester, Widget screen, {bool dark = false}) asyn
       ChangeNotifierProvider(
         create: (_) => EmployeeAuthProvider(repository: _FakeAuthRepository()),
       ),
+      Provider<HttpEmployeeRiderRepository>.value(value: riderRepository),
       ChangeNotifierProvider.value(value: _theme),
     ],
     child: MaterialApp.router(

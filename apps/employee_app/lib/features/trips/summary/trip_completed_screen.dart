@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:adhocx_employee/features/boarding/completion/driver_rating_prompt_service.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
 import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
@@ -7,8 +8,53 @@ import 'package:adhocx_employee/shared/illustrations/trip_illustrations.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
 
-class TripCompletedScreen extends StatelessWidget {
-  const TripCompletedScreen({super.key});
+class TripCompletedScreen extends StatefulWidget {
+  final Map<String, dynamic>? tripData;
+
+  const TripCompletedScreen({super.key, this.tripData});
+
+  @override
+  State<TripCompletedScreen> createState() => _TripCompletedScreenState();
+}
+
+class _TripCompletedScreenState extends State<TripCompletedScreen> {
+  bool _checkingForRating = false;
+  bool _checkedForRating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkCompletedTripAndPrompt();
+    });
+  }
+
+  Future<void> _checkCompletedTripAndPrompt() async {
+    if (!mounted || _checkingForRating || _checkedForRating) return;
+    _checkingForRating = true;
+    try {
+      await DriverRatingPromptService.checkAndPrompt(
+        context,
+        tripData: widget.tripData,
+      );
+      if (!mounted) return;
+      setState(() => _checkedForRating = true);
+    } catch (error) {
+      if (!mounted) return;
+      _checkedForRating = false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Unable to check completed trip rating: $error'),
+          action: SnackBarAction(
+            label: 'Retry',
+            onPressed: _checkCompletedTripAndPrompt,
+          ),
+        ),
+      );
+    } finally {
+      _checkingForRating = false;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,8 +97,7 @@ class TripCompletedScreen extends StatelessWidget {
             EmployeePrimaryButton(
               label: 'Provide Feedback',
               icon: Icons.star_border_rounded,
-              // Post-trip rating form (was wrongly the trip timeline).
-              onPressed: () => context.push(AppRoutes.postTripFeedback),
+              onPressed: () => context.push(AppRoutes.tripDetails),
             ),
             const SizedBox(height: AppSpacing.md),
             EmployeeTextLink(
