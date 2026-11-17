@@ -65,7 +65,6 @@ import '../user/fulfillment/user_driver_details_screen.dart';
 import '../user/fulfillment/user_vehicle_details_screen.dart';
 import '../user/fulfillment/user_assignment_timeline_screen.dart';
 import '../user/fulfillment/user_cancel_assignment_screen.dart';
-import '../user/trips/user_trips_list_screen.dart';
 import '../user/trips/user_active_trip_screen.dart';
 import '../user/trips/user_trip_details_screen.dart';
 import '../user/trips/user_trip_timeline_activity_screen.dart';
@@ -383,19 +382,23 @@ class AppRoutes {
             context.push('/trips/$resolvedTripId', extra: tripExtra);
           }
         } else {
-          context.go(isDriver ? AppRoutes.homeScreen : AppRoutes.userTripsScreen);
+          context.go(isDriver ? AppRoutes.homeScreen : AppRoutes.userRequirementsScreen);
         }
         return;
       }
 
       // 5. General Trips screen (/trips, /user/trips, /trips-screen)
       if (type != null && type.startsWith('TRIP_')) {
-        context.go(isDriver ? AppRoutes.homeScreen : AppRoutes.userTripsScreen);
+        context.go(isDriver ? AppRoutes.homeScreen : AppRoutes.userRequirementsScreen);
         return;
       }
 
       if (rawTargetRoute == '/trips' || rawTargetRoute == AppRoutes.tripsScreen || rawTargetRoute == AppRoutes.userTripsScreen) {
-        context.push(isDriver ? AppRoutes.tripsScreen : AppRoutes.userTripsScreen);
+        if (isDriver) {
+          context.push(AppRoutes.tripsScreen);
+        } else {
+          context.go(AppRoutes.userRequirementsScreen);
+        }
         return;
       }
 
@@ -925,14 +928,6 @@ final GoRouter appRouter = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(
-              path: AppRoutes.userTripsScreen,
-              builder: (context, state) => const UserTripsListScreen(),
-            ),
-          ],
-        ),
-        StatefulShellBranch(
-          routes: [
-            GoRoute(
               path: AppRoutes.userPaymentsScreen,
               builder: (context, state) => const UserPaymentsScreen(),
             ),
@@ -1170,7 +1165,11 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/trips',
-      redirect: (context, state) => AuthService.instance.currentUser?.isDriver == false ? AppRoutes.userTripsScreen : AppRoutes.tripsScreen,
+      redirect: (context, state) => AuthService.instance.currentUser?.isDriver == false ? AppRoutes.userRequirementsScreen : AppRoutes.tripsScreen,
+    ),
+    GoRoute(
+      path: AppRoutes.userTripsScreen,
+      redirect: (context, state) => AppRoutes.userRequirementsScreen,
     ),
     GoRoute(
       path: '/requirements',

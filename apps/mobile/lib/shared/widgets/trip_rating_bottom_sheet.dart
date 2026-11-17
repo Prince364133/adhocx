@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_spacing.dart';
@@ -25,6 +26,44 @@ class TripRatingBottomSheet extends StatefulWidget {
     this.onReviewSubmitted,
   });
 
+  static final Set<String> _ratedTripIds = {};
+  static bool _isSheetOpen = false;
+
+  /// Check whether this trip has already been rated by the user
+  static Future<bool> isTripRated(String tripId) async {
+    if (tripId.isEmpty) return false;
+    if (_ratedTripIds.contains(tripId)) return true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = prefs.getStringList('rated_trip_ids') ?? [];
+      if (list.contains(tripId)) {
+        _ratedTripIds.add(tripId);
+        return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  /// Synchronous check against in-memory cache
+  static bool isTripRatedSync(String tripId) {
+    if (tripId.isEmpty) return false;
+    return _ratedTripIds.contains(tripId);
+  }
+
+  /// Mark trip as permanently rated on this device
+  static Future<void> markTripAsRated(String tripId) async {
+    if (tripId.isEmpty) return;
+    _ratedTripIds.add(tripId);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = prefs.getStringList('rated_trip_ids') ?? [];
+      if (!list.contains(tripId)) {
+        list.add(tripId);
+        await prefs.setStringList('rated_trip_ids', list);
+      }
+    } catch (_) {}
+  }
+
   /// [isMandatory] locks the sheet (no swipe, tap-outside or back) until the review is
   /// submitted. Only the customer review gate passes `true`; every other caller is optional.
   static Future<void> show({
@@ -35,26 +74,45 @@ class TripRatingBottomSheet extends StatefulWidget {
     bool isReviewingDriver = true,
     bool isMandatory = false,
     VoidCallback? onReviewSubmitted,
-  }) {
-    return showModalBottomSheet(
-      context: context,
-      useRootNavigator: true,
-      isScrollControlled: true,
-      isDismissible: !isMandatory,
-      enableDrag: !isMandatory,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => PopScope(
-        canPop: !isMandatory,
-        child: TripRatingBottomSheet(
-          tripId: tripId,
-          targetName: targetName,
-          vehicleInfo: vehicleInfo,
-          isReviewingDriver: isReviewingDriver,
-          isMandatory: isMandatory,
-          onReviewSubmitted: onReviewSubmitted,
+  }) async {
+    if (_isSheetOpen) return;
+    if (tripId.isNotEmpty && await isTripRated(tripId)) {
+      debugPrint('[TripRating] Trip $tripId already rated, skipping duplicate prompt.');
+      if (context.mounted && !isMandatory) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('You have already rated this driver for this trip.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
+    if (!context.mounted) return;
+    _isSheetOpen = true;
+    try {
+      await showModalBottomSheet(
+        context: context,
+        useRootNavigator: true,
+        isScrollControlled: true,
+        isDismissible: !isMandatory,
+        enableDrag: !isMandatory,
+        backgroundColor: Colors.transparent,
+        builder: (ctx) => PopScope(
+          canPop: !isMandatory,
+          child: TripRatingBottomSheet(
+            tripId: tripId,
+            targetName: targetName,
+            vehicleInfo: vehicleInfo,
+            isReviewingDriver: isReviewingDriver,
+            isMandatory: isMandatory,
+            onReviewSubmitted: onReviewSubmitted,
+          ),
         ),
-      ),
-    );
+      );
+    } finally {
+      _isSheetOpen = false;
+    }
   }
 
   @override
@@ -119,6 +177,7 @@ class _TripRatingBottomSheetState extends State<TripRatingBottomSheet> {
         );
       }
 
+      await TripRatingBottomSheet.markTripAsRated(widget.tripId);
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -134,6 +193,7 @@ class _TripRatingBottomSheetState extends State<TripRatingBottomSheet> {
       // 409: already reviewed (e.g. from another device); 400/404: trip no longer reviewable.
       // Either way nothing is owed any more, so release the sheet instead of trapping the user.
       if (e is ApiException && (e.statusCode == 409 || e.statusCode == 400 || e.statusCode == 404)) {
+        await TripRatingBottomSheet.markTripAsRated(widget.tripId);
         if (mounted) {
           Navigator.of(context).pop();
           widget.onReviewSubmitted?.call();

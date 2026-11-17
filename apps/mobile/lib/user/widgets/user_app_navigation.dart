@@ -30,28 +30,22 @@ class _UserAppNavigationState extends State<UserAppNavigation> {
       branchIndex: 1,
     ),
     _UserTabSpec(
-      label: 'Trips',
-      icon: Icons.directions_car_outlined,
-      selectedIcon: Icons.directions_car,
-      branchIndex: 2,
-    ),
-    _UserTabSpec(
       label: 'Payments',
       icon: Icons.account_balance_wallet_outlined,
       selectedIcon: Icons.account_balance_wallet,
-      branchIndex: 3,
+      branchIndex: 2,
     ),
     _UserTabSpec(
       label: 'Profile',
       icon: Icons.person_outline,
       selectedIcon: Icons.person,
-      branchIndex: 4,
+      branchIndex: 3,
     ),
   ];
 
   List<_UserTabSpec> get _visibleTabs => FeatureFlags.isVendorWalletEnabled
       ? _tabs
-      : _tabs.where((tab) => tab.branchIndex != 3).toList(growable: false);
+      : _tabs.where((tab) => tab.branchIndex != 2).toList(growable: false);
 
   void _syncSelectedVisualIndex() {
     final tabs = _visibleTabs;

@@ -1374,28 +1374,52 @@ class _UserRequirementDetailsScreenState extends State<UserRequirementDetailsScr
                                         if (isCompleted && tripId != null) ...[
                                           const SizedBox(width: 8),
                                           Expanded(
-                                            child: ElevatedButton.icon(
-                                              onPressed: () {
-                                                TripRatingBottomSheet.show(
-                                                  context: context,
-                                                  tripId: tripId,
-                                                  targetName: driverName,
-                                                  vehicleInfo: vehiclePlate,
-                                                  isReviewingDriver: true,
-                                                  onReviewSubmitted: () => _loadRequirement(silent: true),
-                                                );
-                                              },
-                                              icon: const Icon(Icons.star_rounded, size: 16, color: Colors.white),
-                                              label: const Text(
-                                                'Rate Driver ⭐',
-                                                style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                                              ),
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: AppColors.starAmber,
-                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
-                                                padding: const EdgeInsets.symmetric(vertical: 8),
-                                              ),
-                                            ),
+                                            child: TripRatingBottomSheet.isTripRatedSync(tripId)
+                                                ? Container(
+                                                    padding: const EdgeInsets.symmetric(vertical: 8),
+                                                    decoration: BoxDecoration(
+                                                      color: AppColors.success.withValues(alpha: 0.15),
+                                                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                                                      border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+                                                    ),
+                                                    alignment: Alignment.center,
+                                                    child: const Row(
+                                                      mainAxisAlignment: MainAxisAlignment.center,
+                                                      children: [
+                                                        Icon(Icons.star_rounded, size: 16, color: AppColors.starAmber),
+                                                        SizedBox(width: 4),
+                                                        Text(
+                                                          'Rated ⭐',
+                                                          style: TextStyle(color: AppColors.success, fontSize: 12, fontWeight: FontWeight.bold),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  )
+                                                : ElevatedButton.icon(
+                                                    onPressed: () {
+                                                      TripRatingBottomSheet.show(
+                                                        context: context,
+                                                        tripId: tripId,
+                                                        targetName: driverName,
+                                                        vehicleInfo: vehiclePlate,
+                                                        isReviewingDriver: true,
+                                                        onReviewSubmitted: () {
+                                                          if (mounted) setState(() {});
+                                                          _loadRequirement(silent: true);
+                                                        },
+                                                      );
+                                                    },
+                                                    icon: const Icon(Icons.star_rounded, size: 16, color: Colors.white),
+                                                    label: const Text(
+                                                      'Rate Driver ⭐',
+                                                      style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                                                    ),
+                                                    style: ElevatedButton.styleFrom(
+                                                      backgroundColor: AppColors.starAmber,
+                                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
+                                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                                    ),
+                                                  ),
                                           ),
                                         ],
                                       ],

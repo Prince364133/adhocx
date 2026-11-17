@@ -275,31 +275,36 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
     }
   }
 
-  void _checkTripCompletionPrompt() {
-    final status = _trip?['status']?.toString();
-    if (status == 'COMPLETED' && !_hasPromptedRating) {
-      _hasPromptedRating = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          final tripId = _trip?['id']?.toString() ?? widget.tripId ?? '';
-          final driver = _trip?['driver'] as Map<String, dynamic>?;
-          final driverUser = driver?['user'] as Map<String, dynamic>?;
-          final driverName = _trip?['driverName']?.toString() ??
-              driverUser?['fullName'] ??
-              driver?['fullName'] ??
-              'Your Driver';
-          final vehiclePlate = _trip?['vehiclePlate'] ?? driver?['vehiclePlate'];
+  void _checkTripCompletionPrompt() async {
+    final status = _trip?['status']?.toString().toUpperCase();
+    final tripId = _trip?['id']?.toString() ?? widget.tripId ?? '';
+    if (status != 'COMPLETED' || tripId.isEmpty) return;
+    if (_hasPromptedRating) return;
+    if (await TripRatingBottomSheet.isTripRated(tripId)) return;
 
-          TripRatingBottomSheet.show(
-            context: context,
-            tripId: tripId,
-            targetName: driverName,
-            vehicleInfo: vehiclePlate?.toString(),
-            isReviewingDriver: true,
-          );
-        }
-      });
-    }
+    _hasPromptedRating = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final driver = _trip?['driver'] as Map<String, dynamic>?;
+        final driverUser = driver?['user'] as Map<String, dynamic>?;
+        final driverName = _trip?['driverName']?.toString() ??
+            driverUser?['fullName'] ??
+            driver?['fullName'] ??
+            'Your Driver';
+        final vehiclePlate = _trip?['vehiclePlate'] ?? driver?['vehiclePlate'];
+
+        TripRatingBottomSheet.show(
+          context: context,
+          tripId: tripId,
+          targetName: driverName,
+          vehicleInfo: vehiclePlate?.toString(),
+          isReviewingDriver: true,
+          onReviewSubmitted: () {
+            if (mounted) setState(() {});
+          },
+        );
+      }
+    });
   }
 
   Future<void> _callDriver(String phone) async {
@@ -1078,9 +1083,12 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
             status == 'OPEN' ||
             status == 'PENDING');
 
-    final bool isCompleted = status == 'COMPLETED';
-    final bool isArrived = status == 'ARRIVED' || status == 'IN_PROGRESS' || status == 'COMPLETED';
-    final bool isStarted = status == 'IN_PROGRESS' || status == 'COMPLETED';
+    final bool isCompleted = status.toUpperCase() == 'COMPLETED' ||
+        (_trip?['completedAt'] != null && _trip!['completedAt'].toString().isNotEmpty) ||
+        (req['status']?.toString().toUpperCase() == 'COMPLETED');
+    final bool isArrived = status == 'ARRIVED' || status == 'IN_PROGRESS' || isCompleted;
+    final bool isStarted = status == 'IN_PROGRESS' || isCompleted;
+    final bool isBeforeTripStart = (status == 'ASSIGNED' || status == 'ACCEPTED' || status == 'ARRIVED') && !isStarted && !isCompleted;
 
     final String driverName = hasAssignedDriver ? (rawDriverName ?? 'Assigned Driver') : '';
     final String rawDriverPhone = (trip['driverPhone'] ?? driver?['phone'] ?? driverUser?['phone'])?.toString() ?? '';
@@ -1764,24 +1772,44 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
                                     ],
                                   ),
                                 ),
-                                ElevatedButton(
-                                  onPressed: () {
-                                    final tripId = _trip?['id']?.toString() ?? widget.tripId ?? '';
-                                    TripRatingBottomSheet.show(
-                                      context: context,
-                                      tripId: tripId,
-                                      targetName: driverName,
-                                      vehicleInfo: vehiclePlate,
-                                      isReviewingDriver: true,
-                                      onReviewSubmitted: () => _loadData(silent: true),
-                                    );
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.starAmber,
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                  ),
-                                  child: const Text('Rate Driver', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-                                ),
+                                TripRatingBottomSheet.isTripRatedSync(_trip?['id']?.toString() ?? widget.tripId ?? '')
+                                    ? Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.success.withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(AppRadius.sm),
+                                          border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+                                        ),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.star_rounded, color: AppColors.starAmber, size: 16),
+                                            SizedBox(width: 4),
+                                            Text('Rated', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold, fontSize: 12)),
+                                          ],
+                                        ),
+                                      )
+                                    : ElevatedButton(
+                                        onPressed: () {
+                                          final tripId = _trip?['id']?.toString() ?? widget.tripId ?? '';
+                                          TripRatingBottomSheet.show(
+                                            context: context,
+                                            tripId: tripId,
+                                            targetName: driverName,
+                                            vehicleInfo: vehiclePlate,
+                                            isReviewingDriver: true,
+                                            onReviewSubmitted: () {
+                                              if (mounted) setState(() {});
+                                              _loadData(silent: true);
+                                            },
+                                          );
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: AppColors.starAmber,
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        ),
+                                        child: const Text('Rate Driver', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                                      ),
                               ],
                             ),
                           ),
@@ -1985,8 +2013,8 @@ class _UserActiveTripScreenState extends State<UserActiveTripScreen>
                           const SizedBox(height: AppSpacing.md),
                         ],
 
-                        // ── Start OTP Verification Card (Only visible once driver is assigned) ──
-                        if (hasAssignedDriver && !isCompleted && otp.isNotEmpty && otp != '—') ...[
+                        // ── Start OTP Verification Card (Only visible before trip start; hidden after completing the ride) ──
+                        if (hasAssignedDriver && isBeforeTripStart && !isStarted && !isCompleted && !isCancelled && otp.isNotEmpty && otp != '—') ...[
                           Container(
                             padding: const EdgeInsets.all(AppSpacing.md),
                             decoration: BoxDecoration(

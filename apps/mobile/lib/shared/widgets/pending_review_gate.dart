@@ -37,7 +37,8 @@ class PendingReviewGate {
     VoidCallback? onCleared,
   }) async {
     final tripId = trip['id']?.toString() ?? trip['tripId']?.toString() ?? '';
-    if (_showing || tripId.isEmpty) return;
+    if (_showing || tripId.isEmpty || await TripRatingBottomSheet.isTripRated(tripId)) return;
+    if (!context.mounted) return;
     _showing = true;
     var resolved = false;
     try {
