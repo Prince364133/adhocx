@@ -546,7 +546,7 @@ export class AuthService implements OnModuleInit {
 
     const smsChannel = !isEmail;
     const smsRole = (
-      dto.isRegister === true ? dto.role : existingUser?.role
+      dto.isRegister === true ? dto.role : (existingUser?.role || dto.role)
     )?.toUpperCase();
     const allowedSmsRoles = new Set([
       'DRIVER',

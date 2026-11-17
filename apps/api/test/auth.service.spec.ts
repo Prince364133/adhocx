@@ -230,7 +230,8 @@ describe('AuthService Unit Tests', () => {
   });
 
   it('should clear any prior verify rate-limit lockout when a new OTP is requested', async () => {
-    await service.requestOtp({ phone: '+919876543210' });
+    db.user.findFirst.mockResolvedValue({ id: 'usr-1', role: UserRole.DRIVER });
+    await service.requestOtp({ phone: '+919876543210', isRegister: false });
     expect(redis.del).toHaveBeenCalledWith('ratelimit:otp_verify:+919876543210');
   });
 
