@@ -914,7 +914,11 @@ export class NotificationsService implements OnModuleInit {
     if (!filter) return { userWhere };
 
     if (filter.role && filter.role !== 'ALL') {
-      userWhere.role = filter.role as UserRole;
+      if (filter.role === 'EMPLOYEE') {
+        userWhere.role = { in: [UserRole.EMPLOYEE, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER] };
+      } else {
+        userWhere.role = filter.role as UserRole;
+      }
     }
 
     if (filter.userIds && filter.userIds.length > 0) {
@@ -968,6 +972,16 @@ export class NotificationsService implements OnModuleInit {
       }
     }
 
+    // Device Platform criteria
+    if (filter.platform && filter.platform !== 'ALL') {
+      userWhere.deviceTokens = {
+        some: {
+          isActive: true,
+          platform: filter.platform as DevicePlatform,
+        },
+      };
+    }
+
     return { userWhere };
   }
 
@@ -989,7 +1003,12 @@ export class NotificationsService implements OnModuleInit {
       select: {
         id: true,
         deviceTokens: {
-          where: { isActive: true },
+          where: {
+            isActive: true,
+            ...(filter?.platform && filter.platform !== 'ALL'
+              ? { platform: filter.platform as DevicePlatform }
+              : {}),
+          },
           select: { platform: true },
         },
       },
@@ -1034,7 +1053,12 @@ export class NotificationsService implements OnModuleInit {
       where: userWhere,
       include: {
         deviceTokens: {
-          where: { isActive: true },
+          where: {
+            isActive: true,
+            ...(audienceFilter?.platform && audienceFilter.platform !== 'ALL'
+              ? { platform: audienceFilter.platform as DevicePlatform }
+              : {}),
+          },
         },
         notificationPreference: true,
       },
@@ -1107,6 +1131,7 @@ export class NotificationsService implements OnModuleInit {
       imageUrl,
       actionUrl,
       targetRole: audienceFilter?.role || 'ALL',
+      targetPlatform: audienceFilter?.platform || 'ALL',
       timestamp: new Date().toISOString(),
     });
 

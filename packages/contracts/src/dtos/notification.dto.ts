@@ -48,6 +48,10 @@ export class AudienceFilterDto {
 
   @IsOptional()
   @IsString()
+  platform?: 'ALL' | DevicePlatform;
+
+  @IsOptional()
+  @IsString()
   availability?: 'ALL' | DriverAvailability;
 
   @IsOptional()

@@ -19,6 +19,9 @@ import {
   UserCheck,
   Plus,
   Check,
+  Briefcase,
+  Globe,
+  Compass,
   type LucideIcon,
 } from "lucide-react";
 import { adminApi } from "../../lib/api/client";
@@ -53,7 +56,8 @@ const BLUE_HOVER = "var(--brand-primary-hover)";
 const BLUE_SUBTLE = "var(--brand-primary-subtle)";
 const BLUE_BORDER = "var(--brand-primary-border)";
 
-type AudienceMode = "ALL" | "DRIVER" | "VENDOR" | "SPECIFIC";
+type AudienceMode = "ALL" | "DRIVER" | "VENDOR" | "EMPLOYEE" | "SPECIFIC";
+type DevicePlatformFilter = "ALL" | "ANDROID" | "IOS" | "WEB";
 type DeliveryStatusKey = "SENT" | "DELIVERED" | "FAILED";
 
 const PAGE_SIZE = 10;
@@ -67,7 +71,7 @@ const AUDIENCE_OPTIONS: Array<{
   {
     id: "ALL",
     label: "All Users",
-    description: "All active users, drivers, and vendors",
+    description: "All active users, drivers, vendors & staff",
     icon: Users,
   },
   {
@@ -83,10 +87,48 @@ const AUDIENCE_OPTIONS: Array<{
     icon: Building2,
   },
   {
+    id: "EMPLOYEE",
+    label: "Corporate & Employees",
+    description: "Corporate employees, managers & riders",
+    icon: Briefcase,
+  },
+  {
     id: "SPECIFIC",
     label: "Specific Users",
-    description: "Select specific users if required",
+    description: "Select specific users or phone numbers",
     icon: UserCheck,
+  },
+];
+
+const DEVICE_PLATFORM_OPTIONS: Array<{
+  id: DevicePlatformFilter;
+  label: string;
+  description: string;
+  icon: LucideIcon;
+}> = [
+  {
+    id: "ALL",
+    label: "All Devices",
+    description: "Android, iOS & Web portals",
+    icon: Layers,
+  },
+  {
+    id: "ANDROID",
+    label: "Android App",
+    description: "Fleet & driver Android devices",
+    icon: Smartphone,
+  },
+  {
+    id: "IOS",
+    label: "iOS App",
+    description: "Apple iPhone & iPad devices",
+    icon: Compass,
+  },
+  {
+    id: "WEB",
+    label: "Web Portal",
+    description: "Desktop & browser portals",
+    icon: Globe,
   },
 ];
 
@@ -184,6 +226,7 @@ export default function NotificationsPage() {
 
   // Audience Selection
   const [audienceMode, setAudienceMode] = useState<AudienceMode>("ALL");
+  const [devicePlatform, setDevicePlatform] = useState<DevicePlatformFilter>("ALL");
   const [selectedUsers, setSelectedUsers] = useState<UserListItem[]>([]);
   const [manualPhones, setManualPhones] = useState<string[]>([]);
   const [userSearchQuery, setUserSearchQuery] = useState("");
@@ -247,8 +290,13 @@ export default function NotificationsPage() {
 
   // Build backend AudienceFilter cleanly (avoid passing both userIds and phones together)
   const activeAudienceFilter = useMemo<AudienceFilter | null>(() => {
+    const platformFilter = devicePlatform !== "ALL" ? devicePlatform : undefined;
+
     if (audienceMode !== "SPECIFIC") {
-      return { role: audienceMode };
+      return {
+        role: audienceMode,
+        ...(platformFilter ? { platform: platformFilter } : {}),
+      };
     }
 
     if (selectedUsers.length === 0 && manualPhones.length === 0) {
@@ -259,6 +307,7 @@ export default function NotificationsPage() {
       return {
         role: "ALL",
         userIds: selectedUsers.map((u) => u.id),
+        ...(platformFilter ? { platform: platformFilter } : {}),
       };
     }
 
@@ -270,14 +319,19 @@ export default function NotificationsPage() {
       new Set([...phonesFromSelected, ...manualPhones]),
     );
     if (allPhones.length > 0) {
-      return { role: "ALL", phones: allPhones };
+      return {
+        role: "ALL",
+        phones: allPhones,
+        ...(platformFilter ? { platform: platformFilter } : {}),
+      };
     }
 
     return {
       role: "ALL",
       userIds: selectedUsers.map((u) => u.id),
+      ...(platformFilter ? { platform: platformFilter } : {}),
     };
-  }, [audienceMode, selectedUsers, manualPhones]);
+  }, [audienceMode, devicePlatform, selectedUsers, manualPhones]);
 
   // Re-estimate audience reach when target changes
   useEffect(() => {
@@ -453,6 +507,7 @@ export default function NotificationsPage() {
     setSelectedUsers([]);
     setManualPhones([]);
     setUserSearchQuery("");
+    setDevicePlatform("ALL");
   }
 
   async function handleBroadcastPush() {
@@ -757,12 +812,23 @@ export default function NotificationsPage() {
   }
 
   function getAudienceLabelForConfirm(): string {
+    let roleText = "All Users";
     if (audienceMode === "SPECIFIC") {
-      return `Specific Users (${specificCount} selected)`;
+      roleText = `Specific Users (${specificCount} selected)`;
+    } else if (audienceMode === "DRIVER") {
+      roleText = "Drivers Only";
+    } else if (audienceMode === "VENDOR") {
+      roleText = "Vendors Only";
+    } else if (audienceMode === "EMPLOYEE") {
+      roleText = "Corporate & Employees";
     }
-    if (audienceMode === "DRIVER") return "Drivers Only";
-    if (audienceMode === "VENDOR") return "Vendors Only";
-    return "All Users";
+
+    let platformText = "All Devices (Android, iOS & Web)";
+    if (devicePlatform === "ANDROID") platformText = "Android App Only";
+    if (devicePlatform === "IOS") platformText = "iOS App Only";
+    if (devicePlatform === "WEB") platformText = "Web Portal Only";
+
+    return `${roleText} · ${platformText}`;
   }
 
   const campaignColumns: Column<NotificationCampaignItem>[] = [
@@ -1398,6 +1464,166 @@ export default function NotificationsPage() {
                   </div>
                 </div>
               )}
+
+              {/* Device Platform Filter */}
+              <div className="mt-5">
+                <div style={{ marginBottom: "0.85rem" }}>
+                  <h4 className="font-bold text-primary m-0 text-title-xs">
+                    Device Platform Filter
+                  </h4>
+                  <p
+                    className="text-secondary text-body-sm"
+                    style={{ margin: "0.15rem 0 0 0" }}
+                  >
+                    Target specific device operating systems or broadcast to all active endpoints.
+                  </p>
+                </div>
+                <div
+                  className="grid"
+                  style={{
+                    gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+                    gap: "0.875rem",
+                  }}
+                >
+                  {DEVICE_PLATFORM_OPTIONS.map((option) => {
+                    const Icon = option.icon;
+                    const isSelected = devicePlatform === option.id;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setDevicePlatform(option.id)}
+                        className="text-left rounded-lg cursor-pointer flex items-start gap-3"
+                        style={{
+                          padding: "0.85rem 1rem",
+                          border: isSelected
+                            ? `2px solid ${BLUE_FOCUS}`
+                            : "1px solid var(--border-subtle)",
+                          background: isSelected ? BLUE_SUBTLE : "var(--bg-card)",
+                          transition: "all 0.16s ease",
+                          fontFamily: "inherit",
+                        }}
+                      >
+                        <div
+                          className="flex items-center justify-center flex-shrink-0"
+                          style={{
+                            width: "32px",
+                            height: "32px",
+                            borderRadius: "8px",
+                            background: isSelected
+                              ? BLUE_PRIMARY
+                              : "var(--bg-card-elevated)",
+                            color: isSelected
+                              ? "#FFFFFF"
+                              : "var(--text-secondary)",
+                          }}
+                        >
+                          <Icon size={16} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-bold text-primary text-body-lg">
+                              {option.label}
+                            </span>
+                            <span
+                              className="rounded-full inline-flex items-center justify-center flex-shrink-0"
+                              style={{
+                                width: "15px",
+                                height: "15px",
+                                border: `2px solid ${isSelected ? BLUE_FOCUS : "var(--border-light)"}`,
+                              }}
+                            >
+                              {isSelected && (
+                                <span
+                                  className="rounded-full"
+                                  style={{
+                                    width: "7px",
+                                    height: "7px",
+                                    background: BLUE_PRIMARY,
+                                  }}
+                                />
+                              )}
+                            </span>
+                          </div>
+                          <p
+                            className="mt-1 mr-0 mb-0 ml-0 text-secondary"
+                            style={{ fontSize: "0.75rem", lineHeight: 1.3 }}
+                          >
+                            {option.description}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Live Audience Reach & Device Distribution Card */}
+              <div
+                className="mt-5 p-4 rounded-lg border flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
+                style={{
+                  background: "var(--bg-card-elevated)",
+                  borderColor: "var(--border-subtle)",
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                    style={{ background: BLUE_SUBTLE, color: BLUE_PRIMARY }}
+                  >
+                    <Radio size={20} className={estimating ? "animate-pulse" : ""} />
+                  </div>
+                  <div>
+                    <div className="font-extrabold text-primary text-body-lg flex items-center gap-2">
+                      <span>Audience Delivery Estimation</span>
+                      {estimating && (
+                        <span className="text-xs text-muted font-normal animate-pulse">
+                          (Recalculating...)
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-secondary text-xs m-0">
+                      Real-time calculation based on registered users, active FCM device tokens, and platform preferences.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center flex-wrap gap-2">
+                  <span
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold"
+                    style={{
+                      background: "rgba(16, 185, 129, 0.12)",
+                      color: "#10B981",
+                      border: "1px solid rgba(16, 185, 129, 0.25)",
+                    }}
+                  >
+                    <Users size={13} />
+                    {audienceEstimate.matchingUsers} Target Users
+                  </span>
+                  <span
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold"
+                    style={{
+                      background: BLUE_SUBTLE,
+                      color: BLUE_PRIMARY,
+                      border: `1px solid ${BLUE_BORDER}`,
+                    }}
+                  >
+                    <Smartphone size={13} />
+                    {audienceEstimate.matchingDevices} Push Devices
+                  </span>
+                  <div className="flex items-center gap-1 text-xs text-muted ml-1">
+                    <span className="px-2 py-0.5 rounded bg-surface border text-[11px]">
+                      📱 {audienceEstimate.platformBreakdown?.android ?? 0} Android
+                    </span>
+                    <span className="px-2 py-0.5 rounded bg-surface border text-[11px]">
+                      🍏 {audienceEstimate.platformBreakdown?.ios ?? 0} iOS
+                    </span>
+                    <span className="px-2 py-0.5 rounded bg-surface border text-[11px]">
+                      🌐 {audienceEstimate.platformBreakdown?.web ?? 0} Web
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Action Buttons Bar */}

@@ -141,22 +141,33 @@ describe('NotificationsService', () => {
     expect(mockDb.notification.create).toHaveBeenCalled();
   });
 
-  it('should estimate audience reach based on filters', async () => {
+  it('should estimate audience reach based on filters and device platforms', async () => {
     const estimate = await service.estimateAudience({
       role: UserRole.DRIVER,
+      platform: DevicePlatform.ANDROID,
     });
 
     expect(estimate.matchingUsers).toBe(1);
     expect(estimate.matchingDevices).toBe(1);
     expect(estimate.platformBreakdown.android).toBe(1);
+    expect(mockDb.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          role: UserRole.DRIVER,
+          deviceTokens: expect.objectContaining({
+            some: { isActive: true, platform: DevicePlatform.ANDROID },
+          }),
+        }),
+      }),
+    );
   });
 
-  it('should broadcast push campaign to filtered audience', async () => {
+  it('should broadcast push campaign to filtered audience with platform targeting', async () => {
     const res = await service.broadcastPush(
       {
         title: 'Surge Alert',
         body: 'High demand in your area',
-        filter: { role: UserRole.DRIVER },
+        filter: { role: UserRole.DRIVER, platform: DevicePlatform.ANDROID },
       },
       'admin-1',
     );
@@ -164,6 +175,25 @@ describe('NotificationsService', () => {
     expect(res.campaignId).toBe('cmp-1');
     expect(res.totalTargetedUsers).toBe(1);
     expect(mockDb.notificationCampaign.create).toHaveBeenCalled();
+  });
+
+  it('should target corporate employees when role is EMPLOYEE', async () => {
+    await service.broadcastPush(
+      {
+        title: 'Commute Update',
+        body: 'Scheduled office routes are ready',
+        filter: { role: 'EMPLOYEE' as any },
+      },
+      'admin-1',
+    );
+
+    expect(mockDb.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          role: { in: [UserRole.EMPLOYEE, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER] },
+        }),
+      }),
+    );
   });
 
   it('should retrieve in-app notifications and mark as read', async () => {

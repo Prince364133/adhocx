@@ -858,6 +858,7 @@ export interface NotificationMetrics {
 
 export interface AudienceFilter {
   role?: string;
+  platform?: 'ALL' | 'ANDROID' | 'IOS' | 'WEB';
   availability?: string;
   verificationStatus?: string;
   vehicleTypes?: string[];
