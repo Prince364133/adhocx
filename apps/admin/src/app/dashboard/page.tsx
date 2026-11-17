@@ -823,46 +823,41 @@ export default function DashboardPage() {
             {
               title: "Total Drivers",
               count: data.metrics?.totalDrivers,
-              icon: <Car size={18} strokeWidth={1.8} />,
-              type: "drivers",
+              icon: <Car size={15} strokeWidth={1.8} />,
+              accentColor: "var(--color-info)",
             },
             {
               title: "Total Vendors",
               count: data.metrics?.totalVendors,
-              icon: <Store size={18} strokeWidth={1.8} />,
-              type: "vendors",
+              icon: <Store size={15} strokeWidth={1.8} />,
+              accentColor: "var(--brand-secondary)",
             },
             {
               title: "Total Corporate Clients",
               count: data.corporateClientCount,
-              icon: <Building2 size={18} strokeWidth={1.8} />,
-              type: "clients",
+              icon: <Building2 size={15} strokeWidth={1.8} />,
+              accentColor: "var(--color-warning)",
             },
             {
               title: "Total Employees",
               count: data.employeeCount,
-              icon: <Users size={18} strokeWidth={1.8} />,
-              type: "employees",
+              icon: <Users size={15} strokeWidth={1.8} />,
+              accentColor: "var(--color-success)",
             },
-          ].map(({ title, count, icon, type }) => (
-            <article
-              className={`dashboard-account-card dashboard-account-card--${type}`}
+          ].map(({ title, count, icon, accentColor }) => (
+            <MetricCard
               key={title}
-            >
-              <div className="dashboard-account-card-heading">
-                <h3>{title}</h3>
-                <span className="dashboard-account-card-icon" aria-hidden="true">
-                  {icon}
-                </span>
-              </div>
-              <p className="dashboard-account-card-value">
-                {count == null
+              label={title}
+              value={
+                count == null
                   ? isLoading
                     ? "…"
                     : "—"
-                  : count.toLocaleString("en-IN")}
-              </p>
-            </article>
+                  : count.toLocaleString("en-IN")
+              }
+              icon={icon}
+              accentColor={accentColor}
+            />
           ))}
         </div>
       </section>

@@ -135,6 +135,13 @@ export class AdminController {
     return this.adminService.getVendorDetails(id);
   }
 
+  @Get('vendors/:id/fulfillment')
+  @ApiOperation({ summary: 'Get trip fulfillment and arrived driver details for a vendor' })
+  @SwaggerResponse({ status: 200, description: 'Vendor fulfillment details retrieved' })
+  async getVendorFulfillment(@Param('id') id: string) {
+    return this.adminService.getVendorFulfillment(id);
+  }
+
   @Patch('vendors/:id')
   @ApiOperation({ summary: 'Update vendor profile details (admin override)' })
   @SwaggerResponse({ status: 200, description: 'Vendor details updated' })
