@@ -120,6 +120,7 @@ class BalanceSummaryCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: AppTypography.caption(
+                        fontSize: 11.5,
                         color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
                         fontWeight: FontWeight.w600,
                       ),
@@ -157,7 +158,7 @@ class BalanceSummaryCard extends StatelessWidget {
                   onTap: onActionTap ?? onCardTap,
                   borderRadius: BorderRadius.circular(AppRadius.full),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: AppColors.primary.withValues(alpha: isDark ? 0.22 : 0.10),
                       borderRadius: BorderRadius.circular(AppRadius.full),
@@ -170,14 +171,14 @@ class BalanceSummaryCard extends StatelessWidget {
                       children: [
                         Icon(
                           actionIcon,
-                          size: 14,
+                          size: 13,
                           color: isDark ? const Color(0xFFA78BFA) : AppColors.primary,
                         ),
                         const SizedBox(width: 3),
                         Text(
                           actionLabel,
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: 11.5,
                             fontWeight: FontWeight.w700,
                             color: isDark ? const Color(0xFFC4B5FD) : AppColors.primary,
                           ),

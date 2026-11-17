@@ -387,21 +387,44 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
       Position? currentPos;
       if (goOnline) {
-        // Enforce location permission and active GPS service
-        final hasLocation = await PermissionService.instance.isLocationPermissionGranted();
-        final gpsEnabled = await PermissionService.instance.isLocationServiceEnabled();
-
-        if (!hasLocation || !gpsEnabled) {
-          // Present the in-app prominent disclosure modal first, DO NOT prompt OS directly
-          EdgeCaseManager.instance.showLocationDisclosureModal();
+        // 1. Ensure runtime location permission (triggers native OS prompt if not yet granted)
+        var hasLocation = await PermissionService.instance.isLocationPermissionGranted();
+        if (!hasLocation) {
           if (mounted) {
-            Fluttertoast.showToast(
-              msg: 'Location permission and GPS are required to go online and receive trips.',
-              backgroundColor: AppColors.warning,
-              toastLength: Toast.LENGTH_LONG,
-            );
+            setState(() => _togglingOnlineStep = 'Requesting location access...');
           }
-          return;
+          await PermissionService.instance.requestLocationPermission();
+          hasLocation = await PermissionService.instance.isLocationPermissionGranted();
+          if (!hasLocation) {
+            EdgeCaseManager.instance.showLocationDisclosureModal();
+            if (mounted) {
+              Fluttertoast.showToast(
+                msg: 'Please allow location permission to go online and receive trips.',
+                backgroundColor: AppColors.warning,
+                toastLength: Toast.LENGTH_LONG,
+              );
+            }
+            return;
+          }
+        }
+
+        // 2. Ensure device GPS is ON using native Android "Turn on Location" popup
+        var gpsEnabled = await PermissionService.instance.isLocationServiceEnabled();
+        if (!gpsEnabled) {
+          if (mounted) {
+            setState(() => _togglingOnlineStep = 'Turning on GPS...');
+          }
+          gpsEnabled = await PermissionService.instance.requestEnableGps();
+          if (!gpsEnabled) {
+            if (mounted) {
+              Fluttertoast.showToast(
+                msg: 'Turn on device GPS to go online and receive trips.',
+                backgroundColor: AppColors.warning,
+                toastLength: Toast.LENGTH_LONG,
+              );
+            }
+            return;
+          }
         }
 
         if (mounted) {
@@ -414,16 +437,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         // trips far from the driver. No fix → go online without a location (see below).
         currentPos = await PermissionService.instance.getDispatchPosition();
         if (currentPos == null) {
-          final gpsOn = await PermissionService.instance.isLocationServiceEnabled();
+          var gpsOn = await PermissionService.instance.isLocationServiceEnabled();
           if (!gpsOn) {
-            if (mounted) {
-              Fluttertoast.showToast(
-                msg: 'Please enable GPS / Location services on your device to go online.',
-                backgroundColor: AppColors.error,
-                toastLength: Toast.LENGTH_LONG,
-              );
+            gpsOn = await PermissionService.instance.requestEnableGps();
+            if (!gpsOn) {
+              if (mounted) {
+                Fluttertoast.showToast(
+                  msg: 'Please enable GPS / Location services on your device to go online.',
+                  backgroundColor: AppColors.error,
+                  toastLength: Toast.LENGTH_LONG,
+                );
+              }
+              return;
             }
-            return;
+            currentPos = await PermissionService.instance.getDispatchPosition();
           }
         }
 
@@ -734,14 +761,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         onPressed: () => context.push(AppRoutes.notificationsFeedScreen),
                         icon: Icon(
                           Icons.notifications_none_rounded,
-                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: context.tr('Earnings'),
-                        onPressed: () => context.push(AppRoutes.walletScreen),
-                        icon: Icon(
-                          Icons.account_balance_wallet_outlined,
                           color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         ),
                       ),

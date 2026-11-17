@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
@@ -15,6 +16,8 @@ import 'dispatch_location.dart';
 class PermissionService {
   PermissionService._();
   static final PermissionService instance = PermissionService._();
+
+  static const MethodChannel _foregroundChannel = MethodChannel('com.adhocx.app/foreground');
 
   /// Request essential permissions.
   /// NOTE: Google Play Developer Policy strictly mandates:
@@ -69,13 +72,42 @@ class PermissionService {
       // 3. Check if GPS hardware / location service is enabled on the device
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        debugPrint('📍 [PermissionService] Location services (GPS) disabled on device');
-        return false;
+        debugPrint('📍 [PermissionService] Location services (GPS) disabled — triggering native Turn On GPS dialog');
+        return await requestEnableGps();
       }
 
       return true;
     } catch (e) {
       debugPrint('📍 [PermissionService] Location permission error: $e');
+      return false;
+    }
+  }
+
+  /// Triggers Android's native Google Play Services "Turn on device location" system dialog
+  /// so the driver taps "Turn on" once and GPS activates immediately in-place.
+  Future<bool> requestEnableGps() async {
+    if (kIsWeb) return true;
+    try {
+      final alreadyEnabled = await Geolocator.isLocationServiceEnabled();
+      if (alreadyEnabled) return true;
+
+      if (Platform.isAndroid) {
+        try {
+          final enabled = await _foregroundChannel.invokeMethod<bool>('requestEnableGps');
+          if (enabled == true) {
+            return true;
+          }
+          // Re-check hardware state in case user enabled it via fallback settings
+          return await Geolocator.isLocationServiceEnabled();
+        } catch (e) {
+          debugPrint('📍 [PermissionService] Native requestEnableGps fallback: $e');
+        }
+      }
+
+      await Geolocator.openLocationSettings();
+      return await Geolocator.isLocationServiceEnabled();
+    } catch (e) {
+      debugPrint('📍 [PermissionService] requestEnableGps error: $e');
       return false;
     }
   }

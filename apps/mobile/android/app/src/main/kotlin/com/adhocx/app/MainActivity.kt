@@ -1,7 +1,9 @@
 package com.adhocx.app
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.IntentSender
 import android.net.Uri
 import android.os.BatteryManager
 import android.os.Build
@@ -9,6 +11,11 @@ import android.os.Bundle
 import android.provider.Settings
 import androidx.annotation.NonNull
 import androidx.core.view.WindowCompat
+import com.google.android.gms.common.api.ResolvableApiException
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.LocationSettingsRequest
+import com.google.android.gms.location.Priority
 import com.google.android.play.core.appupdate.AppUpdateManagerFactory
 import com.google.android.play.core.install.model.AppUpdateType
 import com.google.android.play.core.install.model.UpdateAvailability
@@ -20,11 +27,23 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterFragmentActivity() {
     private val FOREGROUND_CHANNEL = "com.adhocx.app/foreground"
     private val OVERLAY_ENGINE_CACHE_ID = "myCachedEngine"
+    private val REQUEST_CHECK_LOCATION_SETTINGS = 4091
+    private var pendingGpsResult: MethodChannel.Result? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Modern Android 15+ edge-to-edge compatibility
         WindowCompat.setDecorFitsSystemWindows(window, false)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (requestCode == REQUEST_CHECK_LOCATION_SETTINGS) {
+            val pending = pendingGpsResult
+            pendingGpsResult = null
+            pending?.success(resultCode == Activity.RESULT_OK)
+            return
+        }
+        super.onActivityResult(requestCode, resultCode, data)
     }
 
     override fun onResume() {
@@ -146,6 +165,47 @@ class MainActivity : FlutterFragmentActivity() {
                         result.success(if (level in 0..100) level else null)
                     } catch (e: Exception) {
                         result.success(null)
+                    }
+                }
+                "requestEnableGps" -> {
+                    try {
+                        val locationRequest = LocationRequest.Builder(
+                            Priority.PRIORITY_HIGH_ACCURACY,
+                            10_000L
+                        ).build()
+                        val settingsRequest = LocationSettingsRequest.Builder()
+                            .addLocationRequest(locationRequest)
+                            .setAlwaysShow(true)
+                            .build()
+                        val settingsClient = LocationServices.getSettingsClient(this)
+                        settingsClient.checkLocationSettings(settingsRequest)
+                            .addOnSuccessListener {
+                                result.success(true)
+                            }
+                            .addOnFailureListener { exception ->
+                                if (exception is ResolvableApiException) {
+                                    try {
+                                        // Cancel any stale pending callback first
+                                        pendingGpsResult?.success(false)
+                                        pendingGpsResult = result
+                                        exception.startResolutionForResult(
+                                            this,
+                                            REQUEST_CHECK_LOCATION_SETTINGS
+                                        )
+                                    } catch (_: IntentSender.SendIntentException) {
+                                        pendingGpsResult = null
+                                        result.success(false)
+                                    }
+                                } else {
+                                    // Non-GMS fallback: open Android location settings directly
+                                    try {
+                                        startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                                    } catch (_: Exception) {}
+                                    result.success(false)
+                                }
+                            }
+                    } catch (_: Exception) {
+                        result.success(false)
                     }
                 }
                 "canDrawOverlays" -> {
