@@ -32,6 +32,7 @@ function intervals(w: { s: number; e: number }): Array<[number, number]> {
   return w.s < w.e ? [[w.s, w.e]] : [[w.s, DAY], [0, w.e]];
 }
 
+
 /** Throws BadRequestException with an admin-readable message; returns normalized windows. */
 export function validatePeakWindows(windows: PeakWindowDef[] | null | undefined): PeakWindowDef[] {
   if (!windows || windows.length === 0) return [];
@@ -55,19 +56,28 @@ export function validatePeakWindows(windows: PeakWindowDef[] | null | undefined)
     return { s, e, name, raw: w };
   });
 
-  for (let i = 0; i < parsed.length; i++) {
-    for (let j = i + 1; j < parsed.length; j++) {
-      const a = parsed[i];
-      const b = parsed[j];
+  // 1. Deduplicate identical time windows
+  const deduped: Array<{ s: number; e: number; name: string; raw: PeakWindowDef }> = [];
+  for (const item of parsed) {
+    const existing = deduped.find((d) => d.s === item.s && d.e === item.e);
+    if (!existing) {
+      deduped.push(item);
+    }
+  }
+
+  // 2. Reject overlaps between distinct windows
+  for (let i = 0; i < deduped.length; i++) {
+    for (let j = i + 1; j < deduped.length; j++) {
+      const a = deduped[i];
+      const b = deduped[j];
       const clash = intervals(a).some(([as, ae]) => intervals(b).some(([bs, be]) => Math.max(as, bs) < Math.min(ae, be)));
       if (clash) {
-        throw new BadRequestException(
-          `Peak window '${a.name}' (${a.raw.start}-${a.raw.end}) overlaps with '${b.name}' (${b.raw.start}-${b.raw.end}).`,
-        );
+        throw new BadRequestException(`Peak window '${a.name}' (${a.raw.start}-${a.raw.end}) overlaps with '${b.name}' (${b.raw.start}-${b.raw.end}).`);
       }
     }
   }
-  return parsed.map(({ raw, name }) => ({ start: raw.start, end: raw.end, label: name }));
+
+  return deduped.map(({ raw, name }) => ({ start: raw.start, end: raw.end, label: name }));
 }
 
 /** Minute of day in IST for an instant. */

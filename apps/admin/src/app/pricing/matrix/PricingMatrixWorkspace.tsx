@@ -69,6 +69,35 @@ interface PeakSlotWindow {
   vehicleSurges: PeakSlotVehicleSurcharge[];
 }
 
+function getCategoryPeakWindows(slots: PeakSlotWindow[], category: string): PeakHourWindow[] {
+  if (!slots || slots.length === 0) return [];
+  const result: PeakHourWindow[] = [];
+
+  // First collect windows where this vehicle category is explicitly configured
+  slots.forEach((slot) => {
+    const match = slot.vehicleSurges.find((s) => s.vehicleType === category);
+    const hasSurge = match
+      ? (match.vendorBaseExtra > 0 || match.vendorStepExtra > 0 || match.driverBaseExtra > 0 || match.driverStepExtra > 0)
+      : false;
+    if (hasSurge || slot.vehicleSurges.length === 0) {
+      if (!result.some((w) => w.start === slot.start && w.end === slot.end)) {
+        result.push({ label: slot.label, start: slot.start, end: slot.end });
+      }
+    }
+  });
+
+  // If no category-specific match has positive surge, fallback to unique slots
+  if (result.length === 0 && slots.length > 0) {
+    slots.forEach((slot) => {
+      if (!result.some((w) => w.start === slot.start && w.end === slot.end)) {
+        result.push({ label: slot.label, start: slot.start, end: slot.end });
+      }
+    });
+  }
+
+  return result;
+}
+
 export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: PricingMatrixWorkspaceProps) {
   const [role] = useState<MatrixRole>(initialRole);
   const [plans, setPlans] = useState<DistancePricingPlan[]>([]);
@@ -95,11 +124,15 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
   const [genStepKm, setGenStepKm] = useState<number>(10);
   const [genMaxKm, setGenMaxKm] = useState<number>(200);
 
-  // Vendor Base and Step Pricing
+  // Vendor Independent Geometry & Rates
+  const [genVendorBaseKm, setGenVendorBaseKm] = useState<number>(10);
+  const [genVendorStepKm, setGenVendorStepKm] = useState<number>(10);
   const [genBaseVendor, setGenBaseVendor] = useState<number | ''>('');
   const [genStepVendor, setGenStepVendor] = useState<number | ''>('');
 
-  // Driver Base and Step Pricing
+  // Driver Independent Geometry & Rates
+  const [genDriverBaseKm, setGenDriverBaseKm] = useState<number>(10);
+  const [genDriverStepKm, setGenDriverStepKm] = useState<number>(10);
   const [genBaseDriver, setGenBaseDriver] = useState<number | ''>('');
   const [genStepDriver, setGenStepDriver] = useState<number | ''>('');
 
@@ -179,23 +212,112 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
     }
   }, []);
 
-  function initFromPlan(plan: DistancePricingPlan, fallbackVehicle?: string) {
-    if (plan.slabs && plan.slabs.length > 0) {
-      setEditingSlabs(
-        plan.slabs.map((s) => ({
-          minDistanceMExclusive: s.minDistanceMExclusive,
-          maxDistanceMInclusive: s.maxDistanceMInclusive,
-          vendorPricePaise: s.vendorPricePaise,
-          driverPayoutPaise: s.driverPayoutPaise,
-          vendorPeakPricePaise: s.vendorPeakPricePaise ?? s.vendorPricePaise,
-          driverPeakPayoutPaise: s.driverPeakPayoutPaise ?? s.driverPayoutPaise,
-          active: s.active,
-        }))
-      );
-    } else {
-      setEditingSlabs([]);
+  function buildRoleSlabs(
+    baseKm: number,
+    stepKm: number,
+    maxKm: number,
+    baseRate: number,
+    stepRate: number,
+    peakBase: number,
+    peakStep: number,
+    roleType: 'vendor' | 'driver'
+  ): CreatePricingSlabInput[] {
+    const slabs: CreatePricingSlabInput[] = [];
+    const bKm = Math.max(0.1, baseKm);
+    const sKm = Math.max(0.1, stepKm);
+    const mKm = Math.max(bKm, maxKm);
+
+    // Base slab
+    const basePricePaise = Math.max(100, Math.round(baseRate * 100));
+    const basePeakPaise = Math.max(basePricePaise, Math.round((baseRate + peakBase) * 100));
+    slabs.push({
+      minDistanceMExclusive: 0,
+      maxDistanceMInclusive: Math.round(bKm * 1000),
+      vendorPricePaise: roleType === 'vendor' ? basePricePaise : 100,
+      driverPayoutPaise: roleType === 'driver' ? basePricePaise : 100,
+      vendorPeakPricePaise: roleType === 'vendor' ? basePeakPaise : 100,
+      driverPeakPayoutPaise: roleType === 'driver' ? basePeakPaise : 100,
+      active: true,
+    });
+
+    let currentKm = bKm;
+    let stepIndex = 1;
+    while (currentKm < mKm) {
+      const nextKm = Number(Math.min(mKm, currentKm + sKm).toFixed(2));
+      const stepPricePaise = Math.max(100, Math.round((baseRate + stepIndex * stepRate) * 100));
+      const stepPeakPaise = Math.max(stepPricePaise, Math.round((baseRate + peakBase + stepIndex * (stepRate + peakStep)) * 100));
+
+      slabs.push({
+        minDistanceMExclusive: Math.round(currentKm * 1000),
+        maxDistanceMInclusive: Math.round(nextKm * 1000),
+        vendorPricePaise: roleType === 'vendor' ? stepPricePaise : 100,
+        driverPayoutPaise: roleType === 'driver' ? stepPricePaise : 100,
+        vendorPeakPricePaise: roleType === 'vendor' ? stepPeakPaise : 100,
+        driverPeakPayoutPaise: roleType === 'driver' ? stepPeakPaise : 100,
+        active: true,
+      });
+
+      currentKm = nextKm;
+      stepIndex++;
     }
 
+    return slabs;
+  }
+
+  function synthesizeCompositeSlabs(
+    vSlabs: CreatePricingSlabInput[],
+    dSlabs: CreatePricingSlabInput[],
+    maxKm: number
+  ): CreatePricingSlabInput[] {
+    const breakpointsSet = new Set<number>();
+    breakpointsSet.add(0);
+    breakpointsSet.add(maxKm);
+
+    vSlabs.forEach((s) => {
+      breakpointsSet.add(s.minDistanceMExclusive / 1000);
+      breakpointsSet.add(s.maxDistanceMInclusive / 1000);
+    });
+    dSlabs.forEach((s) => {
+      breakpointsSet.add(s.minDistanceMExclusive / 1000);
+      breakpointsSet.add(s.maxDistanceMInclusive / 1000);
+    });
+
+    const sortedKm = Array.from(breakpointsSet).filter((k) => k >= 0 && k <= maxKm).sort((a, b) => a - b);
+    const composite: CreatePricingSlabInput[] = [];
+
+    for (let i = 1; i < sortedKm.length; i++) {
+      const minKm = sortedKm[i - 1];
+      const maxKmBand = sortedKm[i];
+      const minM = Math.round(minKm * 1000);
+      const maxM = Math.round(maxKmBand * 1000);
+      const testM = (minM + maxM) / 2;
+
+      const vMatch = vSlabs.find((s) => testM > s.minDistanceMExclusive && testM <= s.maxDistanceMInclusive) || vSlabs[vSlabs.length - 1];
+      const dMatch = dSlabs.find((s) => testM > s.minDistanceMExclusive && testM <= s.maxDistanceMInclusive) || dSlabs[dSlabs.length - 1];
+
+      let vStd = vMatch ? Math.max(100, vMatch.vendorPricePaise) : 100;
+      let dStd = dMatch ? Math.max(100, dMatch.driverPayoutPaise) : 100;
+      let vPeak = vMatch ? Math.max(vStd, vMatch.vendorPeakPricePaise ?? vStd) : vStd;
+      let dPeak = dMatch ? Math.max(dStd, dMatch.driverPeakPayoutPaise ?? dStd) : dStd;
+
+      if (vStd < dStd) vStd = dStd;
+      if (vPeak < dPeak) vPeak = dPeak;
+
+      composite.push({
+        minDistanceMExclusive: minM,
+        maxDistanceMInclusive: maxM,
+        vendorPricePaise: vStd,
+        driverPayoutPaise: dStd,
+        vendorPeakPricePaise: vPeak,
+        driverPeakPayoutPaise: dPeak,
+        active: true,
+      });
+    }
+
+    return composite;
+  }
+
+  function initFromPlan(plan: DistancePricingPlan, fallbackVehicle?: string) {
     const currentCat = (plan.vehicleCategory && plan.vehicleCategory !== 'ALL')
       ? plan.vehicleCategory
       : fallbackVehicle || selectedVehicleChip || 'SEDAN';
@@ -203,8 +325,127 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
     setSelectedVehicleChip(currentCat);
     setGenVehicleType(currentCat);
 
-    // Hydrate multiple peak windows from plan
+    // Hydrate parameters if stored in rateConfigJson
     const cfg = (plan as any).rateConfigJson || plan.config;
+    if (cfg && typeof cfg === 'object') {
+      const vB = typeof cfg.vendorBaseKm === 'number' && cfg.vendorBaseKm > 0 ? cfg.vendorBaseKm : (typeof cfg.baseKm === 'number' && cfg.baseKm > 0 ? cfg.baseKm : 10);
+      const vS = typeof cfg.vendorStepKm === 'number' && cfg.vendorStepKm > 0 ? cfg.vendorStepKm : (typeof cfg.stepKm === 'number' && cfg.stepKm > 0 ? cfg.stepKm : 10);
+      const dB = typeof cfg.driverBaseKm === 'number' && cfg.driverBaseKm > 0 ? cfg.driverBaseKm : (typeof cfg.baseKm === 'number' && cfg.baseKm > 0 ? cfg.baseKm : 10);
+      const dS = typeof cfg.driverStepKm === 'number' && cfg.driverStepKm > 0 ? cfg.driverStepKm : (typeof cfg.stepKm === 'number' && cfg.stepKm > 0 ? cfg.stepKm : 10);
+
+      setGenVendorBaseKm(vB);
+      setGenVendorStepKm(vS);
+      setGenDriverBaseKm(dB);
+      setGenDriverStepKm(dS);
+      setGenBaseKm(role === 'driver' ? dB : vB);
+      setGenStepKm(role === 'driver' ? dS : vS);
+
+      const mKm = typeof cfg.maxKm === 'number' && cfg.maxKm > 0 ? cfg.maxKm : 200;
+      setGenMaxKm(mKm);
+
+      const numBaseVendor = typeof cfg.baseVendorRupees === 'number' ? cfg.baseVendorRupees : '';
+      const numStepVendor = typeof cfg.stepVendorRupees === 'number' ? cfg.stepVendorRupees : '';
+      const numBaseDriver = typeof cfg.baseDriverRupees === 'number' ? cfg.baseDriverRupees : '';
+      const numStepDriver = typeof cfg.stepDriverRupees === 'number' ? cfg.stepDriverRupees : '';
+
+      setGenBaseVendor(numBaseVendor);
+      setGenStepVendor(numStepVendor);
+      setGenBaseDriver(numBaseDriver);
+      setGenStepDriver(numStepDriver);
+
+      if (typeof cfg.escortBaseVendorRupees === 'number') setGenEscortBaseVendor(cfg.escortBaseVendorRupees);
+      if (typeof cfg.escortStepVendorRupees === 'number') setGenEscortStepVendor(cfg.escortStepVendorRupees);
+
+      let vPeakB = typeof cfg.vendorPeakExtraBaseRupees === 'number' ? cfg.vendorPeakExtraBaseRupees : 0;
+      let vPeakS = typeof cfg.vendorPeakExtraStepRupees === 'number' ? cfg.vendorPeakExtraStepRupees : 0;
+      let dPeakB = typeof cfg.driverPeakExtraBaseRupees === 'number' ? cfg.driverPeakExtraBaseRupees : 0;
+      let dPeakS = typeof cfg.driverPeakExtraStepRupees === 'number' ? cfg.driverPeakExtraStepRupees : 0;
+
+      if (Array.isArray(cfg.peakSlots)) {
+        cfg.peakSlots.forEach((slot: any) => {
+          const match = slot.vehicleSurges?.find((s: any) => s.vehicleType === currentCat);
+          if (match) {
+            if (match.vendorBaseExtra > 0) vPeakB = Math.max(vPeakB, match.vendorBaseExtra);
+            if (match.vendorStepExtra > 0) vPeakS = Math.max(vPeakS, match.vendorStepExtra);
+            if (match.driverBaseExtra > 0) dPeakB = Math.max(dPeakB, match.driverBaseExtra);
+            if (match.driverStepExtra > 0) dPeakS = Math.max(dPeakS, match.driverStepExtra);
+          }
+        });
+      }
+
+      setCurrentVendorPeakBase(vPeakB);
+      setCurrentVendorPeakStep(vPeakS);
+      setCurrentDriverPeakBase(dPeakB);
+      setCurrentDriverPeakStep(dPeakS);
+
+      // Hydrate per-slab custom escort fee overrides
+      if (cfg.slabEscorts && typeof cfg.slabEscorts === 'object') {
+        setSlabEscorts(cfg.slabEscorts);
+      } else {
+        setSlabEscorts({});
+      }
+
+      // Hydrate custom overrides set
+      if (Array.isArray(cfg.overriddenSlabs)) {
+        const keys = new Set<string>();
+        cfg.overriddenSlabs.forEach((item: any) => {
+          if (typeof item === 'string') keys.add(item);
+          else if (typeof item?.minM === 'number' && typeof item?.maxM === 'number') {
+            keys.add(`${item.minM}-${item.maxM}`);
+          }
+        });
+        setOverriddenSlabKeys(keys);
+      }
+
+      // Determine editingSlabs strictly based on role
+      if (role === 'vendor') {
+        if (Array.isArray(cfg.vendorSlabs) && cfg.vendorSlabs.length > 0) {
+          setEditingSlabs(cfg.vendorSlabs);
+        } else if (Number(numBaseVendor) > 0) {
+          setEditingSlabs(buildRoleSlabs(vB, vS, mKm, Number(numBaseVendor), Number(numStepVendor) || 0, vPeakB, vPeakS, 'vendor'));
+        } else if (plan.slabs && plan.slabs.length > 0) {
+          setEditingSlabs(plan.slabs.map((s) => ({ ...s, active: s.active !== false })));
+        } else {
+          setEditingSlabs([]);
+        }
+      } else if (role === 'driver') {
+        if (Array.isArray(cfg.driverSlabs) && cfg.driverSlabs.length > 0) {
+          setEditingSlabs(cfg.driverSlabs);
+        } else if (Number(numBaseDriver) > 0) {
+          setEditingSlabs(buildRoleSlabs(dB, dS, mKm, Number(numBaseDriver), Number(numStepDriver) || 0, dPeakB, dPeakS, 'driver'));
+        } else if (plan.slabs && plan.slabs.length > 0) {
+          setEditingSlabs(plan.slabs.map((s) => ({ ...s, active: s.active !== false })));
+        } else {
+          setEditingSlabs([]);
+        }
+      } else {
+        if (plan.slabs && plan.slabs.length > 0) {
+          setEditingSlabs(plan.slabs.map((s) => ({ ...s, active: s.active !== false })));
+        } else {
+          setEditingSlabs([]);
+        }
+      }
+    } else {
+      if (plan.slabs && plan.slabs.length > 0) {
+        setEditingSlabs(plan.slabs.map((s) => ({ ...s, active: s.active !== false })));
+      } else {
+        setEditingSlabs([]);
+      }
+      setGenBaseVendor('');
+      setGenStepVendor('');
+      setGenBaseDriver('');
+      setGenStepDriver('');
+      setGenEscortBaseVendor('');
+      setGenEscortStepVendor('');
+      setCurrentVendorPeakBase(0);
+      setCurrentVendorPeakStep(0);
+      setCurrentDriverPeakBase(0);
+      setCurrentDriverPeakStep(0);
+      setSlabEscorts({});
+      setOverriddenSlabKeys(new Set());
+    }
+
+    // Hydrate multiple peak windows from plan
     if (cfg && Array.isArray(cfg.peakSlots) && cfg.peakSlots.length > 0) {
       setPeakSlots(cfg.peakSlots);
     } else if (Array.isArray(plan.peakWindows) && plan.peakWindows.length > 0) {
@@ -227,56 +468,16 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
       }));
       setPeakSlots(hydratedSlots);
     } else {
-      setPeakSlots([]);
-    }
-
-    // Hydrate parameters if stored in rateConfigJson
-    if (cfg && typeof cfg === 'object') {
-      if (typeof cfg.baseKm === 'number' && cfg.baseKm > 0) setGenBaseKm(cfg.baseKm);
-      if (typeof cfg.stepKm === 'number' && cfg.stepKm > 0) setGenStepKm(cfg.stepKm);
-      if (typeof cfg.maxKm === 'number' && cfg.maxKm > 0) setGenMaxKm(cfg.maxKm);
-      if (typeof cfg.baseVendorRupees === 'number') setGenBaseVendor(cfg.baseVendorRupees);
-      if (typeof cfg.stepVendorRupees === 'number') setGenStepVendor(cfg.stepVendorRupees);
-      if (typeof cfg.baseDriverRupees === 'number') setGenBaseDriver(cfg.baseDriverRupees);
-      if (typeof cfg.stepDriverRupees === 'number') setGenStepDriver(cfg.stepDriverRupees);
-      if (typeof cfg.escortBaseVendorRupees === 'number') setGenEscortBaseVendor(cfg.escortBaseVendorRupees);
-      if (typeof cfg.escortStepVendorRupees === 'number') setGenEscortStepVendor(cfg.escortStepVendorRupees);
-      if (typeof cfg.vendorPeakExtraBaseRupees === 'number') setCurrentVendorPeakBase(cfg.vendorPeakExtraBaseRupees);
-      if (typeof cfg.vendorPeakExtraStepRupees === 'number') setCurrentVendorPeakStep(cfg.vendorPeakExtraStepRupees);
-      if (typeof cfg.driverPeakExtraBaseRupees === 'number') setCurrentDriverPeakBase(cfg.driverPeakExtraBaseRupees);
-      if (typeof cfg.driverPeakExtraStepRupees === 'number') setCurrentDriverPeakStep(cfg.driverPeakExtraStepRupees);
-
-      // Hydrate per-slab custom escort fee overrides
-      if (cfg.slabEscorts && typeof cfg.slabEscorts === 'object') {
-        setSlabEscorts(cfg.slabEscorts);
+      const planWithSlots = plans.find((p) => {
+        const c = (p as any).rateConfigJson || p.config;
+        return c && Array.isArray(c.peakSlots) && c.peakSlots.length > 0;
+      });
+      if (planWithSlots) {
+        const c = (planWithSlots as any).rateConfigJson || planWithSlots.config;
+        setPeakSlots(c.peakSlots);
       } else {
-        setSlabEscorts({});
+        setPeakSlots([]);
       }
-
-      // Hydrate custom overrides set
-      if (Array.isArray(cfg.overriddenSlabs)) {
-        const keys = new Set<string>();
-        cfg.overriddenSlabs.forEach((item: any) => {
-          if (typeof item === 'string') keys.add(item);
-          else if (typeof item?.minM === 'number' && typeof item?.maxM === 'number') {
-            keys.add(`${item.minM}-${item.maxM}`);
-          }
-        });
-        setOverriddenSlabKeys(keys);
-      }
-    } else {
-      setGenBaseVendor('');
-      setGenStepVendor('');
-      setGenBaseDriver('');
-      setGenStepDriver('');
-      setGenEscortBaseVendor('');
-      setGenEscortStepVendor('');
-      setCurrentVendorPeakBase(0);
-      setCurrentVendorPeakStep(0);
-      setCurrentDriverPeakBase(0);
-      setCurrentDriverPeakStep(0);
-      setSlabEscorts({});
-      setOverriddenSlabKeys(new Set());
     }
   }
 
@@ -346,24 +547,29 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
   // Helper for escort fee calculation per distance (Vendor only)
   const getEscortFeeForDistance = useCallback(
     (maxM: number) => {
-      const baseM = genBaseKm * 1000;
-      const stepM = genStepKm * 1000;
+      const vBase = genVendorBaseKm || genBaseKm || 10;
+      const vStep = genVendorStepKm || genStepKm || 10;
+      const baseM = vBase * 1000;
+      const stepM = vStep * 1000;
       const steps = maxM > baseM ? Math.ceil((maxM - baseM) / stepM) : 0;
       const baseEscort = Number(genEscortBaseVendor) || 0;
       const stepEscort = Number(genEscortStepVendor) || 0;
       const vendorEscort = baseEscort + steps * stepEscort;
       return { vendorEscort };
     },
-    [genBaseKm, genStepKm, genEscortBaseVendor, genEscortStepVendor]
+    [genVendorBaseKm, genVendorStepKm, genBaseKm, genStepKm, genEscortBaseVendor, genEscortStepVendor]
   );
 
   // Generator: Generate full table from formula for the selected vehicle type and PERSIST DIRECTLY TO DATABASE
   const handleGenerateFullTable = async () => {
-    if (genMaxKm <= 0 || genStepKm <= 0 || genBaseKm <= 0) {
+    const vBase = role === 'vendor' ? genVendorBaseKm : (genVendorBaseKm || genBaseKm || 10);
+    const dBase = role === 'driver' ? genDriverBaseKm : (genDriverBaseKm || genBaseKm || 10);
+    const activeBase = role === 'driver' ? dBase : vBase;
+    if (genMaxKm <= 0 || activeBase <= 0) {
       setAlert({ type: 'error', message: 'Base, step, and maximum distance must be positive values.' });
       return;
     }
-    if (genMaxKm < genBaseKm) {
+    if (genMaxKm < activeBase) {
       setAlert({ type: 'error', message: 'Maximum distance cannot be less than initial base distance.' });
       return;
     }
@@ -402,196 +608,154 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
       }
     }
 
-    const baseMeters = Math.round(genBaseKm * 1000);
-    const maxMeters = Math.round(genMaxKm * 1000);
-    const stepMeters = Math.round(genStepKm * 1000);
+    const targetCategory = genVehicleType;
+    const targetPlan = plans.find(
+      (p) => p.vehicleCategory === targetCategory && p.status === 'ACTIVE'
+    ) || plans.find((p) => p.vehicleCategory === targetCategory);
 
-    const existingMap = new Map<string, CreatePricingSlabInput>();
-    editingSlabs.forEach((s) => {
-      existingMap.set(`${s.minDistanceMExclusive}-${s.maxDistanceMInclusive}`, s);
-    });
-    if (activePlan?.slabs) {
-      activePlan.slabs.forEach((s: any) => {
-        const k = `${s.minDistanceMExclusive}-${s.maxDistanceMInclusive}`;
-        if (!existingMap.has(k)) {
-          existingMap.set(k, {
-            minDistanceMExclusive: s.minDistanceMExclusive,
-            maxDistanceMInclusive: s.maxDistanceMInclusive,
-            vendorPricePaise: s.vendorPricePaise,
-            driverPayoutPaise: s.driverPayoutPaise,
-            vendorPeakPricePaise: s.vendorPeakPricePaise ?? s.vendorPricePaise,
-            driverPeakPayoutPaise: s.driverPeakPayoutPaise ?? s.driverPayoutPaise,
-            active: s.active,
-          });
-        }
-      });
+    const cfg = (targetPlan as any)?.rateConfigJson || targetPlan?.config || {};
+
+    const maxKm = Math.max(1, genMaxKm || 200);
+
+    // Resolve independent vendor & driver geometry
+    const vBaseKm = Math.min(
+      maxKm,
+      Math.max(0.1, role === 'vendor' ? genVendorBaseKm : (Number(cfg.vendorBaseKm) || Number(cfg.baseKm) || genVendorBaseKm || 10))
+    );
+    const vStepKm = Math.min(
+      maxKm,
+      Math.max(0.1, role === 'vendor' ? genVendorStepKm : (Number(cfg.vendorStepKm) || Number(cfg.stepKm) || genVendorStepKm || 10))
+    );
+    const dBaseKm = Math.min(
+      maxKm,
+      Math.max(0.1, role === 'driver' ? genDriverBaseKm : (Number(cfg.driverBaseKm) || Number(cfg.baseKm) || genDriverBaseKm || 10))
+    );
+    const dStepKm = Math.min(
+      maxKm,
+      Math.max(0.1, role === 'driver' ? genDriverStepKm : (Number(cfg.driverStepKm) || Number(cfg.stepKm) || genDriverStepKm || 10))
+    );
+
+    // Resolve rates: preserve existing counterpart rate if not entered
+    let effBaseVendor = numBaseVendor;
+    let effStepVendor = numStepVendor;
+    if (role === 'driver') {
+      effBaseVendor = numBaseVendor > 0 ? numBaseVendor : (Number(cfg.baseVendorRupees) || 400);
+      effStepVendor = numStepVendor > 0 ? numStepVendor : (Number(cfg.stepVendorRupees) || 100);
     }
 
-    const buildSlab = (minM: number, maxM: number, stepIdx: number): CreatePricingSlabInput => {
-      const key = `${minM}-${maxM}`;
-      const existing = existingMap.get(key);
+    let effBaseDriver = numBaseDriver;
+    let effStepDriver = numStepDriver;
+    if (role === 'vendor') {
+      effBaseDriver = numBaseDriver > 0 ? numBaseDriver : (Number(cfg.baseDriverRupees) || 300);
+      effStepDriver = numStepDriver > 0 ? numStepDriver : (Number(cfg.stepDriverRupees) || 70);
+    }
 
-      let vStd: number;
-      let dStd: number;
-      let vPeak: number;
-      let dPeak: number;
+    // 1. Build role-specific slabs
+    let newVendorSlabs: CreatePricingSlabInput[] = [];
+    let newDriverSlabs: CreatePricingSlabInput[] = [];
 
-      if (role === 'driver') {
-        // Driver role formula
-        dStd = stepIdx === 0
-          ? Math.round(numBaseDriver * 100)
-          : Math.round((numBaseDriver + stepIdx * numStepDriver) * 100);
-        dPeak = stepIdx === 0
-          ? Math.round((numBaseDriver + currentDriverPeakBase) * 100)
-          : Math.round((numBaseDriver + currentDriverPeakBase + stepIdx * (numStepDriver + currentDriverPeakStep)) * 100);
+    const prevVendorSlabs = Array.isArray(cfg.vendorSlabs) && cfg.vendorSlabs.length > 0 ? cfg.vendorSlabs : null;
+    const prevDriverSlabs = Array.isArray(cfg.driverSlabs) && cfg.driverSlabs.length > 0 ? cfg.driverSlabs : null;
 
-        if (existing && existing.vendorPricePaise > 0) {
-          vStd = Math.max(existing.vendorPricePaise, dStd);
-          vPeak = Math.max(existing.vendorPeakPricePaise ?? existing.vendorPricePaise, dPeak);
-        } else if (numBaseVendor > 0) {
-          const fV = stepIdx === 0
-            ? Math.round(numBaseVendor * 100)
-            : Math.round((numBaseVendor + stepIdx * numStepVendor) * 100);
-          const fVPeak = stepIdx === 0
-            ? Math.round((numBaseVendor + currentVendorPeakBase) * 100)
-            : Math.round((numBaseVendor + currentVendorPeakBase + stepIdx * (numStepVendor + currentVendorPeakStep)) * 100);
-          vStd = Math.max(fV, dStd);
-          vPeak = Math.max(fVPeak, dPeak);
-        } else {
-          // Vendor rate not yet configured: set to driver payout (at cost baseline)
-          vStd = dStd;
-          vPeak = dPeak;
-        }
-      } else if (role === 'vendor') {
-        // Vendor role formula
-        vStd = stepIdx === 0
-          ? Math.round(numBaseVendor * 100)
-          : Math.round((numBaseVendor + stepIdx * numStepVendor) * 100);
-        vPeak = stepIdx === 0
-          ? Math.round((numBaseVendor + currentVendorPeakBase) * 100)
-          : Math.round((numBaseVendor + currentVendorPeakBase + stepIdx * (numStepVendor + currentVendorPeakStep)) * 100);
-
-        if (existing && existing.driverPayoutPaise > 0) {
-          dStd = Math.min(existing.driverPayoutPaise, vStd);
-          dPeak = Math.min(existing.driverPeakPayoutPaise ?? existing.driverPayoutPaise, vPeak);
-        } else if (numBaseDriver > 0) {
-          const fD = stepIdx === 0
-            ? Math.round(numBaseDriver * 100)
-            : Math.round((numBaseDriver + stepIdx * numStepDriver) * 100);
-          const fDPeak = stepIdx === 0
-            ? Math.round((numBaseDriver + currentDriverPeakBase) * 100)
-            : Math.round((numBaseDriver + currentDriverPeakBase + stepIdx * (numStepDriver + currentDriverPeakStep)) * 100);
-          dStd = Math.min(fD, vStd);
-          dPeak = Math.min(fDPeak, vPeak);
-        } else {
-          // Driver payout not yet configured: default to 75% of vendor price
-          dStd = Math.max(100, Math.round(vStd * 0.75));
-          dPeak = Math.max(100, Math.round(vPeak * 0.75));
-        }
-      } else {
-        // Unified
-        vStd = stepIdx === 0
-          ? Math.round(numBaseVendor * 100)
-          : Math.round((numBaseVendor + stepIdx * numStepVendor) * 100);
-        dStd = stepIdx === 0
-          ? Math.round(numBaseDriver * 100)
-          : Math.round((numBaseDriver + stepIdx * numStepDriver) * 100);
-        vPeak = stepIdx === 0
-          ? Math.round((numBaseVendor + currentVendorPeakBase) * 100)
-          : Math.round((numBaseVendor + currentVendorPeakBase + stepIdx * (numStepVendor + currentVendorPeakStep)) * 100);
-        dPeak = stepIdx === 0
-          ? Math.round((numBaseDriver + currentDriverPeakBase) * 100)
-          : Math.round((numBaseDriver + currentDriverPeakBase + stepIdx * (numStepDriver + currentDriverPeakStep)) * 100);
-      }
-
-      // Guarantee minimum 100 paise (₹1) and no negative margin
-      vStd = Math.max(100, vStd);
-      dStd = Math.max(100, dStd);
-      vPeak = Math.max(vStd, vPeak);
-      dPeak = Math.max(dStd, dPeak);
-      if (vStd < dStd) vStd = dStd;
-      if (vPeak < dPeak) vPeak = dPeak;
-
-      return {
-        minDistanceMExclusive: minM,
-        maxDistanceMInclusive: maxM,
-        vendorPricePaise: vStd,
-        driverPayoutPaise: dStd,
-        vendorPeakPricePaise: vPeak,
-        driverPeakPayoutPaise: dPeak,
-        active: true,
-      };
-    };
-
-    const newSlabs: CreatePricingSlabInput[] = [];
-
-    // Base Tier (0 to baseKm)
-    const baseEndMeters = Math.min(baseMeters, maxMeters);
-    const baseKey = `0-${baseEndMeters}`;
-    const existingBase = existingMap.get(baseKey);
-    if (existingBase && overriddenSlabKeys.has(baseKey)) {
-      newSlabs.push(existingBase);
+    if (role === 'vendor' || role === 'unified') {
+      newVendorSlabs = buildRoleSlabs(
+        vBaseKm,
+        vStepKm,
+        maxKm,
+        effBaseVendor,
+        effStepVendor,
+        currentVendorPeakBase,
+        currentVendorPeakStep,
+        'vendor'
+      );
     } else {
-      newSlabs.push(buildSlab(0, baseEndMeters, 0));
+      newVendorSlabs = prevVendorSlabs || buildRoleSlabs(
+        vBaseKm,
+        vStepKm,
+        maxKm,
+        effBaseVendor,
+        effStepVendor,
+        currentVendorPeakBase,
+        currentVendorPeakStep,
+        'vendor'
+      );
     }
 
-    // Incremental Steps
-    let currentMin = baseMeters;
-    let stepIdx = 1;
-    while (currentMin < maxMeters) {
-      const nextMax = Math.min(currentMin + stepMeters, maxMeters);
-      const key = `${currentMin}-${nextMax}`;
-      const existingStep = existingMap.get(key);
+    if (role === 'driver' || role === 'unified') {
+      newDriverSlabs = buildRoleSlabs(
+        dBaseKm,
+        dStepKm,
+        maxKm,
+        effBaseDriver,
+        effStepDriver,
+        currentDriverPeakBase,
+        currentDriverPeakStep,
+        'driver'
+      );
+    } else {
+      newDriverSlabs = prevDriverSlabs || buildRoleSlabs(
+        dBaseKm,
+        dStepKm,
+        maxKm,
+        effBaseDriver,
+        effStepDriver,
+        currentDriverPeakBase,
+        currentDriverPeakStep,
+        'driver'
+      );
+    }
 
-      if (existingStep && overriddenSlabKeys.has(key)) {
-        newSlabs.push(existingStep);
-      } else {
-        newSlabs.push(buildSlab(currentMin, nextMax, stepIdx));
-      }
+    // 2. Synthesize composite slabs for PostgreSQL PricingPlan.slabs
+    const compositeSlabs = synthesizeCompositeSlabs(newVendorSlabs, newDriverSlabs, maxKm);
 
-      currentMin = nextMax;
-      stepIdx++;
+    // 3. Set UI table according to active role:
+    if (role === 'vendor') {
+      setEditingSlabs(newVendorSlabs);
+    } else if (role === 'driver') {
+      setEditingSlabs(newDriverSlabs);
+    } else {
+      setEditingSlabs(compositeSlabs);
     }
 
     setSaving(true);
-    setEditingSlabs(newSlabs);
     setSelectedVehicleChip(genVehicleType);
     setIsConfigureSheetOpen(false);
 
     try {
       const configPayload = {
-        baseKm: genBaseKm,
-        stepKm: genStepKm,
-        maxKm: genMaxKm,
-        baseVendorRupees: numBaseVendor,
-        stepVendorRupees: numStepVendor,
+        baseKm: role === 'vendor' ? vBaseKm : dBaseKm,
+        stepKm: role === 'vendor' ? vStepKm : dStepKm,
+        vendorBaseKm: vBaseKm,
+        vendorStepKm: vStepKm,
+        driverBaseKm: dBaseKm,
+        driverStepKm: dStepKm,
+        maxKm,
+        baseVendorRupees: effBaseVendor,
+        stepVendorRupees: effStepVendor,
         vendorPeakExtraBaseRupees: currentVendorPeakBase,
         vendorPeakExtraStepRupees: currentVendorPeakStep,
-        baseDriverRupees: numBaseDriver,
-        stepDriverRupees: numStepDriver,
+        baseDriverRupees: effBaseDriver,
+        stepDriverRupees: effStepDriver,
         driverPeakExtraBaseRupees: currentDriverPeakBase,
         driverPeakExtraStepRupees: currentDriverPeakStep,
         escortBaseVendorRupees: numEscortBase,
         escortStepVendorRupees: numEscortStep,
         slabEscorts,
+        vendorSlabs: newVendorSlabs,
+        driverSlabs: newDriverSlabs,
         overriddenSlabs: Array.from(overriddenSlabKeys),
         peakSlots,
       };
 
-      const peakWindowsPayload: PeakHourWindow[] = peakSlots.map((slot) => ({
-        label: slot.label,
-        start: slot.start,
-        end: slot.end,
-      }));
-
       const targetCategory = genVehicleType;
+      const peakWindowsPayload: PeakHourWindow[] = getCategoryPeakWindows(peakSlots, targetCategory);
       const existingMatchingPlan = plans.find(
         (p) => p.vehicleCategory === targetCategory && p.status === 'ACTIVE'
       ) || plans.find((p) => p.vehicleCategory === targetCategory);
 
       let savedPlanId: string;
       if (existingMatchingPlan) {
-        await adminApi.updateDistancePricingSlabs(existingMatchingPlan.id, newSlabs, undefined, {
+        await adminApi.updateDistancePricingSlabs(existingMatchingPlan.id, compositeSlabs, undefined, {
           config: configPayload as any,
           peakWindows: peakWindowsPayload,
         });
@@ -603,7 +767,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
         const newPlan = await adminApi.createDistancePricingPlan({
           name: `${targetCategory} Distance Pricing Matrix`,
           vehicleCategory: targetCategory,
-          slabs: newSlabs,
+          slabs: compositeSlabs,
           config: configPayload as any,
           peakWindows: peakWindowsPayload,
         });
@@ -615,7 +779,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
 
       setAlert({
         type: 'success',
-        message: `Saved & activated ${newSlabs.length} distance slabs for ${targetCategory} directly in database! Vendor quotes and driver payouts are now live with these rates.`,
+        message: `Saved & activated ${role === 'vendor' ? newVendorSlabs.length : (role === 'driver' ? newDriverSlabs.length : compositeSlabs.length)} distance slabs for ${targetCategory} (${role === 'vendor' ? 'Vendor Client Billing' : 'Driver Guaranteed Payouts'})! Live rates updated in database.`,
       });
     } catch (err: any) {
       setAlert({
@@ -657,11 +821,11 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
   // Reset individual slab to mathematical formula
   const handleResetSlabToFormula = (index: number) => {
     const target = editingSlabs[index];
-    const baseM = genBaseKm * 1000;
-    const stepM = genStepKm * 1000;
-    const stepIndex = target.minDistanceMExclusive === 0
-      ? 0
-      : Math.max(1, Math.round((target.maxDistanceMInclusive - baseM) / stepM));
+    const testKm = target.maxDistanceMInclusive / 1000;
+    const vBaseKm = genVendorBaseKm || genBaseKm || 10;
+    const vStepKm = genVendorStepKm || genStepKm || 10;
+    const dBaseKm = genDriverBaseKm || genBaseKm || 10;
+    const dStepKm = genDriverStepKm || genStepKm || 10;
 
     const numBaseVendor = Number(genBaseVendor) || 0;
     const numStepVendor = Number(genStepVendor) || 0;
@@ -675,23 +839,27 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
 
     if (role === 'driver' || role === 'unified') {
       if (numBaseDriver > 0) {
-        dStd = stepIndex === 0
-          ? Math.round(numBaseDriver * 100)
-          : Math.round((numBaseDriver + stepIndex * numStepDriver) * 100);
-        dPeak = stepIndex === 0
-          ? Math.round((numBaseDriver + currentDriverPeakBase) * 100)
-          : Math.round((numBaseDriver + currentDriverPeakBase + stepIndex * (numStepDriver + currentDriverPeakStep)) * 100);
+        if (testKm <= dBaseKm) {
+          dStd = Math.round(numBaseDriver * 100);
+          dPeak = Math.round((numBaseDriver + currentDriverPeakBase) * 100);
+        } else {
+          const dSteps = Math.ceil((testKm - dBaseKm) / dStepKm);
+          dStd = Math.round((numBaseDriver + dSteps * numStepDriver) * 100);
+          dPeak = Math.round((numBaseDriver + currentDriverPeakBase + dSteps * (numStepDriver + currentDriverPeakStep)) * 100);
+        }
       }
     }
 
     if (role === 'vendor' || role === 'unified') {
       if (numBaseVendor > 0) {
-        vStd = stepIndex === 0
-          ? Math.round(numBaseVendor * 100)
-          : Math.round((numBaseVendor + stepIndex * numStepVendor) * 100);
-        vPeak = stepIndex === 0
-          ? Math.round((numBaseVendor + currentVendorPeakBase) * 100)
-          : Math.round((numBaseVendor + currentVendorPeakBase + stepIndex * (numStepVendor + currentVendorPeakStep)) * 100);
+        if (testKm <= vBaseKm) {
+          vStd = Math.round(numBaseVendor * 100);
+          vPeak = Math.round((numBaseVendor + currentVendorPeakBase) * 100);
+        } else {
+          const vSteps = Math.ceil((testKm - vBaseKm) / vStepKm);
+          vStd = Math.round((numBaseVendor + vSteps * numStepVendor) * 100);
+          vPeak = Math.round((numBaseVendor + currentVendorPeakBase + vSteps * (numStepVendor + currentVendorPeakStep)) * 100);
+        }
       }
     }
 
@@ -730,104 +898,208 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
     });
   };
 
-  // Apply Peak Surcharges from configured slots across slabs and persist to database
-  const handleApplyPeakSurcharges = async () => {
-    // Find highest extra from configured peak slots matching vehicle chip
-    let maxVBaseExtra = currentVendorPeakBase;
-    let maxVStepExtra = currentVendorPeakStep;
-    let maxDBaseExtra = currentDriverPeakBase;
-    let maxDStepExtra = currentDriverPeakStep;
-
-    peakSlots.forEach((slot) => {
-      const match = slot.vehicleSurges.find((s) => s.vehicleType === selectedVehicleChip);
-      if (match) {
-        if (match.vendorBaseExtra > 0) maxVBaseExtra = match.vendorBaseExtra;
-        if (match.vendorStepExtra > 0) maxVStepExtra = match.vendorStepExtra;
-        if (match.driverBaseExtra > 0) maxDBaseExtra = match.driverBaseExtra;
-        if (match.driverStepExtra > 0) maxDStepExtra = match.driverStepExtra;
-      }
-    });
-
-    setCurrentVendorPeakBase(maxVBaseExtra);
-    setCurrentVendorPeakStep(maxVStepExtra);
-    setCurrentDriverPeakBase(maxDBaseExtra);
-    setCurrentDriverPeakStep(maxDStepExtra);
-
-    const baseM = genBaseKm * 1000;
-    const stepM = genStepKm * 1000;
-
-    const updated = editingSlabs.map((s) => {
-      let vExtra = maxVBaseExtra;
-      let dExtra = maxDBaseExtra;
-      if (s.minDistanceMExclusive > 0) {
-        const stepIndex = Math.max(1, Math.round((s.maxDistanceMInclusive - baseM) / stepM));
-        vExtra = maxVBaseExtra + stepIndex * maxVStepExtra;
-        dExtra = maxDBaseExtra + stepIndex * maxDStepExtra;
-      }
-
-      return {
-        ...s,
-        vendorPeakPricePaise: s.vendorPricePaise + Math.round(vExtra * 100),
-        driverPeakPayoutPaise: s.driverPayoutPaise + Math.round(dExtra * 100),
-      };
-    });
+  // Delete all peak timing windows and revert matrix to standard rates
+  const handleRemoveAllPeakWindows = async () => {
+    if (!window.confirm('Are you sure you want to remove all peak timing windows? Standard rates will apply around the clock.')) {
+      return;
+    }
 
     setSaving(true);
-    setEditingSlabs(updated);
+    setPeakSlots([]);
     setIsPeakSheetOpen(false);
 
     try {
-      const configPayload = {
-        baseKm: genBaseKm,
-        stepKm: genStepKm,
-        maxKm: genMaxKm,
-        baseVendorRupees: Number(genBaseVendor) || 0,
-        stepVendorRupees: Number(genStepVendor) || 0,
-        vendorPeakExtraBaseRupees: maxVBaseExtra,
-        vendorPeakExtraStepRupees: maxVStepExtra,
-        baseDriverRupees: Number(genBaseDriver) || 0,
-        stepDriverRupees: Number(genStepDriver) || 0,
-        driverPeakExtraBaseRupees: maxDBaseExtra,
-        driverPeakExtraStepRupees: maxDStepExtra,
-        escortBaseVendorRupees: Number(genEscortBaseVendor) || 0,
-        escortStepVendorRupees: Number(genEscortStepVendor) || 0,
-        slabEscorts,
-        overriddenSlabs: Array.from(overriddenSlabKeys),
-        peakSlots,
-      };
-
-      const peakWindowsPayload: PeakHourWindow[] = peakSlots.map((slot) => ({
-        label: slot.label,
-        start: slot.start,
-        end: slot.end,
-      }));
-
-      const targetCategory = selectedVehicleChip || genVehicleType || 'SEDAN';
-      const existingPlan = plans.find(
-        (p) => p.vehicleCategory === targetCategory && p.status === 'ACTIVE'
-      ) || plans.find((p) => p.vehicleCategory === targetCategory);
-
-      if (existingPlan) {
-        await adminApi.updateDistancePricingSlabs(existingPlan.id, updated, undefined, {
-          config: configPayload as any,
-          peakWindows: peakWindowsPayload,
-        });
-        await loadPlans(existingPlan.id);
-      } else if (updated.length > 0) {
-        const newPlan = await adminApi.createDistancePricingPlan({
-          name: `${targetCategory} Distance Pricing Matrix`,
-          vehicleCategory: targetCategory,
-          slabs: updated,
-          config: configPayload as any,
-          peakWindows: peakWindowsPayload,
-        });
-        await adminApi.publishDistancePricingPlan(newPlan.id, `Initial activation with peak surcharges for ${targetCategory}`);
-        await loadPlans(newPlan.id);
+      if (role === 'vendor' || role === 'unified') {
+        setCurrentVendorPeakBase(0);
+        setCurrentVendorPeakStep(0);
       }
+      if (role === 'driver' || role === 'unified') {
+        setCurrentDriverPeakBase(0);
+        setCurrentDriverPeakStep(0);
+      }
+
+      const resetSlabs: CreatePricingSlabInput[] = editingSlabs.map((s) => ({
+        ...s,
+        vendorPeakPricePaise: (role === 'driver') ? (s.vendorPeakPricePaise ?? s.vendorPricePaise) : s.vendorPricePaise,
+        driverPeakPayoutPaise: (role === 'vendor') ? (s.driverPeakPayoutPaise ?? s.driverPayoutPaise) : s.driverPayoutPaise,
+      }));
+      setEditingSlabs(resetSlabs);
+
+      // Persist empty peakWindows to all active/draft plans
+      for (const plan of plans) {
+        if (plan.status !== 'ACTIVE' && plan.status !== 'DRAFT') continue;
+        const cfg = (plan as any).rateConfigJson || plan.config || {};
+        const updatedCfg = {
+          ...cfg,
+          peakSlots: [],
+          ...(role === 'vendor' || role === 'unified' ? { vendorPeakExtraBaseRupees: 0, vendorPeakExtraStepRupees: 0 } : {}),
+          ...(role === 'driver' || role === 'unified' ? { driverPeakExtraBaseRupees: 0, driverPeakExtraStepRupees: 0 } : {}),
+        };
+
+        const targetSlabs = (plan.id === activePlan?.id) ? resetSlabs : (plan.slabs || []).map((s: any) => ({
+          minDistanceMExclusive: s.minDistanceMExclusive,
+          maxDistanceMInclusive: s.maxDistanceMInclusive,
+          vendorPricePaise: s.vendorPricePaise,
+          driverPayoutPaise: s.driverPayoutPaise,
+          vendorPeakPricePaise: (role === 'driver') ? (s.vendorPeakPricePaise ?? s.vendorPricePaise) : s.vendorPricePaise,
+          driverPeakPayoutPaise: (role === 'vendor') ? (s.driverPeakPayoutPaise ?? s.driverPayoutPaise) : s.driverPayoutPaise,
+          active: s.active !== false,
+        }));
+
+        await adminApi.updateDistancePricingSlabs(plan.id, targetSlabs, undefined, {
+          config: updatedCfg as any,
+          peakWindows: [],
+        });
+      }
+
+      await loadPlans(activePlan?.id);
 
       setAlert({
         type: 'success',
-        message: `Applied and saved ${peakSlots.length} peak windows for ${selectedVehicleChip} directly in database! Peak rates are live for vendors and drivers.`,
+        message: 'Successfully removed all peak timing windows! All vehicle categories now operate 24/7 on standard rates.',
+      });
+    } catch (err: any) {
+      setAlert({
+        type: 'error',
+        message: `Failed to remove peak windows: ${err?.message || 'Server error'}`,
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Apply Peak Surcharges from configured slots across slabs and persist to database
+  const handleApplyPeakSurcharges = async () => {
+    if (peakSlots.length === 0) {
+      await handleRemoveAllPeakWindows();
+      return;
+    }
+
+    // Collect all vehicle types that have surcharges configured in peakSlots, plus currently selected
+    const vehiclesWithSurge = new Set<string>();
+    vehiclesWithSurge.add(selectedVehicleChip);
+    if (genVehicleType) vehiclesWithSurge.add(genVehicleType);
+    peakSlots.forEach((slot) => {
+      slot.vehicleSurges.forEach((s) => {
+        if (s.vehicleType) vehiclesWithSurge.add(s.vehicleType);
+      });
+    });
+
+    setSaving(true);
+    setIsPeakSheetOpen(false);
+
+    try {
+      // Loop through all affected vehicle categories and persist peak configuration & surcharges
+      for (const cat of Array.from(vehiclesWithSurge)) {
+        const existingPlan = plans.find(
+          (p) => p.vehicleCategory === cat && p.status === 'ACTIVE'
+        ) || plans.find((p) => p.vehicleCategory === cat);
+
+        if (!existingPlan) continue;
+
+        const cfg = (existingPlan as any).rateConfigJson || existingPlan.config || {};
+        const catBaseKm = (typeof cfg.baseKm === 'number' && cfg.baseKm > 0) ? cfg.baseKm : genBaseKm;
+        const catStepKm = (typeof cfg.stepKm === 'number' && cfg.stepKm > 0) ? cfg.stepKm : genStepKm;
+        const catBaseM = catBaseKm * 1000;
+        const catStepM = catStepKm * 1000;
+
+        // When in driver role, preserve existing vendor extras; when in vendor role, preserve existing driver extras
+        let maxVBaseExtra = (role === 'driver') ? (Number(cfg.vendorPeakExtraBaseRupees) || 0) : 0;
+        let maxVStepExtra = (role === 'driver') ? (Number(cfg.vendorPeakExtraStepRupees) || 0) : 0;
+        let maxDBaseExtra = (role === 'vendor') ? (Number(cfg.driverPeakExtraBaseRupees) || 0) : 0;
+        let maxDStepExtra = (role === 'vendor') ? (Number(cfg.driverPeakExtraStepRupees) || 0) : 0;
+
+        peakSlots.forEach((slot) => {
+          const match = slot.vehicleSurges.find((s) => s.vehicleType === cat);
+          if (match) {
+            if (role === 'vendor' || role === 'unified') {
+              if (match.vendorBaseExtra > 0) maxVBaseExtra = Math.max(maxVBaseExtra, match.vendorBaseExtra);
+              if (match.vendorStepExtra > 0) maxVStepExtra = Math.max(maxVStepExtra, match.vendorStepExtra);
+            }
+            if (role === 'driver' || role === 'unified') {
+              if (match.driverBaseExtra > 0) maxDBaseExtra = Math.max(maxDBaseExtra, match.driverBaseExtra);
+              if (match.driverStepExtra > 0) maxDStepExtra = Math.max(maxDStepExtra, match.driverStepExtra);
+            }
+          }
+        });
+
+        if (cat === selectedVehicleChip) {
+          setCurrentVendorPeakBase(maxVBaseExtra);
+          setCurrentVendorPeakStep(maxVStepExtra);
+          setCurrentDriverPeakBase(maxDBaseExtra);
+          setCurrentDriverPeakStep(maxDStepExtra);
+        }
+
+        const sourceSlabs = (cat === selectedVehicleChip && editingSlabs.length > 0)
+          ? editingSlabs
+          : (existingPlan.slabs || []);
+
+        if (sourceSlabs.length === 0) continue;
+
+        const updatedCatSlabs: CreatePricingSlabInput[] = sourceSlabs.map((s: any) => {
+          let vExtra = maxVBaseExtra;
+          let dExtra = maxDBaseExtra;
+          if (s.minDistanceMExclusive > 0) {
+            const stepIndex = Math.max(1, Math.round((s.maxDistanceMInclusive - catBaseM) / catStepM));
+            vExtra = maxVBaseExtra + stepIndex * maxVStepExtra;
+            dExtra = maxDBaseExtra + stepIndex * maxDStepExtra;
+          }
+
+          const vStd = Math.max(100, s.vendorPricePaise);
+          const dStd = Math.max(100, s.driverPayoutPaise);
+
+          let vPeak = (role === 'driver' && s.vendorPeakPricePaise)
+            ? s.vendorPeakPricePaise
+            : vStd + Math.round(vExtra * 100);
+
+          let dPeak = (role === 'vendor' && s.driverPeakPayoutPaise)
+            ? s.driverPeakPayoutPaise
+            : dStd + Math.round(dExtra * 100);
+
+          if (vPeak < dPeak) vPeak = dPeak;
+
+          return {
+            minDistanceMExclusive: s.minDistanceMExclusive,
+            maxDistanceMInclusive: s.maxDistanceMInclusive,
+            vendorPricePaise: vStd,
+            driverPayoutPaise: dStd,
+            vendorPeakPricePaise: vPeak,
+            driverPeakPayoutPaise: dPeak,
+            active: s.active !== false,
+          };
+        });
+
+        if (cat === selectedVehicleChip) {
+          setEditingSlabs(updatedCatSlabs);
+        }
+
+        // Deduplicate peak windows for this category to prevent duplicate time-ranges
+        const catPeakWindows: PeakHourWindow[] = getCategoryPeakWindows(peakSlots, cat);
+
+        const configPayload = {
+          ...cfg,
+          vendorBaseKm: cfg.vendorBaseKm || genVendorBaseKm || 10,
+          vendorStepKm: cfg.vendorStepKm || genVendorStepKm || 10,
+          driverBaseKm: cfg.driverBaseKm || genDriverBaseKm || 10,
+          driverStepKm: cfg.driverStepKm || genDriverStepKm || 10,
+          vendorPeakExtraBaseRupees: maxVBaseExtra,
+          vendorPeakExtraStepRupees: maxVStepExtra,
+          driverPeakExtraBaseRupees: maxDBaseExtra,
+          driverPeakExtraStepRupees: maxDStepExtra,
+          peakSlots,
+        };
+
+        await adminApi.updateDistancePricingSlabs(existingPlan.id, updatedCatSlabs, undefined, {
+          config: configPayload as any,
+          peakWindows: catPeakWindows,
+        });
+      }
+
+      await loadPlans(activePlan?.id);
+
+      setAlert({
+        type: 'success',
+        message: `Applied and saved ${peakSlots.length} peak windows with vehicle surcharges directly in database! Peak rates are live for vendors and drivers.`,
       });
     } catch (err: any) {
       setAlert({
@@ -857,8 +1129,8 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
         return { valid: false, isUnconfigured: false, error: `Slab #${i + 1} (${minKm}–${maxKm} km): Max distance must exceed min distance.` };
       }
 
-      // If unified or vendor, ensure vendor >= driver
-      if (s.vendorPricePaise < s.driverPayoutPaise) {
+      // If unified, ensure vendor >= driver
+      if (role === 'unified' && s.vendorPricePaise < s.driverPayoutPaise) {
         return {
           valid: false,
           isUnconfigured: false,
@@ -868,7 +1140,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
     }
 
     return { valid: true, isUnconfigured: false, error: null };
-  }, [editingSlabs]);
+  }, [editingSlabs, role]);
 
   // Save Slabs Draft / Live Update to PostgreSQL
   const handleSaveMatrix = async () => {
@@ -879,6 +1151,18 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
 
     setSaving(true);
     try {
+      const targetCategory = selectedVehicleChip || genVehicleType || 'SEDAN';
+      const existingMatchingPlan = plans.find(
+        (p) => p.vehicleCategory === targetCategory && p.status === 'ACTIVE'
+      ) || plans.find((p) => p.vehicleCategory === targetCategory);
+      const cfg = (existingMatchingPlan as any)?.rateConfigJson || existingMatchingPlan?.config || {};
+
+      const maxKm = Math.max(1, genMaxKm || 200);
+      const vBaseKm = genVendorBaseKm || Number(cfg.vendorBaseKm) || Number(cfg.baseKm) || 10;
+      const vStepKm = genVendorStepKm || Number(cfg.vendorStepKm) || Number(cfg.stepKm) || 10;
+      const dBaseKm = genDriverBaseKm || Number(cfg.driverBaseKm) || Number(cfg.baseKm) || 10;
+      const dStepKm = genDriverStepKm || Number(cfg.driverStepKm) || Number(cfg.stepKm) || 10;
+
       const overriddenArray = Array.from(overriddenSlabKeys);
       const numBaseVendor = Number(genBaseVendor) || 0;
       const numStepVendor = Number(genStepVendor) || 0;
@@ -887,9 +1171,29 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
       const numEscortBase = Number(genEscortBaseVendor) || 0;
       const numEscortStep = Number(genEscortStepVendor) || 0;
 
+      let currentVendorSlabs: CreatePricingSlabInput[] = Array.isArray(cfg.vendorSlabs) && cfg.vendorSlabs.length > 0
+        ? cfg.vendorSlabs
+        : buildRoleSlabs(vBaseKm, vStepKm, maxKm, numBaseVendor || 400, numStepVendor || 100, currentVendorPeakBase, currentVendorPeakStep, 'vendor');
+
+      let currentDriverSlabs: CreatePricingSlabInput[] = Array.isArray(cfg.driverSlabs) && cfg.driverSlabs.length > 0
+        ? cfg.driverSlabs
+        : buildRoleSlabs(dBaseKm, dStepKm, maxKm, numBaseDriver || 300, numStepDriver || 70, currentDriverPeakBase, currentDriverPeakStep, 'driver');
+
+      if (role === 'vendor') {
+        currentVendorSlabs = editingSlabs;
+      } else if (role === 'driver') {
+        currentDriverSlabs = editingSlabs;
+      }
+
+      const compositeSlabs = synthesizeCompositeSlabs(currentVendorSlabs, currentDriverSlabs, maxKm);
+
       const configPayload = {
-        baseKm: genBaseKm,
-        stepKm: genStepKm,
+        baseKm: role === 'vendor' ? vBaseKm : dBaseKm,
+        stepKm: role === 'vendor' ? vStepKm : dStepKm,
+        vendorBaseKm: vBaseKm,
+        vendorStepKm: vStepKm,
+        driverBaseKm: dBaseKm,
+        driverStepKm: dStepKm,
         maxKm: genMaxKm,
         baseVendorRupees: numBaseVendor,
         stepVendorRupees: numStepVendor,
@@ -902,60 +1206,36 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
         escortBaseVendorRupees: numEscortBase,
         escortStepVendorRupees: numEscortStep,
         slabEscorts,
+        vendorSlabs: currentVendorSlabs,
+        driverSlabs: currentDriverSlabs,
         overriddenSlabs: overriddenArray,
         peakSlots,
       };
 
-      const peakWindowsPayload: PeakHourWindow[] = peakSlots.map((slot) => ({
-        label: slot.label,
-        start: slot.start,
-        end: slot.end,
-      }));
-
-      const targetCategory = selectedVehicleChip || genVehicleType || 'SEDAN';
-      const existingMatchingPlan = plans.find(
-        (p) => p.vehicleCategory === targetCategory && p.status === 'ACTIVE'
-      ) || plans.find((p) => p.vehicleCategory === targetCategory);
-
-      // Ensure each slab has valid positive numbers and no negative margin
-      const sanitizedSlabs: CreatePricingSlabInput[] = editingSlabs.map((s) => {
-        let vStd = Math.max(100, s.vendorPricePaise);
-        let dStd = Math.max(100, s.driverPayoutPaise);
-        let vPeak = Math.max(vStd, s.vendorPeakPricePaise ?? vStd);
-        let dPeak = Math.max(dStd, s.driverPeakPayoutPaise ?? dStd);
-        if (vStd < dStd) vStd = dStd;
-        if (vPeak < dPeak) vPeak = dPeak;
-        return {
-          ...s,
-          vendorPricePaise: vStd,
-          driverPayoutPaise: dStd,
-          vendorPeakPricePaise: vPeak,
-          driverPeakPayoutPaise: dPeak,
-        };
-      });
+      const peakWindowsPayload: PeakHourWindow[] = getCategoryPeakWindows(peakSlots, targetCategory);
 
       if (existingMatchingPlan) {
-        await adminApi.updateDistancePricingSlabs(existingMatchingPlan.id, sanitizedSlabs, undefined, {
+        await adminApi.updateDistancePricingSlabs(existingMatchingPlan.id, compositeSlabs, undefined, {
           config: configPayload as any,
           peakWindows: peakWindowsPayload,
         });
         setAlert({
           type: 'success',
-          message: `Saved matrix for ${targetCategory} with ${sanitizedSlabs.length} distance bands and ${peakSlots.length} peak windows. Ready for live apps.`,
+          message: `Saved matrix for ${targetCategory} (${role === 'vendor' ? 'Vendor Client Billing' : 'Driver Guaranteed Payouts'}) directly in database. Ready for live apps.`,
         });
         await loadPlans(existingMatchingPlan.id);
       } else {
         const newPlan = await adminApi.createDistancePricingPlan({
           name: `${targetCategory} Distance Pricing Matrix`,
           vehicleCategory: targetCategory,
-          slabs: sanitizedSlabs,
+          slabs: compositeSlabs,
           config: configPayload as any,
           peakWindows: peakWindowsPayload,
         });
         await adminApi.publishDistancePricingPlan(newPlan.id, `Initial activation for ${targetCategory}`);
         setAlert({
           type: 'success',
-          message: `Created and published new ${targetCategory} matrix with ${sanitizedSlabs.length} distance bands and ${peakSlots.length} peak windows.`,
+          message: `Created and published new ${targetCategory} matrix with independent vendor & driver pricing.`,
         });
         await loadPlans(newPlan.id);
       }
@@ -1050,7 +1330,34 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
           <Button
             variant="primary"
             leftIcon={<Sparkles size={15} />}
-            onClick={() => setIsConfigureSheetOpen(true)}
+            onClick={() => {
+              setGenVehicleType(selectedVehicleChip);
+              const match = plans.find((p) => p.vehicleCategory === selectedVehicleChip && p.status === 'ACTIVE') || plans.find((p) => p.vehicleCategory === selectedVehicleChip);
+              if (match) {
+                const cfg = (match as any).rateConfigJson || match.config;
+                if (cfg && typeof cfg === 'object') {
+                  const vB = typeof cfg.vendorBaseKm === 'number' && cfg.vendorBaseKm > 0 ? cfg.vendorBaseKm : (typeof cfg.baseKm === 'number' && cfg.baseKm > 0 ? cfg.baseKm : 10);
+                  const vS = typeof cfg.vendorStepKm === 'number' && cfg.vendorStepKm > 0 ? cfg.vendorStepKm : (typeof cfg.stepKm === 'number' && cfg.stepKm > 0 ? cfg.stepKm : 10);
+                  const dB = typeof cfg.driverBaseKm === 'number' && cfg.driverBaseKm > 0 ? cfg.driverBaseKm : (typeof cfg.baseKm === 'number' && cfg.baseKm > 0 ? cfg.baseKm : 10);
+                  const dS = typeof cfg.driverStepKm === 'number' && cfg.driverStepKm > 0 ? cfg.driverStepKm : (typeof cfg.stepKm === 'number' && cfg.stepKm > 0 ? cfg.stepKm : 10);
+
+                  setGenVendorBaseKm(vB);
+                  setGenVendorStepKm(vS);
+                  setGenDriverBaseKm(dB);
+                  setGenDriverStepKm(dS);
+                  setGenBaseKm(role === 'driver' ? dB : vB);
+                  setGenStepKm(role === 'driver' ? dS : vS);
+                  if (typeof cfg.maxKm === 'number' && cfg.maxKm > 0) setGenMaxKm(cfg.maxKm);
+                  if (typeof cfg.baseVendorRupees === 'number') setGenBaseVendor(cfg.baseVendorRupees);
+                  if (typeof cfg.stepVendorRupees === 'number') setGenStepVendor(cfg.stepVendorRupees);
+                  if (typeof cfg.baseDriverRupees === 'number') setGenBaseDriver(cfg.baseDriverRupees);
+                  if (typeof cfg.stepDriverRupees === 'number') setGenStepDriver(cfg.stepDriverRupees);
+                  if (typeof cfg.escortBaseVendorRupees === 'number') setGenEscortBaseVendor(cfg.escortBaseVendorRupees);
+                  if (typeof cfg.escortStepVendorRupees === 'number') setGenEscortStepVendor(cfg.escortStepVendorRupees);
+                }
+              }
+              setIsConfigureSheetOpen(true);
+            }}
             style={{
               background: role === 'driver' ? 'var(--color-success)' : 'var(--brand-primary)',
               borderColor: role === 'driver' ? 'var(--color-success)' : 'var(--brand-primary)',
@@ -1572,7 +1879,33 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
             </label>
             <select
               value={genVehicleType}
-              onChange={(e) => setGenVehicleType(e.target.value)}
+              onChange={(e) => {
+                const newCat = e.target.value;
+                setGenVehicleType(newCat);
+                const match = plans.find((p) => p.vehicleCategory === newCat && p.status === 'ACTIVE') || plans.find((p) => p.vehicleCategory === newCat);
+                if (match) {
+                  const cfg = (match as any).rateConfigJson || match.config;
+                  if (cfg && typeof cfg === 'object') {
+                    if (typeof cfg.baseKm === 'number' && cfg.baseKm > 0) setGenBaseKm(cfg.baseKm);
+                    if (typeof cfg.stepKm === 'number' && cfg.stepKm > 0) setGenStepKm(cfg.stepKm);
+                    if (typeof cfg.vendorBaseKm === 'number' && cfg.vendorBaseKm > 0) setGenVendorBaseKm(cfg.vendorBaseKm);
+                    else if (typeof cfg.baseKm === 'number' && cfg.baseKm > 0) setGenVendorBaseKm(cfg.baseKm);
+                    if (typeof cfg.vendorStepKm === 'number' && cfg.vendorStepKm > 0) setGenVendorStepKm(cfg.vendorStepKm);
+                    else if (typeof cfg.stepKm === 'number' && cfg.stepKm > 0) setGenVendorStepKm(cfg.stepKm);
+                    if (typeof cfg.driverBaseKm === 'number' && cfg.driverBaseKm > 0) setGenDriverBaseKm(cfg.driverBaseKm);
+                    else if (typeof cfg.baseKm === 'number' && cfg.baseKm > 0) setGenDriverBaseKm(cfg.baseKm);
+                    if (typeof cfg.driverStepKm === 'number' && cfg.driverStepKm > 0) setGenDriverStepKm(cfg.driverStepKm);
+                    else if (typeof cfg.stepKm === 'number' && cfg.stepKm > 0) setGenDriverStepKm(cfg.stepKm);
+                    if (typeof cfg.maxKm === 'number' && cfg.maxKm > 0) setGenMaxKm(cfg.maxKm);
+                    if (typeof cfg.baseVendorRupees === 'number') setGenBaseVendor(cfg.baseVendorRupees);
+                    if (typeof cfg.stepVendorRupees === 'number') setGenStepVendor(cfg.stepVendorRupees);
+                    if (typeof cfg.baseDriverRupees === 'number') setGenBaseDriver(cfg.baseDriverRupees);
+                    if (typeof cfg.stepDriverRupees === 'number') setGenStepDriver(cfg.stepDriverRupees);
+                    if (typeof cfg.escortBaseVendorRupees === 'number') setGenEscortBaseVendor(cfg.escortBaseVendorRupees);
+                    if (typeof cfg.escortStepVendorRupees === 'number') setGenEscortStepVendor(cfg.escortStepVendorRupees);
+                  }
+                }
+              }}
               style={{
                 width: '100%',
                 marginTop: '0.4rem',
@@ -1596,26 +1929,44 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
           {/* 2. Distance Geometry */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
             <div>
-              <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                Base Distance (km)
+              <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: role === 'driver' ? 'var(--color-success)' : 'var(--brand-primary)' }}>
+                {role === 'driver' ? 'Driver Base Distance (km)' : 'Vendor Base Distance (km)'}
               </label>
               <input
                 type="number"
                 min={1}
-                value={genBaseKm}
-                onChange={(e) => setGenBaseKm(Number(e.target.value))}
+                value={role === 'driver' ? genDriverBaseKm : genVendorBaseKm}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  if (role === 'driver') {
+                    setGenDriverBaseKm(val);
+                    setGenBaseKm(val);
+                  } else {
+                    setGenVendorBaseKm(val);
+                    setGenBaseKm(val);
+                  }
+                }}
                 style={{ width: '100%', marginTop: '0.35rem', padding: '0.55rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)', fontWeight: 600 }}
               />
             </div>
             <div>
-              <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                Step Increment (km)
+              <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: role === 'driver' ? 'var(--color-success)' : 'var(--brand-primary)' }}>
+                {role === 'driver' ? 'Driver Step Increment (km)' : 'Vendor Step Increment (km)'}
               </label>
               <input
                 type="number"
                 min={1}
-                value={genStepKm}
-                onChange={(e) => setGenStepKm(Number(e.target.value))}
+                value={role === 'driver' ? genDriverStepKm : genVendorStepKm}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  if (role === 'driver') {
+                    setGenDriverStepKm(val);
+                    setGenStepKm(val);
+                  } else {
+                    setGenVendorStepKm(val);
+                    setGenStepKm(val);
+                  }
+                }}
                 style={{ width: '100%', marginTop: '0.35rem', padding: '0.55rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)', fontWeight: 600 }}
               />
             </div>
@@ -1625,13 +1976,34 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
               </label>
               <input
                 type="number"
-                min={genBaseKm}
+                min={role === 'driver' ? genDriverBaseKm : genVendorBaseKm}
                 step={10}
                 value={genMaxKm}
                 onChange={(e) => setGenMaxKm(Number(e.target.value))}
                 style={{ width: '100%', marginTop: '0.35rem', padding: '0.55rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)', fontWeight: 600 }}
               />
             </div>
+          </div>
+
+          {/* Geometry Composite Alignment Notice */}
+          <div style={{
+            padding: '0.65rem 0.85rem',
+            borderRadius: 'var(--radius-md)',
+            background: role === 'driver' ? 'rgba(34, 197, 94, 0.08)' : 'rgba(99, 102, 241, 0.08)',
+            border: `1px solid ${role === 'driver' ? 'rgba(34, 197, 94, 0.25)' : 'rgba(99, 102, 241, 0.25)'}`,
+            fontSize: '0.78rem',
+            color: 'var(--text-secondary)',
+            lineHeight: 1.45,
+          }}>
+            {role === 'driver' ? (
+              <span>
+                <strong>Independent Geometry:</strong> Vendor client billing is set at <strong>0–{genVendorBaseKm} km</strong> base (+<strong>{genVendorStepKm} km</strong> steps). Setting driver to <strong>0–{genDriverBaseKm} km</strong> (+<strong>{genDriverStepKm} km</strong>) will automatically synthesize unified composite distance slabs so both operate independently without conflicts.
+              </span>
+            ) : (
+              <span>
+                <strong>Independent Geometry:</strong> Driver guaranteed payout is set at <strong>0–{genDriverBaseKm} km</strong> base (+<strong>{genDriverStepKm} km</strong> steps). Setting vendor to <strong>0–{genVendorBaseKm} km</strong> (+<strong>{genVendorStepKm} km</strong>) will automatically synthesize unified composite distance slabs so both operate independently without conflicts.
+              </span>
+            )}
           </div>
 
           {/* 3. Base & Step Rates (ISOLATED) */}
@@ -1654,7 +2026,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
                     onChange={(e) => setGenBaseDriver(Number(e.target.value))}
                     style={{ width: '100%', marginTop: '0.35rem', padding: '0.55rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)', fontWeight: 700 }}
                   />
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>For initial 0 – {genBaseKm} km</span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>For initial 0 – {genDriverBaseKm} km</span>
                 </div>
                 <div>
                   <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-success)' }}>
@@ -1667,7 +2039,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
                     onChange={(e) => setGenStepDriver(Number(e.target.value))}
                     style={{ width: '100%', marginTop: '0.35rem', padding: '0.55rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)', fontWeight: 700 }}
                   />
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>For each additional +{genStepKm} km</span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>For each additional +{genDriverStepKm} km</span>
                 </div>
               </div>
             ) : (
@@ -1684,7 +2056,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
                     onChange={(e) => setGenBaseVendor(Number(e.target.value))}
                     style={{ width: '100%', marginTop: '0.35rem', padding: '0.55rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)', fontWeight: 700 }}
                   />
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Client fare for 0 – {genBaseKm} km</span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Client fare for 0 – {genVendorBaseKm} km</span>
                 </div>
                 <div>
                   <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--brand-primary)' }}>
@@ -1697,7 +2069,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
                     onChange={(e) => setGenStepVendor(Number(e.target.value))}
                     style={{ width: '100%', marginTop: '0.35rem', padding: '0.55rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)', fontWeight: 700 }}
                   />
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Client fare per +{genStepKm} km step</span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Client fare per +{genVendorStepKm} km step</span>
                 </div>
               </div>
             )}
@@ -1721,7 +2093,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
                     onChange={(e) => setGenEscortBaseVendor(Number(e.target.value))}
                     style={{ width: '100%', marginTop: '0.35rem', padding: '0.55rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)' }}
                   />
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Base escort fee for 0 – {genBaseKm} km</span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Base escort fee for 0 – {genVendorBaseKm} km</span>
                 </div>
                 <div>
                   <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
@@ -1734,7 +2106,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
                     onChange={(e) => setGenEscortStepVendor(Number(e.target.value))}
                     style={{ width: '100%', marginTop: '0.35rem', padding: '0.55rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)' }}
                   />
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Escort increment per +{genStepKm} km step</span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Escort increment per +{genVendorStepKm} km step</span>
                 </div>
               </div>
             </div>
@@ -1768,112 +2140,175 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
           {/* Header & Add Window CTA */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
             <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
               Configured Peak Timing Windows ({peakSlots.length})
             </h4>
-            <Button
-              variant="outline"
-              size="sm"
-              leftIcon={<Plus size={14} />}
-              onClick={() => {
-                const nextId = `slot-${Date.now()}`;
-                setPeakSlots([
-                  ...peakSlots,
-                  {
-                    id: nextId,
-                    label: `Peak Slot ${peakSlots.length + 1}`,
-                    start: '20:00',
-                    end: '23:00',
-                    vehicleSurges: [
-                      {
-                        vehicleType: selectedVehicleChip || 'SEDAN',
-                        vendorBaseExtra: 0,
-                        vendorStepExtra: 0,
-                        driverBaseExtra: 0,
-                        driverStepExtra: 0,
-                      },
-                    ],
-                  },
-                ]);
-              }}
-            >
-              + Add Another Peak Window
-            </Button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              {peakSlots.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleRemoveAllPeakWindows}
+                  style={{
+                    padding: '0.45rem 0.85rem',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid rgba(239, 68, 68, 0.4)',
+                    background: 'rgba(239, 68, 68, 0.08)',
+                    color: 'var(--color-error)',
+                    fontWeight: 700,
+                    fontSize: '0.8rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    transition: 'all 0.15s ease',
+                  }}
+                  title="Delete all peak timing windows and revert to standard rates"
+                >
+                  <Trash2 size={14} />
+                  Clear All Peak Windows
+                </button>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                leftIcon={<Plus size={14} />}
+                onClick={() => {
+                  const nextId = `slot-${Date.now()}`;
+                  setPeakSlots([
+                    ...peakSlots,
+                    {
+                      id: nextId,
+                      label: `Peak Slot ${peakSlots.length + 1}`,
+                      start: '20:00',
+                      end: '23:00',
+                      vehicleSurges: [
+                        {
+                          vehicleType: selectedVehicleChip || 'SEDAN',
+                          vendorBaseExtra: 0,
+                          vendorStepExtra: 0,
+                          driverBaseExtra: 0,
+                          driverStepExtra: 0,
+                        },
+                      ],
+                    },
+                  ]);
+                }}
+              >
+                + Add Another Peak Window
+              </Button>
+            </div>
           </div>
 
-          {/* List of Peak Slots */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            {peakSlots.map((slot, sIdx) => {
-              const duration = computeTimeDuration(slot.start, slot.end);
-              return (
-                <div
-                  key={slot.id}
-                  style={{
-                    background: 'var(--bg-surface-elevated)',
-                    border: '1px solid var(--border)',
-                    borderRadius: '14px',
-                    padding: '1.25rem',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '1rem',
-                  }}
-                >
-                  {/* Slot Header: Label, Start, End, Duration */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <input
-                        type="text"
-                        value={slot.label}
-                        onChange={(e) => {
-                          const next = [...peakSlots];
-                          next[sIdx].label = e.target.value;
-                          setPeakSlots(next);
-                        }}
-                        style={{
-                          fontWeight: 700,
-                          fontSize: '0.9rem',
-                          padding: '0.35rem 0.65rem',
-                          borderRadius: '6px',
-                          border: '1px solid var(--border)',
-                          background: 'var(--bg-surface)',
-                          color: 'var(--text-primary)',
-                        }}
-                      />
-                      <span style={{ fontSize: '0.8rem', padding: '0.3rem 0.65rem', borderRadius: '999px', background: 'rgba(245, 158, 11, 0.15)', color: '#F59E0B', fontWeight: 800 }}>
-                        {duration}
-                      </span>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>From:</span>
+          {/* List of Peak Slots or Empty State */}
+          {peakSlots.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '2.5rem 1rem', background: 'var(--bg-surface)', borderRadius: '14px', border: '1px dashed var(--border)' }}>
+              <Clock size={36} style={{ color: 'var(--text-secondary)', marginBottom: '0.75rem', opacity: 0.5 }} />
+              <p style={{ fontWeight: 700, margin: '0 0 0.35rem 0', color: 'var(--text-primary)', fontSize: '0.95rem' }}>
+                No Peak Timing Windows Configured
+              </p>
+              <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', margin: '0 0 1.25rem 0', maxWidth: '420px', marginLeft: 'auto', marginRight: 'auto' }}>
+                All trips for this matrix operate 24/7 on standard distance base and step rates without peak surcharges.
+              </p>
+              <Button
+                variant="primary"
+                size="sm"
+                leftIcon={<Plus size={14} />}
+                onClick={() => {
+                  const nextId = `slot-${Date.now()}`;
+                  setPeakSlots([
+                    {
+                      id: nextId,
+                      label: `Peak Slot 1`,
+                      start: '20:00',
+                      end: '23:00',
+                      vehicleSurges: [
+                        {
+                          vehicleType: selectedVehicleChip || 'SEDAN',
+                          vendorBaseExtra: 0,
+                          vendorStepExtra: 0,
+                          driverBaseExtra: 0,
+                          driverStepExtra: 0,
+                        },
+                      ],
+                    },
+                  ]);
+                }}
+              >
+                Add First Peak Window
+              </Button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              {peakSlots.map((slot, sIdx) => {
+                const duration = computeTimeDuration(slot.start, slot.end);
+                return (
+                  <div
+                    key={slot.id}
+                    style={{
+                      background: 'var(--bg-surface-elevated)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '14px',
+                      padding: '1.25rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '1rem',
+                    }}
+                  >
+                    {/* Slot Header: Label, Start, End, Duration */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                         <input
-                          type="time"
-                          value={slot.start}
+                          type="text"
+                          value={slot.label}
                           onChange={(e) => {
                             const next = [...peakSlots];
-                            next[sIdx].start = e.target.value;
+                            next[sIdx].label = e.target.value;
                             setPeakSlots(next);
                           }}
-                          style={{ padding: '0.35rem 0.5rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--text-primary)', fontWeight: 700 }}
-                        />
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>To:</span>
-                        <input
-                          type="time"
-                          value={slot.end}
-                          onChange={(e) => {
-                            const next = [...peakSlots];
-                            next[sIdx].end = e.target.value;
-                            setPeakSlots(next);
+                          style={{
+                            fontWeight: 700,
+                            fontSize: '0.9rem',
+                            padding: '0.35rem 0.65rem',
+                            borderRadius: '6px',
+                            border: '1px solid var(--border)',
+                            background: 'var(--bg-surface)',
+                            color: 'var(--text-primary)',
                           }}
-                          style={{ padding: '0.35rem 0.5rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--text-primary)', fontWeight: 700 }}
                         />
+                        <span style={{ fontSize: '0.8rem', padding: '0.3rem 0.65rem', borderRadius: '999px', background: 'rgba(245, 158, 11, 0.15)', color: '#F59E0B', fontWeight: 800 }}>
+                          {duration}
+                        </span>
                       </div>
 
-                      {peakSlots.length > 1 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>From:</span>
+                          <input
+                            type="time"
+                            value={slot.start}
+                            onChange={(e) => {
+                              const next = [...peakSlots];
+                              next[sIdx].start = e.target.value;
+                              setPeakSlots(next);
+                            }}
+                            style={{ padding: '0.35rem 0.5rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--text-primary)', fontWeight: 700 }}
+                          />
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>To:</span>
+                          <input
+                            type="time"
+                            value={slot.end}
+                            onChange={(e) => {
+                              const next = [...peakSlots];
+                              next[sIdx].end = e.target.value;
+                              setPeakSlots(next);
+                            }}
+                            style={{ padding: '0.35rem 0.5rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--text-primary)', fontWeight: 700 }}
+                          />
+                        </div>
+
                         <button
                           onClick={() => setPeakSlots(peakSlots.filter((_, i) => i !== sIdx))}
                           style={{ background: 'none', border: 'none', color: 'var(--color-error)', cursor: 'pointer', padding: '0.4rem' }}
@@ -1881,9 +2316,8 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
                         >
                           <Trash2 size={16} />
                         </button>
-                      )}
+                      </div>
                     </div>
-                  </div>
 
                   {/* Vehicle Peak Surcharges for this Slot */}
                   <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
@@ -2032,6 +2466,7 @@ export default function PricingMatrixWorkspace({ initialRole = 'vendor' }: Prici
               );
             })}
           </div>
+        )}
 
           <Button
             variant="primary"

@@ -2044,39 +2044,6 @@ export class AdminService {
     return { daily, weekly, monthly, quarterly, yearly };
   }
 
-  /**
-   * Generates a completely valid empty finance response.
-   * Guarantees zero NaN, zero undefined, and displays clean ₹0 states.
-   */
-  private getEmptyFinanceDashboard(range: string, startDate: Date, endDate: Date) {
-    const revenueAnalytics = this.buildRevenueTimeSeries([], [], startDate, endDate);
-    return {
-      isEmpty: true,
-      message: 'No financial data available',
-      range,
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString(),
-      metrics: {
-        totalRevenue: 0,
-        totalPaidToDrivers: 0,
-        pendingDriverPayments: 0,
-        totalTransactions: 0,
-        totalRefunds: 0,
-      },
-      revenueAnalytics,
-      driverSummary: {
-        totalDriverEarnings: 0,
-        amountPaidToDrivers: 0,
-        pendingDriverPayments: 0,
-        drivers: [],
-      },
-      transactions: [],
-      settlements: [],
-      refunds: [],
-      revenueBreakdown: [],
-    };
-  }
-
   async getTripFrequencyReport(yearInput?: string, monthInput?: string, dayInput?: string) {
     const now = new Date();
     const year = yearInput === undefined ? now.getUTCFullYear() : Number(yearInput);
@@ -2095,23 +2062,27 @@ export class AdminService {
       throw new BadRequestException('A valid year and month are required.');
     }
 
-    const monthStart = new Date(0);
-    monthStart.setUTCFullYear(year, month - 1, 1);
-    monthStart.setUTCHours(0, 0, 0, 0);
-    const monthEnd = new Date(monthStart);
-    monthEnd.setUTCMonth(monthEnd.getUTCMonth() + 1);
+    const indiaOffsetMs = 5.5 * 60 * 60 * 1000;
+    const calendarMonthStart = new Date(0);
+    calendarMonthStart.setUTCFullYear(year, month - 1, 1);
+    calendarMonthStart.setUTCHours(0, 0, 0, 0);
+    const calendarMonthEnd = new Date(calendarMonthStart);
+    calendarMonthEnd.setUTCMonth(calendarMonthEnd.getUTCMonth() + 1);
+    const monthStart = new Date(calendarMonthStart.getTime() - indiaOffsetMs);
+    const monthEnd = new Date(calendarMonthEnd.getTime() - indiaOffsetMs);
     const monthWhere = { createdAt: { gte: monthStart, lt: monthEnd } };
 
     let selectedDay: string | null = null;
     let selectedDayWhere: { createdAt: { gte: Date; lt: Date } } | undefined;
     if (dayInput !== undefined) {
       const day = Number(dayInput);
-      const daysInMonth = new Date(monthEnd.getTime() - 24 * 60 * 60 * 1000).getUTCDate();
+      const daysInMonth = new Date(calendarMonthEnd.getTime() - 24 * 60 * 60 * 1000).getUTCDate();
       if (!/^\d{1,2}$/.test(dayInput) || !Number.isInteger(day) || day < 1 || day > daysInMonth) {
         throw new BadRequestException('The selected day is not valid for this month.');
       }
-      const dayStart = new Date(monthStart);
+      const dayStart = new Date(calendarMonthStart);
       dayStart.setUTCDate(day);
+      dayStart.setTime(dayStart.getTime() - indiaOffsetMs);
       const dayEnd = new Date(dayStart);
       dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
       selectedDay = `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day
@@ -2151,13 +2122,13 @@ export class AdminService {
 
     const countsByDate = new Map<string, number>();
     for (const trip of tripsInMonth) {
-      const date = trip.createdAt.toISOString().slice(0, 10);
+      const date = new Date(trip.createdAt.getTime() + indiaOffsetMs).toISOString().slice(0, 10);
       countsByDate.set(date, (countsByDate.get(date) ?? 0) + 1);
     }
 
-    const daysInMonth = new Date(monthEnd.getTime() - 24 * 60 * 60 * 1000).getUTCDate();
+    const daysInMonth = new Date(calendarMonthEnd.getTime() - 24 * 60 * 60 * 1000).getUTCDate();
     const dailyTrips = Array.from({ length: daysInMonth }, (_, index) => {
-      const date = new Date(monthStart);
+      const date = new Date(calendarMonthStart);
       date.setUTCDate(index + 1);
       const dateKey = date.toISOString().slice(0, 10);
       return { date: dateKey, count: countsByDate.get(dateKey) ?? 0 };
@@ -2699,6 +2670,10 @@ export class AdminService {
         },
         orderBy: { createdAt: 'desc' },
       });
+      const outstandingSettlementRequests = await this.db.settlement.aggregate({
+        where: { status: { in: ['PENDING', 'PROCESSING'] } },
+        _sum: { amount: true },
+      });
 
       // 4. Fetch all drivers with completed trips and settlements
       const allDrivers = await this.db.driver.findMany({
@@ -2923,6 +2898,7 @@ export class AdminService {
           totalRevenue: Math.round(totalRevenue * 100) / 100,
           totalPaidToDrivers: Math.round(totalAmountPaidToDrivers * 100) / 100,
           pendingDriverPayments: Math.round(pendingDriverPayments * 100) / 100,
+          pendingSettlementRequests: Number(outstandingSettlementRequests._sum.amount || 0),
           totalTransactions,
           totalRefunds: Math.round(totalRefunds * 100) / 100,
         },
@@ -2938,9 +2914,11 @@ export class AdminService {
         refunds: refundsList,
         revenueBreakdown,
       };
-    } catch (err: any) {
-      this.logger.warn(`Finance dashboard aggregation notice: ${err.message}`);
-      return this.getEmptyFinanceDashboard(range, startDate, endDate);
+    } catch (err: unknown) {
+      this.logger.warn(
+        `Finance dashboard aggregation failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      throw err;
     }
   }
 

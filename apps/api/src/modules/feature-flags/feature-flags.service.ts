@@ -25,6 +25,10 @@ export class FeatureFlagsService implements OnModuleInit {
             'Controls visibility of the Wallet/Payments tab, balance top-ups, and payment routes in Vendor mode (Mobile & Web).',
           category: 'PAYMENTS',
           isEnabled: true,
+          metadata: {
+            android: true,
+            web: true,
+          },
           createdBy: 'System Seed',
         },
       ];
@@ -39,6 +43,18 @@ export class FeatureFlagsService implements OnModuleInit {
             data: flag,
           });
           this.logger.log(`Initialized default feature flag: ${flag.key} (enabled=${flag.isEnabled})`);
+        } else if (!existing.metadata || typeof existing.metadata !== 'object' || (existing.metadata as any).android === undefined) {
+          const currentMeta = (existing.metadata && typeof existing.metadata === 'object') ? (existing.metadata as any) : {};
+          await this.prisma.featureFlag.update({
+            where: { key: flag.key },
+            data: {
+              metadata: {
+                ...currentMeta,
+                android: currentMeta.android ?? existing.isEnabled,
+                web: currentMeta.web ?? existing.isEnabled,
+              },
+            },
+          });
         }
       }
     } catch (err: any) {
@@ -63,6 +79,15 @@ export class FeatureFlagsService implements OnModuleInit {
     const map: Record<string, boolean> = {};
     for (const f of flags) {
       map[f.key] = f.isEnabled;
+      if (f.metadata && typeof f.metadata === 'object') {
+        const meta = f.metadata as any;
+        if (typeof meta.android === 'boolean') {
+          map[`${f.key}_android`] = meta.android;
+        }
+        if (typeof meta.web === 'boolean') {
+          map[`${f.key}_web`] = meta.web;
+        }
+      }
     }
     return {
       flags: map,
@@ -87,13 +112,20 @@ export class FeatureFlagsService implements OnModuleInit {
   /**
    * Check if a specific feature flag is enabled.
    */
-  async isEnabled(key: string, defaultValue = false): Promise<boolean> {
+  async isEnabled(key: string, defaultValue = false, platform?: 'android' | 'web'): Promise<boolean> {
     try {
       const flag = await this.prisma.featureFlag.findUnique({
         where: { key },
-        select: { isEnabled: true },
+        select: { isEnabled: true, metadata: true },
       });
-      return flag ? flag.isEnabled : defaultValue;
+      if (!flag) return defaultValue;
+      if (platform && flag.metadata && typeof flag.metadata === 'object') {
+        const meta = flag.metadata as any;
+        if (typeof meta[platform] === 'boolean') {
+          return meta[platform];
+        }
+      }
+      return flag.isEnabled;
     } catch {
       return defaultValue;
     }
@@ -144,20 +176,39 @@ export class FeatureFlagsService implements OnModuleInit {
   }
 
   /**
-   * Toggle feature flag enabled state.
+   * Toggle feature flag enabled state with optional platform-level targeting ('android' | 'web' | 'all').
    */
-  async toggleFlag(key: string, isEnabled: boolean, actorEmail?: string) {
-    await this.getFlagByKey(key);
+  async toggleFlag(key: string, isEnabled: boolean, actorEmail?: string, platform?: string) {
+    const flag = await this.getFlagByKey(key);
+
+    const currentMeta = (flag.metadata && typeof flag.metadata === 'object') ? { ...(flag.metadata as any) } : {};
+    const nextMeta = { ...currentMeta };
+    let nextIsEnabled = isEnabled;
+
+    if (platform === 'android') {
+      nextMeta.android = isEnabled;
+      if (nextMeta.web === undefined) nextMeta.web = flag.isEnabled;
+      nextIsEnabled = Boolean(nextMeta.android || nextMeta.web);
+    } else if (platform === 'web') {
+      nextMeta.web = isEnabled;
+      if (nextMeta.android === undefined) nextMeta.android = flag.isEnabled;
+      nextIsEnabled = Boolean(nextMeta.android || nextMeta.web);
+    } else {
+      nextMeta.android = isEnabled;
+      nextMeta.web = isEnabled;
+      nextIsEnabled = isEnabled;
+    }
 
     const updated = await this.prisma.featureFlag.update({
       where: { key },
       data: {
-        isEnabled,
+        isEnabled: nextIsEnabled,
+        metadata: nextMeta,
         updatedBy: actorEmail || 'Admin',
       },
     });
 
-    this.logger.log(`Feature flag '${key}' toggled to ${isEnabled} by ${actorEmail || 'Admin'}`);
+    this.logger.log(`Feature flag '${key}' toggled: isEnabled=${nextIsEnabled}, platform=${platform || 'all'} by ${actorEmail || 'Admin'}`);
     return updated;
   }
 

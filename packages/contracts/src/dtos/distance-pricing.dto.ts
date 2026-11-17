@@ -64,6 +64,12 @@ export class RateCardConfigDto {
   stepKm?: number;
 
   @IsOptional() @IsNumber() @Min(0.1) @Max(100)
+  vendorBaseKm?: number;
+
+  @IsOptional() @IsNumber() @Min(0.1) @Max(100)
+  driverBaseKm?: number;
+
+  @IsOptional() @IsNumber() @Min(0.1) @Max(100)
   vendorStepKm?: number;
 
   @IsOptional() @IsNumber() @Min(0.1) @Max(100)
@@ -126,6 +132,14 @@ export class RateCardConfigDto {
   @IsOptional()
   @IsArray()
   peakSlots?: Array<any>;
+
+  @IsOptional()
+  @IsArray()
+  vendorSlabs?: Array<any>;
+
+  @IsOptional()
+  @IsArray()
+  driverSlabs?: Array<any>;
 }
 
 export class CreatePricingSlabInputDto {

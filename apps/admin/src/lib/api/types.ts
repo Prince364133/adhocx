@@ -1253,11 +1253,16 @@ export interface DistancePricingPlan {
   updatedAt: string;
   peakWindows?: PeakHourWindow[];
   config?: {
+    baseKm?: number;
+    stepKm?: number;
+    vendorBaseKm?: number;
+    driverBaseKm?: number;
     vendorStepKm?: number;
     driverStepKm?: number;
     maxDistanceKm?: number;
     driverPeakSurchargePercent?: number;
     vendorPeakSurchargePercent?: number;
+    [key: string]: any;
   };
   escortFeePaise?: number;
   escortFeeRupees?: number;
@@ -1292,11 +1297,16 @@ export interface CreateDistancePricingPlanPayload {
   slabs?: CreatePricingSlabInput[];
   peakWindows?: PeakHourWindow[];
   config?: {
+    baseKm?: number;
+    stepKm?: number;
+    vendorBaseKm?: number;
+    driverBaseKm?: number;
     vendorStepKm?: number;
     driverStepKm?: number;
     maxDistanceKm?: number;
     driverPeakSurchargePercent?: number;
     vendorPeakSurchargePercent?: number;
+    [key: string]: any;
   };
 }
 
@@ -1396,6 +1406,7 @@ export interface FinanceOverviewMetrics {
   totalRevenue: number;
   totalPaidToDrivers: number;
   pendingDriverPayments: number;
+  pendingSettlementRequests: number;
   totalTransactions: number;
   totalRefunds?: number;
 }

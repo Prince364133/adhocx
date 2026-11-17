@@ -1763,10 +1763,10 @@ export const adminApi = {
   getFeatureFlags: () =>
     apiClient<FeatureFlagItem[]>('/admin/feature-flags'),
 
-  toggleFeatureFlag: (key: string, isEnabled: boolean) =>
+  toggleFeatureFlag: (key: string, isEnabled: boolean, platform?: 'android' | 'web' | 'all') =>
     apiClient<FeatureFlagItem>(`/admin/feature-flags/${encodeURIComponent(key)}/toggle`, {
       method: 'PATCH',
-      body: { isEnabled },
+      body: { isEnabled, platform },
     }),
 
   createFeatureFlag: (data: CreateFeatureFlagPayload) =>

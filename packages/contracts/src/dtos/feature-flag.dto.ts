@@ -73,5 +73,9 @@ export class UpdateFeatureFlagDto {
 export class ToggleFeatureFlagDto {
   @IsBoolean({ message: 'isEnabled must be a boolean' })
   isEnabled!: boolean;
+
+  @IsOptional()
+  @IsString()
+  platform?: 'android' | 'web' | 'all';
 }
 

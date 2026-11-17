@@ -188,8 +188,12 @@ class _VendorRateCardModalState extends State<VendorRateCardModal> {
                                     child: Text(s['range']?.toString() ?? '${s['minKm']}–${s['maxKm']} km',
                                         style: TextStyle(color: primaryText, fontSize: 13, fontWeight: FontWeight.bold)),
                                   ),
-                                  Text(rupees != null ? '₹${rupees.toStringAsFixed(0)}' : '₹--',
-                                      style: const TextStyle(color: AppColors.primary, fontSize: 14, fontWeight: FontWeight.bold)),
+                                  Text(
+                                    rupees != null
+                                        ? '₹${rupees % 1 == 0 ? rupees.toInt().toString() : rupees.toStringAsFixed(1)}'
+                                        : '₹--',
+                                    style: const TextStyle(color: AppColors.primary, fontSize: 14, fontWeight: FontWeight.bold),
+                                  ),
                                 ],
                               ),
                             );

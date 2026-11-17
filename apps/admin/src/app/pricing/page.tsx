@@ -47,8 +47,10 @@ export default function PricingOverviewPage() {
   const cfg = (activePlan as any)?.rateConfigJson || activePlan?.config || null;
 
   const hasConfig = Boolean(activePlan && cfg);
-  const baseKm = cfg?.baseKm ?? 10;
-  const stepKm = cfg?.stepKm ?? 10;
+  const vendorBaseKm = cfg?.vendorBaseKm ?? cfg?.baseKm ?? 10;
+  const vendorStepKm = cfg?.vendorStepKm ?? cfg?.stepKm ?? 10;
+  const driverBaseKm = cfg?.driverBaseKm ?? cfg?.baseKm ?? 10;
+  const driverStepKm = cfg?.driverStepKm ?? cfg?.stepKm ?? 10;
   const baseVendor = cfg?.baseVendorRupees ?? null;
   const stepVendor = cfg?.stepVendorRupees ?? null;
   const baseDriver = cfg?.baseDriverRupees ?? null;
@@ -147,14 +149,14 @@ export default function PricingOverviewPage() {
                       <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--brand-primary)', marginTop: '0.2rem' }}>
                         {baseVendor !== null ? inr(baseVendor) : '—'}
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{hasConfig ? `0 to ${baseKm} km` : 'Setup required'}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{hasConfig ? `0 to ${vendorBaseKm} km` : 'Setup required'}</div>
                     </div>
                     <div>
                       <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: 700 }}>Step Pricing</div>
                       <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--brand-primary)', marginTop: '0.2rem' }}>
                         {stepVendor !== null ? `+${inr(stepVendor)}` : '—'}
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{hasConfig ? `per +${stepKm} km step` : 'Setup required'}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{hasConfig ? `per +${vendorStepKm} km step` : 'Setup required'}</div>
                     </div>
                   </div>
 
@@ -250,14 +252,14 @@ export default function PricingOverviewPage() {
                       <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--color-success)', marginTop: '0.2rem' }}>
                         {baseDriver !== null ? inr(baseDriver) : '—'}
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{hasConfig ? `0 to ${baseKm} km` : 'Setup required'}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{hasConfig ? `0 to ${driverBaseKm} km` : 'Setup required'}</div>
                     </div>
                     <div>
                       <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: 700 }}>Step Increment</div>
                       <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--color-success)', marginTop: '0.2rem' }}>
                         {stepDriver !== null ? `+${inr(stepDriver)}` : '—'}
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{hasConfig ? `per +${stepKm} km step` : 'Setup required'}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{hasConfig ? `per +${driverStepKm} km step` : 'Setup required'}</div>
                     </div>
                   </div>
 

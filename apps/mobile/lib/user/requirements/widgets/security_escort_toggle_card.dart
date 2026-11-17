@@ -20,7 +20,7 @@ class SecurityEscortToggleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final badgeLabel = (escortFeeRupees != null && escortFeeRupees! > 0)
-        ? '+₹${escortFeeRupees!.toStringAsFixed(0)}'
+        ? '+₹${escortFeeRupees! % 1 == 0 ? escortFeeRupees!.toInt().toString() : escortFeeRupees!.toStringAsFixed(1)}'
         : (escortFeeRupees == 0 ? 'Included' : 'Guard Add-on');
 
     return InkWell(

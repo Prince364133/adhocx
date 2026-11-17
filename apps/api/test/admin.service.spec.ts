@@ -60,6 +60,7 @@ describe('AdminService Unit Tests', () => {
       settlement: {
         count: jest.fn().mockResolvedValue(1),
         findMany: jest.fn().mockResolvedValue([]),
+        aggregate: jest.fn().mockResolvedValue({ _sum: { amount: null } }),
       },
       corporateTenant: {
         findMany: jest.fn().mockResolvedValue([]),
@@ -287,20 +288,55 @@ describe('AdminService Unit Tests', () => {
     expect(report.tripFrequency.slice(2).every((day) => day.count === 0)).toBe(true);
   });
 
-  it('should return the selected month report and validate leap-year dates', async () => {
+  it('should return the selected month report in India time and validate leap-year dates', async () => {
     const februaryTripDate = new Date('2024-02-29T12:00:00.000Z');
-    db.trip.findMany.mockResolvedValue([{ createdAt: februaryTripDate }]);
+    const februaryIndiaBoundaryTripDate = new Date('2024-02-28T19:00:00.000Z');
+    db.trip.findMany.mockResolvedValue([
+      { createdAt: februaryTripDate },
+      { createdAt: februaryIndiaBoundaryTripDate },
+    ]);
     db.trip.groupBy.mockResolvedValue([{ status: 'COMPLETED', _count: { _all: 1 } }]);
 
     const report = await service.getTripFrequencyReport('2024', '2');
 
     expect(report.dailyTrips).toHaveLength(29);
-    expect(report.totalTrips).toBe(1);
-    expect(report.dailyTrips[28]).toEqual({ date: '2024-02-29', count: 1 });
+    expect(report.totalTrips).toBe(2);
+    expect(report.dailyTrips[28]).toEqual({ date: '2024-02-29', count: 2 });
+    expect(db.trip.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          createdAt: {
+            gte: new Date('2024-01-31T18:30:00.000Z'),
+            lt: new Date('2024-02-29T18:30:00.000Z'),
+          },
+        },
+      }),
+    );
     expect(report.statusBreakdown).toEqual([{ status: 'COMPLETED', count: 1 }]);
 
     await expect(service.getTripFrequencyReport('2024', '2', '30')).rejects.toThrow(
       'The selected day is not valid for this month.',
+    );
+  });
+
+  it('should report pending settlement requests separately from driver wallet balances', async () => {
+    db.driver.findMany.mockResolvedValue([]);
+    db.settlement.aggregate.mockResolvedValue({ _sum: { amount: 425 } });
+
+    const report = await service.getFinanceDashboard('30D');
+
+    expect(report.metrics.pendingSettlementRequests).toBe(425);
+    expect(db.settlement.aggregate).toHaveBeenCalledWith({
+      where: { status: { in: ['PENDING', 'PROCESSING'] } },
+      _sum: { amount: true },
+    });
+  });
+
+  it('should surface finance aggregation errors instead of returning zero metrics', async () => {
+    db.settlement.aggregate.mockRejectedValue(new Error('database unavailable'));
+
+    await expect(service.getFinanceDashboard('30D')).rejects.toThrow(
+      'database unavailable',
     );
   });
 

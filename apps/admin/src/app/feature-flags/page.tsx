@@ -15,6 +15,8 @@ import {
   Clock,
   User,
   Tag,
+  Smartphone,
+  Globe,
 } from "lucide-react";
 import { adminApi } from "../../lib/api/client";
 import { FeatureFlagItem } from "../../lib/api/types";
@@ -89,37 +91,76 @@ export default function FeatureFlagsPage() {
   const activeCount = flags.filter((f) => f.isEnabled).length;
   const totalCount = flags.length;
 
-  // Toggle Handler
-  const handleToggle = async (flag: FeatureFlagItem) => {
-    const targetState = !flag.isEnabled;
-    setTogglingKey(flag.key);
+  // Toggle Handler with optional platform targeting
+  const handleToggle = async (
+    flag: FeatureFlagItem,
+    platform?: "android" | "web" | "all",
+    forceState?: boolean,
+  ) => {
+    const meta = (flag.metadata && typeof flag.metadata === "object") ? flag.metadata : {};
+    let targetState: boolean;
+
+    if (forceState !== undefined) {
+      targetState = forceState;
+    } else if (platform === "android") {
+      targetState = !(meta.android ?? flag.isEnabled);
+    } else if (platform === "web") {
+      targetState = !(meta.web ?? flag.isEnabled);
+    } else {
+      targetState = !flag.isEnabled;
+    }
+
+    const togglingId = platform ? `${flag.key}_${platform}` : flag.key;
+    setTogglingKey(togglingId);
 
     // Optimistic UI update
     setFlags((prev) =>
-      prev.map((f) =>
-        f.key === flag.key
-          ? {
-              ...f,
-              isEnabled: targetState,
-              updatedAt: new Date().toISOString(),
-            }
-          : f,
-      ),
+      prev.map((f) => {
+        if (f.key !== flag.key) return f;
+        const currentMeta = (f.metadata && typeof f.metadata === "object") ? { ...f.metadata } : {};
+        const nextMeta = { ...currentMeta };
+        let nextIsEnabled = f.isEnabled;
+
+        if (platform === "android") {
+          nextMeta.android = targetState;
+          if (nextMeta.web === undefined) nextMeta.web = f.isEnabled;
+          nextIsEnabled = Boolean(nextMeta.android || nextMeta.web);
+        } else if (platform === "web") {
+          nextMeta.web = targetState;
+          if (nextMeta.android === undefined) nextMeta.android = f.isEnabled;
+          nextIsEnabled = Boolean(nextMeta.android || nextMeta.web);
+        } else {
+          nextMeta.android = targetState;
+          nextMeta.web = targetState;
+          nextIsEnabled = targetState;
+        }
+
+        return {
+          ...f,
+          isEnabled: nextIsEnabled,
+          metadata: nextMeta,
+          updatedAt: new Date().toISOString(),
+        };
+      }),
     );
 
     try {
-      const updated = await adminApi.toggleFeatureFlag(flag.key, targetState);
+      const updated = await adminApi.toggleFeatureFlag(flag.key, targetState, platform);
       setFlags((prev) => prev.map((f) => (f.key === flag.key ? updated : f)));
+      const platformLabel =
+        platform === "android"
+          ? "Android App"
+          : platform === "web"
+          ? "Web Portal"
+          : "All Platforms";
       setAlert({
         type: "success",
-        message: `Feature flag "${flag.name}" is now ${targetState ? "ENABLED" : "DISABLED"}. Changes take effect across Mobile & Web in real time.`,
+        message: `Feature flag "${flag.name}" (${platformLabel}) is now ${targetState ? "ENABLED" : "DISABLED"}. Changes take effect across clients in real time.`,
       });
     } catch (err: any) {
       // Revert optimistic update on failure
       setFlags((prev) =>
-        prev.map((f) =>
-          f.key === flag.key ? { ...f, isEnabled: flag.isEnabled } : f,
-        ),
+        prev.map((f) => (f.key === flag.key ? flag : f)),
       );
       setAlert({
         type: "error",
@@ -413,6 +454,11 @@ export default function FeatureFlagsPage() {
         {filteredFlags.map((flag) => {
           const isToggling = togglingKey === flag.key;
           const isVendorWallet = flag.key === "vendor_wallet";
+          const meta = (flag.metadata && typeof flag.metadata === "object") ? flag.metadata : {};
+          const androidEnabled = meta?.android ?? flag.isEnabled;
+          const webEnabled = meta?.web ?? flag.isEnabled;
+          const isAndroidToggling = togglingKey === `${flag.key}_android`;
+          const isWebToggling = togglingKey === `${flag.key}_web`;
 
           return (
             <div
@@ -518,81 +564,300 @@ export default function FeatureFlagsPage() {
                   )}
                   {isVendorWallet && (
                     <span
-                      className="font-semibold flex items-center gap-1"
+                      className="font-semibold flex items-center gap-1.5"
                       style={{ color: "var(--brand-lavender-light)" }}
                     >
-                      ⚡ Controls: Mobile App & Web Vendor Portal
+                      ⚡ Platform Status:{" "}
+                      {androidEnabled && webEnabled
+                        ? "Android App & Web Portal (Both Active)"
+                        : androidEnabled
+                        ? "Android App Only (Web Gated)"
+                        : webEnabled
+                        ? "Web Portal Only (Android Gated)"
+                        : "Disabled on All Platforms"}
                     </span>
                   )}
                 </div>
               </div>
 
-              {/* Toggle Switch */}
-              <div className="flex items-center gap-4">
-                <div className="text-right">
+              {/* Toggle Controls */}
+              {isVendorWallet ? (
+                <div className="flex items-center gap-4 flex-wrap">
+                  {/* Android Toggle Card */}
                   <div
-                    className="text-sm font-extrabold uppercase"
+                    className="flex items-center gap-3 px-3.5 py-2.5 rounded-md border"
                     style={{
-                      color: flag.isEnabled ? "#10B981" : "#EF4444",
-                      letterSpacing: "0.04em",
+                      background: "var(--bg-surface-elevated)",
+                      borderColor: androidEnabled
+                        ? "rgba(16, 185, 129, 0.35)"
+                        : "var(--border)",
+                      boxShadow: androidEnabled
+                        ? "0 2px 10px rgba(16, 185, 129, 0.08)"
+                        : "none",
+                      transition: "all 0.2s ease",
                     }}
                   >
-                    {flag.isEnabled ? "Active (Live)" : "Disabled"}
+                    <div
+                      className="flex items-center justify-center rounded-xs"
+                      style={{
+                        width: "30px",
+                        height: "30px",
+                        background: androidEnabled
+                          ? "rgba(16, 185, 129, 0.15)"
+                          : "rgba(100, 116, 139, 0.12)",
+                        color: androidEnabled ? "#10B981" : "var(--text-muted)",
+                      }}
+                    >
+                      <Smartphone size={17} />
+                    </div>
+
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-primary">
+                          Android App
+                        </span>
+                        <span
+                          className="font-extrabold text-[10px] px-1.5 py-0.5 rounded"
+                          style={{
+                            background: androidEnabled
+                              ? "rgba(16, 185, 129, 0.15)"
+                              : "rgba(239, 68, 68, 0.15)",
+                            color: androidEnabled ? "#10B981" : "#EF4444",
+                          }}
+                        >
+                          {androidEnabled ? "ON" : "OFF"}
+                        </span>
+                      </div>
+                      <span
+                        className="text-muted"
+                        style={{ fontSize: "11px" }}
+                      >
+                        {androidEnabled
+                          ? "Visible in Vendor app"
+                          : "Hidden in Vendor app"}
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={isAndroidToggling}
+                      onClick={() => handleToggle(flag, "android")}
+                      className="relative border-0 ml-1.5 cursor-pointer"
+                      style={{
+                        width: "50px",
+                        height: "28px",
+                        borderRadius: "14px",
+                        background: androidEnabled ? "#10B981" : "var(--border)",
+                        cursor: isAndroidToggling ? "wait" : "pointer",
+                        transition: "background 0.25s ease",
+                        padding: "2px",
+                        outline: "none",
+                        boxShadow: androidEnabled
+                          ? "0 2px 8px rgba(16, 185, 129, 0.35)"
+                          : "none",
+                      }}
+                      title="Toggle Android App vendor wallet"
+                    >
+                      <div
+                        className="rounded-full flex items-center justify-center"
+                        style={{
+                          width: "24px",
+                          height: "24px",
+                          background: "#fff",
+                          transform: androidEnabled
+                            ? "translateX(22px)"
+                            : "translateX(0px)",
+                          transition:
+                            "transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+                          boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                        }}
+                      >
+                        {isAndroidToggling ? (
+                          <RefreshCw
+                            size={11}
+                            color="#10B981"
+                            className="animate-spin"
+                          />
+                        ) : androidEnabled ? (
+                          <CheckCircle2 size={13} color="#10B981" />
+                        ) : (
+                          <XCircle size={13} color="#9CA3AF" />
+                        )}
+                      </div>
+                    </button>
                   </div>
-                  <div className="text-muted text-micro">
-                    {flag.isEnabled
-                      ? "Visible in Vendor app"
-                      : "Hidden from Vendor app"}
+
+                  {/* Web Portal Toggle Card */}
+                  <div
+                    className="flex items-center gap-3 px-3.5 py-2.5 rounded-md border"
+                    style={{
+                      background: "var(--bg-surface-elevated)",
+                      borderColor: webEnabled
+                        ? "rgba(16, 185, 129, 0.35)"
+                        : "var(--border)",
+                      boxShadow: webEnabled
+                        ? "0 2px 10px rgba(16, 185, 129, 0.08)"
+                        : "none",
+                      transition: "all 0.2s ease",
+                    }}
+                  >
+                    <div
+                      className="flex items-center justify-center rounded-xs"
+                      style={{
+                        width: "30px",
+                        height: "30px",
+                        background: webEnabled
+                          ? "rgba(16, 185, 129, 0.15)"
+                          : "rgba(100, 116, 139, 0.12)",
+                        color: webEnabled ? "#10B981" : "var(--text-muted)",
+                      }}
+                    >
+                      <Globe size={17} />
+                    </div>
+
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-primary">
+                          Web Portal
+                        </span>
+                        <span
+                          className="font-extrabold text-[10px] px-1.5 py-0.5 rounded"
+                          style={{
+                            background: webEnabled
+                              ? "rgba(16, 185, 129, 0.15)"
+                              : "rgba(239, 68, 68, 0.15)",
+                            color: webEnabled ? "#10B981" : "#EF4444",
+                          }}
+                        >
+                          {webEnabled ? "ON" : "OFF"}
+                        </span>
+                      </div>
+                      <span
+                        className="text-muted"
+                        style={{ fontSize: "11px" }}
+                      >
+                        {webEnabled
+                          ? "Visible in Web Portal"
+                          : "Hidden in Web Portal"}
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={isWebToggling}
+                      onClick={() => handleToggle(flag, "web")}
+                      className="relative border-0 ml-1.5 cursor-pointer"
+                      style={{
+                        width: "50px",
+                        height: "28px",
+                        borderRadius: "14px",
+                        background: webEnabled ? "#10B981" : "var(--border)",
+                        cursor: isWebToggling ? "wait" : "pointer",
+                        transition: "background 0.25s ease",
+                        padding: "2px",
+                        outline: "none",
+                        boxShadow: webEnabled
+                          ? "0 2px 8px rgba(16, 185, 129, 0.35)"
+                          : "none",
+                      }}
+                      title="Toggle Web Portal vendor wallet"
+                    >
+                      <div
+                        className="rounded-full flex items-center justify-center"
+                        style={{
+                          width: "24px",
+                          height: "24px",
+                          background: "#fff",
+                          transform: webEnabled
+                            ? "translateX(22px)"
+                            : "translateX(0px)",
+                          transition:
+                            "transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+                          boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                        }}
+                      >
+                        {isWebToggling ? (
+                          <RefreshCw
+                            size={11}
+                            color="#10B981"
+                            className="animate-spin"
+                          />
+                        ) : webEnabled ? (
+                          <CheckCircle2 size={13} color="#10B981" />
+                        ) : (
+                          <XCircle size={13} color="#9CA3AF" />
+                        )}
+                      </div>
+                    </button>
                   </div>
                 </div>
+              ) : (
+                <div className="flex items-center gap-4">
+                  <div className="text-right">
+                    <div
+                      className="text-sm font-extrabold uppercase"
+                      style={{
+                        color: flag.isEnabled ? "#10B981" : "#EF4444",
+                        letterSpacing: "0.04em",
+                      }}
+                    >
+                      {flag.isEnabled ? "Active (Live)" : "Disabled"}
+                    </div>
+                    <div className="text-muted text-micro">
+                      {flag.isEnabled
+                        ? "Visible in Vendor app"
+                        : "Hidden from Vendor app"}
+                    </div>
+                  </div>
 
-                <button
-                  type="button"
-                  disabled={isToggling}
-                  onClick={() => handleToggle(flag)}
-                  className="relative border-0"
-                  style={{
-                    width: "56px",
-                    height: "30px",
-                    borderRadius: "15px",
-                    background: flag.isEnabled ? "#10B981" : "var(--border)",
-                    cursor: isToggling ? "wait" : "pointer",
-                    transition: "background 0.25s ease",
-                    padding: "2px",
-                    outline: "none",
-                    boxShadow: flag.isEnabled
-                      ? "0 2px 8px rgba(16, 185, 129, 0.35)"
-                      : "none",
-                  }}
-                >
-                  <div
-                    className="rounded-full flex items-center justify-center"
+                  <button
+                    type="button"
+                    disabled={isToggling}
+                    onClick={() => handleToggle(flag)}
+                    className="relative border-0"
                     style={{
-                      width: "26px",
-                      height: "26px",
-                      background: "#fff",
-                      transform: flag.isEnabled
-                        ? "translateX(26px)"
-                        : "translateX(0px)",
-                      transition:
-                        "transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
-                      boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                      width: "56px",
+                      height: "30px",
+                      borderRadius: "15px",
+                      background: flag.isEnabled ? "#10B981" : "var(--border)",
+                      cursor: isToggling ? "wait" : "pointer",
+                      transition: "background 0.25s ease",
+                      padding: "2px",
+                      outline: "none",
+                      boxShadow: flag.isEnabled
+                        ? "0 2px 8px rgba(16, 185, 129, 0.35)"
+                        : "none",
                     }}
                   >
-                    {isToggling ? (
-                      <RefreshCw
-                        size={12}
-                        color="var(--brand-indigo-bright-text)"
-                        className="animate-spin"
-                      />
-                    ) : flag.isEnabled ? (
-                      <CheckCircle2 size={13} color="#10B981" />
-                    ) : (
-                      <XCircle size={13} color="#9CA3AF" />
-                    )}
-                  </div>
-                </button>
-              </div>
+                    <div
+                      className="rounded-full flex items-center justify-center"
+                      style={{
+                        width: "26px",
+                        height: "26px",
+                        background: "#fff",
+                        transform: flag.isEnabled
+                          ? "translateX(26px)"
+                          : "translateX(0px)",
+                        transition:
+                          "transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+                        boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                      }}
+                    >
+                      {isToggling ? (
+                        <RefreshCw
+                          size={12}
+                          color="var(--brand-indigo-bright-text)"
+                          className="animate-spin"
+                        />
+                      ) : flag.isEnabled ? (
+                        <CheckCircle2 size={13} color="#10B981" />
+                      ) : (
+                        <XCircle size={13} color="#9CA3AF" />
+                      )}
+                    </div>
+                  </button>
+                </div>
+              )}
             </div>
           );
         })}

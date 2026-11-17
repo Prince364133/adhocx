@@ -82,7 +82,7 @@ export class AdminFeatureFlagsController {
     @Body() dto: ToggleFeatureFlagDto,
     @CurrentUser() admin: AuthUserDto,
   ) {
-    return this.featureFlagsService.toggleFlag(key, dto.isEnabled, admin?.email);
+    return this.featureFlagsService.toggleFlag(key, dto.isEnabled, admin?.email, dto.platform);
   }
 
   @Delete(':key')

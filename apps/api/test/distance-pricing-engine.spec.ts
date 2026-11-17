@@ -318,11 +318,16 @@ describe('versions, publishing and scheduling', () => {
     await expect(svc.resolveActivePlan('SUV')).rejects.toMatchObject({ status: HttpStatus.UNPROCESSABLE_ENTITY });
   });
 
-  it('only DRAFT plans can be edited; live prices change only by publishing a new version', async () => {
+  it('DRAFT and ACTIVE plans can be edited with full validation; RETIRED plans cannot be modified', async () => {
     const { svc } = build();
     const live = await publishPlan(svc, 'ALL');
-    await expect(svc.updateDraftSlabs(live.id, PRD_SAMPLE_SLABS as any, ADMIN)).rejects.toThrow(/Only DRAFT plans can be edited/);
-    await expect(svc.publishPlan(live.id, { reason: 'again' } as any, ADMIN)).rejects.toThrow(/Only a DRAFT/);
+    // Active plan allows updating slabs and peak windows directly
+    const updated = await svc.updateDraftSlabs(live.id, PRD_SAMPLE_SLABS as any, ADMIN, 'Live slab update');
+    expect(updated.id).toBe(live.id);
+    expect(updated.status).toBe('ACTIVE');
+    // Once retired, it cannot be modified
+    await svc.retirePlan(live.id, 'Retiring plan', ADMIN);
+    await expect(svc.updateDraftSlabs(live.id, PRD_SAMPLE_SLABS as any, ADMIN)).rejects.toThrow(/Only DRAFT or ACTIVE plans can be edited/);
   });
 
   it('a scheduled plan stays inactive until its time, then replaces the active plan', async () => {

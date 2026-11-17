@@ -610,6 +610,7 @@ export default function DashboardPage() {
   const payoutRequestedData = useMemo(() => {
     const byDate = new Map<string, number>();
     (data.finance?.settlements ?? []).forEach((settlement) => {
+      if (!isPendingPayout(settlement)) return;
       const date = getIndiaDateKey(settlement.requestedDate);
       if (!date) return;
       byDate.set(
@@ -624,15 +625,33 @@ export default function DashboardPage() {
   }, [data.finance]);
 
   const marginData = useMemo(
-    () =>
-      (data.finance?.revenueAnalytics.daily ?? [])
-        .filter((point) => point.revenue != null && point.driverEarnings != null)
+    () => {
+      const byDate = new Map<string, number>();
+      (data.finance?.transactions ?? []).forEach((transaction) => {
+        const date = getIndiaDateKey(transaction.transactionDate);
+        if (!date) return;
+        byDate.set(
+          date,
+          (byDate.get(date) ?? 0) +
+            Number(transaction.totalOrderAmount || 0) -
+            Number(transaction.driverEarnings || 0),
+        );
+      });
+      return [...byDate.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
         .slice(-30)
-        .map((point) => ({
-          label: point.date?.slice(5) ?? point.label,
-          value: point.revenue - point.driverEarnings,
-        })),
+        .map(([date, value]) => ({ label: date.slice(5), value }));
+    },
     [data.finance],
+  );
+
+  const tripStatusData = useMemo(
+    () =>
+      (data.tripReport?.statusBreakdown ?? []).map(({ status, count }) => ({
+        label: status.replaceAll("_", " "),
+        value: count,
+      })),
+    [data.tripReport],
   );
 
   const growthMonths = useMemo(() => getRecentGrowthMonths(), []);
@@ -679,15 +698,17 @@ export default function DashboardPage() {
   ]);
 
   const payoutRequestedTotal =
-    data.finance?.metrics.pendingDriverPayments ??
-    (data.finance?.settlements ?? [])
-      .filter(isPendingPayout)
-      .reduce((sum, settlement) => sum + Number(settlement.amount || 0), 0);
+    data.finance?.metrics.pendingSettlementRequests ?? null;
   const platformMargin =
-    data.finance == null
+    data.finance == null || data.finance.transactions.length === 0
       ? null
-      : data.finance.metrics.totalRevenue -
-        data.finance.metrics.totalPaidToDrivers;
+      : data.finance.transactions.reduce(
+          (margin, transaction) =>
+            margin +
+            Number(transaction.totalOrderAmount || 0) -
+            Number(transaction.driverEarnings || 0),
+          0,
+        );
   const activeRequirementTotal =
     data.metrics?.activeRequirements ?? activeRequirements.length;
 
@@ -747,12 +768,12 @@ export default function DashboardPage() {
                 ? formatINR(payoutRequestedTotal)
                 : "—"
           }
-          subtext="Outstanding driver withdrawal requests"
+          subtext="Pending and processing settlement requests"
           icon={<Wallet size={15} />}
           accentColor="var(--brand-secondary)"
         />
         <MetricCard
-          label="Adhocx platform margin"
+          label="Completed-trip margin"
           value={
             isLoading
               ? "…"
@@ -760,7 +781,7 @@ export default function DashboardPage() {
                 ? "—"
                 : formatINR(platformMargin)
           }
-          subtext="Last 30 days · revenue less driver payouts"
+          subtext="Last 30 days · fare revenue less driver earnings"
           icon={<TrendingUp size={15} />}
           accentColor="var(--color-info)"
         />
@@ -863,15 +884,23 @@ export default function DashboardPage() {
         <div className="dashboard-chart-grid">
           <ChartCard
             title="Daily cab booking usage"
-            subtitle="Bookings created each day this month"
+            subtitle="Trips created each day this month · India time"
             action={<Car size={16} className="text-muted" />}
           >
             <BarChart data={dailyBookingData} color="var(--brand-secondary)" />
           </ChartCard>
 
           <ChartCard
+            title="Trip status"
+            subtitle="Trips created this month by current status"
+            action={<Activity size={16} className="text-muted" />}
+          >
+            <BarChart data={tripStatusData} color="var(--color-info)" />
+          </ChartCard>
+
+          <ChartCard
             title="Driver payouts requested"
-            subtitle="Requested payout amount by day · last 30 days"
+            subtitle="Pending and processing requests by day · last 30 days"
             action={<Wallet size={16} className="text-muted" />}
           >
             <BarChart
@@ -882,8 +911,8 @@ export default function DashboardPage() {
           </ChartCard>
 
           <ChartCard
-            title="Adhocx platform margin"
-            subtitle="Daily revenue less driver earnings · last 30 days"
+            title="Completed-trip margin"
+            subtitle="Daily completed-trip fares less driver earnings · last 30 days"
             action={<TrendingUp size={16} className="text-muted" />}
           >
             <BarChart data={marginData} color="var(--color-success)" currency />

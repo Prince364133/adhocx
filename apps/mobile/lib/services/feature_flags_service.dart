@@ -27,8 +27,20 @@ class FeatureFlagsService extends ChangeNotifier {
     return defaultValue;
   }
 
-  /// Convenience getter for vendor wallet access.
-  bool get isVendorWalletEnabled => isEnabled('vendor_wallet', defaultValue: true);
+  /// Convenience getter for vendor wallet access, evaluating platform-specific controls (Android vs Web).
+  bool get isVendorWalletEnabled {
+    if (kIsWeb) {
+      if (_flags.containsKey('vendor_wallet_web')) {
+        return _flags['vendor_wallet_web']!;
+      }
+    } else {
+      // Android / iOS mobile application
+      if (_flags.containsKey('vendor_wallet_android')) {
+        return _flags['vendor_wallet_android']!;
+      }
+    }
+    return isEnabled('vendor_wallet', defaultValue: true);
+  }
 
   /// Initializes the service from cached preferences and performs a background fetch.
   Future<void> init() async {
@@ -94,7 +106,7 @@ class FeatureFlagsService extends ChangeNotifier {
 
   /// Synchronizes dynamic flags to the static FeatureFlags class for legacy consumers.
   void _syncToStaticFeatureFlags() {
-    final bool vendorWallet = isEnabled('vendor_wallet', defaultValue: true);
+    final bool vendorWallet = isVendorWalletEnabled;
     FeatureFlags.updateVendorWalletLive(vendorWallet);
   }
 

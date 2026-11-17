@@ -1435,6 +1435,10 @@ Ledger Entry
 Settlement
 ```
 
+The finance dashboard is available at `GET /admin/finance/dashboard?range=30D`.
+
+The finance dashboard endpoint returns a `pendingSettlementRequests` metric that sums all `PENDING` and `PROCESSING` settlements across the platform, independent of the selected reporting range. It excludes wallet balances and completed, failed, or cancelled settlements.
+
 ---
 
 # 62. Notification API
@@ -2338,12 +2342,14 @@ All administrative actions must remain auditable.
 Admin reporting endpoints:
 
 ```http
-GET /admin/reports/trips
+GET /admin/reports/trips?year=YYYY&month=M&day=D
 GET /admin/reports/fulfillment
 GET /admin/reports/drivers
 GET /admin/reports/users
 GET /admin/reports/financial
 ```
+
+Trip frequency date ranges and daily buckets use the `Asia/Kolkata` calendar. The report includes trips of every status, with `statusBreakdown` identifying each trip's current status.
 
 Large reports should use asynchronous generation rather than blocking normal HTTP requests.
 

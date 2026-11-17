@@ -69,7 +69,6 @@ const envInt = (name: string, fallback: number) => {
 
 /** Default plan for categories that have no plan of their own (must be created explicitly). */
 export const DEFAULT_PLAN_CATEGORY = 'ALL';
-const DEFAULT_ESCORT_FEE_PAISE = 30000;
 
 export { evaluatePeakTime, validatePeakWindows } from './peak-hours';
 export type { PeakWindowDef } from './peak-hours';
@@ -248,7 +247,7 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
     return this.mapPlanToDto(created);
   }
 
-  /** Replace the slabs of a DRAFT plan. Live and historical versions are never edited in place. */
+  /** Replace the slabs of a DRAFT or ACTIVE plan. Live and draft versions update atomically with audit logging. */
   async updateDraftSlabs(
     planId: string,
     slabs: CreatePricingSlabInputDto[],
@@ -262,9 +261,9 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
     await this.db.$transaction(async (tx) => {
       const plan = await tx.pricingPlan.findUnique({ where: { id: planId }, include: { slabs: true } });
       if (!plan) throw new NotFoundException(`Pricing plan ${planId} not found`);
-      if (plan.status !== 'DRAFT') {
+      if (plan.status !== 'DRAFT' && plan.status !== 'ACTIVE') {
         throw new BadRequestException(
-          `Only DRAFT plans can be edited (this plan is ${plan.status}). Create a draft from it, change the rates, then publish.`,
+          `Only DRAFT or ACTIVE plans can be edited (this plan is ${plan.status}). Retired plans cannot be modified.`,
         );
       }
 
@@ -284,7 +283,7 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
           entityId: planId,
           oldValueJson: { peakWindows: oldWindows, slabs: this.auditSlabs(plan.slabs) } as any,
           newValueJson: { peakWindows: nextWindows ?? oldWindows, slabs: this.auditSlabs(slabs) } as any,
-          reason: reason?.trim() || 'Draft slabs updated',
+          reason: reason?.trim() || `${plan.status} slabs updated`,
         },
       });
     });
@@ -908,33 +907,17 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
     if (!match) {
       const maxConfiguredKm = Number((maxConfiguredMeters / 1000).toFixed(1));
       const requestedKm = Number((distanceMeters / 1000).toFixed(1));
-      return {
-        distanceMeters,
-        displayedKm: requestedKm,
-        planId: plan.id,
-        planVersion: plan.version,
-        planCategory: plan.vehicleCategory,
-        vehicleCategory,
-        slabId: null,
-        slabRange: `> ${maxConfiguredKm} km (Out of Range)`,
-        isPeak: peakEval.isPeak,
-        hasEscort,
-        activeWindowLabel: peakEval.activeWindow?.label || (peakEval.isPeak ? 'Peak Hours' : 'Standard Non-Peak'),
-        outOfRange: true,
-        maxConfiguredKm,
-        error: `Distance (${requestedKm} km) exceeds maximum configured slab (${maxConfiguredKm} km).`,
-        vendorPricePaise: 0,
-        vendorPriceRupees: 0,
-        driverPayoutPaise: 0,
-        driverPayoutRupees: 0,
-        baseRideVendorPriceRupees: 0,
-        baseRideDriverPayoutRupees: 0,
-        escortVendorFeeRupees: escortVendorPaise / 100,
-        escortDriverPayoutRupees: 0,
-        standard: { vendorPriceRupees: 0, driverPayoutRupees: 0 },
-        peak: { vendorPriceRupees: 0, driverPayoutRupees: 0 },
-        peakWindows,
-      };
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+          code: PricingErrorCode.DISTANCE_NOT_CONFIGURED,
+          message: `Distance (${requestedKm} km) exceeds maximum configured slab (${maxConfiguredKm} km).`,
+          maxConfiguredKm,
+          requestedKm,
+          outOfRange: true,
+        },
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
     }
 
     const stdSlab = { ...match, ...slabRates(match, false) };
@@ -979,6 +962,10 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
   /** Driver rate card: payouts only across standard & peak. */
   async getActiveDriverRateCard(vehicleCategory = DEFAULT_PLAN_CATEGORY) {
     const plan = await this.resolveActivePlan(vehicleCategory);
+    const cfg = (plan as any).rateConfigJson || {};
+    const driverSlabs: any[] = Array.isArray(cfg.driverSlabs) && cfg.driverSlabs.length > 0 ? cfg.driverSlabs : null;
+    const sourceSlabs = driverSlabs || plan.slabs;
+
     return {
       planId: plan.id,
       planName: plan.name,
@@ -986,17 +973,19 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
       vehicleCategory: plan.vehicleCategory,
       effectiveFrom: plan.effectiveFrom.toISOString(),
       peakWindows: planPeakWindows(plan.peakWindowsJson),
-      slabs: plan.slabs.map((s: any) => {
-        const peakPayoutPaise = slabRates(s, true).driverPayoutPaise;
+      slabs: sourceSlabs.map((s: any, idx: number) => {
+        const dPayout = s.driverPayoutPaise ?? 0;
+        const dPeak = s.driverPeakPayoutPaise ?? (slabRates(s, true).driverPayoutPaise ?? dPayout);
         return {
-          id: s.id,
+          id: s.id || `driver-slab-${idx + 1}`,
           range: this.rangeLabel(s),
           minKm: s.minDistanceMExclusive / 1000,
           maxKm: s.maxDistanceMInclusive / 1000,
-          driverPayoutPaise: s.driverPayoutPaise,
-          driverPayoutRupees: s.driverPayoutPaise / 100,
-          driverPeakPayoutPaise: peakPayoutPaise,
-          driverPeakPayoutRupees: peakPayoutPaise / 100,
+          desc: s.minDistanceMExclusive === 0 ? 'Base guaranteed payout' : `Step increment (+${(s.maxDistanceMInclusive - s.minDistanceMExclusive) / 1000} km)`,
+          driverPayoutPaise: dPayout,
+          driverPayoutRupees: dPayout / 100,
+          driverPeakPayoutPaise: dPeak,
+          driverPeakPayoutRupees: dPeak / 100,
         };
       }),
     };
@@ -1005,7 +994,31 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
   /** Vendor rate card: charges only across standard & peak. */
   async getActiveVendorRateCard(vehicleCategory = DEFAULT_PLAN_CATEGORY) {
     const plan = await this.resolveActivePlan(vehicleCategory);
-    const escortFeePaise = await this.resolveEscortFeePaise();
+    const escortFeePaise = await this.resolveEscortFeePaise(plan);
+    const cfg = (plan as any).rateConfigJson || {};
+    const vendorSlabs: any[] = Array.isArray(cfg.vendorSlabs) && cfg.vendorSlabs.length > 0 ? cfg.vendorSlabs : null;
+    const sourceSlabs = vendorSlabs || plan.slabs;
+
+    const slabs = await Promise.all(
+      sourceSlabs.map(async (s: any, idx: number) => {
+        const vPrice = s.vendorPricePaise ?? 0;
+        const vPeak = s.vendorPeakPricePaise ?? (slabRates(s, true).vendorPricePaise ?? vPrice);
+        const slabEscortPaise = await this.resolveEscortFeePaise(plan, s.maxDistanceMInclusive);
+        return {
+          id: s.id || `vendor-slab-${idx + 1}`,
+          range: this.rangeLabel(s),
+          minKm: s.minDistanceMExclusive / 1000,
+          maxKm: s.maxDistanceMInclusive / 1000,
+          desc: s.minDistanceMExclusive === 0 ? 'Base client fare' : `Step increment (+${(s.maxDistanceMInclusive - s.minDistanceMExclusive) / 1000} km)`,
+          vendorPricePaise: vPrice,
+          vendorPriceRupees: vPrice / 100,
+          vendorPeakPricePaise: vPeak,
+          vendorPeakPriceRupees: vPeak / 100,
+          escortFeePaise: slabEscortPaise,
+          escortFeeRupees: slabEscortPaise / 100,
+        };
+      }),
+    );
     return {
       planId: plan.id,
       planName: plan.name,
@@ -1015,19 +1028,7 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
       escortFeePaise,
       escortFeeRupees: escortFeePaise / 100,
       peakWindows: planPeakWindows(plan.peakWindowsJson),
-      slabs: plan.slabs.map((s: any) => {
-        const peakPricePaise = slabRates(s, true).vendorPricePaise;
-        return {
-          id: s.id,
-          range: this.rangeLabel(s),
-          minKm: s.minDistanceMExclusive / 1000,
-          maxKm: s.maxDistanceMInclusive / 1000,
-          vendorPricePaise: s.vendorPricePaise,
-          vendorPriceRupees: s.vendorPricePaise / 100,
-          vendorPeakPricePaise: peakPricePaise,
-          vendorPeakPriceRupees: peakPricePaise / 100,
-        };
-      }),
+      slabs,
     };
   }
 
@@ -1041,8 +1042,10 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
         const cfg = plan.rateConfigJson as any;
         // 1. Check custom slab escort override first
         if (cfg.slabEscorts && typeof cfg.slabEscorts === 'object' && distanceMeters !== undefined) {
-          const slabs = (plan.slabs || []).filter((s: any) => s.active !== false);
-          const matchedSlab = slabs.find((s: any) => distanceMeters > s.minDistanceMExclusive && distanceMeters <= s.maxDistanceMInclusive);
+          const candidateSlabs = (Array.isArray(cfg.vendorSlabs) && cfg.vendorSlabs.length > 0)
+            ? cfg.vendorSlabs.filter((s: any) => s.active !== false)
+            : (plan.slabs || []).filter((s: any) => s.active !== false);
+          const matchedSlab = candidateSlabs.find((s: any) => distanceMeters > s.minDistanceMExclusive && distanceMeters <= s.maxDistanceMInclusive);
           if (matchedSlab) {
             const slabKey = `${matchedSlab.minDistanceMExclusive}-${matchedSlab.maxDistanceMInclusive}`;
             if (typeof cfg.slabEscorts[slabKey] === 'number' && cfg.slabEscorts[slabKey] >= 0) {
@@ -1051,10 +1054,14 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
           }
         }
 
-        // 2. Formula-based escort
+        // 2. Formula-based escort configured in database plan
         if (typeof cfg.escortBaseVendorRupees === 'number' && cfg.escortBaseVendorRupees >= 0) {
-          const baseKm = typeof cfg.baseKm === 'number' && cfg.baseKm > 0 ? cfg.baseKm : 10;
-          const stepKm = typeof cfg.stepKm === 'number' && cfg.stepKm > 0 ? cfg.stepKm : 10;
+          const baseKm = typeof cfg.vendorBaseKm === 'number' && cfg.vendorBaseKm > 0
+            ? cfg.vendorBaseKm
+            : (typeof cfg.baseKm === 'number' && cfg.baseKm > 0 ? cfg.baseKm : 10);
+          const stepKm = typeof cfg.vendorStepKm === 'number' && cfg.vendorStepKm > 0
+            ? cfg.vendorStepKm
+            : (typeof cfg.stepKm === 'number' && cfg.stepKm > 0 ? cfg.stepKm : 10);
           const stepVendor = typeof cfg.escortStepVendorRupees === 'number' && cfg.escortStepVendorRupees >= 0 ? cfg.escortStepVendorRupees : 0;
           const baseM = baseKm * 1000;
           const stepM = stepKm * 1000;
@@ -1065,21 +1072,45 @@ export class DistancePricingService implements OnModuleInit, OnModuleDestroy {
         }
       }
 
-      const policy = await this.db.systemPolicyConfig?.findUnique?.({ where: { key: 'GLOBAL_POLICY' } });
-      if (policy && (policy as any).escortFee !== undefined && (policy as any).escortFee !== null) {
-        const fee = Number((policy as any).escortFee);
-        if (Number.isFinite(fee) && fee >= 0) {
-          return Math.round(fee * 100);
+      // 3. Fallback to platform policy table in database (system_policy_configs)
+      if (this.db) {
+        const policy = await this.db.systemPolicyConfig?.findUnique?.({ where: { key: 'GLOBAL_POLICY' } });
+        if (policy && (policy as any).escortFee !== undefined && (policy as any).escortFee !== null) {
+          const fee = Number((policy as any).escortFee);
+          if (Number.isFinite(fee) && fee >= 0) {
+            return Math.round(fee * 100);
+          }
         }
       }
     } catch (err: any) {
-      this.logger.warn(`Could not read escortFee policy; using default: ${err?.message ?? err}`);
+      this.logger.warn(`Could not read escortFee from database: ${err?.message ?? err}`);
     }
-    return DEFAULT_ESCORT_FEE_PAISE;
+    return 0;
   }
 
-  private resolveEscortDriverPayoutPaise(_plan?: any, _distanceMeters?: number): number {
-    // Driver escort payout removed per product policy: driver payout is purely distance-based; escort is client add-on
+  private resolveEscortDriverPayoutPaise(plan?: any, distanceMeters?: number): number {
+    try {
+      if (plan?.rateConfigJson && typeof plan.rateConfigJson === 'object') {
+        const cfg = plan.rateConfigJson as any;
+        if (typeof cfg.escortBaseDriverRupees === 'number' && cfg.escortBaseDriverRupees > 0) {
+          const baseKm = typeof cfg.driverBaseKm === 'number' && cfg.driverBaseKm > 0
+            ? cfg.driverBaseKm
+            : (typeof cfg.baseKm === 'number' && cfg.baseKm > 0 ? cfg.baseKm : 10);
+          const stepKm = typeof cfg.driverStepKm === 'number' && cfg.driverStepKm > 0
+            ? cfg.driverStepKm
+            : (typeof cfg.stepKm === 'number' && cfg.stepKm > 0 ? cfg.stepKm : 10);
+          const stepDriver = typeof cfg.escortStepDriverRupees === 'number' && cfg.escortStepDriverRupees >= 0 ? cfg.escortStepDriverRupees : 0;
+          const baseM = baseKm * 1000;
+          const stepM = stepKm * 1000;
+          const dM = distanceMeters || 0;
+          const steps = dM > baseM ? Math.ceil((dM - baseM) / stepM) : 0;
+          const totalPayout = cfg.escortBaseDriverRupees + steps * stepDriver;
+          return Math.round(totalPayout * 100);
+        }
+      }
+    } catch (err: any) {
+      this.logger.warn(`Could not calculate driver escort payout: ${err?.message ?? err}`);
+    }
     return 0;
   }
 

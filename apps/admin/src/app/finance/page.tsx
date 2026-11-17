@@ -117,6 +117,7 @@ export default function FinanceDashboardPage() {
             totalRevenue: 0,
             totalPaidToDrivers: 0,
             pendingDriverPayments: 0,
+            pendingSettlementRequests: 0,
             totalTransactions: 0,
             totalRefunds: 0,
           },
@@ -199,6 +200,7 @@ export default function FinanceDashboardPage() {
         totalRevenue: 0,
         totalPaidToDrivers: 0,
         pendingDriverPayments: 0,
+        pendingSettlementRequests: 0,
         totalTransactions: 0,
         totalRefunds: 0,
       }

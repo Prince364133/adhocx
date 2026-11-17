@@ -90,6 +90,17 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
   }
 
   Future<void> _loadEscortFeePolicy() async {
+    try {
+      final draft = context.read<RequirementDraftProvider>();
+      final vehicleCategory = draft.vehicleType.trim().toUpperCase();
+      final card = await UserService.instance.getVendorRateCard(vehicleCategory: vehicleCategory);
+      if (card['escortFeeRupees'] != null && mounted) {
+        final fee = (card['escortFeeRupees'] as num).toDouble();
+        setState(() => _policyEscortFee = fee);
+        return;
+      }
+    } catch (_) {}
+
     final fee = await UserService.instance.getEscortFee();
     if (fee != null && mounted) {
       setState(() => _policyEscortFee = fee);
@@ -110,6 +121,8 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
     if (_distanceQuote == null || _distanceQuote!['quoteId'] == null) return false;
     return true;
   }
+
+  String _fmtRupees(num val) => val % 1 == 0 ? val.toInt().toString() : val.toStringAsFixed(1);
 
   Future<void> _calculateAndFetchQuote() async {
     if (!_hasValidCoordinates) {
@@ -902,7 +915,7 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
                     const SizedBox(height: 2),
                     Text(
                       (_hasEscort && ((q['escortFareRupees'] as num?)?.toDouble() ?? 0) > 0)
-                          ? 'Base ₹${(((q['baseVendorPriceRupees'] as num?)?.toDouble()) ?? (totalFare - (q['escortFareRupees'] as num).toDouble())).toStringAsFixed(0)} + ₹${(q['escortFareRupees'] as num).toStringAsFixed(0)} Escort • $displayKm'
+                          ? 'Base ₹${_fmtRupees(((q['baseVendorPriceRupees'] as num?)?.toDouble()) ?? (totalFare - (q['escortFareRupees'] as num).toDouble()))} + ₹${_fmtRupees(q['escortFareRupees'] as num)} Escort • $displayKm'
                           : 'Google Maps route: $displayKm • Fixed rate band • Zero surge',
                       style: TextStyle(fontSize: 11, color: muted),
                     ),
@@ -913,7 +926,7 @@ class _UserCreateRequirementStep2ScreenState extends State<UserCreateRequirement
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    '₹${totalFare.toStringAsFixed(0)}',
+                    '₹${_fmtRupees(totalFare)}',
                     style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.success),
                   ),
                   if (_secondsUntilExpiry > 0)

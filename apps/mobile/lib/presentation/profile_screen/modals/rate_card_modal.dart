@@ -155,11 +155,12 @@ class _RateCardModalState extends State<RateCardModal> {
       if (res != null && res is Map && res['slabs'] is List) {
         final slabsList = (res['slabs'] as List).whereType<Map>().map((m) {
           final range = m['range']?.toString() ?? '${m['minKm']}–${m['maxKm']} km';
-          final payout = (m['driverPayoutRupees'] as num?)?.toInt() ??
-              ((m['driverPayoutPaise'] as num?) != null ? ((m['driverPayoutPaise'] as num) / 100).round() : 0);
-          final peakPayout = (m['driverPeakPayoutRupees'] as num?)?.toInt() ??
-              ((m['driverPeakPayoutPaise'] as num?) != null ? ((m['driverPeakPayoutPaise'] as num) / 100).round() : payout);
-          final desc = m['desc']?.toString() ?? 'Distance band';
+          final num payout = (m['driverPayoutRupees'] as num?) ??
+              ((m['driverPayoutPaise'] as num?) != null ? ((m['driverPayoutPaise'] as num) / 100) : 0);
+          final num peakPayout = (m['driverPeakPayoutRupees'] as num?) ??
+              ((m['driverPeakPayoutPaise'] as num?) != null ? ((m['driverPeakPayoutPaise'] as num) / 100) : payout);
+          final desc = m['desc']?.toString() ??
+              ((m['minKm'] == 0 || (m['minDistanceMExclusive'] ?? 0) == 0) ? 'Base guaranteed payout' : 'Step distance band');
           return {
             'range': range,
             'payout': payout,
@@ -321,6 +322,12 @@ class _RateCardModalState extends State<RateCardModal> {
     );
   }
 
+  String _formatCurrency(dynamic value) {
+    if (value is! num) return value?.toString() ?? '0';
+    if (value % 1 == 0) return value.toInt().toString();
+    return value.toStringAsFixed(1);
+  }
+
   Widget _buildDistanceTable(BuildContext context, bool isDark) {
     return Container(
       decoration: BoxDecoration(
@@ -366,7 +373,7 @@ class _RateCardModalState extends State<RateCardModal> {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          '₹$payout Net',
+                          '₹${_formatCurrency(payout)} Net',
                           style: const TextStyle(
                             color: AppColors.primary,
                             fontSize: 14,
@@ -375,7 +382,7 @@ class _RateCardModalState extends State<RateCardModal> {
                         ),
                         if (peakPayout != null && peakPayout != payout)
                           Text(
-                            'Peak ₹$peakPayout',
+                            'Peak ₹${_formatCurrency(peakPayout)}',
                             style: const TextStyle(
                               color: AppColors.warning,
                               fontSize: 11,

@@ -442,7 +442,6 @@ export default function CompanyProfilePage() {
             ? 'Company and Corporate Super Admin account created. The primary contact can sign in using SMS OTP.'
             : 'Company was created, but Corporate portal account creation was not confirmed. Verify the company users before retrying.',
       });
-      });
       router.replace(`/companies/${companyId}`);
     }
   }, [companyId, router]);
