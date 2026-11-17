@@ -67,8 +67,8 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
   static const MethodChannel _mainOverlayChannel = MethodChannel('x-slayer/overlay_channel');
 
   // Sizing Constants (dp)
-  static const int bubbleWidth = 76;
-  static const int bubbleHeight = 76;
+  static const int bubbleWidth = 72;
+  static const int bubbleHeight = 72;
   static const int sheetHeightDefault = 540;
   static const int sheetHeightExpanded = 720;
 

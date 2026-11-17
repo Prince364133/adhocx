@@ -218,9 +218,9 @@ class GlobalDispatchOverlayService {
       final isActive = await FlutterOverlayWindow.isActive();
       if (!isActive) {
         // Compute pixel size for initial showOverlay because Android WindowSetup treats width & height as raw pixels.
-        // On modern screens (e.g. 2.75x - 3.5x density), 76 dp = ~210-266 raw pixels.
+        // On modern screens (e.g. 2.75x - 3.5x density), 72 dp = ~198-252 raw pixels.
         final pixelRatio = WidgetsBinding.instance.platformDispatcher.views.firstOrNull?.devicePixelRatio ?? 3.0;
-        final bubblePixels = (76 * pixelRatio).round();
+        final bubblePixels = (72 * pixelRatio).round();
 
         await FlutterOverlayWindow.showOverlay(
           height: bubblePixels,
@@ -231,12 +231,12 @@ class GlobalDispatchOverlayService {
           flag: OverlayFlag.defaultFlag,
           alignment: OverlayAlignment.bottomRight,
           visibility: NotificationVisibility.visibilityPublic,
-          positionGravity: PositionGravity.none,
+          positionGravity: PositionGravity.auto,
           startPosition: const OverlayPosition(0, 150),
         );
 
         // Immediately ensure standard dp size via resizeOverlay (which uses dpToPx on native Android):
-        await FlutterOverlayWindow.resizeOverlay(76, 76, true);
+        await FlutterOverlayWindow.resizeOverlay(72, 72, true);
       }
       _isBubbleActive = true;
       _listenToOverlayActions();
