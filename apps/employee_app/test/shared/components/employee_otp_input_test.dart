@@ -18,7 +18,9 @@ void main() {
     await tester.pumpWidget(_host(EmployeeOtpInput(onCompleted: (_) {})));
 
     expect(find.byType(TextField), findsOneWidget);
-    final field = tester.widget<TextField>(find.byType(TextField));
+    final field = tester.widget<TextField>(
+      find.byType(TextField, skipOffstage: false),
+    );
     expect(field.keyboardType, TextInputType.number);
     expect(field.autofocus, isTrue);
     expect(field.autofillHints, contains(AutofillHints.oneTimeCode));
@@ -26,10 +28,35 @@ void main() {
     expect(find.byType(AnimatedScale), findsNWidgets(6));
   });
 
+  testWidgets('uses the native keyboard without an in-app keypad',
+      (tester) async {
+    final completed = <String>[];
+    await tester
+        .pumpWidget(_host(EmployeeOtpInput(onCompleted: completed.add)));
+
+    final field = tester.widget<TextField>(
+      find.byType(TextField, skipOffstage: false),
+    );
+    expect(field.readOnly, isFalse);
+    expect(field.keyboardType, TextInputType.number);
+    expect(field.autofillHints, contains(AutofillHints.oneTimeCode));
+    expect(field.decoration?.filled, isFalse);
+    expect(field.decoration?.fillColor, Colors.transparent);
+    expect(field.decoration?.border, InputBorder.none);
+    expect(field.decoration?.focusedBorder, InputBorder.none);
+    expect(find.byKey(const ValueKey('employee-keypad-digit-1')), findsNothing);
+
+    await tester.enterText(find.byType(TextField), '123456');
+    await tester.pump();
+
+    expect(completed, ['123456']);
+  });
+
   testWidgets('typing digit by digit fills the boxes and completes once',
       (tester) async {
     final completed = <String>[];
-    await tester.pumpWidget(_host(EmployeeOtpInput(onCompleted: completed.add)));
+    await tester
+        .pumpWidget(_host(EmployeeOtpInput(onCompleted: completed.add)));
 
     var typed = '';
     for (var index = 0; index < 6; index++) {
@@ -65,7 +92,8 @@ void main() {
   testWidgets('pasting / SMS autofill fills every box and completes once',
       (tester) async {
     final completed = <String>[];
-    await tester.pumpWidget(_host(EmployeeOtpInput(onCompleted: completed.add)));
+    await tester
+        .pumpWidget(_host(EmployeeOtpInput(onCompleted: completed.add)));
 
     await tester.enterText(find.byType(TextField), '123456');
     await tester.pump();
@@ -78,7 +106,8 @@ void main() {
 
   testWidgets('non-digits and extra digits are ignored', (tester) async {
     final completed = <String>[];
-    await tester.pumpWidget(_host(EmployeeOtpInput(onCompleted: completed.add)));
+    await tester
+        .pumpWidget(_host(EmployeeOtpInput(onCompleted: completed.add)));
 
     await tester.enterText(find.byType(TextField), '12a34-5678');
     await tester.pump();
@@ -89,7 +118,8 @@ void main() {
   testWidgets('editing after completion completes again with the new code',
       (tester) async {
     final completed = <String>[];
-    await tester.pumpWidget(_host(EmployeeOtpInput(onCompleted: completed.add)));
+    await tester
+        .pumpWidget(_host(EmployeeOtpInput(onCompleted: completed.add)));
 
     await tester.enterText(find.byType(TextField), '123456');
     await tester.pump();
@@ -101,7 +131,8 @@ void main() {
     expect(completed, ['123456', '123457']);
   });
 
-  testWidgets('fits a narrow 320dp phone without overflowing', (tester) async {
+  testWidgets('OTP boxes fit a narrow 320dp phone without overflowing',
+      (tester) async {
     tester.view.physicalSize = const Size(320, 640);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);

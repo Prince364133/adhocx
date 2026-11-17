@@ -10,9 +10,15 @@ import 'package:provider/provider.dart';
 
 class _FakeAuthRepository implements EmployeeAuthRepository {
   final sentTo = <String>[];
+  final Object? sendOtpError;
+
+  _FakeAuthRepository({this.sendOtpError});
 
   @override
-  Future<void> sendOtp(String mobileNumber) async => sentTo.add(mobileNumber);
+  Future<void> sendOtp(String mobileNumber) async {
+    if (sendOtpError != null) throw sendOtpError!;
+    sentTo.add(mobileNumber);
+  }
 
   @override
   Future<EmployeeUser?> getCurrentUser() async => null;
@@ -74,8 +80,19 @@ void main() {
   group('MobileNumberScreen', () {
     late _FakeAuthRepository repo;
 
-    Future<void> pumpScreen(WidgetTester tester) async {
-      repo = _FakeAuthRepository();
+    Future<void> enterDigits(WidgetTester tester, String digits) async {
+      final controller =
+          tester.widget<TextField>(find.byType(TextField)).controller!;
+      await tester.enterText(
+          find.byType(TextField), '${controller.text}$digits');
+      await tester.pump();
+    }
+
+    Future<void> pumpScreen(
+      WidgetTester tester, {
+      Object? sendOtpError,
+    }) async {
+      repo = _FakeAuthRepository(sendOtpError: sendOtpError);
       final router = GoRouter(
         initialLocation: '/',
         routes: [
@@ -99,38 +116,87 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('has no in-app dialer pad', (tester) async {
-      await pumpScreen(tester);
-
-      expect(find.byIcon(Icons.backspace_outlined), findsNothing);
-      for (final key in ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']) {
-        expect(find.widgetWithText(TextButton, key), findsNothing);
-      }
-    });
-
-    testWidgets('opens the native phone keyboard with phone autofill',
+    testWidgets('uses the native phone keyboard without an in-app keypad',
         (tester) async {
       await pumpScreen(tester);
 
       final field = tester.widget<TextField>(find.byType(TextField));
       expect(field.autofocus, isTrue);
+      expect(field.readOnly, isFalse);
+      expect(field.enableInteractiveSelection, isTrue);
       expect(field.keyboardType, TextInputType.phone);
-      expect(field.textInputAction, TextInputAction.done);
-      expect(field.autofillHints,
-          contains(AutofillHints.telephoneNumberNational));
-      expect(tester.testTextInput.isVisible, isTrue);
+      expect(find.text('Mobile Number (India) *'), findsOneWidget);
+      expect(find.text('🇮🇳'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('employee-keypad-backspace')),
+        findsNothing,
+      );
     });
 
-    testWidgets('keyboard "Done" sends the OTP for a valid number',
+    testWidgets('shows an inset prefix divider inside the outlined phone field',
         (tester) async {
       await pumpScreen(tester);
 
-      await tester.enterText(find.byType(TextField), '+91 98765 43210');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
+      final field = tester.widget<TextField>(find.byType(TextField));
+      expect(field.decoration!.enabledBorder, isA<OutlineInputBorder>());
+      expect(
+        find.byKey(const ValueKey('employee-phone-prefix-divider')),
+        findsOneWidget,
+      );
+      expect(
+        tester.getSize(
+          find.byKey(const ValueKey('employee-phone-prefix-divider')),
+        ).height,
+        18,
+      );
+      expect(
+        tester.getSize(
+          find.byKey(const ValueKey('employee-phone-prefix-divider')),
+        ).width,
+        2,
+      );
+    });
+
+    testWidgets('native phone keyboard sends OTP for a valid number',
+        (tester) async {
+      await pumpScreen(tester);
+
+      await enterDigits(tester, '9876543210');
+      await tester.tap(find.byType(ElevatedButton));
       await tester.pumpAndSettle();
 
       expect(repo.sentTo, ['+91 9876543210']);
       expect(find.text('OTP SCREEN'), findsOneWidget);
+    });
+
+    testWidgets('native keyboard entry preserves the typed phone number',
+        (tester) async {
+      await pumpScreen(tester);
+      await enterDigits(tester, '73868');
+
+      final controller =
+          tester.widget<TextField>(find.byType(TextField)).controller!;
+      expect(controller.text, '73868');
+    });
+
+    testWidgets('keeps native keyboard input available after a request fails',
+        (tester) async {
+      await pumpScreen(
+        tester,
+        sendOtpError: Exception('Authentication service unavailable'),
+      );
+
+      await enterDigits(tester, '9876543210');
+      await tester.tap(find.byType(ElevatedButton));
+      await tester.pumpAndSettle();
+
+      final field = tester.widget<TextField>(find.byType(TextField));
+      expect(field.focusNode?.hasFocus, isTrue);
+      expect(field.keyboardType, TextInputType.phone);
+      expect(
+        find.text('Authentication service unavailable'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('Send button stays disabled until 10 digits are entered',
@@ -140,12 +206,10 @@ void main() {
       ElevatedButton button() =>
           tester.widget<ElevatedButton>(find.byType(ElevatedButton));
 
-      await tester.enterText(find.byType(TextField), '98765');
-      await tester.pump();
+      await enterDigits(tester, '98765');
       expect(button().onPressed, isNull);
 
-      await tester.enterText(find.byType(TextField), '9876543210');
-      await tester.pump();
+      await enterDigits(tester, '43210');
       expect(button().onPressed, isNotNull);
     });
 
@@ -153,32 +217,33 @@ void main() {
         (tester) async {
       await pumpScreen(tester);
 
-      await tester.enterText(find.byType(TextField), '1234567890');
-      await tester.pump();
+      await enterDigits(tester, '1234567890');
       await tester.tap(find.byType(ElevatedButton));
       await tester.pump();
 
       expect(repo.sentTo, isEmpty);
-      expect(find.textContaining('valid 10-digit Indian mobile'),
-          findsOneWidget);
+      expect(
+          find.textContaining('valid 10-digit Indian mobile'), findsOneWidget);
     });
 
-    testWidgets('Send button remains visible when the keyboard is open',
+    testWidgets('phone field and Send button fit a narrow Android viewport',
         (tester) async {
       tester.view.physicalSize = const Size(360, 640);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
       await pumpScreen(tester);
-
-      // Simulate a ~300dp native keyboard.
-      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
-      addTearDown(tester.view.resetViewInsets);
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
-      final buttonBottom =
-          tester.getBottomLeft(find.byType(ElevatedButton)).dy;
-      expect(buttonBottom, lessThanOrEqualTo(640 - 300));
+      expect(
+        tester.getBottomLeft(find.byType(ElevatedButton)).dy,
+        lessThanOrEqualTo(640),
+      );
+      expect(find.byType(TextField), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('employee-keypad-digit-1')),
+        findsNothing,
+      );
     });
   });
 }

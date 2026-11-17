@@ -44,163 +44,187 @@ class EmployeeDriverCard extends StatelessWidget {
         isDark ? AppColors.textMutedDark : AppColors.textMutedLight;
     final border = isDark ? AppColors.borderDark : AppColors.borderLight;
 
+    final plate = Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm + 2,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: isDark
+            ? AppColors.surfaceElevatedDark
+            : AppColors.surfaceElevatedLight,
+        borderRadius: AppRadius.borderMd,
+        border: Border.all(color: border),
+      ),
+      child: Text(
+        vehicleNumber,
+        maxLines: 1,
+        style: AppTypography.micro(
+          color: textPrimary,
+          fontWeight: FontWeight.w800,
+        ).copyWith(letterSpacing: 0.5),
+      ),
+    );
+
     return EmployeeEntrance(
       delay: const Duration(milliseconds: 80),
       child: AppCard(
         width: double.infinity,
-        child: Column(
-          children: [
-            Row(
-              children: [
-                // Avatar with verified tick
-                Stack(
-                  alignment: Alignment.bottomRight,
-                  children: [
-                    CircleAvatar(
-                      radius: 26,
-                      backgroundColor: AppColors.primary.withAlpha(26),
-                      child: const Icon(
-                        Icons.person,
-                        size: 30,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: const BoxDecoration(
-                        color: AppColors.success,
-                        shape: BoxShape.circle,
-                      ),
-                      child:
-                          const Icon(Icons.check, size: 10, color: Colors.white),
-                    ),
-                  ],
-                ),
-                const SizedBox(width: AppSpacing.md),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 360;
 
-                // Name, rating, model
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        name,
-                        style: AppTypography.h4(
-                          color: textPrimary,
-                          fontWeight: FontWeight.w700,
+            return Column(
+              children: [
+                Row(
+                  children: [
+                    Stack(
+                      alignment: Alignment.bottomRight,
+                      children: [
+                        CircleAvatar(
+                          radius: compact ? 22 : 26,
+                          backgroundColor: AppColors.primary.withAlpha(26),
+                          child: Icon(
+                            Icons.person,
+                            size: compact ? 26 : 30,
+                            color: AppColors.primary,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      Row(
+                        Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: const BoxDecoration(
+                            color: AppColors.success,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.check,
+                            size: 10,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.star_rounded,
-                              size: 16, color: AppColors.starAmber),
-                          const SizedBox(width: 2),
                           Text(
-                            rating.toStringAsFixed(1),
-                            style: AppTypography.caption(
+                            name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTypography.h4(
                               color: textPrimary,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
-                          if (experience != null)
-                            Flexible(
-                              child: Text(
-                                ' • $experience',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: AppTypography.caption(color: textMuted),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.star_rounded,
+                                size: 16,
+                                color: AppColors.starAmber,
                               ),
+                              const SizedBox(width: 2),
+                              Text(
+                                rating.toStringAsFixed(1),
+                                style: AppTypography.caption(
+                                  color: textPrimary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              if (experience != null)
+                                Flexible(
+                                  child: Text(
+                                    ' • $experience',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style:
+                                        AppTypography.caption(color: textMuted),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          if (vehicleModel != null) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              vehicleModel!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style:
+                                  AppTypography.caption(color: textSecondary),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    if (!compact) ...[
+                      const SizedBox(width: AppSpacing.sm),
+                      plate,
+                    ],
+                  ],
+                ),
+                if (compact) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Align(alignment: Alignment.centerRight, child: plate),
+                ],
+                if (onCall != null ||
+                    onChat != null ||
+                    onViewDetails != null) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  Divider(height: 1, color: border),
+                  const SizedBox(height: AppSpacing.xs),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      if (onViewDetails != null)
+                        Flexible(
+                          child: TextButton(
+                            onPressed: onViewDetails,
+                            child: Text(
+                              'View Driver Profile',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTypography.label(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        const Spacer(),
+                      Row(
+                        children: [
+                          if (onChat != null)
+                            EmployeeIconButton(
+                              icon: Icons.chat_bubble_outline_rounded,
+                              onPressed: onChat,
+                              size: 36,
+                              iconSize: 18,
+                              backgroundColor: AppColors.primary.withAlpha(26),
+                              iconColor: AppColors.primary,
+                              tooltip: 'Message Driver',
+                            ),
+                          if (onCall != null)
+                            EmployeeIconButton(
+                              icon: Icons.phone_rounded,
+                              onPressed: onCall,
+                              size: 36,
+                              iconSize: 18,
+                              backgroundColor: AppColors.successContainer,
+                              iconColor: AppColors.success,
+                              tooltip: 'Call Driver',
                             ),
                         ],
                       ),
-                      if (vehicleModel != null) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          vehicleModel!,
-                          style: AppTypography.caption(color: textSecondary),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-
-                // Registration plate
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm + 2,
-                    vertical: AppSpacing.xs,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? AppColors.surfaceElevatedDark
-                        : AppColors.surfaceElevatedLight,
-                    borderRadius: AppRadius.borderMd,
-                    border: Border.all(color: border),
-                  ),
-                  child: Text(
-                    vehicleNumber,
-                    style: AppTypography.micro(
-                      color: textPrimary,
-                      fontWeight: FontWeight.w800,
-                    ).copyWith(letterSpacing: 0.5),
-                  ),
-                ),
-              ],
-            ),
-
-            // Actions
-            if (onCall != null || onChat != null || onViewDetails != null) ...[
-              const SizedBox(height: AppSpacing.md),
-              Divider(height: 1, color: border),
-              const SizedBox(height: AppSpacing.xs),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  if (onViewDetails != null)
-                    Flexible(
-                      child: TextButton(
-                        onPressed: onViewDetails,
-                        child: Text(
-                          'View Driver Profile',
-                          maxLines: 1,
-                          style: AppTypography.label(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    )
-                  else
-                    const Spacer(),
-                  Row(
-                    children: [
-                      if (onChat != null)
-                        EmployeeIconButton(
-                          icon: Icons.chat_bubble_outline_rounded,
-                          onPressed: onChat,
-                          size: 36,
-                          iconSize: 18,
-                          backgroundColor: AppColors.primary.withAlpha(26),
-                          iconColor: AppColors.primary,
-                          tooltip: 'Message Driver',
-                        ),
-                      if (onCall != null)
-                        EmployeeIconButton(
-                          icon: Icons.phone_rounded,
-                          onPressed: onCall,
-                          size: 36,
-                          iconSize: 18,
-                          backgroundColor: AppColors.successContainer,
-                          iconColor: AppColors.success,
-                          tooltip: 'Call Driver',
-                        ),
                     ],
                   ),
                 ],
-              ),
-            ],
-          ],
+              ],
+            );
+          },
         ),
       ),
     );

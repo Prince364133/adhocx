@@ -12,6 +12,7 @@ class AppSpacing {
   static const double xxl = 24.0; // Section spacing
   static const double xxxl = 32.0; // Major section separation
   static const double huge = 48.0; // Large layout separation
+  static const double pageHorizontal = lg;
 
   // Inset helpers
   static const EdgeInsets paddingXs = EdgeInsets.all(xs);
@@ -20,9 +21,10 @@ class AppSpacing {
   static const EdgeInsets paddingLg = EdgeInsets.all(lg);
   static const EdgeInsets paddingXl = EdgeInsets.all(xl);
   static const EdgeInsets paddingXxl = EdgeInsets.all(xxl);
+  static const EdgeInsets cardPadding = EdgeInsets.all(md);
 
   static const EdgeInsets screenPadding = EdgeInsets.symmetric(
-    horizontal: lg,
+    horizontal: pageHorizontal,
     vertical: md,
   );
 }

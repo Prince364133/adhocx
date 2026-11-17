@@ -90,7 +90,7 @@ class SosAlertConfirmedScreen extends StatelessWidget {
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.xxl,
+                    horizontal: AppSpacing.pageHorizontal,
                     vertical: AppSpacing.lg,
                   ),
                   child: Column(
@@ -183,9 +183,9 @@ class SosAlertConfirmedScreen extends StatelessWidget {
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.xxl,
+                  AppSpacing.pageHorizontal,
                   AppSpacing.sm,
-                  AppSpacing.xxl,
+                  AppSpacing.pageHorizontal,
                   AppSpacing.lg,
                 ),
                 child: EmployeePrimaryButton(

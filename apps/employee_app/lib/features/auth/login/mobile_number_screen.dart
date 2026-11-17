@@ -14,10 +14,8 @@ import 'package:adhocx_employee/theme/employee_palette.dart';
 /// Screen: Enter Indian Mobile Number (+91) for Corporate Commuter Authentication.
 /// Email and Google auth completely removed as per SMS phone authentication mandate.
 ///
-/// Number entry uses the phone's native number keyboard (no in-app dialer):
-/// the field autofocuses, supports phone-number autofill, and submits from the
-/// keyboard's "Done" key. The CTA is pinned below the scroll area so it stays
-/// visible directly above the keyboard.
+/// Number entry uses the platform phone keyboard and remains editable at the
+/// cursor, including selection and paste.
 class MobileNumberScreen extends StatefulWidget {
   const MobileNumberScreen({super.key});
 
@@ -70,6 +68,16 @@ class _MobileNumberScreenState extends State<MobileNumberScreen> {
     final success = await authProvider.sendOtp('+91 $digits');
     if (mounted && success) {
       context.push(AppRoutes.otpVerify);
+    } else if (mounted) {
+      _inputFocus.requestFocus();
+    }
+  }
+
+  void _handleBack() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go(AppRoutes.welcome);
     }
   }
 
@@ -83,74 +91,88 @@ class _MobileNumberScreenState extends State<MobileNumberScreen> {
       backgroundColor: p.background,
       // Body shrinks when the keyboard opens, keeping the CTA above it.
       resizeToAvoidBottomInset: true,
-      appBar: EmployeeAppBar(
-        onBack: () {
-          if (context.canPop()) {
-            context.pop();
-          } else {
-            context.go(AppRoutes.welcome);
-          }
-        },
-      ),
       body: SafeArea(
         child: Column(
           children: [
             Expanded(
-              child: SingleChildScrollView(
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.xxl,
-                  vertical: AppSpacing.sm,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Enter Mobile Number',
-                      style: AppTypography.h2(color: p.textPrimary),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      "We'll send a 6-digit SMS OTP to verify your Indian mobile number via MSG91.",
-                      style: AppTypography.body(color: p.textSecondary),
-                    ),
-                    const SizedBox(height: AppSpacing.xxl),
-                    _buildPhoneField(p),
-                    if (authProvider.errorMessage != null) ...[
-                      const SizedBox(height: AppSpacing.md),
-                      Row(
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 560),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: SingleChildScrollView(
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.pageHorizontal,
+                        vertical: AppSpacing.sm,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.error_outline,
-                              size: 16, color: AppColors.errorText),
-                          const SizedBox(width: AppSpacing.xs + 2),
-                          Expanded(
-                            child: Text(
-                              authProvider.errorMessage!,
-                              style:
-                                  AppTypography.small(color: AppColors.errorText),
-                            ),
+                          IconButton(
+                            tooltip: 'Back',
+                            onPressed: _handleBack,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            icon: Icon(Icons.arrow_back, color: p.textPrimary),
                           ),
+                          const SizedBox(height: AppSpacing.md),
+                          Text(
+                            'Enter Mobile Number',
+                            style: AppTypography.h2(color: p.textPrimary),
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(
+                            "We'll send a 6-digit SMS OTP to verify your Indian mobile number via MSG91.",
+                            style: AppTypography.body(color: p.textSecondary),
+                          ),
+                          const SizedBox(height: AppSpacing.xxl),
+                          _buildPhoneField(p),
+                          if (authProvider.errorMessage != null) ...[
+                            const SizedBox(height: AppSpacing.md),
+                            Row(
+                              children: [
+                                const Icon(Icons.error_outline,
+                                    size: 16, color: AppColors.errorText),
+                                const SizedBox(width: AppSpacing.xs + 2),
+                                Expanded(
+                                  child: Text(
+                                    authProvider.errorMessage!,
+                                    style: AppTypography.small(
+                                        color: AppColors.errorText),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ],
                       ),
-                    ],
-                  ],
+                    ),
+                  ),
                 ),
               ),
             ),
 
-            // Pinned CTA — sits directly above the native keyboard.
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.xxl,
-                AppSpacing.sm,
-                AppSpacing.xxl,
-                AppSpacing.lg,
-              ),
-              child: EmployeePrimaryButton(
-                label: 'Send SMS OTP',
-                isLoading: authProvider.isLoading,
-                onPressed: isReady ? _handleSendOtp : null,
+            // Pinned CTA remains visible above the platform keyboard.
+            Align(
+              alignment: Alignment.center,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 560),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.pageHorizontal,
+                    AppSpacing.sm,
+                    AppSpacing.pageHorizontal,
+                    AppSpacing.lg,
+                  ),
+                  child: EmployeePrimaryButton(
+                    label: 'Send SMS OTP',
+                    isLoading: authProvider.isLoading,
+                    onPressed: isReady ? _handleSendOtp : null,
+                  ),
+                ),
               ),
             ),
           ],
@@ -159,11 +181,7 @@ class _MobileNumberScreenState extends State<MobileNumberScreen> {
     );
   }
 
-  /// Visually identical to the Driver app's AppPhoneField (caption label,
-  /// phone icon + "+91" prefix with divider, surface fill, 8px radius, 1.2px
-  /// border, 1.8px brand focus border) — but with the native-keyboard
-  /// behaviour this screen needs: autofocus, phone autofill, "Done" submits,
-  /// and +91/0 normalisation of pasted or autofilled numbers.
+  /// Matches the Driver phone field styling and accepts native keyboard input.
   Widget _buildPhoneField(EmployeePalette p) {
     final hasText = _inputController.text.isNotEmpty;
 
@@ -177,7 +195,7 @@ class _MobileNumberScreenState extends State<MobileNumberScreen> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          'Mobile Number',
+          'Mobile Number (India) *',
           style: AppTypography.caption(
             color: p.textSecondary,
             fontWeight: FontWeight.w600,
@@ -189,17 +207,10 @@ class _MobileNumberScreenState extends State<MobileNumberScreen> {
           focusNode: _inputFocus,
           autofocus: true,
           keyboardType: TextInputType.phone,
-          textInputAction: TextInputAction.done,
-          autofillHints: const [
-            AutofillHints.telephoneNumberNational,
-            AutofillHints.telephoneNumber,
-          ],
+          enableInteractiveSelection: true,
           inputFormatters: [IndianMobileNumberFormatter()],
           enableSuggestions: false,
           autocorrect: false,
-          onSubmitted: (_) {
-            if (_inputController.text.length == 10) _handleSendOtp();
-          },
           cursorColor: p.accent,
           style: AppTypography.body(color: p.textPrimary)
               .copyWith(letterSpacing: 0.6),
@@ -209,26 +220,24 @@ class _MobileNumberScreenState extends State<MobileNumberScreen> {
             prefixIcon: Container(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
               margin: const EdgeInsets.only(right: AppSpacing.sm),
-              decoration: BoxDecoration(
-                border: Border(
-                  right: BorderSide(color: p.border, width: 1.2),
-                ),
-              ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Icons.phone_iphone_rounded,
-                    size: 18,
-                    color: p.textSecondary,
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
+                  const Text('🇮🇳', style: TextStyle(fontSize: 16)),
+                  const SizedBox(width: AppSpacing.xs + 1),
                   Text(
                     '+91',
                     style: AppTypography.body(
                       color: p.textPrimary,
                       fontWeight: FontWeight.w600,
                     ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Container(
+                    key: const ValueKey('employee-phone-prefix-divider'),
+                    width: 2,
+                    height: 18,
+                    color: p.textSecondary,
                   ),
                 ],
               ),
@@ -260,11 +269,7 @@ class _MobileNumberScreenState extends State<MobileNumberScreen> {
   }
 }
 
-/// Keeps the field holding at most the 10 national digits of an Indian mobile.
-///
-/// Normalises what the native keyboard, paste, or phone-number autofill can
-/// produce — e.g. `+91 98765 43210`, `09876543210`, `98765-43210` — down to
-/// `9876543210`, and rejects edits that would exceed 10 digits.
+/// Normalises pasted or formatted Indian mobile numbers to 10 national digits.
 class IndianMobileNumberFormatter extends TextInputFormatter {
   static String normalize(String raw) {
     var digits = raw.replaceAll(RegExp(r'[^0-9]'), '');

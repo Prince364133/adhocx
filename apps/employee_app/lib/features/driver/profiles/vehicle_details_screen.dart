@@ -75,7 +75,7 @@ class VehicleDetailsScreen extends StatelessWidget {
           body: SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.xxl,
+                horizontal: AppSpacing.pageHorizontal,
                 vertical: AppSpacing.xl,
               ),
               child: Column(

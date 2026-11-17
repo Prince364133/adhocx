@@ -1,4 +1,5 @@
 import 'package:adhocx_employee/features/home/home.dart';
+import 'package:adhocx_employee/features/schedule/requests/request_change_options_screen.dart';
 import 'package:adhocx_employee/models/employee_user.dart';
 import 'package:adhocx_employee/repositories/employee_auth_repository.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
@@ -8,6 +9,7 @@ import 'package:adhocx_employee/state/employee_auth_provider.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_theme.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -72,6 +74,79 @@ void main() {
     });
   }
 
+  testWidgets('home trip labels fit at a narrow mobile width', (tester) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.runAsync(MockDataService.loadData);
+
+    await tester.pumpWidget(_app(const HomeUpcomingPickupScreen()));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    for (final label in [
+      'Details',
+      'Request Change',
+      'Cancel Trip',
+      'TS09UB7845',
+    ]) {
+      final text = find.text(label);
+      expect(text, findsOneWidget);
+      expect(
+        tester.renderObject<RenderParagraph>(text).didExceedMaxLines,
+        isFalse,
+        reason: '$label should remain readable on a narrow phone',
+      );
+    }
+  });
+
+  testWidgets('Request Change opens options from home trip screens',
+      (tester) async {
+    tester.view.physicalSize = const Size(360, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.runAsync(MockDataService.loadData);
+
+    final router = GoRouter(
+      initialLocation: AppRoutes.home,
+      routes: [
+        GoRoute(
+          path: AppRoutes.home,
+          builder: (_, __) => const HomeScreenPlaceholder(),
+        ),
+        GoRoute(
+          path: AppRoutes.homeUpcomingPickup,
+          builder: (_, __) => const HomeUpcomingPickupScreen(),
+        ),
+        GoRoute(
+          path: AppRoutes.requestChangeOptions,
+          builder: (_, __) => const RequestChangeOptionsScreen(),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider(
+        create: (_) => EmployeeAuthProvider(repository: _FakeAuthRepository()),
+        child: MaterialApp.router(
+          theme: AppTheme.lightTheme,
+          routerConfig: router,
+        ),
+      ),
+    );
+
+    for (final route in [AppRoutes.home, AppRoutes.homeUpcomingPickup]) {
+      router.go(route);
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Request Change').last);
+      await tester.tap(find.text('Request Change').last);
+      await tester.pumpAndSettle();
+
+      expect(find.text('What do you want to change?'), findsOneWidget);
+    }
+  });
+
   testWidgets('bottom nav tabs navigate without per-screen wiring',
       (tester) async {
     Widget page(String label) => Scaffold(body: Text(label));
@@ -88,22 +163,24 @@ void main() {
             path: AppRoutes.homeUpcomingPickup,
             builder: (_, __) => page('HOME')),
         GoRoute(
-            path: AppRoutes.scheduleToday, builder: (_, __) => page('SCHEDULE')),
+            path: AppRoutes.scheduleToday,
+            builder: (_, __) => page('SCHEDULE')),
         GoRoute(
             path: AppRoutes.historyOverview, builder: (_, __) => page('TRIPS')),
         GoRoute(
-            path: AppRoutes.profileDetails, builder: (_, __) => page('PROFILE')),
+            path: AppRoutes.profileDetails,
+            builder: (_, __) => page('PROFILE')),
       ],
     );
     await tester.pumpWidget(MaterialApp.router(routerConfig: router));
 
-    await tester.tap(find.text('Schedule'));
+    await tester.tap(find.byIcon(Icons.calendar_month_outlined));
     await tester.pumpAndSettle();
     expect(find.text('SCHEDULE'), findsOneWidget);
 
     router.go('/start');
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Profile'));
+    await tester.tap(find.byIcon(Icons.person_outline));
     await tester.pumpAndSettle();
     expect(find.text('PROFILE'), findsOneWidget);
   });

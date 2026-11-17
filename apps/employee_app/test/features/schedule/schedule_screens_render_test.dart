@@ -1,7 +1,9 @@
 import 'package:adhocx_employee/features/schedule/schedule.dart';
+import 'package:adhocx_employee/features/trips/planning/trip_planning_screen.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
 import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
+import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -42,6 +44,10 @@ Future<GoRouter> _pump(WidgetTester tester, Widget screen,
         path: AppRoutes.tripCancelled,
         builder: (_, __) => const Scaffold(body: Text('LANDED cancelled')),
       ),
+      GoRoute(
+        path: AppRoutes.tripPlanning,
+        builder: (_, __) => const TripPlanningScreen(),
+      ),
     ],
   );
   await tester.pumpWidget(MaterialApp.router(
@@ -79,6 +85,33 @@ void main() {
 
     expect(find.text('Change Drop Time'), findsOneWidget);
     expect(find.text('New Drop Time'), findsOneWidget);
+  });
+
+  testWidgets('submitting a change continues to Today\'s Pickup',
+      (tester) async {
+    await _pump(tester, const ChangeRequestDetailsScreen());
+    await tester.ensureVisible(find.text('Submit Request'));
+    await tester.tap(find.text('Submit Request'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Today\'s Pickup'), findsOneWidget);
+    expect(find.text('Planning'), findsWidgets);
+  });
+
+  testWidgets('request change screen uses compact page gutters',
+      (tester) async {
+    await _pump(tester, const RequestChangeOptionsScreen());
+    final scroll = tester.widget<SingleChildScrollView>(
+      find.byType(SingleChildScrollView).first,
+    );
+
+    expect(
+      scroll.padding,
+      const EdgeInsets.symmetric(
+        horizontal: AppSpacing.pageHorizontal,
+        vertical: AppSpacing.sm,
+      ),
+    );
   });
 
   testWidgets('Cancel Trip asks for confirmation before cancelling',

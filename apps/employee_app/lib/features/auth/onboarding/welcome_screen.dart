@@ -77,7 +77,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         child: LayoutBuilder(
           builder: (context, constraints) => SingleChildScrollView(
             padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.xxl,
+              horizontal: AppSpacing.pageHorizontal,
               vertical: AppSpacing.xl,
             ),
             child: ConstrainedBox(

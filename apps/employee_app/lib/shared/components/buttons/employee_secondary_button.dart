@@ -26,7 +26,7 @@ class EmployeeSecondaryButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.isLoading = false,
-    this.height = 48,
+    this.height = 46,
     this.width,
     this.icon,
     this.borderColor,
@@ -63,15 +63,22 @@ class EmployeeSecondaryButton extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (icon != null) ...[
-                Icon(icon, size: 18, color: effectiveText),
-                const SizedBox(width: AppSpacing.sm),
+                Icon(icon, size: 14, color: effectiveText),
+                const SizedBox(width: AppSpacing.xs),
               ],
               Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.button(color: effectiveText),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    softWrap: false,
+                    style: AppTypography.button(
+                      color: effectiveText,
+                      fontSize: 13,
+                      overflow: TextOverflow.visible,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -89,7 +96,7 @@ class EmployeeSecondaryButton extends StatelessWidget {
               ? BorderSide.none
               : BorderSide(color: effectiveBorder, width: 1.2),
           padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
+            horizontal: AppSpacing.sm,
             vertical: AppSpacing.sm,
           ),
           shape: RoundedRectangleBorder(

@@ -87,9 +87,9 @@ class _SelectLanguageScreenState extends State<SelectLanguageScreen> {
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                AppSpacing.xxl,
+                AppSpacing.pageHorizontal,
                 0,
-                AppSpacing.xxl,
+                AppSpacing.pageHorizontal,
                 AppSpacing.lg,
               ),
               child: EmployeePrimaryButton(label: 'Continue', onPressed: _save),

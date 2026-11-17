@@ -8,9 +8,9 @@ import '../../../theme/app_typography.dart';
 
 /// Production-ready OTP / Verification PIN input widget.
 ///
-/// Uses ONE real [TextField] (invisible, laid over the boxes) driven by the
-/// phone's native number keyboard, and renders the [length] boxes purely for
-/// display. A single field is what makes native-keyboard entry reliable:
+/// Uses ONE real [TextField] (invisible, laid over the boxes) and renders the
+/// [length] boxes purely for display while preserving native keyboard/autofill.
+/// A single field keeps editing reliable:
 /// - backspace works on every soft keyboard (no cross-field key events needed),
 /// - typing never "overwrites" a filled box into a fake paste,
 /// - SMS one-time-code autofill (iOS) / paste fills the whole code at once.
@@ -22,7 +22,7 @@ class EmployeeOtpInput extends StatefulWidget {
   final String? initialValue;
   final double boxSize;
 
-  /// Opens the native keyboard as soon as the screen appears.
+  /// Requests focus when the screen appears.
   final bool autofocus;
 
   const EmployeeOtpInput({
@@ -86,7 +86,6 @@ class _EmployeeOtpInputState extends State<EmployeeOtpInput> {
       _lastValue = next;
       _lastCompleted = null;
     }
-    // A rejected code re-opens the keyboard so the user can correct it.
     if (widget.hasError && !oldWidget.hasError && !_focusNode.hasFocus) {
       _focusNode.requestFocus();
     }
@@ -126,7 +125,6 @@ class _EmployeeOtpInputState extends State<EmployeeOtpInput> {
     }
   }
 
-
   void _animateDigit(int index, {required bool isFilled}) {
     _digitTimers[index]?.cancel();
     _digitScales[index] = isFilled ? 1.07 : 0.94;
@@ -150,8 +148,7 @@ class _EmployeeOtpInputState extends State<EmployeeOtpInput> {
         // Shrink boxes on narrow phones instead of overflowing the row.
         final available = constraints.maxWidth.isFinite
             ? constraints.maxWidth
-            : widget.boxSize * widget.length +
-                _cellGap * (widget.length - 1);
+            : widget.boxSize * widget.length + _cellGap * (widget.length - 1);
         final fitted =
             (available - _cellGap * (widget.length - 1)) / widget.length;
         final boxWidth = fitted < widget.boxSize ? fitted : widget.boxSize;
@@ -195,47 +192,56 @@ class _EmployeeOtpInputState extends State<EmployeeOtpInput> {
             );
           }),
         );
+        final inputField = TextField(
+          controller: _controller,
+          focusNode: _focusNode,
+          autofocus: widget.autofocus,
+          keyboardType: TextInputType.number,
+          textInputAction: TextInputAction.done,
+          autofillHints: const [AutofillHints.oneTimeCode],
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(widget.length),
+          ],
+          showCursor: false,
+          enableSuggestions: false,
+          autocorrect: false,
+          expands: true,
+          maxLines: null,
+          minLines: null,
+          textAlignVertical: TextAlignVertical.center,
+          style: const TextStyle(
+            color: Colors.transparent,
+            fontSize: 1,
+            height: 1,
+          ),
+          decoration: const InputDecoration(
+            filled: false,
+            fillColor: Colors.transparent,
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            disabledBorder: InputBorder.none,
+            errorBorder: InputBorder.none,
+            focusedErrorBorder: InputBorder.none,
+            isCollapsed: true,
+          ),
+          onChanged: _onChanged,
+        );
 
         return Semantics(
           label: 'One-time password, ${widget.length} digits',
-          child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // Display-only boxes (the real input sits on top of them).
-                ExcludeSemantics(child: row),
-                // The single native-keyboard input. Invisible text/cursor,
-                // but still receives taps, long-press paste and autofill.
-                Positioned.fill(
-                  child: TextField(
-                    controller: _controller,
-                    focusNode: _focusNode,
-                    autofocus: widget.autofocus,
-                    keyboardType: TextInputType.number,
-                    textInputAction: TextInputAction.done,
-                    autofillHints: const [AutofillHints.oneTimeCode],
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      LengthLimitingTextInputFormatter(widget.length),
-                    ],
-                    showCursor: false,
-                    enableSuggestions: false,
-                    autocorrect: false,
-                    expands: true,
-                    maxLines: null,
-                    minLines: null,
-                    textAlignVertical: TextAlignVertical.center,
-                    style: const TextStyle(
-                      color: Colors.transparent,
-                      fontSize: 1,
-                      height: 1,
-                    ),
-                    decoration: const InputDecoration.collapsed(
-                      hintText: null,
-                    ),
-                    onChanged: _onChanged,
-                  ),
-                ),
-              ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  Positioned.fill(child: inputField),
+                  IgnorePointer(child: ExcludeSemantics(child: row)),
+                ],
+              ),
+            ],
           ),
         );
       },

@@ -28,7 +28,7 @@ class TripProgressOnTripScreen extends StatelessWidget {
           body: SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.xl,
+                horizontal: AppSpacing.pageHorizontal,
                 vertical: AppSpacing.lg,
               ),
               child: Column(

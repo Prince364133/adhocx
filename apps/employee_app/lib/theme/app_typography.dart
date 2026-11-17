@@ -13,7 +13,7 @@ class AppTypography {
     TextOverflow? overflow = TextOverflow.ellipsis,
   }) =>
       GoogleFonts.inter(
-        fontSize: fontSize ?? 36,
+        fontSize: fontSize ?? 34,
         fontWeight: fontWeight ?? FontWeight.w700,
         height: 1.15,
         letterSpacing: -0.8,
@@ -27,7 +27,7 @@ class AppTypography {
     TextOverflow? overflow = TextOverflow.ellipsis,
   }) =>
       GoogleFonts.inter(
-        fontSize: fontSize ?? 28,
+        fontSize: fontSize ?? 26,
         fontWeight: fontWeight ?? FontWeight.w700,
         height: 1.2,
         letterSpacing: -0.6,
@@ -41,7 +41,7 @@ class AppTypography {
     TextOverflow? overflow = TextOverflow.ellipsis,
   }) =>
       GoogleFonts.inter(
-        fontSize: fontSize ?? 22,
+        fontSize: fontSize ?? 20,
         fontWeight: fontWeight ?? FontWeight.w700,
         height: 1.25,
         letterSpacing: -0.4,
@@ -55,7 +55,7 @@ class AppTypography {
     TextOverflow? overflow = TextOverflow.ellipsis,
   }) =>
       GoogleFonts.inter(
-        fontSize: fontSize ?? 18,
+        fontSize: fontSize ?? 17,
         fontWeight: fontWeight ?? FontWeight.w600,
         height: 1.3,
         letterSpacing: -0.2,
@@ -69,7 +69,7 @@ class AppTypography {
     TextOverflow? overflow = TextOverflow.ellipsis,
   }) =>
       GoogleFonts.inter(
-        fontSize: fontSize ?? 16,
+        fontSize: fontSize ?? 15,
         fontWeight: fontWeight ?? FontWeight.w600,
         height: 1.35,
         color: color,
@@ -82,7 +82,7 @@ class AppTypography {
     TextOverflow? overflow,
   }) =>
       GoogleFonts.inter(
-        fontSize: fontSize ?? 16,
+        fontSize: fontSize ?? 15,
         fontWeight: fontWeight ?? FontWeight.w400,
         height: 1.5,
         color: color,
@@ -121,7 +121,7 @@ class AppTypography {
     TextOverflow? overflow,
   }) =>
       GoogleFonts.inter(
-        fontSize: fontSize ?? 13,
+        fontSize: fontSize ?? 12,
         fontWeight: fontWeight ?? FontWeight.w400,
         height: 1.4,
         color: color,
@@ -134,7 +134,7 @@ class AppTypography {
     TextOverflow? overflow,
   }) =>
       GoogleFonts.inter(
-        fontSize: fontSize ?? 12,
+        fontSize: fontSize ?? 11,
         fontWeight: fontWeight ?? FontWeight.w400,
         height: 1.35,
         color: color,
@@ -147,7 +147,7 @@ class AppTypography {
     TextOverflow? overflow,
   }) =>
       GoogleFonts.inter(
-        fontSize: fontSize ?? 11,
+        fontSize: fontSize ?? 10,
         fontWeight: fontWeight ?? FontWeight.w500,
         height: 1.3,
         color: color,
@@ -160,7 +160,7 @@ class AppTypography {
     TextOverflow? overflow = TextOverflow.ellipsis,
   }) =>
       GoogleFonts.inter(
-        fontSize: fontSize ?? 13,
+        fontSize: fontSize ?? 12,
         fontWeight: fontWeight ?? FontWeight.w500,
         height: 1.2,
         color: color,
@@ -173,7 +173,7 @@ class AppTypography {
     TextOverflow? overflow = TextOverflow.ellipsis,
   }) =>
       GoogleFonts.inter(
-        fontSize: fontSize ?? 15,
+        fontSize: fontSize ?? 14,
         fontWeight: fontWeight ?? FontWeight.w600,
         height: 1.2,
         letterSpacing: 0.1,

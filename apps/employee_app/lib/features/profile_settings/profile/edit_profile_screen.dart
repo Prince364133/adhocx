@@ -119,7 +119,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         child: SingleChildScrollView(
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.xxl,
+            horizontal: AppSpacing.pageHorizontal,
             vertical: AppSpacing.xl,
           ),
           child: AutofillGroup(

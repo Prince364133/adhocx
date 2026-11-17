@@ -8,7 +8,7 @@ import '../../../theme/app_colors.dart';
 /// Bottom navigation — same design as the Driver app's rider navigation
 /// (apps/mobile/lib/user/widgets/user_app_navigation.dart): frosted surface,
 /// 20px top radius, top hairline border, tinted pill behind the active
-/// outlined/filled icon, 10px labels. Tabs: 0 Home, 1 Schedule, 2 Trips,
+/// outlined/filled icon. Tabs: 0 Home, 1 Schedule, 2 Trips,
 /// 3 Profile.
 ///
 /// Tab routing is built in ([tabRoutes], replace-style `go`) so every screen
@@ -123,22 +123,7 @@ class EmployeeBottomNavBar extends StatelessWidget {
                               child: Icon(
                                 isActive ? tab.selectedIcon : tab.icon,
                                 color: color,
-                                size: 22,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            AnimatedDefaultTextStyle(
-                              duration: d(180),
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight:
-                                    isActive ? FontWeight.w700 : FontWeight.w500,
-                                color: color,
-                              ),
-                              child: Text(
-                                tab.label,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                                size: 28,
                               ),
                             ),
                           ],

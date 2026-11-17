@@ -28,7 +28,7 @@ class TripArrivedScreen extends StatelessWidget {
               Center(
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.xxl,
+                    horizontal: AppSpacing.pageHorizontal,
                     vertical: AppSpacing.md + 2,
                   ),
                   decoration: BoxDecoration(

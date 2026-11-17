@@ -49,7 +49,7 @@ class _HomeNoUpcomingTripScreenState extends State<HomeNoUpcomingTripScreen> {
         child: LayoutBuilder(
           builder: (context, constraints) => SingleChildScrollView(
             padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.xl,
+              horizontal: AppSpacing.pageHorizontal,
               vertical: AppSpacing.lg,
             ),
             child: ConstrainedBox(
@@ -80,7 +80,7 @@ class _HomeNoUpcomingTripScreenState extends State<HomeNoUpcomingTripScreen> {
                     const SizedBox(height: AppSpacing.sm),
                     Padding(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.xxl,
+                        horizontal: AppSpacing.pageHorizontal,
                       ),
                       child: Text(
                         "You don't have any scheduled transport for today.",

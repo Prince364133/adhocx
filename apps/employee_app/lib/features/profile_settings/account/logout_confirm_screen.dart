@@ -36,7 +36,7 @@ class _LogoutConfirmScreenState extends State<LogoutConfirmScreen> {
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.xxl,
+              horizontal: AppSpacing.pageHorizontal,
               vertical: AppSpacing.xl,
             ),
             child: EmployeeConfirmationSheet(

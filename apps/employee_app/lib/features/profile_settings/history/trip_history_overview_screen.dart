@@ -108,7 +108,7 @@ class _TripHistoryOverviewScreenState extends State<TripHistoryOverviewScreen> {
                         )
                       : ListView(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.xl,
+                            horizontal: AppSpacing.pageHorizontal,
                             vertical: AppSpacing.lg,
                           ),
                           children: [

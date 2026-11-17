@@ -73,7 +73,7 @@ class _PostTripFeedbackScreenState extends State<PostTripFeedbackScreen> {
         child: SingleChildScrollView(
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.xxl,
+            horizontal: AppSpacing.pageHorizontal,
             vertical: AppSpacing.xl,
           ),
           child: Column(

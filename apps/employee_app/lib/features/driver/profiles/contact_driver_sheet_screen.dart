@@ -10,7 +10,8 @@ class ContactDriverSheetScreen extends StatefulWidget {
   const ContactDriverSheetScreen({super.key});
 
   @override
-  State<ContactDriverSheetScreen> createState() => _ContactDriverSheetScreenState();
+  State<ContactDriverSheetScreen> createState() =>
+      _ContactDriverSheetScreenState();
 }
 
 class _ContactDriverSheetScreenState extends State<ContactDriverSheetScreen> {
@@ -49,44 +50,61 @@ class _ContactDriverSheetScreenState extends State<ContactDriverSheetScreen> {
     final phone = _driver?['phone'] ?? '+91 98765 00111';
 
     return Scaffold(
-      backgroundColor: Colors.black54,
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-          : GestureDetector(
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
               onTap: () => Navigator.of(context).pop(),
-              child: Container(
-                color: Colors.transparent,
-                alignment: Alignment.bottomCenter,
-                child: GestureDetector(
-                  onTap: () {}, // Prevent dismissal on inner click
+              child: const ColoredBox(color: Colors.transparent),
+            ),
+          ),
+          Positioned.fill(
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: DraggableScrollableSheet(
+                expand: false,
+                initialChildSize: 0.72,
+                minChildSize: 0.42,
+                maxChildSize: 0.94,
+                builder: (context, scrollController) => SizedBox.expand(
                   child: AppBottomSheet(
                     title: 'Contact Driver',
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        EmployeeDriverContactSheet(
-                          driverName: name,
-                          rating: rating,
-                          vehicleNumber: vehicleNumber,
-                          phone: phone,
-                          onCall: () => _launchCall(phone),
-                          onChat: () {
-                            Navigator.of(context).pop();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('In-app chat connected with driver.'),
-                                duration: Duration(seconds: 2),
+                    scrollController: scrollController,
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 180,
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                color: AppColors.primary,
                               ),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
+                            ),
+                          )
+                        : EmployeeDriverContactSheet(
+                            driverName: name,
+                            rating: rating,
+                            vehicleNumber: vehicleNumber,
+                            phone: phone,
+                            onCall: () => _launchCall(phone),
+                            onChat: () {
+                              Navigator.of(context).pop();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                      'In-app chat connected with driver.'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            },
+                          ),
                   ),
                 ),
               ),
             ),
+          ),
+        ],
+      ),
     );
   }
 }
-

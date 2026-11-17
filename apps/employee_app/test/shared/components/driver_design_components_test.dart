@@ -43,23 +43,23 @@ double _radiusOf(ButtonStyle style) {
 
 void main() {
   group('Buttons follow the Driver app spec', () {
-    testWidgets('primary: 48px tall, 8px radius, flat, brand primary',
+    testWidgets('primary: compact height, 8px radius, flat, brand primary',
         (tester) async {
       await _pump(tester, EmployeePrimaryButton(label: 'Go', onPressed: () {}));
 
-      expect(tester.getSize(find.byType(ElevatedButton)).height, 48);
+      expect(tester.getSize(find.byType(ElevatedButton)).height, 46);
       final style = _styleOf(tester, ElevatedButton);
       expect(_radiusOf(style), 8);
       expect(style.elevation!.resolve({}), 0);
       expect(style.backgroundColor!.resolve({}), AppColors.primary);
     });
 
-    testWidgets('secondary: 48px tall, 8px radius, 1.2px border',
+    testWidgets('secondary: compact height, 8px radius, 1.2px border',
         (tester) async {
       await _pump(
           tester, EmployeeSecondaryButton(label: 'Back', onPressed: () {}));
 
-      expect(tester.getSize(find.byType(OutlinedButton)).height, 48);
+      expect(tester.getSize(find.byType(OutlinedButton)).height, 46);
       final style = _styleOf(tester, OutlinedButton);
       expect(_radiusOf(style), 8);
       expect(style.side!.resolve({})!.width, 1.2);
@@ -75,10 +75,12 @@ void main() {
 
   group('Status badge maps onto Driver semantic colours', () {
     Color fillOf(WidgetTester tester) {
-      final box = tester.widget<Container>(find.descendant(
-        of: find.byType(EmployeeStatusBadge),
-        matching: find.byType(Container),
-      ).first);
+      final box = tester.widget<Container>(find
+          .descendant(
+            of: find.byType(EmployeeStatusBadge),
+            matching: find.byType(Container),
+          )
+          .first);
       return (box.decoration! as BoxDecoration).color!;
     }
 
@@ -110,10 +112,55 @@ void main() {
       ),
     ));
 
-    await tester.tap(find.text('Trips'));
+    await tester.tap(find.byIcon(Icons.directions_car_outlined));
     expect(taps, [2]);
-    expect(find.byIcon(Icons.calendar_month), findsOneWidget); // filled = active
+    expect(
+        find.byIcon(Icons.calendar_month), findsOneWidget); // filled = active
     expect(find.byIcon(Icons.home_outlined), findsOneWidget); // outlined = idle
+    expect(find.text('Home'), findsNothing);
+    expect(find.text('Schedule'), findsNothing);
+    expect(find.text('Trips'), findsNothing);
+    expect(find.text('Profile'), findsNothing);
+    expect(tester.widget<Icon>(find.byIcon(Icons.calendar_month)).size, 28);
+  });
+
+  testWidgets('trip cards stay tappable without press or entrance effects',
+      (tester) async {
+    var tapped = false;
+    await _pump(
+      tester,
+      EmployeeTripCard(
+        title: 'Login Trip',
+        date: 'Today',
+        status: 'Completed',
+        onTap: () => tapped = true,
+      ),
+    );
+
+    final inkWell = tester.widget<InkWell>(
+      find.descendant(
+        of: find.byType(EmployeeTripCard),
+        matching: find.byType(InkWell),
+      ),
+    );
+    expect(inkWell.splashFactory, NoSplash.splashFactory);
+    expect(
+      inkWell.overlayColor!.resolve({WidgetState.pressed}),
+      Colors.transparent,
+    );
+    expect(inkWell.enableFeedback, isFalse);
+    expect(find.byType(EmployeeEntrance), findsNothing);
+
+    await tester.tap(find.text('Login Trip'));
+    expect(tapped, isTrue);
+  });
+
+  testWidgets('SOS shortcut hides its caption but remains accessible',
+      (tester) async {
+    await _pump(tester, EmployeeSosButton(onPressed: () {}));
+
+    expect(find.text('SOS'), findsNothing);
+    expect(find.bySemanticsLabel('SOS emergency'), findsOneWidget);
   });
 
   for (final dark in [false, true]) {

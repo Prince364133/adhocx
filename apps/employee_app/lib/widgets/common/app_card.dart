@@ -8,6 +8,7 @@ class AppCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
   final VoidCallback? onTap;
+  final bool showTapFeedback;
   final Color? backgroundColor;
   final Color? borderColor;
   final double? width;
@@ -16,8 +17,9 @@ class AppCard extends StatelessWidget {
   const AppCard({
     super.key,
     required this.child,
-    this.padding = AppSpacing.paddingLg,
+    this.padding = AppSpacing.cardPadding,
     this.onTap,
+    this.showTapFeedback = true,
     this.backgroundColor,
     this.borderColor,
     this.width,
@@ -33,10 +35,12 @@ class AppCard extends StatelessWidget {
       height: height,
       padding: padding,
       decoration: BoxDecoration(
-        color: backgroundColor ?? (isDark ? AppColors.surfaceDark : AppColors.surfaceLight),
+        color: backgroundColor ??
+            (isDark ? AppColors.surfaceDark : AppColors.surfaceLight),
         borderRadius: AppRadius.borderLg,
         border: Border.all(
-          color: borderColor ?? (isDark ? AppColors.borderDark : AppColors.borderLight),
+          color: borderColor ??
+              (isDark ? AppColors.borderDark : AppColors.borderLight),
           width: 1.2,
         ),
       ),
@@ -49,6 +53,11 @@ class AppCard extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           borderRadius: AppRadius.borderLg,
+          splashFactory: showTapFeedback ? null : NoSplash.splashFactory,
+          overlayColor: showTapFeedback
+              ? null
+              : const WidgetStatePropertyAll<Color?>(Colors.transparent),
+          enableFeedback: showTapFeedback,
           child: cardContent,
         ),
       );

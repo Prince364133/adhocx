@@ -31,7 +31,7 @@ class AboutAdhocxScreen extends StatelessWidget {
           appBar: const EmployeeAppBar(title: 'About AdhocX'),
           body: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.xl,
+              horizontal: AppSpacing.pageHorizontal,
               vertical: AppSpacing.xxl,
             ),
             child: Column(

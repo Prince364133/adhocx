@@ -5,15 +5,12 @@ import 'package:adhocx_employee/routes/app_routes.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
 import 'package:adhocx_employee/shared/illustrations/safety_illustrations.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
-import 'package:adhocx_employee/theme/app_radius.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 
 /// SOS trigger. Emergency surface: fixed crimson in light and dark mode.
 ///
-/// Two deliberate gestures send the alert (each exactly once):
-/// - press and hold the siren for 3 seconds, or
-/// - slide the thumb to the end and release.
+/// Press and hold the siren for 3 seconds to send the alert.
 class SosActivateScreen extends StatefulWidget {
   const SosActivateScreen({super.key});
 
@@ -24,7 +21,6 @@ class SosActivateScreen extends StatefulWidget {
 }
 
 class _SosActivateScreenState extends State<SosActivateScreen> {
-  double _sliderValue = 0;
   Timer? _holdTimer;
   bool _holding = false;
   bool _sent = false;
@@ -39,6 +35,7 @@ class _SosActivateScreenState extends State<SosActivateScreen> {
     if (_sent) return; // never fire twice
     _sent = true;
     _holdTimer?.cancel();
+    if (mounted && _holding) setState(() => _holding = false);
     context.push(AppRoutes.sosAlertConfirmed).then((_) {
       if (mounted) setState(() => _sent = false);
     });
@@ -73,7 +70,7 @@ class _SosActivateScreenState extends State<SosActivateScreen> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.xxl,
+            horizontal: AppSpacing.pageHorizontal,
             vertical: AppSpacing.xl,
           ),
           child: Column(
@@ -82,7 +79,7 @@ class _SosActivateScreenState extends State<SosActivateScreen> {
               Semantics(
                 button: true,
                 label: 'Hold for 3 seconds to send an emergency alert',
-                onLongPress: _send,
+                onLongPress: _startHold,
                 child: GestureDetector(
                   onTapDown: (_) => _startHold(),
                   onTapUp: (_) => _endHold(),
@@ -106,50 +103,6 @@ class _SosActivateScreenState extends State<SosActivateScreen> {
                 ),
               ),
               const Spacer(),
-              Container(
-                width: double.infinity,
-                height: 56,
-                padding: const EdgeInsets.all(AppSpacing.xs),
-                decoration: BoxDecoration(
-                  color: Colors.black.withAlpha(64),
-                  borderRadius: AppRadius.borderPill,
-                  border: Border.all(color: Colors.white.withAlpha(77)),
-                ),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Text(
-                      'Slide to Send SOS',
-                      style: AppTypography.bodyMedium(
-                        color: Colors.white.withAlpha(217),
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    SliderTheme(
-                      data: SliderTheme.of(context).copyWith(
-                        thumbShape:
-                            const RoundSliderThumbShape(enabledThumbRadius: 22),
-                        thumbColor: AppColors.error,
-                        activeTrackColor: Colors.transparent,
-                        inactiveTrackColor: Colors.transparent,
-                        overlayColor: Colors.transparent,
-                      ),
-                      child: Slider(
-                        value: _sliderValue,
-                        semanticFormatterCallback: (v) =>
-                            v >= 0.9 ? 'Release to send SOS' : 'Slide to send SOS',
-                        onChanged: (v) => setState(() => _sliderValue = v),
-                        // Fire once, on release — previously every drag
-                        // update past 90% pushed another alert screen.
-                        onChangeEnd: (v) {
-                          if (v >= 0.9) _send();
-                          setState(() => _sliderValue = 0);
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
               const SizedBox(height: AppSpacing.lg),
               SizedBox(
                 width: double.infinity,

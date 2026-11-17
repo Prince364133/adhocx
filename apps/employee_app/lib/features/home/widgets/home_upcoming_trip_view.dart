@@ -73,7 +73,7 @@ class _HomeUpcomingTripViewState extends State<HomeUpcomingTripView> {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.xl,
+            horizontal: AppSpacing.pageHorizontal,
             vertical: AppSpacing.lg,
           ),
           child: Column(
@@ -131,7 +131,8 @@ class _HomeUpcomingTripViewState extends State<HomeUpcomingTripView> {
                       child: EmployeeSecondaryButton(
                         label: 'Request Change',
                         icon: Icons.edit_calendar_rounded,
-                        onPressed: () => context.push(AppRoutes.tripPlanning),
+                        onPressed: () =>
+                            context.push(AppRoutes.requestChangeOptions),
                       ),
                     ),
                     const SizedBox(width: AppSpacing.md),
