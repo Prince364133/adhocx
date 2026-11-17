@@ -1,189 +1,95 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import {
-  Ticket,
-  CheckCircle2,
-  Clock,
-  XCircle,
-  AlertTriangle,
-} from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { AlertTriangle, CheckCircle2, Clock, RefreshCw, Ticket, XCircle } from 'lucide-react';
 import { MetricCard } from '../../../components/common/MetricCard';
-import { FilterBar } from '../../../components/common/FilterBar';
 import { DonutChart } from '../../../components/charts/DonutChart';
-import { AreaTrendChart } from '../../../components/charts/AreaTrendChart';
 import { analyticsApi } from '../../../lib/api/corporate';
 import type { Dashboard } from '../../../lib/api/types';
 import { useSession } from '../../../lib/auth/SessionContext';
 
-export default function BookingOverviewPage() {
-  const { tenantId } = useSession();
-  const activeTenantId = tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+const STATUS_COLORS: Record<string, string> = {
+  APPROVED: '#16A34A',
+  CONFIRMED: '#16A34A',
+  PENDING: '#F59E0B',
+  UNSERVED: '#F59E0B',
+  CANCELLED: '#DC2626',
+  COMPLETED: '#059669',
+};
 
+export default function BookingOverviewPage() {
+  const { tenantId, status } = useSession();
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const loadData = () => {
+  const loadData = useCallback(async () => {
+    if (status === 'loading') return;
+    if (!tenantId) {
+      setLoading(false);
+      setError('Sign in with a corporate account to view booking data.');
+      return;
+    }
     setLoading(true);
-    analyticsApi
-      .dashboard({ tenantId: activeTenantId })
-      .then((data) => {
-        setDashboard(data);
-      })
-      .catch((err) => {
-        console.warn('Failed to load booking dashboard:', err);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  };
+    setError(null);
+    try {
+      setDashboard(await analyticsApi.dashboard({ tenantId }));
+    } catch (requestError) {
+      setDashboard(null);
+      setError(requestError instanceof Error ? requestError.message : 'Unable to load booking data.');
+    } finally {
+      setLoading(false);
+    }
+  }, [status, tenantId]);
 
   useEffect(() => {
-    loadData();
-  }, [activeTenantId]);
+    void loadData();
+  }, [loadData, refreshKey]);
 
-  const totalRequests = dashboard?.requests?.total ?? 0;
-  const unservedRequests = dashboard?.requests?.unserved ?? 0;
-  const cancelledRequests = dashboard?.requests?.cancelled ?? 0;
-  const servedRequests = Math.max(0, totalRequests - unservedRequests - cancelledRequests);
-  const confirmedPct = totalRequests > 0 ? ((servedRequests / totalRequests) * 100).toFixed(1) : '100';
-
-  const requestTypes = [
-    {
-      label: 'Served / Confirmed',
-      count: servedRequests,
-      pct: totalRequests > 0 ? (servedRequests / totalRequests) * 100 : 100,
-      color: 'var(--color-success)',
-    },
-    {
-      label: 'Pending / Unserved',
-      count: unservedRequests,
-      pct: totalRequests > 0 ? (unservedRequests / totalRequests) * 100 : 0,
-      color: '#F59E0B',
-    },
-    {
-      label: 'Cancelled',
-      count: cancelledRequests,
-      pct: totalRequests > 0 ? (cancelledRequests / totalRequests) * 100 : 0,
-      color: '#DC2626',
-    },
-  ];
-
-  const totalTrips = dashboard?.trips?.total ?? 0;
-  const trend = [
-    { day: 'Mon', trips: Math.round(totalTrips * 0.18) },
-    { day: 'Tue', trips: Math.round(totalTrips * 0.22) },
-    { day: 'Wed', trips: Math.round(totalTrips * 0.24) },
-    { day: 'Thu', trips: Math.round(totalTrips * 0.20) },
-    { day: 'Fri', trips: Math.round(totalTrips * 0.16) },
+  const requests = dashboard?.requests;
+  const segments = useMemo(() => {
+    if (!requests) return [];
+    return Object.entries(requests.byStatus)
+      .filter(([, count]) => count > 0)
+      .map(([label, count]) => ({
+        label,
+        count,
+        pct: requests.total ? (count / requests.total) * 100 : 0,
+        color: STATUS_COLORS[label] ?? '#64748B',
+      }));
+  }, [requests]);
+  const metrics = [
+    { label: 'Total requests', value: requests?.total.toLocaleString() ?? '—', icon: <Ticket size={18} />, color: '#5728B2' },
+    { label: 'Unserved', value: requests?.unserved.toLocaleString() ?? '—', icon: <Clock size={18} />, color: '#F59E0B' },
+    { label: 'Cancelled', value: requests?.cancelled.toLocaleString() ?? '—', icon: <XCircle size={18} />, color: '#DC2626' },
+    { label: 'No-shows', value: requests?.noShows.toLocaleString() ?? '—', icon: <AlertTriangle size={18} />, color: '#7C3AED' },
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* Title & Filter Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-            Booking Overview
-          </h1>
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-            Real-time view of employee transport requests and bookings
-          </p>
+          <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>Booking Overview</h1>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '4px 0 0' }}>Request status counts from the tenant analytics API.</p>
         </div>
+        <button type="button" onClick={() => setRefreshKey((key) => key + 1)} disabled={loading}><RefreshCw size={14} /> Refresh</button>
+      </header>
 
-        <FilterBar
-          showOffices={true}
-          showDateRange={true}
-          dateRangeLabel="Today"
-          showShifts={true}
-          onRefresh={loadData}
-        />
-      </div>
-
-      {/* 5 KPI Metric Cards */}
+      {error && <p role="alert" style={{ color: 'var(--color-danger)' }}>{error}</p>}
       <div className="metric-grid">
-        <MetricCard
-          label="Total Requests"
-          value={totalRequests.toLocaleString()}
-          icon={<Ticket size={18} />}
-          highlightColor="var(--brand-primary)"
-        />
-        <MetricCard
-          label="Confirmed"
-          value={servedRequests.toLocaleString()}
-          subtext={`${confirmedPct}% Confirmed`}
-          icon={<CheckCircle2 size={18} />}
-          trend={{ value: `${confirmedPct}%`, isPositive: true }}
-          highlightColor="var(--color-success)"
-        />
-        <MetricCard
-          label="Pending / Unserved"
-          value={unservedRequests.toLocaleString()}
-          subtext="Allocation Pending"
-          icon={<Clock size={18} />}
-          highlightColor="#F59E0B"
-        />
-        <MetricCard
-          label="Cancelled"
-          value={cancelledRequests.toLocaleString()}
-          subtext="Cancelled Rides"
-          icon={<XCircle size={18} />}
-          highlightColor="#94A3B8"
-        />
-        <MetricCard
-          label="Exceptions"
-          value={unservedRequests.toLocaleString()}
-          subtext="Action Required"
-          icon={<AlertTriangle size={18} />}
-          highlightColor="#DC2626"
-        />
+        {metrics.map((metric) => (
+          <MetricCard key={metric.label} label={metric.label} value={loading ? '…' : metric.value} icon={metric.icon} highlightColor={metric.color} />
+        ))}
       </div>
-
-      {/* 2 Visualizers Grid: Trend Line + Donut by Type */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '20px' }}>
-        {/* Left: Booking Trend Area Chart */}
-        <div className="surface-card" style={{ padding: '20px 24px', backgroundColor: 'var(--bg-surface)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <div>
-              <h2 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                Booking Trend (Recent Operations)
-              </h2>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                Daily transport request demand trajectory
-              </p>
-            </div>
-          </div>
-
-          <AreaTrendChart
-            data={trend}
-            height={210}
-            lineColor="var(--brand-primary)"
-            metricLabel="Bookings"
-          />
-        </div>
-
-        {/* Right: Requests by Type Donut */}
-        <div className="surface-card" style={{ padding: '20px 24px', backgroundColor: 'var(--bg-surface)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-            <div>
-              <h2 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                Requests by Fulfillment Status
-              </h2>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                Breakdown between confirmed, pending and cancelled requests
-              </p>
-            </div>
-          </div>
-
-          <DonutChart
-            totalLabel="Requests"
-            totalValue={totalRequests.toLocaleString()}
-            segments={requestTypes}
-            size={180}
-            thickness={22}
-          />
-        </div>
-      </div>
+      {!loading && !error && (
+        <section className="surface-card" style={{ padding: 20, maxWidth: 620 }}>
+          <h2 style={{ marginTop: 0, fontSize: 15 }}>Requests by status</h2>
+          {segments.length ? (
+            <DonutChart totalLabel="Requests" totalValue={String(requests?.total ?? 0)} segments={segments} size={180} thickness={22} />
+          ) : <p>No request records are available for this tenant.</p>}
+        </section>
+      )}
     </div>
   );
 }

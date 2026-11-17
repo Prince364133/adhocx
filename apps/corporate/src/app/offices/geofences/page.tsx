@@ -1,352 +1,75 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import {
-  MapPin,
-  CircleDot,
-  Sliders,
-  CheckCircle2,
-  Plus,
-  Compass,
-  Radio,
-  Search,
-  Layers,
-} from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 import { tenantApi } from '../../../lib/api/corporate';
 import type { Office } from '../../../lib/api/types';
 import { useSession } from '../../../lib/auth/SessionContext';
-import MiniLiveMap from '../../../components/maps/MiniLiveMap';
-
-interface GeofenceItem {
-  id: string;
-  name: string;
-  officeName: string;
-  zoneType: string;
-  latitude: number;
-  longitude: number;
-  radiusMeters: number;
-  autoCheckout: boolean;
-  activeTripsInside: number;
-}
 
 export default function GeofencesPickupPointsPage() {
-  const { tenantId } = useSession();
-  const activeTenantId = tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
-
+  const { tenantId, status } = useSession();
   const [offices, setOffices] = useState<Office[]>([]);
-  const [selectedZone, setSelectedZone] = useState<GeofenceItem | null>(null);
-  const [radiusAdjustment, setRadiusAdjustment] = useState<number>(300);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadOffices = useCallback(async () => {
+    if (status === 'loading') return;
+    if (!tenantId) {
+      setLoading(false);
+      setError('Sign in with a corporate account to view this tenant’s offices.');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      setOffices(await tenantApi.offices(tenantId));
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unable to load offices.');
+    } finally {
+      setLoading(false);
+    }
+  }, [status, tenantId]);
 
   useEffect(() => {
-    setLoading(true);
-    tenantApi
-      .offices(activeTenantId)
-      .then((data) => {
-        setOffices(data);
-        if (data.length > 0) {
-          const zones: GeofenceItem[] = data.map((off, idx) => ({
-            id: off.id,
-            name: `${off.name} Perimeter`,
-            officeName: off.name,
-            zoneType: idx === 0 ? 'Main Campus Perimeter' : 'Secondary Facility Gate',
-            latitude: off.latitude ? Number(off.latitude) : 17.4485,
-            longitude: off.longitude ? Number(off.longitude) : 78.3741,
-            radiusMeters: off.geofenceRadiusMeters || 300,
-            autoCheckout: true,
-            activeTripsInside: 0,
-          }));
-
-          setSelectedZone(zones[0]);
-          setRadiusAdjustment(zones[0].radiusMeters);
-        }
-      })
-      .catch((err) => {
-        console.warn('Failed to fetch office geofences:', err);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, [activeTenantId]);
-
-  const handleSelectZone = (zone: GeofenceItem) => {
-    setSelectedZone(zone);
-    setRadiusAdjustment(zone.radiusMeters);
-  };
-
-  const zones: GeofenceItem[] = offices.map((off, idx) => ({
-    id: off.id,
-    name: `${off.name} Perimeter`,
-    officeName: off.name,
-    zoneType: idx === 0 ? 'Main Campus Perimeter' : 'Secondary Facility Gate',
-    latitude: off.latitude ? Number(off.latitude) : 17.4485,
-    longitude: off.longitude ? Number(off.longitude) : 78.3741,
-    radiusMeters: off.geofenceRadiusMeters || 300,
-    autoCheckout: true,
-    activeTripsInside: 0,
-  }));
-
-  if (loading) {
-    return (
-      <div className="surface-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
-        Loading geofences and designated pickup points...
-      </div>
-    );
-  }
-
-  if (!selectedZone) {
-    return (
-      <div className="surface-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
-        No offices registered. Register an office to configure geofence zones.
-      </div>
-    );
-  }
+    void loadOffices();
+  }, [loadOffices]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {/* Title & Actions */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-            Campus Geofences & Designated Pickup Points
-          </h1>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
-            Configure GPS perimeter boundaries, automated boarding detection, and security staging bays
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => alert('Create geofence zone modal')}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '8px 14px',
-            backgroundColor: 'var(--brand-action)',
-            color: '#FFFFFF',
-            borderRadius: 6,
-            fontSize: 13,
-            fontWeight: 600,
-            border: 'none',
-            cursor: 'pointer',
-          }}
-        >
-          <Plus size={16} /> Create Geofence Zone
-        </button>
-      </div>
-
-      {/* Main Two-Column Layout: Left Map / Right Zone Configurator */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(340px, 1.4fr) minmax(300px, 1fr)', gap: 16 }}>
-        {/* Interactive Map Visualizer */}
-        <div
-          style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 8,
-            border: '1px solid var(--border-color)',
-            padding: 16,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 12,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Layers size={16} style={{ color: 'var(--brand-primary)' }} />
-              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
-                Live Geofence Boundary Map
-              </span>
-            </div>
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '2px 8px',
-                backgroundColor: 'var(--color-blue-bg)',
-                color: 'var(--brand-primary)',
-                borderRadius: 4,
-                fontSize: 11,
-                fontWeight: 600,
-              }}
-            >
-              <Radio size={12} /> Active Telemetry
-            </span>
-          </div>
-
-          {/* SVG Canvas Map */}
-          <MiniLiveMap height={380} routeName={`${selectedZone.name} Perimeter`} />
-
-          {/* Active Zone Legend */}
-          <div
-            style={{
-              padding: '10px 14px',
-              backgroundColor: 'var(--bg-surface-muted)',
-              borderRadius: 6,
-              border: '1px solid var(--border-color)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              fontSize: 12,
-            }}
-          >
-            <div>
-              <strong>Current Focus:</strong> {selectedZone.name} ({selectedZone.zoneType})
-            </div>
-            <div style={{ color: 'var(--brand-primary)', fontWeight: 600 }}>
-              Perimeter Buffer: {radiusAdjustment}m
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Zone List & Inspector */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Selected Zone Inspector Card */}
-          <div
-            style={{
-              backgroundColor: 'var(--bg-surface)',
-              borderRadius: 8,
-              border: '1px solid var(--border-color)',
-              padding: 20,
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
-              <div>
-                <span
-                  style={{
-                    padding: '2px 8px',
-                    backgroundColor: 'var(--color-blue-bg)',
-                    color: 'var(--brand-primary)',
-                    borderRadius: 4,
-                    fontSize: 11,
-                    fontWeight: 700,
-                  }}
-                >
-                  {selectedZone.zoneType}
-                </span>
-                <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: '8px 0 2px 0' }}>
-                  {selectedZone.name}
-                </h3>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{selectedZone.officeName}</div>
-              </div>
-            </div>
-
-            {/* Coordinates and Settings */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 13, marginTop: 14 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
-                <span style={{ color: 'var(--text-muted)' }}>GPS Coordinates:</span>
-                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                  {selectedZone.latitude.toFixed(4)}° N, {selectedZone.longitude.toFixed(4)}° E
-                </span>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 8 }}>
-                <span style={{ color: 'var(--text-muted)' }}>Auto Boarding / Checkout:</span>
-                <span style={{ fontWeight: 600, color: 'var(--color-success-text)' }}>
-                  {selectedZone.autoCheckout ? 'Enabled (FastTag/GPS)' : 'Manual Only'}
-                </span>
-              </div>
-
-              {/* Radius Slider */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 4 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Perimeter Buffer Radius:</span>
-                  <span style={{ fontWeight: 700, color: 'var(--brand-primary)' }}>{radiusAdjustment} Meters</span>
-                </div>
-                <input
-                  type="range"
-                  min="50"
-                  max="500"
-                  step="25"
-                  value={radiusAdjustment}
-                  onChange={(e) => setRadiusAdjustment(Number(e.target.value))}
-                  style={{ width: '100%', cursor: 'pointer' }}
-                />
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-muted)' }}>
-                  <span>50m (Tight Gate)</span>
-                  <span>250m (Campus Wide)</span>
-                  <span>500m (Corridor)</span>
-                </div>
-              </div>
-            </div>
-
-            <div style={{ marginTop: 16, display: 'flex', gap: 10 }}>
-              <button
-                type="button"
-                onClick={() => alert(`Saved perimeter ${radiusAdjustment}m for ${selectedZone.name}`)}
-                style={{
-                  flex: 1,
-                  padding: '8px 12px',
-                  backgroundColor: 'var(--brand-action)',
-                  color: '#FFFFFF',
-                  borderRadius: 6,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  border: 'none',
-                  cursor: 'pointer',
-                }}
-              >
-                Save Perimeter
-              </button>
-            </div>
-          </div>
-
-          {/* All Registered Geofences List */}
-          <div
-            style={{
-              backgroundColor: 'var(--bg-surface)',
-              borderRadius: 8,
-              border: '1px solid var(--border-color)',
-              overflow: 'hidden',
-            }}
-          >
-            <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-color)', fontSize: 13, fontWeight: 700 }}>
-              Active Geofence Zones ({zones.length})
-            </div>
-            <div style={{ maxHeight: 220, overflowY: 'auto' }}>
-              {zones.map((zone) => {
-                const isSelected = zone.id === selectedZone.id;
-                return (
-                  <div
-                    key={zone.id}
-                    onClick={() => handleSelectZone(zone)}
-                    style={{
-                      padding: '12px 16px',
-                      borderBottom: '1px solid var(--border-subtle)',
-                      backgroundColor: isSelected ? 'var(--color-blue-bg)' : '#FFFFFF',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      transition: 'background 0.15s ease',
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: isSelected ? 'var(--brand-primary)' : 'var(--text-primary)' }}>
-                        {zone.name}
-                      </div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                        {zone.zoneType} • {zone.radiusMeters}m radius
-                      </div>
-                    </div>
-                    <span
-                      style={{
-                        padding: '2px 6px',
-                        backgroundColor: 'var(--color-success-bg)',
-                        color: 'var(--color-success-text)',
-                        borderRadius: 4,
-                        fontSize: 11,
-                        fontWeight: 600,
-                      }}
-                    >
-                      Configured
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      </div>
+      <header>
+        <h1 style={{ margin: 0, fontSize: 20, color: 'var(--text-primary)' }}>Geofences & pickup points</h1>
+        <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--text-muted)' }}>
+          Office details are loaded from this tenant. Geofence and pickup-point records are not currently stored by the API.
+        </p>
+      </header>
+      {error && <p role="alert" style={{ color: 'var(--color-danger)' }}>{error}</p>}
+      {loading && <p role="status">Loading tenant offices…</p>}
+      {!loading && !error && offices.length === 0 && (
+        <section className="surface-card" style={{ padding: 32, textAlign: 'center' }}>
+          No offices have been registered for this tenant.
+        </section>
+      )}
+      {!loading && !error && offices.length > 0 && (
+        <section className="surface-card" style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <thead>
+              <tr><th style={{ padding: 12 }}>Office</th><th style={{ padding: 12 }}>Address</th><th style={{ padding: 12 }}>Coordinates</th><th style={{ padding: 12 }}>Geofence</th></tr>
+            </thead>
+            <tbody>
+              {offices.map((office) => (
+                <tr key={office.id} style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                  <td style={{ padding: 12 }}><strong>{office.name}</strong><div>{office.code}</div></td>
+                  <td style={{ padding: 12 }}>{office.addressText || 'Not provided'}</td>
+                  <td style={{ padding: 12 }}>
+                    {office.latitude && office.longitude ? `${office.latitude}, ${office.longitude}` : 'Not provided'}
+                  </td>
+                  <td style={{ padding: 12 }}>Not configured</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
     </div>
   );
 }

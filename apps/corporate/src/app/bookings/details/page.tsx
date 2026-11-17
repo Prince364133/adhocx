@@ -23,32 +23,77 @@ import { useSession } from '../../../lib/auth/SessionContext';
 
 function BookingDetailsContent() {
   const { tenantId } = useSession();
-  const activeTenantId = tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+  const activeTenantId = tenantId;
 
   const searchParams = useSearchParams();
   const bookingId = searchParams.get('id');
 
   const [booking, setBooking] = useState<BookingRequestItem | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
+    if (!activeTenantId) {
+      setBooking(null);
+      setLoadError(null);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
+    setLoadError(null);
+    setBooking(null);
     tripsApi
       .requests({ tenantId: activeTenantId })
       .then((res) => {
         const items = res?.items || [];
-        if (items.length > 0) {
-          const match = bookingId ? items.find((i) => i.id === bookingId) : null;
-          setBooking(match || items[0]);
-        }
+        const match = bookingId ? items.find((item) => item.id === bookingId) : items[0];
+        setBooking(match ?? null);
       })
       .catch((err) => {
         console.warn('Failed to load booking details:', err);
+        setLoadError(err instanceof Error ? err.message : 'Failed to load booking details.');
       })
       .finally(() => {
         setLoading(false);
       });
   }, [activeTenantId, bookingId]);
+
+  const handleCancel = async () => {
+    if (!activeTenantId || !booking?.employee?.id) {
+      setActionError('This booking is missing the employee record required to cancel it.');
+      return;
+    }
+    if (!window.confirm(`Cancel request ${booking.id.slice(0, 8)}?`)) return;
+
+    setCancelling(true);
+    setActionError(null);
+    setActionMessage(null);
+    try {
+      await tripsApi.rescheduleOrCancel(booking.id, {
+        employeeId: booking.employee.id,
+        action: 'CANCEL',
+      });
+      setActionMessage('Cancellation request submitted.');
+      try {
+        const refreshed = await tripsApi.requests({ tenantId: activeTenantId });
+        const updatedBooking = refreshed.items.find((item) => item.id === booking.id);
+        if (updatedBooking) setBooking(updatedBooking);
+      } catch (err) {
+        setActionError(
+          `Cancellation was submitted, but the booking status could not be refreshed: ${
+            err instanceof Error ? err.message : 'unknown error'
+          }`,
+        );
+      }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to cancel booking request.');
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -61,14 +106,14 @@ function BookingDetailsContent() {
   if (!booking) {
     return (
       <div className="surface-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
-        Booking request not found.
+        {loadError ? <span role="alert">{loadError}</span> : 'Booking request not found.'}
       </div>
     );
   }
 
-  const empName = booking.employee?.fullName || 'Enterprise Employee';
+  const empName = booking.employee?.fullName || '—';
   const empCode = booking.employee?.employeeCode || '—';
-  const officeName = booking.roster?.office?.name || 'Main Campus';
+  const officeName = booking.roster?.office?.name || '—';
   const reqShortId = booking.id.slice(0, 8);
   const initials = empName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase();
 
@@ -102,7 +147,9 @@ function BookingDetailsContent() {
 
         <div style={{ display: 'flex', gap: '10px' }}>
           <button
-            onClick={() => alert(`Cancel request for ${reqShortId}`)}
+            type="button"
+            onClick={() => void handleCancel()}
+            disabled={cancelling || Boolean(actionMessage) || booking.status === 'CANCELLED'}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -114,14 +161,23 @@ function BookingDetailsContent() {
               padding: '8px 14px',
               fontSize: '13px',
               fontWeight: 700,
-              cursor: 'pointer',
+              cursor: cancelling || actionMessage || booking.status === 'CANCELLED' ? 'not-allowed' : 'pointer',
             }}
           >
             <XCircle size={14} />
-            <span>Cancel Request</span>
+            <span>{cancelling ? 'Cancelling…' : booking.status === 'CANCELLED' ? 'Cancelled' : 'Cancel Request'}</span>
           </button>
         </div>
       </div>
+      {(actionError || actionMessage) && (
+        <div
+          role={actionError ? 'alert' : 'status'}
+          className="surface-card"
+          style={{ padding: 12, color: actionError ? '#B91C1C' : '#15803D' }}
+        >
+          {actionError || actionMessage}
+        </div>
+      )}
 
       {/* Main 2-Column Details Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '20px' }}>
@@ -158,7 +214,7 @@ function BookingDetailsContent() {
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>Department</span>
               <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                {booking.employee?.department || 'Operations'}
+                {booking.employee?.department || '—'}
               </span>
             </div>
           </div>

@@ -573,6 +573,7 @@ export interface RoutePlanningResult {
   bufferedDeadline: string;
   office: { name: string; lat: number; lng: number };
   offices?: Array<{ name: string; lat: number; lng: number }>;
+  warnings?: string[];
   routes: CalculatedRoute[];
   totalKm?: number;
   totalDriverPayout?: number;

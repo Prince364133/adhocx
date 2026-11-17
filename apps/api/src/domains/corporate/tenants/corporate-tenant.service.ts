@@ -10,6 +10,8 @@ import {
 import { DatabaseService } from '../../../database/database.service';
 import { AuditService } from '../../../modules/audit/audit.service';
 import { H3Service } from '../../../modules/locations/h3.service';
+import { sanitizeRealName } from '../../../common/utils/name.util';
+import { assertPhoneAvailable, normalizeIndianPhone, getPhoneVariants } from '../../../common/utils/uniqueness.util';
 import {
   CreateCorporateTenantDto,
   UpdateCorporateTenantDto,
@@ -22,9 +24,10 @@ import {
   CorporateTenantStatus,
   UserRole,
 } from '@adhocx/contracts';
-import { normalizeIndianPhone, getPhoneVariants } from '../../../common/utils/uniqueness.util';
-import { CorporateRole } from './corporate-permissions';
+import { CorporateRole, userRoleForCorporateRole } from './corporate-permissions';
 import { GoogleGeocodingAdapter } from '../routing/google-geocoding.adapter';
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 @Injectable()
 export class CorporateTenantService {
@@ -51,31 +54,87 @@ export class CorporateTenantService {
       throw new BadRequestException('Company name and legal business name are required');
     }
     const profile = this.validateTenantProfile(dto);
-    const existing = await this.db.corporateTenant.findUnique({
-      where: { code: dto.code.trim().toUpperCase() },
-    });
+    let portalAdmin: { fullName: string; email: string; phone: string } | undefined;
 
-    if (existing) {
-      throw new ConflictException(`Corporate tenant with code '${dto.code}' already exists`);
+    if (dto.createPortalAdmin) {
+      const fullName = sanitizeRealName(dto.primaryContactName);
+      const email = dto.primaryContactEmail?.trim().toLowerCase();
+      const phone = normalizeIndianPhone(dto.primaryContactPhone);
+      if (!fullName) {
+        throw new BadRequestException('A valid primary contact name is required to create the Corporate Super Admin account');
+      }
+      if (!email || !EMAIL_PATTERN.test(email)) {
+        throw new BadRequestException('A valid primary contact email is required to create the Corporate Super Admin account');
+      }
+      if (!phone || phone.replace(/\D/g, '').length < 10) {
+        throw new BadRequestException('A valid primary contact phone number is required to create the Corporate Super Admin account');
+      }
+      portalAdmin = { fullName, email, phone };
     }
 
-    const tenant = await this.db.corporateTenant.create({
-      data: {
-        code: dto.code.trim().toUpperCase(),
-        name: dto.name.trim(),
-        legalEntityName: dto.legalEntityName.trim(),
-        gstin: dto.gstin?.trim() || null,
-        ...profile,
-        status: 'ACTIVE',
-      },
+    const created = await this.db.$transaction(async (tx) => {
+      const existing = await tx.corporateTenant.findUnique({
+        where: { code: dto.code.trim().toUpperCase() },
+      });
+      if (existing) {
+        throw new ConflictException(`Corporate tenant with code '${dto.code}' already exists`);
+      }
+
+      const tenant = await tx.corporateTenant.create({
+        data: {
+          code: dto.code.trim().toUpperCase(),
+          name: dto.name.trim(),
+          legalEntityName: dto.legalEntityName.trim(),
+          gstin: dto.gstin?.trim() || null,
+          ...profile,
+          status: 'ACTIVE',
+        },
+      });
+
+      let portalUser;
+      if (portalAdmin) {
+        await assertPhoneAvailable(tx, portalAdmin.phone);
+        const existingEmail = await tx.user.findFirst({
+          where: { email: { equals: portalAdmin.email, mode: 'insensitive' } },
+          select: { id: true },
+        });
+        if (existingEmail) {
+          throw new ConflictException('This primary contact email is already registered to another account');
+        }
+
+        const corporateRole = CorporateRole.CORP_SUPER_ADMIN;
+        portalUser = await tx.user.create({
+          data: {
+            fullName: portalAdmin.fullName,
+            email: portalAdmin.email,
+            phone: portalAdmin.phone,
+            role: userRoleForCorporateRole(corporateRole) as any,
+            corporateRole: corporateRole as any,
+            corporateTenantId: tenant.id,
+            corporateOfficeIds: [],
+            status: 'ACTIVE',
+          },
+        });
+      }
+
+      return { tenant, portalUser };
+    }).catch((error: any) => {
+      if (error?.code === 'P2002') {
+        throw new ConflictException('A company or primary contact account with these details already exists');
+      }
+      throw error;
     });
 
-    this.logger.log(`Created corporate tenant ${tenant.name} (${tenant.code})`);
+    const { tenant, portalUser } = created;
 
-    // 1. Provision or link initial Corporate Portal admin user using company phone number
+    this.logger.log(
+      `Created corporate tenant ${tenant.name} (${tenant.code})${portalUser ? ' with Corporate Super Admin access' : ''}`,
+    );
+
+    // 1. Provision or link initial Corporate Portal admin user using company phone number (if not already created above)
     const contactPhone = dto.primaryContactPhone?.trim() || null;
     const normalizedPhone = contactPhone ? normalizeIndianPhone(contactPhone) : undefined;
-    if (normalizedPhone) {
+    if (!portalUser && normalizedPhone) {
       try {
         const variants = getPhoneVariants(normalizedPhone);
         const existingUser = await this.db.user.findFirst({
@@ -177,7 +236,33 @@ export class CorporateTenantService {
       metadata: { code: tenant.code, name: tenant.name },
     });
 
-    return tenant;
+    if (portalUser) {
+      await this.audit.log({
+        action: 'CORPORATE_USER_INVITED',
+        userId: actorUserId,
+        actorRole: UserRole.ADMIN,
+        entityId: portalUser.id,
+        entityType: 'USER',
+        metadata: {
+          tenantId: tenant.id,
+          corporateRole: CorporateRole.CORP_SUPER_ADMIN,
+          autoProvisionedFromPrimaryContact: true,
+        },
+      });
+    }
+
+    return {
+      ...tenant,
+      ...(portalUser
+        ? {
+            portalAccess: {
+              created: true,
+              corporateRole: CorporateRole.CORP_SUPER_ADMIN,
+              loginMethod: 'SMS_OTP' as const,
+            },
+          }
+        : {}),
+    };
   }
 
   async listTenants(query?: { search?: string; status?: CorporateTenantStatus; page?: number; limit?: number }) {
@@ -942,8 +1027,6 @@ export class CorporateTenantService {
 
   async getOfficeGeofences(tenantId: string, officeId: string) {
     const office = await this.getOfficeById(tenantId, officeId);
-    const lat = Number(office.latitude);
-    const lng = Number(office.longitude);
 
     return {
       office: {
@@ -952,24 +1035,9 @@ export class CorporateTenantService {
         name: office.name,
         addressText: office.addressText,
       },
-      radiusMeters: 500,
-      center: { latitude: lat, longitude: lng },
-      polygon: [
-        { latitude: lat + 0.0035, longitude: lng - 0.0035 },
-        { latitude: lat + 0.0035, longitude: lng + 0.0035 },
-        { latitude: lat - 0.0035, longitude: lng + 0.0035 },
-        { latitude: lat - 0.0035, longitude: lng - 0.0035 },
-      ],
-      gates: [
-        { id: `GT-${office.code}-01`, name: 'Main Security Gate 1', type: 'ENTRY_EXIT', rfidBarrier: true, guardOnDuty: true, lat: lat + 0.0015, lng: lng },
-        { id: `GT-${office.code}-02`, name: 'North Employee Gate 2', type: 'ENTRY_ONLY', rfidBarrier: true, guardOnDuty: true, lat: lat + 0.003, lng: lng - 0.001 },
-        { id: `GT-${office.code}-03`, name: 'South Logistics & Cab Bay 3', type: 'EXIT_ONLY', rfidBarrier: true, guardOnDuty: true, lat: lat - 0.003, lng: lng + 0.001 },
-      ],
-      pickupPoints: [
-        { id: `BAY-${office.code}-A`, name: 'Bay A (Main Portico - Executive Cabs)', capacity: 8, lat: lat + 0.0005, lng: lng + 0.0005 },
-        { id: `BAY-${office.code}-B`, name: 'Bay B (Tower 1 - Women Priority)', capacity: 12, lat: lat - 0.0005, lng: lng + 0.0005 },
-        { id: `BAY-${office.code}-C`, name: 'Bay C (Tower 2 - General Commuter Bay)', capacity: 20, lat: lat, lng: lng - 0.0008 },
-      ],
+      geofence: null,
+      gates: [],
+      pickupPoints: [],
     };
   }
 
@@ -979,29 +1047,20 @@ export class CorporateTenantService {
       tenantId: tenant.id,
       tenantName: tenant.name,
       hrms: {
-        provider: 'Darwinbox',
-        status: 'CONNECTED',
-        lastSyncAt: new Date().toISOString(),
-        syncInterval: '6 hours',
-        autoSyncEnabled: true,
-        totalEmployeesSynced: await this.db.corporateEmployee.count({ where: { tenantId } }),
+        provider: null,
+        status: 'NOT_CONFIGURED',
+        lastSyncAt: null,
+        syncInterval: null,
+        autoSyncEnabled: false,
+        totalEmployeesSynced: null,
       },
       webhookHealth: {
-        uptimePct: 99.94,
-        avgLatencyMs: 42,
-        totalEventsToday: 1420,
-        failedEventsToday: 0,
+        uptimePct: null,
+        avgLatencyMs: null,
+        totalEventsToday: null,
+        failedEventsToday: null,
       },
-      fieldMappings: [
-        { systemField: 'employeeCode', hrmsField: 'EMP_ID', isRequired: true, mapped: true },
-        { systemField: 'fullName', hrmsField: 'DISPLAY_NAME', isRequired: true, mapped: true },
-        { systemField: 'email', hrmsField: 'WORK_EMAIL', isRequired: true, mapped: true },
-        { systemField: 'phoneNumber', hrmsField: 'MOBILE_PHONE', isRequired: true, mapped: true },
-        { systemField: 'gender', hrmsField: 'GENDER_CODE', isRequired: true, mapped: true },
-        { systemField: 'department', hrmsField: 'BUSINESS_UNIT', isRequired: false, mapped: true },
-        { systemField: 'costCenter', hrmsField: 'COST_CENTER_NO', isRequired: false, mapped: true },
-        { systemField: 'homeAddress', hrmsField: 'RESIDENTIAL_ADDRESS', isRequired: true, mapped: true },
-      ],
+      fieldMappings: [],
     };
   }
 

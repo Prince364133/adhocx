@@ -61,6 +61,7 @@ export interface TripsAnalyticsReport {
   truncated: boolean;
   rows: Array<{
     shiftDate: string;
+    direction: string;
     status: string;
     vehicleNumber: string | null;
   }>;
@@ -163,7 +164,10 @@ export const analyticsApi = {
       p = typeOrParams;
     } else {
       type = typeOrParams;
-      p = maybeParams || { tenantId: '9d66820f-280c-400c-98dc-e021d0045b58' };
+      if (!maybeParams) {
+        throw new Error('Analytics filters are required to download a report.');
+      }
+      p = maybeParams;
     }
     const filename = `adhocx-${type}-${p.from || 'report'}_to_${p.to || 'latest'}.csv`;
     return apiDownload(`/corporate/analytics/reports/${type}${qs({ ...p, format: 'csv' })}`, filename);
@@ -181,8 +185,8 @@ export interface EmployeeInput {
   costCenter?: string;
   homeAddress: string;
   landmark?: string;
-  latitude: number;
-  longitude: number;
+  latitude?: number;
+  longitude?: number;
 }
 
 export type EmployeeUpdate = Partial<
@@ -198,6 +202,7 @@ export const employeeApi = {
     p: {
       search?: string;
       officeId?: string;
+      department?: string;
       isActive?: string;
       page?: number;
       limit?: number;
@@ -372,11 +377,11 @@ export const tripsApi = {
 export const requestsApi = tripsApi;
 
 export const safetyApi = {
-  alerts: (tenantId: string = '9d66820f-280c-400c-98dc-e021d0045b58', p?: string | { status?: string }) => {
+  alerts: (tenantId: string, p?: string | { status?: string }) => {
     const status = typeof p === 'string' ? p : p?.status;
     return apiRequest<SosAlert[]>(`/corporate/safety/alerts${qs({ tenantId, status })}`);
   },
-  incidents: (tenantId: string = '9d66820f-280c-400c-98dc-e021d0045b58', p?: { status?: string }) => apiRequest<SafetyIncident[]>(`/corporate/safety/alerts${qs({ tenantId, ...p })}`),
+  incidents: (tenantId: string, p?: { status?: string }) => apiRequest<SafetyIncident[]>(`/corporate/safety/alerts${qs({ tenantId, ...p })}`),
   incident: (incidentId: string) => apiRequest<SafetyIncident>(`/corporate/safety/alerts/${incidentId}`),
   resolveAlert: (
     alertId: string,

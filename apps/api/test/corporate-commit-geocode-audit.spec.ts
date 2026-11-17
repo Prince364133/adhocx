@@ -166,6 +166,33 @@ describe('2026-11-11 audit: route commit integrity', () => {
     expect(created.stops.find((s) => s.stopType === 'PICKUP').employeeId).toBe('emp-existing');
   });
 
+  it('creates employee with provided employeeCode and email when stop has them', async () => {
+    const { db, created } = makeDb();
+    const svc = new CorporateRoutePlannerService({} as any, {} as any, db);
+    await svc.commitPlanToDatabase(
+      commitDto(plan([stop('Aarav Sharma', { employeeCode: 'EMP-1001', email: 'aarav.sharma@example.com', phoneNumber: '9876543210' })])),
+    );
+    expect(created.employees).toHaveLength(1);
+    expect(created.employees[0]).toMatchObject({
+      employeeCode: 'EMP-1001',
+      fullName: 'Aarav Sharma',
+      email: 'aarav.sharma@example.com',
+      phoneNumber: '+919876543210',
+    });
+  });
+
+  it('safely falls back to generated EMP- code and default roster email when employeeCode and email are omitted', async () => {
+    const { db, created } = makeDb();
+    const svc = new CorporateRoutePlannerService({} as any, {} as any, db);
+    await svc.commitPlanToDatabase(
+      commitDto(plan([stop('Priya Reddy', { phoneNumber: '9876543211' })])),
+    );
+    expect(created.employees).toHaveLength(1);
+    expect(created.employees[0].employeeCode).toMatch(/^EMP-[A-F0-9]{8}$/);
+    expect(created.employees[0].email).toMatch(/^emp-[a-f0-9]{8}@roster\.corporate\.local$/);
+    expect(created.employees[0].fullName).toBe('Priya Reddy');
+  });
+
   it('LOGOUT commits office PICKUP first, employee DROPOFFs after, pickup-1 = office departure', async () => {
     const { db, created } = makeDb();
     const svc = new CorporateRoutePlannerService({} as any, {} as any, db);

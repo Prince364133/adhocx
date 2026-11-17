@@ -18,14 +18,10 @@ import {
 } from 'lucide-react';
 import { tripsApi, tenantApi } from '../../lib/api/corporate';
 import type { BookingRequestItem, Office } from '../../lib/api/types';
+import { useSession } from '../../lib/auth/SessionContext';
 
-interface PageProps {
-  searchParams?: { tenantId?: string };
-}
-
-export default function BookingsOverviewPage({ searchParams }: PageProps) {
-  const tenantId = searchParams?.tenantId;
-  const activeTenantId = tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+export default function BookingsOverviewPage() {
+  const { tenantId: activeTenantId } = useSession();
 
   const [queue, setQueue] = useState<BookingRequestItem[]>([]);
   const [offices, setOffices] = useState<Office[]>([]);
@@ -34,12 +30,21 @@ export default function BookingsOverviewPage({ searchParams }: PageProps) {
   const [selectedOffice, setSelectedOffice] = useState('All Offices');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadRequests = () => {
+    if (!activeTenantId) {
+      setQueue([]);
+      setOffices([]);
+      setLoadError(null);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
+    setLoadError(null);
     Promise.all([
       tripsApi.requests({ tenantId: activeTenantId, search: searchQuery || undefined }),
-      tenantApi.offices(activeTenantId).catch(() => []),
+      tenantApi.offices(activeTenantId),
     ])
       .then(([res, offList]) => {
         setQueue(res?.items || []);
@@ -47,6 +52,9 @@ export default function BookingsOverviewPage({ searchParams }: PageProps) {
       })
       .catch((err) => {
         console.warn('Failed to load booking queue:', err);
+        setQueue([]);
+        setOffices([]);
+        setLoadError(err instanceof Error ? err.message : 'Failed to load booking data.');
       })
       .finally(() => {
         setLoading(false);
@@ -89,6 +97,7 @@ export default function BookingsOverviewPage({ searchParams }: PageProps) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {loadError && <div role="alert" className="surface-card" style={{ padding: 16, color: '#B91C1C' }}>{loadError}</div>}
       {/* Title & Action Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
@@ -259,7 +268,7 @@ export default function BookingsOverviewPage({ searchParams }: PageProps) {
                       </td>
                       <td style={{ padding: '14px' }}>
                         <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
-                          {item.employee?.fullName || 'Enterprise Employee'}
+                          {item.employee?.fullName || '—'}
                         </div>
                         <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                           {item.employee?.employeeCode || '—'}
@@ -284,7 +293,7 @@ export default function BookingsOverviewPage({ searchParams }: PageProps) {
                         {item.scheduledDate} {item.shiftTime}
                       </td>
                       <td style={{ padding: '14px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                        {item.roster?.office?.name || 'Main Campus'}
+                        {item.roster?.office?.name || '—'}
                       </td>
                       <td style={{ padding: '14px' }}>
                         <span

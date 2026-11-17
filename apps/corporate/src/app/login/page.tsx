@@ -153,7 +153,6 @@ function LoginContent() {
     try {
       const res = await authApi.requestOtp({
         phone: phoneE164,
-        isRegister: false,
       });
 
       if (!res?.requestId) {

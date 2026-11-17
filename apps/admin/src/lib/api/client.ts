@@ -1293,7 +1293,13 @@ export const adminApi = {
   getCorporateTenant: (id: string) =>
     apiClient<CorporateTenantProfile>(`/corporate/tenants/${encodeURIComponent(id)}`),
   createCorporateTenant: (input: CreateCorporateTenantInput) =>
-    apiClient<CorporateTenantListItem>('/corporate/tenants', {
+    apiClient<CorporateTenantListItem & {
+      portalAccess?: {
+        created: boolean;
+        corporateRole: string;
+        loginMethod: 'SMS_OTP';
+      };
+    }>('/corporate/tenants', {
       method: 'POST',
       body: input,
     }),

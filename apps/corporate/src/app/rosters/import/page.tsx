@@ -1,34 +1,21 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  UploadCloud,
   FileSpreadsheet,
   Download,
   Trash2,
-  CheckCircle2,
   ArrowRight,
-  Info,
-  Calendar,
 } from 'lucide-react';
 import { rosterApi } from '../../../lib/api/corporate';
+import type { RosterValidationResult } from '../../../lib/api/types';
 import { useSession } from '../../../lib/auth/SessionContext';
-
-interface PreviewRow {
-  empId: string;
-  name: string;
-  shift: string;
-  shiftColor: string;
-  office: string;
-  date: string;
-}
 
 export default function RosterImportPreviewPage() {
   const router = useRouter();
   const { tenantId } = useSession();
-  const activeTenantId = tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+  const activeTenantId = tenantId;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<{
@@ -36,11 +23,19 @@ export default function RosterImportPreviewPage() {
     name: string;
     size: string;
   } | null>(null);
-  const [previewRows, setPreviewRows] = useState<PreviewRow[]>([]);
+  const [validation, setValidation] = useState<RosterValidationResult | null>(null);
   const [isValidating, setIsValidating] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
+      if (!activeTenantId) {
+        setValidation(null);
+        setError('No tenant is selected for roster import.');
+        setIsValidating(false);
+        return;
+      }
       const file = e.target.files[0];
       const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
       setSelectedFile({
@@ -49,17 +44,43 @@ export default function RosterImportPreviewPage() {
         size: `${sizeMb} MB`,
       });
 
+      setValidation(null);
+      setError(null);
       setIsValidating(true);
       try {
         const res = await rosterApi.validate(activeTenantId, file);
-        if (res && (res as any).previewRows) {
-          setPreviewRows((res as any).previewRows);
-        }
+        setValidation(res);
       } catch (err) {
-        console.warn('Validation error:', err);
+        console.error('Roster validation failed:', err);
+        setError('Unable to validate this roster file. Check its format and try again.');
       } finally {
         setIsValidating(false);
       }
+    }
+  };
+
+  const downloadTemplate = async () => {
+    setError(null);
+    try {
+      await rosterApi.downloadTemplate();
+    } catch (err) {
+      console.error('Failed to download roster template:', err);
+      setError('Unable to download the roster template. Please try again.');
+    }
+  };
+
+  const uploadDraft = async () => {
+    if (!activeTenantId || !selectedFile || !validation?.isValid) return;
+    setIsUploading(true);
+    setError(null);
+    try {
+      await rosterApi.upload(activeTenantId, selectedFile.file, 'draft');
+      router.push('/rosters/approve');
+    } catch (err) {
+      console.error('Roster draft upload failed:', err);
+      setError('Unable to save this roster as a draft. Please retry.');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -79,28 +100,28 @@ export default function RosterImportPreviewPage() {
       <div className="surface-card" style={{ padding: '16px 24px', backgroundColor: 'var(--bg-surface)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: 720, margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: 'var(--brand-action)', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: '#5728B2', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
               1
             </div>
-            <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--brand-primary)' }}>Upload File</span>
+            <span style={{ fontSize: '13px', fontWeight: 700, color: '#5728B2' }}>Upload File</span>
           </div>
 
           <div style={{ height: 2, flex: 1, backgroundColor: '#CBD5E1', margin: '0 12px' }} />
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: 'var(--brand-action)', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: '#5728B2', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
               2
             </div>
-            <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--brand-primary)' }}>Map Columns</span>
+            <span style={{ fontSize: '13px', fontWeight: 700, color: '#5728B2' }}>Map Columns</span>
           </div>
 
           <div style={{ height: 2, flex: 1, backgroundColor: '#CBD5E1', margin: '0 12px' }} />
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: selectedFile ? 'var(--brand-action)' : 'var(--bg-surface-hover)', color: selectedFile ? '#FFFFFF' : 'var(--text-secondary)', border: '1px solid var(--border-strong)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: selectedFile ? '#5728B2' : 'var(--bg-surface-hover)', color: selectedFile ? '#FFFFFF' : 'var(--text-secondary)', border: '1px solid var(--border-strong)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
               3
             </div>
-            <span style={{ fontSize: '13px', fontWeight: selectedFile ? 700 : 500, color: selectedFile ? 'var(--brand-primary)' : 'var(--text-secondary)' }}>Preview & Validate</span>
+            <span style={{ fontSize: '13px', fontWeight: selectedFile ? 700 : 500, color: selectedFile ? '#5728B2' : 'var(--text-secondary)' }}>Preview & Validate</span>
           </div>
 
           <div style={{ height: 2, flex: 1, backgroundColor: '#CBD5E1', margin: '0 12px' }} />
@@ -141,14 +162,14 @@ export default function RosterImportPreviewPage() {
               cursor: 'pointer',
             }}
           >
-            <div style={{ width: 44, height: 44, borderRadius: 8, backgroundColor: 'var(--color-success-bg)', color: 'var(--color-success)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
+            <div style={{ width: 44, height: 44, borderRadius: 8, backgroundColor: '#DCFCE7', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
               <FileSpreadsheet size={24} />
             </div>
 
             <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
               Drag & drop your roster file here
             </div>
-            <div style={{ fontSize: '13px', color: 'var(--brand-primary)', fontWeight: 600, marginTop: '2px' }}>
+            <div style={{ fontSize: '13px', color: '#5728B2', fontWeight: 600, marginTop: '2px' }}>
               or click to browse
             </div>
 
@@ -163,32 +184,44 @@ export default function RosterImportPreviewPage() {
                 marginTop: '16px',
                 padding: '12px 14px',
                 borderRadius: '8px',
-                border: '1px solid var(--color-blue-border)',
-                backgroundColor: 'var(--color-blue-bg)',
+                border: '1px solid #BFDBFE',
+                backgroundColor: '#EFF6FF',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <FileSpreadsheet size={18} color="var(--color-success)" />
+                <FileSpreadsheet size={18} color="#16A34A" />
                 <div>
                   <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
                     {selectedFile.name}
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                    {selectedFile.size} · Validating columns & employee IDs
+                    {selectedFile.size} · {isValidating ? 'Validating file...' : validation ? 'Validation complete' : 'Not validated'}
                   </div>
                 </div>
               </div>
 
-              <Trash2 size={14} color="#DC2626" style={{ cursor: 'pointer' }} onClick={() => setSelectedFile(null)} />
+              <button
+                type="button"
+                aria-label="Remove selected roster file"
+                onClick={() => {
+                  setSelectedFile(null);
+                  setValidation(null);
+                  if (fileInputRef.current) fileInputRef.current.value = '';
+                }}
+                style={{ border: 0, background: 'transparent', cursor: 'pointer' }}
+              >
+                <Trash2 size={14} color="#DC2626" />
+              </button>
             </div>
           )}
 
           <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <button
-              onClick={() => alert('Downloading Roster Template (Excel)')}
+              type="button"
+              onClick={() => void downloadTemplate()}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -208,13 +241,14 @@ export default function RosterImportPreviewPage() {
             </button>
 
             <button
-              onClick={() => router.push('/rosters/approve')}
-              disabled={!selectedFile}
+              type="button"
+              onClick={() => void uploadDraft()}
+              disabled={!selectedFile || !validation?.isValid || isValidating || isUploading}
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                backgroundColor: selectedFile ? 'var(--brand-action)' : '#CBD5E1',
+                backgroundColor: selectedFile ? '#5728B2' : '#CBD5E1',
                 color: '#FFFFFF',
                 border: 'none',
                 borderRadius: '6px',
@@ -222,10 +256,10 @@ export default function RosterImportPreviewPage() {
                 fontSize: '13px',
                 fontWeight: 700,
                 cursor: selectedFile ? 'pointer' : 'not-allowed',
-                boxShadow: selectedFile ? '0 2px 4px rgba(var(--brand-primary-rgb), 0.25)' : 'none',
+                boxShadow: selectedFile ? '0 2px 4px rgba(87, 40, 178,0.25)' : 'none',
               }}
             >
-              <span>Validate & Review</span>
+              <span>{isUploading ? 'Saving draft...' : 'Save draft & review'}</span>
               <ArrowRight size={14} />
             </button>
           </div>
@@ -239,57 +273,47 @@ export default function RosterImportPreviewPage() {
                 Import Preview
               </h3>
               <p style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                Column mapping verified against tenant shifts
+                Validation results returned by the roster API
               </p>
             </div>
-            {selectedFile && (
-              <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-success)', backgroundColor: 'var(--color-success-bg)', padding: '2px 8px', borderRadius: '4px' }}>
-                ✓ Ready for Validation
-              </span>
-            )}
+            {validation && <span>{validation.isValid ? 'Valid' : 'Invalid'}</span>}
           </div>
 
-          {previewRows.length === 0 ? (
+          {error && <div role="alert" style={{ marginBottom: 12, color: '#B91C1C' }}>{error}</div>}
+          {isValidating ? (
+            <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-secondary)' }}>Validating roster file...</div>
+          ) : !validation ? (
             <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13 }}>
-              Select a roster spreadsheet to preview parsed rows.
+              Select a roster spreadsheet to validate its rows.
             </div>
           ) : (
-            <div className="table-scroll">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Employee ID</th>
-                    <th>Employee Name</th>
-                    <th>Shift</th>
-                    <th>Office</th>
-                    <th>Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {previewRows.map((row) => (
-                    <tr key={row.empId}>
-                      <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{row.empId}</td>
-                      <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{row.name}</td>
-                      <td>
-                        <span
-                          style={{
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            padding: '2px 8px',
-                            borderRadius: '4px',
-                            backgroundColor: `${row.shiftColor}18`,
-                            color: row.shiftColor,
-                          }}
-                        >
-                          {row.shift}
-                        </span>
-                      </td>
-                      <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{row.office}</td>
-                      <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{row.date}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 16 }}>
+                <span>Total rows: {validation.totalRows}</span>
+                <span>Valid rows: {validation.validRows}</span>
+                <span>Invalid rows: {validation.invalidRows}</span>
+                <span>Login requests: {validation.loginRequestsCount}</span>
+                <span>Logout requests: {validation.logoutRequestsCount}</span>
+              </div>
+              {validation.errors.length === 0 ? (
+                <p style={{ color: 'var(--text-secondary)' }}>No validation errors returned.</p>
+              ) : (
+                <div className="table-scroll">
+                  <table className="data-table">
+                    <thead><tr><th>Row</th><th>Field</th><th>Value</th><th>Issue</th></tr></thead>
+                    <tbody>
+                      {validation.errors.map((item, index) => (
+                        <tr key={`${item.rowNumber}-${item.field}-${index}`}>
+                          <td>{item.rowNumber}</td>
+                          <td>{item.field}</td>
+                          <td>{String(item.invalidValue ?? '—')}</td>
+                          <td>{item.message}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
         </div>

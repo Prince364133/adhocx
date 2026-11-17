@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { billingApi } from '../../../lib/api/corporate';
 import { Invoice } from '../../../lib/api/types';
+import { useSession } from '../../../lib/auth/SessionContext';
 
 function formatPaiseToRupees(paise: bigint | string | number): string {
   const rupees = Number(paise) / 100;
@@ -28,12 +29,8 @@ function formatPaiseToRupees(paise: bigint | string | number): string {
   }).format(rupees);
 }
 
-interface PageProps {
-  searchParams?: { tenantId?: string };
-}
-
-export default function InvoiceListPage({ searchParams }: PageProps) {
-  const activeTenantId = searchParams?.tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+export default function InvoiceListPage() {
+  const { tenantId: activeTenantId } = useSession();
   const [selectedStatus, setSelectedStatus] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);

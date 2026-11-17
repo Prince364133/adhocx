@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { billingApi } from '../../../lib/api/corporate';
 import { Invoice, InvoiceDispute } from '../../../lib/api/types';
+import { useSession } from '../../../lib/auth/SessionContext';
 
 function formatPaiseToRupees(paise: string | number): string {
   const rupees = Number(paise) / 100;
@@ -27,12 +28,8 @@ function formatPaiseToRupees(paise: string | number): string {
   }).format(rupees);
 }
 
-interface PageProps {
-  searchParams?: { tenantId?: string };
-}
-
-export default function BillingDisputesPage({ searchParams }: PageProps) {
-  const activeTenantId = searchParams?.tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+export default function BillingDisputesPage() {
+  const { tenantId: activeTenantId } = useSession();
   const [activeTab, setActiveTab] = useState<'all' | 'open' | 'resolved'>('all');
   const [loading, setLoading] = useState(true);
   const [disputes, setDisputes] = useState<InvoiceDispute[]>([]);

@@ -56,7 +56,7 @@ export function getVehiclePlateVariants(rawPlate?: string | null): string[] {
  * Throws ConflictException if any collision is found.
  */
 export async function assertPhoneAvailable(
-  db: DatabaseService,
+  db: Pick<DatabaseService, 'user' | 'driver' | 'vendor'>,
   phone: string,
   options?: {
     excludeUserId?: string;

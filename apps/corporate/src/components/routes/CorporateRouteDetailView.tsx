@@ -72,8 +72,8 @@ export function CorporateRouteDetailView({ routeId }: { routeId: string }) {
       if (data.directions) {
         setDirections(data.directions);
       } else {
-        const dir = await routesApi.directions(routeId, false).catch(() => null);
-        if (dir) setDirections(dir);
+        const dir = await routesApi.directions(routeId, false);
+        setDirections(dir);
       }
     } catch (err: any) {
       setErrorMsg(err?.message || 'Failed to load route details.');
@@ -195,7 +195,7 @@ export function CorporateRouteDetailView({ routeId }: { routeId: string }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <Link href="/routes" style={{ textDecoration: 'none' }}>
             <Button variant="secondary" size="sm" leftIcon={<ArrowLeft size={14} />}>
-              All Company Routes
+              All Routes & Dispatch
             </Button>
           </Link>
           <div>

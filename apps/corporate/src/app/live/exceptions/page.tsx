@@ -13,23 +13,30 @@ import {
 } from 'lucide-react';
 import { MetricCard } from '../../../components/common/MetricCard';
 import { FilterBar } from '../../../components/common/FilterBar';
-import { MiniLiveMap } from '../../../components/maps/MiniLiveMap';
 import { analyticsApi } from '../../../lib/api/corporate';
-import type { ExceptionItem, ExceptionsResponse } from '../../../lib/api/types';
+import type { ExceptionsResponse } from '../../../lib/api/types';
 import { useSession } from '../../../lib/auth/SessionContext';
 
 export default function TrackingExceptionsPage() {
   const { tenantId } = useSession();
-  const activeTenantId = tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+  const activeTenantId = tenantId;
 
   const [data, setData] = useState<ExceptionsResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'list' | 'map'>('list');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState('ALL');
 
   useEffect(() => {
+    if (!activeTenantId) {
+      setData(null);
+      setLoadError(null);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
+    setLoadError(null);
     analyticsApi
       .exceptions({ tenantId: activeTenantId })
       .then((res) => {
@@ -37,6 +44,8 @@ export default function TrackingExceptionsPage() {
       })
       .catch((err) => {
         console.warn('Exceptions fetch error:', err);
+        setData(null);
+        setLoadError(err instanceof Error ? err.message : 'Failed to load tracking exceptions.');
       })
       .finally(() => {
         setLoading(false);
@@ -44,13 +53,7 @@ export default function TrackingExceptionsPage() {
   }, [activeTenantId]);
 
   const exceptions = data?.items ?? [];
-  const summary = data?.summary ?? {
-    delayedPickups: 0,
-    unassignedTrips: 0,
-    gpsStaleCount: 0,
-    routeDeviations: 0,
-    safetyAlerts: 0,
-  };
+  const summary = data?.summary;
 
   const filteredExceptions = exceptions.filter((exc) => {
     const matchesType = selectedType === 'ALL' || exc.type.toUpperCase().includes(selectedType);
@@ -64,15 +67,15 @@ export default function TrackingExceptionsPage() {
   const getBadgeStyle = (type: string) => {
     switch (type) {
       case 'Delayed':
-        return { bg: 'var(--color-warning-bg)', color: '#D97706', border: 'var(--color-warning-border)' };
+        return { bg: '#FEF3C7', color: '#D97706', border: '#FCD34D' };
       case 'Unassigned':
         return { bg: '#FFEDD5', color: '#EA580C', border: '#FDBA74' };
       case 'GPS Stale':
         return { bg: '#FEF9C3', color: '#CA8A04', border: '#FDE047' };
       case 'Route Deviation':
-        return { bg: 'var(--brand-blue-100)', color: 'var(--color-purple)', border: 'var(--color-purple-border)' };
+        return { bg: '#F3E8FF', color: '#7C3AED', border: '#D8B4FE' };
       case 'Safety Alert':
-        return { bg: 'var(--color-danger-bg)', color: '#DC2626', border: 'var(--color-danger-border)' };
+        return { bg: '#FEE2E2', color: '#DC2626', border: '#FCA5A5' };
       default:
         return { bg: '#F1F5F9', color: 'var(--text-secondary)', border: '#CBD5E1' };
     }
@@ -103,21 +106,21 @@ export default function TrackingExceptionsPage() {
       <div className="metric-grid">
         <MetricCard
           label="Delayed Trips"
-          value={summary.delayedPickups}
+          value={summary?.delayedPickups ?? '—'}
           icon={<Clock size={18} />}
           highlightColor="#D97706"
           onClick={() => setSelectedType(selectedType === 'DELAYED' ? 'ALL' : 'DELAYED')}
         />
         <MetricCard
           label="Unassigned Trips"
-          value={summary.unassignedTrips}
+          value={summary?.unassignedTrips ?? '—'}
           icon={<UserX size={18} />}
           highlightColor="#EA580C"
           onClick={() => setSelectedType(selectedType === 'UNASSIGNED' ? 'ALL' : 'UNASSIGNED')}
         />
         <MetricCard
           label="GPS Stale"
-          value={summary.gpsStaleCount}
+          value={summary?.gpsStaleCount ?? '—'}
           subtext="> 5 mins"
           icon={<Radio size={18} />}
           highlightColor="#CA8A04"
@@ -125,19 +128,21 @@ export default function TrackingExceptionsPage() {
         />
         <MetricCard
           label="Route Deviations"
-          value={summary.routeDeviations}
+          value={summary?.routeDeviations ?? '—'}
           icon={<Navigation size={18} />}
-          highlightColor="var(--color-purple)"
+          highlightColor="#7C3AED"
           onClick={() => setSelectedType(selectedType === 'DEVIATION' ? 'ALL' : 'DEVIATION')}
         />
         <MetricCard
           label="Safety Alerts"
-          value={summary.safetyAlerts}
+          value={summary?.safetyAlerts ?? '—'}
           icon={<ShieldAlert size={18} />}
           highlightColor="#DC2626"
           onClick={() => setSelectedType(selectedType === 'SAFETY' ? 'ALL' : 'SAFETY')}
         />
       </div>
+
+      {loadError && <div role="alert" className="surface-card" style={{ padding: 16, color: '#B91C1C' }}>{loadError}</div>}
 
       {/* Content Section: View Tabs (List / Map) */}
       <div className="surface-card" style={{ padding: '20px' }}>
@@ -156,7 +161,7 @@ export default function TrackingExceptionsPage() {
                 fontWeight: 700,
                 border: 'none',
                 cursor: 'pointer',
-                backgroundColor: activeTab === 'list' ? 'var(--brand-action)' : '#F1F5F9',
+                backgroundColor: activeTab === 'list' ? '#5728B2' : '#F1F5F9',
                 color: activeTab === 'list' ? '#FFFFFF' : '#475569',
               }}
             >
@@ -175,7 +180,7 @@ export default function TrackingExceptionsPage() {
                 fontWeight: 700,
                 border: 'none',
                 cursor: 'pointer',
-                backgroundColor: activeTab === 'map' ? 'var(--brand-action)' : '#F1F5F9',
+                backgroundColor: activeTab === 'map' ? '#5728B2' : '#F1F5F9',
                 color: activeTab === 'map' ? '#FFFFFF' : '#475569',
               }}
             >
@@ -215,7 +220,7 @@ export default function TrackingExceptionsPage() {
             </div>
           ) : filteredExceptions.length === 0 ? (
             <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-              No active tracking exceptions found for this filter. All operations normal.
+              No active tracking exceptions match this filter.
             </div>
           ) : (
             <div className="table-scroll">
@@ -228,7 +233,7 @@ export default function TrackingExceptionsPage() {
                     <th>Office</th>
                     <th>Since</th>
                     <th>Status</th>
-                    <th style={{ textAlign: 'right' }}>Action</th>
+                    <th>Suggested action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -269,28 +274,14 @@ export default function TrackingExceptionsPage() {
                             style={{
                               fontSize: '11px',
                               fontWeight: 700,
-                              color: item.status === 'Escalated' ? '#DC2626' : item.status === 'In Review' ? '#D97706' : 'var(--brand-primary)',
+                              color: item.status === 'Escalated' ? '#DC2626' : item.status === 'In Review' ? '#D97706' : '#5728B2',
                             }}
                           >
                             {item.status}
                           </span>
                         </td>
-                        <td style={{ textAlign: 'right' }}>
-                          <button
-                            onClick={() => alert(`Reviewing exception: ${item.target} (${item.details})`)}
-                            style={{
-                              padding: '4px 12px',
-                              fontSize: '11px',
-                              fontWeight: 700,
-                              backgroundColor: item.action === 'Resolve' ? 'var(--color-danger-bg)' : 'var(--color-blue-bg)',
-                              color: item.action === 'Resolve' ? '#DC2626' : 'var(--brand-primary)',
-                              border: `1px solid ${item.action === 'Resolve' ? 'var(--color-danger-border)' : 'var(--color-blue-border)'}`,
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            {item.action}
-                          </button>
+                        <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                          {item.action || '—'}
                         </td>
                       </tr>
                     );
@@ -303,12 +294,8 @@ export default function TrackingExceptionsPage() {
 
         {/* Tab 2: Map View */}
         {activeTab === 'map' && (
-          <div style={{ marginTop: '10px' }}>
-            <MiniLiveMap
-              height={420}
-              activeVehiclePlate="Live Exception Radar"
-              activeEta="Active Hotspots"
-            />
+          <div className="surface-card" style={{ marginTop: 10, padding: 24, color: 'var(--text-secondary)' }}>
+            Exception records do not include GPS coordinates, so a map cannot be shown for these items.
           </div>
         )}
       </div>

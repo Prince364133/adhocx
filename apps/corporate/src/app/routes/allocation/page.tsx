@@ -1,308 +1,132 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import {
-  Truck,
-  Car,
-  UserCheck,
-  CheckCircle2,
-  AlertTriangle,
-  BatteryCharging,
-  Star,
-  Search,
-  RefreshCw,
-  Plus,
-} from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Car, RefreshCw, Route, Search, UserCheck } from 'lucide-react';
 import { routesApi } from '../../../lib/api/corporate';
 import type { CorporateRoute } from '../../../lib/api/types';
 import MetricCard from '../../../components/common/MetricCard';
-
-interface FleetAllocationRow {
-  vehicleNumber: string;
-  model: string;
-  driverName: string;
-  rating: number;
-  routeCode: string;
-  complianceStatus: string;
-  batteryFuel: string;
-  status: 'Assigned' | 'Available';
-}
+import { useSession } from '../../../lib/auth/SessionContext';
 
 export default function FleetDriverAllocationPage() {
+  const { tenantId } = useSession();
   const [routes, setRoutes] = useState<CorporateRoute[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
 
-  const loadData = () => {
+  const loadData = useCallback(async () => {
+    if (!tenantId) {
+      setRoutes([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
-    routesApi
-      .list()
-      .then((data) => {
-        setRoutes(data);
-      })
-      .catch((err) => {
-        console.warn('Failed to load fleet allocation:', err);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  };
+    setError(null);
+    try {
+      setRoutes(await routesApi.list(tenantId, { limit: 100 }));
+    } catch (err) {
+      console.error('Failed to load fleet allocation:', err);
+      setError('Unable to load tenant route assignments. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [tenantId]);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    void loadData();
+  }, [loadData]);
 
-  const fleetList: FleetAllocationRow[] = routes.map((r, idx) => ({
-    vehicleNumber: r.vehicle?.licensePlate || `CAB-${idx + 101}`,
-    model: r.vehicle?.model || 'Fleet Cab',
-    driverName: r.driver?.name || 'Assigned Driver',
-    rating: r.driver?.rating || 4.8,
-    routeCode: r.routeCode || 'Unassigned',
-    complianceStatus: 'Verified (PUC/FC Valid)',
-    batteryFuel: idx % 2 === 0 ? '82% EV' : 'Fuel Normal',
-    status: r.status === 'IN_PROGRESS' || r.status === 'PLANNED' ? 'Assigned' : 'Available',
-  }));
-
-  const filteredFleet = fleetList.filter((item) => {
-    const q = searchTerm.toLowerCase();
-    const matchesSearch =
-      item.vehicleNumber.toLowerCase().includes(q) ||
-      item.driverName.toLowerCase().includes(q) ||
-      item.model.toLowerCase().includes(q);
-    const matchesStatus = statusFilter === 'All' || item.status === statusFilter;
+  const vehicleCount = new Set(routes.map((route) => route.vehicleId).filter(Boolean)).size;
+  const driverAssignedCount = routes.filter((route) => Boolean(route.driverId)).length;
+  const inProgressCount = routes.filter((route) => route.status === 'IN_PROGRESS').length;
+  const filteredRoutes = useMemo(() => routes.filter((route) => {
+    const query = search.trim().toLowerCase();
+    const matchesSearch = !query || [
+      route.vehicle?.registrationNumber,
+      route.vehicle?.model,
+      route.driver?.fullName,
+      route.driverName,
+      route.routeCode,
+      route.routeNumber,
+    ].some((value) => value?.toLowerCase().includes(query));
+    const matchesStatus = statusFilter === 'All' || route.status === statusFilter;
     return matchesSearch && matchesStatus;
-  });
+  }), [routes, search, statusFilter]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {/* Top Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
             Fleet & Driver Allocation
           </h1>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
-            Assign cabs to corridors, monitor driver background verifications, and manage standby backup fleet
+          <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '4px 0 0' }}>
+            Vehicle and driver assignments from tenant route records
           </p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button
-            type="button"
-            onClick={loadData}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '8px 12px',
-              backgroundColor: 'var(--bg-surface)',
-              border: '1px solid var(--border-color)',
-              color: 'var(--text-secondary)',
-              borderRadius: 6,
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            <RefreshCw size={14} className={loading ? 'spin' : ''} /> Sync Allocation
-          </button>
-        </div>
+        <button type="button" onClick={() => void loadData()} disabled={loading} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 12px', border: '1px solid var(--border-color)', borderRadius: 6 }}>
+          <RefreshCw size={14} className={loading ? 'spin' : ''} /> Refresh
+        </button>
       </div>
 
-      {/* KPI Cards */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: 16,
-        }}
-      >
-        <MetricCard
-          label="Total Assigned Fleet"
-          value={`${routes.length} Cabs`}
-          delta="Routes Covered"
-          deltaType="positive"
-          icon={<Car size={20} />}
-          category="primary"
-        />
-        <MetricCard
-          label="Drivers On-Duty"
-          value={`${routes.length} Drivers`}
-          delta="Avg Rating: 4.8 ★"
-          deltaType="positive"
-          icon={<UserCheck size={20} />}
-          category="success"
-        />
-        <MetricCard
-          label="Corridor Coverage"
-          value="100%"
-          delta="Ready for Dispatch"
-          deltaType="neutral"
-          icon={<Truck size={20} />}
-          category="info"
-        />
-        <MetricCard
-          label="Clean Mobility"
-          value="EV Fleet"
-          delta="Zero-Emission Focus"
-          deltaType="positive"
-          icon={<BatteryCharging size={20} />}
-          category="success"
-        />
+      {error && <div role="alert" className="surface-card" style={{ padding: 14, color: '#B91C1C' }}>{error}</div>}
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+        <MetricCard label="Routes loaded" value={loading ? '...' : routes.length.toLocaleString()} icon={<Route size={20} />} category="primary" />
+        <MetricCard label="Vehicles assigned to routes" value={loading ? '...' : vehicleCount.toLocaleString()} icon={<Car size={20} />} category="info" />
+        <MetricCard label="Routes with driver assigned" value={loading ? '...' : driverAssignedCount.toLocaleString()} icon={<UserCheck size={20} />} category="success" />
+        <MetricCard label="Routes in progress" value={loading ? '...' : inProgressCount.toLocaleString()} icon={<Route size={20} />} category="warning" />
       </div>
 
-      {/* Filter and Search Bar */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12,
-          padding: '12px 16px',
-          backgroundColor: 'var(--bg-surface)',
-          borderRadius: 8,
-          border: '1px solid var(--border-color)',
-          flexWrap: 'wrap',
-        }}
-      >
-        <div style={{ position: 'relative', minWidth: 280, flex: 1 }}>
-          <Search size={16} style={{ position: 'absolute', left: 12, top: 11, color: 'var(--text-muted)' }} />
+      <div className="surface-card" style={{ padding: 14, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ position: 'relative', minWidth: 260, flex: 1 }}>
+          <Search size={15} style={{ position: 'absolute', left: 10, top: 10, color: 'var(--text-muted)' }} />
           <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search by cab number, driver or vehicle model..."
-            style={{
-              width: '100%',
-              padding: '8px 12px 8px 36px',
-              borderRadius: 6,
-              border: '1px solid var(--border-color)',
-              fontSize: 13,
-              backgroundColor: 'var(--bg-surface-muted)',
-            }}
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search vehicle, driver, or route..."
+            aria-label="Search route assignments"
+            style={{ width: '100%', height: 36, padding: '0 10px 0 32px', border: '1px solid var(--border-color)', borderRadius: 6 }}
           />
         </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            style={{
-              padding: '8px 12px',
-              borderRadius: 6,
-              border: '1px solid var(--border-color)',
-              fontSize: 13,
-              backgroundColor: 'var(--bg-surface)',
-              color: 'var(--text-primary)',
-            }}
-          >
-            <option value="All">All Allocation Statuses</option>
-            <option value="Assigned">Assigned</option>
-            <option value="Available">Available / Standby</option>
-          </select>
-        </div>
+        <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} aria-label="Filter by route status" style={{ height: 36, padding: '0 10px', border: '1px solid var(--border-color)', borderRadius: 6 }}>
+          <option value="All">All statuses</option>
+          {Array.from(new Set(routes.map((route) => route.status))).map((status) => <option key={status} value={status}>{status}</option>)}
+        </select>
       </div>
 
-      {/* Fleet Allocation Table */}
-      <div
-        style={{
-          backgroundColor: 'var(--bg-surface)',
-          borderRadius: 8,
-          border: '1px solid var(--border-color)',
-          overflow: 'hidden',
-        }}
-      >
-        {loading ? (
-          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
-            Loading fleet allocations...
-          </div>
-        ) : filteredFleet.length === 0 ? (
-          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>
-            No fleet allocations found. Deploy routes to view vehicle and driver assignments.
-          </div>
+      <section className="surface-card" style={{ padding: 20 }}>
+        {loading ? <p>Loading route assignments...</p> : filteredRoutes.length === 0 ? (
+          <p style={{ color: 'var(--text-secondary)' }}>No route assignments match these filters.</p>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
+          <div className="table-scroll">
+            <table className="data-table">
               <thead>
-                <tr style={{ backgroundColor: 'var(--bg-surface-muted)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
-                  <th style={{ padding: '12px 16px' }}>Vehicle Plate</th>
-                  <th style={{ padding: '12px 16px' }}>Vehicle Model</th>
-                  <th style={{ padding: '12px 16px' }}>Assigned Driver</th>
-                  <th style={{ padding: '12px 16px' }}>Assigned Route</th>
-                  <th style={{ padding: '12px 16px' }}>Compliance</th>
-                  <th style={{ padding: '12px 16px' }}>Energy</th>
-                  <th style={{ padding: '12px 16px' }}>Status</th>
-                </tr>
+                <tr><th>Route</th><th>Vehicle</th><th>Model</th><th>Driver</th><th>Passengers / capacity</th><th>Date / shift</th><th>Status</th></tr>
               </thead>
               <tbody>
-                {filteredFleet.map((item) => (
-                  <tr key={item.vehicleNumber} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                    <td style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      <span
-                        style={{
-                          padding: '2px 8px',
-                          backgroundColor: 'var(--color-blue-bg)',
-                          color: 'var(--brand-primary)',
-                          borderRadius: 4,
-                          fontSize: 12,
-                          fontFamily: 'monospace',
-                        }}
-                      >
-                        {item.vehicleNumber}
-                      </span>
-                    </td>
-                    <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {item.model}
-                    </td>
-                    <td style={{ padding: '14px 16px' }}>
-                      <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{item.driverName}</div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#D97706' }}>
-                        <Star size={12} fill="#D97706" /> {item.rating.toFixed(1)} rating
-                      </div>
-                    </td>
-                    <td style={{ padding: '14px 16px' }}>
-                      <span
-                        style={{
-                          padding: '2px 8px',
-                          backgroundColor: 'var(--color-blue-bg)',
-                          color: 'var(--brand-primary)',
-                          borderRadius: 4,
-                          fontSize: 11,
-                          fontWeight: 600,
-                        }}
-                      >
-                        {item.routeCode}
-                      </span>
-                    </td>
-                    <td style={{ padding: '14px 16px' }}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--color-success-text)', fontSize: 12, fontWeight: 600 }}>
-                        <CheckCircle2 size={13} /> {item.complianceStatus}
-                      </span>
-                    </td>
-                    <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {item.batteryFuel}
-                    </td>
-                    <td style={{ padding: '14px 16px' }}>
-                      <span
-                        style={{
-                          padding: '3px 8px',
-                          backgroundColor: item.status === 'Assigned' ? 'var(--color-success-bg)' : 'var(--color-warning-bg)',
-                          color: item.status === 'Assigned' ? 'var(--color-success-text)' : 'var(--color-warning-text)',
-                          borderRadius: 4,
-                          fontSize: 11,
-                          fontWeight: 600,
-                        }}
-                      >
-                        {item.status}
-                      </span>
-                    </td>
+                {filteredRoutes.map((route) => (
+                  <tr key={route.id}>
+                    <td>{route.routeNumber ?? route.routeCode ?? route.id}</td>
+                    <td>{route.vehicle?.registrationNumber ?? route.vehiclePlate ?? '—'}</td>
+                    <td>{route.vehicle?.model ?? '—'}</td>
+                    <td>{route.driver?.fullName ?? route.driverName ?? '—'}</td>
+                    <td>{route.assignedPassengerCount} / {route.vehicle?.capacity ?? route.maxCapacity}</td>
+                    <td>{route.shiftDate} · {route.shiftTime}</td>
+                    <td>{route.status}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         )}
-      </div>
+        <p style={{ color: 'var(--text-secondary)', fontSize: 12 }}>
+          The route API does not include unassigned standby vehicles, compliance documents, driver ratings, or fuel telemetry.
+        </p>
+      </section>
     </div>
   );
 }

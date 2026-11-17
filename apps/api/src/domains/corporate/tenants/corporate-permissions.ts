@@ -47,6 +47,7 @@ export const CORPORATE_PERMISSIONS = [
   'policy:read',
   'policy:write',
   'invoices:read',
+  'bookings:read',
   'billing:write',
   'reports:read',
 ] as const;
@@ -58,7 +59,7 @@ const READS = CORPORATE_PERMISSIONS.filter((p) => p.endsWith(':read')) as Corpor
 /**
  * Role -> permission matrix. Platform ADMIN bypasses it. Segregation of duties:
  * - HR owns people data; FINANCE sees invoices / cost centers but no employee PII.
- * - Operational modules are managed by UserRole.OPS rather than corporate roles.
+ * - Operational mutations are managed by UserRole.OPS; tenant booking reads are explicitly permissioned.
  * - READ_ONLY can read everything and mutate nothing.
  */
 export const CORPORATE_ROLE_PERMISSIONS: Readonly<Record<CorporateRole, ReadonlySet<CorporatePermission>>> = {
@@ -87,6 +88,7 @@ export const CORPORATE_ROLE_PERMISSIONS: Readonly<Record<CorporateRole, Readonly
     'zones:write',
     'costcenters:read',
     'policy:read',
+    'bookings:read',
     'reports:read',
   ]),
   [CorporateRole.FINANCE]: new Set<CorporatePermission>([

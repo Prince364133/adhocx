@@ -24,10 +24,18 @@ export interface GoogleRouteMapOffice {
   lng: number;
 }
 
+export interface GoogleRouteMapLivePosition {
+  lat: number;
+  lng: number;
+  recordedAt: string;
+  gpsState: 'LIVE' | 'STALE' | 'OFFLINE';
+}
+
 interface GoogleRouteMapProps {
   office: GoogleRouteMapOffice | null;
   stops: GoogleRouteMapStop[];
   decodedPath?: Array<{ lat: number; lng: number }>;
+  livePosition?: GoogleRouteMapLivePosition | null;
   highlightedStopSequence?: number | null;
   onSelectStop?: (stopSequence: number) => void;
   height?: number | string;
@@ -61,6 +69,7 @@ export function GoogleRouteMap({
   office,
   stops,
   decodedPath,
+  livePosition,
   highlightedStopSequence,
   onSelectStop,
   height = 540,
@@ -106,6 +115,13 @@ export function GoogleRouteMap({
     }
     return pts;
   }, [decodedPath, validStops, office]);
+  const hasCoordinates =
+    validStops.length > 0 ||
+    (office !== null && Number.isFinite(Number(office.lat)) && Number.isFinite(Number(office.lng))) ||
+    (livePosition !== null &&
+      livePosition !== undefined &&
+      Number.isFinite(livePosition.lat) &&
+      Number.isFinite(livePosition.lng));
 
   useEffect(() => {
     if (!apiKey) return;
@@ -149,6 +165,11 @@ export function GoogleRouteMap({
 
   useEffect(() => {
     if (!mapReady || !containerRef.current) return;
+    if (!hasCoordinates) {
+      setMapError('No saved route or GPS coordinates are available for this trip.');
+      return;
+    }
+    setMapError(null);
     let cancelled = false;
 
     async function renderMap() {
@@ -172,7 +193,9 @@ export function GoogleRouteMap({
           ? { lat: Number(office.lat), lng: Number(office.lng) }
           : validStops[0]
             ? { lat: Number(validStops[0].lat), lng: Number(validStops[0].lng) }
-            : { lat: 17.4435, lng: 78.3772 };
+            : livePosition && Number.isFinite(Number(livePosition.lat))
+              ? { lat: Number(livePosition.lat), lng: Number(livePosition.lng) }
+              : { lat: 17.4435, lng: 78.3772 };
       const root = document.documentElement;
       const isDark = root.getAttribute('data-theme') === 'dark' || root.classList.contains('dark');
       const routeColor =
@@ -264,6 +287,36 @@ export function GoogleRouteMap({
         markersRef.current.push(marker);
       }
 
+      if (
+        livePosition &&
+        Number.isFinite(livePosition.lat) &&
+        Number.isFinite(livePosition.lng)
+      ) {
+        const position = { lat: livePosition.lat, lng: livePosition.lng };
+        bounds.extend(position);
+        const vehicleMarker = new google.maps.Marker({
+          position,
+          map: mapRef.current,
+          label: {
+            text: 'GPS',
+            color: '#FFFFFF',
+            fontWeight: '700',
+            fontSize: '10px',
+          },
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 13,
+            fillColor: livePosition.gpsState === 'LIVE' ? '#2563EB' : '#64748B',
+            fillOpacity: 1,
+            strokeColor: '#FFFFFF',
+            strokeWeight: 2.5,
+          },
+          title: `${livePosition.gpsState} position recorded ${formatIstTime(livePosition.recordedAt)}`,
+          zIndex: 300,
+        });
+        markersRef.current.push(vehicleMarker);
+      }
+
       if (office && Number.isFinite(Number(office.lat)) && Number.isFinite(Number(office.lng))) {
         const officePos = { lat: Number(office.lat), lng: Number(office.lng) };
         bounds.extend(officePos);
@@ -311,7 +364,7 @@ export function GoogleRouteMap({
     return () => {
       cancelled = true;
     };
-  }, [mapReady, pathPoints, validStops, office, highlightedStopSequence, onSelectStop, themeRevision]);
+  }, [mapReady, pathPoints, validStops, office, livePosition, hasCoordinates, highlightedStopSequence, onSelectStop, themeRevision]);
 
   if (mapError) {
     return (

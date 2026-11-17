@@ -159,15 +159,14 @@ export default function CompaniesPage() {
     [],
   );
 
-  function handleCreated(companyId: string, logoUploadFailed: boolean) {
+  function handleCreated(companyId: string, logoUploadFailed: boolean, portalAccessCreated: boolean) {
     setDrawerOpen(false);
     setPagination((current) => ({ ...current, page: 1 }));
     setRefreshKey((current) => current + 1);
-    if (logoUploadFailed) {
-      router.push(`/companies/${companyId}?logoUpload=failed`);
-    } else {
-      router.push(`/companies/${companyId}`);
-    }
+    const params = new URLSearchParams();
+    if (logoUploadFailed) params.set('logoUpload', 'failed');
+    params.set('portalAccess', portalAccessCreated ? 'created' : 'not-confirmed');
+    router.push(`/companies/${companyId}?${params.toString()}`);
   }
 
   return (

@@ -16,26 +16,32 @@ import {
 } from 'lucide-react';
 import { tripsApi, tenantApi } from '../../../lib/api/corporate';
 import { BookingRequestItem, Office } from '../../../lib/api/types';
+import { useSession } from '../../../lib/auth/SessionContext';
 
-interface PageProps {
-  searchParams?: { tenantId?: string };
-}
-
-export default function ApprovalsPage({ searchParams }: PageProps) {
-  const tenantId = searchParams?.tenantId;
-  const activeTenantId = tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+export default function ApprovalsPage() {
+  const { tenantId: activeTenantId } = useSession();
 
   const [items, setItems] = useState<BookingRequestItem[]>([]);
   const [offices, setOffices] = useState<Office[]>([]);
   const [activeTab, setActiveTab] = useState<'all' | 'login' | 'logout'>('all');
   const [selectedOffice, setSelectedOffice] = useState('All Offices');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const loadPending = () => {
+    if (!activeTenantId) {
+      setItems([]);
+      setOffices([]);
+      setLoadError(null);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
+    setLoadError(null);
     Promise.all([
       tripsApi.requests({ tenantId: activeTenantId, status: 'UNSERVED' }),
-      tenantApi.offices(activeTenantId).catch(() => []),
+      tenantApi.offices(activeTenantId),
     ])
       .then(([res, offList]) => {
         setItems(res?.items || []);
@@ -43,6 +49,9 @@ export default function ApprovalsPage({ searchParams }: PageProps) {
       })
       .catch((err) => {
         console.warn('Failed to load pending approvals:', err);
+        setItems([]);
+        setOffices([]);
+        setLoadError(err instanceof Error ? err.message : 'Failed to load approval data.');
       })
       .finally(() => {
         setLoading(false);
@@ -54,22 +63,26 @@ export default function ApprovalsPage({ searchParams }: PageProps) {
   }, [activeTenantId]);
 
   const handleApprove = async (id: string, reqId: string) => {
+    setActionError(null);
     try {
       await tripsApi.reviewRequest(id, { decision: 'APPROVE' });
       setItems((prev) => prev.filter((item) => item.id !== id));
       alert(`Approved request ${reqId}`);
     } catch (err) {
       console.warn('Approve error:', err);
+      setActionError(err instanceof Error ? err.message : 'Failed to approve booking request.');
     }
   };
 
   const handleReject = async (id: string, reqId: string) => {
+    setActionError(null);
     try {
       await tripsApi.reviewRequest(id, { decision: 'REJECT' });
       setItems((prev) => prev.filter((item) => item.id !== id));
       alert(`Rejected request ${reqId}`);
     } catch (err) {
       console.warn('Reject error:', err);
+      setActionError(err instanceof Error ? err.message : 'Failed to reject booking request.');
     }
   };
 
@@ -83,6 +96,8 @@ export default function ApprovalsPage({ searchParams }: PageProps) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {loadError && <div role="alert" className="surface-card" style={{ padding: 16, color: '#B91C1C' }}>{loadError}</div>}
+      {actionError && <div role="alert" className="surface-card" style={{ padding: 16, color: '#B91C1C' }}>{actionError}</div>}
       {/* Title & Filter Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         <div>
@@ -189,7 +204,7 @@ export default function ApprovalsPage({ searchParams }: PageProps) {
                     </td>
                     <td style={{ padding: '14px' }}>
                       <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
-                        {req.employee?.fullName || 'Enterprise Employee'}
+                        {req.employee?.fullName || '—'}
                       </div>
                       <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                         {req.employee?.employeeCode || '—'}
@@ -211,7 +226,7 @@ export default function ApprovalsPage({ searchParams }: PageProps) {
                       </span>
                     </td>
                     <td style={{ padding: '14px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                      {req.roster?.office?.name || 'Main Campus'}
+                      {req.roster?.office?.name || '—'}
                     </td>
                     <td style={{ padding: '14px', fontSize: '12px', color: 'var(--text-secondary)' }}>
                       {req.scheduledDate} {req.shiftTime}

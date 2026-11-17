@@ -16,6 +16,7 @@ export interface CreateCorporateTenantDto {
   primaryContactName?: string;
   primaryContactEmail?: string;
   primaryContactPhone?: string;
+  createPortalAdmin?: boolean;
   billingAddress?: string;
   billingSameAsRegistered?: boolean;
 }
@@ -72,7 +73,7 @@ export interface OnboardCorporateCompanyDto {
   shiftTemplate?: OnboardCorporateShiftInputDto;
 }
 
-export interface UpdateCorporateTenantDto extends Partial<Omit<CreateCorporateTenantDto, 'code'>> {
+export interface UpdateCorporateTenantDto extends Partial<Omit<CreateCorporateTenantDto, 'code' | 'createPortalAdmin'>> {
   status?: CorporateTenantStatus;
   logoUrl?: string | null;
 }

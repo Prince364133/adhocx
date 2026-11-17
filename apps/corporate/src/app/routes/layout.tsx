@@ -1,5 +1,6 @@
-import { redirect } from 'next/navigation';
+import React from 'react';
 
-export default function RoutesLayout(): never {
-  redirect('/dashboard');
+export default function RoutesLayout({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
 }
+

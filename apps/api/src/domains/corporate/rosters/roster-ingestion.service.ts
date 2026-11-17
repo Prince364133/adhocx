@@ -62,9 +62,9 @@ export class RosterIngestionService {
     // Cache active office codes for tenant
     const activeOffices = await this.db.corporateOffice.findMany({
       where: { tenantId, isActive: true },
-      select: { id: true, code: true, latitude: true, longitude: true },
+      select: { id: true, code: true, name: true, addressText: true, latitude: true, longitude: true },
     });
-    const officeCodeMap = new Map(activeOffices.map((o) => [o.code.toUpperCase(), o]));
+    const officeCodeMap = this.buildOfficeMap(activeOffices);
 
     // Track internal duplicates
     const seenLoginKeys = new Set<string>();
@@ -125,15 +125,15 @@ export class RosterIngestionService {
       }
 
       // 6. Office Code
-      const upperOfficeCode = (row.officeCode || '').trim().toUpperCase();
-      if (!upperOfficeCode || !officeCodeMap.has(upperOfficeCode)) {
+      const matchedOffice = this.resolveRowOffice(row.officeCode, activeOffices, officeCodeMap);
+      if (!matchedOffice) {
         rowErrors.push({
           rowNumber: row.rowNumber,
           field: 'office_code',
           invalidValue: row.officeCode,
           message: `Office code '${row.officeCode}' is not registered under this corporate account`,
         });
-      } else if (officeScope && !officeScope.includes(officeCodeMap.get(upperOfficeCode)!.id)) {
+      } else if (officeScope && !officeScope.includes(matchedOffice.id)) {
         // WS-F: an office-scoped uploader may only roster employees of their own offices.
         rowErrors.push({
           rowNumber: row.rowNumber,
@@ -253,7 +253,7 @@ export class RosterIngestionService {
     const activeOffices = await this.db.corporateOffice.findMany({
       where: { tenantId, isActive: true },
     });
-    const officeCodeMap = new Map(activeOffices.map((o) => [o.code.toUpperCase(), o]));
+    const officeCodeMap = this.buildOfficeMap(activeOffices);
 
     let loginCreated = 0;
     let logoutCreated = 0;
@@ -263,7 +263,10 @@ export class RosterIngestionService {
     const result = await this.db.$transaction(async (tx) => {
       // 1. Group rows by roster date & shift time to create CorporateRoster header records
       const firstRow = rows[0];
-      const office = officeCodeMap.get(firstRow.officeCode.trim().toUpperCase())!;
+      const office = this.resolveRowOffice(firstRow.officeCode, activeOffices, officeCodeMap);
+      if (!office) {
+        throw new BadRequestException(`Office code '${firstRow.officeCode}' is not registered under this corporate account`);
+      }
 
       // Master roster header
       const masterRoster = await tx.corporateRoster.create({
@@ -282,7 +285,8 @@ export class RosterIngestionService {
       });
 
       for (const row of rows) {
-        const rowOffice = officeCodeMap.get(row.officeCode.trim().toUpperCase())!;
+        const rowOffice = this.resolveRowOffice(row.officeCode, activeOffices, officeCodeMap);
+        if (!rowOffice) continue;
         const point = await this.upsertEmployeeFromRow(tx, tenantId, row, rowOffice);
 
         // 2. Generate Transport Requests (LOGIN: home -> office, LOGOUT: office -> home)
@@ -368,7 +372,7 @@ export class RosterIngestionService {
 
     const rows = await this.parseExcelRows(buffer);
     const offices = await this.db.corporateOffice.findMany({ where: { tenantId, isActive: true } });
-    const officeCodeMap = new Map(offices.map((o) => [o.code.toUpperCase(), o]));
+    const officeCodeMap = this.buildOfficeMap(offices);
     const templates = await this.db.corporateShiftTemplate.findMany({
       where: { tenantId, isActive: true },
       select: { officeId: true, loginTime: true, logoutTime: true, isOvernight: true, isActive: true, weekdays: true },
@@ -379,7 +383,10 @@ export class RosterIngestionService {
     }
 
     const firstRow = rows[0];
-    const headOffice = officeCodeMap.get(firstRow.officeCode.trim().toUpperCase())!;
+    const headOffice = this.resolveRowOffice(firstRow.officeCode, offices, officeCodeMap);
+    if (!headOffice) {
+      throw new BadRequestException(`Office code '${firstRow.officeCode}' is not registered under this corporate account`);
+    }
     const rosterDate = new Date(`${firstRow.rosterDate}T00:00:00.000Z`);
 
     const result = await this.db.$transaction(async (tx: any) => {
@@ -404,7 +411,8 @@ export class RosterIngestionService {
 
       const entries: any[] = [];
       for (const row of rows) {
-        const rowOffice = officeCodeMap.get(row.officeCode.trim().toUpperCase())!;
+        const rowOffice = this.resolveRowOffice(row.officeCode, offices, officeCodeMap);
+        if (!rowOffice) continue;
         const point = await this.upsertEmployeeFromRow(tx, tenantId, row, rowOffice);
         for (const line of this.buildDemandLines(tenantId, point, row, rowOffice, templatesByOffice.get(rowOffice.id))) {
           entries.push({
@@ -568,12 +576,35 @@ export class RosterIngestionService {
     return lines;
   }
 
+  private buildOfficeMap(offices: any[]): Map<string, any> {
+    const map = new Map<string, any>();
+    for (const o of offices) {
+      if (o.code) map.set(o.code.trim().toUpperCase(), o);
+      if (o.name) map.set(o.name.trim().toUpperCase(), o);
+      if (o.addressText) map.set(o.addressText.trim().toUpperCase(), o);
+    }
+    return map;
+  }
+
+  private resolveRowOffice(rowOfficeCode: string, offices: any[], officeMap: Map<string, any>): any | undefined {
+    const upper = (rowOfficeCode || '').trim().toUpperCase();
+    if (upper && officeMap.has(upper)) return officeMap.get(upper);
+    if (!upper && offices.length === 1) return offices[0];
+    return undefined;
+  }
+
   /**
    * Helper: Parses Excel file rows into strongly-typed RosterRowData structures.
    */
   private async parseExcelRows(buffer: Buffer): Promise<RosterRowData[]> {
     const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(buffer as any);
+    const isZip = buffer.length >= 2 && buffer[0] === 0x50 && buffer[1] === 0x4B;
+    if (isZip) {
+      await workbook.xlsx.load(buffer as any);
+    } else {
+      const { Readable } = await import('stream');
+      await workbook.csv.read(Readable.from(buffer));
+    }
 
     const sheet = workbook.worksheets[0];
     if (!sheet) {
@@ -593,45 +624,61 @@ export class RosterIngestionService {
     sheet.eachRow((row, rowNumber) => {
       if (rowNumber === 1) return; // Skip header
 
-      const getCellString = (key: string): string => {
-        const col = headerMap.get(key);
-        if (!col) return '';
-        const cellVal = row.getCell(col).value;
-        if (cellVal === null || cellVal === undefined) return '';
-        if (typeof cellVal === 'object' && 'text' in cellVal) return (cellVal as any).text.trim();
-        return cellVal.toString().trim();
+      const getCellString = (...keys: string[]): string => {
+        for (const key of keys) {
+          const col = headerMap.get(key);
+          if (!col) continue;
+          const cellVal = row.getCell(col).value;
+          if (cellVal === null || cellVal === undefined) continue;
+          if (cellVal instanceof Date) {
+            const year = cellVal.getFullYear();
+            const month = String(cellVal.getMonth() + 1).padStart(2, '0');
+            const day = String(cellVal.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+          }
+          if (typeof cellVal === 'object' && 'text' in cellVal) {
+            const text = (cellVal as any).text?.trim();
+            if (text) return text;
+          }
+          const str = cellVal.toString().trim();
+          if (str.length > 0) return str;
+        }
+        return '';
       };
 
-      const getCellNumber = (key: string): number | undefined => {
-        const col = headerMap.get(key);
-        if (!col) return undefined;
-        const cellVal = row.getCell(col).value;
-        if (cellVal === null || cellVal === undefined) return undefined;
-        const num = parseFloat(cellVal.toString());
-        return isNaN(num) ? undefined : num;
+      const getCellNumber = (...keys: string[]): number | undefined => {
+        for (const key of keys) {
+          const col = headerMap.get(key);
+          if (!col) continue;
+          const cellVal = row.getCell(col).value;
+          if (cellVal === null || cellVal === undefined) continue;
+          const num = parseFloat(cellVal.toString());
+          if (!isNaN(num)) return num;
+        }
+        return undefined;
       };
 
-      const employeeId = getCellString('employee_id');
-      const fullName = getCellString('full_name');
+      const employeeId = getCellString('employee_id', 'employee_code', 'emp_id', 'emp_code', 'code');
+      const fullName = getCellString('full_name', 'employee_name', 'emp_name', 'name');
       if (!employeeId && !fullName) return; // Skip blank rows
 
       rows.push({
         rowNumber,
         employeeId,
         fullName,
-        email: getCellString('email'),
-        phoneNumber: getCellString('phone_number'),
-        gender: getCellString('gender').toUpperCase() as any,
-        department: getCellString('department') || undefined,
+        email: getCellString('email', 'email_address', 'work_email', 'corporate_email'),
+        phoneNumber: getCellString('phone_number', 'phone', 'mobile', 'mobile_number', 'contact'),
+        gender: getCellString('gender', 'sex').toUpperCase() as any,
+        department: getCellString('department', 'dept', 'team') || undefined,
         costCenter: getCellString('cost_center') || undefined,
-        officeCode: getCellString('office_code'),
-        rosterDate: getCellString('roster_date'),
-        loginTime: getCellString('login_time') || undefined,
-        logoutTime: getCellString('logout_time') || undefined,
-        homeAddress: getCellString('home_address'),
+        officeCode: getCellString('office_code', 'office', 'office_address'),
+        rosterDate: getCellString('roster_date', 'required_arrival_date', 'arrival_date', 'shift_date', 'scheduled_date'),
+        loginTime: getCellString('login_time', 'required_arrival_time', 'arrival_time', 'shift_time', 'reporting_time') || undefined,
+        logoutTime: getCellString('logout_time', 'required_logout_time', 'shift_end_time', 'departure_time') || undefined,
+        homeAddress: getCellString('home_address', 'pickup_address', 'pickup_location', 'address'),
         landmark: getCellString('landmark') || undefined,
-        latitude: getCellNumber('latitude'),
-        longitude: getCellNumber('longitude'),
+        latitude: getCellNumber('latitude', 'lat'),
+        longitude: getCellNumber('longitude', 'lng', 'lon'),
         specialNotes: getCellString('special_notes') || undefined,
       });
     });

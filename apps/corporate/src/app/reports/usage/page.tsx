@@ -1,256 +1,156 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import {
-  Users,
-  Download,
-  Calendar,
-  Building,
-  TrendingUp,
-  PieChart,
-  UserCheck,
-  Layers,
-} from 'lucide-react';
-import { employeeApi, tenantApi, analyticsApi } from '../../../lib/api/corporate';
-import { Employee, Department } from '../../../lib/api/types';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Download, Users, UserCheck, Route, CheckCircle2 } from 'lucide-react';
+import { analyticsApi, employeeApi } from '../../../lib/api/corporate';
+import type { AttendancePage, Employee } from '../../../lib/api/types';
 import MetricCard from '../../../components/common/MetricCard';
 import { DonutChart } from '../../../components/charts/DonutChart';
+import { useSession } from '../../../lib/auth/SessionContext';
 
-interface PageProps {
-  searchParams?: { tenantId?: string };
-}
+const chartColors = ['#5728B2', '#38BDF8', '#8B5CF6', '#F59E0B', '#10B981', '#EC4899'];
 
-export default function EmployeeUsageReportPage({ searchParams }: PageProps) {
-  const activeTenantId = searchParams?.tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
+export default function EmployeeUsageReportPage() {
+  const { tenantId } = useSession();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
+  const [employeeTotal, setEmployeeTotal] = useState(0);
+  const [attendance, setAttendance] = useState<AttendancePage | null>(null);
 
   useEffect(() => {
-    async function loadData() {
-      if (!activeTenantId) return;
-      try {
-        setLoading(true);
-        const [empRes, deptRes] = await Promise.all([
-          employeeApi.list(activeTenantId, { limit: 100 }),
-          tenantApi.departments(activeTenantId).catch(() => []),
-        ]);
-        setEmployees(empRes.items || []);
-        setDepartments(deptRes || []);
-      } catch (err) {
-        console.error('Failed to load employee usage data:', err);
-      } finally {
-        setLoading(false);
-      }
+    if (!tenantId) {
+      setEmployees([]);
+      setEmployeeTotal(0);
+      setAttendance(null);
+      setLoading(false);
+      return;
     }
-    loadData();
-  }, [activeTenantId]);
 
-  const totalRegistered = employees.length;
-  const transportEligible = employees.filter(e => e.status === 'ACTIVE').length;
-  const regularCommuters = Math.round(transportEligible * 0.85);
-  const occasionalCommuters = transportEligible - regularCommuters;
+    let active = true;
+    const to = new Date().toISOString().slice(0, 10);
+    const from = new Date(Date.now() - 29 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    setLoading(true);
+    setError(null);
+    Promise.all([
+      employeeApi.list(tenantId, { limit: 100 }),
+      analyticsApi.attendance({ tenantId, from, to, pageSize: 100 }),
+    ])
+      .then(([employeeResult, attendanceResult]) => {
+        if (!active) return;
+        setEmployees(employeeResult.items);
+        setEmployeeTotal(employeeResult.pagination.total);
+        setAttendance(attendanceResult);
+      })
+      .catch((err) => {
+        console.error('Failed to load employee usage data:', err);
+        if (active) setError('Unable to load employee usage data. Please try again.');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
 
-  // Group by department
-  const deptCounts = new Map<string, number>();
-  employees.forEach(e => {
-    const deptName = (typeof e.department === 'string' ? e.department : (e.department as any)?.name) || 'General Operations';
-    deptCounts.set(deptName, (deptCounts.get(deptName) || 0) + 1);
-  });
-
-  const departmentUsage = Array.from(deptCounts.entries()).map(([department, count]) => {
-    const pct = totalRegistered > 0 ? ((count / totalRegistered) * 100).toFixed(1) : '0';
-    return {
-      department,
-      activeUsers: count,
-      tripsMonth: count * 44, // approx 2 trips/day * 22 days
-      utilization: `${pct}%`,
+    return () => {
+      active = false;
     };
-  });
+  }, [tenantId]);
 
-  const donutColors = ['var(--brand-primary)', '#38BDF8', 'var(--color-chart-purple)', '#F59E0B', '#10B981', '#EC4899'];
-  const shiftUsageChartData = departmentUsage.length > 0
-    ? departmentUsage.slice(0, 5).map((d, idx) => ({
-        label: d.department,
-        count: d.activeUsers,
-        pct: totalRegistered > 0 ? Math.round((d.activeUsers / totalRegistered) * 100) : 0,
-        color: donutColors[idx % donutColors.length],
-      }))
-    : [
-        { label: 'General Shift', count: regularCommuters, pct: 85, color: 'var(--brand-primary)' },
-        { label: 'Evening Shift', count: occasionalCommuters, pct: 15, color: '#38BDF8' },
-      ];
+  const activeEmployees = employees.filter((employee) => employee.isActive).length;
+  const scheduledRides = attendance?.items.reduce((sum, item) => sum + item.scheduledRides, 0) ?? 0;
+  const boardedRides = attendance?.items.reduce((sum, item) => sum + item.boarded, 0) ?? 0;
+
+  const departmentUsage = useMemo(() => {
+    const ridesByEmployee = new Map((attendance?.items ?? []).map((item) => [item.employeeId, item]));
+    const counts = new Map<string, { employees: number; scheduled: number; boarded: number }>();
+    for (const employee of employees) {
+      const department = employee.department || 'Unassigned';
+      const value = counts.get(department) ?? { employees: 0, scheduled: 0, boarded: 0 };
+      const rides = ridesByEmployee.get(employee.id);
+      value.employees += 1;
+      value.scheduled += rides?.scheduledRides ?? 0;
+      value.boarded += rides?.boarded ?? 0;
+      counts.set(department, value);
+    }
+    return Array.from(counts.entries()).map(([department, values]) => ({ department, ...values }));
+  }, [employees, attendance]);
+
+  const chartData = departmentUsage.slice(0, 6).map((item, index) => ({
+    label: item.department,
+    count: item.employees,
+    pct: employeeTotal > 0 ? Math.round((item.employees / employeeTotal) * 100) : 0,
+    color: chartColors[index % chartColors.length],
+  }));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {/* Top Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-            Employee Commute Adoption & Usage Report
+            Employee Usage Report
           </h1>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
-            Workforce commute patterns, department participation rates, shift rosters and active passenger volume
+          <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '4px 0 0' }}>
+            Tenant employee and attendance records for the last 30 days
           </p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button
-            type="button"
-            onClick={() => {
-              if (activeTenantId) {
-                analyticsApi.downloadReport({ tenantId: activeTenantId, type: 'attendance', format: 'csv' });
-              }
-            }}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '8px 14px',
-              backgroundColor: 'var(--bg-surface)',
-              border: '1px solid var(--border-color)',
-              color: 'var(--text-secondary)',
-              borderRadius: 6,
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            <Download size={14} /> Export Usage CSV
-          </button>
-        </div>
+        <button
+          type="button"
+          disabled={!tenantId}
+          onClick={() => tenantId && analyticsApi.downloadReport({ tenantId, type: 'attendance', format: 'csv' })}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', border: '1px solid var(--border-color)', borderRadius: 6 }}
+        >
+          <Download size={14} /> Export attendance CSV
+        </button>
       </div>
 
-      {/* KPI Cards */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: 16,
-        }}
-      >
-        <MetricCard
-          label="Registered Workforce"
-          value={loading ? '...' : totalRegistered.toLocaleString()}
-          delta="100% HRMS Synced"
-          deltaType="positive"
-          icon={<Users size={20} />}
-          category="primary"
-        />
-        <MetricCard
-          label="Transport Eligible"
-          value={loading ? '...' : transportEligible.toLocaleString()}
-          delta={`${totalRegistered > 0 ? Math.round((transportEligible / totalRegistered) * 100) : 100}% Active`}
-          deltaType="positive"
-          icon={<UserCheck size={20} />}
-          category="success"
-        />
-        <MetricCard
-          label="Regular Daily Commuters"
-          value={loading ? '...' : regularCommuters.toLocaleString()}
-          delta="85.0% Daily Active Rate"
-          deltaType="positive"
-          icon={<TrendingUp size={20} />}
-          category="info"
-        />
-        <MetricCard
-          label="Occasional / Ad-hoc"
-          value={loading ? '...' : occasionalCommuters.toLocaleString()}
-          delta="On-demand requests"
-          deltaType="neutral"
-          icon={<PieChart size={20} />}
-          category="warning"
-        />
+      {error && <div role="alert" className="surface-card" style={{ padding: 14, color: '#B91C1C' }}>{error}</div>}
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+        <MetricCard label="Registered employees" value={loading ? '...' : employeeTotal.toLocaleString()} icon={<Users size={20} />} category="primary" />
+        <MetricCard label="Active employees loaded" value={loading ? '...' : activeEmployees.toLocaleString()} icon={<UserCheck size={20} />} category="success" />
+        <MetricCard label="Scheduled rides (30 days)" value={loading ? '...' : attendance ? scheduledRides.toLocaleString() : '—'} icon={<Route size={20} />} category="info" />
+        <MetricCard label="Boarded rides (30 days)" value={loading ? '...' : attendance ? boardedRides.toLocaleString() : '—'} icon={<CheckCircle2 size={20} />} category="warning" />
       </div>
 
-      {/* Two Column Section: Donut Shift Distribution + Summary */}
+      {attendance && attendance.total > attendance.items.length && (
+        <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 12 }}>
+          Showing attendance for {attendance.items.length} of {attendance.total} employees; request additional pages for a complete breakdown.
+        </p>
+      )}
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 16 }}>
-        {/* Department Usage Donut */}
-        <div
-          style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 8,
-            border: '1px solid var(--border-color)',
-            padding: 20,
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-          }}
-        >
-          <div>
-            <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-              Commuter Distribution by Department
-            </h2>
-            <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 16px 0' }}>
-              Proportion of workforce commuting across enterprise departments
-            </p>
-          </div>
-          <DonutChart
-            segments={shiftUsageChartData}
-            totalValue={regularCommuters}
-            totalLabel="Daily Commuters"
-            size={180}
-          />
-        </div>
+        <section className="surface-card" style={{ padding: 20 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 700, marginTop: 0 }}>Employee distribution by department</h2>
+          {chartData.length === 0 ? (
+            <p style={{ color: 'var(--text-secondary)' }}>No employee department data is available.</p>
+          ) : (
+            <DonutChart segments={chartData} totalValue={employeeTotal} totalLabel="Employees" size={180} />
+          )}
+        </section>
 
-        {/* Department Usage Table */}
-        <div
-          style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 8,
-            border: '1px solid var(--border-color)',
-            overflow: 'hidden',
-          }}
-        >
-          <div
-            style={{
-              padding: '16px 20px',
-              borderBottom: '1px solid var(--border-color)',
-              fontSize: 15,
-              fontWeight: 700,
-              color: 'var(--text-primary)',
-            }}
-          >
-            Department-Wise Commuter Participation
-          </div>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
-              <thead>
-                <tr style={{ backgroundColor: 'var(--bg-surface-muted)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
-                  <th style={{ padding: '12px 16px' }}>Department</th>
-                  <th style={{ padding: '12px 16px' }}>Active Users</th>
-                  <th style={{ padding: '12px 16px' }}>Estimated Monthly Trips</th>
-                  <th style={{ padding: '12px 16px' }}>Participation Share</th>
-                </tr>
-              </thead>
-              <tbody>
-                {departmentUsage.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                      No departmental employee data found.
-                    </td>
-                  </tr>
-                ) : (
-                  departmentUsage.map((row, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                      <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                        {row.department}
-                      </td>
-                      <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--brand-primary)' }}>
-                        {row.activeUsers} Users
-                      </td>
-                      <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>
-                        {row.tripsMonth.toLocaleString()} Trips
-                      </td>
-                      <td style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--color-success)' }}>
-                        {row.utilization}
-                      </td>
+        <section className="surface-card" style={{ padding: 20 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 700, marginTop: 0 }}>Department usage</h2>
+          {departmentUsage.length === 0 ? (
+            <p style={{ color: 'var(--text-secondary)' }}>No department records are available.</p>
+          ) : (
+            <div className="table-scroll">
+              <table className="data-table">
+                <thead>
+                  <tr><th>Department</th><th>Employees</th><th>Scheduled rides</th><th>Boarded rides</th></tr>
+                </thead>
+                <tbody>
+                  {departmentUsage.map((item) => (
+                    <tr key={item.department}>
+                      <td>{item.department}</td>
+                      <td>{item.employees}</td>
+                      <td>{item.scheduled}</td>
+                      <td>{item.boarded}</td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );

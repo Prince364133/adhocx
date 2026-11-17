@@ -17,6 +17,7 @@ import { RolesGuard } from '../../../common/guards/roles.guard';
 import { CorporateAccessGuard } from '../../../common/guards/corporate-access.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { CorporateResource, CorporateTenantScoped, CorporateDriverSelfScoped } from '../../../common/decorators/corporate-resource.decorator';
+import { CorporatePermission } from '../tenants/corporate-permissions';
 import { CorporateTripExecutionService } from './corporate-trip-execution.service';
 import { CorporateRiderService } from '../rider/corporate-rider.service';
 import {
@@ -402,8 +403,9 @@ export class CorporateTripExecutionController {
   }
 
   @Get('requests')
-  @Roles(UserRole.ADMIN, UserRole.OPS)
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
   @CorporateTenantScoped()
+  @CorporatePermission('bookings:read')
   @ApiOperation({ summary: 'List and filter corporate transport requests / booking queue across all rosters' })
   public async listRequests(
     @Query('tenantId') tenantId?: string,

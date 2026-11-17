@@ -1,248 +1,71 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import {
-  Database,
-  CheckCircle2,
-  RefreshCw,
-  Clock,
-  Settings,
-  Plus,
-  ArrowRight,
-  ExternalLink,
-  ShieldCheck,
-  Layers,
-} from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { RefreshCw } from 'lucide-react';
 import { tenantApi } from '../../lib/api/corporate';
-import MetricCard from '../../components/common/MetricCard';
+import type { TenantIntegrations } from '../../lib/api/types';
+import { useSession } from '../../lib/auth/SessionContext';
 
-interface PageProps {
-  searchParams?: { tenantId?: string };
-}
-
-export default function HrmsIntegrationPage({ searchParams }: PageProps) {
-  const activeTenantId = searchParams?.tenantId || '9d66820f-280c-400c-98dc-e021d0045b58';
-  const [integrations, setIntegrations] = useState<any[]>([]);
+export default function HrmsIntegrationPage() {
+  const { tenantId, status } = useSession();
+  const [integrations, setIntegrations] = useState<TenantIntegrations | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadIntegrations = useCallback(async () => {
+    if (status === 'loading') return;
+    if (!tenantId) {
+      setLoading(false);
+      setError('Sign in with a corporate account to view this tenant’s integrations.');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      setIntegrations(await tenantApi.integrations(tenantId));
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unable to load tenant integrations.');
+    } finally {
+      setLoading(false);
+    }
+  }, [status, tenantId]);
 
   useEffect(() => {
-    async function fetchIntegrations() {
-      if (!activeTenantId) return;
-      try {
-        setLoading(true);
-        const data = await tenantApi.integrations(activeTenantId);
-        setIntegrations(Array.isArray(data) ? data : []);
-      } catch (err) {
-        console.error('Failed to load integrations:', err);
-        setIntegrations([]);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchIntegrations();
-  }, [activeTenantId]);
-
-  const handleManualSync = () => {
-    setIsSyncing(true);
-    setTimeout(() => {
-      setIsSyncing(false);
-      alert('Manual HRMS synchronization requested. Background worker triggered.');
-    }, 1200);
-  };
-
-  const activeCount = integrations.filter((i) => i.status === 'ACTIVE').length;
+    void loadIntegrations();
+  }, [loadIntegrations]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {/* Top Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-            HRMS Integration & Automated Synchronization
-          </h1>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
-            Bi-directional employee directory sync, shift roster feeds and leaver deactivation pipelines
+          <h1 style={{ margin: 0, fontSize: 20, color: 'var(--text-primary)' }}>HRMS integrations</h1>
+          <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--text-muted)' }}>
+            Connector status reported for the signed-in company.
           </p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button
-            type="button"
-            onClick={handleManualSync}
-            disabled={isSyncing}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '8px 14px',
-              backgroundColor: 'var(--brand-action)',
-              color: '#FFFFFF',
-              borderRadius: 6,
-              fontSize: 13,
-              fontWeight: 600,
-              border: 'none',
-              cursor: isSyncing ? 'not-allowed' : 'pointer',
-              opacity: isSyncing ? 0.8 : 1,
-            }}
-          >
-            <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
-            {isSyncing ? 'Synchronizing HRMS...' : 'Sync Now'}
-          </button>
-        </div>
-      </div>
+        <button type="button" onClick={() => void loadIntegrations()} disabled={loading}>
+          <RefreshCw size={14} /> Refresh
+        </button>
+      </header>
 
-      {/* KPI Cards */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: 16,
-        }}
-      >
-        <MetricCard
-          label="Connected HRMS Adapters"
-          value={loading ? '...' : `${activeCount} Active`}
-          delta="REST Webhook & SFTP Pipelines"
-          deltaType="positive"
-          icon={<Database size={20} />}
-          category="primary"
-        />
-        <MetricCard
-          label="Sync Protocol Health"
-          value="100% Operational"
-          delta="Zero Sync Conflicts"
-          deltaType="positive"
-          icon={<CheckCircle2 size={20} />}
-          category="success"
-        />
-        <MetricCard
-          label="Sync Pipeline Schedule"
-          value="Hourly Cron"
-          delta="Delta sync every 60 min"
-          deltaType="positive"
-          icon={<Clock size={20} />}
-          category="info"
-        />
-        <MetricCard
-          label="Auto-Leaver Deactivation"
-          value="Enforced"
-          delta="Terminated staff auto-unrostered"
-          deltaType="positive"
-          icon={<ShieldCheck size={20} />}
-          category="success"
-        />
-      </div>
-
-      {/* Connected Integrations Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16 }}>
-        {loading ? (
-          <div className="surface-card" style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)' }}>
-            Loading HRMS integrations...
-          </div>
-        ) : integrations.length === 0 ? (
-          <div className="surface-card" style={{ padding: 48, textAlign: 'center', gridColumn: '1 / -1' }}>
-            <Layers size={36} style={{ opacity: 0.3, margin: '0 auto 8px' }} />
-            <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>No Connected HRMS Adapters</p>
-            <p style={{ margin: 4, fontSize: 12, color: 'var(--text-muted)' }}>
-              Configure Workday, Darwinbox or custom webhook endpoints to automate employee sync.
-            </p>
-          </div>
-        ) : (
-          integrations.map((integ) => (
-            <div
-              key={integ.id}
-              style={{
-                backgroundColor: 'var(--bg-surface)',
-                borderRadius: 8,
-                border: '1px solid var(--border-color)',
-                padding: 20,
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-              }}
-            >
-              <div>
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <div>
-                    <span
-                      style={{
-                        padding: '2px 8px',
-                        backgroundColor: integ.status === 'ACTIVE' ? 'var(--color-success-bg)' : 'var(--bg-surface-muted)',
-                        color: integ.status === 'ACTIVE' ? 'var(--color-success-text)' : 'var(--text-secondary)',
-                        borderRadius: 4,
-                        fontSize: 11,
-                        fontWeight: 700,
-                      }}
-                    >
-                      {integ.status}
-                    </span>
-                    <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: '8px 0 2px 0' }}>
-                      {integ.name}
-                    </h3>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Provider: {integ.provider}</div>
-                  </div>
-                </div>
-
-                {/* Sync Details */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13, margin: '14px 0', borderTop: '1px solid var(--border-color)', paddingTop: 12 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>Last Sync:</span>
-                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{integ.lastSyncTimestamp ? new Date(integ.lastSyncTimestamp).toLocaleString() : 'Recent'}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>Synced Records:</span>
-                    <span style={{ fontWeight: 600, color: 'var(--brand-primary)' }}>{integ.syncedRecordsCount ?? 0} Profiles</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>Frequency:</span>
-                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{integ.syncFrequency || 'Hourly'}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>Auto Deactivate:</span>
-                    <span style={{ fontWeight: 600, color: integ.autoDeactivateLeavers ? 'var(--color-success-text)' : 'var(--text-secondary)' }}>
-                      {integ.autoDeactivateLeavers ? 'Active' : 'Disabled'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Bottom Config Actions */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 12, borderTop: '1px solid var(--border-color)' }}>
-                <button
-                  type="button"
-                  onClick={() => alert(`Configuring ${integ.name} credentials`)}
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: 'var(--brand-primary)',
-                    backgroundColor: 'transparent',
-                    border: 'none',
-                    cursor: 'pointer',
-                    padding: 0,
-                  }}
-                >
-                  Configure Adapter
-                </button>
-                <button
-                  type="button"
-                  onClick={() => alert(`Showing sync telemetry logs for ${integ.name}`)}
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: 'var(--text-secondary)',
-                    backgroundColor: 'transparent',
-                    border: 'none',
-                    cursor: 'pointer',
-                    padding: 0,
-                  }}
-                >
-                  View Sync Logs
-                </button>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
+      {error && <p role="alert" style={{ color: 'var(--color-danger)' }}>{error}</p>}
+      {loading && <p role="status">Loading integration status…</p>}
+      {!loading && !error && integrations && (
+        <section className="surface-card" style={{ padding: 24 }}>
+          <h2 style={{ marginTop: 0, fontSize: 16 }}>HRMS connector</h2>
+          <dl style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+            <div><dt>Provider</dt><dd>{integrations.hrms.provider ?? 'Not configured'}</dd></div>
+            <div><dt>Status</dt><dd>{integrations.hrms.status}</dd></div>
+            <div><dt>Last sync</dt><dd>{integrations.hrms.lastSyncAt ?? 'No sync recorded'}</dd></div>
+            <div><dt>Schedule</dt><dd>{integrations.hrms.syncInterval ?? 'Not configured'}</dd></div>
+          </dl>
+          <p style={{ marginBottom: 0, color: 'var(--text-secondary)', fontSize: 13 }}>
+            HRMS synchronization is not configured for this tenant. Employee changes made through the portal use the
+            tenant’s Corporate API; no external HRMS sync is claimed.
+          </p>
+        </section>
+      )}
     </div>
   );
 }
