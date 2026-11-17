@@ -253,7 +253,7 @@ model Vehicle {
   vehicleType        String             @map("vehicle_type") @db.VarChar(50)
   make               String?
   model              String
-  registrationNumber String             @unique @map("registration_number")
+  registrationNumber String             @map("registration_number")
   verificationStatus VerificationStatus @default(PENDING) @map("verification_status")
   rcNumber           String?            @map("rc_number")
   insuranceExpiry    DateTime?          @map("insurance_expiry")
@@ -268,6 +268,8 @@ model Vehicle {
   @@map("vehicles")
   /// Foreign key lookups (dispatch loads candidates' vehicles); Postgres does not index FKs itself.
   @@index([driverId])
+  @@index([registrationNumber])
+  @@unique([driverId, registrationNumber])
 }
 
 model Requirement {

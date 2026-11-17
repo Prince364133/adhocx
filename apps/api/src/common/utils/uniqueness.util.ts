@@ -117,58 +117,19 @@ export async function assertPhoneAvailable(
 
 /**
  * Asserts that a vehicle plate number is not already assigned to another vehicle or driver account.
- * Throws ConflictException if any collision is found.
+ * Multiple drivers are permitted to register and share the same vehicle plate
+ * (e.g. shift sharing, fleet operations, relief drivers).
  */
 export async function assertVehiclePlateAvailable(
-  db: DatabaseService,
-  plate: string,
-  options?: {
+  _db: DatabaseService,
+  _plate: string,
+  _options?: {
     excludeDriverId?: string;
     excludeUserId?: string;
     excludeVehicleId?: string;
   },
 ): Promise<void> {
-  const variants = getVehiclePlateVariants(plate);
-  if (variants.length === 0) return;
-
-  // 1. Check Vehicle table
-  if (db?.vehicle?.findMany) {
-    const existingVehicles = await db.vehicle.findMany({
-      where: {
-        registrationNumber: { in: variants, mode: 'insensitive' },
-        ...(options?.excludeVehicleId ? { id: { not: options.excludeVehicleId } } : {}),
-        ...(options?.excludeDriverId ? { driverId: { not: options.excludeDriverId } } : {}),
-      },
-      include: { driver: true },
-    });
-
-    for (const v of existingVehicles) {
-      // If the vehicle belongs to the excluded user/driver, allow it
-      if (options?.excludeDriverId && v.driverId === options.excludeDriverId) {
-        continue;
-      }
-      if (options?.excludeUserId && v.driver?.userId === options.excludeUserId) {
-        continue;
-      }
-      throw new ConflictException(
-        `Vehicle number ${plate.trim().toUpperCase()} is already registered to another driver account. A vehicle number cannot be assigned to two different accounts.`,
-      );
-    }
-  }
-
-  // 2. Check Driver.vehiclePlate
-  if (db?.driver?.findFirst) {
-    const existingDriver = await db.driver.findFirst({
-      where: {
-        vehiclePlate: { in: variants, mode: 'insensitive' },
-        ...(options?.excludeDriverId ? { id: { not: options.excludeDriverId } } : {}),
-        ...(options?.excludeUserId ? { userId: { not: options.excludeUserId } } : {}),
-      },
-    });
-    if (existingDriver) {
-      throw new ConflictException(
-        `Vehicle number ${plate.trim().toUpperCase()} is already registered to another driver account. A vehicle number cannot be assigned to two different accounts.`,
-      );
-    }
-  }
+  // Shared vehicles are permitted across drivers per business requirements.
+  // We no longer restrict a vehicle registration number to a single driver account.
+  return;
 }
