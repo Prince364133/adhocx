@@ -16,6 +16,7 @@ import {
   UserCheck,
   DownloadCloud,
   Landmark,
+  Info,
 } from "lucide-react";
 import {
   DigioComplianceAlert,
@@ -87,8 +88,14 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({
   }, [loadVerifications, item.vehiclePlate]);
 
   useEffect(() => {
-    if (data) onAlertsChange?.(data.complianceAlerts || []);
-  }, [data, onAlertsChange]);
+    if (data) {
+      if (item.verificationStatus === "PENDING") {
+        onAlertsChange?.([]);
+      } else {
+        onAlertsChange?.(data.complianceAlerts || []);
+      }
+    }
+  }, [data, onAlertsChange, item.verificationStatus]);
 
   if (!isDriver) {
     return null;
@@ -246,13 +253,23 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({
           <button
             type="button"
             onClick={handleRunDriverSuite}
-            disabled={running}
+            disabled={running || item.verificationStatus === "PENDING"}
+            title={
+              item.verificationStatus === "PENDING"
+                ? "Applicant has not submitted documents yet"
+                : undefined
+            }
             className="bg-brand border-0 text-sm font-semibold flex items-center gap-compact shadow-sm"
             style={{
               padding: "0.45rem 0.9rem",
               borderRadius: "8px",
               color: "#ffffff",
-              cursor: running ? "wait" : "pointer",
+              cursor: running
+                ? "wait"
+                : item.verificationStatus === "PENDING"
+                  ? "not-allowed"
+                  : "pointer",
+              opacity: item.verificationStatus === "PENDING" ? 0.6 : 1,
               transition: "all 0.15s ease",
             }}
           >
@@ -266,8 +283,25 @@ export const DigioVerificationPanel: React.FC<DigioVerificationPanelProps> = ({
         </div>
       </div>
 
+      {item.verificationStatus === "PENDING" && (
+        <div
+          className="text-sm font-medium flex items-center gap-2"
+          style={{
+            padding: "0.55rem 0.85rem",
+            borderRadius: "8px",
+            background: "rgba(100, 116, 139, 0.1)",
+            border: "1px solid rgba(100, 116, 139, 0.25)",
+            color: "var(--text-secondary)",
+            marginBottom: "0.85rem",
+          }}
+        >
+          <Info size={15} className="flex-shrink-0" />
+          <span>Automated Digio suite will activate once the applicant completes onboarding and submits their documents.</span>
+        </div>
+      )}
+
       {/* Compliance Blockers & Warnings */}
-      {alerts.length > 0 && (
+      {item.verificationStatus !== "PENDING" && alerts.length > 0 && (
         <div
           className="flex flex-col gap-compact"
           style={{ marginBottom: "0.85rem" }}

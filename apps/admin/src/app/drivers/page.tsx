@@ -46,6 +46,7 @@ import {
 const STATUS_TABS = [
   { id: "ALL", label: "All Drivers" },
   { id: "UNDER_REVIEW", label: "Under Review" },
+  { id: "PENDING", label: "Incomplete (Draft)" },
   { id: "VERIFIED", label: "Verified" },
   { id: "REJECTED", label: "Rejected" },
   { id: "SUSPENDED", label: "Suspended" },

@@ -79,7 +79,9 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
       .forEach((a) => byCode.set(a.code, a));
     return [...byCode.values()];
   }, [panelAlerts, approvalBlockers]);
-  const needsOverride = item?.entityType === "DRIVER" && blockers.length > 0;
+  const isPendingItem = item?.verificationStatus === "PENDING";
+  const needsOverride =
+    item?.entityType === "DRIVER" && (blockers.length > 0 || isPendingItem);
   const approveDisabled = isProcessing;
 
   const [activePreviewDoc, setActivePreviewDoc] =
@@ -120,23 +122,31 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
   const isDriver = item.entityType === "DRIVER";
   const isVerified = item.verificationStatus === "VERIFIED";
   const isRejected = item.verificationStatus === "REJECTED";
+  const isPending = item.verificationStatus === "PENDING";
+  const isUnderReview = item.verificationStatus === "UNDER_REVIEW";
 
   const statusBg = isVerified
     ? "rgba(16, 185, 129, 0.15)"
     : isRejected
       ? "rgba(244, 63, 94, 0.15)"
-      : "rgba(245, 158, 11, 0.15)";
+      : isPending
+        ? "rgba(100, 116, 139, 0.15)"
+        : "rgba(245, 158, 11, 0.15)";
 
   const statusColor = isVerified
     ? "#10b981"
     : isRejected
       ? "#f43f5e"
-      : "#f59e0b";
+      : isPending
+        ? "#64748b"
+        : "#f59e0b";
   const statusLabel = isVerified
     ? "VERIFIED"
     : isRejected
       ? "REJECTED"
-      : "UNDER REVIEW";
+      : isPending
+        ? "ONBOARDING INCOMPLETE (DRAFT)"
+        : "UNDER REVIEW";
 
   const drawerFooter = (
     <div className="flex justify-between items-center w-full gap-3 flex-wrap">
@@ -204,6 +214,24 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
         footer={drawerFooter}
       >
         <div className="flex flex-col" style={{ gap: "1.15rem" }}>
+          {/* Incomplete draft notice if still pending submission */}
+          {isPending && (
+            <div
+              className="py-3 px-4 flex items-center gap-3 text-sm font-medium"
+              style={{
+                background: "rgba(245, 158, 11, 0.1)",
+                border: "1px solid rgba(245, 158, 11, 0.3)",
+                borderRadius: "10px",
+                color: "#d97706",
+              }}
+            >
+              <AlertTriangle size={18} className="flex-shrink-0" />
+              <div>
+                <strong>Onboarding Incomplete (Draft Registration):</strong> This applicant verified their mobile number but has not uploaded required KYC documents or submitted their registration for review.
+              </div>
+            </div>
+          )}
+
           {/* Rejection banner if rejected */}
           {isRejected && item.rejectionReason && (
             <div
@@ -636,21 +664,30 @@ export const VerificationDetailModal: React.FC<DetailModalProps> = ({
                 className="flex items-center gap-2 font-bold text-md"
                 style={{ color: "#f43f5e" }}
               >
-                <AlertTriangle size={16} /> {blockers.length} compliance issue
-                {blockers.length === 1 ? "" : "s"} detected (you can still
-                approve)
+                <AlertTriangle size={16} />{" "}
+                {blockers.length > 0
+                  ? `${blockers.length} compliance issue${blockers.length === 1 ? "" : "s"} detected`
+                  : "Onboarding Incomplete (Draft Registration)"}{" "}
+                (approving requires administrative override)
               </div>
-              <ul
-                className="mt-2 mx-0 mb-3 pl-5 text-primary text-base"
-                style={{ lineHeight: 1.5 }}
-              >
-                {blockers.map((b) => (
-                  <li key={b.code}>
-                    <strong>{b.code.replace(/_/g, " ")}</strong>
-                    {b.message ? ` — ${b.message}` : ""}
-                  </li>
-                ))}
-              </ul>
+              {blockers.length > 0 && (
+                <ul
+                  className="mt-2 mx-0 mb-3 pl-5 text-primary text-base"
+                  style={{ lineHeight: 1.5 }}
+                >
+                  {blockers.map((b) => (
+                    <li key={b.code}>
+                      <strong>{b.code.replace(/_/g, " ")}</strong>
+                      {b.message ? ` — ${b.message}` : ""}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {blockers.length === 0 && isPendingItem && (
+                <p className="mt-2 mx-0 mb-3 text-secondary text-base">
+                  This applicant has not completed document submission. If approving manually without applicant documents, a recorded justification note is required.
+                </p>
+              )}
               <label
                 htmlFor="override-reason"
                 className="block text-base font-semibold text-secondary"

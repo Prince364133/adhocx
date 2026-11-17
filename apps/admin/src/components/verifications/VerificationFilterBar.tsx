@@ -118,6 +118,7 @@ export const VerificationFilterBar: React.FC<FilterBarProps> = ({
           {(
             [
               { id: "UNDER_REVIEW", label: "Under Review" },
+              { id: "PENDING", label: "Incomplete (Draft)" },
               { id: "ALL", label: "All" },
               { id: "VERIFIED", label: "Approved" },
               { id: "REJECTED", label: "Declined" },

@@ -7,6 +7,7 @@ import { KpiStrip } from "../common/KpiStrip";
 interface StatsProps {
   stats: {
     underReview: number;
+    incompleteDrafts?: number;
     driversPending: number;
     vendorsPending: number;
     verifiedTotal: number;
@@ -25,7 +26,10 @@ export const VerificationStatsHeader: React.FC<StatsProps> = ({ stats }) => {
           id: "under-review",
           label: "Under Review Queue",
           value: stats.underReview,
-          subtext: `${stats.totalQueue} total queue records`,
+          subtext:
+            stats.incompleteDrafts !== undefined
+              ? `${stats.incompleteDrafts} unsubmitted draft${stats.incompleteDrafts === 1 ? "" : "s"}`
+              : `${stats.totalQueue} total queue records`,
           tone: "warning",
           icon: <Clock size={14} />,
         },

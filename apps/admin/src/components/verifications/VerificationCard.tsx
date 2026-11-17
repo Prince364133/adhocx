@@ -27,9 +27,8 @@ export const VerificationCard: React.FC<CardProps> = ({
   isProcessing: _isProcessing = false,
 }) => {
   const isDriver = item.entityType === "DRIVER";
-  const isUnderReview =
-    item.verificationStatus === "UNDER_REVIEW" ||
-    item.verificationStatus === "PENDING";
+  const isUnderReview = item.verificationStatus === "UNDER_REVIEW";
+  const isPending = item.verificationStatus === "PENDING";
   const isVerified = item.verificationStatus === "VERIFIED";
   const isRejected = item.verificationStatus === "REJECTED";
 
@@ -37,19 +36,25 @@ export const VerificationCard: React.FC<CardProps> = ({
     ? "var(--color-success)"
     : isRejected
       ? "var(--color-danger)"
-      : "var(--color-warning)";
+      : isPending
+        ? "var(--text-muted)"
+        : "var(--color-warning)";
 
   const statusBg = isVerified
     ? "var(--color-success-bg)"
     : isRejected
       ? "var(--color-danger-bg)"
-      : "var(--color-warning-bg)";
+      : isPending
+        ? "rgba(100, 116, 139, 0.12)"
+        : "var(--color-warning-bg)";
 
   const statusLabel = isVerified
     ? "Approved"
     : isRejected
       ? "Declined"
-      : "Under Review";
+      : isPending
+        ? "Incomplete Draft"
+        : "Under Review";
 
   return (
     <div

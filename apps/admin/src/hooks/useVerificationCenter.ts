@@ -82,7 +82,7 @@ export function useVerificationCenter() {
           name: d.fullName || d.user?.fullName || 'Driver Applicant',
           phone: d.phone || d.user?.phone || '',
           email: d.email || d.user?.email || '',
-          verificationStatus: d.verificationStatus || 'UNDER_REVIEW',
+          verificationStatus: d.verificationStatus || 'PENDING',
           rejectionReason: d.rejectionReason,
           vehiclePlate: d.vehiclePlate || d.rcNumber || '',
           vehicleType: d.vehicleType || '',
@@ -127,7 +127,7 @@ export function useVerificationCenter() {
           organizationName: v.organizationName || v.companyName || '',
           phone: v.phone || v.user?.phone || '',
           email: v.email || v.user?.email || '',
-          verificationStatus: v.verificationStatus || 'UNDER_REVIEW',
+          verificationStatus: v.verificationStatus || 'PENDING',
           rejectionReason: v.rejectionReason,
           gstNumber: v.gstNumber || '',
           address: v.address || '',
@@ -165,11 +165,7 @@ export function useVerificationCenter() {
 
       // Status filter
       if (statusFilter !== 'ALL') {
-        if (statusFilter === 'UNDER_REVIEW') {
-          if (item.verificationStatus !== 'UNDER_REVIEW' && item.verificationStatus !== 'PENDING') {
-            return false;
-          }
-        } else if (item.verificationStatus !== statusFilter) {
+        if (item.verificationStatus !== statusFilter) {
           return false;
         }
       }
@@ -194,19 +190,23 @@ export function useVerificationCenter() {
   // Summary Metrics Computation
   const stats = useMemo(() => {
     const underReview = items.filter(
-      (i) => i.verificationStatus === 'UNDER_REVIEW' || i.verificationStatus === 'PENDING',
+      (i) => i.verificationStatus === 'UNDER_REVIEW',
+    ).length;
+    const incompleteDrafts = items.filter(
+      (i) => i.verificationStatus === 'PENDING',
     ).length;
     const driversPending = items.filter(
-      (i) => i.entityType === 'DRIVER' && (i.verificationStatus === 'UNDER_REVIEW' || i.verificationStatus === 'PENDING'),
+      (i) => i.entityType === 'DRIVER' && i.verificationStatus === 'UNDER_REVIEW',
     ).length;
     const vendorsPending = items.filter(
-      (i) => i.entityType === 'VENDOR' && (i.verificationStatus === 'UNDER_REVIEW' || i.verificationStatus === 'PENDING'),
+      (i) => i.entityType === 'VENDOR' && i.verificationStatus === 'UNDER_REVIEW',
     ).length;
     const verifiedTotal = items.filter((i) => i.verificationStatus === 'VERIFIED').length;
     const rejectedTotal = items.filter((i) => i.verificationStatus === 'REJECTED').length;
 
     return {
       underReview,
+      incompleteDrafts,
       driversPending,
       vendorsPending,
       verifiedTotal,
