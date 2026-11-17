@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import {
   Building2,
   Users,
@@ -25,6 +26,7 @@ import {
   CheckCircle2,
   Navigation,
   Briefcase,
+  Truck,
 } from "lucide-react";
 import { adminApi } from "../../lib/api/client";
 import {
@@ -77,6 +79,8 @@ const USER_ROLE_FILTERS = [
 ];
 
 export default function UsersAndVendorsPage() {
+  const router = useRouter();
+
   // Top Level Section Switcher: 'VENDORS' | 'USERS'
   const [activeSection, setActiveSection] = useState<"VENDORS" | "USERS">(
     "VENDORS",
@@ -157,6 +161,37 @@ export default function UsersAndVendorsPage() {
   useEffect(() => {
     loadUsers(userTab, userRoleFilter);
   }, [userTab, userRoleFilter]);
+
+  useEffect(() => {
+    const vendorId = new URLSearchParams(window.location.search).get("vendorId");
+    if (!vendorId) return;
+
+    let active = true;
+    setDetailsLoading(true);
+    adminApi
+      .getVendorDetails(vendorId)
+      .then((details) => {
+        if (active) {
+          setSelectedVendor(details);
+          setSelectedUser(null);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setAlert({
+            type: "error",
+            message: "Failed to reload vendor details.",
+          });
+        }
+      })
+      .finally(() => {
+        if (active) setDetailsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   async function loadVendors(status: string) {
     setVendorsLoading(true);
@@ -783,6 +818,17 @@ export default function UsersAndVendorsPage() {
               leftIcon={<Edit3 size={14} />}
             >
               Edit Details
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                router.push(`/vendors/${selectedVendor.id}/fulfillment`)
+              }
+              leftIcon={<Truck size={14} />}
+            >
+              Fulfillment
             </Button>
 
             {selectedVendor.verificationStatus !== "VERIFIED" && (

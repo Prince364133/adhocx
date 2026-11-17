@@ -153,6 +153,7 @@ model User {
   couponRedemptions      CouponRedemption[]
   deviceTokens           DeviceToken[]
   notifications          Notification[]
+  notificationCampaignRecipients NotificationCampaignRecipient[]
   notificationPreference NotificationPreference?
   corporateTenant        CorporateTenant?        @relation(fields: [corporateTenantId], references: [id], onDelete: SetNull)
   corporateEmployee      CorporateEmployee?
@@ -691,10 +692,44 @@ model NotificationCampaign {
   failureCount  Int      @default(0) @map("failure_count")
   status        String   @default("SENT")
   sentBy        String?  @map("sent_by")
+  recipientTrackingEnabled Boolean @default(false) @map("recipient_tracking_enabled")
   createdAt     DateTime @default(now()) @map("created_at")
+
+  recipients NotificationCampaignRecipient[]
 
   @@index([createdAt])
   @@map("notification_campaigns")
+}
+
+model NotificationCampaignRecipient {
+  id                    String   @id @default(uuid()) @db.Uuid
+  campaignId            String   @map("campaign_id") @db.Uuid
+  userId                String?  @map("user_id") @db.Uuid
+  recipientName         String?  @map("recipient_name")
+  recipientPhone        String?  @map("recipient_phone")
+  recipientRole         String?  @map("recipient_role")
+  recipientEmail        String?  @map("recipient_email")
+  recipientProfile      Json?    @map("recipient_profile")
+  deviceDetails         Json?    @map("device_details")
+  status                String   @default("PENDING") @db.VarChar(16)
+  deviceCount           Int      @default(0) @map("device_count")
+  providerAcceptedCount Int      @default(0) @map("provider_accepted_count")
+  providerFailedCount   Int      @default(0) @map("provider_failed_count")
+  providerMessageIds    String[] @default([]) @map("provider_message_ids")
+  attemptedAt           DateTime? @map("attempted_at")
+  deliveredAt           DateTime? @map("delivered_at")
+  failedAt              DateTime? @map("failed_at")
+  failureReason         String?  @map("failure_reason") @db.Text
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  campaign NotificationCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  user     User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([campaignId, userId])
+  @@index([campaignId, status])
+  @@index([userId])
+  @@map("notification_campaign_recipients")
 }
 
 model VehiclePricingTier {

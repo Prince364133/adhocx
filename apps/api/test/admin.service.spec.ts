@@ -493,6 +493,215 @@ describe('AdminService Unit Tests', () => {
     });
   });
 
+  it('should return vendor fulfillment counts and actual arrived driver details', async () => {
+    const arrivalAt = new Date('2026-11-17T06:30:00.000Z');
+    db.vendor.findUnique.mockResolvedValue({
+      id: 'vendor-1',
+      organizationName: 'Acme Transport',
+      fullName: 'Asha Vendor',
+      phone: '+911111111111',
+      address: 'Hyderabad',
+    });
+    db.requirement.findMany.mockResolvedValue([
+      {
+        id: 'requirement-1',
+        quantity: 2,
+        createdAt: new Date('2026-11-16T08:15:00.000Z'),
+        reportingTime: new Date('2026-11-18T07:00:00.000Z'),
+        status: 'PARTIALLY_FULFILLED',
+        vehicleType: 'SEDAN',
+        pickupAddress: 'Madhapur, Hyderabad',
+        dropAddress: 'Gachibowli, Hyderabad',
+        assignments: [
+          {
+            id: 'assignment-1',
+            driverId: 'driver-1',
+            status: 'CONFIRMED',
+            assignedAt: new Date('2026-11-16T09:00:00.000Z'),
+            driver: {
+              fullName: 'Asha Driver',
+              phone: '+911234567890',
+              vehicleType: 'SEDAN',
+              vehicleModel: 'Model A',
+              vehiclePlate: 'TS01AB1234',
+              user: { fullName: 'Asha Driver', phone: '+911234567890' },
+            },
+            vehicle: null,
+            trip: {
+              id: 'trip-1',
+              status: 'ARRIVED',
+              startedAt: null,
+              completedAt: null,
+              cancelledAt: null,
+              vehicle: null,
+              events: [{ createdAt: arrivalAt }],
+            },
+          },
+          {
+            id: 'assignment-2',
+            driverId: 'driver-2',
+            status: 'CONFIRMED',
+            assignedAt: new Date('2026-11-16T09:30:00.000Z'),
+            driver: {
+              fullName: 'Pending Driver',
+              phone: '+919876543210',
+              vehicleType: 'SEDAN',
+              vehicleModel: null,
+              vehiclePlate: null,
+              user: { fullName: 'Pending Driver', phone: '+919876543210' },
+            },
+            vehicle: null,
+            trip: {
+              id: 'trip-2',
+              status: 'ASSIGNED',
+              startedAt: null,
+              completedAt: null,
+              cancelledAt: null,
+              vehicle: null,
+              events: [],
+            },
+          },
+        ],
+      },
+    ]);
+
+    const result = await service.getVendorFulfillment('vendor-1');
+
+    expect(result.summary).toEqual({
+      requiredDrivers: 2,
+      arrivedDrivers: 1,
+      pendingDrivers: 1,
+      cancelledDrivers: 0,
+      notAssignedDrivers: 0,
+    });
+    expect(result).toMatchObject({
+      vendorId: 'vendor-1',
+      vendorName: 'Acme Transport',
+      vendorContactName: 'Asha Vendor',
+      vendorPhone: '+911111111111',
+      vendorAddress: 'Hyderabad',
+    });
+    expect(result.requirements[0].createdAt).toBe(
+      '2026-11-16T08:15:00.000Z',
+    );
+    expect(result.requirements[0]).toMatchObject({
+      pickupAddress: 'Madhapur, Hyderabad',
+      dropAddress: 'Gachibowli, Hyderabad',
+      cancelledDrivers: 0,
+      notAssignedDrivers: 0,
+    });
+    expect(result.requirements[0].drivers).toEqual([
+      expect.objectContaining({
+        assignmentId: 'assignment-1',
+        tripId: 'trip-1',
+        driverId: 'driver-1',
+        name: 'Asha Driver',
+        phone: '+911234567890',
+        vehicleType: 'SEDAN',
+        vehicleModel: 'Model A',
+        vehicleRegistration: 'TS01AB1234',
+        assignedAt: '2026-11-16T09:00:00.000Z',
+        tripStatus: 'ARRIVED',
+        arrivalAt: arrivalAt.toISOString(),
+        assignmentStatus: 'CONFIRMED',
+        attendanceStatus: 'ARRIVED',
+        hasArrived: true,
+      }),
+      expect.objectContaining({
+        assignmentId: 'assignment-2',
+        tripId: 'trip-2',
+        assignmentStatus: 'CONFIRMED',
+        attendanceStatus: 'PENDING',
+        arrivalAt: null,
+        assignedAt: '2026-11-16T09:30:00.000Z',
+        hasArrived: false,
+      }),
+    ]);
+  });
+
+  it('should separate cancelled assignments and unassigned driver positions', async () => {
+    const assignedAt = new Date('2026-11-16T09:00:00.000Z');
+    db.vendor.findUnique.mockResolvedValue({
+      id: 'vendor-1',
+      organizationName: 'Acme Transport',
+      fullName: 'Asha Vendor',
+      phone: '+911111111111',
+      address: 'Hyderabad',
+    });
+    const assignment = (
+      id: string,
+      driverId: string,
+      status: string,
+      tripStatus: string,
+      arrivalAt?: Date,
+    ) => ({
+      id,
+      driverId,
+      status,
+      assignedAt,
+      driver: {
+        fullName: `${driverId} Name`,
+        phone: null,
+        vehicleType: 'SEDAN',
+        vehicleModel: null,
+        vehiclePlate: null,
+        user: { fullName: `${driverId} Name`, phone: null },
+      },
+      vehicle: null,
+      trip: {
+        id: `trip-${driverId}`,
+        status: tripStatus,
+        startedAt: null,
+        completedAt: null,
+        cancelledAt: null,
+        vehicle: null,
+        events: arrivalAt ? [{ createdAt: arrivalAt }] : [],
+      },
+    });
+    db.requirement.findMany.mockResolvedValue([
+      {
+        id: 'requirement-2',
+        quantity: 4,
+        createdAt: new Date('2026-11-16T08:15:00.000Z'),
+        reportingTime: new Date('2026-11-18T07:00:00.000Z'),
+        status: 'PARTIALLY_FULFILLED',
+        vehicleType: 'SEDAN',
+        pickupAddress: 'Madhapur, Hyderabad',
+        dropAddress: 'Gachibowli, Hyderabad',
+        assignments: [
+          assignment('assignment-cancelled', 'driver-cancelled', 'CANCELLED', 'CANCELLED'),
+          assignment(
+            'assignment-arrived',
+            'driver-arrived',
+            'CONFIRMED',
+            'ARRIVED',
+            new Date('2026-11-18T06:30:00.000Z'),
+          ),
+          assignment('assignment-pending', 'driver-pending', 'PENDING', 'ASSIGNED'),
+        ],
+      },
+    ]);
+
+    const result = await service.getVendorFulfillment('vendor-1');
+
+    expect(result.summary).toMatchObject({
+      requiredDrivers: 4,
+      arrivedDrivers: 1,
+      pendingDrivers: 1,
+      cancelledDrivers: 1,
+      notAssignedDrivers: 2,
+    });
+    expect(result.requirements[0].drivers.map((driver: any) => driver.attendanceStatus)).toEqual([
+      'CANCELLED',
+      'ARRIVED',
+      'PENDING',
+    ]);
+    expect(result.requirements[0]).toMatchObject({
+      cancelledDrivers: 1,
+      notAssignedDrivers: 2,
+    });
+  });
+
   it('should aggregate platform operational metrics', async () => {
     const metrics = await service.getOperationalMetrics();
     expect(metrics.totalDrivers).toBe(10);

@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleInit, NotFoundException, BadRequestException, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { randomUUID } from 'crypto';
 import { Subject, Observable, filter, map, interval, merge } from 'rxjs';
 import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
@@ -62,6 +63,184 @@ export interface PushSendResult {
   successCount: number;
   failureCount: number;
   failedTokens?: string[];
+  tokenResults?: PushTokenResult[];
+}
+
+export interface PushTokenResult {
+  token: string;
+  status: 'PENDING' | 'FAILED';
+  providerAccepted: boolean;
+  providerMessageId?: string;
+  attemptedAt?: Date;
+  failureReason?: string;
+}
+
+type CampaignRecipientStatus = 'PENDING' | 'DELIVERED' | 'FAILED';
+
+export interface CampaignRecipientCounts {
+  sent: number;
+  delivered: number;
+  failed: number;
+  pending: number;
+}
+
+interface CampaignTrackingSchemaState {
+  hasTrackingColumn: boolean;
+  hasRecipientTable: boolean;
+  hasRecipientDetails: boolean;
+}
+
+interface LegacyCampaignHistoryRow {
+  id: string;
+  title: string;
+  body: string;
+  imageUrl: string | null;
+  actionUrl: string | null;
+  targetRole: string | null;
+  targetFilter: unknown;
+  totalTargeted: number;
+  successCount: number;
+  failureCount: number;
+  status: string;
+  sentBy: string | null;
+  createdAt: Date;
+}
+
+export interface CampaignDeviceDetail {
+  deviceTokenId: string;
+  platform: string;
+  model: string | null;
+  appVersion: string | null;
+  maskedToken: string;
+  isActive: boolean;
+  lastActiveAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  status: 'SENDING' | 'PENDING' | 'FAILED';
+  providerAccepted: boolean | null;
+  providerMessageId: string | null;
+  attemptedAt: string | null;
+  failureReason: string | null;
+}
+
+export interface CampaignRecipientProfile {
+  accountStatus: string | null;
+  createdAt: string | null;
+  driver?: {
+    verificationStatus: string;
+    availabilityStatus: string;
+    vehicleType: string | null;
+    vehicleModel: string | null;
+    vehiclePlate: string | null;
+  };
+  vendor?: {
+    organizationName: string;
+    verificationStatus: string;
+  };
+  corporateEmployee?: {
+    fullName: string | null;
+    phoneNumber: string | null;
+  };
+}
+
+export interface BroadcastProgressRecipient {
+  userId: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  role: string;
+  status: 'SENDING' | 'PENDING' | 'PARTIAL' | 'FAILED';
+  deviceCount: number;
+  providerAcceptedCount: number;
+  providerFailedCount: number;
+  failureReason: string | null;
+  profile: CampaignRecipientProfile;
+  devices: CampaignDeviceDetail[];
+}
+
+export interface NotificationBroadcastProgress {
+  operationId: string;
+  phase: 'PREPARING' | 'SENDING' | 'SAVING' | 'COMPLETED' | 'FAILED';
+  title: string;
+  audience: string;
+  startedAt: string;
+  updatedAt: string;
+  campaignId: string | null;
+  failureMessage: string | null;
+  recipientDetailsPersisted: boolean | null;
+  counts: {
+    targetedUsers: number;
+    targetedDevices: number;
+    providerResponses: number;
+    providerNotAttempted: number;
+    providerAccepted: number;
+    providerFailed: number;
+    awaitingProviderResponse: number;
+    usersWithAcceptedDevice: number;
+    usersFullyFailed: number;
+    usersWithoutActiveDevice: number;
+    confirmedDelivered: number;
+  };
+  recipients: BroadcastProgressRecipient[];
+}
+
+function summarizeBroadcastProgress(
+  recipients: BroadcastProgressRecipient[],
+  targetedDevices: number,
+): NotificationBroadcastProgress['counts'] {
+  const devices = recipients.flatMap((recipient) => recipient.devices);
+  const providerResponses = devices.filter(
+    (device) => device.attemptedAt !== null,
+  ).length;
+  const providerNotAttempted = devices.filter(
+    (device) => device.attemptedAt === null && device.failureReason !== null,
+  ).length;
+
+  return {
+    targetedUsers: recipients.length,
+    targetedDevices,
+    providerResponses,
+    providerNotAttempted,
+    providerAccepted: recipients.reduce(
+      (total, recipient) => total + recipient.providerAcceptedCount,
+      0,
+    ),
+    providerFailed: recipients.reduce(
+      (total, recipient) => total + recipient.providerFailedCount,
+      0,
+    ),
+    awaitingProviderResponse: Math.max(
+      0,
+      targetedDevices - providerResponses - providerNotAttempted,
+    ),
+    usersWithAcceptedDevice: recipients.filter(
+      (recipient) => recipient.providerAcceptedCount > 0,
+    ).length,
+    usersFullyFailed: recipients.filter(
+      (recipient) => recipient.status === 'FAILED',
+    ).length,
+    usersWithoutActiveDevice: recipients.filter(
+      (recipient) => recipient.deviceCount === 0,
+    ).length,
+    confirmedDelivered: 0,
+  };
+}
+
+function summarizeCampaignRecipients(recipients: Array<{ status: string }>): CampaignRecipientCounts {
+  const counts: CampaignRecipientCounts = {
+    sent: recipients.length,
+    delivered: 0,
+    failed: 0,
+    pending: 0,
+  };
+
+  recipients.forEach(({ status }) => {
+    if (status === 'DELIVERED') counts.delivered++;
+    else if (status === 'FAILED') counts.failed++;
+    else counts.pending++;
+  });
+
+  return counts;
 }
 
 function otpEmailTemplate(otp: string, fullName?: string): string {
@@ -235,7 +414,7 @@ function kycDeclinedEmailTemplate(fullName: string, reason: string): string {
 }
 
 function welcomeEmailTemplate(fullName: string, role: string): string {
-  const recipient = fullName ? fullName.trim() : (role === 'DRIVER' ? 'Driver' : 'User');
+  const recipient = fullName ? fullName.trim() : role === 'DRIVER' ? 'Driver' : 'User';
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -291,9 +470,51 @@ export class NotificationsService implements OnModuleInit {
   private fromAddress!: string;
   private firebaseApp: App | null = null;
   private fcmInitialized = false;
+  private readonly broadcastProgressById = new Map<
+    string,
+    NotificationBroadcastProgress
+  >();
 
   public getFirebaseApp(): App | null {
     return this.firebaseApp;
+  }
+
+  private pruneBroadcastProgress() {
+    const expiresBefore = Date.now() - 30 * 60 * 1000;
+    this.broadcastProgressById.forEach((progress, operationId) => {
+      if (
+        (progress.phase === 'COMPLETED' || progress.phase === 'FAILED') &&
+        new Date(progress.updatedAt).getTime() < expiresBefore
+      ) {
+        this.broadcastProgressById.delete(operationId);
+      }
+    });
+  }
+
+  private setBroadcastProgress(
+    operationId: string,
+    updates: Partial<NotificationBroadcastProgress>,
+  ) {
+    const current = this.broadcastProgressById.get(operationId);
+    if (!current) return;
+    this.broadcastProgressById.set(operationId, {
+      ...current,
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  async getBroadcastProgress(operationId: string) {
+    this.pruneBroadcastProgress();
+    const progress = this.broadcastProgressById.get(operationId);
+    if (!progress) {
+      throw new NotFoundException(
+        'Live notification progress is unavailable or has expired',
+      );
+    }
+    return JSON.parse(
+      JSON.stringify(progress),
+    ) as NotificationBroadcastProgress;
   }
 
   /** RxJS subject backing the SSE event stream */
@@ -361,7 +582,9 @@ export class NotificationsService implements OnModuleInit {
       this.fcmInitialized = true;
       this.logger.log(`🔥 Firebase FCM initialized successfully for project: ${projectId}`);
     } catch (err: any) {
-      this.logger.warn(`⚠️ Firebase Admin initialization notice: ${err.message}. Push notifications will fall back to simulated/in-app delivery.`);
+      this.logger.warn(
+        `⚠️ Firebase Admin initialization notice: ${err.message}. Push notifications will remain pending without an FCM provider response.`,
+      );
       this.fcmInitialized = false;
     }
   }
@@ -386,21 +609,19 @@ export class NotificationsService implements OnModuleInit {
       auth: { user, pass },
     });
 
-    this.transporter.verify().then(() => {
-      this.logger.log(`📧 SMTP connected successfully to ${host}:${port} as ${user}`);
-    }).catch((err: any) => {
-      this.logger.warn(`⚠️ SMTP connection failed (emails will be logged only): ${err.message}`);
-    });
+    this.transporter
+      .verify()
+      .then(() => {
+        this.logger.log(`📧 SMTP connected successfully to ${host}:${port} as ${user}`);
+      })
+      .catch((err: any) => {
+        this.logger.warn(`⚠️ SMTP connection failed (emails will be logged only): ${err.message}`);
+      });
   }
 
   // ─── Private Email Sender ────────────────────────────────────────────────────
 
-  private async sendEmail(
-    to: string,
-    subject: string,
-    html: string,
-    text?: string,
-  ): Promise<string | null> {
+  private async sendEmail(to: string, subject: string, html: string, text?: string): Promise<string | null> {
     try {
       const plainText =
         text ||
@@ -518,7 +739,12 @@ export class NotificationsService implements OnModuleInit {
    */
   async sendPushToTokens(
     tokens: string[],
-    notification: { title: string; body: string; imageUrl?: string; actionUrl?: string },
+    notification: {
+      title: string;
+      body: string;
+      imageUrl?: string;
+      actionUrl?: string;
+    },
     data?: Record<string, string>,
     priority: 'normal' | 'high' = 'high',
   ): Promise<PushSendResult> {
@@ -527,12 +753,26 @@ export class NotificationsService implements OnModuleInit {
 
   private async sendPushToTokensSync(
     tokens: string[],
-    notification: { title: string; body: string; imageUrl?: string; actionUrl?: string },
+    notification: {
+      title: string;
+      body: string;
+      imageUrl?: string;
+      actionUrl?: string;
+    },
     data?: Record<string, string>,
     priority: 'normal' | 'high' = 'high',
+    onProgress?: (result: PushSendResult) => void,
   ): Promise<PushSendResult> {
     if (!tokens || tokens.length === 0) {
-      return { success: true, totalTokens: 0, successCount: 0, failureCount: 0 };
+      const result: PushSendResult = {
+        success: false,
+        totalTokens: 0,
+        successCount: 0,
+        failureCount: 0,
+        tokenResults: [],
+      };
+      onProgress?.(result);
+      return result;
     }
 
     const title = this.queue ? this.queue.sanitizeText(notification.title) : notification.title;
@@ -556,15 +796,20 @@ export class NotificationsService implements OnModuleInit {
     if (!stringData.click_action) stringData.click_action = 'FLUTTER_NOTIFICATION_CLICK';
 
     if (!this.fcmInitialized || !getApps().length) {
-      this.logger.log(
-        `🔔 [FCM SIMULATED PUSH] Tokens Count: ${tokens.length} | Title: "${title}" | Body: "${body}"`,
-      );
-      return {
-        success: true,
+      this.logger.log(`🔔 [FCM NOT CONFIGURED] ${tokens.length} token(s) remain pending; no provider request was made.`);
+      const result: PushSendResult = {
+        success: false,
         totalTokens: tokens.length,
-        successCount: tokens.length,
+        successCount: 0,
         failureCount: 0,
+        tokenResults: tokens.map((token) => ({
+          token,
+          status: 'PENDING',
+          providerAccepted: false,
+        })),
       };
+      onProgress?.(result);
+      return result;
     }
 
     const simulatedTokens = tokens.filter(
@@ -574,13 +819,18 @@ export class NotificationsService implements OnModuleInit {
       (t) => !t.startsWith('fcm_tok_') && !t.startsWith('sim_') && !t.startsWith('mock_') && !t.startsWith('test_'),
     );
 
-    let successCount = simulatedTokens.length;
+    let successCount = 0;
     let failureCount = 0;
     const failedTokens: string[] = [];
     const staleTokens: string[] = [];
+    const tokenResults: PushTokenResult[] = simulatedTokens.map((token) => ({
+      token,
+      status: 'PENDING',
+      providerAccepted: false,
+    }));
 
     if (simulatedTokens.length > 0) {
-      this.logger.log(`📱 [SIMULATED TOKENS DISPATCH] ${simulatedTokens.length} test token(s) processed successfully`);
+      this.logger.log(`📱 [SIMULATED TOKENS] ${simulatedTokens.length} test token(s) remain pending; they were not sent to FCM.`);
     }
 
     // Firebase multicast supports up to 500 tokens per chunk for real device tokens
@@ -616,7 +866,11 @@ export class NotificationsService implements OnModuleInit {
           headers: {
             'apns-priority': isUrgentDispatch ? '10' : '5',
             'apns-push-type': 'alert',
-            ...(isUrgentDispatch ? { 'apns-expiration': String(Math.floor(Date.now() / 1000) + 30) } : {}),
+            ...(isUrgentDispatch
+              ? {
+                  'apns-expiration': String(Math.floor(Date.now() / 1000) + 30),
+                }
+              : {}),
           },
           payload: {
             aps: {
@@ -650,25 +904,62 @@ export class NotificationsService implements OnModuleInit {
         const response = await getMessaging().sendEachForMulticast(message);
         successCount += response.successCount;
         failureCount += response.failureCount;
+        const attemptedAt = new Date();
 
-        response.responses.forEach((resp: any, idx: number) => {
-          if (!resp.success) {
-            const token = chunk[idx];
+        response.responses.forEach((resp, idx: number) => {
+          const token = chunk[idx];
+          if (resp.success) {
+            tokenResults.push({
+              token,
+              status: 'PENDING',
+              providerAccepted: true,
+              providerMessageId: resp.messageId,
+              attemptedAt,
+            });
+          } else {
             failedTokens.push(token);
             const errorCode = resp.error?.code;
-            if (
-              errorCode === 'messaging/registration-token-not-registered' ||
-              errorCode === 'messaging/invalid-registration-token'
-            ) {
+            if (errorCode === 'messaging/registration-token-not-registered' || errorCode === 'messaging/invalid-registration-token') {
               staleTokens.push(token);
             }
-            this.logger.warn(`Push delivery failed for token ${token.substring(0, 10)}... : ${resp.error?.message}`);
+            const failureReason =
+              resp.error?.code && resp.error.message
+                ? `${resp.error.code}: ${resp.error.message}`
+                : resp.error?.message || resp.error?.code || 'FCM returned a failed response without an error message.';
+            tokenResults.push({
+              token,
+              status: 'FAILED',
+              providerAccepted: false,
+              attemptedAt,
+              failureReason,
+            });
+            this.logger.warn(`Push delivery failed for token ${token.substring(0, 10)}... : ${failureReason}`);
           }
         });
       } catch (err: any) {
         this.logger.error(`Error sending FCM multicast chunk: ${err.message}`);
         failureCount += chunk.length;
+        const attemptedAt = new Date();
+        const failureReason = err instanceof Error ? err.message : String(err);
+        chunk.forEach((token) => {
+          failedTokens.push(token);
+          tokenResults.push({
+            token,
+            status: 'FAILED',
+            providerAccepted: false,
+            attemptedAt,
+            failureReason,
+          });
+        });
       }
+      onProgress?.({
+        success: successCount > 0,
+        totalTokens: tokens.length,
+        successCount,
+        failureCount,
+        failedTokens: [...failedTokens],
+        tokenResults: [...tokenResults],
+      });
     }
 
     // Automatically prune stale / unregistered tokens from DB
@@ -681,16 +972,15 @@ export class NotificationsService implements OnModuleInit {
         .catch((err) => this.logger.warn(`Failed to deactivate stale tokens: ${err.message}`));
     }
 
-    this.logger.log(
-      `🔔 [FCM PUSH DISPATCHED] Total: ${tokens.length} | Success: ${successCount} | Failed: ${failureCount}`,
-    );
+    this.logger.log(`🔔 [FCM PUSH DISPATCHED] Total: ${tokens.length} | Success: ${successCount} | Failed: ${failureCount}`);
 
     return {
-      success: failureCount === 0 || successCount > 0,
+      success: successCount > 0,
       totalTokens: tokens.length,
       successCount,
       failureCount,
       failedTokens,
+      tokenResults,
     };
   }
 
@@ -714,7 +1004,12 @@ export class NotificationsService implements OnModuleInit {
     if (payload.idempotencyKey && this.queue) {
       const isDupe = await this.queue.isDuplicate(payload.idempotencyKey);
       if (isDupe) {
-        return { success: true, totalTokens: 0, successCount: 0, failureCount: 0 };
+        return {
+          success: true,
+          totalTokens: 0,
+          successCount: 0,
+          failureCount: 0,
+        };
       }
     }
 
@@ -745,7 +1040,9 @@ export class NotificationsService implements OnModuleInit {
     let allowPush = true;
     if (this.db) {
       try {
-        const pref = await this.db.notificationPreference.findUnique({ where: { userId } });
+        const pref = await this.db.notificationPreference.findUnique({
+          where: { userId },
+        });
         if (pref) {
           if (!pref.pushEnabled) {
             allowPush = false;
@@ -812,7 +1109,12 @@ export class NotificationsService implements OnModuleInit {
 
     if (!allowPush) {
       this.logger.debug(`User ${userId} opted out of push for ${type}. In-app alert saved.`);
-      return { success: true, totalTokens: 0, successCount: 0, failureCount: 0 };
+      return {
+        success: true,
+        totalTokens: 0,
+        successCount: 0,
+        failureCount: 0,
+      };
     }
 
     // 3. Find active device tokens for the user
@@ -828,7 +1130,12 @@ export class NotificationsService implements OnModuleInit {
     // If no tokens found, log and return
     if (tokens.length === 0) {
       this.logger.debug(`User ${userId} has 0 registered active device tokens. Notification stored in-app.`);
-      return { success: true, totalTokens: 0, successCount: 0, failureCount: 0 };
+      return {
+        success: true,
+        totalTokens: 0,
+        successCount: 0,
+        failureCount: 0,
+      };
     }
 
     // 4. Send FCM Multicast
@@ -842,12 +1149,7 @@ export class NotificationsService implements OnModuleInit {
     }
     if (!stringData.click_action) stringData.click_action = 'FLUTTER_NOTIFICATION_CLICK';
 
-    return this.sendPushToTokensSync(
-      tokens,
-      { title, body, imageUrl, actionUrl: effectiveActionUrl },
-      stringData,
-      'high',
-    );
+    return this.sendPushToTokensSync(tokens, { title, body, imageUrl, actionUrl: effectiveActionUrl }, stringData, 'high');
   }
 
   /**
@@ -868,7 +1170,12 @@ export class NotificationsService implements OnModuleInit {
    */
   async sendPushToTopic(
     topic: string,
-    notification: { title: string; body: string; imageUrl?: string; actionUrl?: string },
+    notification: {
+      title: string;
+      body: string;
+      imageUrl?: string;
+      actionUrl?: string;
+    },
     data?: Record<string, string>,
   ): Promise<boolean> {
     const title = this.queue ? this.queue.sanitizeText(notification.title) : notification.title;
@@ -908,7 +1215,10 @@ export class NotificationsService implements OnModuleInit {
   /**
    * Computes audience query filter based on role, availability, verification, vehicle, city, etc.
    */
-  private buildAudienceWhere(filter?: AudienceFilterDto): { userWhere: any; driverWhere?: any } {
+  private buildAudienceWhere(filter?: AudienceFilterDto): {
+    userWhere: any;
+    driverWhere?: any;
+  } {
     const userWhere: any = { status: 'ACTIVE' };
 
     if (!filter) return { userWhere };
@@ -917,8 +1227,9 @@ export class NotificationsService implements OnModuleInit {
       userWhere.role = filter.role as UserRole;
     }
 
+    const audienceConditions: any[] = [];
     if (filter.userIds && filter.userIds.length > 0) {
-      userWhere.id = { in: filter.userIds };
+      audienceConditions.push({ id: { in: filter.userIds } });
     }
 
     if (filter.phones && filter.phones.length > 0) {
@@ -935,9 +1246,13 @@ export class NotificationsService implements OnModuleInit {
           variants.push(digits.slice(-10));
         }
       });
-      userWhere.OR = [
-        { phone: { in: variants } },
-      ];
+      audienceConditions.push({ phone: { in: Array.from(new Set(variants)) } });
+    }
+
+    if (audienceConditions.length === 1) {
+      Object.assign(userWhere, audienceConditions[0]);
+    } else if (audienceConditions.length > 1) {
+      userWhere.AND = [{ OR: audienceConditions }];
     }
 
     // Driver specific criteria
@@ -957,12 +1272,11 @@ export class NotificationsService implements OnModuleInit {
         userWhere.driver = driverConditions;
       } else if (!filter.role || filter.role === 'ALL') {
         // If targeting ALL, non-drivers match unconditionally OR drivers match driverConditions
+        const existingAnd = Array.isArray(userWhere.AND) ? userWhere.AND : [];
         userWhere.AND = [
+          ...existingAnd,
           {
-            OR: [
-              { role: { not: UserRole.DRIVER } },
-              { role: UserRole.DRIVER, driver: driverConditions },
-            ],
+            OR: [{ role: { not: UserRole.DRIVER } }, { role: UserRole.DRIVER, driver: driverConditions }],
           },
         ];
       }
@@ -1018,8 +1332,89 @@ export class NotificationsService implements OnModuleInit {
   /**
    * Broadcast push notification to filtered audience from Admin Portal.
    */
-  async broadcastPush(dto: BroadcastPushDto, adminId?: string) {
+  async broadcastPush(
+    dto: BroadcastPushDto,
+    adminId?: string,
+    requestedOperationId?: string,
+  ) {
     if (!this.db) throw new BadRequestException('Database service unavailable');
+
+    const operationId = requestedOperationId?.trim() || randomUUID();
+    if (
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        operationId,
+      )
+    ) {
+      throw new BadRequestException('Invalid notification operation ID');
+    }
+
+    this.pruneBroadcastProgress();
+    if (this.broadcastProgressById.has(operationId)) {
+      throw new BadRequestException(
+        'This notification operation ID has already been used',
+      );
+    }
+    const now = new Date().toISOString();
+    const hasSpecificAudience = Boolean(
+      dto.filter?.userIds?.length || dto.filter?.phones?.length,
+    );
+    this.broadcastProgressById.set(operationId, {
+      operationId,
+      phase: 'PREPARING',
+      title: dto.title,
+      audience: hasSpecificAudience ? 'SPECIFIC' : dto.filter?.role || 'ALL',
+      startedAt: now,
+      updatedAt: now,
+      campaignId: null,
+      failureMessage: null,
+      recipientDetailsPersisted: null,
+      counts: {
+        targetedUsers: 0,
+        targetedDevices: 0,
+        providerResponses: 0,
+        providerNotAttempted: 0,
+        providerAccepted: 0,
+        providerFailed: 0,
+        awaitingProviderResponse: 0,
+        usersWithAcceptedDevice: 0,
+        usersFullyFailed: 0,
+        usersWithoutActiveDevice: 0,
+        confirmedDelivered: 0,
+      },
+      recipients: [],
+    });
+
+    try {
+      const result = await this.dispatchBroadcastPush(
+        dto,
+        adminId,
+        operationId,
+      );
+      this.setBroadcastProgress(operationId, {
+        phase: 'COMPLETED',
+        campaignId: result.campaignId,
+        recipientDetailsPersisted: result.recipientDetailsPersisted,
+      });
+      return { ...result, operationId };
+    } catch (error) {
+      this.setBroadcastProgress(operationId, {
+        phase: 'FAILED',
+        failureMessage:
+          error instanceof Error
+            ? error.message
+            : 'The notification broadcast failed unexpectedly.',
+      });
+      throw error;
+    }
+  }
+
+  private async dispatchBroadcastPush(
+    dto: BroadcastPushDto,
+    adminId: string | undefined,
+    operationId: string,
+  ) {
+    if (!this.db) throw new BadRequestException('Database service unavailable');
+    const recipientTrackingAvailable = await this.hasCampaignRecipientTracking();
 
     const rawTitle = dto.title;
     const rawBody = dto.body;
@@ -1037,27 +1432,39 @@ export class NotificationsService implements OnModuleInit {
           where: { isActive: true },
         },
         notificationPreference: true,
+        driver: {
+          select: {
+            fullName: true,
+            phone: true,
+            verificationStatus: true,
+            availabilityStatus: true,
+            vehicleType: true,
+            vehicleModel: true,
+            vehiclePlate: true,
+          },
+        },
+        vendor: {
+          select: {
+            fullName: true,
+            phone: true,
+            organizationName: true,
+            verificationStatus: true,
+          },
+        },
+        corporateEmployee: {
+          select: { fullName: true, phoneNumber: true },
+        },
       },
     });
 
-    const allTokens: string[] = [];
-    const targetUserIds: string[] = [];
-
-    users.forEach((u) => {
-      // Check if user disabled push notifications
-      if (u.notificationPreference && !u.notificationPreference.pushEnabled) {
-        return;
-      }
-      targetUserIds.push(u.id);
-      u.deviceTokens.forEach((t) => {
-        allTokens.push(t.token);
-      });
-    });
+    const targetUsers = users.filter((u) => !u.notificationPreference || u.notificationPreference.pushEnabled);
+    const targetUserIds = targetUsers.map((u) => u.id);
+    const allTokens = targetUsers.flatMap((u) => u.deviceTokens.map((token) => token.token));
 
     if (dryRun) {
       return {
         dryRun: true,
-        totalTargetedUsers: users.length,
+        totalTargetedUsers: targetUsers.length,
         totalTargetedDevices: allTokens.length,
         message: 'Audience dry run simulated successfully',
       };
@@ -1075,12 +1482,227 @@ export class NotificationsService implements OnModuleInit {
       ...(data || {}),
     };
 
+    const providerConfigured = this.fcmInitialized && getApps().length > 0;
+    const buildProgressRecipients = (
+      results: PushTokenResult[],
+      sending: boolean,
+    ): BroadcastProgressRecipient[] => {
+      const outcomesByToken = new Map(
+        results.map((result) => [result.token, result]),
+      );
+
+      return targetUsers.map((user) => {
+        const devices: CampaignDeviceDetail[] = user.deviceTokens.map(
+          (device) => {
+            const outcome = outcomesByToken.get(device.token);
+            const isSimulatedToken =
+              device.token.startsWith('fcm_tok_') ||
+              device.token.startsWith('sim_') ||
+              device.token.startsWith('mock_') ||
+              device.token.startsWith('test_');
+            const failureReason =
+              outcome?.failureReason ??
+              (!providerConfigured
+                ? 'FCM provider is not configured; no provider request was made.'
+                : isSimulatedToken
+                  ? 'Test/simulated device token was excluded from provider sends.'
+                  : null);
+
+            return {
+              deviceTokenId: device.id,
+              platform: device.platform,
+              model: device.deviceModel,
+              appVersion: device.appVersion,
+              maskedToken:
+                device.token.length > 6
+                  ? `••••${device.token.slice(-6)}`
+                  : '••••',
+              isActive: device.isActive,
+              lastActiveAt: device.lastActiveAt?.toISOString() ?? null,
+              createdAt: device.createdAt.toISOString(),
+              updatedAt: device.updatedAt.toISOString(),
+              status:
+                outcome?.status === 'FAILED'
+                  ? 'FAILED'
+                  : outcome?.providerAccepted
+                    ? 'PENDING'
+                    : outcome || !sending
+                      ? 'PENDING'
+                      : 'SENDING',
+              providerAccepted:
+                outcome?.attemptedAt != null
+                  ? outcome.providerAccepted
+                  : null,
+              providerMessageId: outcome?.providerMessageId ?? null,
+              attemptedAt: outcome?.attemptedAt?.toISOString() ?? null,
+              failureReason,
+            };
+          },
+        );
+        const acceptedCount = devices.filter(
+          (device) => device.providerAccepted === true,
+        ).length;
+        const failedDevices = devices.filter(
+          (device) => device.status === 'FAILED',
+        );
+        const isSending = devices.some(
+          (device) => device.status === 'SENDING',
+        );
+        const status = isSending
+          ? 'SENDING'
+          : devices.length > 0 && failedDevices.length === devices.length
+            ? 'FAILED'
+            : acceptedCount > 0 && failedDevices.length > 0
+              ? 'PARTIAL'
+              : 'PENDING';
+        const failureReasons = Array.from(
+          new Set(
+            failedDevices
+              .map((device) => device.failureReason)
+              .filter((reason): reason is string => Boolean(reason)),
+          ),
+        );
+        const profile: CampaignRecipientProfile = {
+          accountStatus: user.status ?? null,
+          createdAt: user.createdAt?.toISOString() ?? null,
+          ...(user.driver
+            ? {
+                driver: {
+                  verificationStatus: user.driver.verificationStatus,
+                  availabilityStatus: user.driver.availabilityStatus,
+                  vehicleType: user.driver.vehicleType,
+                  vehicleModel: user.driver.vehicleModel,
+                  vehiclePlate: user.driver.vehiclePlate,
+                },
+              }
+            : {}),
+          ...(user.vendor
+            ? {
+                vendor: {
+                  organizationName: user.vendor.organizationName,
+                  verificationStatus: user.vendor.verificationStatus,
+                },
+              }
+            : {}),
+          ...(user.corporateEmployee
+            ? {
+                corporateEmployee: {
+                  fullName: user.corporateEmployee.fullName,
+                  phoneNumber: user.corporateEmployee.phoneNumber,
+                },
+              }
+            : {}),
+        };
+
+        return {
+          userId: user.id,
+          name:
+            user.fullName ??
+            user.driver?.fullName ??
+            user.vendor?.fullName ??
+            user.corporateEmployee?.fullName ??
+            null,
+          email: user.email ?? null,
+          phone:
+            user.phone ??
+            user.driver?.phone ??
+            user.vendor?.phone ??
+            user.corporateEmployee?.phoneNumber ??
+            null,
+          role: user.role,
+          status,
+          deviceCount: devices.length,
+          providerAcceptedCount: acceptedCount,
+          providerFailedCount: failedDevices.length,
+          failureReason:
+            failureReasons.length > 0
+              ? failureReasons.join('\n')
+              : devices.length === 0
+                ? 'No active push device tokens were registered.'
+                : null,
+          profile,
+          devices,
+        };
+      });
+    };
+
+    const initialProgressRecipients = buildProgressRecipients([], true);
+    this.setBroadcastProgress(operationId, {
+      phase: allTokens.length > 0 ? 'SENDING' : 'SAVING',
+      counts: summarizeBroadcastProgress(
+        initialProgressRecipients,
+        allTokens.length,
+      ),
+      recipients: initialProgressRecipients,
+    });
+
     const pushResult = await this.sendPushToTokensSync(
       allTokens,
       { title, body, imageUrl, actionUrl },
       stringData,
       priority,
+      (snapshot) => {
+        const recipients = buildProgressRecipients(
+          snapshot.tokenResults ?? [],
+          true,
+        );
+        this.setBroadcastProgress(operationId, {
+          phase: 'SENDING',
+          counts: summarizeBroadcastProgress(recipients, allTokens.length),
+          recipients,
+        });
+      },
     );
+    const progressRecipients = buildProgressRecipients(
+      pushResult.tokenResults ?? [],
+      false,
+    );
+    const recipientRows = progressRecipients.map((recipient) => {
+      const failedDevices = recipient.devices.filter(
+        (device) => device.status === 'FAILED',
+      );
+      const latestAttempt = recipient.devices.reduce<Date | undefined>(
+        (latest, device) => {
+          if (!device.attemptedAt) return latest;
+          const attemptedAt = new Date(device.attemptedAt);
+          return !latest || attemptedAt > latest ? attemptedAt : latest;
+        },
+        undefined,
+      );
+
+      return {
+        userId: recipient.userId,
+        recipientName: recipient.name,
+        recipientPhone: recipient.phone,
+        status: (recipient.status === 'FAILED'
+          ? 'FAILED'
+          : 'PENDING') as CampaignRecipientStatus,
+        deviceCount: recipient.deviceCount,
+        providerAcceptedCount: recipient.providerAcceptedCount,
+        providerFailedCount: recipient.providerFailedCount,
+        providerMessageIds: recipient.devices.flatMap((device) =>
+          device.providerMessageId ? [device.providerMessageId] : [],
+        ),
+        attemptedAt: latestAttempt,
+        failedAt:
+          recipient.status === 'FAILED' ? latestAttempt : undefined,
+        failureReason:
+          failedDevices.length > 0
+            ? failedDevices
+                .map((device) => device.failureReason)
+                .filter((reason): reason is string => Boolean(reason))
+                .join('\n')
+            : recipient.deviceCount === 0
+              ? recipient.failureReason ?? undefined
+              : undefined,
+      };
+    });
+    const recipientCounts = summarizeCampaignRecipients(recipientRows);
+    this.setBroadcastProgress(operationId, {
+      phase: 'SAVING',
+      counts: summarizeBroadcastProgress(progressRecipients, allTokens.length),
+      recipients: progressRecipients,
+    });
 
     // 2. Persist in-app notifications for targeted users in batch
     if (targetUserIds.length > 0) {
@@ -1111,31 +1733,118 @@ export class NotificationsService implements OnModuleInit {
     });
 
     // 4. Save campaign log in DB
-    const campaign = await this.db.notificationCampaign.create({
-      data: {
-        title,
-        body,
-        imageUrl,
-        actionUrl,
-        targetRole: audienceFilter?.role || 'ALL',
-        targetFilter: audienceFilter ? JSON.parse(JSON.stringify(audienceFilter)) : undefined,
-        totalTargeted: allTokens.length,
-        successCount: pushResult.successCount,
-        failureCount: pushResult.failureCount,
-        status: pushResult.failureCount === 0 || pushResult.successCount > 0 ? 'SENT' : 'FAILED',
-        sentBy: adminId || 'ADMIN',
-      },
-    });
+    const status =
+      pushResult.successCount > 0
+        ? pushResult.failureCount > 0
+          ? 'PARTIAL'
+          : recipientTrackingAvailable
+            ? 'SENT'
+            : 'PENDING'
+        : pushResult.failureCount > 0
+          ? 'FAILED'
+          : 'PENDING';
+    const targetFilter = audienceFilter ? JSON.parse(JSON.stringify(audienceFilter)) : undefined;
+    let campaign: { id: string; status: string };
 
-    this.logger.log(`📢 [ADMIN CAMPAIGN DISPATCHED] Campaign ID: ${campaign.id} | Recipients: ${users.length}`);
+    if (recipientTrackingAvailable) {
+      campaign = await this.db.notificationCampaign.create({
+        data: {
+          title,
+          body,
+          imageUrl,
+          actionUrl,
+          targetRole: audienceFilter?.role || 'ALL',
+          targetFilter,
+          totalTargeted: allTokens.length,
+          successCount: pushResult.successCount,
+          failureCount: pushResult.failureCount,
+          status,
+          sentBy: adminId || 'ADMIN',
+          recipientTrackingEnabled: true,
+          ...(recipientRows.length > 0
+            ? {
+                recipients: {
+                  createMany: {
+                    data: recipientRows,
+                    skipDuplicates: true,
+                  },
+                },
+              }
+            : {}),
+        },
+      });
+    } else {
+      const campaignId = randomUUID();
+      const targetFilterJson = targetFilter ? JSON.stringify(targetFilter) : null;
+      const savedCampaign = await this.db.$queryRaw<Array<{ id: string; status: string }>>`
+        INSERT INTO notification_campaigns (
+          id, title, body, image_url, action_url, target_role, target_filter,
+          total_targeted, success_count, failure_count, status, sent_by
+        )
+        VALUES (
+          ${campaignId}::uuid, ${title}, ${body}, ${imageUrl ?? null},
+          ${actionUrl ?? null}, ${audienceFilter?.role || 'ALL'},
+          ${targetFilterJson}::jsonb, ${allTokens.length},
+          ${pushResult.successCount}, ${pushResult.failureCount}, ${status},
+          ${adminId || 'ADMIN'}
+        )
+        RETURNING id::text AS id, status
+      `;
+      campaign = savedCampaign[0];
+      if (!campaign) {
+        throw new BadRequestException('Campaign could not be saved');
+      }
+    }
+    this.setBroadcastProgress(operationId, { campaignId: campaign.id });
+
+    let recipientDetailsPersisted = recipientTrackingAvailable;
+    if (recipientTrackingAvailable && progressRecipients.length > 0) {
+      const detailRows = progressRecipients.map((recipient) => ({
+        userId: recipient.userId,
+        role: recipient.role,
+        email: recipient.email,
+        profile: recipient.profile,
+        devices: recipient.devices,
+      }));
+      try {
+        await this.db.$executeRaw`
+          UPDATE notification_campaign_recipients AS stored
+          SET
+            recipient_role = details.role,
+            recipient_email = details.email,
+            recipient_profile = details.profile,
+            device_details = details.devices
+          FROM jsonb_to_recordset(${JSON.stringify(detailRows)}::jsonb) AS details(
+            "userId" UUID,
+            role TEXT,
+            email TEXT,
+            profile JSONB,
+            devices JSONB
+          )
+          WHERE stored.campaign_id = ${campaign.id}::uuid
+            AND stored.user_id = details."userId"
+        `;
+      } catch (error) {
+        recipientDetailsPersisted = false;
+        this.logger.error(
+          `Campaign ${campaign.id} was saved but recipient device details could not be persisted: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    }
+
+    this.logger.log(`📢 [ADMIN CAMPAIGN DISPATCHED] Campaign ID: ${campaign.id} | Recipients: ${targetUsers.length}`);
 
     return {
       campaignId: campaign.id,
-      totalTargetedUsers: users.length,
+      totalTargetedUsers: targetUsers.length,
       totalTargetedDevices: allTokens.length,
       successCount: pushResult.successCount,
       failureCount: pushResult.failureCount,
+      recipientCounts,
       status: campaign.status,
+      recipientDetailsPersisted,
     };
   }
 
@@ -1149,7 +1858,12 @@ export class NotificationsService implements OnModuleInit {
       return this.sendPushToTokensSync(
         [targetToken],
         { title, body, imageUrl, actionUrl },
-        { actionUrl: actionUrl || '', route: actionUrl || '', click_action: 'FLUTTER_NOTIFICATION_CLICK', ...(data || {}) },
+        {
+          actionUrl: actionUrl || '',
+          route: actionUrl || '',
+          click_action: 'FLUTTER_NOTIFICATION_CLICK',
+          ...(data || {}),
+        },
         'high',
       );
     }
@@ -1174,11 +1888,7 @@ export class NotificationsService implements OnModuleInit {
 
       const user = await this.db.user.findFirst({
         where: {
-          OR: [
-            { phone: cleanPhone },
-            { phone: normalizedWithPlus },
-            ...(tenDigits ? [{ phone: { endsWith: tenDigits } }] : []),
-          ],
+          OR: [{ phone: cleanPhone }, { phone: normalizedWithPlus }, ...(tenDigits ? [{ phone: { endsWith: tenDigits } }] : [])],
         },
       });
       if (!user) {
@@ -1215,7 +1925,9 @@ export class NotificationsService implements OnModuleInit {
       };
     }
 
-    let pref = await this.db.notificationPreference.findUnique({ where: { userId } });
+    let pref = await this.db.notificationPreference.findUnique({
+      where: { userId },
+    });
     if (!pref) {
       pref = await this.db.notificationPreference.create({
         data: {
@@ -1374,7 +2086,9 @@ export class NotificationsService implements OnModuleInit {
       const res = await this.db.notification.deleteMany({
         where: { id: notificationId, userId },
       });
-      const unreadCount = await this.db.notification.count({ where: { userId, isRead: false } });
+      const unreadCount = await this.db.notification.count({
+        where: { userId, isRead: false },
+      });
       return { success: true, deletedCount: res.count, unreadCount };
     } catch (err: any) {
       this.logger.warn(`Failed to delete notification ${notificationId}: ${err.message}`);
@@ -1400,23 +2114,138 @@ export class NotificationsService implements OnModuleInit {
 
   // ─── Admin Campaigns & Metrics ───────────────────────────────────────────────
 
+  private async hasCampaignRecipientTracking(): Promise<boolean> {
+    const [schemaState] = await this.db!.$queryRaw<CampaignTrackingSchemaState[]>`
+      SELECT
+        EXISTS (
+          SELECT 1
+          FROM information_schema.columns
+          WHERE table_schema = current_schema()
+            AND table_name = 'notification_campaigns'
+            AND column_name = 'recipient_tracking_enabled'
+        ) AS "hasTrackingColumn",
+        EXISTS (
+          SELECT 1
+          FROM information_schema.tables
+          WHERE table_schema = current_schema()
+            AND table_name = 'notification_campaign_recipients'
+        ) AS "hasRecipientTable",
+        (
+          SELECT COUNT(*) = 4
+          FROM information_schema.columns
+          WHERE table_schema = current_schema()
+            AND table_name = 'notification_campaign_recipients'
+            AND column_name IN (
+              'recipient_role',
+              'recipient_email',
+              'recipient_profile',
+              'device_details'
+            )
+        ) AS "hasRecipientDetails"
+    `;
+
+    return Boolean(
+      schemaState?.hasTrackingColumn &&
+        schemaState?.hasRecipientTable &&
+        schemaState?.hasRecipientDetails,
+    );
+  }
+
   /**
    * Get past notification broadcast campaigns list for Admin Portal.
    */
   async getCampaigns(query?: { page?: number; limit?: number }) {
-    if (!this.db) return { campaigns: [], total: 0 };
+    if (!this.db) throw new BadRequestException('Database service unavailable');
 
-    const page = Number(query?.page || 1);
-    const limit = Number(query?.limit || 20);
+    const page = Math.max(1, Math.floor(Number(query?.page) || 1));
+    const limit = Math.min(100, Math.max(1, Math.floor(Number(query?.limit) || 20)));
+    const skip = (page - 1) * limit;
+
+    if (!(await this.hasCampaignRecipientTracking())) {
+      const [campaigns, totalRows] = await Promise.all([
+        this.db.$queryRaw<LegacyCampaignHistoryRow[]>`
+          SELECT
+            id::text AS id,
+            title,
+            body,
+            image_url AS "imageUrl",
+            action_url AS "actionUrl",
+            target_role AS "targetRole",
+            target_filter AS "targetFilter",
+            total_targeted AS "totalTargeted",
+            success_count AS "successCount",
+            failure_count AS "failureCount",
+            status,
+            sent_by AS "sentBy",
+            created_at AS "createdAt"
+          FROM notification_campaigns
+          ORDER BY created_at DESC
+          LIMIT ${limit}
+          OFFSET ${skip}
+        `,
+        this.db.$queryRaw<Array<{ total: number }>>`
+          SELECT COUNT(*)::int AS total
+          FROM notification_campaigns
+        `,
+      ]);
+
+      return {
+        campaigns: campaigns.map((campaign) => ({
+          id: campaign.id,
+          title: campaign.title,
+          body: campaign.body,
+          imageUrl: campaign.imageUrl || undefined,
+          actionUrl: campaign.actionUrl || undefined,
+          targetRole: campaign.targetRole || 'ALL',
+          targetFilter: (campaign.targetFilter as Record<string, any> | null) || undefined,
+          totalTargeted: campaign.totalTargeted,
+          successCount: campaign.successCount,
+          failureCount: campaign.failureCount,
+          status: campaign.status,
+          sentBy: campaign.sentBy || 'ADMIN',
+          recipientTrackingEnabled: false,
+          recipientCounts: undefined,
+          createdAt: campaign.createdAt.toISOString(),
+        })),
+        total: totalRows[0]?.total ?? 0,
+        page,
+        limit,
+      };
+    }
 
     const [campaigns, total] = await Promise.all([
       this.db.notificationCampaign.findMany({
         orderBy: { createdAt: 'desc' },
         take: limit,
-        skip: (page - 1) * limit,
+        skip,
       }),
       this.db.notificationCampaign.count(),
     ]);
+    const recipientGroups = campaigns.length
+      ? await this.db.notificationCampaignRecipient.groupBy({
+          by: ['campaignId', 'status'],
+          where: {
+            campaignId: { in: campaigns.map((campaign) => campaign.id) },
+          },
+          _count: { _all: true },
+        })
+      : [];
+    const recipientCountsByCampaign = new Map<string, CampaignRecipientCounts>();
+
+    recipientGroups.forEach((group) => {
+      const counts = recipientCountsByCampaign.get(group.campaignId) ?? {
+        sent: 0,
+        delivered: 0,
+        failed: 0,
+        pending: 0,
+      };
+      const count = group._count._all;
+      counts.sent += count;
+      if (group.status === 'DELIVERED') counts.delivered += count;
+      else if (group.status === 'FAILED') counts.failed += count;
+      else counts.pending += count;
+      recipientCountsByCampaign.set(group.campaignId, counts);
+    });
 
     return {
       campaigns: campaigns.map((c) => ({
@@ -1432,6 +2261,15 @@ export class NotificationsService implements OnModuleInit {
         failureCount: c.failureCount,
         status: c.status,
         sentBy: c.sentBy || 'ADMIN',
+        recipientTrackingEnabled: c.recipientTrackingEnabled,
+        recipientCounts: c.recipientTrackingEnabled
+          ? (recipientCountsByCampaign.get(c.id) ?? {
+              sent: 0,
+              delivered: 0,
+              failed: 0,
+              pending: 0,
+            })
+          : undefined,
         createdAt: c.createdAt.toISOString(),
       })),
       total,
@@ -1441,34 +2279,137 @@ export class NotificationsService implements OnModuleInit {
   }
 
   /**
+   * Get stored per-user delivery results for one campaign.
+   */
+  async getCampaignRecipients(campaignId: string) {
+    if (!this.db) throw new BadRequestException('Database service unavailable');
+
+    if (!(await this.hasCampaignRecipientTracking())) {
+      const [campaign] = await this.db.$queryRaw<Array<{ exists: boolean }>>`
+        SELECT EXISTS (
+          SELECT 1
+          FROM notification_campaigns
+          WHERE id = ${campaignId}::uuid
+        ) AS "exists"
+      `;
+      if (!campaign?.exists) {
+        throw new NotFoundException('Notification campaign not found');
+      }
+
+      return {
+        campaignId,
+        trackingAvailable: false,
+        counts: null,
+        recipients: [],
+      };
+    }
+
+    const campaign = await this.db.notificationCampaign.findUnique({
+      where: { id: campaignId },
+      select: {
+        id: true,
+        recipientTrackingEnabled: true,
+      },
+    });
+    if (!campaign) {
+      throw new NotFoundException('Notification campaign not found');
+    }
+
+    const recipients = campaign.recipientTrackingEnabled
+      ? await this.db.notificationCampaignRecipient.findMany({
+          where: { campaignId },
+          orderBy: [{ status: 'asc' }, { createdAt: 'asc' }],
+          select: {
+            id: true,
+            userId: true,
+            recipientName: true,
+            recipientPhone: true,
+            status: true,
+            deviceCount: true,
+            providerAcceptedCount: true,
+            providerFailedCount: true,
+            attemptedAt: true,
+            deliveredAt: true,
+            failedAt: true,
+            failureReason: true,
+            createdAt: true,
+          },
+        })
+      : [];
+    const detailRows = campaign.recipientTrackingEnabled
+      ? await this.db.$queryRaw<
+          Array<{
+            userId: string | null;
+            role: string | null;
+            email: string | null;
+            profile: CampaignRecipientProfile | null;
+            devices: CampaignDeviceDetail[] | null;
+          }>
+        >`
+          SELECT
+            user_id::text AS "userId",
+            recipient_role AS role,
+            recipient_email AS email,
+            recipient_profile AS profile,
+            device_details AS devices
+          FROM notification_campaign_recipients
+          WHERE campaign_id = ${campaignId}::uuid
+        `
+      : [];
+    const detailsByUserId = new Map(
+      detailRows.map((details) => [details.userId, details]),
+    );
+
+    return {
+      campaignId,
+      trackingAvailable: campaign.recipientTrackingEnabled,
+      counts: campaign.recipientTrackingEnabled ? summarizeCampaignRecipients(recipients) : null,
+      recipients: recipients.map((recipient) => ({
+        id: recipient.id,
+        userId: recipient.userId,
+        name: recipient.recipientName,
+        phone: recipient.recipientPhone,
+        role: detailsByUserId.get(recipient.userId)?.role ?? null,
+        email: detailsByUserId.get(recipient.userId)?.email ?? null,
+        profile:
+          detailsByUserId.get(recipient.userId)?.profile ?? null,
+        devices: detailsByUserId.get(recipient.userId)?.devices ?? [],
+        status: recipient.status as CampaignRecipientStatus,
+        deviceCount: recipient.deviceCount,
+        providerAcceptedCount: recipient.providerAcceptedCount,
+        providerFailedCount: recipient.providerFailedCount,
+        timestamp: (recipient.deliveredAt ?? recipient.failedAt ?? recipient.attemptedAt ?? recipient.createdAt).toISOString(),
+        deliveredAt: recipient.deliveredAt?.toISOString() ?? null,
+        failedAt: recipient.failedAt?.toISOString() ?? null,
+        failureReason: recipient.failureReason,
+      })),
+    };
+  }
+
+  /**
    * Get push notification metrics summary for Admin Portal.
    */
   async getMetrics() {
     if (!this.db) {
       return {
+        totalSent: 0,
         totalDelivered: 0,
+        totalFailed: 0,
+        totalPending: 0,
         totalCampaigns: 0,
         activeDevicesCount: 0,
         devicesByPlatform: { android: 0, ios: 0, web: 0 },
-        deliverySuccessRate: 100,
+        deliverySuccessRate: 0,
         inAppNotificationsCount: 0,
       };
     }
 
-    const [campaigns, devices, inAppCount] = await Promise.all([
-      this.db.notificationCampaign.findMany(),
+    const recipientTrackingAvailable = await this.hasCampaignRecipientTracking();
+    const [totalCampaigns, devices, inAppCount] = await Promise.all([
+      this.db.notificationCampaign.count(),
       this.db.deviceToken.findMany({ where: { isActive: true } }),
       this.db.notification.count(),
     ]);
-
-    let totalSuccess = 0;
-    let totalFailure = 0;
-    let totalTargeted = 0;
-    campaigns.forEach((c) => {
-      totalSuccess += c.successCount;
-      totalFailure += c.failureCount;
-      totalTargeted += c.totalTargeted;
-    });
 
     let android = 0;
     let ios = 0;
@@ -1479,15 +2420,53 @@ export class NotificationsService implements OnModuleInit {
       else if (d.platform === DevicePlatform.WEB) web++;
     });
 
-    const totalAttempted = totalSuccess + totalFailure;
-    const deliverySuccessRate =
-      totalAttempted > 0
-        ? Number(((totalSuccess / totalAttempted) * 100).toFixed(1))
-        : (totalTargeted > 0 ? Number(((totalSuccess / totalTargeted) * 100).toFixed(1)) : 100.0);
+    if (!recipientTrackingAvailable) {
+      const [legacyCounts] = await this.db.$queryRaw<Array<{ successCount: number; failureCount: number }>>`
+        SELECT
+          COALESCE(SUM(success_count), 0)::int AS "successCount",
+          COALESCE(SUM(failure_count), 0)::int AS "failureCount"
+        FROM notification_campaigns
+      `;
+      const totalFailed = legacyCounts?.failureCount ?? 0;
+      const totalPending = legacyCounts?.successCount ?? 0;
+
+      return {
+        totalSent: totalPending + totalFailed,
+        totalDelivered: 0,
+        totalFailed,
+        totalPending,
+        totalCampaigns,
+        activeDevicesCount: devices.length,
+        devicesByPlatform: { android, ios, web },
+        deliverySuccessRate: 0,
+        inAppNotificationsCount: inAppCount,
+      };
+    }
+
+    const recipientGroups = await this.db.notificationCampaignRecipient.groupBy({
+      by: ['status'],
+      _count: { _all: true },
+    });
+    const recipientCounts = recipientGroups.reduce(
+      (counts, group) => {
+        const count = group._count._all;
+        if (group.status === 'DELIVERED') counts.delivered += count;
+        else if (group.status === 'FAILED') counts.failed += count;
+        else counts.pending += count;
+        return counts;
+      },
+      { delivered: 0, failed: 0, pending: 0 },
+    );
+
+    const totalAttempted = recipientCounts.delivered + recipientCounts.failed;
+    const deliverySuccessRate = totalAttempted > 0 ? Number(((recipientCounts.delivered / totalAttempted) * 100).toFixed(1)) : 0;
 
     return {
-      totalDelivered: totalSuccess || inAppCount,
-      totalCampaigns: campaigns.length,
+      totalSent: recipientCounts.delivered + recipientCounts.failed + recipientCounts.pending,
+      totalDelivered: recipientCounts.delivered,
+      totalFailed: recipientCounts.failed,
+      totalPending: recipientCounts.pending,
+      totalCampaigns,
       activeDevicesCount: devices.length,
       devicesByPlatform: { android, ios, web },
       deliverySuccessRate,
@@ -1532,9 +2511,7 @@ export class NotificationsService implements OnModuleInit {
       }
 
       const smsText = `[AdhocX] Your authentication OTP is ${otp}. Valid for 5 minutes. Never share OTP with anyone.`;
-      this.logger.log(
-        `📱 [NOTIFICATION DISPATCH - SMS] To: ${phone} | Body: "${smsText}" | MsgID: ${messageId}`,
-      );
+      this.logger.log(`📱 [NOTIFICATION DISPATCH - SMS] To: ${phone} | Body: "${smsText}" | MsgID: ${messageId}`);
       return { success: true, channel: 'SMS', messageId };
     }
 

@@ -31,7 +31,7 @@ export interface CorporateTenantListItem {
   primaryContactPhone?: string | null;
   billingAddress?: string | null;
   billingSameAsRegistered: boolean;
-  status: 'ACTIVE' | 'SUSPENDED' | 'INACTIVE' | string;
+  status: "ACTIVE" | "SUSPENDED" | "INACTIVE" | string;
   createdAt: string;
   updatedAt?: string;
   _count?: {
@@ -86,8 +86,10 @@ export interface CreateCorporateTenantInput {
   billingSameAsRegistered?: boolean;
 }
 
-export type UpdateCorporateTenantInput = Partial<Omit<CreateCorporateTenantInput, 'code'>> & {
-  status?: CorporateTenantListItem['status'];
+export type UpdateCorporateTenantInput = Partial<
+  Omit<CreateCorporateTenantInput, "code">
+> & {
+  status?: CorporateTenantListItem["status"];
 };
 
 export interface CorporateOfficeItem {
@@ -202,7 +204,8 @@ export interface DriverListItem {
   vehicleType?: string;
   vehicleModel?: string;
   vehicleColor?: string;
-  verificationStatus: 'PENDING' | 'UNDER_REVIEW' | 'VERIFIED' | 'REJECTED' | 'SUSPENDED';
+  verificationStatus:
+    "PENDING" | "UNDER_REVIEW" | "VERIFIED" | "REJECTED" | "SUSPENDED";
   availabilityStatus?: string;
   walletBalance?: number;
   trustScore?: number;
@@ -239,7 +242,16 @@ export interface DriverListItem {
 
 export interface DriverKycDocument {
   id: string;
-  documentType: 'DL_FRONT' | 'DL_BACK' | 'RC_BOOK' | 'RC_FRONT' | 'RC_BACK' | 'INSURANCE' | 'VEHICLE_PHOTO' | 'AADHAAR' | string;
+  documentType:
+    | "DL_FRONT"
+    | "DL_BACK"
+    | "RC_BOOK"
+    | "RC_FRONT"
+    | "RC_BACK"
+    | "INSURANCE"
+    | "VEHICLE_PHOTO"
+    | "AADHAAR"
+    | string;
   title?: string;
   fileUrl: string;
   verified: boolean;
@@ -268,8 +280,9 @@ export interface VendorListItem {
   address?: string;
   city?: string;
   state?: string;
-  verificationStatus: 'PENDING' | 'UNDER_REVIEW' | 'VERIFIED' | 'REJECTED' | 'SUSPENDED';
-  accountStatus?: 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED';
+  verificationStatus:
+    "PENDING" | "UNDER_REVIEW" | "VERIFIED" | "REJECTED" | "SUSPENDED";
+  accountStatus?: "ACTIVE" | "SUSPENDED" | "DEACTIVATED";
   rejectionReason?: string;
   requirementsCount?: number;
   escrowBalance?: number;
@@ -283,7 +296,7 @@ export interface UserListItem {
   phone: string;
   email: string;
   role: string;
-  status: 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED';
+  status: "ACTIVE" | "SUSPENDED" | "DEACTIVATED";
   companyName?: string;
   address?: string;
   city?: string;
@@ -323,7 +336,7 @@ export interface UserProfileDetail {
   email: string;
   phone: string;
   role: string;
-  status: 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED';
+  status: "ACTIVE" | "SUSPENDED" | "DEACTIVATED";
   createdAt: string;
   updatedAt?: string;
   profilePhotoUrl?: string | null;
@@ -395,8 +408,9 @@ export interface CorporateVendorDetail {
   state: string;
   gstNumber?: string | null;
   businessType?: string | null;
-  verificationStatus: 'PENDING' | 'UNDER_REVIEW' | 'VERIFIED' | 'REJECTED' | 'SUSPENDED';
-  accountStatus: 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED';
+  verificationStatus:
+    "PENDING" | "UNDER_REVIEW" | "VERIFIED" | "REJECTED" | "SUSPENDED";
+  accountStatus: "ACTIVE" | "SUSPENDED" | "DEACTIVATED";
   escrowBalance: number;
   createdAt: string;
   updatedAt: string;
@@ -411,14 +425,68 @@ export interface CorporateVendorDetail {
   recentActivities: VendorActivityItem[];
 }
 
+export interface VendorFulfillmentDriver {
+  assignmentId: string;
+  tripId: string | null;
+  driverId: string;
+  name: string | null;
+  phone: string | null;
+  vehicleType: string | null;
+  vehicleMake: string | null;
+  vehicleModel: string | null;
+  vehicleRegistration: string | null;
+  vehicleVerificationStatus: string | null;
+  arrivalAt: string | null;
+  assignedAt: string;
+  tripStatus: string | null;
+  tripStartedAt: string | null;
+  tripCompletedAt: string | null;
+  tripCancelledAt: string | null;
+  assignmentStatus: string;
+  attendanceStatus: string;
+  hasArrived: boolean;
+}
+
+export interface VendorFulfillmentRequirement {
+  id: string;
+  status: string;
+  vehicleType: string;
+  pickupAddress: string;
+  dropAddress: string;
+  createdAt: string;
+  reportingTime: string;
+  requiredDrivers: number;
+  arrivedDrivers: number;
+  pendingDrivers: number;
+  cancelledDrivers: number;
+  notAssignedDrivers: number;
+  drivers: VendorFulfillmentDriver[];
+}
+
+export interface VendorFulfillmentResponse {
+  vendorId: string;
+  vendorName: string;
+  vendorContactName: string | null;
+  vendorPhone: string | null;
+  vendorAddress: string | null;
+  summary: {
+    requiredDrivers: number;
+    arrivedDrivers: number;
+    pendingDrivers: number;
+    cancelledDrivers: number;
+    notAssignedDrivers: number;
+  };
+  requirements: VendorFulfillmentRequirement[];
+}
+
 export interface VerificationItem {
   id: string;
-  entityType: 'DRIVER' | 'VENDOR';
+  entityType: "DRIVER" | "VENDOR";
   name: string;
   organizationName?: string;
   phone: string;
   email?: string;
-  verificationStatus: 'PENDING' | 'UNDER_REVIEW' | 'VERIFIED' | 'REJECTED';
+  verificationStatus: "PENDING" | "UNDER_REVIEW" | "VERIFIED" | "REJECTED";
   rejectionReason?: string;
   vehiclePlate?: string;
   vehicleType?: string;
@@ -438,7 +506,7 @@ export interface VerificationItem {
 export interface RequirementListItem {
   id: string;
   vendorName: string;
-  fulfillmentMode?: 'DIRECT_DISPATCH';
+  fulfillmentMode?: "DIRECT_DISPATCH";
   vehicleType: string;
   quantity: number;
   assignedQuantity: number;
@@ -471,7 +539,7 @@ export interface DisputeListItem {
   accusedName?: string;
   reason: string;
   description?: string;
-  status: 'OPEN' | 'UNDER_REVIEW' | 'RESOLVED' | 'REJECTED';
+  status: "OPEN" | "UNDER_REVIEW" | "RESOLVED" | "REJECTED";
   resolutionText?: string;
   createdAt: string;
   updatedAt: string;
@@ -516,7 +584,8 @@ export interface SettlementListItem {
   bankAccountNumber?: string;
   bankIfsc?: string;
   bankName?: string;
-  bankVerificationStatus?: 'NOT_SUBMITTED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
+  bankVerificationStatus?:
+    "NOT_SUBMITTED" | "PENDING" | "VERIFIED" | "REJECTED";
   transactionRef?: string;
   processedAt?: string;
   createdAt: string;
@@ -540,11 +609,11 @@ export interface CouponListItem {
   code: string;
   title: string;
   description?: string | null;
-  discountType: 'PERCENTAGE' | 'FLAT';
+  discountType: "PERCENTAGE" | "FLAT";
   discountValue: number;
   maxDiscountAmount?: number | null;
   minOrderAmount: number;
-  applicableTo: 'WALLET_TOPUP' | 'REQUIREMENT_BOOKING' | 'ALL';
+  applicableTo: "WALLET_TOPUP" | "REQUIREMENT_BOOKING" | "ALL";
   usageLimitTotal?: number | null;
   usageLimitPerUser: number;
   usedCount: number;
@@ -582,11 +651,11 @@ export interface CreateCouponPayload {
   code: string;
   title: string;
   description?: string;
-  discountType: 'PERCENTAGE' | 'FLAT';
+  discountType: "PERCENTAGE" | "FLAT";
   discountValue: number;
   maxDiscountAmount?: number;
   minOrderAmount?: number;
-  applicableTo?: 'WALLET_TOPUP' | 'REQUIREMENT_BOOKING' | 'ALL';
+  applicableTo?: "WALLET_TOPUP" | "REQUIREMENT_BOOKING" | "ALL";
   usageLimitTotal?: number;
   usageLimitPerUser?: number;
   validFrom: string;
@@ -597,11 +666,11 @@ export interface CreateCouponPayload {
 export interface UpdateCouponPayload {
   title?: string;
   description?: string;
-  discountType?: 'PERCENTAGE' | 'FLAT';
+  discountType?: "PERCENTAGE" | "FLAT";
   discountValue?: number;
   maxDiscountAmount?: number;
   minOrderAmount?: number;
-  applicableTo?: 'WALLET_TOPUP' | 'REQUIREMENT_BOOKING' | 'ALL';
+  applicableTo?: "WALLET_TOPUP" | "REQUIREMENT_BOOKING" | "ALL";
   usageLimitTotal?: number;
   usageLimitPerUser?: number;
   validFrom?: string;
@@ -620,7 +689,7 @@ export interface BlogPostItem {
   coverImage?: string | null;
   authorName: string;
   authorRole?: string | null;
-  status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+  status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
   views: number;
   readTime: string;
   seoTitle?: string | null;
@@ -641,7 +710,7 @@ export interface CreateBlogPostInput {
   coverImage?: string;
   authorName?: string;
   authorRole?: string;
-  status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+  status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
   readTime?: string;
   seoTitle?: string;
   seoDescription?: string;
@@ -667,7 +736,15 @@ export interface AssignmentItem {
   vehiclePlate?: string;
   vehicleType?: string;
   vehicleModel?: string;
-  status: 'OFFERED' | 'ACCEPTED' | 'REJECTED' | 'EXPIRED' | 'CANCELLED' | 'ACTIVE' | 'COMPLETED' | string;
+  status:
+    | "OFFERED"
+    | "ACCEPTED"
+    | "REJECTED"
+    | "EXPIRED"
+    | "CANCELLED"
+    | "ACTIVE"
+    | "COMPLETED"
+    | string;
   assignedRate?: number;
   pickupAddress?: string;
   dropAddress?: string;
@@ -685,8 +762,16 @@ export interface AdminPaymentItem {
   requirementId?: string;
   amount: number;
   currency: string;
-  type: 'ESCROW_HOLD' | 'ESCROW_RELEASE' | 'DIRECT' | 'PENALTY' | 'REFUND' | 'TOP_UP' | string;
-  status: 'PENDING' | 'HELD_IN_ESCROW' | 'RELEASED' | 'REFUNDED' | 'FAILED' | string;
+  type:
+    | "ESCROW_HOLD"
+    | "ESCROW_RELEASE"
+    | "DIRECT"
+    | "PENALTY"
+    | "REFUND"
+    | "TOP_UP"
+    | string;
+  status:
+    "PENDING" | "HELD_IN_ESCROW" | "RELEASED" | "REFUNDED" | "FAILED" | string;
   paymentGateway: string;
   gatewayPaymentId?: string;
   gatewayOrderId?: string;
@@ -755,8 +840,17 @@ export interface OperationalReportData {
   tripCancellationRate?: string;
   avgDriverResponse?: string;
   tripFrequency?: Array<{ date: string; count: number }>;
-  categoryBreakdown?: Array<{ category: string; rate: number; demands: number }>;
-  slaHealth?: Array<{ metric: string; value: string; sla: string; desc: string }>;
+  categoryBreakdown?: Array<{
+    category: string;
+    rate: number;
+    demands: number;
+  }>;
+  slaHealth?: Array<{
+    metric: string;
+    value: string;
+    sla: string;
+    desc: string;
+  }>;
   corridorAnalytics?: CorridorAnalytics[];
 }
 
@@ -781,7 +875,7 @@ export interface TripFrequencyReport {
   }> | null;
 }
 
-export type FinancialCompanySource = 'VENDOR' | 'CORPORATE_TENANT';
+export type FinancialCompanySource = "VENDOR" | "CORPORATE_TENANT";
 
 export interface FinancialCompanyOption {
   id: string;
@@ -793,7 +887,7 @@ export interface FinancialCompanyOption {
 
 export interface DailyFinancialReport {
   date: string;
-  currency: 'INR';
+  currency: "INR";
   grossBookingValue: number;
   expenditure: number;
   activeEscrowHoldValue: number;
@@ -807,12 +901,12 @@ export interface SupportTicketItem {
   ticketNumber?: string;
   userId?: string;
   reporterName: string;
-  reporterRole: 'DRIVER' | 'VENDOR' | 'USER' | string;
+  reporterRole: "DRIVER" | "VENDOR" | "USER" | string;
   reporterPhone: string;
   relatedTripId?: string;
   issueType: string;
   description: string;
-  status: 'PENDING' | 'UNDER_REVIEW' | 'RESOLVED' | string;
+  status: "PENDING" | "UNDER_REVIEW" | "RESOLVED" | string;
   operatorNotes?: string;
   createdAt: string;
   updatedAt?: string;
@@ -837,13 +931,139 @@ export interface NotificationCampaignItem {
   totalTargeted: number;
   successCount: number;
   failureCount: number;
-  status: 'SENT' | 'FAILED' | 'SCHEDULED' | string;
+  status: "SENT" | "FAILED" | "SCHEDULED" | string;
   sentBy?: string;
+  recipientTrackingEnabled?: boolean;
+  recipientCounts?: NotificationCampaignRecipientCounts;
   createdAt: string;
 }
 
+export type NotificationCampaignRecipientStatus =
+  "DELIVERED" | "FAILED" | "PENDING";
+
+export interface NotificationCampaignRecipientCounts {
+  sent: number;
+  delivered: number;
+  failed: number;
+  pending: number;
+}
+
+export interface NotificationCampaignRecipientDevice {
+  deviceTokenId: string;
+  platform: string;
+  model: string | null;
+  appVersion: string | null;
+  maskedToken: string;
+  isActive: boolean;
+  lastActiveAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  status: "SENDING" | "PENDING" | "FAILED";
+  providerAccepted: boolean | null;
+  providerMessageId: string | null;
+  attemptedAt: string | null;
+  failureReason: string | null;
+}
+
+export interface NotificationCampaignRecipientProfile {
+  accountStatus: string | null;
+  createdAt: string | null;
+  driver?: {
+    verificationStatus: string;
+    availabilityStatus: string;
+    vehicleType: string | null;
+    vehicleModel: string | null;
+    vehiclePlate: string | null;
+  };
+  vendor?: {
+    organizationName: string;
+    verificationStatus: string;
+  };
+  corporateEmployee?: {
+    fullName: string | null;
+    phoneNumber: string | null;
+  };
+}
+
+export interface NotificationCampaignRecipient {
+  id: string;
+  userId: string | null;
+  name: string | null;
+  phone: string | null;
+  role: string | null;
+  email: string | null;
+  profile: NotificationCampaignRecipientProfile | null;
+  devices: NotificationCampaignRecipientDevice[];
+  status: NotificationCampaignRecipientStatus;
+  deviceCount: number;
+  providerAcceptedCount: number;
+  providerFailedCount: number;
+  timestamp: string;
+  deliveredAt: string | null;
+  failedAt: string | null;
+  failureReason: string | null;
+}
+
+export interface NotificationCampaignRecipientResponse {
+  campaignId: string;
+  trackingAvailable: boolean;
+  counts: NotificationCampaignRecipientCounts | null;
+  recipients: NotificationCampaignRecipient[];
+}
+
+export type NotificationBroadcastPhase =
+  | "PREPARING"
+  | "SENDING"
+  | "SAVING"
+  | "COMPLETED"
+  | "FAILED";
+
+export interface NotificationBroadcastProgressRecipient {
+  userId: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  role: string;
+  status: "SENDING" | "PENDING" | "PARTIAL" | "FAILED";
+  deviceCount: number;
+  providerAcceptedCount: number;
+  providerFailedCount: number;
+  failureReason: string | null;
+  profile: NotificationCampaignRecipientProfile;
+  devices: NotificationCampaignRecipientDevice[];
+}
+
+export interface NotificationBroadcastProgress {
+  operationId: string;
+  phase: NotificationBroadcastPhase;
+  title: string;
+  audience: string;
+  startedAt: string;
+  updatedAt: string;
+  campaignId: string | null;
+  failureMessage: string | null;
+  recipientDetailsPersisted: boolean | null;
+  counts: {
+    targetedUsers: number;
+    targetedDevices: number;
+    providerResponses: number;
+    providerNotAttempted: number;
+    providerAccepted: number;
+    providerFailed: number;
+    awaitingProviderResponse: number;
+    usersWithAcceptedDevice: number;
+    usersFullyFailed: number;
+    usersWithoutActiveDevice: number;
+    confirmedDelivered: number;
+  };
+  recipients: NotificationBroadcastProgressRecipient[];
+}
+
 export interface NotificationMetrics {
+  totalSent: number;
   totalDelivered: number;
+  totalFailed: number;
+  totalPending: number;
   totalCampaigns: number;
   activeDevicesCount: number;
   devicesByPlatform: {
@@ -871,7 +1091,7 @@ export interface BroadcastPushPayload {
   body: string;
   imageUrl?: string;
   actionUrl?: string;
-  priority?: 'normal' | 'high';
+  priority?: "normal" | "high";
   filter?: AudienceFilter;
   data?: Record<string, string>;
   dryRun?: boolean;
@@ -911,19 +1131,17 @@ export interface AudienceEstimateResult {
   };
 }
 
-
-
-
-
 // ---------------------------------------------------------------------------
 // Corporate ETS finance, support and safety (shapes mirror apps/api responses; money is integer
 // paise serialised as strings)
 // ---------------------------------------------------------------------------
 
 /** SUBMITTED = created by the maker, waiting for a different admin (checker) to approve. */
-export type CorporatePayoutBatchStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'PROCESSING' | 'PAID' | 'FAILED';
+export type CorporatePayoutBatchStatus =
+  "DRAFT" | "SUBMITTED" | "APPROVED" | "PROCESSING" | "PAID" | "FAILED";
 /** PAID is only ever set from a signed payout-provider confirmation. */
-export type CorporatePayoutStatus = 'PENDING' | 'PROCESSING' | 'PAID' | 'FAILED' | 'REVERSED';
+export type CorporatePayoutStatus =
+  "PENDING" | "PROCESSING" | "PAID" | "FAILED" | "REVERSED";
 
 interface CorporatePayoutBatchBase {
   id: string;
@@ -956,7 +1174,7 @@ export interface CorporatePayoutRow {
   batchId: string;
   driverId: string;
   driver: { id: string; fullName: string | null; phone: string | null } | null;
-  kind: 'PAYOUT' | 'REVERSAL';
+  kind: "PAYOUT" | "REVERSAL";
   reversalOfId: string | null;
   idempotencyKey: string;
   status: CorporatePayoutStatus;
@@ -995,7 +1213,7 @@ export interface CorporatePayoutReconciliation {
     providerStatus: string | null;
     providerEventId?: string;
     providerAmountPaise?: string | null;
-    reason: 'PAID_WITHOUT_CONFIRMATION' | 'STATUS_MISMATCH' | 'AMOUNT_MISMATCH';
+    reason: "PAID_WITHOUT_CONFIRMATION" | "STATUS_MISMATCH" | "AMOUNT_MISMATCH";
   }[];
   unmatchedConfirmations: {
     eventId: string;
@@ -1089,7 +1307,7 @@ export interface CorporateInvoiceDispute {
   raisedByUserId: string;
   reason: string;
   claimedAmountPaise: string;
-  status: 'OPEN' | 'ACCEPTED' | 'REJECTED';
+  status: "OPEN" | "ACCEPTED" | "REJECTED";
   approvedAmountPaise: string | null;
   resolvedByUserId: string | null;
   resolvedAt: string | null;
@@ -1099,14 +1317,14 @@ export interface CorporateInvoiceDispute {
 }
 
 export type CorporateTicketStatus =
-  | 'OPEN'
-  | 'ASSIGNED'
-  | 'IN_PROGRESS'
-  | 'WAITING_FOR_CORPORATE'
-  | 'RESOLVED'
-  | 'CLOSED'
-  | 'REOPENED';
-export type CorporateTicketPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  | "OPEN"
+  | "ASSIGNED"
+  | "IN_PROGRESS"
+  | "WAITING_FOR_CORPORATE"
+  | "RESOLVED"
+  | "CLOSED"
+  | "REOPENED";
+export type CorporateTicketPriority = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
 export interface CorporateSupportTicket {
   id: string;
@@ -1131,13 +1349,50 @@ export interface CorporateSupportTicket {
   createdAt: string;
   updatedAt: string;
   tenant?: { id: string; name: string; code?: string } | null;
-  employee?: { id: string; fullName: string; employeeCode?: string; phone?: string; phoneNumber?: string; email?: string } | null;
-  assignedToUser?: { id: string; fullName: string; email: string; role?: string } | null;
+  employee?: {
+    id: string;
+    fullName: string;
+    employeeCode?: string;
+    phone?: string;
+    phoneNumber?: string;
+    email?: string;
+  } | null;
+  assignedToUser?: {
+    id: string;
+    fullName: string;
+    email: string;
+    role?: string;
+  } | null;
   route?: any | null;
-  driver?: { id: string; name: string; phone?: string | null; email?: string | null; licenseNumber?: string | null; vehiclePlate?: string | null } | null;
-  comments?: Array<{ id: string; message: string; userId: string; visibility: 'PUBLIC' | 'INTERNAL'; createdAt: string }>;
-  activities?: Array<{ id: string; description: string; visibility: 'PUBLIC' | 'INTERNAL'; createdAt: string }>;
-  attachments?: Array<{ id: string; fileName: string; fileType: string; fileSize: number; url: string; createdAt: string }>;
+  driver?: {
+    id: string;
+    name: string;
+    phone?: string | null;
+    email?: string | null;
+    licenseNumber?: string | null;
+    vehiclePlate?: string | null;
+  } | null;
+  comments?: Array<{
+    id: string;
+    message: string;
+    userId: string;
+    visibility: "PUBLIC" | "INTERNAL";
+    createdAt: string;
+  }>;
+  activities?: Array<{
+    id: string;
+    description: string;
+    visibility: "PUBLIC" | "INTERNAL";
+    createdAt: string;
+  }>;
+  attachments?: Array<{
+    id: string;
+    fileName: string;
+    fileType: string;
+    fileSize: number;
+    url: string;
+    createdAt: string;
+  }>;
 }
 
 export interface CorporateTicketMessage {
@@ -1162,14 +1417,14 @@ export interface CorporateTicketActivity {
 }
 
 export type CorporateSosStatus =
-  | 'NEW'
-  | 'ACTIVE'
-  | 'ACKNOWLEDGED'
-  | 'INVESTIGATING'
-  | 'ESCALATED'
-  | 'RESPONDED'
-  | 'RESOLVED'
-  | 'FALSE_ALARM';
+  | "NEW"
+  | "ACTIVE"
+  | "ACKNOWLEDGED"
+  | "INVESTIGATING"
+  | "ESCALATED"
+  | "RESPONDED"
+  | "RESOLVED"
+  | "FALSE_ALARM";
 
 export interface CorporateSosAlert {
   id: string;
@@ -1242,7 +1497,7 @@ export interface DistancePricingPlan {
   version: string;
   name?: string | null;
   displayName?: string | null;
-  status: 'DRAFT' | 'PUBLISHING' | 'ACTIVE' | 'SCHEDULED' | 'RETIRED';
+  status: "DRAFT" | "PUBLISHING" | "ACTIVE" | "SCHEDULED" | "RETIRED";
   effectiveFrom: string;
   effectiveTo?: string | null;
   createdBy?: string | null;
@@ -1362,7 +1617,7 @@ export interface DigioVerificationItem {
 }
 
 export interface DigioComplianceAlert {
-  severity: 'BLOCKER' | 'WARNING';
+  severity: "BLOCKER" | "WARNING";
   code: string;
   message: string;
 }
@@ -1464,7 +1719,7 @@ export interface FinanceSettlementReportItem {
   driverId: string;
   driverName: string;
   amount: number;
-  status: 'PENDING' | 'PROCESSING' | 'SETTLED' | 'FAILED' | 'CANCELLED';
+  status: "PENDING" | "PROCESSING" | "SETTLED" | "FAILED" | "CANCELLED";
   bankAccountName?: string;
   bankAccountNumber?: string;
   bankIfsc?: string;
@@ -1580,4 +1835,3 @@ export interface UpdateFeatureFlagPayload {
   isEnabled?: boolean;
   metadata?: Record<string, any>;
 }
-

@@ -853,6 +853,237 @@ export class AdminService {
     };
   }
 
+  async getVendorFulfillment(id: string) {
+    const vendor = await this.db.vendor.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        organizationName: true,
+        fullName: true,
+        phone: true,
+        address: true,
+      },
+    });
+
+    if (!vendor) {
+      throw new NotFoundException('Vendor not found');
+    }
+
+    const requirements = await this.db.requirement.findMany({
+      where: { vendorId: id },
+      orderBy: [{ reportingTime: 'desc' }, { createdAt: 'desc' }],
+      select: {
+        id: true,
+        quantity: true,
+        createdAt: true,
+        reportingTime: true,
+        status: true,
+        vehicleType: true,
+        pickupAddress: true,
+        dropAddress: true,
+        assignments: {
+          orderBy: { assignedAt: 'asc' },
+          select: {
+            id: true,
+            driverId: true,
+            status: true,
+            assignedAt: true,
+            driver: {
+              select: {
+                fullName: true,
+                phone: true,
+                vehicleType: true,
+                vehicleModel: true,
+                vehiclePlate: true,
+                user: { select: { fullName: true, phone: true } },
+              },
+            },
+            vehicle: {
+              select: {
+                vehicleType: true,
+                make: true,
+                model: true,
+                registrationNumber: true,
+                verificationStatus: true,
+              },
+            },
+            trip: {
+              select: {
+                id: true,
+                status: true,
+                startedAt: true,
+                completedAt: true,
+                cancelledAt: true,
+                vehicle: {
+                  select: {
+                    vehicleType: true,
+                    make: true,
+                    model: true,
+                    registrationNumber: true,
+                    verificationStatus: true,
+                  },
+                },
+                events: {
+                  where: { eventType: 'DRIVER_ARRIVED' },
+                  orderBy: { createdAt: 'asc' },
+                  take: 1,
+                  select: { createdAt: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const fulfillmentRequirements = requirements.map((requirement: any) => {
+      const drivers = requirement.assignments.map((assignment: any) => {
+        const trip = assignment.trip;
+        const hasArrived =
+          Boolean(trip?.events?.length) ||
+          ['ARRIVED', 'IN_PROGRESS', 'COMPLETED', 'NO_SHOW'].includes(
+            trip?.status,
+          );
+        const isCancelled =
+          requirement.status === 'CANCELLED' ||
+          trip?.status === 'CANCELLED' ||
+          assignment.status === 'CANCELLED';
+        const attendanceStatus = isCancelled
+          ? 'CANCELLED'
+          : hasArrived
+            ? trip?.status && trip.status !== 'ASSIGNED'
+              ? trip.status
+              : 'ARRIVED'
+            : 'PENDING';
+
+        return {
+          assignmentId: assignment.id,
+          tripId: trip?.id || null,
+          driverId: assignment.driverId,
+          name:
+            assignment.driver.fullName ||
+            assignment.driver.user?.fullName ||
+            null,
+          phone:
+            assignment.driver.phone ||
+            assignment.driver.user?.phone ||
+            null,
+          vehicleType:
+            trip?.vehicle?.vehicleType ||
+            assignment.vehicle?.vehicleType ||
+            assignment.driver.vehicleType ||
+            requirement.vehicleType,
+          vehicleMake:
+            trip?.vehicle?.make || assignment.vehicle?.make || null,
+          vehicleModel:
+            trip?.vehicle?.model ||
+            assignment.vehicle?.model ||
+            assignment.driver.vehicleModel ||
+            null,
+          vehicleRegistration:
+            trip?.vehicle?.registrationNumber ||
+            assignment.vehicle?.registrationNumber ||
+            assignment.driver.vehiclePlate ||
+            null,
+          vehicleVerificationStatus:
+            trip?.vehicle?.verificationStatus ||
+            assignment.vehicle?.verificationStatus ||
+            null,
+          arrivalAt: trip?.events?.[0]?.createdAt?.toISOString() || null,
+          assignedAt: assignment.assignedAt.toISOString(),
+          tripStatus: trip?.status || null,
+          tripStartedAt: trip?.startedAt?.toISOString() || null,
+          tripCompletedAt: trip?.completedAt?.toISOString() || null,
+          tripCancelledAt: trip?.cancelledAt?.toISOString() || null,
+          assignmentStatus: assignment.status,
+          attendanceStatus,
+          hasArrived,
+        };
+      });
+      const cancelledDrivers = drivers.filter(
+        (driver: any) => driver.attendanceStatus === 'CANCELLED',
+      ).length;
+      const activeAssignedDriverIds = new Set(
+        drivers
+          .filter((driver: any) => driver.attendanceStatus !== 'CANCELLED')
+          .map((driver: any) => driver.driverId),
+      );
+      const arrivedDriverIds = new Set(
+        drivers
+          .filter(
+            (driver: any) =>
+              driver.hasArrived && driver.attendanceStatus !== 'CANCELLED',
+          )
+          .map((driver: any) => driver.driverId),
+      );
+      const isActiveRequirement = !['DRAFT', 'CANCELLED'].includes(requirement.status);
+      const arrivedDrivers = arrivedDriverIds.size;
+      const pendingDrivers = drivers.filter(
+        (driver: any) =>
+          driver.attendanceStatus !== 'CANCELLED' && !driver.hasArrived,
+      ).length;
+      const notAssignedDrivers = isActiveRequirement
+        ? Math.max(0, requirement.quantity - activeAssignedDriverIds.size)
+        : 0;
+
+      return {
+        id: requirement.id,
+        status: requirement.status,
+        vehicleType: requirement.vehicleType,
+        pickupAddress: requirement.pickupAddress,
+        dropAddress: requirement.dropAddress,
+        createdAt: requirement.createdAt.toISOString(),
+        reportingTime: requirement.reportingTime.toISOString(),
+        requiredDrivers: requirement.quantity,
+        arrivedDrivers,
+        pendingDrivers,
+        cancelledDrivers,
+        notAssignedDrivers,
+        drivers,
+      };
+    });
+
+    const activeRequirements = fulfillmentRequirements.filter(
+      (requirement) => !['DRAFT', 'CANCELLED'].includes(requirement.status),
+    );
+    const requiredDrivers = activeRequirements.reduce(
+      (total, requirement) => total + requirement.requiredDrivers,
+      0,
+    );
+    const arrivedDrivers = activeRequirements.reduce(
+      (total, requirement) => total + requirement.arrivedDrivers,
+      0,
+    );
+    const pendingDrivers = activeRequirements.reduce(
+      (total, requirement) => total + requirement.pendingDrivers,
+      0,
+    );
+    const cancelledDrivers = fulfillmentRequirements.reduce(
+      (total, requirement) => total + requirement.cancelledDrivers,
+      0,
+    );
+    const notAssignedDrivers = activeRequirements.reduce(
+      (total, requirement) => total + requirement.notAssignedDrivers,
+      0,
+    );
+
+    return {
+      vendorId: vendor.id,
+      vendorName: vendor.organizationName || vendor.fullName,
+      vendorContactName: vendor.fullName,
+      vendorPhone: vendor.phone,
+      vendorAddress: vendor.address,
+      summary: {
+        requiredDrivers,
+        arrivedDrivers,
+        pendingDrivers,
+        cancelledDrivers,
+        notAssignedDrivers,
+      },
+      requirements: fulfillmentRequirements,
+    };
+  }
+
   /**
    * List platform users with role, status, search, and pagination.
    */

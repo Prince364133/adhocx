@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useEffect, useState, useMemo, useCallback } from "react";
+import React, {
+  useEffect,
+  useState,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
 import {
   Send,
   Smartphone,
@@ -19,6 +25,8 @@ import {
   UserCheck,
   Plus,
   Check,
+  Clock3,
+  Info,
   type LucideIcon,
 } from "lucide-react";
 import { adminApi } from "../../lib/api/client";
@@ -29,6 +37,10 @@ import {
   BroadcastPushPayload,
   TestPushPayload,
   AudienceEstimateResult,
+  NotificationBroadcastProgress,
+  NotificationBroadcastProgressRecipient,
+  NotificationCampaignRecipient,
+  NotificationCampaignRecipientResponse,
   UserListItem,
 } from "../../lib/api/types";
 import {
@@ -38,13 +50,13 @@ import {
   Card,
   DataTable,
   Column,
-  Drawer,
   ConfirmDialog,
   FeedbackBanner,
   Modal,
   Input,
   Textarea,
 } from "../../components/common";
+import { NotificationDeliveryModal } from "../../components/notifications/NotificationDeliveryModal";
 
 const BLUE_PRIMARY = "var(--brand-primary)";
 const BLUE_TEXT = "var(--text-brand)";
@@ -54,7 +66,8 @@ const BLUE_SUBTLE = "var(--brand-primary-subtle)";
 const BLUE_BORDER = "var(--brand-primary-border)";
 
 type AudienceMode = "ALL" | "DRIVER" | "VENDOR" | "SPECIFIC";
-type DeliveryStatusKey = "SENT" | "DELIVERED" | "FAILED";
+type DeliveryStatusKey =
+  "SENT" | "PENDING" | "PARTIAL" | "DELIVERED" | "FAILED";
 
 const PAGE_SIZE = 10;
 
@@ -93,31 +106,58 @@ const AUDIENCE_OPTIONS: Array<{
 function getCampaignDeliveryStatus(
   c: NotificationCampaignItem,
 ): DeliveryStatusKey {
-  const status = (c.status || "").toUpperCase();
-  const targeted = c.totalTargeted ?? 0;
-  const success = c.successCount ?? 0;
-  const failed = c.failureCount ?? 0;
-
-  if (status === "FAILED" || (targeted > 0 && success === 0 && failed > 0)) {
-    return "FAILED";
+  if (c.recipientTrackingEnabled && c.recipientCounts) {
+    const { delivered, failed, pending } = c.recipientCounts;
+    if (pending > 0 && (delivered > 0 || failed > 0)) return "PARTIAL";
+    if (pending > 0) return "PENDING";
+    if (delivered > 0 && failed > 0) return "PARTIAL";
+    if (delivered > 0) return "DELIVERED";
+    if (failed > 0) return "FAILED";
+    const status = (c.status || "").toUpperCase();
+    return status === "PENDING" || status === "FAILED" || status === "PARTIAL"
+      ? status
+      : "SENT";
   }
-  if (status === "DELIVERED" || (success > 0 && failed === 0)) {
-    return "DELIVERED";
+
+  const status = (c.status || "").toUpperCase();
+  if (
+    status === "FAILED" ||
+    status === "PENDING" ||
+    status === "PARTIAL" ||
+    status === "DELIVERED"
+  ) {
+    return status;
   }
   return "SENT";
 }
 
 function getRecipientCount(c: NotificationCampaignItem): number {
+  if (c.recipientTrackingEnabled && c.recipientCounts) {
+    return c.recipientCounts.sent;
+  }
   if (typeof c.totalTargeted === "number" && c.totalTargeted > 0) {
     return c.totalTargeted;
   }
   return (c.successCount || 0) + (c.failureCount || 0);
 }
 
+function getCampaignAudienceSearchValues(c: NotificationCampaignItem): string[] {
+  const phones = c.targetFilter?.phones ?? [];
+  const userIds = c.targetFilter?.userIds ?? [];
+  if (phones.length > 0 || userIds.length > 0) {
+    return ["Specific Users", ...phones, ...userIds];
+  }
+
+  const role = (c.targetRole || c.targetFilter?.role || "ALL").toUpperCase();
+  if (role === "DRIVER") return ["Drivers Only", role];
+  if (role === "VENDOR") return ["Vendors Only", role];
+  return ["All Users", role];
+}
+
 function formatDate(isoString?: string): string {
   if (!isoString) return "—";
   try {
-    return new Date(isoString).toLocaleDateString("en-IN", {
+    return new Date(isoString).toLocaleString("en-IN", {
       day: "2-digit",
       month: "short",
       year: "numeric",
@@ -127,6 +167,24 @@ function formatDate(isoString?: string): string {
   } catch {
     return isoString;
   }
+}
+
+async function fetchAllCampaigns() {
+  const pageSize = 100;
+  const firstPage = await adminApi.getNotificationCampaigns(1, pageSize);
+  const campaigns = [...firstPage.campaigns];
+  const pageCount = Math.ceil(firstPage.total / pageSize);
+
+  for (let page = 2; page <= pageCount; page++) {
+    const result = await adminApi.getNotificationCampaigns(page, pageSize);
+    campaigns.push(...result.campaigns);
+  }
+
+  if (campaigns.length < firstPage.total) {
+    throw new Error("Campaign history returned fewer records than expected.");
+  }
+
+  return { campaigns, total: firstPage.total };
 }
 
 const inputBaseStyle: React.CSSProperties = {
@@ -159,6 +217,9 @@ function clearBlueFocus(
 export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const broadcastInFlightRef = useRef(false);
+  const broadcastProgressPhaseRef =
+    useRef<NotificationBroadcastProgress["phase"] | null>(null);
   const [estimating, setEstimating] = useState(false);
   const [alert, setAlert] = useState<{
     type: "success" | "error";
@@ -167,7 +228,10 @@ export default function NotificationsPage() {
 
   // Metrics & Campaigns
   const [metrics, setMetrics] = useState<NotificationMetrics>({
+    totalSent: 0,
     totalDelivered: 0,
+    totalFailed: 0,
+    totalPending: 0,
     totalCampaigns: 0,
     activeDevicesCount: 0,
     devicesByPlatform: { android: 0, ios: 0, web: 0 },
@@ -176,6 +240,8 @@ export default function NotificationsPage() {
   });
   const [campaigns, setCampaigns] = useState<NotificationCampaignItem[]>([]);
   const [totalCampaignsCount, setTotalCampaignsCount] = useState(0);
+  const [metricsError, setMetricsError] = useState<string | null>(null);
+  const [historyError, setHistoryError] = useState<string | null>(null);
 
   // Create Notification Form
   const [title, setTitle] = useState("");
@@ -207,6 +273,24 @@ export default function NotificationsPage() {
 
   // Modals
   const [isConfirmBroadcastOpen, setIsConfirmBroadcastOpen] = useState(false);
+  const [isBroadcastProgressOpen, setIsBroadcastProgressOpen] =
+    useState(false);
+  const [broadcastOperationId, setBroadcastOperationId] = useState<
+    string | null
+  >(null);
+  const [broadcastProgress, setBroadcastProgress] =
+    useState<NotificationBroadcastProgress | null>(null);
+  const [broadcastProgressError, setBroadcastProgressError] = useState<
+    string | null
+  >(null);
+  const [broadcastProgressSearch, setBroadcastProgressSearch] = useState("");
+  const [recentProgressByCampaignId, setRecentProgressByCampaignId] = useState<
+    Record<string, string>
+  >({});
+  const [selectedCampaignLiveProgress, setSelectedCampaignLiveProgress] =
+    useState<NotificationBroadcastProgress | null>(null);
+  const [selectedCampaignProgressError, setSelectedCampaignProgressError] =
+    useState<string | null>(null);
   const [isTestPushOpen, setIsTestPushOpen] = useState(false);
   const [testPhoneOrToken, setTestPhoneOrToken] = useState("");
   const [testTitle, setTestTitle] = useState("");
@@ -215,27 +299,43 @@ export default function NotificationsPage() {
   const [sendingTest, setSendingTest] = useState(false);
   const [selectedCampaign, setSelectedCampaign] =
     useState<NotificationCampaignItem | null>(null);
+  const [recipientDetails, setRecipientDetails] =
+    useState<NotificationCampaignRecipientResponse | null>(null);
+  const [loadingRecipientDetails, setLoadingRecipientDetails] = useState(false);
+  const [recipientDetailsError, setRecipientDetailsError] = useState<
+    string | null
+  >(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [metricData, campaignData] = await Promise.all([
-        adminApi.getNotificationMetrics().catch(() => ({
-          totalDelivered: 0,
-          totalCampaigns: 0,
-          activeDevicesCount: 0,
-          devicesByPlatform: { android: 0, ios: 0, web: 0 },
-          deliverySuccessRate: 0,
-          inAppNotificationsCount: 0,
-        })),
-        adminApi.getNotificationCampaigns(1, 100).catch(() => ({
-          campaigns: [],
-          total: 0,
-        })),
+      const [metricsResult, campaignResult] = await Promise.allSettled([
+        adminApi.getNotificationMetrics(),
+        fetchAllCampaigns(),
       ]);
-      setMetrics(metricData);
-      setCampaigns(campaignData.campaigns || []);
-      setTotalCampaignsCount(campaignData.total || 0);
+
+      if (metricsResult.status === "fulfilled") {
+        setMetrics(metricsResult.value);
+        setMetricsError(null);
+      } else {
+        setMetricsError(
+          metricsResult.reason instanceof Error
+            ? metricsResult.reason.message
+            : "Unable to load notification metrics.",
+        );
+      }
+
+      if (campaignResult.status === "fulfilled") {
+        setCampaigns(campaignResult.value.campaigns);
+        setTotalCampaignsCount(campaignResult.value.total);
+        setHistoryError(null);
+      } else {
+        setHistoryError(
+          campaignResult.reason instanceof Error
+            ? campaignResult.reason.message
+            : "Unable to load campaign history.",
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -245,7 +345,123 @@ export default function NotificationsPage() {
     loadData();
   }, [loadData]);
 
-  // Build backend AudienceFilter cleanly (avoid passing both userIds and phones together)
+  useEffect(() => {
+    broadcastProgressPhaseRef.current = broadcastProgress?.phase ?? null;
+  }, [broadcastProgress]);
+
+  useEffect(() => {
+    if (!isBroadcastProgressOpen || !broadcastOperationId) return;
+
+    let active = true;
+    let requestInFlight = false;
+    const refreshProgress = async () => {
+      if (
+        requestInFlight ||
+        broadcastProgressPhaseRef.current === "COMPLETED" ||
+        broadcastProgressPhaseRef.current === "FAILED"
+      ) {
+        return;
+      }
+
+      requestInFlight = true;
+      try {
+        const progress =
+          await adminApi.getNotificationBroadcastProgress(
+            broadcastOperationId,
+          );
+        if (active) {
+          setBroadcastProgress(progress);
+          setBroadcastProgressError(null);
+        }
+      } catch (error) {
+        if (active) {
+          setBroadcastProgressError(
+            error instanceof Error
+              ? error.message
+              : "Live notification progress could not be loaded.",
+          );
+        }
+      } finally {
+        requestInFlight = false;
+      }
+    };
+
+    void refreshProgress();
+    const timer = setInterval(() => void refreshProgress(), 1000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [broadcastOperationId, isBroadcastProgressOpen]);
+
+  const selectedCampaignId = selectedCampaign?.id;
+  useEffect(() => {
+    if (!selectedCampaignId) {
+      setRecipientDetails(null);
+      setRecipientDetailsError(null);
+      setLoadingRecipientDetails(false);
+      return;
+    }
+
+    let active = true;
+    setRecipientDetails(null);
+    setRecipientDetailsError(null);
+    setLoadingRecipientDetails(true);
+    adminApi
+      .getNotificationCampaignRecipients(selectedCampaignId)
+      .then((details) => {
+        if (active) setRecipientDetails(details);
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        setRecipientDetailsError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load recipient delivery details.",
+        );
+      })
+      .finally(() => {
+        if (active) setLoadingRecipientDetails(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [selectedCampaignId]);
+
+  const selectedCampaignProgressId = selectedCampaignId
+    ? recentProgressByCampaignId[selectedCampaignId]
+    : undefined;
+  useEffect(() => {
+    if (!selectedCampaignId || !selectedCampaignProgressId) {
+      setSelectedCampaignLiveProgress(null);
+      setSelectedCampaignProgressError(null);
+      return;
+    }
+
+    let active = true;
+    setSelectedCampaignLiveProgress(null);
+    setSelectedCampaignProgressError(null);
+    adminApi
+      .getNotificationBroadcastProgress(selectedCampaignProgressId)
+      .then((progress) => {
+        if (active) setSelectedCampaignLiveProgress(progress);
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        setSelectedCampaignProgressError(
+          error instanceof Error
+            ? error.message
+            : "Live recipient/device details could not be loaded.",
+        );
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [selectedCampaignId, selectedCampaignProgressId]);
+
+  // Keep selected user IDs and manually entered phones as separate filter inputs.
   const activeAudienceFilter = useMemo<AudienceFilter | null>(() => {
     if (audienceMode !== "SPECIFIC") {
       return { role: audienceMode };
@@ -255,27 +471,12 @@ export default function NotificationsPage() {
       return null;
     }
 
-    if (manualPhones.length === 0) {
-      return {
-        role: "ALL",
-        userIds: selectedUsers.map((u) => u.id),
-      };
-    }
-
-    const phonesFromSelected = selectedUsers
-      .map((u) => u.phone)
-      .filter((p): p is string => Boolean(p && p !== "Not Available"));
-
-    const allPhones = Array.from(
-      new Set([...phonesFromSelected, ...manualPhones]),
-    );
-    if (allPhones.length > 0) {
-      return { role: "ALL", phones: allPhones };
-    }
-
     return {
       role: "ALL",
-      userIds: selectedUsers.map((u) => u.id),
+      ...(selectedUsers.length > 0
+        ? { userIds: selectedUsers.map((u) => u.id) }
+        : {}),
+      ...(manualPhones.length > 0 ? { phones: manualPhones } : {}),
     };
   }, [audienceMode, selectedUsers, manualPhones]);
 
@@ -343,26 +544,30 @@ export default function NotificationsPage() {
 
   // Campaign Overview metrics
   const overviewStats = useMemo(() => {
-    const campaignTotalSent = campaigns.reduce(
-      (acc, c) => acc + getRecipientCount(c),
-      0,
-    );
-    const campaignSuccess = campaigns.reduce(
-      (acc, c) => acc + (c.successCount || 0),
-      0,
-    );
-    const campaignFailed = campaigns.reduce(
-      (acc, c) => acc + (c.failureCount || 0),
-      0,
+    const trackedRecipientCounts = campaigns.reduce(
+      (acc, campaign) => {
+        const counts = campaign.recipientCounts;
+        if (!campaign.recipientTrackingEnabled || !counts) return acc;
+        acc.sent += counts.sent;
+        acc.delivered += counts.delivered;
+        acc.failed += counts.failed;
+        acc.pending += counts.pending;
+        return acc;
+      },
+      { sent: 0, delivered: 0, failed: 0, pending: 0 },
     );
 
     return {
-      totalSent: Math.max(
-        metrics.totalDelivered + campaignFailed,
-        campaignTotalSent,
+      totalSent: Math.max(metrics.totalSent, trackedRecipientCounts.sent),
+      totalDelivered: Math.max(
+        metrics.totalDelivered,
+        trackedRecipientCounts.delivered,
       ),
-      totalDelivered: Math.max(metrics.totalDelivered, campaignSuccess),
-      totalFailed: campaignFailed,
+      totalFailed: Math.max(metrics.totalFailed, trackedRecipientCounts.failed),
+      totalPending: Math.max(
+        metrics.totalPending,
+        trackedRecipientCounts.pending,
+      ),
       totalCampaigns: Math.max(
         metrics.totalCampaigns || 0,
         campaigns.length,
@@ -373,22 +578,24 @@ export default function NotificationsPage() {
 
   // Status counts for Campaign History
   const statusCounts = useMemo(() => {
-    let sent = 0;
-    let delivered = 0;
-    let failed = 0;
-    campaigns.forEach((c) => {
-      const s = getCampaignDeliveryStatus(c);
-      if (s === "DELIVERED") delivered++;
-      else if (s === "FAILED") failed++;
-      else sent++;
-    });
-    return {
-      all: campaigns.length,
-      sent,
-      delivered,
-      failed,
+    const counts = {
+      all: totalCampaignsCount,
+      sent: 0,
+      delivered: 0,
+      failed: 0,
+      pending: 0,
+      partial: 0,
     };
-  }, [campaigns]);
+    campaigns.forEach((campaign) => {
+      const status = getCampaignDeliveryStatus(campaign);
+      if (status === "DELIVERED") counts.delivered++;
+      else if (status === "FAILED") counts.failed++;
+      else if (status === "PENDING") counts.pending++;
+      else if (status === "PARTIAL") counts.partial++;
+      else counts.sent++;
+    });
+    return counts;
+  }, [campaigns, totalCampaignsCount]);
 
   // Filtered & paginated campaigns
   const filteredCampaigns = useMemo(() => {
@@ -397,7 +604,22 @@ export default function NotificationsPage() {
       if (q) {
         const matchesTitle = c.title?.toLowerCase().includes(q);
         const matchesBody = c.body?.toLowerCase().includes(q);
-        if (!matchesTitle && !matchesBody) return false;
+        const matchesAudience = getCampaignAudienceSearchValues(c).some(
+          (value) => value.toLowerCase().includes(q),
+        );
+        const matchesStatus = getCampaignDeliveryStatus(c)
+          .toLowerCase()
+          .includes(q);
+        const matchesDate = formatDate(c.createdAt).toLowerCase().includes(q);
+        if (
+          !matchesTitle &&
+          !matchesBody &&
+          !matchesAudience &&
+          !matchesStatus &&
+          !matchesDate
+        ) {
+          return false;
+        }
       }
       if (
         statusFilter !== "ALL" &&
@@ -456,6 +678,8 @@ export default function NotificationsPage() {
   }
 
   async function handleBroadcastPush() {
+    if (broadcastInFlightRef.current) return;
+
     if (!title.trim() || !body.trim()) {
       setAlert({
         type: "error",
@@ -473,7 +697,9 @@ export default function NotificationsPage() {
       return;
     }
 
+    broadcastInFlightRef.current = true;
     setSubmitting(true);
+    let operationId: string | null = null;
     try {
       const payload: BroadcastPushPayload = {
         title: title.trim(),
@@ -482,10 +708,63 @@ export default function NotificationsPage() {
         filter: activeAudienceFilter,
       };
 
-      const res = await adminApi.broadcastPushNotification(payload);
+      const newOperationId = crypto.randomUUID();
+      operationId = newOperationId;
+      const startedAt = new Date().toISOString();
+      setBroadcastOperationId(newOperationId);
+      setBroadcastProgress({
+        operationId: newOperationId,
+        phase: "PREPARING",
+        title: payload.title,
+        audience: getAudienceLabelForConfirm(),
+        startedAt,
+        updatedAt: startedAt,
+        campaignId: null,
+        failureMessage: null,
+        recipientDetailsPersisted: null,
+        counts: {
+          targetedUsers: 0,
+          targetedDevices: 0,
+          providerResponses: 0,
+          providerNotAttempted: 0,
+          providerAccepted: 0,
+          providerFailed: 0,
+          awaitingProviderResponse: 0,
+          usersWithAcceptedDevice: 0,
+          usersFullyFailed: 0,
+          usersWithoutActiveDevice: 0,
+          confirmedDelivered: 0,
+        },
+        recipients: [],
+      });
+      setBroadcastProgressError(null);
+      setBroadcastProgressSearch("");
+      setIsConfirmBroadcastOpen(false);
+      setIsBroadcastProgressOpen(true);
+
+      const res = await adminApi.broadcastPushNotification(
+        payload,
+        newOperationId,
+      );
+      setRecentProgressByCampaignId((current) => ({
+        ...current,
+        [res.campaignId]: newOperationId,
+      }));
+      try {
+        const finalProgress =
+          await adminApi.getNotificationBroadcastProgress(newOperationId);
+        setBroadcastProgress(finalProgress);
+      } catch (error) {
+        setBroadcastProgressError(
+          error instanceof Error
+            ? error.message
+            : "Final recipient/device details could not be loaded.",
+        );
+      }
+
       const usersTargeted = res.totalTargetedUsers ?? 0;
       const devicesTargeted = res.totalTargetedDevices ?? 0;
-      const delivered = res.successCount ?? 0;
+      const providerAccepted = res.successCount ?? 0;
       const failed = res.failureCount ?? 0;
 
       if (usersTargeted === 0) {
@@ -494,37 +773,60 @@ export default function NotificationsPage() {
           message:
             "No active users matched the selected audience. Verify your selection and try again.",
         });
-      } else if (
-        res.status === "FAILED" ||
-        (devicesTargeted > 0 && delivered === 0 && failed > 0)
-      ) {
+      } else if (providerAccepted === 0 && failed > 0) {
         setAlert({
           type: "error",
-          message: `Campaign recorded, but FCM delivery failed for ${failed} device(s). Verify Firebase Cloud Messaging configuration.`,
+          message: `Campaign recorded, but FCM rejected ${failed} device send(s). Check the provider failure details in Campaign Details.`,
         });
-      } else if (devicesTargeted === 0) {
+      } else if (providerAccepted === 0 && devicesTargeted === 0) {
         setAlert({
-          type: "success",
-          message: `Notification sent to ${usersTargeted} user(s) in-app (0 active FCM device tokens registered).`,
+          type: "error",
+          message: `Campaign recorded for ${usersTargeted} user(s), but it was not sent as a push notification because no active FCM device tokens are registered.`,
+        });
+      } else if (providerAccepted === 0) {
+        setAlert({
+          type: "error",
+          message: `Campaign recorded, but FCM accepted no device sends. ${devicesTargeted} device(s) remain pending; verify the Firebase provider configuration and recipient tokens before retrying.`,
+        });
+      } else if (failed > 0) {
+        setAlert({
+          type: "error",
+          message: `FCM accepted ${providerAccepted} device send(s), but ${failed} failed. The campaign was partially accepted; check Campaign Details for failure reasons.`,
         });
       } else {
         setAlert({
           type: "success",
-          message: `Notification broadcast sent to ${usersTargeted} user(s) across ${devicesTargeted} device(s) — ${delivered} delivered${failed > 0 ? `, ${failed} failed` : ""}.`,
+          message: `FCM accepted ${providerAccepted} device send(s) for ${usersTargeted} user(s). ${res.recipientCounts.pending} recipient(s) remain pending until device delivery is confirmed.`,
         });
       }
 
-      clearForm();
       setIsConfirmBroadcastOpen(false);
+      if (providerAccepted > 0) clearForm();
       await loadData();
     } catch (err: any) {
+      setIsConfirmBroadcastOpen(false);
+      if (operationId) {
+        try {
+          const progress =
+            await adminApi.getNotificationBroadcastProgress(operationId);
+          setBroadcastProgress(progress);
+        } catch (progressError) {
+          setBroadcastProgressError(
+            progressError instanceof Error
+              ? progressError.message
+              : "Live delivery progress could not be loaded.",
+          );
+        }
+      }
+      const requestError =
+        err?.message ||
+        "Failed to dispatch notification. Please verify FCM credentials and backend status.";
       setAlert({
         type: "error",
-        message:
-          err?.message ||
-          "Failed to dispatch notification. Please verify FCM credentials and backend status.",
+        message: `${requestError} If the request timed out, check Campaign Details before retrying because the API may still be processing it.`,
       });
     } finally {
+      broadcastInFlightRef.current = false;
       setSubmitting(false);
     }
   }
@@ -573,12 +875,17 @@ export default function NotificationsPage() {
       } else if (res.successCount > 0) {
         setAlert({
           type: "success",
-          message: `Test notification delivered to ${res.successCount} device(s)${res.failureCount > 0 ? ` (${res.failureCount} failed)` : ""}.`,
+          message: `FCM accepted the test notification for ${res.successCount} device(s); device delivery is not confirmed${res.failureCount > 0 ? ` (${res.failureCount} failed)` : ""}.`,
+        });
+      } else if (res.failureCount === 0) {
+        setAlert({
+          type: "success",
+          message: `No FCM provider response was received. The test notification remains pending for ${res.totalTokens} device(s).`,
         });
       } else {
         setAlert({
           type: "error",
-          message: `Test push delivery failed (${res.failureCount} failed). Verify the phone number or FCM device token.`,
+          message: `Test push submission failed (${res.failureCount} failed). Verify the phone number or FCM device token.`,
         });
       }
 
@@ -689,6 +996,9 @@ export default function NotificationsPage() {
 
   function renderStatusBadge(c: NotificationCampaignItem, showCounts = false) {
     const status = getCampaignDeliveryStatus(c);
+    const recipientCounts = c.recipientTrackingEnabled
+      ? c.recipientCounts
+      : undefined;
 
     const badgeConfig: Record<
       DeliveryStatusKey,
@@ -702,17 +1012,31 @@ export default function NotificationsPage() {
     > = {
       DELIVERED: {
         label: "Delivered",
-        bg: "rgba(22, 163, 74, 0.1)",
-        color: "#15803D",
-        border: "rgba(22, 163, 74, 0.25)",
+        bg: "var(--color-success-bg)",
+        color: "var(--color-success)",
+        border: "var(--color-success-border)",
         icon: <CheckCircle2 size={13} />,
       },
       FAILED: {
         label: "Failed",
-        bg: "rgba(220, 38, 38, 0.1)",
-        color: "#DC2626",
-        border: "rgba(220, 38, 38, 0.25)",
+        bg: "var(--color-danger-bg)",
+        color: "var(--color-danger)",
+        border: "var(--color-danger-border)",
         icon: <XCircle size={13} />,
+      },
+      PENDING: {
+        label: "Pending",
+        bg: "var(--color-warning-bg)",
+        color: "var(--color-warning)",
+        border: "var(--color-warning-border)",
+        icon: <Clock3 size={12} />,
+      },
+      PARTIAL: {
+        label: "Partial",
+        bg: "var(--color-warning-bg)",
+        color: "var(--color-warning)",
+        border: "var(--color-warning-border)",
+        icon: <Clock3 size={12} />,
       },
       SENT: {
         label: "Sent",
@@ -726,9 +1050,10 @@ export default function NotificationsPage() {
     const cfg = badgeConfig[status];
     const hasPartialBreakdown =
       showCounts &&
-      status === "SENT" &&
-      c.successCount > 0 &&
-      c.failureCount > 0;
+      recipientCounts &&
+      (recipientCounts.delivered > 0 ||
+        recipientCounts.failed > 0 ||
+        recipientCounts.pending > 0);
 
     return (
       <div
@@ -747,9 +1072,10 @@ export default function NotificationsPage() {
           {cfg.icon}
           {cfg.label}
         </span>
-        {hasPartialBreakdown && (
+        {hasPartialBreakdown && recipientCounts && (
           <span className="text-muted whitespace-nowrap text-caption">
-            {c.successCount} delivered · {c.failureCount} failed
+            {recipientCounts.delivered} delivered · {recipientCounts.failed}{" "}
+            failed · {recipientCounts.pending} pending
           </span>
         )}
       </div>
@@ -797,7 +1123,7 @@ export default function NotificationsPage() {
       accessor: (c) => renderAudienceBadge(c),
     },
     {
-      header: "Date",
+      header: "Date & Time",
       accessor: (c) => (
         <span className="inline-flex items-center text-secondary whitespace-nowrap gap-compact text-body-sm">
           <Calendar size={13} color="var(--text-muted)" />
@@ -812,7 +1138,14 @@ export default function NotificationsPage() {
         return (
           <span className="inline-flex items-center font-semibold text-primary whitespace-nowrap gap-tight">
             <Users size={13} color="var(--text-muted)" />
-            {count.toLocaleString()} {count === 1 ? "recipient" : "recipients"}
+            {count.toLocaleString()}{" "}
+            {c.recipientTrackingEnabled
+              ? count === 1
+                ? "user"
+                : "users"
+              : count === 1
+                ? "targeted device (legacy)"
+                : "targeted devices (legacy)"}
           </span>
         );
       },
@@ -846,6 +1179,119 @@ export default function NotificationsPage() {
   ];
 
   const searchLooksLikePhone = userSearchQuery.replace(/\D/g, "").length >= 10;
+  const selectedRecipientDetails =
+    recipientDetails?.campaignId === selectedCampaign?.id
+      ? recipientDetails
+      : null;
+  const selectedCampaignLiveDetails =
+    selectedCampaignLiveProgress?.campaignId === selectedCampaign?.id
+      ? selectedCampaignLiveProgress
+      : null;
+  const liveCampaignRecipients: NotificationCampaignRecipient[] =
+    selectedCampaignLiveDetails?.recipients.map((recipient) => {
+      const timestamp =
+        recipient.devices
+          .map((device) => device.attemptedAt)
+          .filter((value): value is string => Boolean(value))
+          .sort()
+          .at(-1) ?? selectedCampaignLiveDetails.updatedAt;
+      const status = recipient.status === "FAILED" ? "FAILED" : "PENDING";
+
+      return {
+        id: recipient.userId,
+        userId: recipient.userId,
+        name: recipient.name,
+        phone: recipient.phone,
+        role: recipient.role,
+        email: recipient.email,
+        profile: recipient.profile,
+        devices: recipient.devices,
+        status,
+        deviceCount: recipient.deviceCount,
+        providerAcceptedCount: recipient.providerAcceptedCount,
+        providerFailedCount: recipient.providerFailedCount,
+        timestamp,
+        deliveredAt: null,
+        failedAt: status === "FAILED" ? timestamp : null,
+        failureReason: recipient.failureReason,
+      };
+    }) ?? [];
+  const selectedCampaignDetailsRecipients =
+    selectedRecipientDetails?.trackingAvailable
+      ? selectedRecipientDetails.recipients
+      : liveCampaignRecipients;
+  const selectedCampaignDeliveryCounts =
+    selectedRecipientDetails?.trackingAvailable &&
+    selectedRecipientDetails.counts
+      ? selectedRecipientDetails.counts
+      : selectedCampaignLiveDetails
+        ? {
+            sent: selectedCampaignLiveDetails.counts.targetedUsers,
+            delivered: selectedCampaignLiveDetails.counts.confirmedDelivered,
+            failed: selectedCampaignLiveDetails.counts.usersFullyFailed,
+            pending:
+              selectedCampaignLiveDetails.counts.targetedUsers -
+              selectedCampaignLiveDetails.counts.usersFullyFailed -
+              selectedCampaignLiveDetails.counts.confirmedDelivered,
+          }
+        : null;
+  const filteredBroadcastRecipients = useMemo(() => {
+    const recipients = broadcastProgress?.recipients ?? [];
+    const query = broadcastProgressSearch.trim().toLowerCase();
+    if (!query) return recipients;
+
+    return recipients.filter(
+      (recipient: NotificationBroadcastProgressRecipient) => {
+        const searchableValues = [
+          recipient.userId,
+          recipient.name,
+          recipient.email,
+          recipient.phone,
+          recipient.role,
+          recipient.status,
+          recipient.profile.accountStatus,
+          recipient.profile.driver?.vehiclePlate,
+          recipient.profile.driver?.vehicleModel,
+          recipient.profile.vendor?.organizationName,
+          ...recipient.devices.flatMap((device) => [
+            device.deviceTokenId,
+            device.platform,
+            device.model,
+            device.appVersion,
+            device.maskedToken,
+            device.status,
+            device.failureReason,
+          ]),
+        ];
+        return searchableValues.some((value) =>
+          String(value ?? "")
+            .toLowerCase()
+            .includes(query),
+        );
+      },
+    );
+  }, [broadcastProgress?.recipients, broadcastProgressSearch]);
+  const broadcastProgressPercent = broadcastProgress
+    ? broadcastProgress.counts.targetedDevices > 0
+      ? Math.min(
+          100,
+          Math.round(
+            (broadcastProgress.counts.providerResponses /
+              broadcastProgress.counts.targetedDevices) *
+              100,
+          ),
+        )
+      : broadcastProgress.phase === "COMPLETED"
+        ? 100
+        : 0
+    : 0;
+  const broadcastPhaseLabel = {
+    PREPARING: "Resolving audience",
+    SENDING: "Sending to devices",
+    SAVING: "Saving campaign results",
+    COMPLETED: "Broadcast processing complete",
+    FAILED: "Broadcast failed",
+  }[broadcastProgress?.phase ?? "PREPARING"];
 
   return (
     <div className="admin-page">
@@ -878,6 +1324,13 @@ export default function NotificationsPage() {
           autoDismissMs={6000}
         />
       )}
+      {metricsError && (
+        <FeedbackBanner
+          type="error"
+          message={`Notification metrics could not be loaded: ${metricsError}`}
+          onDismiss={() => setMetricsError(null)}
+        />
+      )}
 
       {/* 1. CAMPAIGN OVERVIEW */}
       <section
@@ -891,21 +1344,21 @@ export default function NotificationsPage() {
             {
               label: "Total Notifications Sent",
               value: overviewStats.totalSent.toLocaleString(),
-              subtext: "Dispatched across all campaigns",
+              subtext: "Recipient totals for tracked campaigns",
               tone: "primary",
               icon: <Send size={14} />,
             },
             {
-              label: "Successful Deliveries",
+              label: "Confirmed Deliveries",
               value: overviewStats.totalDelivered.toLocaleString(),
-              subtext: "Delivered to active devices",
+              subtext: "Confirmed by recipient devices",
               tone: "success",
               icon: <CheckCircle2 size={14} />,
             },
             {
               label: "Failed Notifications",
               value: overviewStats.totalFailed.toLocaleString(),
-              subtext: "Invalid tokens or delivery errors",
+              subtext: "Provider-reported recipient failures",
               tone: "danger",
               icon: <XCircle size={14} />,
             },
@@ -1450,6 +1903,24 @@ export default function NotificationsPage() {
         className="w-full mt-1"
       >
         <div className="flex flex-col gap-4 w-full">
+          {historyError && (
+            <FeedbackBanner
+              type="error"
+              message={`Campaign history could not be loaded: ${historyError}`}
+              onDismiss={() => setHistoryError(null)}
+              action={
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => void loadData()}
+                  disabled={loading}
+                >
+                  Retry
+                </Button>
+              }
+            />
+          )}
+
           {/* History Header + Notification Status Filter Bar */}
           <div
             className="flex items-center justify-between flex-wrap gap-relaxed"
@@ -1466,12 +1937,12 @@ export default function NotificationsPage() {
                 className="text-base text-secondary"
                 style={{ margin: "0.15rem 0 0 0" }}
               >
-                Sent, delivered, and failed push notification campaigns.
+                Sent, pending confirmation, delivered, and failed campaigns.
               </p>
             </div>
 
             <div className="flex items-center gap-3 flex-wrap">
-              {/* 5. Notification Status Pills (All / Sent / Delivered / Failed) */}
+              {/* 5. Notification Status Pills */}
               <div
                 role="tablist"
                 aria-label="Notification Status"
@@ -1492,16 +1963,28 @@ export default function NotificationsPage() {
                       dotColor: BLUE_TEXT,
                     },
                     {
+                      id: "PENDING",
+                      label: "Pending",
+                      count: statusCounts.pending,
+                      dotColor: "var(--color-warning)",
+                    },
+                    {
+                      id: "PARTIAL",
+                      label: "Partial",
+                      count: statusCounts.partial,
+                      dotColor: "var(--color-warning)",
+                    },
+                    {
                       id: "DELIVERED",
                       label: "Delivered",
                       count: statusCounts.delivered,
-                      dotColor: "#16A34A",
+                      dotColor: "var(--color-success)",
                     },
                     {
                       id: "FAILED",
                       label: "Failed",
                       count: statusCounts.failed,
-                      dotColor: "#DC2626",
+                      dotColor: "var(--color-danger)",
                     },
                   ] as const
                 ).map((tab) => {
@@ -1571,7 +2054,7 @@ export default function NotificationsPage() {
                 />
                 <input
                   type="text"
-                  placeholder="Search campaigns..."
+                  placeholder="Search title, message, audience..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onFocus={applyBlueFocus}
@@ -1628,162 +2111,16 @@ export default function NotificationsPage() {
         </div>
       </section>
 
-      {/* DRAWER: VIEW CAMPAIGN DETAILS */}
-      <Drawer
+      {/* UNIFIED MODAL: Campaign Details + Delivery Matrix (History) */}
+      <NotificationDeliveryModal
         isOpen={!!selectedCampaign}
         onClose={() => setSelectedCampaign(null)}
-        title="Campaign Details"
-        subtitle={
-          selectedCampaign ? formatDate(selectedCampaign.createdAt) : undefined
-        }
-        icon={<Radio size={17} />}
-        width="540px"
-        footer={
-          <Button
-            variant="secondary"
-            size="md"
-            onClick={() => setSelectedCampaign(null)}
-          >
-            Close
-          </Button>
-        }
-      >
-        {selectedCampaign && (
-          <div className="flex flex-col gap-4">
-            <div
-              className="flex items-center justify-between border-b border-subtle"
-              style={{ paddingBottom: "0.8rem" }}
-            >
-              <div>
-                <div className="font-bold text-muted uppercase text-label">
-                  Delivery Status
-                </div>
-                <div style={{ marginTop: "0.3rem" }}>
-                  {renderStatusBadge(selectedCampaign, false)}
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="font-bold text-muted uppercase text-label">
-                  Date
-                </div>
-                <div
-                  className="font-medium text-secondary text-body-md"
-                  style={{ marginTop: "0.3rem" }}
-                >
-                  {formatDate(selectedCampaign.createdAt)}
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-card-elevated rounded-md p-4 border border-subtle">
-              {selectedCampaign.imageUrl && (
-                <img
-                  src={selectedCampaign.imageUrl}
-                  alt="Campaign banner"
-                  className="w-full object-cover rounded-sm border border-subtle"
-                  style={{ maxHeight: "180px", marginBottom: "0.8rem" }}
-                  onError={(e) => {
-                    (e.target as HTMLElement).style.display = "none";
-                  }}
-                />
-              )}
-              <h3
-                className="font-bold text-primary text-title-sm"
-                style={{ margin: "0 0 0.4rem 0" }}
-              >
-                {selectedCampaign.title || "Untitled Campaign"}
-              </h3>
-              <p
-                className="m-0 text-secondary whitespace-pre-wrap text-body-lg"
-                style={{ lineHeight: 1.5 }}
-              >
-                {selectedCampaign.body || "No message content."}
-              </p>
-            </div>
-
-            <div
-              className="grid"
-              style={{
-                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                gap: "0.8rem",
-              }}
-            >
-              <div
-                className="rounded-md bg-card border border-subtle"
-                style={{ padding: "0.8rem 0.95rem" }}
-              >
-                <div className="font-bold text-muted uppercase text-caption">
-                  Target Audience
-                </div>
-                <div className="mt-tight">
-                  {renderAudienceBadge(selectedCampaign)}
-                </div>
-              </div>
-
-              <div
-                className="rounded-md bg-card border border-subtle"
-                style={{ padding: "0.8rem 0.95rem" }}
-              >
-                <div className="font-bold text-muted uppercase text-caption">
-                  Total Recipients
-                </div>
-                <div
-                  className="font-bold text-primary mt-compact"
-                  style={{ fontSize: "1.1rem" }}
-                >
-                  {getRecipientCount(selectedCampaign).toLocaleString()}
-                </div>
-              </div>
-            </div>
-
-            {/* Notification Status Breakdown */}
-            <div
-              className="grid gap-3 rounded-md bg-card-elevated border border-subtle text-center"
-              style={{
-                gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-                padding: "0.9rem",
-              }}
-            >
-              <div>
-                <span
-                  className="font-bold text-caption"
-                  style={{ color: BLUE_TEXT }}
-                >
-                  SENT
-                </span>
-                <div
-                  className="font-bold text-title-lg"
-                  style={{ color: BLUE_TEXT, marginTop: "0.18rem" }}
-                >
-                  {getRecipientCount(selectedCampaign).toLocaleString()}
-                </div>
-              </div>
-              <div>
-                <span className="text-success font-bold text-caption">
-                  DELIVERED
-                </span>
-                <div
-                  className="font-bold text-success text-title-lg"
-                  style={{ marginTop: "0.18rem" }}
-                >
-                  {(selectedCampaign.successCount ?? 0).toLocaleString()}
-                </div>
-              </div>
-              <div>
-                <span className="text-danger font-bold text-caption">
-                  FAILED
-                </span>
-                <div
-                  className="font-bold text-danger text-title-lg"
-                  style={{ marginTop: "0.18rem" }}
-                >
-                  {(selectedCampaign.failureCount ?? 0).toLocaleString()}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </Drawer>
+        campaign={selectedCampaign}
+        recipientDetails={selectedRecipientDetails}
+        loadingRecipientDetails={loadingRecipientDetails}
+        recipientDetailsError={recipientDetailsError ?? selectedCampaignProgressError}
+        liveProgress={selectedCampaignLiveDetails}
+      />
 
       {/* MODAL: SEND TEST NOTIFICATION */}
       <Modal
@@ -1853,6 +2190,17 @@ export default function NotificationsPage() {
           />
         </div>
       </Modal>
+
+      {/* UNIFIED MODAL: Live Broadcast Progress */}
+      <NotificationDeliveryModal
+        isOpen={isBroadcastProgressOpen}
+        onClose={() => { if (!submitting) setIsBroadcastProgressOpen(false); }}
+        liveProgress={broadcastProgress}
+        liveProgressError={broadcastProgressError}
+        isSubmitting={submitting}
+        fallbackTitle={title}
+        fallbackAudience={getAudienceLabelForConfirm()}
+      />
 
       {/* CONFIRMATION DIALOG: BROADCAST */}
       <ConfirmDialog
