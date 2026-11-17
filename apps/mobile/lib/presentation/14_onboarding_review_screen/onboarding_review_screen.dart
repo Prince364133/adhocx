@@ -55,7 +55,7 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
       missingDocs.add('RC Front');
     }
     if (!onboarding.isRcBackSatisfied && vDocs['rc'] != true) {
-      missingDocs.add('RC Back');
+      missingDocs.add('Commercial Vehicle Permit');
     }
     if (!onboarding.isInsuranceSatisfied && vDocs['insurance'] != true) {
       missingDocs.add('Insurance');
@@ -489,7 +489,7 @@ class _OnboardingReviewScreenState extends State<OnboardingReviewScreen> {
                                   const SizedBox(width: AppSpacing.sm),
                                   _buildDocThumbnail('RC Front', Icons.description, hasRcF, isDark),
                                   const SizedBox(width: AppSpacing.sm),
-                                  _buildDocThumbnail('RC Back', Icons.description_outlined, hasRcB, isDark),
+                                  _buildDocThumbnail('Commercial Permit', Icons.description_outlined, hasRcB, isDark),
                                   const SizedBox(width: AppSpacing.sm),
                                   _buildDocThumbnail('Insurance', Icons.verified_user, hasIns, isDark),
                                   const SizedBox(width: AppSpacing.sm),

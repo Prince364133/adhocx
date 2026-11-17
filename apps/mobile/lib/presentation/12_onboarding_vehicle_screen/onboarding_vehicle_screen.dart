@@ -544,7 +544,7 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
     }
 
     if (onboarding.rcBackUrl == null && !rcVerifiedDigitally) {
-      const msg = 'Please upload your Vehicle RC (Back) document.';
+      const msg = 'Please upload your Commercial Vehicle Permit document.';
       setState(() => _inlineErrorMessage = msg);
       AppToast.showError(msg, context: context);
       return;
@@ -1035,7 +1035,7 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                                   ),
                                   const SizedBox(height: AppSpacing.md),
                                   _buildUploadTile(
-                                    title: 'Vehicle RC Photo (Back) *',
+                                    title: 'Commercial Vehicle Permit *',
                                     isDark: isDark,
                                     isUploaded: onboarding.rcBackUrl != null,
                                     isVerifiedDigitally: rcDigitallyVerified,
@@ -1044,7 +1044,7 @@ class _OnboardingVehicleScreenState extends State<OnboardingVehicleScreen> {
                                         'Verified via DigiLocker — already uploaded',
                                     isUploading: _uploadingState['RC_BACK'] ?? false,
                                     onTap: () => _showDocumentSourcePicker(
-                                        'RC_BACK', 'Vehicle RC Photo (Back)'),
+                                        'RC_BACK', 'Commercial Vehicle Permit'),
                                   ),
                                   const SizedBox(height: AppSpacing.md),
                                   _buildUploadTile(

@@ -521,7 +521,7 @@ export class DriversService {
       ...(profilePhotoUrl ? [{ id: 'doc_profile', documentType: 'PROFILE_PHOTO', title: 'Driver Profile Photo', fileUrl: profilePhotoUrl, verified: false, uploadedAt: new Date().toISOString() }] : []),
       ...(dlFrontUrl ? [{ id: 'doc_dl', documentType: 'DRIVING_LICENSE', title: 'Driving License', fileUrl: dlFrontUrl, verified: false, uploadedAt: new Date().toISOString() }] : []),
       ...(rcFrontUrl ? [{ id: 'doc_rc_front', documentType: 'RC_FRONT', title: 'Vehicle RC (Front)', fileUrl: rcFrontUrl, verified: false, uploadedAt: new Date().toISOString() }] : (rcDocUrl ? [{ id: 'doc_rc', documentType: 'RC_BOOK', title: 'Vehicle RC Book', fileUrl: rcDocUrl, verified: false, uploadedAt: new Date().toISOString() }] : [])),
-      ...(rcBackUrl ? [{ id: 'doc_rc_back', documentType: 'RC_BACK', title: 'Vehicle RC (Back)', fileUrl: rcBackUrl, verified: false, uploadedAt: new Date().toISOString() }] : []),
+      ...(rcBackUrl ? [{ id: 'doc_rc_back', documentType: 'RC_BACK', title: 'Commercial Vehicle Permit', fileUrl: rcBackUrl, verified: false, uploadedAt: new Date().toISOString() }] : []),
       ...(insuranceDocUrl ? [{ id: 'doc_ins', documentType: 'INSURANCE', title: 'Vehicle Insurance', fileUrl: insuranceDocUrl, verified: false, uploadedAt: new Date().toISOString() }] : []),
       ...(vehiclePhotoUrl ? [{ id: 'doc_veh', documentType: 'VEHICLE_PHOTO', title: 'Vehicle Photo', fileUrl: vehiclePhotoUrl, verified: false, uploadedAt: new Date().toISOString() }] : []),
       ...(aadharFrontUrl ? [{ id: 'doc_adh_f', documentType: 'AADHAR_FRONT', title: 'Aadhar Card (Front)', fileUrl: aadharFrontUrl, verified: false, uploadedAt: new Date().toISOString() }] : []),

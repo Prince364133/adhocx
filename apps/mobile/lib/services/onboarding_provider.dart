@@ -101,6 +101,7 @@ class OnboardingProvider extends ChangeNotifier {
   String? get rcBookUrl => _rcFrontUrl ?? _rcBookUrl;
   String? get rcFrontUrl => _rcFrontUrl ?? _rcBookUrl;
   String? get rcBackUrl => _rcBackUrl;
+  String? get permitUrl => _rcBackUrl;
   String? get insuranceUrl => _insuranceUrl;
   String? get vehiclePhotoUrl => _vehiclePhotoUrl;
   String? get aadharFrontUrl => _aadharFrontUrl;
@@ -127,6 +128,7 @@ class OnboardingProvider extends ChangeNotifier {
   bool get isRcFrontSatisfied =>
       _rcFrontUrl != null || _rcBookUrl != null || _rcVerifiedDigitally;
   bool get isRcBackSatisfied => _rcBackUrl != null || _rcVerifiedDigitally;
+  bool get isPermitSatisfied => isRcBackSatisfied;
   bool get isInsuranceSatisfied =>
       _insuranceUrl != null || _insuranceVerifiedDigitally;
 
@@ -315,6 +317,8 @@ class OnboardingProvider extends ChangeNotifier {
         _rcBookUrl = url;
         break;
       case 'RC_BACK':
+      case 'COMMERCIAL_PERMIT':
+      case 'PERMIT':
         _rcBackUrl = url;
         break;
       case 'RC_BOOK':

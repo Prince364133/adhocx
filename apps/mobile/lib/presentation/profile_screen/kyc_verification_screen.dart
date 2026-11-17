@@ -603,7 +603,8 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
     final photoUrl = _profile['profilePhotoUrl'] ?? driverProf['profilePhotoUrl'] ?? kycDocs['profilePhotoUrl'] ?? user?.effectivePhotoUrl ?? user?.photoUrl;
 
     final hasDl = (dlFront != null && dlFront.toString().trim().isNotEmpty) || (dlBack != null && dlBack.toString().trim().isNotEmpty);
-    final hasRc = (rcFront != null && rcFront.toString().trim().isNotEmpty) || (rcBack != null && rcBack.toString().trim().isNotEmpty);
+    final hasRc = rcFront != null && rcFront.toString().trim().isNotEmpty;
+    final hasPermit = rcBack != null && rcBack.toString().trim().isNotEmpty;
     final hasIns = insUrl != null && insUrl.toString().trim().isNotEmpty;
     final hasVeh = vehUrl != null && vehUrl.toString().trim().isNotEmpty;
     final hasAadhar = (aadharFront != null && aadharFront.toString().trim().isNotEmpty) || (aadharBack != null && aadharBack.toString().trim().isNotEmpty);
@@ -652,7 +653,14 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
         category: 'vehicle',
         isUploaded: hasRc,
         frontUrl: rcFront?.toString(),
-        backUrl: rcBack?.toString(),
+      ),
+      _KycDocItem(
+        icon: Icons.assignment_turned_in_outlined,
+        title: 'Commercial Vehicle Permit',
+        docType: 'RC_BACK',
+        category: 'vehicle',
+        isUploaded: hasPermit,
+        frontUrl: rcBack?.toString(),
       ),
       _KycDocItem(
         icon: Icons.security_outlined,
@@ -1079,7 +1087,7 @@ class _KycVerificationScreenState extends State<KycVerificationScreen> {
                                         _activeFilter == 'vehicle'
                                             ? (isVerified
                                                 ? 'Your vehicle documents meet all commercial transport compliance standards.'
-                                                : 'Upload clear photos of both sides of your RC book and insurance policy.')
+                                                : 'Upload clear photos of your Vehicle RC, Commercial Vehicle Permit, and insurance policy.')
                                             : (_activeFilter == 'identity'
                                                 ? (isVerified
                                                     ? 'Your driver identity documents are approved and active.'

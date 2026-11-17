@@ -542,7 +542,7 @@ export default function DriversPage() {
                 {
                   id: `${detail.id}_rc_back`,
                   documentType: "RC_BACK",
-                  title: "Vehicle RC (Back)",
+                  title: "Commercial Vehicle Permit",
                   fileUrl: resolveDocumentUrl(detail.rcBackUrl),
                   verified: detail.verificationStatus === "VERIFIED",
                   createdAt: detail.createdAt,
