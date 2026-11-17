@@ -325,6 +325,12 @@ class _NextTripCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.lg),
 
+          const EmployeeStepTracker(
+            currentStep: 0,
+            labels: ['Assigned', 'Approaching', 'Arrived'],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+
           // Actions
           Row(
             children: [
@@ -333,7 +339,7 @@ class _NextTripCard extends StatelessWidget {
                 child: EmployeePrimaryButton(
                   label: 'Track Cab',
                   icon: Icons.navigation_rounded,
-                  onPressed: () => context.push(AppRoutes.tripAssigned),
+                  onPressed: () => context.push(AppRoutes.liveTrackingOverview),
                 ),
               ),
               const SizedBox(width: AppSpacing.sm + 2),

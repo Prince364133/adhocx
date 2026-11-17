@@ -29,6 +29,7 @@ import { resolveJwtSecret } from '../../config/auth.config';
 import { NotificationsService } from '../notifications/notifications.service';
 import { LocationsService } from '../locations/locations.service';
 import { getPhoneVariants, assertPhoneAvailable, sanitizeRealName, isPlaceholderName } from '../../common';
+import { isLocalTestOtpEnabled } from './test-otp.policy';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -575,7 +576,10 @@ export class AuthService implements OnModuleInit {
 
     const requestId = `req_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
     // Cryptographically secure production-grade 6-digit OTP (100000 - 999999)
-    const otp = crypto.randomInt(100000, 1000000).toString();
+    const localTestOtp = isLocalTestOtpEnabled();
+    const otp = localTestOtp
+      ? '123456'
+      : crypto.randomInt(100000, 1000000).toString();
     const expirySeconds = this.configService.get<number>('auth.otpExpirySeconds') || 300;
     const expiresAt = Date.now() + expirySeconds * 1000;
 
@@ -586,19 +590,23 @@ export class AuthService implements OnModuleInit {
       await this.redis.del(`ratelimit:otp_verify:${value}`);
     } catch (_) {}
 
-    await this.notifications.sendOtp({
-      phone: !isEmail ? value : undefined,
-      email: isEmail ? value : undefined,
-      otp,
-      channel,
-      fullName: dto.fullName,
-    });
+    if (!localTestOtp) {
+      await this.notifications.sendOtp({
+        phone: !isEmail ? value : undefined,
+        email: isEmail ? value : undefined,
+        otp,
+        channel,
+        fullName: dto.fullName,
+      });
+    }
 
     return {
       requestId,
       expiresAt: new Date(expiresAt).toISOString(),
       retryAfterSeconds: this.configService.get<number>('auth.otpResendDelaySeconds') || 30,
-      message: `OTP sent successfully to ${value} via ${channel}`,
+      message: localTestOtp
+        ? 'Local test OTP is ready'
+        : `OTP sent successfully to ${value} via ${channel}`,
     };
   }
 
@@ -625,7 +633,7 @@ export class AuthService implements OnModuleInit {
       }
     } catch (_) {}
 
-    const allowTestOtp = process.env.ALLOW_TEST_OTP === 'true';
+    const allowTestOtp = isLocalTestOtpEnabled();
     const isMasterOtp = allowTestOtp && (otp === '123456' || otp === '528471');
     const isMatch = isMasterOtp || (Boolean(cachedOtp) && this.otpEquals(cachedOtp!, otp));
 
@@ -1002,7 +1010,7 @@ export class AuthService implements OnModuleInit {
       resetOnlyOtp = await this.redis.get(`otp_reset:${value}`);
     } catch (_) {}
 
-    const allowTestOtp = process.env.ALLOW_TEST_OTP === 'true';
+    const allowTestOtp = isLocalTestOtpEnabled();
     const isMasterOtp = allowTestOtp && (dto.otp === '123456' || dto.otp === '528471');
 
     const otpOk = isMasterOtp || (cachedOtp && this.otpEquals(cachedOtp, dto.otp)) || (resetOnlyOtp && this.otpEquals(resetOnlyOtp, dto.otp));

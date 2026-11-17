@@ -26,6 +26,7 @@ export class RolesGuard implements CanActivate {
     const roleAliases: Record<string, string> = {
       CORP_ADMIN: UserRole.CORPORATE_ADMIN,
       CORP_MANAGER: UserRole.CORPORATE_MANAGER,
+      COMMUTER: UserRole.EMPLOYEE,
     };
     const userRoleStr = roleAliases[rawUserRole] ?? rawUserRole;
     

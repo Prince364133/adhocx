@@ -118,7 +118,8 @@ class CabAssignedOverviewScreen extends StatelessWidget {
                     onTap: () => context.push(AppRoutes.pickupSequence),
                     child: Row(
                       children: [
-                        Icon(Icons.alt_route_rounded, size: 20, color: p.accent),
+                        Icon(Icons.alt_route_rounded,
+                            size: 20, color: p.accent),
                         const SizedBox(width: AppSpacing.md),
                         Expanded(
                           child: Text(
@@ -137,7 +138,8 @@ class CabAssignedOverviewScreen extends StatelessWidget {
                   EmployeePrimaryButton(
                     label: 'Track Live Trip',
                     icon: Icons.my_location_rounded,
-                    onPressed: () => context.push(AppRoutes.tripApproaching),
+                    onPressed: () =>
+                        context.push(AppRoutes.liveTrackingOverview),
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   Text(

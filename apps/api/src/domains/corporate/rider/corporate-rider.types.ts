@@ -102,6 +102,7 @@ export interface RiderTripSummary {
     fullName: string;
     phoneNumber?: string | null;
     rating?: number | null;
+    photoUrl?: string | null;
   } | null;
   vehicle?: {
     id: string;
@@ -197,6 +198,7 @@ export interface SubmitSafeReachDto {
 
 export interface SubmitTripFeedbackDto {
   rating: number; // 1 to 5
+  feltSafe?: boolean;
   tags?: string[];
   comment?: string;
 }

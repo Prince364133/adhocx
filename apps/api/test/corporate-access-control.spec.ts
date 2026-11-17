@@ -28,6 +28,7 @@ import { CorporateRosterController } from '../src/domains/corporate/rosters/corp
 import { CorporateRoutingController } from '../src/domains/corporate/routing/corporate-routing.controller';
 import { CorporateSafetyController } from '../src/domains/corporate/safety/corporate-safety.controller';
 import { CorporateRouteCancellationController } from '../src/domains/corporate/operations/corporate-operations.controller';
+import { CorporateRiderController } from '../src/domains/corporate/rider/corporate-rider.controller';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -140,6 +141,20 @@ describe('Corporate access control', () => {
       new RolesGuard(reflector).canActivate(c);
       return guard.canActivate(c);
     }
+
+    it('treats the legacy COMMUTER claim as EMPLOYEE without admitting unrelated roles', () => {
+      const rolesGuard = new RolesGuard(reflector);
+      expect(
+        rolesGuard.canActivate(
+          ctx(CorporateRiderController, 'getTrips', req({ id: 'u-commuter', role: 'COMMUTER' })),
+        ),
+      ).toBe(true);
+      expect(() =>
+        rolesGuard.canActivate(
+          ctx(CorporateRiderController, 'getTrips', req({ id: 'u-ops', role: UserRole.OPS })),
+        ),
+      ).toThrow(ForbiddenException);
+    });
 
     it('rejects a missing or forged bearer token with 401 before touching the database', async () => {
       const r = req(undefined, { params: { id: 'inv-1' } });

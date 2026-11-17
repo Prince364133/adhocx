@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../features/trips/summary/driver_rating_trip.dart';
 
 // Unified Feature-Sliced Screen Architecture
 import '../features/features.dart';
@@ -124,6 +125,8 @@ class AppRoutes {
   static const String notificationsCenter = '/notifications';
   static const String profileDetails = '/profile/details';
   static const String profileEdit = '/profile/edit';
+  static const String manageEmergencyContacts = '/profile/manage-contacts';
+  static const String emergencyContactForm = '/profile/manage-contacts/form';
   static const String settingsOverview = '/settings';
   static const String settingsLanguage = '/settings/language';
   static const String settingsNotifications = '/settings/notifications';
@@ -231,7 +234,12 @@ class AppRoutes {
           builder: (context, state) => const TripInProgressScreen()),
       GoRoute(
           path: tripCompleted,
-          builder: (context, state) => const TripCompletedScreen()),
+          builder: (context, state) {
+            final extra = state.extra;
+            return TripCompletedScreen(
+              tripData: extra is Map ? Map<String, dynamic>.from(extra) : null,
+            );
+          }),
       GoRoute(
           path: tripCancelled,
           builder: (context, state) => const TripCancelledScreen()),
@@ -402,10 +410,20 @@ class AppRoutes {
           builder: (context, state) => const TripInProgressEnRouteScreen()),
       GoRoute(
           path: dropReached,
-          builder: (context, state) => const DropReachedScreen()),
+          builder: (context, state) {
+            final extra = state.extra;
+            return DropReachedScreen(
+              tripData: extra is Map ? Map<String, dynamic>.from(extra) : null,
+            );
+          }),
       GoRoute(
           path: tripCompletedSummary,
-          builder: (context, state) => const TripCompletedSummaryScreen()),
+          builder: (context, state) {
+            final extra = state.extra;
+            return TripCompletedSummaryScreen(
+              tripData: extra is Map ? Map<String, dynamic>.from(extra) : null,
+            );
+          }),
       GoRoute(
           path: safeReachConfirmation,
           builder: (context, state) => const SafeReachConfirmationScreen()),
@@ -460,7 +478,9 @@ class AppRoutes {
           builder: (context, state) => const TripHistoryOverviewScreen()),
       GoRoute(
           path: historyDetails,
-          builder: (context, state) => const TripHistoryDetailsScreen()),
+          builder: (context, state) => TripHistoryDetailsScreen(
+                trip: DriverRatingTrip.tryParse(state.extra),
+              )),
       GoRoute(
           path: historyAnalytics,
           builder: (context, state) => const TripSummaryAnalyticsScreen()),
@@ -476,6 +496,18 @@ class AppRoutes {
       GoRoute(
           path: profileEdit,
           builder: (context, state) => const EditProfileScreen()),
+      GoRoute(
+        path: manageEmergencyContacts,
+        builder: (context, state) => const ManageEmergencyContactsScreen(),
+      ),
+      GoRoute(
+        path: emergencyContactForm,
+        builder: (context, state) => EmergencyContactFormScreen(
+          contact: state.extra is EmployeeEmergencyContact
+              ? state.extra as EmployeeEmergencyContact
+              : null,
+        ),
+      ),
       GoRoute(
           path: settingsOverview,
           builder: (context, state) => const SettingsOverviewScreen()),

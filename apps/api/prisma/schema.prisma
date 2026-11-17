@@ -241,6 +241,7 @@ model Driver {
   corporateEarnings    CorporateDriverEarning[]
   corporateOffers      CorporateDriverOffer[]
   corporatePayouts     CorporatePayout[] // wire/billing-payouts
+  corporateTripFeedbacks CorporateTripFeedback[]
 
   @@map("drivers")
   /// Dispatch DB fallback: available + verified + fresh location, narrowed by a lat/lng box.
@@ -1627,7 +1628,9 @@ model CorporateTripFeedback {
   employeeId String   @map("employee_id") @db.Uuid
   routeId    String   @map("route_id") @db.Uuid
   stopId     String   @unique @map("stop_id") @db.Uuid
+  driverId   String?  @map("driver_id") @db.Uuid
   rating     Int // 1 to 5
+  feltSafe   Boolean? @map("felt_safe")
   tags       String[] @default([])
   comment    String?
   createdAt  DateTime @default(now()) @map("created_at")
@@ -1635,10 +1638,12 @@ model CorporateTripFeedback {
   tenant   CorporateTenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   employee CorporateEmployee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   stop     CorporateRouteStop @relation(fields: [stopId], references: [id], onDelete: Cascade)
+  driver   Driver?            @relation(fields: [driverId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
   @@index([employeeId])
   @@index([routeId])
+  @@index([driverId])
   @@map("corporate_trip_feedback")
 }
 

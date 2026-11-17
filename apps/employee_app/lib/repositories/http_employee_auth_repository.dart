@@ -28,7 +28,8 @@ class HttpEmployeeAuthRepository implements EmployeeAuthRepository {
       throw Exception(e.message);
     } catch (e) {
       debugPrint('[HttpEmployeeAuthRepository] sendOtp error: $e');
-      throw Exception('Unable to reach authentication service. Please check connection.');
+      throw Exception(
+          'Unable to reach authentication service. Please check connection.');
     }
   }
 
@@ -54,7 +55,8 @@ class HttpEmployeeAuthRepository implements EmployeeAuthRepository {
       final refreshToken = payload['refreshToken'] as String?;
 
       if (accessToken == null) {
-        throw const InvalidOtpException('No session tokens received from authentication.');
+        throw const InvalidOtpException(
+            'No session tokens received from authentication.');
       }
 
       await _client.saveTokens(
@@ -101,7 +103,8 @@ class HttpEmployeeAuthRepository implements EmployeeAuthRepository {
       return await _fetchAndCacheProfile(fallbackUser: payload['user']);
     } on ApiException catch (e) {
       if (e.statusCode == 401) {
-        throw Exception('Invalid credentials. Please verify your details or password.');
+        throw Exception(
+            'Invalid credentials. Please verify your details or password.');
       }
       throw Exception(e.message);
     } catch (e) {
@@ -118,25 +121,34 @@ class HttpEmployeeAuthRepository implements EmployeeAuthRepository {
 
     // Dispatches verification OTP to company email
     await sendOtp(email);
-    throw Exception('A single-sign-on verification code has been dispatched to $email. Please enter the OTP to complete login.');
+    throw Exception(
+        'A single-sign-on verification code has been dispatched to $email. Please enter the OTP to complete login.');
   }
 
   @override
   Future<EmployeeUser?> getCurrentUser() async {
-    if (_cachedUser != null) return _cachedUser;
+    final token = await _client.getAccessToken();
+    if (token == null || token.isEmpty) {
+      _cachedUser = null;
+      await _client.clearSession();
+      return null;
+    }
 
-    final cachedJson = await _client.getCachedUser();
-    if (cachedJson != null) {
+    final cachedJson =
+        _cachedUser == null ? await _client.getCachedUser() : null;
+    if (_cachedUser == null && cachedJson != null) {
       _cachedUser = EmployeeUser.fromJson(cachedJson);
     }
 
-    final token = await _client.getAccessToken();
-    if (token != null) {
-      try {
-        _cachedUser = await _fetchAndCacheProfile();
-      } catch (e) {
-        debugPrint('[HttpEmployeeAuthRepository] Background profile sync failed: $e');
+    try {
+      _cachedUser = await _fetchAndCacheProfile();
+    } catch (e) {
+      if (_isAuthorizationFailure(e)) {
+        _cachedUser = null;
+        return null;
       }
+      debugPrint(
+          '[HttpEmployeeAuthRepository] Background profile sync failed: $e');
     }
 
     return _cachedUser;
@@ -148,19 +160,34 @@ class HttpEmployeeAuthRepository implements EmployeeAuthRepository {
     await _client.clearSession();
   }
 
-  Future<EmployeeUser> _fetchAndCacheProfile({Map<String, dynamic>? fallbackUser}) async {
+  Future<EmployeeUser> _fetchAndCacheProfile(
+      {Map<String, dynamic>? fallbackUser}) async {
     try {
       final res = await _client.get('/corporate/me');
       final data = (res['data'] ?? res) as Map<String, dynamic>;
 
       final user = EmployeeUser(
-        id: data['employeeId']?.toString() ?? fallbackUser?['id']?.toString() ?? '',
-        employeeId: data['employeeCode']?.toString() ?? fallbackUser?['employeeCode']?.toString() ?? '',
-        fullName: data['fullName']?.toString() ?? fallbackUser?['fullName']?.toString() ?? 'Corporate Commuter',
-        organization: data['tenant']?['name']?.toString() ?? fallbackUser?['tenantName']?.toString() ?? 'Corporate Enterprise',
-        office: data['office']?['name']?.toString() ?? fallbackUser?['officeName']?.toString() ?? 'Corporate Campus',
-        email: data['email']?.toString() ?? fallbackUser?['email']?.toString() ?? '',
-        phone: data['phoneNumber']?.toString() ?? fallbackUser?['phone']?.toString() ?? '',
+        id: data['employeeId']?.toString() ??
+            fallbackUser?['id']?.toString() ??
+            '',
+        employeeId: data['employeeCode']?.toString() ??
+            fallbackUser?['employeeCode']?.toString() ??
+            '',
+        fullName: data['fullName']?.toString() ??
+            fallbackUser?['fullName']?.toString() ??
+            'Corporate Commuter',
+        organization: data['tenant']?['name']?.toString() ??
+            fallbackUser?['tenantName']?.toString() ??
+            'Corporate Enterprise',
+        office: data['office']?['name']?.toString() ??
+            fallbackUser?['officeName']?.toString() ??
+            'Corporate Campus',
+        email: data['email']?.toString() ??
+            fallbackUser?['email']?.toString() ??
+            '',
+        phone: data['phoneNumber']?.toString() ??
+            fallbackUser?['phone']?.toString() ??
+            '',
         isTransportEligible: true,
         createdAt: DateTime.now(),
       );
@@ -169,13 +196,21 @@ class HttpEmployeeAuthRepository implements EmployeeAuthRepository {
       await _client.saveCachedUser(user.toJson());
       return user;
     } catch (e) {
-      debugPrint('[HttpEmployeeAuthRepository] Error fetching /corporate/me: $e');
+      debugPrint(
+          '[HttpEmployeeAuthRepository] Error fetching /corporate/me: $e');
+      if (_isAuthorizationFailure(e)) {
+        _cachedUser = null;
+        await _client.clearSession();
+        rethrow;
+      }
       if (fallbackUser != null) {
         final user = EmployeeUser(
           id: fallbackUser['id']?.toString() ?? '',
           employeeId: fallbackUser['employeeCode']?.toString() ?? '',
-          fullName: fallbackUser['fullName']?.toString() ?? 'Corporate Commuter',
-          organization: fallbackUser['tenantName']?.toString() ?? 'Corporate Enterprise',
+          fullName:
+              fallbackUser['fullName']?.toString() ?? 'Corporate Commuter',
+          organization:
+              fallbackUser['tenantName']?.toString() ?? 'Corporate Enterprise',
           office: fallbackUser['officeName']?.toString() ?? 'Corporate Campus',
           email: fallbackUser['email']?.toString() ?? '',
           phone: fallbackUser['phone']?.toString() ?? '',
@@ -189,5 +224,8 @@ class HttpEmployeeAuthRepository implements EmployeeAuthRepository {
       rethrow;
     }
   }
-}
 
+  bool _isAuthorizationFailure(Object error) =>
+      error is ApiException &&
+      (error.statusCode == 401 || error.statusCode == 403);
+}
