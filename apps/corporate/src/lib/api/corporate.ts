@@ -536,8 +536,8 @@ export const usersApi = {
 };
 
 export const notificationsApi = {
-  list: (limit = 8) =>
-    apiRequest<InAppNotificationsResponse>(`/notifications/in-app${qs({ limit })}`),
+  list: (limit = 8, page = 1) =>
+    apiRequest<InAppNotificationsResponse>(`/notifications/in-app${qs({ limit, page })}`),
   markRead: (notificationId: string) =>
     apiRequest<{ success: boolean }>(`/notifications/in-app/${encodeURIComponent(notificationId)}/read`, {
       method: 'PATCH',
@@ -546,4 +546,14 @@ export const notificationsApi = {
     apiRequest<{ success: boolean }>('/notifications/in-app/read-all', {
       method: 'PATCH',
     }),
+  delete: (notificationId: string) =>
+    apiRequest<{ success: boolean; deletedCount?: number; unreadCount?: number }>(
+      `/notifications/in-app/${encodeURIComponent(notificationId)}`,
+      { method: 'DELETE' },
+    ),
+  clearAll: () =>
+    apiRequest<{ success: boolean; deletedCount?: number; unreadCount?: number }>(
+      '/notifications/in-app',
+      { method: 'DELETE' },
+    ),
 };

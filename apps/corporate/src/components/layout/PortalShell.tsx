@@ -16,6 +16,7 @@ import {
   LogOut,
   Building,
   CalendarX,
+  Headphones,
   X,
 } from 'lucide-react';
 import { SessionProvider, useSession } from '../../lib/auth/SessionContext';
@@ -178,9 +179,14 @@ function TopBar() {
 
   useEffect(() => {
     if (status !== 'ready') return;
+    const refreshNotifications = () => void loadNotifications();
     void loadNotifications(true);
     const interval = window.setInterval(() => void loadNotifications(), 20000);
-    return () => window.clearInterval(interval);
+    window.addEventListener('adhocx:notifications-updated', refreshNotifications);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('adhocx:notifications-updated', refreshNotifications);
+    };
   }, [loadNotifications, status]);
 
   useEffect(() => {
@@ -326,14 +332,15 @@ function TopBar() {
               borderRadius: '50%',
               padding: 0,
               cursor: 'pointer',
-              backgroundColor: showNotifications ? 'var(--bg-surface-hover)' : 'var(--bg-surface-muted)',
-              border: '1px solid var(--border-subtle)',
+              backgroundColor: showNotifications ? 'var(--brand-primary-subtle)' : 'var(--bg-surface-muted)',
+              border: `1px solid ${showNotifications ? 'var(--brand-primary)' : 'var(--border-subtle)'}`,
+              boxShadow: showNotifications ? '0 0 0 3px var(--focus-ring)' : 'none',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <Bell size={16} color="var(--text-secondary)" />
+            <Bell size={16} color={showNotifications ? 'var(--brand-primary)' : 'var(--text-secondary)'} />
             {unreadCount > 0 && (
               <span
                 aria-live="polite"
@@ -589,6 +596,25 @@ function TopBar() {
                   ))
                 )}
               </div>
+              <Link
+                href="/notifications"
+                onClick={() => setShowNotifications(false)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  borderTop: '1px solid var(--border-subtle)',
+                  padding: '12px 14px',
+                  color: 'var(--brand-primary)',
+                  backgroundColor: 'var(--bg-surface)',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  textDecoration: 'none',
+                }}
+              >
+                View All Notifications
+              </Link>
             </section>
           )}
         </div>

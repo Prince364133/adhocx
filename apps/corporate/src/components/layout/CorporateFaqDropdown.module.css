@@ -22,6 +22,14 @@
   background: var(--bg-surface-hover);
 }
 
+.trigger[aria-current="page"],
+.trigger[aria-current="page"]:hover {
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
+  background: var(--brand-primary-subtle);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
 .trigger:focus-visible,
 .allTopicsButton:focus-visible,
 .categoryCard:focus-visible,

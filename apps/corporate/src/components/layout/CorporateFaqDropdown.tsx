@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   ArrowRight,
   Building2,
@@ -64,10 +65,14 @@ const HELP_CATEGORIES: Array<{
 ];
 
 export function CorporateFaqDropdown() {
+  const pathname = usePathname();
+  const isActive = pathname === "/help" || pathname.startsWith("/help/");
+
   return (
     <Link
       href="/help"
       aria-label="Help and FAQs"
+      aria-current={isActive ? "page" : undefined}
       title="Help & FAQs"
       className={styles.trigger}
     >
