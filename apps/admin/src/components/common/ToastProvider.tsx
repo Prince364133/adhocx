@@ -1,9 +1,21 @@
-'use client';
+"use client";
 
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
-import { AlertCircle, AlertTriangle, CheckCircle2, Info, X } from 'lucide-react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+} from "react";
+import {
+  AlertCircle,
+  AlertTriangle,
+  CheckCircle2,
+  Info,
+  X,
+} from "lucide-react";
 
-export type ToastTone = 'success' | 'error' | 'warning' | 'info';
+export type ToastTone = "success" | "error" | "warning" | "info";
 
 export interface ToastItem {
   id: string;
@@ -14,7 +26,12 @@ export interface ToastItem {
 }
 
 interface ToastContextValue {
-  showToast: (opts: { tone?: ToastTone; title?: string; message: string; durationMs?: number }) => void;
+  showToast: (opts: {
+    tone?: ToastTone;
+    title?: string;
+    message: string;
+    durationMs?: number;
+  }) => void;
   success: (message: string, title?: string) => void;
   error: (message: string, title?: string) => void;
   warning: (message: string, title?: string) => void;
@@ -23,11 +40,15 @@ interface ToastContextValue {
 
 const ToastContext = createContext<ToastContextValue | null>(null);
 
-export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
   const dismiss = useCallback((id: string) => {
-    setToasts((prev) => prev.map((t) => (t.id === id ? { ...t, closing: true } : t)));
+    setToasts((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, closing: true } : t)),
+    );
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 180);
@@ -35,7 +56,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const showToast = useCallback(
     ({
-      tone = 'info',
+      tone = "info",
       title,
       message,
       durationMs = 4200,
@@ -51,43 +72,49 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setTimeout(() => dismiss(id), durationMs);
       }
     },
-    [dismiss]
+    [dismiss],
   );
 
   const api = useMemo<ToastContextValue>(
     () => ({
       showToast,
-      success: (message, title) => showToast({ tone: 'success', title, message }),
-      error: (message, title) => showToast({ tone: 'error', title, message, durationMs: 5500 }),
-      warning: (message, title) => showToast({ tone: 'warning', title, message }),
-      info: (message, title) => showToast({ tone: 'info', title, message }),
+      success: (message, title) =>
+        showToast({ tone: "success", title, message }),
+      error: (message, title) =>
+        showToast({ tone: "error", title, message, durationMs: 5500 }),
+      warning: (message, title) =>
+        showToast({ tone: "warning", title, message }),
+      info: (message, title) => showToast({ tone: "info", title, message }),
     }),
-    [showToast]
+    [showToast],
   );
 
-  const toneStyle: Record<ToastTone, { border: string; accent: string; bg: string; icon: React.ReactNode }> = {
+  const toneStyle: Record<
+    ToastTone,
+    { border: string; accent: string; bg: string; icon: React.ReactNode }
+  > = {
     success: {
-      border: 'var(--color-success-border)',
-      accent: 'var(--color-success)',
-      bg: 'var(--color-success-bg)',
+      border: "var(--color-success-border)",
+      accent: "var(--color-success)",
+      bg: "var(--color-success-bg)",
       icon: <CheckCircle2 size={16} />,
     },
     error: {
-      border: 'var(--color-danger-border)',
-      accent: 'var(--color-danger)',
-      bg: 'var(--color-danger-bg)',
+      border: "var(--color-danger-border)",
+      accent: "var(--color-danger)",
+      bg: "var(--color-danger-bg)",
       icon: <AlertCircle size={16} />,
     },
     warning: {
-      border: 'var(--color-warning-border)',
-      accent: 'var(--color-warning)',
-      bg: 'var(--color-warning-bg)',
+      border: "var(--color-warning-border)",
+      accent: "var(--color-warning)",
+      bg: "var(--color-warning-bg)",
       icon: <AlertTriangle size={16} />,
     },
     info: {
-      border: 'var(--color-info-border)',
-      accent: 'var(--color-info)',
-      bg: 'var(--color-info-bg)',
+      border: "var(--color-info-border)",
+      accent: "var(--color-info)",
+      bg: "var(--color-info-bg)",
       icon: <Info size={16} />,
     },
   };
@@ -98,17 +125,13 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       {toasts.length > 0 && (
         <div
           aria-live="polite"
+          className="fixed flex flex-col gap-2 pointer-events-none"
           style={{
-            position: 'fixed',
-            top: '68px',
-            right: '1.25rem',
+            top: "68px",
+            right: "1.25rem",
             zIndex: 200,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.5rem',
-            maxWidth: '380px',
-            width: 'calc(100vw - 2rem)',
-            pointerEvents: 'none',
+            maxWidth: "380px",
+            width: "calc(100vw - 2rem)",
           }}
         >
           {toasts.map((t) => {
@@ -116,41 +139,40 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             return (
               <div
                 key={t.id}
-                className={t.closing ? 'animate-toast-out' : 'animate-toast'}
+                className={t.closing ? "animate-toast-out" : "animate-toast"}
                 style={{
-                  pointerEvents: 'auto',
-                  background: 'var(--bg-surface)',
+                  pointerEvents: "auto",
+                  background: "var(--bg-surface)",
                   border: `1px solid ${st.border}`,
-                  borderRadius: 'var(--radius-lg)',
-                  boxShadow: 'var(--shadow-elevated)',
-                  padding: '0.75rem 0.9rem',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '0.65rem',
+                  borderRadius: "var(--radius-lg)",
+                  boxShadow: "var(--shadow-elevated)",
+                  padding: "0.75rem 0.9rem",
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: "0.65rem",
                 }}
               >
                 <span
+                  className="rounded-md inline-flex items-center justify-center flex-shrink-0"
                   style={{
-                    width: '26px',
-                    height: '26px',
-                    borderRadius: 'var(--radius-md)',
+                    width: "26px",
+                    height: "26px",
                     background: st.bg,
                     color: st.accent,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
                   }}
                 >
                   {st.icon}
                 </span>
-                <div style={{ minWidth: 0, flex: 1 }}>
+                <div className="min-w-0 flex-1">
                   {t.title && (
-                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    <div className="text-body-sm font-bold text-primary">
                       {t.title}
                     </div>
                   )}
-                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                  <div
+                    className="text-compact text-secondary"
+                    style={{ lineHeight: 1.4 }}
+                  >
                     {t.message}
                   </div>
                 </div>
@@ -158,14 +180,8 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   type="button"
                   onClick={() => dismiss(t.id)}
                   aria-label="Close toast"
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'var(--text-muted)',
-                    cursor: 'pointer',
-                    padding: '0.15rem',
-                    display: 'inline-flex',
-                  }}
+                  className="bg-transparent border-0 text-muted cursor-pointer inline-flex"
+                  style={{ padding: "0.15rem" }}
                 >
                   <X size={14} />
                 </button>
@@ -189,4 +205,3 @@ export function useToast(): ToastContextValue {
     info: () => {},
   };
 }
-

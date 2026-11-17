@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import React, { useEffect, useState, useMemo, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
+import React, { useEffect, useState, useMemo, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import {
   Route,
   ZoomIn,
@@ -19,20 +19,16 @@ import {
   Phone,
   X,
   Package,
-} from 'lucide-react';
-import { adminApi } from '../../../lib/api/client';
-import { DriverListItem, DriverDetail } from '../../../lib/api/types';
-import {
-  Button,
-  KpiStrip,
-  StatusBadge,
-} from '../../../components/common';
+} from "lucide-react";
+import { adminApi } from "../../../lib/api/client";
+import { DriverListItem, DriverDetail } from "../../../lib/api/types";
+import { Button, KpiStrip, StatusBadge } from "../../../components/common";
 
 // Types for stops and telemetry
 export interface RouteStop {
   id: string;
   stopNumber: number;
-  type: 'PICKUP' | 'DELIVERY';
+  type: "PICKUP" | "DELIVERY";
   corporateName: string;
   pickupLocation: string;
   deliveryLocation: string;
@@ -44,7 +40,7 @@ export interface RouteStop {
   scheduledTime: string;
   arrivalTime: string;
   departureTime: string;
-  orderStatus: 'COMPLETED' | 'IN_PROGRESS' | 'PENDING' | 'CANCELLED';
+  orderStatus: "COMPLETED" | "IN_PROGRESS" | "PENDING" | "CANCELLED";
   orderAmount: number;
   driverEarnings: number;
   date: string;
@@ -52,8 +48,23 @@ export interface RouteStop {
   passengerCount?: number;
 }
 
-const WEEKDAYS = ['ALL', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'] as const;
-const STATUS_OPTIONS = ['ALL', 'COMPLETED', 'IN_PROGRESS', 'PENDING', 'CANCELLED'] as const;
+const WEEKDAYS = [
+  "ALL",
+  "MONDAY",
+  "TUESDAY",
+  "WEDNESDAY",
+  "THURSDAY",
+  "FRIDAY",
+  "SATURDAY",
+  "SUNDAY",
+] as const;
+const STATUS_OPTIONS = [
+  "ALL",
+  "COMPLETED",
+  "IN_PROGRESS",
+  "PENDING",
+  "CANCELLED",
+] as const;
 
 // Default corridor coordinates for Cyberabad / Hyderabad tech parks
 const CORRIDOR_BOUNDS = {
@@ -64,44 +75,58 @@ const CORRIDOR_BOUNDS = {
 };
 
 const formatCurrency = (amt: number) =>
-  '₹' + Math.round(amt).toLocaleString('en-IN');
+  "₹" + Math.round(amt).toLocaleString("en-IN");
 
 function RouteEarningsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialDriverId = searchParams.get('driverId');
+  const initialDriverId = searchParams.get("driverId");
 
   // Core Data States
   const [drivers, setDrivers] = useState<DriverListItem[]>([]);
-  const [selectedDriverId, setSelectedDriverId] = useState<string>(initialDriverId || '');
+  const [selectedDriverId, setSelectedDriverId] = useState<string>(
+    initialDriverId || "",
+  );
   const [driverDetail, setDriverDetail] = useState<DriverDetail | null>(null);
   const [, setLoading] = useState(true);
   const [, setDriverLoading] = useState(false);
 
   // Filters
-  const [statusFilter, setStatusFilter] = useState<string>('ALL');
-  const [corporateFilter, setCorporateFilter] = useState<string>('ALL');
-  const [dayFilter, setDayFilter] = useState<string>('ALL');
+  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [corporateFilter, setCorporateFilter] = useState<string>("ALL");
+  const [dayFilter, setDayFilter] = useState<string>("ALL");
   const [yearFilter, setYearFilter] = useState<number>(2026);
-  const [historyTab, setHistoryTab] = useState<'DAILY' | 'MONTHLY' | 'YEARLY'>('DAILY');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [historyTab, setHistoryTab] = useState<"DAILY" | "MONTHLY" | "YEARLY">(
+    "DAILY",
+  );
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Map Interactive States
   const [zoomLevel, setZoomLevel] = useState<number>(1);
-  const [panOffset, setPanOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [panOffset, setPanOffset] = useState<{ x: number; y: number }>({
+    x: 0,
+    y: 0,
+  });
   const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [dragStart, setDragStart] = useState<{ x: number; y: number }>({
+    x: 0,
+    y: 0,
+  });
   const [selectedStopId, setSelectedStopId] = useState<string | null>(null);
   const [hoveredStopId, setHoveredStopId] = useState<string | null>(null);
-  const [hoveredGraphPoint, setHoveredGraphPoint] = useState<number | null>(null);
+  const [hoveredGraphPoint, setHoveredGraphPoint] = useState<number | null>(
+    null,
+  );
 
   // Load all drivers on mount
   useEffect(() => {
     async function fetchDrivers() {
       setLoading(true);
       try {
-        const list = await adminApi.getDrivers('ALL').catch(() => []);
-        const driverList = Array.isArray(list) ? list : (list as any)?.items || [];
+        const list = await adminApi.getDrivers("ALL").catch(() => []);
+        const driverList = Array.isArray(list)
+          ? list
+          : (list as any)?.items || [];
         setDrivers(driverList);
 
         if (!selectedDriverId && driverList.length > 0) {
@@ -122,7 +147,9 @@ function RouteEarningsContent() {
     async function loadDetail() {
       setDriverLoading(true);
       try {
-        const detail = await adminApi.getDriverDetails(selectedDriverId).catch(() => null);
+        const detail = await adminApi
+          .getDriverDetails(selectedDriverId)
+          .catch(() => null);
         if (isMounted) {
           setDriverDetail(detail);
         }
@@ -161,39 +188,60 @@ function RouteEarningsContent() {
           vendor.organizationName ||
           vendor.companyName ||
           vendor.contactPerson ||
-          'Enterprise Mobility Client';
+          "Enterprise Mobility Client";
 
         const tripDate = new Date(trip.createdAt || Date.now());
-        const dateStr = tripDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-        const dayStr = tripDate.toLocaleDateString('en-IN', { weekday: 'long' }).toUpperCase();
+        const dateStr = tripDate.toLocaleDateString("en-IN", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        });
+        const dayStr = tripDate
+          .toLocaleDateString("en-IN", { weekday: "long" })
+          .toUpperCase();
 
-        const pLat = req.pickupLat ? Number(req.pickupLat) : 17.438 + (idx * 0.007) % 0.02;
-        const pLng = req.pickupLng ? Number(req.pickupLng) : 78.375 + (idx * 0.008) % 0.02;
-        const dLat = req.dropLat ? Number(req.dropLat) : 17.425 + (idx * 0.005) % 0.02;
-        const dLng = req.dropLng ? Number(req.dropLng) : 78.36 + (idx * 0.006) % 0.02;
+        const pLat = req.pickupLat
+          ? Number(req.pickupLat)
+          : 17.438 + ((idx * 0.007) % 0.02);
+        const pLng = req.pickupLng
+          ? Number(req.pickupLng)
+          : 78.375 + ((idx * 0.008) % 0.02);
+        const dLat = req.dropLat
+          ? Number(req.dropLat)
+          : 17.425 + ((idx * 0.005) % 0.02);
+        const dLng = req.dropLng
+          ? Number(req.dropLng)
+          : 78.36 + ((idx * 0.006) % 0.02);
 
-        const earnings = Number(trip.totalDriverEarnings || trip.driverRate || 450);
+        const earnings = Number(
+          trip.totalDriverEarnings || trip.driverRate || 450,
+        );
         const orderAmt = Number(req.totalAmount || earnings * 1.35);
 
         // Pickup Stop
         stops.push({
           id: `${trip.id}_pickup`,
           stopNumber: stops.length + 1,
-          type: 'PICKUP',
+          type: "PICKUP",
           corporateName: corpName,
-          pickupLocation: trip.pickupAddress || 'Mindspace Madhapur, Building 12',
-          deliveryLocation: trip.dropAddress || 'Gachibowli Financial Hub',
+          pickupLocation:
+            trip.pickupAddress || "Mindspace Madhapur, Building 12",
+          deliveryLocation: trip.dropAddress || "Gachibowli Financial Hub",
           latitude: pLat,
           longitude: pLng,
           distanceKm: 8.4 + (idx % 5) * 2.3,
           estimatedTravelTimeMins: 22 + (idx % 4) * 5,
-          actualTravelTimeMins: trip.status === 'COMPLETED' ? 20 + (idx % 4) * 4 : null,
+          actualTravelTimeMins:
+            trip.status === "COMPLETED" ? 20 + (idx % 4) * 4 : null,
           scheduledTime: trip.reportingTime
-            ? new Date(trip.reportingTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
-            : '10:30 AM',
-          arrivalTime: '10:24 AM',
-          departureTime: '10:32 AM',
-          orderStatus: (trip.status as any) || 'COMPLETED',
+            ? new Date(trip.reportingTime).toLocaleTimeString("en-IN", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : "10:30 AM",
+          arrivalTime: "10:24 AM",
+          departureTime: "10:32 AM",
+          orderStatus: (trip.status as any) || "COMPLETED",
           orderAmount: orderAmt,
           driverEarnings: earnings,
           date: dateStr,
@@ -206,19 +254,20 @@ function RouteEarningsContent() {
           stops.push({
             id: `${trip.id}_delivery`,
             stopNumber: stops.length + 1,
-            type: 'DELIVERY',
+            type: "DELIVERY",
             corporateName: corpName,
-            pickupLocation: trip.pickupAddress || 'Mindspace Madhapur',
-            deliveryLocation: trip.dropAddress || 'DLF Cybercity Campus Phase 2',
+            pickupLocation: trip.pickupAddress || "Mindspace Madhapur",
+            deliveryLocation:
+              trip.dropAddress || "DLF Cybercity Campus Phase 2",
             latitude: dLat,
             longitude: dLng,
             distanceKm: 14.2,
             estimatedTravelTimeMins: 35,
-            actualTravelTimeMins: trip.status === 'COMPLETED' ? 32 : null,
-            scheduledTime: '12:00 PM',
-            arrivalTime: '11:55 AM',
-            departureTime: '12:05 PM',
-            orderStatus: (trip.status as any) || 'COMPLETED',
+            actualTravelTimeMins: trip.status === "COMPLETED" ? 32 : null,
+            scheduledTime: "12:00 PM",
+            arrivalTime: "11:55 AM",
+            departureTime: "12:05 PM",
+            orderStatus: (trip.status as any) || "COMPLETED",
             orderAmount: orderAmt,
             driverEarnings: Math.round(earnings * 0.4),
             date: dateStr,
@@ -232,26 +281,32 @@ function RouteEarningsContent() {
 
     // Default corporate tech corridor route (HITEC City, Madhapur, Gachibowli, Financial District)
     const baseDate = new Date();
-    const dateStr = baseDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-    const dayStr = baseDate.toLocaleDateString('en-IN', { weekday: 'long' }).toUpperCase();
+    const dateStr = baseDate.toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+    const dayStr = baseDate
+      .toLocaleDateString("en-IN", { weekday: "long" })
+      .toUpperCase();
 
     return [
       {
-        id: 'stop_1',
+        id: "stop_1",
         stopNumber: 1,
-        type: 'PICKUP',
-        corporateName: 'Corporate A · Microsoft IDC Campus',
-        pickupLocation: 'Building 3, Microsoft Campus, Gachibowli',
-        deliveryLocation: 'Mindspace Hub, Madhapur',
+        type: "PICKUP",
+        corporateName: "Corporate A · Microsoft IDC Campus",
+        pickupLocation: "Building 3, Microsoft Campus, Gachibowli",
+        deliveryLocation: "Mindspace Hub, Madhapur",
         latitude: 17.4435,
         longitude: 78.3542,
         distanceKm: 6.8,
         estimatedTravelTimeMins: 18,
         actualTravelTimeMins: 16,
-        scheduledTime: '10:30 AM',
-        arrivalTime: '10:25 AM',
-        departureTime: '10:32 AM',
-        orderStatus: 'COMPLETED',
+        scheduledTime: "10:30 AM",
+        arrivalTime: "10:25 AM",
+        departureTime: "10:32 AM",
+        orderStatus: "COMPLETED",
         orderAmount: 650,
         driverEarnings: 480,
         date: dateStr,
@@ -259,21 +314,21 @@ function RouteEarningsContent() {
         passengerCount: 3,
       },
       {
-        id: 'stop_2',
+        id: "stop_2",
         stopNumber: 2,
-        type: 'PICKUP',
-        corporateName: 'Corporate B · Google Signature Tower',
-        pickupLocation: 'Block B, DLF Cybercity, Gachibowli',
-        deliveryLocation: 'Waverock Nanakramguda',
+        type: "PICKUP",
+        corporateName: "Corporate B · Google Signature Tower",
+        pickupLocation: "Block B, DLF Cybercity, Gachibowli",
+        deliveryLocation: "Waverock Nanakramguda",
         latitude: 17.4492,
         longitude: 78.3618,
         distanceKm: 11.4,
         estimatedTravelTimeMins: 25,
         actualTravelTimeMins: 22,
-        scheduledTime: '11:15 AM',
-        arrivalTime: '11:10 AM',
-        departureTime: '11:18 AM',
-        orderStatus: 'COMPLETED',
+        scheduledTime: "11:15 AM",
+        arrivalTime: "11:10 AM",
+        departureTime: "11:18 AM",
+        orderStatus: "COMPLETED",
         orderAmount: 820,
         driverEarnings: 610,
         date: dateStr,
@@ -281,21 +336,21 @@ function RouteEarningsContent() {
         passengerCount: 2,
       },
       {
-        id: 'stop_3',
+        id: "stop_3",
         stopNumber: 3,
-        type: 'PICKUP',
-        corporateName: 'Corporate C · Qualcomm Cyber Hub',
-        pickupLocation: 'Tower 4, Mindspace Tech Park, Madhapur',
-        deliveryLocation: 'Financial District Transit Zone',
+        type: "PICKUP",
+        corporateName: "Corporate C · Qualcomm Cyber Hub",
+        pickupLocation: "Tower 4, Mindspace Tech Park, Madhapur",
+        deliveryLocation: "Financial District Transit Zone",
         latitude: 17.4388,
         longitude: 78.3812,
         distanceKm: 9.6,
         estimatedTravelTimeMins: 22,
         actualTravelTimeMins: null,
-        scheduledTime: '11:45 AM',
-        arrivalTime: '11:42 AM',
-        departureTime: '11:48 AM',
-        orderStatus: 'IN_PROGRESS',
+        scheduledTime: "11:45 AM",
+        arrivalTime: "11:42 AM",
+        departureTime: "11:48 AM",
+        orderStatus: "IN_PROGRESS",
         orderAmount: 740,
         driverEarnings: 550,
         date: dateStr,
@@ -303,21 +358,21 @@ function RouteEarningsContent() {
         passengerCount: 4,
       },
       {
-        id: 'stop_4',
+        id: "stop_4",
         stopNumber: 4,
-        type: 'DELIVERY',
-        corporateName: 'Enterprise Delivery Destination Hub',
-        pickupLocation: 'Corporate Corridors 1-3 Consolidated',
-        deliveryLocation: 'Phase 2 Waverock Enterprise Transit Hub',
+        type: "DELIVERY",
+        corporateName: "Enterprise Delivery Destination Hub",
+        pickupLocation: "Corporate Corridors 1-3 Consolidated",
+        deliveryLocation: "Phase 2 Waverock Enterprise Transit Hub",
         latitude: 17.4168,
         longitude: 78.3456,
         distanceKm: 16.5,
         estimatedTravelTimeMins: 34,
         actualTravelTimeMins: null,
-        scheduledTime: '12:30 PM',
-        arrivalTime: '12:28 PM',
-        departureTime: '12:35 PM',
-        orderStatus: 'PENDING',
+        scheduledTime: "12:30 PM",
+        arrivalTime: "12:28 PM",
+        departureTime: "12:35 PM",
+        orderStatus: "PENDING",
         orderAmount: 1150,
         driverEarnings: 840,
         date: dateStr,
@@ -337,9 +392,11 @@ function RouteEarningsContent() {
   // Filtered route stops
   const filteredStops = useMemo(() => {
     return rawStops.filter((stop) => {
-      if (statusFilter !== 'ALL' && stop.orderStatus !== statusFilter) return false;
-      if (corporateFilter !== 'ALL' && stop.corporateName !== corporateFilter) return false;
-      if (dayFilter !== 'ALL' && stop.day !== dayFilter) return false;
+      if (statusFilter !== "ALL" && stop.orderStatus !== statusFilter)
+        return false;
+      if (corporateFilter !== "ALL" && stop.corporateName !== corporateFilter)
+        return false;
+      if (dayFilter !== "ALL" && stop.day !== dayFilter) return false;
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         const match =
@@ -355,12 +412,20 @@ function RouteEarningsContent() {
   // Summary Metrics
   const summaryMetrics = useMemo(() => {
     const totalOrders = filteredStops.length;
-    const completedTrips = filteredStops.filter((s) => s.orderStatus === 'COMPLETED').length;
-    const totalDistance = filteredStops.reduce((sum, s) => sum + s.distanceKm, 0);
-    const totalEarnings = filteredStops.reduce((sum, s) => sum + s.driverEarnings, 0);
+    const completedTrips = filteredStops.filter(
+      (s) => s.orderStatus === "COMPLETED",
+    ).length;
+    const totalDistance = filteredStops.reduce(
+      (sum, s) => sum + s.distanceKm,
+      0,
+    );
+    const totalEarnings = filteredStops.reduce(
+      (sum, s) => sum + s.driverEarnings,
+      0,
+    );
     const totalEstMins = filteredStops.reduce(
       (sum, s) => sum + (s.actualTravelTimeMins || s.estimatedTravelTimeMins),
-      0
+      0,
     );
     const activeHours = (totalEstMins / 60).toFixed(1);
 
@@ -375,9 +440,23 @@ function RouteEarningsContent() {
 
   // Monthly Analytics for Performance Graph
   const monthlyPerformance = useMemo(() => {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
     return months.map((monthName, idx) => {
-      const seed = ((currentDriver?.id.charCodeAt(0) || 1) + idx * 5 + yearFilter) % 10;
+      const seed =
+        ((currentDriver?.id.charCodeAt(0) || 1) + idx * 5 + yearFilter) % 10;
       const earnings = (seed + 4) * 1250 + (idx === 10 ? 8500 : 0);
       const distance = (seed + 3) * 22 + (idx === 10 ? 145 : 0);
       return {
@@ -395,19 +474,27 @@ function RouteEarningsContent() {
   const mapPadding = 45;
 
   const projectCoords = (lat: number, lng: number) => {
-    const clampedLat = Math.max(CORRIDOR_BOUNDS.minLat, Math.min(CORRIDOR_BOUNDS.maxLat, lat));
-    const clampedLng = Math.max(CORRIDOR_BOUNDS.minLng, Math.min(CORRIDOR_BOUNDS.maxLng, lng));
+    const clampedLat = Math.max(
+      CORRIDOR_BOUNDS.minLat,
+      Math.min(CORRIDOR_BOUNDS.maxLat, lat),
+    );
+    const clampedLng = Math.max(
+      CORRIDOR_BOUNDS.minLng,
+      Math.min(CORRIDOR_BOUNDS.maxLng, lng),
+    );
 
     const x =
       mapPadding +
-      ((clampedLng - CORRIDOR_BOUNDS.minLng) / (CORRIDOR_BOUNDS.maxLng - CORRIDOR_BOUNDS.minLng || 1)) *
-      (mapWidth - mapPadding * 2);
+      ((clampedLng - CORRIDOR_BOUNDS.minLng) /
+        (CORRIDOR_BOUNDS.maxLng - CORRIDOR_BOUNDS.minLng || 1)) *
+        (mapWidth - mapPadding * 2);
 
     const y =
       mapHeight -
       mapPadding -
-      ((clampedLat - CORRIDOR_BOUNDS.minLat) / (CORRIDOR_BOUNDS.maxLat - CORRIDOR_BOUNDS.minLat || 1)) *
-      (mapHeight - mapPadding * 2);
+      ((clampedLat - CORRIDOR_BOUNDS.minLat) /
+        (CORRIDOR_BOUNDS.maxLat - CORRIDOR_BOUNDS.minLat || 1)) *
+        (mapHeight - mapPadding * 2);
 
     return { x, y };
   };
@@ -415,7 +502,10 @@ function RouteEarningsContent() {
   // Driver Live Marker Coordinates
   const driverLiveCoords = useMemo(() => {
     if (currentDriver?.currentLat && currentDriver?.currentLng) {
-      return projectCoords(Number(currentDriver.currentLat), Number(currentDriver.currentLng));
+      return projectCoords(
+        Number(currentDriver.currentLat),
+        Number(currentDriver.currentLng),
+      );
     }
     // Default live location near Cyber Towers corridor
     return projectCoords(17.4485, 78.3712);
@@ -451,46 +541,49 @@ function RouteEarningsContent() {
 
   // Currently focused stop
   const activeFocusedStop = useMemo(() => {
-    return filteredStops.find((s) => s.id === selectedStopId) || filteredStops.find((s) => s.id === hoveredStopId) || null;
+    return (
+      filteredStops.find((s) => s.id === selectedStopId) ||
+      filteredStops.find((s) => s.id === hoveredStopId) ||
+      null
+    );
   }, [filteredStops, selectedStopId, hoveredStopId]);
 
   return (
-    <div style={{ width: '100%', paddingBottom: '0.5rem' }}>
+    <div className="w-full pb-2">
       {/* SECTION 1: Page Navigation Header */}
       <div
-        className="module-bar"
-        style={{
-          marginTop: '0.15rem',
-          marginBottom: '1.15rem',
-          padding: '0.68rem 1rem',
-          justifyContent: 'space-between',
-        }}
+        className="module-bar justify-between mt-snug"
+        style={{ marginBottom: "1.15rem", padding: "0.68rem 1rem" }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+        <div className="flex items-center flex-wrap" style={{ gap: "0.65rem" }}>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => router.push('/drivers')}
+            onClick={() => router.push("/drivers")}
             leftIcon={<ArrowLeft size={13} />}
           >
             Back to Driver Fleet
           </Button>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          <div className="flex items-center text-sm text-muted gap-tight">
             <span>Driver Fleet</span>
             <span>/</span>
-            <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>Driver Route & Earnings Tracking</span>
+            <span className="font-bold text-primary">
+              Driver Route & Earnings Tracking
+            </span>
           </div>
         </div>
 
         {/* Driver Quick Selector Dropdown */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Active Driver:</span>
+        <div className="flex items-center gap-snug">
+          <span className="text-sm text-secondary font-semibold">
+            Active Driver:
+          </span>
           <select
-            className="form-select"
+            className="form-select font-semibold"
             value={selectedDriverId}
             onChange={(e) => setSelectedDriverId(e.target.value)}
-            style={{ width: 'auto', minWidth: '200px', fontWeight: 600 }}
+            style={{ width: "auto", minWidth: "200px" }}
           >
             {drivers.map((drv) => (
               <option key={drv.id} value={drv.id}>
@@ -504,106 +597,84 @@ function RouteEarningsContent() {
       {/* Driver Identity Card & Live Telemetry Banner */}
       {currentDriver && (
         <div
-          style={{
-            background: 'var(--bg-surface)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-lg)',
-            padding: '0.85rem 1.05rem',
-            marginBottom: '0.9rem',
-            boxShadow: 'var(--shadow-xs)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '0.85rem',
-          }}
+          className="bg-surface border rounded-lg shadow-xs flex items-center justify-between flex-wrap gap-relaxed"
+          style={{ padding: "0.85rem 1.05rem", marginBottom: "0.9rem" }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div className="flex items-center gap-3">
             <div
+              className="rounded-full bg-brand-subtle flex items-center justify-center font-bold text-brand flex-shrink-0"
               style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '50%',
-                background: 'var(--brand-primary-subtle)',
-                border: '1px solid rgba(87, 40, 178, 0.25)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '0.88rem',
-                fontWeight: 700,
-                color: 'var(--brand-primary)',
-                flexShrink: 0,
+                width: "40px",
+                height: "40px",
+                border: "1px solid rgba(var(--brand-primary-rgb), 0.25)",
+                fontSize: "0.88rem",
               }}
             >
-              {currentDriver.fullName ? currentDriver.fullName.slice(0, 2).toUpperCase() : 'DR'}
+              {currentDriver.fullName
+                ? currentDriver.fullName.slice(0, 2).toUpperCase()
+                : "DR"}
             </div>
 
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <h2 style={{ margin: 0, fontSize: '1.12rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2
+                  className="m-0 font-bold text-primary"
+                  style={{ fontSize: "1.12rem" }}
+                >
                   {currentDriver.fullName}
                 </h2>
                 <span
+                  className="inline-flex items-center rounded-full font-bold bg-success-subtle text-success gap-tight text-label"
                   style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                    padding: '0.15rem 0.55rem',
-                    borderRadius: 'var(--radius-pill)',
-                    fontSize: '0.72rem',
-                    fontWeight: 700,
-                    background: 'var(--color-success-bg)',
-                    border: '1px solid var(--color-success-border)',
-                    color: 'var(--color-success)',
+                    padding: "0.15rem 0.55rem",
+                    border: "1px solid var(--color-success-border)",
                   }}
                 >
                   <span
+                    className="rounded-full"
                     style={{
-                      width: '7px',
-                      height: '7px',
-                      borderRadius: '50%',
-                      background: 'var(--color-success)',
+                      width: "7px",
+                      height: "7px",
+                      background: "var(--color-success)",
                     }}
                   />
                   Live Tracking Active
                 </span>
-                <StatusBadge status={currentDriver.verificationStatus} size="sm" />
+                <StatusBadge
+                  status={currentDriver.verificationStatus}
+                  size="sm"
+                />
               </div>
 
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: '1rem',
-                  marginTop: '0.35rem',
-                  fontSize: '0.8125rem',
-                  color: 'var(--text-secondary)',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <Phone size={13} color="var(--brand-primary)" />
-                  <span>{currentDriver.phone || 'No phone'}</span>
+              <div className="flex items-center flex-wrap gap-4 text-base text-secondary mt-tight">
+                <div className="flex items-center" style={{ gap: "0.3rem" }}>
+                  <Phone size={13} color="var(--text-brand)" />
+                  <span>{currentDriver.phone || "No phone"}</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                <div className="flex items-center" style={{ gap: "0.3rem" }}>
                   <Car size={13} color="var(--brand-orange)" />
                   <span>
-                    {currentDriver.vehiclePlate || 'No Plate'}{' '}
-                    <span style={{ color: 'var(--text-muted)' }}>
-                      ({currentDriver.vehicleModel ? `${currentDriver.vehicleModel} • ` : ''}
-                      {currentDriver.vehicleType || 'Standard'})
+                    {currentDriver.vehiclePlate || "No Plate"}{" "}
+                    <span className="text-muted">
+                      (
+                      {currentDriver.vehicleModel
+                        ? `${currentDriver.vehicleModel} • `
+                        : ""}
+                      {currentDriver.vehicleType || "Standard"})
                     </span>
                   </span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                <div className="flex items-center gap-1">
                   <Star size={13} fill="#F59E0B" color="#F59E0B" />
-                  <span style={{ fontWeight: 700 }}>{(currentDriver.averageRating ?? 5.0).toFixed(1)}</span>
+                  <span className="font-bold">
+                    {(currentDriver.averageRating ?? 5.0).toFixed(1)}
+                  </span>
                 </div>
               </div>
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div className="flex items-center gap-3">
             <Link href={`/drivers`}>
               <Button variant="outline" size="sm">
                 Driver Profile
@@ -616,84 +687,75 @@ function RouteEarningsContent() {
       {/* SECTION 4: Driver Earnings Summary Cards */}
       <KpiStrip
         columns={5}
-        style={{ marginBottom: '1.15rem' }}
+        style={{ marginBottom: "1.15rem" }}
         items={[
           {
-            label: 'Orders',
+            label: "Orders",
             value: summaryMetrics.totalOrders,
-            subtext: 'Assigned corporate stops',
-            tone: 'primary',
+            subtext: "Assigned corporate stops",
+            tone: "primary",
             icon: <Package size={15} />,
           },
           {
-            label: 'Distance',
+            label: "Distance",
             value: `${summaryMetrics.totalDistance} km`,
-            subtext: 'Cumulative route distance',
-            tone: 'primary',
+            subtext: "Cumulative route distance",
+            tone: "primary",
             icon: <Route size={15} />,
           },
           {
-            label: 'Active Hours',
+            label: "Active Hours",
             value: `${summaryMetrics.activeHours} hrs`,
-            subtext: 'Time on active dispatch',
-            tone: 'info',
+            subtext: "Time on active dispatch",
+            tone: "info",
             icon: <Clock size={15} />,
           },
           {
-            label: 'Earnings',
+            label: "Earnings",
             value: formatCurrency(summaryMetrics.totalEarnings),
-            subtext: 'Net route driver payout',
-            tone: 'warning',
+            subtext: "Net route driver payout",
+            tone: "warning",
             icon: <IndianRupee size={15} />,
           },
           {
-            label: 'Completed Trips',
+            label: "Completed Trips",
             value: summaryMetrics.completedTrips,
-            subtext: 'Fulfilled commercial orders',
-            tone: 'success',
+            subtext: "Fulfilled commercial orders",
+            tone: "success",
             icon: <CheckCircle2 size={15} />,
           },
         ]}
       />
 
       {/* SECTION 6: Multi-Criteria Filter Bar */}
-      <div
-        style={{
-          background: 'var(--bg-surface)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-xl)',
-          padding: '1rem 1.25rem',
-          marginBottom: '1.5rem',
-          boxShadow: 'var(--shadow-sm)',
-          display: 'flex',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '1rem',
-          justifyContent: 'space-between',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-secondary)', fontSize: '0.8125rem', fontWeight: 700 }}>
+      <div className="bg-surface border rounded-xl py-4 px-5 mb-6 shadow-sm flex items-center flex-wrap gap-4 justify-between">
+        <div className="flex items-center gap-3 flex-wrap flex-1">
+          <div className="flex items-center text-secondary text-base font-bold gap-tight">
             <Filter size={15} />
             <span>Filters:</span>
           </div>
 
           {/* Search Box */}
-          <div style={{ position: 'relative', minWidth: '180px' }}>
-            <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+          <div className="relative" style={{ minWidth: "180px" }}>
+            <Search
+              size={14}
+              style={{
+                position: "absolute",
+                left: "10px",
+                top: "50%",
+                transform: "translateY(-50%)",
+                color: "var(--text-muted)",
+              }}
+            />
             <input
               type="text"
               placeholder="Search corporate or stop..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-md bg-base text-primary text-base"
               style={{
-                width: '100%',
-                padding: '0.4rem 0.75rem 0.4rem 2rem',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-light)',
-                background: 'var(--bg-base)',
-                color: 'var(--text-primary)',
-                fontSize: '0.8125rem',
+                padding: "0.4rem 0.75rem 0.4rem 2rem",
+                border: "1px solid var(--border-light)",
               }}
             />
           </div>
@@ -702,14 +764,10 @@ function RouteEarningsContent() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
+            className="rounded-md bg-base text-primary text-base font-semibold"
             style={{
-              padding: '0.4rem 0.65rem',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-light)',
-              background: 'var(--bg-base)',
-              color: 'var(--text-primary)',
-              fontSize: '0.8125rem',
-              fontWeight: 600,
+              padding: "0.4rem 0.65rem",
+              border: "1px solid var(--border-light)",
             }}
           >
             {STATUS_OPTIONS.map((st) => (
@@ -723,15 +781,11 @@ function RouteEarningsContent() {
           <select
             value={corporateFilter}
             onChange={(e) => setCorporateFilter(e.target.value)}
+            className="rounded-md bg-base text-primary text-base font-semibold"
             style={{
-              padding: '0.4rem 0.65rem',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-light)',
-              background: 'var(--bg-base)',
-              color: 'var(--text-primary)',
-              fontSize: '0.8125rem',
-              fontWeight: 600,
-              maxWidth: '200px',
+              padding: "0.4rem 0.65rem",
+              border: "1px solid var(--border-light)",
+              maxWidth: "200px",
             }}
           >
             <option value="ALL">All Corporates</option>
@@ -746,14 +800,10 @@ function RouteEarningsContent() {
           <select
             value={dayFilter}
             onChange={(e) => setDayFilter(e.target.value)}
+            className="rounded-md bg-base text-primary text-base font-semibold"
             style={{
-              padding: '0.4rem 0.65rem',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-light)',
-              background: 'var(--bg-base)',
-              color: 'var(--text-primary)',
-              fontSize: '0.8125rem',
-              fontWeight: 600,
+              padding: "0.4rem 0.65rem",
+              border: "1px solid var(--border-light)",
             }}
           >
             {WEEKDAYS.map((d) => (
@@ -764,19 +814,22 @@ function RouteEarningsContent() {
           </select>
         </div>
 
-        {(statusFilter !== 'ALL' || corporateFilter !== 'ALL' || dayFilter !== 'ALL' || searchQuery) && (
+        {(statusFilter !== "ALL" ||
+          corporateFilter !== "ALL" ||
+          dayFilter !== "ALL" ||
+          searchQuery) && (
           <Button
             variant="ghost"
             size="sm"
             onClick={() => {
-              setStatusFilter('ALL');
-              setCorporateFilter('ALL');
-              setDayFilter('ALL');
-              setSearchQuery('');
+              setStatusFilter("ALL");
+              setCorporateFilter("ALL");
+              setDayFilter("ALL");
+              setSearchQuery("");
             }}
-            style={{ color: 'var(--color-danger)', fontSize: '0.78rem' }}
+            style={{ color: "var(--color-danger)", fontSize: "0.78rem" }}
           >
-            <X size={14} style={{ marginRight: '0.25rem' }} />
+            <X size={14} style={{ marginRight: "0.25rem" }} />
             Reset Filters
           </Button>
         )}
@@ -784,57 +837,42 @@ function RouteEarningsContent() {
 
       {/* SECTION 2 & 3: MAIN SECTION - Interactive Map (Left) + Route Details Table (Right) */}
       <div
+        className="grid gap-6 items-stretch"
         style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr)',
-          gap: '1.5rem',
-          marginBottom: '1.75rem',
-          alignItems: 'stretch',
+          gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 1fr)",
+          marginBottom: "1.75rem",
         }}
       >
         {/* LEFT: Large Interactive Route Map (Matching Image 2) */}
         <div
-          style={{
-            background: 'var(--bg-surface)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-xl)',
-            padding: '1.25rem',
-            boxShadow: 'var(--shadow-sm)',
-            display: 'flex',
-            flexDirection: 'column',
-            position: 'relative',
-            minHeight: '520px',
-          }}
+          className="bg-surface border rounded-xl p-5 shadow-sm flex flex-col relative"
+          style={{ minHeight: "520px" }}
         >
           {/* Map Header */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem', paddingTop: '0.15rem' }}>
+          <div
+            className="flex items-center justify-between mb-3"
+            style={{ paddingTop: "0.15rem" }}
+          >
             <div>
-              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+              <h3
+                className="m-0 font-extrabold text-primary"
+                style={{ fontSize: "1.1rem" }}
+              >
                 Route Map
               </h3>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
+              <div className="text-sm text-muted mt-snug">
                 Multiple corporate pickup and delivery points
               </div>
             </div>
 
             {/* Map Controls (+ / - zoom, reset view) */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <div className="flex items-center gap-tight">
               <button
                 type="button"
                 onClick={() => handleZoom(0.2)}
                 title="Zoom In"
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'var(--bg-surface-elevated)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-primary)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                }}
+                className="rounded-md bg-surface-elevated border text-primary flex items-center justify-center cursor-pointer"
+                style={{ width: "32px", height: "32px" }}
               >
                 <ZoomIn size={16} />
               </button>
@@ -842,18 +880,8 @@ function RouteEarningsContent() {
                 type="button"
                 onClick={() => handleZoom(-0.2)}
                 title="Zoom Out"
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'var(--bg-surface-elevated)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-primary)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                }}
+                className="rounded-md bg-surface-elevated border text-primary flex items-center justify-center cursor-pointer"
+                style={{ width: "32px", height: "32px" }}
               >
                 <ZoomOut size={16} />
               </button>
@@ -861,18 +889,8 @@ function RouteEarningsContent() {
                 type="button"
                 onClick={handleResetMap}
                 title="Reset View"
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'var(--bg-surface-elevated)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-primary)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                }}
+                className="rounded-md bg-surface-elevated border text-primary flex items-center justify-center cursor-pointer"
+                style={{ width: "32px", height: "32px" }}
               >
                 <RotateCcw size={15} />
               </button>
@@ -885,37 +903,53 @@ function RouteEarningsContent() {
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
+            className="flex-1 w-full rounded-lg relative overflow-hidden"
             style={{
-              flex: 1,
-              width: '100%',
-              borderRadius: 'var(--radius-lg)',
-              background: '#0F172A',
-              position: 'relative',
-              overflow: 'hidden',
-              cursor: isDragging ? 'grabbing' : 'grab',
-              userSelect: 'none',
-              boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.4)',
+              background: "#0F172A",
+              cursor: isDragging ? "grabbing" : "grab",
+              userSelect: "none",
+              boxShadow: "inset 0 2px 4px rgba(0,0,0,0.4)",
             }}
           >
             <svg
               viewBox={`0 0 ${mapWidth} ${mapHeight}`}
+              className="w-full h-full"
               style={{
-                width: '100%',
-                height: '100%',
                 transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomLevel})`,
-                transformOrigin: 'center center',
-                transition: isDragging ? 'none' : 'transform 0.15s ease-out',
+                transformOrigin: "center center",
+                transition: isDragging ? "none" : "transform 0.15s ease-out",
               }}
             >
               <defs>
                 {/* Street grid pattern */}
-                <pattern id="streetGrid" width="40" height="40" patternUnits="userSpaceOnUse">
-                  <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255, 255, 255, 0.05)" strokeWidth="1" />
-                  <path d="M 0 20 L 40 20 M 20 0 L 20 40" fill="none" stroke="rgba(255, 255, 255, 0.025)" strokeWidth="0.5" />
+                <pattern
+                  id="streetGrid"
+                  width="40"
+                  height="40"
+                  patternUnits="userSpaceOnUse"
+                >
+                  <path
+                    d="M 40 0 L 0 0 0 40"
+                    fill="none"
+                    stroke="rgba(255, 255, 255, 0.05)"
+                    strokeWidth="1"
+                  />
+                  <path
+                    d="M 0 20 L 40 20 M 20 0 L 20 40"
+                    fill="none"
+                    stroke="rgba(255, 255, 255, 0.025)"
+                    strokeWidth="0.5"
+                  />
                 </pattern>
 
                 {/* Route Glow Filter */}
-                <filter id="routeGlow" x="-20%" y="-20%" width="140%" height="140%">
+                <filter
+                  id="routeGlow"
+                  x="-20%"
+                  y="-20%"
+                  width="140%"
+                  height="140%"
+                >
                   <feGaussianBlur stdDeviation="3" result="blur" />
                   <feComposite in="SourceGraphic" in2="blur" operator="over" />
                 </filter>
@@ -948,16 +982,44 @@ function RouteEarningsContent() {
               />
 
               {/* Cyberabad Tech Park Landmarks */}
-              <text x="110" y="90" fill="rgba(255,255,255,0.25)" fontSize="9" fontWeight="700" letterSpacing="0.08em">
+              <text
+                x="110"
+                y="90"
+                fill="rgba(255,255,255,0.25)"
+                fontSize="9"
+                fontWeight="700"
+                letterSpacing="0.08em"
+              >
                 HITEC CITY SEZ
               </text>
-              <text x="370" y="110" fill="rgba(255,255,255,0.25)" fontSize="9" fontWeight="700" letterSpacing="0.08em">
+              <text
+                x="370"
+                y="110"
+                fill="rgba(255,255,255,0.25)"
+                fontSize="9"
+                fontWeight="700"
+                letterSpacing="0.08em"
+              >
                 MINDSPACE MADHAPUR
               </text>
-              <text x="210" y="320" fill="rgba(255,255,255,0.25)" fontSize="9" fontWeight="700" letterSpacing="0.08em">
+              <text
+                x="210"
+                y="320"
+                fill="rgba(255,255,255,0.25)"
+                fontSize="9"
+                fontWeight="700"
+                letterSpacing="0.08em"
+              >
                 GACHIBOWLI FINANCIAL DISTRICT
               </text>
-              <text x="440" y="360" fill="rgba(255,255,255,0.25)" fontSize="9" fontWeight="700" letterSpacing="0.08em">
+              <text
+                x="440"
+                y="360"
+                fill="rgba(255,255,255,0.25)"
+                fontSize="9"
+                fontWeight="700"
+                letterSpacing="0.08em"
+              >
                 WAVEROCK CAMPUS
               </text>
 
@@ -969,11 +1031,11 @@ function RouteEarningsContent() {
                     d={filteredStops
                       .map((s, idx) => {
                         const pt = projectCoords(s.latitude, s.longitude);
-                        return `${idx === 0 ? 'M' : 'L'} ${pt.x} ${pt.y}`;
+                        return `${idx === 0 ? "M" : "L"} ${pt.x} ${pt.y}`;
                       })
-                      .join(' ')}
+                      .join(" ")}
                     fill="none"
-                    stroke="#5728B2"
+                    stroke="var(--text-brand)"
                     strokeWidth="8"
                     strokeOpacity="0.35"
                     strokeLinecap="round"
@@ -985,11 +1047,11 @@ function RouteEarningsContent() {
                     d={filteredStops
                       .map((s, idx) => {
                         const pt = projectCoords(s.latitude, s.longitude);
-                        return `${idx === 0 ? 'M' : 'L'} ${pt.x} ${pt.y}`;
+                        return `${idx === 0 ? "M" : "L"} ${pt.x} ${pt.y}`;
                       })
-                      .join(' ')}
+                      .join(" ")}
                     fill="none"
-                    stroke="#A78BFA"
+                    stroke="var(--brand-lavender)"
                     strokeWidth="3.5"
                     strokeDasharray="8 4"
                     strokeLinecap="round"
@@ -1000,15 +1062,38 @@ function RouteEarningsContent() {
 
               {/* Driver Live Marker with Pulsating Halo */}
               {driverLiveCoords && (
-                <g transform={`translate(${driverLiveCoords.x}, ${driverLiveCoords.y})`}>
+                <g
+                  transform={`translate(${driverLiveCoords.x}, ${driverLiveCoords.y})`}
+                >
                   {/* Pulsating live radar ring */}
-                  <circle r="22" fill="rgba(87, 40, 178, 0.25)">
-                    <animate attributeName="r" values="14;28;14" dur="2.4s" repeatCount="indefinite" />
-                    <animate attributeName="opacity" values="0.8;0.1;0.8" dur="2.4s" repeatCount="indefinite" />
+                  <circle r="22" fill="rgba(var(--brand-primary-rgb), 0.25)">
+                    <animate
+                      attributeName="r"
+                      values="14;28;14"
+                      dur="2.4s"
+                      repeatCount="indefinite"
+                    />
+                    <animate
+                      attributeName="opacity"
+                      values="0.8;0.1;0.8"
+                      dur="2.4s"
+                      repeatCount="indefinite"
+                    />
                   </circle>
-                  <circle r="14" fill="#5728B2" stroke="#ffffff" strokeWidth="2.5" />
+                  <circle
+                    r="14"
+                    fill="var(--text-brand)"
+                    stroke="#ffffff"
+                    strokeWidth="2.5"
+                  />
                   <Car size={13} x="-6.5" y="-6.5" color="#ffffff" />
-                  <text y="-18" textAnchor="middle" fill="#A78BFA" fontSize="8.5" fontWeight="800">
+                  <text
+                    y="-18"
+                    textAnchor="middle"
+                    fill="var(--brand-lavender)"
+                    fontSize="8.5"
+                    fontWeight="800"
+                  >
                     DRIVER LIVE GPS
                   </text>
                 </g>
@@ -1019,7 +1104,7 @@ function RouteEarningsContent() {
                 const pt = projectCoords(stop.latitude, stop.longitude);
                 const isSelected = selectedStopId === stop.id;
                 const isHovered = hoveredStopId === stop.id;
-                const isDelivery = stop.type === 'DELIVERY';
+                const isDelivery = stop.type === "DELIVERY";
 
                 return (
                   <g
@@ -1031,20 +1116,27 @@ function RouteEarningsContent() {
                     }}
                     onMouseEnter={() => setHoveredStopId(stop.id)}
                     onMouseLeave={() => setHoveredStopId(null)}
-                    style={{ cursor: 'pointer' }}
+                    className="cursor-pointer"
                   >
                     {/* Focus halo if hovered or selected */}
                     {(isSelected || isHovered) && (
-                      <circle r="20" fill={isDelivery ? 'rgba(255, 95, 9, 0.3)' : 'rgba(167, 139, 250, 0.35)'} />
+                      <circle
+                        r="20"
+                        fill={
+                          isDelivery
+                            ? "rgba(255, 95, 9, 0.3)"
+                            : "rgba(var(--brand-lavender-rgb), 0.35)"
+                        }
+                      />
                     )}
 
                     {/* Marker Pin Base */}
                     <circle
-                      r={isSelected ? '14' : '12'}
-                      fill={isDelivery ? '#FF5F09' : '#5728B2'}
+                      r={isSelected ? "14" : "12"}
+                      fill={isDelivery ? "#FF5F09" : "var(--text-brand)"}
                       stroke="#ffffff"
-                      strokeWidth={isSelected ? '2.5' : '1.8'}
-                      style={{ transition: 'all 0.15s ease' }}
+                      strokeWidth={isSelected ? "2.5" : "1.8"}
+                      style={{ transition: "all 0.15s ease" }}
                     />
 
                     {/* Marker Label (Stop Number or Flag) */}
@@ -1052,7 +1144,7 @@ function RouteEarningsContent() {
                       y="4"
                       textAnchor="middle"
                       fill="#ffffff"
-                      fontSize={isSelected ? '11' : '10'}
+                      fontSize={isSelected ? "11" : "10"}
                       fontWeight="900"
                     >
                       {stop.stopNumber}
@@ -1062,12 +1154,12 @@ function RouteEarningsContent() {
                     <text
                       y="24"
                       textAnchor="middle"
-                      fill={isSelected ? '#F8FAFC' : '#CBD5E1'}
+                      fill={isSelected ? "#F8FAFC" : "#CBD5E1"}
                       fontSize="9"
-                      fontWeight={isSelected ? '800' : '600'}
+                      fontWeight={isSelected ? "800" : "600"}
                       filter="drop-shadow(0 1px 2px rgba(0,0,0,0.8))"
                     >
-                      {stop.corporateName.split('·')[0].trim()}
+                      {stop.corporateName.split("·")[0].trim()}
                     </text>
                   </g>
                 );
@@ -1077,62 +1169,75 @@ function RouteEarningsContent() {
             {/* Active Marker Floating Details Popup */}
             {activeFocusedStop && (
               <div
+                className="absolute rounded-lg shadow-elevated flex items-center justify-between flex-wrap gap-3"
                 style={{
-                  position: 'absolute',
-                  bottom: '16px',
-                  left: '16px',
-                  right: '16px',
-                  background: 'rgba(15, 23, 42, 0.95)',
-                  backdropFilter: 'blur(8px)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  borderRadius: 'var(--radius-lg)',
-                  padding: '0.85rem 1.15rem',
-                  color: '#ffffff',
-                  boxShadow: 'var(--shadow-elevated)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  flexWrap: 'wrap',
-                  gap: '0.75rem',
+                  bottom: "16px",
+                  left: "16px",
+                  right: "16px",
+                  background: "rgba(15, 23, 42, 0.95)",
+                  backdropFilter: "blur(8px)",
+                  border: "1px solid rgba(255, 255, 255, 0.15)",
+                  padding: "0.85rem 1.15rem",
+                  color: "#ffffff",
                   zIndex: 20,
                 }}
               >
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem' }}>
+                  <div
+                    className="flex items-center gap-2"
+                    style={{ marginBottom: "0.2rem" }}
+                  >
                     <span
+                      className="rounded-full font-extrabold text-caption"
                       style={{
-                        padding: '0.15rem 0.45rem',
-                        borderRadius: 'var(--radius-pill)',
-                        fontSize: '0.7rem',
-                        fontWeight: 800,
-                        background: activeFocusedStop.type === 'DELIVERY' ? 'var(--brand-orange)' : 'var(--brand-primary)',
+                        padding: "0.15rem 0.45rem",
+                        background:
+                          activeFocusedStop.type === "DELIVERY"
+                            ? "var(--brand-orange)"
+                            : "var(--brand-primary)",
                       }}
                     >
-                      Stop {activeFocusedStop.stopNumber} · {activeFocusedStop.type}
+                      Stop {activeFocusedStop.stopNumber} ·{" "}
+                      {activeFocusedStop.type}
                     </span>
-                    <strong style={{ fontSize: '0.9rem', color: '#F8FAFC' }}>{activeFocusedStop.corporateName}</strong>
+                    <strong
+                      className="text-body-xl"
+                      style={{ color: "#F8FAFC" }}
+                    >
+                      {activeFocusedStop.corporateName}
+                    </strong>
                   </div>
-                  <div style={{ fontSize: '0.78rem', color: '#94A3B8' }}>
-                    📍 {activeFocusedStop.pickupLocation} → {activeFocusedStop.deliveryLocation}
+                  <div className="text-compact" style={{ color: "#94A3B8" }}>
+                    📍 {activeFocusedStop.pickupLocation} →{" "}
+                    {activeFocusedStop.deliveryLocation}
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', fontSize: '0.8125rem' }}>
+                <div className="flex items-center gap-5 text-base">
                   <div>
-                    <span style={{ color: '#94A3B8' }}>ETA: </span>
-                    <strong style={{ color: '#34D399' }}>{activeFocusedStop.scheduledTime}</strong>
+                    <span style={{ color: "#94A3B8" }}>ETA: </span>
+                    <strong style={{ color: "#34D399" }}>
+                      {activeFocusedStop.scheduledTime}
+                    </strong>
                   </div>
                   <div>
-                    <span style={{ color: '#94A3B8' }}>Distance: </span>
+                    <span style={{ color: "#94A3B8" }}>Distance: </span>
                     <strong>{activeFocusedStop.distanceKm} km</strong>
                   </div>
                   <div>
-                    <span style={{ color: '#94A3B8' }}>Payout: </span>
-                    <strong style={{ color: 'var(--brand-orange)' }}>{formatCurrency(activeFocusedStop.driverEarnings)}</strong>
+                    <span style={{ color: "#94A3B8" }}>Payout: </span>
+                    <strong style={{ color: "var(--brand-orange)" }}>
+                      {formatCurrency(activeFocusedStop.driverEarnings)}
+                    </strong>
                   </div>
                   <button
                     onClick={() => setSelectedStopId(null)}
-                    style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', padding: '2px' }}
+                    className="border-0 cursor-pointer"
+                    style={{
+                      background: "none",
+                      color: "#94A3B8",
+                      padding: "2px",
+                    }}
                   >
                     <X size={16} />
                   </button>
@@ -1144,58 +1249,40 @@ function RouteEarningsContent() {
 
         {/* RIGHT: Route Information Table & Detailed Stops (Matching Image 2) */}
         <div
-          style={{
-            background: 'var(--bg-surface)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-xl)',
-            padding: '1.25rem',
-            boxShadow: 'var(--shadow-sm)',
-            display: 'flex',
-            flexDirection: 'column',
-            maxHeight: '560px',
-          }}
+          className="bg-surface border rounded-xl p-5 shadow-sm flex flex-col"
+          style={{ maxHeight: "560px" }}
         >
           {/* Header */}
           <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              paddingTop: '0.15rem',
-              marginBottom: '1rem',
-              paddingBottom: '0.75rem',
-              borderBottom: '1px solid var(--border)',
-            }}
+            className="flex items-center justify-between mb-4 pb-3 border-b"
+            style={{ paddingTop: "0.15rem" }}
           >
             <div>
-              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+              <h3
+                className="m-0 font-extrabold text-primary"
+                style={{ fontSize: "1.1rem" }}
+              >
                 Route Details
               </h3>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
+              <div className="text-sm text-muted mt-snug">
                 Corporate stops sequence & timing breakdown
               </div>
             </div>
             <span
-              style={{
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                color: 'var(--brand-primary)',
-                background: 'var(--brand-primary-subtle)',
-                padding: '0.2rem 0.6rem',
-                borderRadius: 'var(--radius-pill)',
-              }}
+              className="text-sm font-bold text-brand bg-brand-subtle rounded-full"
+              style={{ padding: "0.2rem 0.6rem" }}
             >
               {filteredStops.length} Total Stops
             </span>
           </div>
 
           {/* Scrollable Stops List (Matching visual style of Image 2) */}
-          <div style={{ overflowY: 'auto', flex: 1, paddingRight: '0.25rem' }}>
+          <div className="overflow-y-auto flex-1 pr-1">
             {filteredStops.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div className="flex flex-col gap-3">
                 {filteredStops.map((stop) => {
                   const isSelected = selectedStopId === stop.id;
-                  const isDelivery = stop.type === 'DELIVERY';
+                  const isDelivery = stop.type === "DELIVERY";
 
                   return (
                     <div
@@ -1203,78 +1290,84 @@ function RouteEarningsContent() {
                       onClick={() => setSelectedStopId(stop.id)}
                       onMouseEnter={() => setHoveredStopId(stop.id)}
                       onMouseLeave={() => setHoveredStopId(null)}
+                      className="p-4 rounded-lg cursor-pointer"
                       style={{
-                        padding: '1rem',
-                        borderRadius: 'var(--radius-lg)',
-                        background: isSelected ? 'var(--brand-primary-subtle)' : 'var(--bg-surface-elevated)',
-                        border: `1.5px solid ${isSelected ? 'var(--brand-primary)' : 'var(--border)'}`,
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
+                        background: isSelected
+                          ? "var(--brand-primary-subtle)"
+                          : "var(--bg-surface-elevated)",
+                        border: `1.5px solid ${isSelected ? "var(--border-focus)" : "var(--border)"}`,
+                        transition: "all 0.15s ease",
                       }}
                     >
                       {/* Stop Title & Time (Image 2 style: "1. Corporate A - Pickup · 10:30 AM") */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-                        <div style={{ fontWeight: 800, fontSize: '0.9375rem', color: 'var(--text-primary)' }}>
+                      <div className="flex items-center justify-between mb-tight">
+                        <div className="font-extrabold text-primary text-value">
                           {stop.stopNumber}. {stop.corporateName}
                         </div>
                         <span
+                          className="font-bold rounded-full text-label"
                           style={{
-                            fontSize: '0.72rem',
-                            fontWeight: 700,
-                            padding: '0.15rem 0.5rem',
-                            borderRadius: 'var(--radius-pill)',
+                            padding: "0.15rem 0.5rem",
                             background:
-                              stop.orderStatus === 'COMPLETED'
-                                ? 'var(--color-success-bg)'
-                                : stop.orderStatus === 'IN_PROGRESS'
-                                  ? 'rgba(87, 40, 178, 0.15)'
-                                  : 'var(--bg-surface)',
+                              stop.orderStatus === "COMPLETED"
+                                ? "var(--color-success-bg)"
+                                : stop.orderStatus === "IN_PROGRESS"
+                                  ? "rgba(var(--brand-primary-rgb), 0.15)"
+                                  : "var(--bg-surface)",
                             color:
-                              stop.orderStatus === 'COMPLETED'
-                                ? 'var(--color-success)'
-                                : stop.orderStatus === 'IN_PROGRESS'
-                                  ? 'var(--brand-primary)'
-                                  : 'var(--text-secondary)',
+                              stop.orderStatus === "COMPLETED"
+                                ? "var(--color-success)"
+                                : stop.orderStatus === "IN_PROGRESS"
+                                  ? "var(--text-brand)"
+                                  : "var(--text-secondary)",
                           }}
                         >
                           {stop.orderStatus}
                         </span>
                       </div>
 
-                      <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '0.5rem' }}>
-                        {isDelivery ? 'Delivery' : 'Pickup'} • {stop.scheduledTime}
+                      <div className="text-base text-secondary font-semibold mb-2">
+                        {isDelivery ? "Delivery" : "Pickup"} •{" "}
+                        {stop.scheduledTime}
                       </div>
 
                       {/* Locations */}
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: '1.4', marginBottom: '0.65rem' }}>
-                        <div><strong style={{ color: 'var(--text-secondary)' }}>From:</strong> {stop.pickupLocation}</div>
-                        <div><strong style={{ color: 'var(--text-secondary)' }}>To:</strong> {stop.deliveryLocation}</div>
+                      <div
+                        className="text-sm text-muted"
+                        style={{ lineHeight: "1.4", marginBottom: "0.65rem" }}
+                      >
+                        <div>
+                          <strong className="text-secondary">From:</strong>{" "}
+                          {stop.pickupLocation}
+                        </div>
+                        <div>
+                          <strong className="text-secondary">To:</strong>{" "}
+                          {stop.deliveryLocation}
+                        </div>
                       </div>
 
                       {/* Detailed Metric Badges */}
                       <div
-                        style={{
-                          display: 'grid',
-                          gridTemplateColumns: 'repeat(3, 1fr)',
-                          gap: '0.5rem',
-                          paddingTop: '0.5rem',
-                          borderTop: '1px solid var(--border-subtle)',
-                          fontSize: '0.75rem',
-                        }}
+                        className="grid gap-2 pt-2 border-t border-subtle text-sm"
+                        style={{ gridTemplateColumns: "repeat(3, 1fr)" }}
                       >
                         <div>
-                          <div style={{ color: 'var(--text-muted)' }}>Distance</div>
-                          <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{stop.distanceKm} km</div>
-                        </div>
-                        <div>
-                          <div style={{ color: 'var(--text-muted)' }}>Actual Time</div>
-                          <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
-                            {stop.actualTravelTimeMins ? `${stop.actualTravelTimeMins}m` : `${stop.estimatedTravelTimeMins}m (est)`}
+                          <div className="text-muted">Distance</div>
+                          <div className="font-bold text-primary">
+                            {stop.distanceKm} km
                           </div>
                         </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ color: 'var(--text-muted)' }}>Payout</div>
-                          <div style={{ fontWeight: 800, color: 'var(--color-success)' }}>
+                        <div>
+                          <div className="text-muted">Actual Time</div>
+                          <div className="font-bold text-primary">
+                            {stop.actualTravelTimeMins
+                              ? `${stop.actualTravelTimeMins}m`
+                              : `${stop.estimatedTravelTimeMins}m (est)`}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-muted">Payout</div>
+                          <div className="font-extrabold text-success">
                             {formatCurrency(stop.driverEarnings)}
                           </div>
                         </div>
@@ -1284,14 +1377,7 @@ function RouteEarningsContent() {
                 })}
               </div>
             ) : (
-              <div
-                style={{
-                  padding: '3rem 1.5rem',
-                  textAlign: 'center',
-                  color: 'var(--text-muted)',
-                  fontSize: '0.875rem',
-                }}
-              >
+              <div className="py-12 px-6 text-center text-muted text-md">
                 No stops match the selected filter criteria.
               </div>
             )}
@@ -1300,61 +1386,37 @@ function RouteEarningsContent() {
       </div>
 
       {/* SECTION 5: Route Performance History & Analytics (Bottom Section) */}
-      <div
-        style={{
-          background: 'var(--bg-surface)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-xl)',
-          padding: '1.5rem',
-          boxShadow: 'var(--shadow-sm)',
-        }}
-      >
+      <div className="bg-surface border rounded-xl p-6 shadow-sm">
         <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '1rem',
-            paddingTop: '0.15rem',
-            marginBottom: '1.25rem',
-            paddingBottom: '0.75rem',
-            borderBottom: '1px solid var(--border)',
-          }}
+          className="flex items-center justify-between flex-wrap gap-4 mb-5 pb-3 border-b"
+          style={{ paddingTop: "0.15rem" }}
         >
           <div>
-            <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+            <h3 className="m-0 font-extrabold text-primary text-title-lg">
               Route Performance & Analytics
             </h3>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
+            <div className="text-sm text-muted mt-snug">
               Historical route records, daily earnings, and distance telemetry
             </div>
           </div>
 
           <div
-            style={{
-              display: 'inline-flex',
-              background: 'var(--bg-surface-elevated)',
-              borderRadius: 'var(--radius-md)',
-              padding: '3px',
-              border: '1px solid var(--border)',
-            }}
+            className="inline-flex bg-surface-elevated rounded-md border"
+            style={{ padding: "3px" }}
           >
-            {(['DAILY', 'MONTHLY', 'YEARLY'] as const).map((tab) => (
+            {(["DAILY", "MONTHLY", "YEARLY"] as const).map((tab) => (
               <button
                 key={tab}
                 type="button"
                 onClick={() => setHistoryTab(tab)}
+                className="border-0 rounded-sm text-sm font-bold cursor-pointer"
                 style={{
-                  background: historyTab === tab ? 'var(--brand-primary)' : 'transparent',
-                  color: historyTab === tab ? '#ffffff' : 'var(--text-secondary)',
-                  border: 'none',
-                  padding: '0.35rem 0.85rem',
-                  borderRadius: 'var(--radius-sm)',
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
+                  background:
+                    historyTab === tab ? "var(--brand-primary)" : "transparent",
+                  color:
+                    historyTab === tab ? "#ffffff" : "var(--text-secondary)",
+                  padding: "0.35rem 0.85rem",
+                  transition: "all 0.15s ease",
                 }}
               >
                 {tab.charAt(0) + tab.slice(1).toLowerCase()}
@@ -1365,56 +1427,104 @@ function RouteEarningsContent() {
 
         {/* 2-Column Section: Table on Left + Monthly Trajectory Graph on Right */}
         <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(440px, 1fr))',
-            gap: '1.5rem',
-          }}
+          className="driver-earnings-analysis-grid grid gap-6"
         >
           {/* Performance Table */}
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
+          <div className="overflow-x-auto">
+            <table
+              className="w-full text-base"
+              style={{ borderCollapse: "collapse" }}
+            >
               <thead>
-                <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'left', color: 'var(--text-muted)' }}>
-                  <th style={{ padding: '0.6rem 0.75rem', fontWeight: 700 }}>Period / Date</th>
-                  <th style={{ padding: '0.6rem 0.75rem', fontWeight: 700, textAlign: 'center' }}>Distance</th>
-                  <th style={{ padding: '0.6rem 0.75rem', fontWeight: 700, textAlign: 'center' }}>Orders</th>
-                  <th style={{ padding: '0.6rem 0.75rem', fontWeight: 700, textAlign: 'center' }}>Completed</th>
-                  <th style={{ padding: '0.6rem 0.75rem', fontWeight: 700, textAlign: 'right' }}>Total Earnings</th>
+                <tr className="border-b text-left text-muted">
+                  <th
+                    className="font-bold"
+                    style={{ padding: "0.6rem 0.75rem" }}
+                  >
+                    Period / Date
+                  </th>
+                  <th
+                    className="font-bold text-center"
+                    style={{ padding: "0.6rem 0.75rem" }}
+                  >
+                    Distance
+                  </th>
+                  <th
+                    className="font-bold text-center"
+                    style={{ padding: "0.6rem 0.75rem" }}
+                  >
+                    Orders
+                  </th>
+                  <th
+                    className="font-bold text-center"
+                    style={{ padding: "0.6rem 0.75rem" }}
+                  >
+                    Completed
+                  </th>
+                  <th
+                    className="font-bold text-right"
+                    style={{ padding: "0.6rem 0.75rem" }}
+                  >
+                    Total Earnings
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {filteredStops.map((stop, idx) => (
                   <tr
                     key={idx}
+                    className="border-b border-subtle"
                     style={{
-                      borderBottom: '1px solid var(--border-subtle)',
-                      background: idx % 2 === 0 ? 'transparent' : 'var(--bg-base)',
+                      background:
+                        idx % 2 === 0 ? "transparent" : "var(--bg-base)",
                     }}
                   >
-                    <td style={{ padding: '0.65rem 0.75rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {stop.date}{' '}
-                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>({stop.day})</span>
-                    </td>
-                    <td style={{ padding: '0.65rem 0.75rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                      {stop.distanceKm} km
-                    </td>
-                    <td style={{ padding: '0.65rem 0.75rem', textAlign: 'center' }}>1</td>
-                    <td style={{ padding: '0.65rem 0.75rem', textAlign: 'center' }}>
-                      <span
-                        style={{
-                          padding: '0.15rem 0.45rem',
-                          borderRadius: 'var(--radius-pill)',
-                          background: stop.orderStatus === 'COMPLETED' ? 'var(--color-success-bg)' : 'transparent',
-                          color: stop.orderStatus === 'COMPLETED' ? 'var(--color-success)' : 'var(--text-muted)',
-                          fontWeight: 700,
-                          fontSize: '0.75rem',
-                        }}
-                      >
-                        {stop.orderStatus === 'COMPLETED' ? '1' : '0'}
+                    <td
+                      className="font-semibold text-primary"
+                      style={{ padding: "0.65rem 0.75rem" }}
+                    >
+                      {stop.date}{" "}
+                      <span className="text-muted text-caption">
+                        ({stop.day})
                       </span>
                     </td>
-                    <td style={{ padding: '0.65rem 0.75rem', textAlign: 'right', fontWeight: 700, color: 'var(--color-success)' }}>
+                    <td
+                      className="text-center text-secondary"
+                      style={{ padding: "0.65rem 0.75rem" }}
+                    >
+                      {stop.distanceKm} km
+                    </td>
+                    <td
+                      className="text-center"
+                      style={{ padding: "0.65rem 0.75rem" }}
+                    >
+                      1
+                    </td>
+                    <td
+                      className="text-center"
+                      style={{ padding: "0.65rem 0.75rem" }}
+                    >
+                      <span
+                        className="rounded-full font-bold text-sm"
+                        style={{
+                          padding: "0.15rem 0.45rem",
+                          background:
+                            stop.orderStatus === "COMPLETED"
+                              ? "var(--color-success-bg)"
+                              : "transparent",
+                          color:
+                            stop.orderStatus === "COMPLETED"
+                              ? "var(--color-success)"
+                              : "var(--text-muted)",
+                        }}
+                      >
+                        {stop.orderStatus === "COMPLETED" ? "1" : "0"}
+                      </span>
+                    </td>
+                    <td
+                      className="text-right font-bold text-success"
+                      style={{ padding: "0.65rem 0.75rem" }}
+                    >
                       {formatCurrency(stop.driverEarnings)}
                     </td>
                   </tr>
@@ -1425,35 +1535,27 @@ function RouteEarningsContent() {
 
           {/* Interactive Graph (Monthly Earnings & Distance Travelled) */}
           <div
-            style={{
-              background: 'var(--bg-surface-elevated)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-lg)',
-              padding: '1.25rem',
-              display: 'flex',
-              flexDirection: 'column',
-              minHeight: '260px',
-              position: 'relative',
-            }}
+            className="bg-surface-elevated border rounded-lg p-5 flex flex-col relative"
+            style={{ minHeight: "260px" }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-              <span style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)' }}>
+            <div className="flex items-center justify-between mb-3">
+              <span className="font-bold text-md text-primary">
                 Earnings & Distance Trajectory ({yearFilter})
               </span>
-              <div style={{ display: 'flex', gap: '0.35rem' }}>
+              <div className="flex gap-tight">
                 {[2026, 2025].map((yr) => (
                   <button
                     key={yr}
                     onClick={() => setYearFilter(yr)}
+                    className="border rounded-sm font-bold cursor-pointer text-label"
                     style={{
-                      background: yearFilter === yr ? 'var(--brand-primary)' : 'transparent',
-                      color: yearFilter === yr ? '#ffffff' : 'var(--text-secondary)',
-                      border: '1px solid var(--border)',
-                      padding: '0.2rem 0.5rem',
-                      borderRadius: 'var(--radius-sm)',
-                      fontSize: '0.72rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
+                      background:
+                        yearFilter === yr
+                          ? "var(--brand-primary)"
+                          : "transparent",
+                      color:
+                        yearFilter === yr ? "#ffffff" : "var(--text-secondary)",
+                      padding: "0.2rem 0.5rem",
                     }}
                   >
                     {yr}
@@ -1463,12 +1565,23 @@ function RouteEarningsContent() {
             </div>
 
             {/* SVG Chart */}
-            <div style={{ flex: 1, position: 'relative', width: '100%', minHeight: '180px' }}>
-              <svg viewBox="0 0 460 180" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
+            <div
+              className="flex-1 relative w-full"
+              style={{ minHeight: "180px" }}
+            >
+              <svg
+                viewBox="0 0 460 180"
+                className="w-full h-full"
+                style={{ overflow: "visible" }}
+              >
                 <defs>
                   <linearGradient id="earnBarGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#5728B2" stopOpacity="0.85" />
-                    <stop offset="100%" stopColor="#7C3AED" stopOpacity="0.25" />
+                    <stop offset="0%" stopColor="var(--text-brand)" stopOpacity="0.85" />
+                    <stop
+                      offset="100%"
+                      stopColor="var(--brand-purple-text)"
+                      stopOpacity="0.25"
+                    />
                   </linearGradient>
                 </defs>
 
@@ -1477,8 +1590,21 @@ function RouteEarningsContent() {
                   const y = 150 - pct * 120;
                   return (
                     <g key={idx}>
-                      <line x1="35" y1={y} x2="435" y2={y} stroke="var(--border)" strokeDasharray="3 3" />
-                      <text x="30" y={y + 3} textAnchor="end" fontSize="8.5" fill="var(--text-muted)">
+                      <line
+                        x1="35"
+                        y1={y}
+                        x2="435"
+                        y2={y}
+                        stroke="var(--border)"
+                        strokeDasharray="3 3"
+                      />
+                      <text
+                        x="30"
+                        y={y + 3}
+                        textAnchor="end"
+                        fontSize="8.5"
+                        fill="var(--text-muted)"
+                      >
                         ₹{Math.round(pct * 12)}k
                       </text>
                     </g>
@@ -1498,7 +1624,7 @@ function RouteEarningsContent() {
                       key={idx}
                       onMouseEnter={() => setHoveredGraphPoint(idx)}
                       onMouseLeave={() => setHoveredGraphPoint(null)}
-                      style={{ cursor: 'pointer' }}
+                      className="cursor-pointer"
                     >
                       <rect
                         x={x}
@@ -1506,9 +1632,19 @@ function RouteEarningsContent() {
                         width="12"
                         height={barH}
                         rx="2"
-                        fill={isHovered ? 'var(--brand-orange)' : 'url(#earnBarGrad)'}
+                        fill={
+                          isHovered
+                            ? "var(--brand-orange)"
+                            : "url(#earnBarGrad)"
+                        }
                       />
-                      <text x={x + 6} y="165" textAnchor="middle" fontSize="8" fill="var(--text-muted)">
+                      <text
+                        x={x + 6}
+                        y="165"
+                        textAnchor="middle"
+                        fontSize="8"
+                        fill="var(--text-muted)"
+                      >
                         {m.monthShort}
                       </text>
                     </g>
@@ -1522,9 +1658,9 @@ function RouteEarningsContent() {
                       const colW = (400 - 35) / 12;
                       const x = 45 + idx * colW + 6;
                       const y = 150 - (m.distance / 200) * 120;
-                      return `${idx === 0 ? 'M' : 'L'} ${x} ${y}`;
+                      return `${idx === 0 ? "M" : "L"} ${x} ${y}`;
                     })
-                    .join(' ')}
+                    .join(" ")}
                   fill="none"
                   stroke="#FF5F09"
                   strokeWidth="2"
@@ -1535,44 +1671,50 @@ function RouteEarningsContent() {
               {/* Tooltip */}
               {hoveredGraphPoint !== null && (
                 <div
+                  className="absolute rounded-md pointer-events-none text-label"
                   style={{
-                    position: 'absolute',
-                    top: '10px',
-                    right: '10px',
-                    background: 'var(--text-primary)',
-                    color: '#ffffff',
-                    padding: '0.45rem 0.75rem',
-                    borderRadius: 'var(--radius-md)',
-                    fontSize: '0.72rem',
-                    pointerEvents: 'none',
-                    lineHeight: '1.4',
+                    top: "10px",
+                    right: "10px",
+                    background: "var(--text-primary)",
+                    color: "#ffffff",
+                    padding: "0.45rem 0.75rem",
+                    lineHeight: "1.4",
                   }}
                 >
-                  <div style={{ fontWeight: 800 }}>{monthlyPerformance[hoveredGraphPoint].month}</div>
-                  <div>Earnings: {formatCurrency(monthlyPerformance[hoveredGraphPoint].earnings)}</div>
-                  <div>Distance: {monthlyPerformance[hoveredGraphPoint].distance} km</div>
+                  <div className="font-extrabold">
+                    {monthlyPerformance[hoveredGraphPoint].month}
+                  </div>
+                  <div>
+                    Earnings:{" "}
+                    {formatCurrency(
+                      monthlyPerformance[hoveredGraphPoint].earnings,
+                    )}
+                  </div>
+                  <div>
+                    Distance: {monthlyPerformance[hoveredGraphPoint].distance}{" "}
+                    km
+                  </div>
                 </div>
               )}
             </div>
 
             {/* Legend */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '1.5rem',
-                marginTop: '0.5rem',
-                fontSize: '0.72rem',
-                color: 'var(--text-secondary)',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                <span style={{ width: '10px', height: '10px', background: 'var(--brand-primary)', borderRadius: '2px' }} />
+            <div className="flex items-center justify-center gap-6 mt-2 text-secondary text-label">
+              <div className="flex items-center gap-tight">
+                <span
+                  className="bg-brand"
+                  style={{ width: "10px", height: "10px", borderRadius: "2px" }}
+                />
                 <span>Monthly Driver Earnings (₹)</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                <span style={{ width: '10px', height: '2px', background: '#FF5F09' }} />
+              <div className="flex items-center gap-tight">
+                <span
+                  style={{
+                    width: "10px",
+                    height: "2px",
+                    background: "#FF5F09",
+                  }}
+                />
                 <span>Distance Travelled (km)</span>
               </div>
             </div>
@@ -1587,7 +1729,7 @@ export default function DriverRouteEarningsPage() {
   return (
     <Suspense
       fallback={
-        <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+        <div className="p-12 text-center text-muted">
           Loading Driver Route & Earnings Tracking...
         </div>
       }

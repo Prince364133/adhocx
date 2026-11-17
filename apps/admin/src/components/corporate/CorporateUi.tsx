@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * Shared building blocks for the Corporate ETS admin screens (payouts, rate cards, disputes,
@@ -6,12 +6,12 @@
  * EmptyState / ErrorState components, so every corporate screen has the same loading, empty,
  * error and not-authorised states.
  */
-import React, { useEffect, useState } from 'react';
-import { AlertCircle, CheckCircle, Lock, X } from 'lucide-react';
-import { ApiError, adminApi } from '../../lib/api/client';
-import { Modal } from '../Modal';
-import { Button } from '../common/Button';
-import { ErrorState } from '../ErrorState';
+import React, { useEffect, useState } from "react";
+import { AlertCircle, CheckCircle, Lock, X } from "lucide-react";
+import { ApiError, adminApi } from "../../lib/api/client";
+import { Modal } from "../Modal";
+import { Button } from "../common/Button";
+import { ErrorState } from "../ErrorState";
 
 // ---------------------------------------------------------------------------
 // Formatting
@@ -19,42 +19,46 @@ import { ErrorState } from '../ErrorState';
 
 /** Integer paise (string or number) to "₹ 1,234.56" without float rounding of the paise part. */
 export function formatPaise(paise: string | number | null | undefined): string {
-  if (paise === null || paise === undefined || paise === '') return '—';
+  if (paise === null || paise === undefined || paise === "") return "—";
   const raw = String(paise).trim();
-  if (!/^-?\d+$/.test(raw)) return '—';
-  const negative = raw.startsWith('-');
+  if (!/^-?\d+$/.test(raw)) return "—";
+  const negative = raw.startsWith("-");
   const digits = negative ? raw.slice(1) : raw;
-  const padded = digits.padStart(3, '0');
-  const rupees = padded.slice(0, -2).replace(/^0+(?=\d)/, '');
+  const padded = digits.padStart(3, "0");
+  const rupees = padded.slice(0, -2).replace(/^0+(?=\d)/, "");
   const fraction = padded.slice(-2);
-  const grouped = Number(rupees).toLocaleString('en-IN');
-  return `${negative ? '- ' : ''}₹ ${grouped}.${fraction}`;
+  const grouped = Number(rupees).toLocaleString("en-IN");
+  return `${negative ? "- " : ""}₹ ${grouped}.${fraction}`;
 }
 
 /** "1234.50" rupees (form input) to integer paise string, or null when not a valid amount. */
 export function rupeesToPaise(input: string): string | null {
   const v = input.trim();
   if (!/^\d{1,13}(\.\d{1,2})?$/.test(v)) return null;
-  const [whole, frac = ''] = v.split('.');
+  const [whole, frac = ""] = v.split(".");
   // String arithmetic keeps exact paise (no float, no BigInt literal for the ES2017 target).
-  const paise = `${whole}${(frac + '00').slice(0, 2)}`.replace(/^0+(?=\d)/, '');
+  const paise = `${whole}${(frac + "00").slice(0, 2)}`.replace(/^0+(?=\d)/, "");
   return paise;
 }
 
-export function formatIst(iso: string | null | undefined, withTime = true): string {
-  if (!iso) return '—';
+export function formatIst(
+  iso: string | null | undefined,
+  withTime = true,
+): string {
+  if (!iso) return "—";
   const d = new Date(iso);
-  if (isNaN(d.getTime())) return '—';
-  return d.toLocaleString('en-IN', {
-    timeZone: 'Asia/Kolkata',
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    ...(withTime ? { hour: '2-digit', minute: '2-digit', hour12: false } : {}),
+  if (isNaN(d.getTime())) return "—";
+  return d.toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    ...(withTime ? { hour: "2-digit", minute: "2-digit", hour12: false } : {}),
   });
 }
 
-export const shortId = (id: string | null | undefined) => (id ? id.slice(0, 8).toUpperCase() : '—');
+export const shortId = (id: string | null | undefined) =>
+  id ? id.slice(0, 8).toUpperCase() : "—";
 
 /** Today's IST calendar day, YYYY-MM-DD. */
 export function todayIst(): string {
@@ -62,23 +66,24 @@ export function todayIst(): string {
 }
 
 /** IST calendar day (YYYY-MM-DD) + "HH:mm" IST to an ISO instant. */
-export function istLocalToIso(day: string, time = '00:00'): string {
+export function istLocalToIso(day: string, time = "00:00"): string {
   return new Date(`${day}T${time}:00+05:30`).toISOString();
 }
 
 export function errorMessage(err: unknown): string {
   if (err instanceof ApiError) return err.message;
   if (err instanceof Error) return err.message;
-  return 'Request failed';
+  return "Request failed";
 }
 
-export const isForbidden = (err: unknown) => err instanceof ApiError && err.status === 403;
+export const isForbidden = (err: unknown) =>
+  err instanceof ApiError && err.status === 403;
 
 /** Logged-in admin id (for maker-checker hints). The API is the authority; this only guides the UI. */
 export function currentAdminId(): string | null {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === "undefined") return null;
   try {
-    const raw = localStorage.getItem('adhocx_admin_user');
+    const raw = localStorage.getItem("adhocx_admin_user");
     return raw ? (JSON.parse(raw)?.id ?? null) : null;
   } catch {
     return null;
@@ -89,72 +94,102 @@ export function currentAdminId(): string | null {
 // States
 // ---------------------------------------------------------------------------
 
-export const ForbiddenState: React.FC<{ what: string; message?: string }> = ({ what, message }) => (
+export const ForbiddenState: React.FC<{ what: string; message?: string }> = ({
+  what,
+  message,
+}) => (
   <div
-    className="card"
+    className="card text-center rounded-xl bg-warning-subtle"
     role="alert"
-    style={{
-      padding: '1.35rem',
-      textAlign: 'center',
-      borderRadius: 'var(--radius-xl)',
-      borderColor: 'var(--color-warning-border)',
-      backgroundColor: 'var(--color-warning-bg)',
-    }}
+    style={{ padding: "1.35rem", borderColor: "var(--color-warning-border)" }}
   >
-    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.55rem' }}>
+    <div className="flex justify-center" style={{ marginBottom: "0.55rem" }}>
       <Lock size={24} color="var(--color-warning)" />
     </div>
-    <h3 style={{ fontSize: '1.04rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.24rem' }}>
+    <h3
+      className="font-bold text-primary"
+      style={{ fontSize: "1.04rem", marginBottom: "0.24rem" }}
+    >
       You are not authorised to view {what}
     </h3>
-    <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', maxWidth: 460, margin: '0 auto' }}>
-      {message ?? 'This area is limited to AdhocX platform administrators. Sign in with an admin account or ask a super admin for access.'}
+    <p
+      className="text-compact text-secondary my-0 mx-auto"
+      style={{ maxWidth: 460 }}
+    >
+      {message ??
+        "This area is limited to AdhocX platform administrators. Sign in with an admin account or ask a super admin for access."}
     </p>
   </div>
 );
 
 /** Error screen that turns a 403 into the not-authorised state. */
-export const LoadErrorState: React.FC<{ error: unknown; what: string; onRetry: () => void }> = ({ error, what, onRetry }) =>
+export const LoadErrorState: React.FC<{
+  error: unknown;
+  what: string;
+  onRetry: () => void;
+}> = ({ error, what, onRetry }) =>
   isForbidden(error) ? (
     <ForbiddenState what={what} message={errorMessage(error)} />
   ) : (
-    <ErrorState title={`Unable to load ${what}`} message={errorMessage(error)} onRetry={onRetry} />
+    <ErrorState
+      title={`Unable to load ${what}`}
+      message={errorMessage(error)}
+      onRetry={onRetry}
+    />
   );
 
-export type BannerState = { type: 'success' | 'error' | 'info'; message: string } | null;
+export type BannerState = {
+  type: "success" | "error" | "info";
+  message: string;
+} | null;
 
-export const Banner: React.FC<{ banner: BannerState; onClose: () => void }> = ({ banner, onClose }) => {
+export const Banner: React.FC<{ banner: BannerState; onClose: () => void }> = ({
+  banner,
+  onClose,
+}) => {
   if (!banner) return null;
   const palette =
-    banner.type === 'success'
-      ? { bg: 'var(--color-success-bg)', border: 'var(--color-success-border)', color: 'var(--color-success)' }
-      : banner.type === 'error'
-        ? { bg: 'var(--color-danger-bg)', border: 'var(--color-danger-border)', color: 'var(--color-danger)' }
-        : { bg: 'var(--color-info-bg)', border: 'var(--color-info-border)', color: 'var(--color-info)' };
+    banner.type === "success"
+      ? {
+          bg: "var(--color-success-bg)",
+          border: "var(--color-success-border)",
+          color: "var(--color-success)",
+        }
+      : banner.type === "error"
+        ? {
+            bg: "var(--color-danger-bg)",
+            border: "var(--color-danger-border)",
+            color: "var(--color-danger)",
+          }
+        : {
+            bg: "var(--color-info-bg)",
+            border: "var(--color-info-border)",
+            color: "var(--color-info)",
+          };
   return (
     <div
-      role={banner.type === 'error' ? 'alert' : 'status'}
-      className="animate-banner"
+      role={banner.type === "error" ? "alert" : "status"}
+      className="animate-banner flex items-center rounded-lg text-base font-semibold"
       style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.7rem',
-        padding: '0.7rem 0.95rem',
-        borderRadius: 'var(--radius-lg)',
+        gap: "0.7rem",
+        padding: "0.7rem 0.95rem",
         backgroundColor: palette.bg,
         border: `1px solid ${palette.border}`,
         color: palette.color,
-        fontSize: '0.8125rem',
-        fontWeight: 600,
       }}
     >
-      {banner.type === 'success' ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
-      <span style={{ flex: 1 }}>{banner.message}</span>
+      {banner.type === "success" ? (
+        <CheckCircle size={18} />
+      ) : (
+        <AlertCircle size={18} />
+      )}
+      <span className="flex-1">{banner.message}</span>
       <button
         type="button"
         onClick={onClose}
         aria-label="Dismiss message"
-        style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', display: 'flex' }}
+        className="bg-transparent border-0 cursor-pointer flex"
+        style={{ color: "inherit" }}
       >
         <X size={16} />
       </button>
@@ -163,53 +198,61 @@ export const Banner: React.FC<{ banner: BannerState; onClose: () => void }> = ({
 };
 
 /** Callout used to state a business rule next to the action it governs. */
-export const RuleNote: React.FC<{ icon?: React.ReactNode; children: React.ReactNode; tone?: 'info' | 'warning' }> = ({
-  icon,
-  children,
-  tone = 'info',
-}) => (
+export const RuleNote: React.FC<{
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+  tone?: "info" | "warning";
+}> = ({ icon, children, tone = "info" }) => (
   <div
+    className="flex items-start py-3 px-4 rounded-md text-primary text-base"
     style={{
-      display: 'flex',
-      gap: '0.625rem',
-      alignItems: 'flex-start',
-      padding: '0.75rem 1rem',
-      borderRadius: 'var(--radius-md)',
-      backgroundColor: tone === 'warning' ? 'var(--color-warning-bg)' : 'var(--color-info-bg)',
-      border: `1px solid ${tone === 'warning' ? 'var(--color-warning-border)' : 'var(--color-info-border)'}`,
-      color: 'var(--text-primary)',
-      fontSize: '0.8125rem',
+      gap: "0.625rem",
+      backgroundColor:
+        tone === "warning" ? "var(--color-warning-bg)" : "var(--color-info-bg)",
+      border: `1px solid ${tone === "warning" ? "var(--color-warning-border)" : "var(--color-info-border)"}`,
       lineHeight: 1.5,
     }}
   >
-    {icon && <span style={{ color: tone === 'warning' ? 'var(--color-warning)' : 'var(--color-info)', marginTop: 2 }}>{icon}</span>}
+    {icon && (
+      <span
+        style={{
+          color:
+            tone === "warning" ? "var(--color-warning)" : "var(--color-info)",
+          marginTop: 2,
+        }}
+      >
+        {icon}
+      </span>
+    )}
     <div>{children}</div>
   </div>
 );
 
-export const SectionCard: React.FC<{ title: string; subtitle?: string; actions?: React.ReactNode; children: React.ReactNode }> = ({
-  title,
-  subtitle,
-  actions,
-  children,
-}) => (
-  <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+export const SectionCard: React.FC<{
+  title: string;
+  subtitle?: string;
+  actions?: React.ReactNode;
+  children: React.ReactNode;
+}> = ({ title, subtitle, actions, children }) => (
+  <div className="card p-0 overflow-hidden">
     <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: '1rem',
-        flexWrap: 'wrap',
-        padding: '1.02rem 1.15rem 0.92rem',
-        borderBottom: '1px solid var(--border)',
-      }}
+      className="flex items-center justify-between gap-4 flex-wrap border-b"
+      style={{ padding: "1.02rem 1.15rem 0.92rem" }}
     >
       <div>
-        <h2 style={{ fontSize: '1.08rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{title}</h2>
-        {subtitle && <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0.2rem 0 0' }}>{subtitle}</p>}
+        <h2 className="text-title-md font-bold text-primary m-0">{title}</h2>
+        {subtitle && (
+          <p
+            className="text-compact text-muted"
+            style={{ margin: "0.2rem 0 0" }}
+          >
+            {subtitle}
+          </p>
+        )}
       </div>
-      {actions && <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>{actions}</div>}
+      {actions && (
+        <div className="flex gap-2 flex-wrap items-center">{actions}</div>
+      )}
     </div>
     <div>{children}</div>
   </div>
@@ -228,7 +271,7 @@ export interface NotesPromptProps {
   required?: boolean;
   minLength?: number;
   confirmLabel: string;
-  confirmVariant?: 'primary' | 'danger' | 'success';
+  confirmVariant?: "primary" | "danger" | "success";
   extra?: React.ReactNode;
   onCancel: () => void;
   onConfirm: (notes: string) => Promise<void>;
@@ -238,23 +281,23 @@ export const NotesPrompt: React.FC<NotesPromptProps> = ({
   isOpen,
   title,
   description,
-  label = 'Notes',
+  label = "Notes",
   placeholder,
   required = false,
   minLength = 1,
   confirmLabel,
-  confirmVariant = 'primary',
+  confirmVariant = "primary",
   extra,
   onCancel,
   onConfirm,
 }) => {
-  const [notes, setNotes] = useState('');
+  const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
-      setNotes('');
+      setNotes("");
       setError(null);
       setBusy(false);
     }
@@ -265,7 +308,11 @@ export const NotesPrompt: React.FC<NotesPromptProps> = ({
 
   async function submit() {
     if (invalid) {
-      setError(minLength > 1 ? `${label} must be at least ${minLength} characters.` : `${label} are required.`);
+      setError(
+        minLength > 1
+          ? `${label} must be at least ${minLength} characters.`
+          : `${label} are required.`,
+      );
       return;
     }
     setBusy(true);
@@ -285,22 +332,29 @@ export const NotesPrompt: React.FC<NotesPromptProps> = ({
       title={title}
       maxWidth="520px"
       footer={
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+        <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={onCancel} disabled={busy}>
             Cancel
           </Button>
-          <Button variant={confirmVariant} onClick={submit} isLoading={busy} disabled={invalid}>
+          <Button
+            variant={confirmVariant}
+            onClick={submit}
+            isLoading={busy}
+            disabled={invalid}
+          >
             {confirmLabel}
           </Button>
         </div>
       }
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        {description && <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{description}</div>}
+      <div className="flex flex-col gap-4">
+        {description && (
+          <div className="text-md text-secondary">{description}</div>
+        )}
         {extra}
         <label className="form-group">
           <span className="form-label">
-            {label} {required ? '(required)' : '(optional)'}
+            {label} {required ? "(required)" : "(optional)"}
           </span>
           <textarea
             className="form-textarea"
@@ -313,7 +367,7 @@ export const NotesPrompt: React.FC<NotesPromptProps> = ({
           />
         </label>
         {error && (
-          <div role="alert" style={{ color: 'var(--color-danger)', fontSize: '0.8125rem' }}>
+          <div role="alert" className="text-danger text-base">
             {error}
           </div>
         )}
@@ -357,7 +411,7 @@ export function useCorporateTenants() {
   }, []);
 
   const nameOf = (id: string | null | undefined) => {
-    if (!id) return '—';
+    if (!id) return "—";
     const t = tenants.find((x) => x.id === id);
     return t ? `${t.name} (${t.code})` : shortId(id);
   };

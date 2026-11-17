@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useParams, useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useParams, useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function UndefinedRouteFallback() {
   const params = useParams();
@@ -9,14 +9,20 @@ export default function UndefinedRouteFallback() {
 
   useEffect(() => {
     const slug = params?.slug;
-    const target = Array.isArray(slug) ? `/${slug.join('/')}` : slug ? `/${slug}` : '/dashboard';
+    const target = Array.isArray(slug)
+      ? `/${slug.join("/")}`
+      : slug
+        ? `/${slug}`
+        : "/dashboard";
     router.replace(target);
   }, [params, router]);
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '300px' }}>
-      <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Redirecting to page...</p>
+    <div
+      className="flex items-center justify-center"
+      style={{ minHeight: "300px" }}
+    >
+      <p className="text-secondary text-md">Redirecting to page...</p>
     </div>
   );
 }
-

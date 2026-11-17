@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import React, { useEffect, useState, useRef } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
-import { Bell, CheckCheck, ExternalLink, X, Send, LogOut } from 'lucide-react';
-import { ThemeToggle } from './ThemeToggle';
-import { ConfirmDialog } from './common/ConfirmDialog';
-import { adminApi, getStoredAdminUser } from '../lib/api/client';
-import { InAppNotificationItem } from '../lib/api/types';
+import React, { useEffect, useState, useRef } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { Bell, CheckCheck, ExternalLink, X, Send, LogOut } from "lucide-react";
+import { ThemeToggle } from "./ThemeToggle";
+import { ConfirmDialog } from "./common/ConfirmDialog";
+import { adminApi, getStoredAdminUser } from "../lib/api/client";
+import { InAppNotificationItem } from "../lib/api/types";
 
 type HeaderProps = {
   title?: string;
@@ -23,7 +23,9 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   // Notification state
-  const [notifications, setNotifications] = useState<InAppNotificationItem[]>([]);
+  const [notifications, setNotifications] = useState<InAppNotificationItem[]>(
+    [],
+  );
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -31,26 +33,31 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
 
   const getSectionTitle = () => {
     if (title) return title;
-    if (pathname.startsWith('/dashboard')) return 'Marketplace Overview';
-    if (pathname.startsWith('/notifications')) return 'Push Notifications & Campaign Hub';
-    if (pathname.startsWith('/verifications')) return 'Verification Center';
-    if (pathname.startsWith('/drivers')) return 'Driver Fleet Management';
-    if (pathname.startsWith('/users')) return 'Users & Corporate Vendors';
-    if (pathname.startsWith('/requirements')) return 'Requirements & Sourcing';
-    if (pathname.startsWith('/assignments')) return 'Assignment Operations';
-    if (pathname.startsWith('/trips')) return 'Trips & Telemetry Tracking';
-    if (pathname.startsWith('/coupons')) return 'Coupons & Promotions';
-    if (pathname.startsWith('/blogs')) return 'Blog CMS Publisher';
-    if (pathname.startsWith('/settlements')) return 'Financial Settlements & Payouts';
-    if (pathname.startsWith('/finance')) return 'Finance & Accounting Operations';
-    if (pathname.startsWith('/reports')) return 'Finance & Accounting Operations';
-    if (pathname.startsWith('/feature-flags')) return 'Feature Flags & Platform Controls';
-    if (pathname.startsWith('/pricing')) return 'Pricing Engine & Tariffs';
-    if (pathname.startsWith('/payments')) return 'Payments & Escrow Balances';
-    if (pathname.startsWith('/audit')) return 'Audit Logs & Compliance';
-    if (pathname.startsWith('/disputes')) return 'Dispute Resolution Desk';
-    if (pathname.startsWith('/support')) return 'Support & Helpdesk';
-    return 'Control Portal';
+    if (pathname.startsWith("/dashboard")) return "Marketplace Overview";
+    if (pathname.startsWith("/notifications"))
+      return "Push Notifications & Campaign Hub";
+    if (pathname.startsWith("/verifications")) return "Verification Center";
+    if (pathname.startsWith("/drivers")) return "Driver Fleet Management";
+    if (pathname.startsWith("/users")) return "Users & Corporate Vendors";
+    if (pathname.startsWith("/requirements")) return "Requirements & Sourcing";
+    if (pathname.startsWith("/assignments")) return "Assignment Operations";
+    if (pathname.startsWith("/trips")) return "Trips & Telemetry Tracking";
+    if (pathname.startsWith("/coupons")) return "Coupons & Promotions";
+    if (pathname.startsWith("/blogs")) return "Blog CMS Publisher";
+    if (pathname.startsWith("/settlements"))
+      return "Financial Settlements & Payouts";
+    if (pathname.startsWith("/finance"))
+      return "Finance & Accounting Operations";
+    if (pathname.startsWith("/reports"))
+      return "Finance & Accounting Operations";
+    if (pathname.startsWith("/feature-flags"))
+      return "Feature Flags & Platform Controls";
+    if (pathname.startsWith("/pricing")) return "Pricing Engine & Tariffs";
+    if (pathname.startsWith("/payments")) return "Payments & Escrow Balances";
+    if (pathname.startsWith("/audit")) return "Audit Logs & Compliance";
+    if (pathname.startsWith("/disputes")) return "Dispute Resolution Desk";
+    if (pathname.startsWith("/support")) return "Support & Helpdesk";
+    return "Control Portal";
   };
 
   useEffect(() => {
@@ -65,7 +72,7 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
     try {
       await adminApi.logoutAdmin();
     } finally {
-      router.replace('/login');
+      router.replace("/login");
     }
   };
 
@@ -77,12 +84,15 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   async function loadNotifications() {
@@ -114,7 +124,8 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
       await adminApi.markAllInAppNotificationsRead();
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
       setUnreadCount(0);
-    } catch {} finally {
+    } catch {
+    } finally {
       setLoading(false);
     }
   }
@@ -123,15 +134,17 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
     if (!n.isRead) {
       adminApi.markInAppNotificationRead(n.id).catch(() => {});
       setNotifications((prev) =>
-        prev.map((item) => (item.id === n.id ? { ...item, isRead: true } : item)),
+        prev.map((item) =>
+          item.id === n.id ? { ...item, isRead: true } : item,
+        ),
       );
       setUnreadCount((c) => Math.max(0, c - 1));
     }
 
     if (n.data?.actionUrl || n.data?.route) {
       const target = n.data.actionUrl || n.data.route;
-      if (target.startsWith('http')) {
-        window.open(target, '_blank');
+      if (target.startsWith("http")) {
+        window.open(target, "_blank");
       } else {
         router.push(target);
       }
@@ -140,65 +153,63 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
   }
 
   return (
-    <header className="admin-header" style={{ position: 'relative', zIndex: 50 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+    <header className="admin-header relative" style={{ zIndex: 50 }}>
+      <div className="flex items-center gap-3">
         <div>
-          <h2 style={{ fontSize: '1.08rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.015em' }}>
+          <h2
+            className="text-title-md font-bold text-primary m-0"
+            style={{ letterSpacing: "-0.015em" }}
+          >
             {getSectionTitle()}
           </h2>
           {subtitle && (
-            <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: '0.12rem 0 0 0' }}>
+            <p
+              className="text-caption text-muted"
+              style={{ margin: "0.12rem 0 0 0" }}
+            >
               {subtitle}
             </p>
           )}
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+      <div className="flex items-center gap-2">
         {/* Notification Bell Dropdown */}
-        <div style={{ position: 'relative' }} ref={dropdownRef}>
+        <div className="relative" ref={dropdownRef}>
           <button
             type="button"
             onClick={() => setIsOpen(!isOpen)}
+            className="relative flex items-center justify-center rounded-md border cursor-pointer"
             style={{
-              position: 'relative',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '28px',
-              height: '28px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border)',
-              background: isOpen ? 'var(--brand-primary-subtle)' : 'var(--bg-surface-elevated)',
-              color: isOpen ? 'var(--brand-primary)' : 'var(--text-secondary)',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
+              width: "28px",
+              height: "28px",
+              background: isOpen
+                ? "var(--brand-primary-subtle)"
+                : "var(--bg-surface-elevated)",
+              color: isOpen ? "var(--text-brand)" : "var(--text-secondary)",
+              transition: "all 0.2s ease",
             }}
             title="Notification Center"
           >
             <Bell size={14} />
             {unreadCount > 0 && (
               <span
+                className="absolute font-extrabold flex items-center justify-center"
                 style={{
-                  position: 'absolute',
-                  top: '-4px',
-                  right: '-4px',
-                  minWidth: '15px',
-                  height: '15px',
-                  padding: '0 3px',
-                  borderRadius: '10px',
-                  background: 'linear-gradient(135deg, #ef4444, #f43f5e)',
-                  color: '#ffffff',
-                  fontSize: '0.6rem',
-                  fontWeight: 800,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 2px 6px rgba(239, 68, 68, 0.4)',
-                  border: '2px solid var(--bg-surface)',
+                  top: "-4px",
+                  right: "-4px",
+                  minWidth: "15px",
+                  height: "15px",
+                  padding: "0 3px",
+                  borderRadius: "10px",
+                  background: "linear-gradient(135deg, #ef4444, #f43f5e)",
+                  color: "#ffffff",
+                  fontSize: "0.6rem",
+                  boxShadow: "0 2px 6px rgba(239, 68, 68, 0.4)",
+                  border: "2px solid var(--bg-surface)",
                 }}
               >
-                {unreadCount > 99 ? '99+' : unreadCount}
+                {unreadCount > 99 ? "99+" : unreadCount}
               </span>
             )}
           </button>
@@ -206,75 +217,46 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
           {/* Notification Popover Dropdown */}
           {isOpen && (
             <div
-              className="animate-dropdown"
+              className="animate-dropdown absolute right-0 bg-surface border rounded-xl shadow-elevated flex flex-col overflow-hidden"
               style={{
-                position: 'absolute',
-                top: 'calc(100% + 8px)',
-                right: 0,
-                width: '380px',
-                maxWidth: 'calc(100vw - 2rem)',
-                maxHeight: '480px',
-                background: 'var(--bg-surface)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-xl)',
-                boxShadow: 'var(--shadow-elevated)',
-                display: 'flex',
-                flexDirection: 'column',
-                overflow: 'hidden',
+                top: "calc(100% + 8px)",
+                width: "380px",
+                maxWidth: "calc(100vw - 2rem)",
+                maxHeight: "480px",
                 zIndex: 100,
               }}
             >
               {/* Header */}
               <div
-                style={{
-                  padding: '0.85rem 1rem',
-                  borderBottom: '1px solid var(--border)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  background: 'var(--bg-surface-elevated)',
-                }}
+                className="border-b flex items-center justify-between bg-surface-elevated"
+                style={{ padding: "0.85rem 1rem" }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Bell size={16} color="var(--brand-primary)" />
-                  <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                <div className="flex items-center gap-2">
+                  <Bell size={16} color="var(--text-brand)" />
+                  <span
+                    className="font-bold text-primary"
+                    style={{ fontSize: "0.88rem" }}
+                  >
                     Notifications
                   </span>
                   {unreadCount > 0 && (
                     <span
-                      style={{
-                        fontSize: '0.7rem',
-                        fontWeight: 700,
-                        padding: '0.1rem 0.45rem',
-                        borderRadius: 'var(--radius-pill)',
-                        background: 'var(--brand-primary-subtle)',
-                        color: 'var(--brand-primary)',
-                      }}
+                      className="text-caption font-bold rounded-full bg-brand-subtle text-brand"
+                      style={{ padding: "0.1rem 0.45rem" }}
                     >
                       {unreadCount} unread
                     </span>
                   )}
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <div className="flex items-center gap-compact">
                   {unreadCount > 0 && (
                     <button
                       type="button"
                       onClick={handleMarkAllRead}
                       disabled={loading}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: 'var(--brand-primary)',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.25rem',
-                        padding: '0.2rem 0.4rem',
-                        borderRadius: 'var(--radius-sm)',
-                      }}
+                      className="bg-transparent border-0 text-brand text-sm font-semibold cursor-pointer flex items-center gap-1 rounded-sm"
+                      style={{ padding: "0.2rem 0.4rem" }}
                     >
                       <CheckCheck size={14} />
                       Mark all read
@@ -283,13 +265,8 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
                   <button
                     type="button"
                     onClick={() => setIsOpen(false)}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: 'var(--text-muted)',
-                      cursor: 'pointer',
-                      padding: '0.2rem',
-                    }}
+                    className="bg-transparent border-0 text-muted cursor-pointer"
+                    style={{ padding: "0.2rem" }}
                   >
                     <X size={16} />
                   </button>
@@ -297,12 +274,17 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
               </div>
 
               {/* Feed List */}
-              <div style={{ overflowY: 'auto', maxHeight: '340px' }}>
+              <div className="overflow-y-auto" style={{ maxHeight: "340px" }}>
                 {notifications.length === 0 ? (
-                  <div style={{ padding: '2.5rem 1rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                    <Bell size={32} style={{ margin: '0 auto 0.5rem', opacity: 0.3 }} />
-                    <p style={{ fontSize: '0.85rem', fontWeight: 500, margin: 0 }}>No notifications yet</p>
-                    <p style={{ fontSize: '0.75rem', margin: '0.25rem 0 0 0' }}>
+                  <div className="py-10 px-4 text-center text-muted">
+                    <Bell
+                      size={32}
+                      style={{ margin: "0 auto 0.5rem", opacity: 0.3 }}
+                    />
+                    <p className="text-body font-medium m-0">
+                      No notifications yet
+                    </p>
+                    <p className="text-sm mt-1 mr-0 mb-0 ml-0">
                       Real-time updates and dispatched alerts will appear here.
                     </p>
                   </div>
@@ -311,87 +293,74 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
                     <div
                       key={n.id}
                       onClick={() => handleNotificationClick(n)}
+                      className="border-b cursor-pointer flex gap-3 items-start"
                       style={{
-                        padding: '0.8rem 1rem',
-                        borderBottom: '1px solid var(--border)',
-                        background: n.isRead ? 'transparent' : 'rgba(99, 102, 241, 0.06)',
-                        cursor: 'pointer',
-                        transition: 'background 0.15s ease',
-                        display: 'flex',
-                        gap: '0.75rem',
-                        alignItems: 'flex-start',
+                        padding: "0.8rem 1rem",
+                        background: n.isRead
+                          ? "transparent"
+                          : "rgba(var(--brand-indigo-rgb), 0.06)",
+                        transition: "background 0.15s ease",
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-surface-elevated)')}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.background =
+                          "var(--bg-surface-elevated)")
+                      }
                       onMouseLeave={(e) =>
-                        (e.currentTarget.style.background = n.isRead ? 'transparent' : 'rgba(99, 102, 241, 0.06)')
+                        (e.currentTarget.style.background = n.isRead
+                          ? "transparent"
+                          : "rgba(var(--brand-indigo-rgb), 0.06)")
                       }
                     >
                       {/* Status Dot */}
-                      <div style={{ marginTop: '0.25rem' }}>
+                      <div className="mt-1">
                         {!n.isRead ? (
                           <div
+                            className="rounded-full bg-brand"
                             style={{
-                              width: '8px',
-                              height: '8px',
-                              borderRadius: '50%',
-                              background: 'var(--brand-primary)',
-                              boxShadow: '0 0 8px var(--brand-primary)',
+                              width: "8px",
+                              height: "8px",
+                              boxShadow: "0 0 8px var(--text-brand)",
                             }}
                           />
                         ) : (
                           <div
+                            className="rounded-full"
                             style={{
-                              width: '8px',
-                              height: '8px',
-                              borderRadius: '50%',
-                              background: 'var(--border)',
+                              width: "8px",
+                              height: "8px",
+                              background: "var(--border)",
                             }}
                           />
                         )}
                       </div>
 
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
                           <span
-                            style={{
-                              fontSize: '0.82rem',
-                              fontWeight: n.isRead ? 600 : 700,
-                              color: 'var(--text-primary)',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                            }}
+                            className="text-body-md text-primary overflow-hidden text-ellipsis whitespace-nowrap"
+                            style={{ fontWeight: n.isRead ? 600 : 700 }}
                           >
                             {n.title}
                           </span>
-                          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', flexShrink: 0 }}>
-                            {n.createdAt ? new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                          <span className="text-micro text-muted flex-shrink-0">
+                            {n.createdAt
+                              ? new Date(n.createdAt).toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })
+                              : ""}
                           </span>
                         </div>
 
                         <p
-                          style={{
-                            fontSize: '0.75rem',
-                            color: 'var(--text-secondary)',
-                            margin: '0.25rem 0 0 0',
-                            lineHeight: 1.4,
-                          }}
+                          className="text-sm text-secondary mt-1 mr-0 mb-0 ml-0"
+                          style={{ lineHeight: 1.4 }}
                         >
                           {n.body}
                         </p>
 
                         {(n.data?.route || n.data?.actionUrl) && (
-                          <div
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '0.25rem',
-                              fontSize: '0.7rem',
-                              color: 'var(--brand-primary)',
-                              fontWeight: 600,
-                              marginTop: '0.35rem',
-                            }}
-                          >
+                          <div className="inline-flex items-center gap-1 text-caption text-brand font-semibold mt-tight">
                             <span>Open</span>
                             <ExternalLink size={10} />
                           </div>
@@ -403,13 +372,8 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
                           type="button"
                           onClick={(e) => handleMarkRead(n.id, e)}
                           title="Mark as read"
-                          style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: 'var(--text-muted)',
-                            cursor: 'pointer',
-                            padding: '0.2rem',
-                          }}
+                          className="bg-transparent border-0 text-muted cursor-pointer"
+                          style={{ padding: "0.2rem" }}
                         >
                           <CheckCheck size={14} />
                         </button>
@@ -421,38 +385,22 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
 
               {/* Footer */}
               <div
-                style={{
-                  padding: '0.65rem 1rem',
-                  borderTop: '1px solid var(--border)',
-                  background: 'var(--bg-surface-elevated)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                }}
+                className="border-t bg-surface-elevated flex items-center justify-between"
+                style={{ padding: "0.65rem 1rem" }}
               >
                 <button
                   type="button"
                   onClick={() => {
                     setIsOpen(false);
-                    router.push('/notifications');
+                    router.push("/notifications");
                   }}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'var(--brand-primary)',
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                  }}
+                  className="bg-transparent border-0 text-brand text-sm font-bold cursor-pointer flex items-center gap-tight"
                 >
                   <Send size={12} />
                   <span>Open Push Campaign Hub</span>
                 </button>
 
-                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                <span className="text-micro text-muted">
                   FCM Service Active
                 </span>
               </div>
@@ -465,49 +413,38 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
 
         {/* Live Cluster Status */}
         <div
+          className="admin-header-status inline-flex items-center gap-tight bg-success-subtle rounded-full text-micro font-semibold text-success"
           style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.35rem',
-            padding: '0.2rem 0.55rem',
-            background: 'var(--color-success-bg)',
-            border: '1px solid var(--color-success-border)',
-            borderRadius: 'var(--radius-pill)',
-            fontSize: '0.68rem',
-            fontWeight: 600,
-            color: 'var(--color-success)',
-            letterSpacing: '0.01em',
+            padding: "0.2rem 0.55rem",
+            border: "1px solid var(--color-success-border)",
+            letterSpacing: "0.01em",
           }}
           title="All systems operational — PostgreSQL, Redis, and Firebase FCM Engine Connected"
         >
-          <span className="pulse-dot success" style={{ width: '5px', height: '5px' }} />
+          <span
+            className="pulse-dot success"
+            style={{ width: "5px", height: "5px" }}
+          />
           <span>Operational</span>
         </div>
 
         {/* Admin Profile & Logout */}
         <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            paddingLeft: '0.45rem',
-            borderLeft: '1px solid var(--border)',
-          }}
+          className="admin-header-profile flex items-center gap-2 border-l"
+          style={{ paddingLeft: "0.45rem" }}
         >
           <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'flex-end',
-              fontSize: '0.71rem',
-              lineHeight: 1.25,
-            }}
+            className="flex flex-col items-end"
+            style={{ fontSize: "0.71rem", lineHeight: 1.25 }}
           >
-            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-              {adminUser?.fullName || 'Administrator'}
+            <span className="font-semibold text-primary">
+              {adminUser?.fullName || "Administrator"}
             </span>
-            <span style={{ fontSize: '0.64rem', color: 'var(--brand-primary)', fontWeight: 600 }}>
-              {adminUser?.email || 'admin@adhocx.com'}
+            <span
+              className="text-brand font-semibold"
+              style={{ fontSize: "0.64rem" }}
+            >
+              {adminUser?.email || "admin@adhocx.com"}
             </span>
           </div>
 
@@ -517,32 +454,25 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
             onClick={() => setShowLogoutConfirm(true)}
             disabled={isLoggingOut}
             title="Sign Out of Admin Control Portal"
+            className="inline-flex items-center justify-center rounded-md bg-danger-subtle text-danger text-label font-semibold"
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.3rem',
-              padding: '0.3rem 0.62rem',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--color-danger-border)',
-              background: 'var(--color-danger-bg)',
-              color: 'var(--color-danger)',
-              fontSize: '0.72rem',
-              fontWeight: 600,
-              cursor: isLoggingOut ? 'not-allowed' : 'pointer',
-              transition: 'all 0.15s ease',
+              gap: "0.3rem",
+              padding: "0.3rem 0.62rem",
+              border: "1px solid var(--color-danger-border)",
+              cursor: isLoggingOut ? "not-allowed" : "pointer",
+              transition: "all 0.15s ease",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--color-danger)';
-              e.currentTarget.style.color = '#ffffff';
+              e.currentTarget.style.backgroundColor = "var(--color-danger)";
+              e.currentTarget.style.color = "#ffffff";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--color-danger-bg)';
-              e.currentTarget.style.color = 'var(--color-danger)';
+              e.currentTarget.style.backgroundColor = "var(--color-danger-bg)";
+              e.currentTarget.style.color = "var(--color-danger)";
             }}
           >
             <LogOut size={12} />
-            <span>{isLoggingOut ? 'Signing Out...' : 'Log Out'}</span>
+            <span>{isLoggingOut ? "Signing Out..." : "Log Out"}</span>
           </button>
         </div>
       </div>

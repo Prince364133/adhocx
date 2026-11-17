@@ -1,17 +1,18 @@
-'use client';
+"use client";
 
-import React, { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
-import { acquireScrollLock } from './common/scrollLock';
+import React, { useEffect, useState } from "react";
+import { X } from "lucide-react";
+import { acquireScrollLock } from "./common/scrollLock";
 
-export type ModalSize = 'sm' | 'md' | 'lg' | 'xl';
-export type ModalVariant = 'default' | 'danger' | 'warning' | 'success' | 'info';
+export type ModalSize = "sm" | "md" | "lg" | "xl";
+export type ModalVariant =
+  "default" | "danger" | "warning" | "success" | "info";
 
 const SIZE_MAP: Record<ModalSize, string> = {
-  sm: '390px',
-  md: '490px',
-  lg: '620px',
-  xl: '780px',
+  sm: "390px",
+  md: "490px",
+  lg: "620px",
+  xl: "780px",
 };
 
 export interface ModalProps {
@@ -39,9 +40,9 @@ export const Modal: React.FC<ModalProps> = ({
   children,
   footer,
   maxWidth,
-  size = 'md',
+  size = "md",
   icon,
-  variant = 'default',
+  variant = "default",
   closeOnBackdrop = true,
   hideCloseButton = false,
 }) => {
@@ -67,33 +68,33 @@ export const Modal: React.FC<ModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === "Escape") onClose();
     };
-    document.addEventListener('keydown', handleEsc);
+    document.addEventListener("keydown", handleEsc);
     const releaseScroll = acquireScrollLock();
     return () => {
-      document.removeEventListener('keydown', handleEsc);
+      document.removeEventListener("keydown", handleEsc);
       releaseScroll();
     };
   }, [isOpen, onClose]);
 
   if (!rendered) return null;
 
-  const resolvedMaxWidth = maxWidth || SIZE_MAP[size] || '600px';
+  const resolvedMaxWidth = maxWidth || SIZE_MAP[size] || "600px";
   const accentBorder =
-    variant === 'danger'
-      ? 'var(--color-danger-border)'
-      : variant === 'warning'
-      ? 'var(--color-warning-border)'
-      : variant === 'success'
-      ? 'var(--color-success-border)'
-      : variant === 'info'
-      ? 'var(--color-info-border)'
-      : 'var(--border)';
+    variant === "danger"
+      ? "var(--color-danger-border)"
+      : variant === "warning"
+        ? "var(--color-warning-border)"
+        : variant === "success"
+          ? "var(--color-success-border)"
+          : variant === "info"
+            ? "var(--color-info-border)"
+            : "var(--border)";
 
   return (
     <div
-      className={`modal-overlay${closing ? ' is-closing' : ''}`}
+      className={`modal-overlay${closing ? " is-closing" : ""}`}
       onClick={() => {
         if (closeOnBackdrop) onClose();
       }}
@@ -102,21 +103,31 @@ export const Modal: React.FC<ModalProps> = ({
       aria-label={title}
     >
       <div
-        className={`modal-content${closing ? ' is-closing' : ''}`}
+        className={`modal-content${closing ? " is-closing" : ""}`}
         style={{ maxWidth: resolvedMaxWidth, borderColor: accentBorder }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem', minWidth: 0 }}>
+          <div className="flex items-start min-w-0" style={{ gap: "0.65rem" }}>
             {icon && (
-              <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', marginTop: '0.05rem' }}>
+              <div
+                className="flex-shrink-0 flex items-center"
+                style={{ marginTop: "0.05rem" }}
+              >
                 {icon}
               </div>
             )}
-            <div style={{ minWidth: 0 }}>
+            <div className="min-w-0">
               <h3 className="modal-title">{title}</h3>
               {subtitle && (
-                <p style={{ margin: '0.15rem 0 0', fontSize: '0.73rem', color: 'var(--text-secondary)', lineHeight: 1.35 }}>
+                <p
+                  className="text-secondary"
+                  style={{
+                    margin: "0.15rem 0 0",
+                    fontSize: "0.73rem",
+                    lineHeight: 1.35,
+                  }}
+                >
                   {subtitle}
                 </p>
               )}
@@ -127,27 +138,7 @@ export const Modal: React.FC<ModalProps> = ({
               type="button"
               onClick={onClose}
               aria-label="Close modal"
-              style={{
-                background: 'transparent',
-                border: '1px solid transparent',
-                color: 'var(--text-muted)',
-                cursor: 'pointer',
-                padding: '0.3rem',
-                borderRadius: 'var(--radius-sm)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'background-color 0.15s ease, color 0.15s ease',
-                flexShrink: 0,
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = 'var(--text-primary)';
-                e.currentTarget.style.backgroundColor = 'var(--bg-surface-elevated)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = 'var(--text-muted)';
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }}
+              className="modal-close-btn"
             >
               <X size={15} />
             </button>

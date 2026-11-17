@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Sliders,
   CheckCircle2,
@@ -15,26 +15,30 @@ import {
   Clock,
   User,
   Tag,
-} from 'lucide-react';
-import { adminApi } from '../../lib/api/client';
-import { FeatureFlagItem } from '../../lib/api/types';
-import { Button } from '../../components/common/Button';
-import { Drawer } from '../../components/common/Drawer';
+} from "lucide-react";
+import { adminApi } from "../../lib/api/client";
+import { FeatureFlagItem } from "../../lib/api/types";
+import { Button } from "../../components/common/Button";
+import { Drawer } from "../../components/common/Drawer";
+import { Form } from "../../components/common/Form";
 
 export default function FeatureFlagsPage() {
   const [flags, setFlags] = useState<FeatureFlagItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [togglingKey, setTogglingKey] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
-  const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("ALL");
+  const [alert, setAlert] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
 
   // Create Flag Drawer State
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [newKey, setNewKey] = useState('');
-  const [newName, setNewName] = useState('');
-  const [newDescription, setNewDescription] = useState('');
-  const [newCategory, setNewCategory] = useState('PAYMENTS');
+  const [newKey, setNewKey] = useState("");
+  const [newName, setNewName] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [newCategory, setNewCategory] = useState("PAYMENTS");
   const [newIsEnabled, setNewIsEnabled] = useState(true);
   const [creating, setCreating] = useState(false);
 
@@ -45,7 +49,10 @@ export default function FeatureFlagsPage() {
       const data = await adminApi.getFeatureFlags();
       setFlags(data || []);
     } catch (err: any) {
-      setAlert({ type: 'error', message: err.message || 'Failed to load feature flags' });
+      setAlert({
+        type: "error",
+        message: err.message || "Failed to load feature flags",
+      });
     } finally {
       setLoading(false);
     }
@@ -61,12 +68,13 @@ export default function FeatureFlagsPage() {
     flags.forEach((f) => {
       if (f.category) set.add(f.category);
     });
-    return ['ALL', ...Array.from(set)];
+    return ["ALL", ...Array.from(set)];
   }, [flags]);
 
   const filteredFlags = useMemo(() => {
     return flags.filter((f) => {
-      const matchesCategory = selectedCategory === 'ALL' || f.category === selectedCategory;
+      const matchesCategory =
+        selectedCategory === "ALL" || f.category === selectedCategory;
       const q = searchQuery.toLowerCase().trim();
       const matchesSearch =
         !q ||
@@ -88,22 +96,35 @@ export default function FeatureFlagsPage() {
 
     // Optimistic UI update
     setFlags((prev) =>
-      prev.map((f) => (f.key === flag.key ? { ...f, isEnabled: targetState, updatedAt: new Date().toISOString() } : f)),
+      prev.map((f) =>
+        f.key === flag.key
+          ? {
+              ...f,
+              isEnabled: targetState,
+              updatedAt: new Date().toISOString(),
+            }
+          : f,
+      ),
     );
 
     try {
       const updated = await adminApi.toggleFeatureFlag(flag.key, targetState);
       setFlags((prev) => prev.map((f) => (f.key === flag.key ? updated : f)));
       setAlert({
-        type: 'success',
-        message: `Feature flag "${flag.name}" is now ${targetState ? 'ENABLED' : 'DISABLED'}. Changes take effect across Mobile & Web in real time.`,
+        type: "success",
+        message: `Feature flag "${flag.name}" is now ${targetState ? "ENABLED" : "DISABLED"}. Changes take effect across Mobile & Web in real time.`,
       });
     } catch (err: any) {
       // Revert optimistic update on failure
       setFlags((prev) =>
-        prev.map((f) => (f.key === flag.key ? { ...f, isEnabled: flag.isEnabled } : f)),
+        prev.map((f) =>
+          f.key === flag.key ? { ...f, isEnabled: flag.isEnabled } : f,
+        ),
       );
-      setAlert({ type: 'error', message: err.message || `Failed to update ${flag.key}` });
+      setAlert({
+        type: "error",
+        message: err.message || `Failed to update ${flag.key}`,
+      });
     } finally {
       setTogglingKey(null);
     }
@@ -113,7 +134,7 @@ export default function FeatureFlagsPage() {
   const handleCreateFlag = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newKey.trim() || !newName.trim()) {
-      setAlert({ type: 'error', message: 'Key and Name are required.' });
+      setAlert({ type: "error", message: "Key and Name are required." });
       return;
     }
 
@@ -127,48 +148,60 @@ export default function FeatureFlagsPage() {
         isEnabled: newIsEnabled,
       });
 
-      setFlags((prev) => [created, ...prev.filter((f) => f.key !== created.key)]);
+      setFlags((prev) => [
+        created,
+        ...prev.filter((f) => f.key !== created.key),
+      ]);
       setIsCreateOpen(false);
-      setNewKey('');
-      setNewName('');
-      setNewDescription('');
+      setNewKey("");
+      setNewName("");
+      setNewDescription("");
       setNewIsEnabled(true);
       setAlert({
-        type: 'success',
-        message: `Feature flag "${created.name}" created successfully and initialized to ${created.isEnabled ? 'ENABLED' : 'DISABLED'}.`,
+        type: "success",
+        message: `Feature flag "${created.name}" created successfully and initialized to ${created.isEnabled ? "ENABLED" : "DISABLED"}.`,
       });
     } catch (err: any) {
-      setAlert({ type: 'error', message: err.message || 'Failed to create feature flag' });
+      setAlert({
+        type: "error",
+        message: err.message || "Failed to create feature flag",
+      });
     } finally {
       setCreating(false);
     }
   };
 
   return (
-    <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div
+      className="my-0 mx-auto p-6 flex flex-col gap-6"
+      style={{ maxWidth: "1280px" }}
+    >
       {/* Alert Banner */}
       {alert && (
         <div
+          className="flex items-center justify-between rounded-md text-md font-medium"
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '0.85rem 1.15rem',
-            borderRadius: 'var(--radius-md)',
-            background: alert.type === 'success' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-            border: `1px solid ${alert.type === 'success' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
-            color: alert.type === 'success' ? '#10B981' : '#EF4444',
-            fontSize: '0.875rem',
-            fontWeight: 500,
+            padding: "0.85rem 1.15rem",
+            background:
+              alert.type === "success"
+                ? "rgba(16, 185, 129, 0.12)"
+                : "rgba(239, 68, 68, 0.12)",
+            border: `1px solid ${alert.type === "success" ? "rgba(16, 185, 129, 0.3)" : "rgba(239, 68, 68, 0.3)"}`,
+            color: alert.type === "success" ? "#10B981" : "#EF4444",
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            {alert.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+          <div className="flex items-center gap-medium">
+            {alert.type === "success" ? (
+              <CheckCircle2 size={18} />
+            ) : (
+              <AlertCircle size={18} />
+            )}
             <span>{alert.message}</span>
           </div>
           <button
             onClick={() => setAlert(null)}
-            style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', fontWeight: 700 }}
+            className="bg-transparent border-0 cursor-pointer font-bold"
+            style={{ color: "inherit" }}
           >
             ×
           </button>
@@ -176,125 +209,197 @@ export default function FeatureFlagsPage() {
       )}
 
       {/* Page Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+      <div className="flex justify-between items-start flex-wrap gap-4">
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+          <div className="flex items-center" style={{ gap: "0.65rem" }}>
             <div
+              className="rounded-md flex items-center justify-center"
               style={{
-                width: '38px',
-                height: '38px',
-                borderRadius: 'var(--radius-md)',
-                background: 'linear-gradient(135deg, #6366F1, #8B5CF6)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#fff',
-                boxShadow: '0 4px 12px rgba(99, 102, 241, 0.25)',
+                width: "38px",
+                height: "38px",
+                background: "linear-gradient(135deg, var(--brand-indigo-bright), var(--brand-violet))",
+                color: "#fff",
+                boxShadow: "0 4px 12px rgba(var(--brand-indigo-rgb), 0.25)",
               }}
             >
               <Sliders size={20} />
             </div>
             <div>
-              <h1 style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+              <h1
+                className="font-extrabold text-primary m-0"
+                style={{ fontSize: "1.45rem" }}
+              >
                 Feature Flags & Platform Controls
               </h1>
-              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: '0.2rem 0 0 0' }}>
-                Control live client features, vendor wallet accessibility, web/mobile gating, and operational rollouts in real time.
+              <p
+                className="text-secondary text-body-md"
+                style={{ margin: "0.2rem 0 0 0" }}
+              >
+                Control live client features, vendor wallet accessibility,
+                web/mobile gating, and operational rollouts in real time.
               </p>
             </div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-          <Button variant="secondary" size="sm" onClick={loadFlags} isLoading={loading}>
-            <RefreshCw size={14} style={{ marginRight: '0.35rem' }} /> Refresh
+        <div className="flex gap-3 items-center">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={loadFlags}
+            isLoading={loading}
+          >
+            <RefreshCw size={14} style={{ marginRight: "0.35rem" }} /> Refresh
           </Button>
-          <Button variant="primary" size="sm" onClick={() => setIsCreateOpen(true)}>
-            <Plus size={15} style={{ marginRight: '0.35rem' }} /> Add Feature Flag
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setIsCreateOpen(true)}
+          >
+            <Plus size={15} style={{ marginRight: "0.35rem" }} /> Add Feature
+            Flag
           </Button>
         </div>
       </div>
 
       {/* KPI Overview Strip */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
-        <div style={{ background: 'var(--bg-card)', padding: '1rem 1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ width: '42px', height: '42px', borderRadius: 'var(--radius-sm)', background: 'rgba(99, 102, 241, 0.1)', color: '#6366F1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div
+        className="grid gap-4"
+        style={{ gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}
+      >
+        <div className="bg-card py-4 px-5 rounded-md border flex items-center gap-4">
+          <div
+            className="rounded-sm flex items-center justify-center"
+            style={{
+              width: "42px",
+              height: "42px",
+              background: "rgba(var(--brand-indigo-rgb), 0.1)",
+              color: "var(--brand-indigo-bright-text)",
+            }}
+          >
             <Layers size={22} />
           </div>
           <div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Total Configured Flags</div>
-            <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)' }}>{totalCount}</div>
+            <div className="text-sm text-muted font-semibold uppercase">
+              Total Configured Flags
+            </div>
+            <div className="text-2xl font-extrabold text-primary">
+              {totalCount}
+            </div>
           </div>
         </div>
 
-        <div style={{ background: 'var(--bg-card)', padding: '1rem 1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ width: '42px', height: '42px', borderRadius: 'var(--radius-sm)', background: 'rgba(16, 185, 129, 0.1)', color: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="bg-card py-4 px-5 rounded-md border flex items-center gap-4">
+          <div
+            className="rounded-sm flex items-center justify-center"
+            style={{
+              width: "42px",
+              height: "42px",
+              background: "rgba(16, 185, 129, 0.1)",
+              color: "#10B981",
+            }}
+          >
             <CheckCircle2 size={22} />
           </div>
           <div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Active (Enabled)</div>
-            <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#10B981' }}>{activeCount}</div>
+            <div className="text-sm text-muted font-semibold uppercase">
+              Active (Enabled)
+            </div>
+            <div
+              className="text-2xl font-extrabold"
+              style={{ color: "#10B981" }}
+            >
+              {activeCount}
+            </div>
           </div>
         </div>
 
-        <div style={{ background: 'var(--bg-card)', padding: '1rem 1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ width: '42px', height: '42px', borderRadius: 'var(--radius-sm)', background: 'rgba(239, 68, 68, 0.1)', color: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="bg-card py-4 px-5 rounded-md border flex items-center gap-4">
+          <div
+            className="rounded-sm flex items-center justify-center"
+            style={{
+              width: "42px",
+              height: "42px",
+              background: "rgba(239, 68, 68, 0.1)",
+              color: "#EF4444",
+            }}
+          >
             <XCircle size={22} />
           </div>
           <div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Disabled (Gated)</div>
-            <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#EF4444' }}>{totalCount - activeCount}</div>
+            <div className="text-sm text-muted font-semibold uppercase">
+              Disabled (Gated)
+            </div>
+            <div
+              className="text-2xl font-extrabold"
+              style={{ color: "#EF4444" }}
+            >
+              {totalCount - activeCount}
+            </div>
           </div>
         </div>
 
-        <div style={{ background: 'var(--bg-card)', padding: '1rem 1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ width: '42px', height: '42px', borderRadius: 'var(--radius-sm)', background: 'rgba(245, 158, 11, 0.1)', color: '#F59E0B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="bg-card py-4 px-5 rounded-md border flex items-center gap-4">
+          <div
+            className="rounded-sm flex items-center justify-center"
+            style={{
+              width: "42px",
+              height: "42px",
+              background: "rgba(245, 158, 11, 0.1)",
+              color: "#F59E0B",
+            }}
+          >
             <Sparkles size={22} />
           </div>
           <div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Sync Engine</div>
-            <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-primary)' }}>Live API & Mobile Sync</div>
+            <div className="text-sm text-muted font-semibold uppercase">
+              Sync Engine
+            </div>
+            <div className="font-extrabold text-primary text-body">
+              Live API & Mobile Sync
+            </div>
           </div>
         </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', background: 'var(--bg-card)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: '240px' }}>
+      <div className="flex justify-between items-center flex-wrap gap-3 bg-card py-3 px-4 rounded-md border">
+        <div
+          className="flex items-center gap-2 flex-1"
+          style={{ minWidth: "240px" }}
+        >
           <Search size={16} color="var(--text-muted)" />
           <input
             type="text"
             placeholder="Search feature flags by name, key, or description..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              width: '100%',
-              background: 'transparent',
-              border: 'none',
-              outline: 'none',
-              color: 'var(--text-primary)',
-              fontSize: '0.85rem',
-            }}
+            className="w-full bg-transparent border-0 text-primary text-body"
+            style={{ outline: "none" }}
           />
         </div>
 
-        <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+        <div className="flex flex-wrap gap-tight">
           {categories.map((cat) => (
             <button
               key={cat}
               type="button"
               onClick={() => setSelectedCategory(cat)}
+              className="rounded-sm text-sm font-semibold cursor-pointer"
               style={{
-                padding: '0.35rem 0.75rem',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid',
-                borderColor: selectedCategory === cat ? 'var(--brand-primary)' : 'var(--border)',
-                background: selectedCategory === cat ? 'var(--brand-primary)' : 'transparent',
-                color: selectedCategory === cat ? '#fff' : 'var(--text-secondary)',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
+                padding: "0.35rem 0.75rem",
+                border: "1px solid",
+                borderColor:
+                  selectedCategory === cat
+                    ? "var(--border-focus)"
+                    : "var(--border)",
+                background:
+                  selectedCategory === cat
+                    ? "var(--brand-primary)"
+                    : "transparent",
+                color:
+                  selectedCategory === cat ? "#fff" : "var(--text-secondary)",
+                transition: "all 0.15s ease",
               }}
             >
               {cat}
@@ -304,93 +409,118 @@ export default function FeatureFlagsPage() {
       </div>
 
       {/* Feature Flags Cards Grid */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <div className="flex flex-col gap-4">
         {filteredFlags.map((flag) => {
           const isToggling = togglingKey === flag.key;
-          const isVendorWallet = flag.key === 'vendor_wallet';
+          const isVendorWallet = flag.key === "vendor_wallet";
 
           return (
             <div
               key={flag.id || flag.key}
+              className="bg-card rounded-md p-5 flex justify-between items-center gap-6 flex-wrap"
               style={{
-                background: 'var(--bg-card)',
-                borderRadius: 'var(--radius-md)',
-                border: `1px solid ${flag.isEnabled ? 'rgba(99, 102, 241, 0.3)' : 'var(--border)'}`,
-                boxShadow: flag.isEnabled ? '0 4px 20px rgba(99, 102, 241, 0.06)' : 'none',
-                padding: '1.25rem',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                gap: '1.5rem',
-                flexWrap: 'wrap',
-                transition: 'all 0.2s ease',
+                border: `1px solid ${flag.isEnabled ? "rgba(var(--brand-indigo-rgb), 0.3)" : "var(--border)"}`,
+                boxShadow: flag.isEnabled
+                  ? "0 4px 20px rgba(var(--brand-indigo-rgb), 0.06)"
+                  : "none",
+                transition: "all 0.2s ease",
               }}
             >
               {/* Flag Info */}
-              <div style={{ flex: 1, minWidth: '280px', display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+              <div
+                className="feature-flag-info flex-1 flex flex-col gap-snug"
+                style={{ minWidth: "280px" }}
+              >
+                <div className="flex items-center flex-wrap gap-medium">
                   {isVendorWallet ? (
-                    <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: 'rgba(99, 102, 241, 0.15)', color: '#6366F1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div
+                      className="flex items-center justify-center"
+                      style={{
+                        width: "28px",
+                        height: "28px",
+                        borderRadius: "6px",
+                        background: "rgba(var(--brand-indigo-rgb), 0.15)",
+                        color: "var(--brand-indigo-bright-text)",
+                      }}
+                    >
                       <Wallet size={16} />
                     </div>
                   ) : (
-                    <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: 'rgba(16, 185, 129, 0.15)', color: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div
+                      className="flex items-center justify-center"
+                      style={{
+                        width: "28px",
+                        height: "28px",
+                        borderRadius: "6px",
+                        background: "rgba(16, 185, 129, 0.15)",
+                        color: "#10B981",
+                      }}
+                    >
                       <Tag size={16} />
                     </div>
                   )}
 
-                  <span style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                  <span className="font-extrabold text-primary text-title-sm">
                     {flag.name}
                   </span>
 
                   <code
-                    style={{
-                      fontSize: '0.72rem',
-                      padding: '0.15rem 0.45rem',
-                      borderRadius: 'var(--radius-xs)',
-                      background: 'var(--bg-surface-elevated)',
-                      border: '1px solid var(--border)',
-                      color: 'var(--text-secondary)',
-                      fontFamily: 'monospace',
-                    }}
+                    className="rounded-xs bg-surface-elevated border text-secondary text-mono text-label"
+                    style={{ padding: "0.15rem 0.45rem" }}
                   >
                     {flag.key}
                   </code>
 
                   <span
+                    className="font-bold uppercase text-micro"
                     style={{
-                      fontSize: '0.68rem',
-                      fontWeight: 700,
-                      padding: '0.15rem 0.5rem',
-                      borderRadius: '999px',
-                      background: flag.category === 'PAYMENTS' ? 'rgba(99, 102, 241, 0.12)' : 'rgba(16, 185, 129, 0.12)',
-                      color: flag.category === 'PAYMENTS' ? '#6366F1' : '#10B981',
-                      border: `1px solid ${flag.category === 'PAYMENTS' ? 'rgba(99, 102, 241, 0.25)' : 'rgba(16, 185, 129, 0.25)'}`,
-                      textTransform: 'uppercase',
+                      padding: "0.15rem 0.5rem",
+                      borderRadius: "999px",
+                      background:
+                        flag.category === "PAYMENTS"
+                          ? "rgba(var(--brand-indigo-rgb), 0.12)"
+                          : "rgba(16, 185, 129, 0.12)",
+                      color:
+                        flag.category === "PAYMENTS" ? "var(--brand-indigo-bright-text)" : "#10B981",
+                      border: `1px solid ${flag.category === "PAYMENTS" ? "rgba(var(--brand-indigo-rgb), 0.25)" : "rgba(16, 185, 129, 0.25)"}`,
                     }}
                   >
                     {flag.category}
                   </span>
                 </div>
 
-                <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                  {flag.description || 'No description provided.'}
+                <div
+                  className="text-secondary text-body-md"
+                  style={{ lineHeight: 1.5 }}
+                >
+                  {flag.description || "No description provided."}
                 </div>
 
                 {/* Audit & Timing Pills */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginTop: '0.35rem', fontSize: '0.72rem', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
+                <div className="flex items-center text-muted flex-wrap gap-relaxed mt-tight text-label">
                   {flag.updatedBy && (
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                      <User size={12} /> Updated by: <strong>{flag.updatedBy}</strong>
+                    <span
+                      className="flex items-center"
+                      style={{ gap: "0.3rem" }}
+                    >
+                      <User size={12} /> Updated by:{" "}
+                      <strong>{flag.updatedBy}</strong>
                     </span>
                   )}
                   {flag.updatedAt && (
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                      <Clock size={12} /> {new Date(flag.updatedAt).toLocaleString()}
+                    <span
+                      className="flex items-center"
+                      style={{ gap: "0.3rem" }}
+                    >
+                      <Clock size={12} />{" "}
+                      {new Date(flag.updatedAt).toLocaleString()}
                     </span>
                   )}
                   {isVendorWallet && (
-                    <span style={{ color: '#818CF8', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <span
+                      className="font-semibold flex items-center gap-1"
+                      style={{ color: "var(--brand-lavender-light)" }}
+                    >
                       ⚡ Controls: Mobile App & Web Vendor Portal
                     </span>
                   )}
@@ -398,21 +528,21 @@ export default function FeatureFlagsPage() {
               </div>
 
               {/* Toggle Switch */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <div style={{ textAlign: 'right' }}>
+              <div className="flex items-center gap-4">
+                <div className="text-right">
                   <div
+                    className="text-sm font-extrabold uppercase"
                     style={{
-                      fontSize: '0.75rem',
-                      fontWeight: 800,
-                      color: flag.isEnabled ? '#10B981' : '#EF4444',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.04em',
+                      color: flag.isEnabled ? "#10B981" : "#EF4444",
+                      letterSpacing: "0.04em",
                     }}
                   >
-                    {flag.isEnabled ? 'Active (Live)' : 'Disabled'}
+                    {flag.isEnabled ? "Active (Live)" : "Disabled"}
                   </div>
-                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                    {flag.isEnabled ? 'Visible in Vendor app' : 'Hidden from Vendor app'}
+                  <div className="text-muted text-micro">
+                    {flag.isEnabled
+                      ? "Visible in Vendor app"
+                      : "Hidden from Vendor app"}
                   </div>
                 </div>
 
@@ -420,36 +550,41 @@ export default function FeatureFlagsPage() {
                   type="button"
                   disabled={isToggling}
                   onClick={() => handleToggle(flag)}
+                  className="relative border-0"
                   style={{
-                    position: 'relative',
-                    width: '56px',
-                    height: '30px',
-                    borderRadius: '15px',
-                    background: flag.isEnabled ? '#10B981' : 'var(--border)',
-                    border: 'none',
-                    cursor: isToggling ? 'wait' : 'pointer',
-                    transition: 'background 0.25s ease',
-                    padding: '2px',
-                    outline: 'none',
-                    boxShadow: flag.isEnabled ? '0 2px 8px rgba(16, 185, 129, 0.35)' : 'none',
+                    width: "56px",
+                    height: "30px",
+                    borderRadius: "15px",
+                    background: flag.isEnabled ? "#10B981" : "var(--border)",
+                    cursor: isToggling ? "wait" : "pointer",
+                    transition: "background 0.25s ease",
+                    padding: "2px",
+                    outline: "none",
+                    boxShadow: flag.isEnabled
+                      ? "0 2px 8px rgba(16, 185, 129, 0.35)"
+                      : "none",
                   }}
                 >
                   <div
+                    className="rounded-full flex items-center justify-center"
                     style={{
-                      width: '26px',
-                      height: '26px',
-                      borderRadius: '50%',
-                      background: '#fff',
-                      transform: flag.isEnabled ? 'translateX(26px)' : 'translateX(0px)',
-                      transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
+                      width: "26px",
+                      height: "26px",
+                      background: "#fff",
+                      transform: flag.isEnabled
+                        ? "translateX(26px)"
+                        : "translateX(0px)",
+                      transition:
+                        "transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+                      boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
                     }}
                   >
                     {isToggling ? (
-                      <RefreshCw size={12} color="#6366F1" className="animate-spin" />
+                      <RefreshCw
+                        size={12}
+                        color="var(--brand-indigo-bright-text)"
+                        className="animate-spin"
+                      />
                     ) : flag.isEnabled ? (
                       <CheckCircle2 size={13} color="#10B981" />
                     ) : (
@@ -464,18 +599,22 @@ export default function FeatureFlagsPage() {
 
         {filteredFlags.length === 0 && !loading && (
           <div
-            style={{
-              padding: '3rem',
-              textAlign: 'center',
-              background: 'var(--bg-card)',
-              borderRadius: 'var(--radius-md)',
-              border: '1px dashed var(--border)',
-              color: 'var(--text-muted)',
-            }}
+            className="p-12 text-center bg-card rounded-md text-muted"
+            style={{ border: "1px dashed var(--border)" }}
           >
-            <Sliders size={32} style={{ margin: '0 auto 0.75rem auto', opacity: 0.5 }} />
-            <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)' }}>No Feature Flags Found</div>
-            <div style={{ fontSize: '0.8rem', marginTop: '0.25rem' }}>Try adjusting your search criteria or create a new feature flag.</div>
+            <Sliders
+              size={32}
+              style={{ margin: "0 auto 0.75rem auto", opacity: 0.5 }}
+            />
+            <div
+              className="font-bold text-primary"
+              style={{ fontSize: "0.95rem" }}
+            >
+              No Feature Flags Found
+            </div>
+            <div className="mt-1 text-body-sm">
+              Try adjusting your search criteria or create a new feature flag.
+            </div>
           </div>
         )}
       </div>
@@ -488,47 +627,53 @@ export default function FeatureFlagsPage() {
         subtitle="Create an authoritative dynamic toggle persisted in PostgreSQL."
         width="min(94vw, 500px)"
         footer={
-          <div style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'flex-end' }}>
-            <Button variant="secondary" size="sm" onClick={() => setIsCreateOpen(false)}>
+          <div className="flex gap-3 w-full justify-end">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setIsCreateOpen(false)}
+            >
               Cancel
             </Button>
-            <Button variant="primary" size="sm" isLoading={creating} onClick={handleCreateFlag}>
+            <Button
+              variant="primary"
+              size="sm"
+              isLoading={creating}
+              onClick={handleCreateFlag}
+            >
               Create Flag
             </Button>
           </div>
         }
       >
-        <form onSubmit={handleCreateFlag} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <Form
+          onSubmit={handleCreateFlag}
+          style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}
+        >
           <div>
-            <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
-              Unique Flag Key <span style={{ color: '#EF4444' }}>*</span>
+            <label className="text-sm font-bold text-secondary">
+              Unique Flag Key <span style={{ color: "#EF4444" }}>*</span>
             </label>
             <input
               type="text"
               placeholder="e.g. corporate_auto_dispatch"
               value={newKey}
-              onChange={(e) => setNewKey(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))}
+              onChange={(e) =>
+                setNewKey(
+                  e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""),
+                )
+              }
               required
-              style={{
-                width: '100%',
-                marginTop: '0.35rem',
-                padding: '0.5rem 0.75rem',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border)',
-                background: 'var(--bg-card)',
-                color: 'var(--text-primary)',
-                fontSize: '0.85rem',
-                fontFamily: 'monospace',
-              }}
+              className="w-full py-2 px-3 rounded-sm border bg-card text-primary text-mono mt-tight text-body"
             />
-            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+            <div className="text-muted mt-1 text-micro">
               Lowercase alphanumeric, hyphens, and underscores only.
             </div>
           </div>
 
           <div>
-            <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
-              Display Name <span style={{ color: '#EF4444' }}>*</span>
+            <label className="text-sm font-bold text-secondary">
+              Display Name <span style={{ color: "#EF4444" }}>*</span>
             </label>
             <input
               type="text"
@@ -536,34 +681,16 @@ export default function FeatureFlagsPage() {
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               required
-              style={{
-                width: '100%',
-                marginTop: '0.35rem',
-                padding: '0.5rem 0.75rem',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border)',
-                background: 'var(--bg-card)',
-                color: 'var(--text-primary)',
-                fontSize: '0.85rem',
-              }}
+              className="w-full py-2 px-3 rounded-sm border bg-card text-primary mt-tight text-body"
             />
           </div>
 
           <div>
-            <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Category</label>
+            <label className="text-sm font-bold text-secondary">Category</label>
             <select
               value={newCategory}
               onChange={(e) => setNewCategory(e.target.value)}
-              style={{
-                width: '100%',
-                marginTop: '0.35rem',
-                padding: '0.5rem 0.75rem',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border)',
-                background: 'var(--bg-card)',
-                color: 'var(--text-primary)',
-                fontSize: '0.85rem',
-              }}
+              className="w-full py-2 px-3 rounded-sm border bg-card text-primary mt-tight text-body"
             >
               <option value="PAYMENTS">PAYMENTS</option>
               <option value="FLEET">FLEET</option>
@@ -575,47 +702,51 @@ export default function FeatureFlagsPage() {
           </div>
 
           <div>
-            <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Description</label>
+            <label className="text-sm font-bold text-secondary">
+              Description
+            </label>
             <textarea
               rows={3}
               placeholder="Explain what this feature flag controls and its operational impact..."
               value={newDescription}
               onChange={(e) => setNewDescription(e.target.value)}
-              style={{
-                width: '100%',
-                marginTop: '0.35rem',
-                padding: '0.5rem 0.75rem',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border)',
-                background: 'var(--bg-card)',
-                color: 'var(--text-primary)',
-                fontSize: '0.85rem',
-                resize: 'vertical',
-              }}
+              className="w-full py-2 px-3 rounded-sm border bg-card text-primary mt-tight text-body"
+              style={{ resize: "vertical" }}
             />
           </div>
 
-          <div style={{ background: 'var(--bg-surface-elevated)', padding: '0.85rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div
+            className="bg-surface-elevated rounded-sm border flex justify-between items-center"
+            style={{ padding: "0.85rem" }}
+          >
             <div>
-              <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>Initial State</div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                {newIsEnabled ? 'Enabled immediately across all apps upon creation' : 'Disabled initially upon creation'}
+              <div className="font-bold text-primary text-body-md">
+                Initial State
+              </div>
+              <div className="text-muted text-label">
+                {newIsEnabled
+                  ? "Enabled immediately across all apps upon creation"
+                  : "Disabled initially upon creation"}
               </div>
             </div>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', cursor: 'pointer' }}>
+            <label className="flex items-center cursor-pointer gap-snug">
               <input
                 type="checkbox"
                 checked={newIsEnabled}
                 onChange={(e) => setNewIsEnabled(e.target.checked)}
               />
-              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: newIsEnabled ? '#10B981' : 'var(--text-secondary)' }}>
-                {newIsEnabled ? 'Enabled' : 'Disabled'}
+              <span
+                className="font-semibold text-body-sm"
+                style={{
+                  color: newIsEnabled ? "#10B981" : "var(--text-secondary)",
+                }}
+              >
+                {newIsEnabled ? "Enabled" : "Disabled"}
               </span>
             </label>
           </div>
-        </form>
+        </Form>
       </Drawer>
     </div>
   );
 }
-

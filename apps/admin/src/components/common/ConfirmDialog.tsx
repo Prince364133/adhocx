@@ -1,11 +1,12 @@
-'use client';
+"use client";
 
-import React, { useEffect, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Info, ShieldAlert } from 'lucide-react';
-import { Modal } from '../Modal';
-import { Button } from './Button';
+import React, { useEffect, useState } from "react";
+import { AlertTriangle, CheckCircle2, Info, ShieldAlert } from "lucide-react";
+import { Modal } from "../Modal";
+import { Button } from "./Button";
 
-export type ConfirmDialogVariant = 'confirm' | 'danger' | 'warning' | 'success' | 'info';
+export type ConfirmDialogVariant =
+  "confirm" | "danger" | "warning" | "success" | "info";
 
 export interface ConfirmDialogProps {
   isOpen: boolean;
@@ -36,19 +37,19 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   subtitle,
   description,
   details,
-  confirmLabel = 'Confirm',
-  cancelLabel = 'Cancel',
-  variant = 'confirm',
+  confirmLabel = "Confirm",
+  cancelLabel = "Cancel",
+  variant = "confirm",
   isLoading = false,
   requireReason = false,
-  reasonLabel = 'Administrative Reason',
-  reasonPlaceholder = 'Provide clear audit justification...',
+  reasonLabel = "Administrative Reason",
+  reasonPlaceholder = "Provide clear audit justification...",
   minReasonLength = 0,
   reasonValue,
   onReasonChange,
   hideCancel = false,
 }) => {
-  const [internalReason, setInternalReason] = useState('');
+  const [internalReason, setInternalReason] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const controlled = reasonValue !== undefined && onReasonChange !== undefined;
@@ -62,7 +63,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   useEffect(() => {
     if (isOpen) {
       setValidationError(null);
-      if (!controlled) setInternalReason('');
+      if (!controlled) setInternalReason("");
     }
   }, [isOpen, controlled]);
 
@@ -72,44 +73,44 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       icon: React.ReactNode;
       iconBg: string;
       iconColor: string;
-      modalVariant: 'default' | 'danger' | 'warning' | 'success' | 'info';
-      btnVariant: 'primary' | 'danger' | 'success';
+      modalVariant: "default" | "danger" | "warning" | "success" | "info";
+      btnVariant: "primary" | "danger" | "success";
     }
   > = {
     confirm: {
       icon: <Info size={18} />,
-      iconBg: 'var(--brand-primary-subtle)',
-      iconColor: 'var(--brand-primary)',
-      modalVariant: 'default',
-      btnVariant: 'primary',
+      iconBg: "var(--brand-primary-subtle)",
+      iconColor: "var(--text-brand)",
+      modalVariant: "default",
+      btnVariant: "primary",
     },
     danger: {
       icon: <ShieldAlert size={18} />,
-      iconBg: 'var(--color-danger-bg)',
-      iconColor: 'var(--color-danger)',
-      modalVariant: 'danger',
-      btnVariant: 'danger',
+      iconBg: "var(--color-danger-bg)",
+      iconColor: "var(--color-danger)",
+      modalVariant: "danger",
+      btnVariant: "danger",
     },
     warning: {
       icon: <AlertTriangle size={18} />,
-      iconBg: 'var(--color-warning-bg)',
-      iconColor: 'var(--color-warning)',
-      modalVariant: 'warning',
-      btnVariant: 'primary',
+      iconBg: "var(--color-warning-bg)",
+      iconColor: "var(--color-warning)",
+      modalVariant: "warning",
+      btnVariant: "primary",
     },
     success: {
       icon: <CheckCircle2 size={18} />,
-      iconBg: 'var(--color-success-bg)',
-      iconColor: 'var(--color-success)',
-      modalVariant: 'success',
-      btnVariant: 'success',
+      iconBg: "var(--color-success-bg)",
+      iconColor: "var(--color-success)",
+      modalVariant: "success",
+      btnVariant: "success",
     },
     info: {
       icon: <Info size={18} />,
-      iconBg: 'var(--color-info-bg)',
-      iconColor: 'var(--color-info)',
-      modalVariant: 'info',
-      btnVariant: 'primary',
+      iconBg: "var(--color-info-bg)",
+      iconColor: "var(--color-info)",
+      modalVariant: "info",
+      btnVariant: "primary",
     },
   };
 
@@ -123,7 +124,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
         setValidationError(
           needed > 1
             ? `Please enter at least ${needed} characters.`
-            : 'Please provide a reason before proceeding.'
+            : "Please provide a reason before proceeding.",
         );
         return;
       }
@@ -148,15 +149,12 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       hideCloseButton={isLoading}
       icon={
         <div
+          className="rounded-md inline-flex items-center justify-center"
           style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: 'var(--radius-md)',
+            width: "32px",
+            height: "32px",
             background: cfg.iconBg,
             color: cfg.iconColor,
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
           }}
         >
           {cfg.icon}
@@ -165,7 +163,12 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       footer={
         <>
           {!hideCancel && (
-            <Button variant="secondary" size="md" onClick={onClose} disabled={isLoading}>
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={onClose}
+              disabled={isLoading}
+            >
               {cancelLabel}
             </Button>
           )}
@@ -180,30 +183,27 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
         </>
       }
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-        <div style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+      <div className="flex flex-col gap-relaxed">
+        <div
+          className="text-body-lg text-secondary"
+          style={{ lineHeight: 1.5 }}
+        >
           {description}
         </div>
 
         {details && (
           <div
-            style={{
-              padding: '0.7rem 0.85rem',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--bg-card-elevated)',
-              border: '1px solid var(--border)',
-              fontSize: '0.78rem',
-              color: 'var(--text-primary)',
-            }}
+            className="rounded-md bg-card-elevated border text-compact text-primary"
+            style={{ padding: "0.7rem 0.85rem" }}
           >
             {details}
           </div>
         )}
 
         {requireReason && (
-          <div className="form-group" style={{ marginBottom: 0 }}>
+          <div className="form-group mb-0">
             <label className="form-label">
-              {reasonLabel} <span style={{ color: 'var(--color-danger)' }}>*</span>
+              {reasonLabel} <span className="text-danger">*</span>
             </label>
             <textarea
               className="form-textarea"
@@ -215,7 +215,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
               autoFocus
             />
             {validationError && (
-              <div style={{ fontSize: '0.75rem', color: 'var(--color-danger)', fontWeight: 600 }}>
+              <div className="text-sm text-danger font-semibold">
                 {validationError}
               </div>
             )}
@@ -225,4 +225,3 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
     </Modal>
   );
 };
-

@@ -1,0 +1,6 @@
+/**
+ * Centralized Admin Stylesheet Proxy
+ * Resolves to the centralized design system at @/styles/style.css
+ */
+@import '../styles/style.css';
+

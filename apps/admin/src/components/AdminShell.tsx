@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
@@ -11,12 +11,14 @@ import {
   adminApi,
   getStoredAdminToken,
   clearAdminSession,
-} from '../lib/api/client';
-import { Loader2 } from 'lucide-react';
+} from "../lib/api/client";
+import { Loader2 } from "lucide-react";
 
-export const AdminShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AdminShell: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const pathname = usePathname();
-  const isLoginPage = pathname === '/login';
+  const isLoginPage = pathname === "/login";
 
   const [isVerifying, setIsVerifying] = useState(!isLoginPage);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -75,7 +77,9 @@ export const AdminShell: React.FC<{ children: React.ReactNode }> = ({ children }
     const timeout = setTimeout(() => {
       setIsVerifying((prev) => {
         if (prev) {
-          setErrorMessage('Session verification is taking longer than expected. The API server may be restarting or unreachable.');
+          setErrorMessage(
+            "Session verification is taking longer than expected. The API server may be restarting or unreachable.",
+          );
         }
         return prev;
       });
@@ -95,69 +99,50 @@ export const AdminShell: React.FC<{ children: React.ReactNode }> = ({ children }
   if (isVerifying) {
     return (
       <div
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '1.25rem',
-          background: 'var(--bg-base)',
-          color: 'var(--text-primary)',
-          padding: '1.5rem',
-        }}
+        className="flex flex-col items-center justify-center gap-5 bg-base text-primary p-6"
+        style={{ minHeight: "100vh" }}
       >
-        <div style={{ transform: 'scale(1.1)' }}>
+        <div style={{ transform: "scale(1.1)" }}>
           <AdhocxBrandLogo size={44} subtitle="Control Portal" />
         </div>
 
         {!errorMessage ? (
           <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.65rem',
-              padding: '0.6rem 1.2rem',
-              background: 'var(--bg-surface)',
-              borderRadius: 'var(--radius-pill)',
-              border: '1px solid var(--border)',
-              boxShadow: 'var(--shadow-sm)',
-              fontSize: '0.85rem',
-              color: 'var(--text-secondary)',
-              fontWeight: 600,
-            }}
+            className="flex items-center bg-surface rounded-full border shadow-sm text-body text-secondary font-semibold"
+            style={{ gap: "0.65rem", padding: "0.6rem 1.2rem" }}
           >
-            <Loader2 size={16} className="spin-animation" color="var(--brand-primary)" />
+            <Loader2
+              size={16}
+              className="spin-animation"
+              color="var(--text-brand)"
+            />
             <span>Verifying Server Administrative Session...</span>
           </div>
         ) : (
           <div
+            className="text-center bg-surface p-6 border"
             style={{
-              maxWidth: '420px',
-              textAlign: 'center',
-              background: 'var(--bg-surface)',
-              padding: '1.5rem',
-              borderRadius: '12px',
-              border: '1px solid var(--border)',
-              boxShadow: 'var(--shadow-md)',
+              maxWidth: "420px",
+              borderRadius: "12px",
+              boxShadow: "var(--shadow-md)",
             }}
           >
-            <p style={{ margin: '0 0 1rem 0', fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+            <p
+              className="mt-0 mr-0 mb-4 ml-0 text-body-xl text-secondary"
+              style={{ lineHeight: 1.5 }}
+            >
               {errorMessage}
             </p>
-            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+            <div className="flex gap-3 justify-center">
               <button
                 type="button"
                 onClick={handleGoToLogin}
+                className="font-semibold text-body border-0 cursor-pointer"
                 style={{
-                  padding: '0.55rem 1rem',
-                  borderRadius: '8px',
-                  backgroundColor: '#5728B2',
-                  color: '#ffffff',
-                  fontWeight: 600,
-                  fontSize: '0.85rem',
-                  border: 'none',
-                  cursor: 'pointer',
+                  padding: "0.55rem 1rem",
+                  borderRadius: "8px",
+                  backgroundColor: "var(--brand-primary)",
+                  color: "#ffffff",
                 }}
               >
                 Sign In to Admin
@@ -165,16 +150,8 @@ export const AdminShell: React.FC<{ children: React.ReactNode }> = ({ children }
               <button
                 type="button"
                 onClick={retryVerification}
-                style={{
-                  padding: '0.55rem 1rem',
-                  borderRadius: '8px',
-                  backgroundColor: 'transparent',
-                  color: 'var(--text-primary)',
-                  fontWeight: 600,
-                  fontSize: '0.85rem',
-                  border: '1px solid var(--border)',
-                  cursor: 'pointer',
-                }}
+                className="bg-transparent text-primary font-semibold text-body border cursor-pointer"
+                style={{ padding: "0.55rem 1rem", borderRadius: "8px" }}
               >
                 Retry
               </button>

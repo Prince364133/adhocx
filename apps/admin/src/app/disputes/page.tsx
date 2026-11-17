@@ -1,9 +1,16 @@
-'use client';
+"use client";
 
-import React, { useEffect, useState, useMemo } from 'react';
-import { AlertCircle, Search, CheckCircle2, OctagonAlert, Check, X } from 'lucide-react';
-import { adminApi } from '../../lib/api/client';
-import { DisputeListItem } from '../../lib/api/types';
+import React, { useEffect, useState, useMemo } from "react";
+import {
+  AlertCircle,
+  Search,
+  CheckCircle2,
+  OctagonAlert,
+  Check,
+  X,
+} from "lucide-react";
+import { adminApi } from "../../lib/api/client";
+import { DisputeListItem } from "../../lib/api/types";
 import {
   PageHeader,
   KpiStrip,
@@ -14,27 +21,34 @@ import {
   Drawer,
   FeedbackBanner,
   ConfirmDialog,
-} from '../../components/common';
+  Textarea,
+} from "../../components/common";
 
 const STATUS_TABS = [
-  { id: 'ALL', label: 'All Tickets' },
-  { id: 'OPEN', label: 'Open' },
-  { id: 'UNDER_REVIEW', label: 'Under Review' },
-  { id: 'RESOLVED', label: 'Resolved' },
-  { id: 'REJECTED', label: 'Rejected' },
+  { id: "ALL", label: "All Tickets" },
+  { id: "OPEN", label: "Open" },
+  { id: "UNDER_REVIEW", label: "Under Review" },
+  { id: "RESOLVED", label: "Resolved" },
+  { id: "REJECTED", label: "Rejected" },
 ];
 
 export default function DisputesPage() {
-  const [activeTab, setActiveTab] = useState('ALL');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
   const [disputes, setDisputes] = useState<DisputeListItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDispute, setSelectedDispute] = useState<DisputeListItem | null>(null);
-  const [resolutionStatus, setResolutionStatus] = useState<'RESOLVED' | 'REJECTED'>('RESOLVED');
-  const [resolutionText, setResolutionText] = useState('');
+  const [selectedDispute, setSelectedDispute] =
+    useState<DisputeListItem | null>(null);
+  const [resolutionStatus, setResolutionStatus] = useState<
+    "RESOLVED" | "REJECTED"
+  >("RESOLVED");
+  const [resolutionText, setResolutionText] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [confirmResolveOpen, setConfirmResolveOpen] = useState(false);
-  const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [alert, setAlert] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
 
   useEffect(() => {
     loadDisputes(activeTab);
@@ -43,12 +57,14 @@ export default function DisputesPage() {
   async function loadDisputes(status: string) {
     setLoading(true);
     try {
-      const data = await adminApi.getDisputes(status).catch(() => [] as DisputeListItem[]);
+      const data = await adminApi
+        .getDisputes(status)
+        .catch(() => [] as DisputeListItem[]);
       const list = Array.isArray(data)
         ? data
         : (data as any)?.items && Array.isArray((data as any).items)
-        ? (data as any).items
-        : [];
+          ? (data as any).items
+          : [];
       setDisputes(list);
     } catch {
       setDisputes([]);
@@ -69,17 +85,17 @@ export default function DisputesPage() {
         d.reporterName?.toLowerCase().includes(q) ||
         d.accusedName?.toLowerCase().includes(q) ||
         d.reason.toLowerCase().includes(q) ||
-        d.description?.toLowerCase().includes(q)
+        d.description?.toLowerCase().includes(q),
     );
   }, [disputes, searchQuery]);
 
   // Calculate ticket metrics
   const metrics = useMemo(() => {
     const list = Array.isArray(disputes) ? disputes : [];
-    const open = list.filter((d) => d.status === 'OPEN').length;
-    const review = list.filter((d) => d.status === 'UNDER_REVIEW').length;
-    const resolved = list.filter((d) => d.status === 'RESOLVED').length;
-    const rejected = list.filter((d) => d.status === 'REJECTED').length;
+    const open = list.filter((d) => d.status === "OPEN").length;
+    const review = list.filter((d) => d.status === "UNDER_REVIEW").length;
+    const resolved = list.filter((d) => d.status === "RESOLVED").length;
+    const rejected = list.filter((d) => d.status === "REJECTED").length;
 
     return { open, review, resolved, rejected };
   }, [disputes]);
@@ -87,7 +103,10 @@ export default function DisputesPage() {
   function requestResolveConfirm() {
     if (!selectedDispute) return;
     if (!resolutionText.trim()) {
-      setAlert({ type: 'error', message: 'Resolution justification is required.' });
+      setAlert({
+        type: "error",
+        message: "Resolution justification is required.",
+      });
       return;
     }
     setConfirmResolveOpen(true);
@@ -96,7 +115,10 @@ export default function DisputesPage() {
   async function handleResolve() {
     if (!selectedDispute) return;
     if (!resolutionText.trim()) {
-      setAlert({ type: 'error', message: 'Resolution justification is required.' });
+      setAlert({
+        type: "error",
+        message: "Resolution justification is required.",
+      });
       return;
     }
 
@@ -108,16 +130,19 @@ export default function DisputesPage() {
       });
 
       setAlert({
-        type: 'success',
+        type: "success",
         message: `Dispute ticket #${selectedDispute.id} marked as ${resolutionStatus}. Both parties notified.`,
       });
 
       setConfirmResolveOpen(false);
       setSelectedDispute(null);
-      setResolutionText('');
+      setResolutionText("");
       loadDisputes(activeTab);
     } catch (err: any) {
-      setAlert({ type: 'error', message: err.message || 'Failed to update dispute' });
+      setAlert({
+        type: "error",
+        message: err.message || "Failed to update dispute",
+      });
     } finally {
       setActionLoading(false);
     }
@@ -146,36 +171,36 @@ export default function DisputesPage() {
         columns={4}
         items={[
           {
-            id: 'open',
-            label: 'Open Tickets',
+            id: "open",
+            label: "Open Tickets",
             value: metrics.open,
-            subtext: 'Requires immediate investigation',
+            subtext: "Requires immediate investigation",
             icon: <AlertCircle size={16} color="var(--color-danger)" />,
-            tone: 'danger',
+            tone: "danger",
           },
           {
-            id: 'review',
-            label: 'Under Review',
+            id: "review",
+            label: "Under Review",
             value: metrics.review,
-            subtext: 'Telemetry & receipt audit',
+            subtext: "Telemetry & receipt audit",
             icon: <Search size={16} color="var(--color-warning)" />,
-            tone: 'warning',
+            tone: "warning",
           },
           {
-            id: 'resolved',
-            label: 'Resolved Cases',
+            id: "resolved",
+            label: "Resolved Cases",
             value: metrics.resolved,
-            subtext: 'Settled or refunded',
+            subtext: "Settled or refunded",
             icon: <CheckCircle2 size={16} color="var(--color-success)" />,
-            tone: 'success',
+            tone: "success",
           },
           {
-            id: 'rejected',
-            label: 'Dismissed / Rejected',
+            id: "rejected",
+            label: "Dismissed / Rejected",
             value: metrics.rejected,
-            subtext: 'Unsubstantiated claims',
+            subtext: "Unsubstantiated claims",
             icon: <OctagonAlert size={16} color="var(--text-muted)" />,
-            tone: 'neutral',
+            tone: "neutral",
           },
         ]}
       />
@@ -188,7 +213,7 @@ export default function DisputesPage() {
             id: t.id,
             label: t.label,
             count:
-              t.id === 'ALL'
+              t.id === "ALL"
                 ? list.length
                 : list.filter((d) => d.status === t.id).length,
           };
@@ -204,85 +229,90 @@ export default function DisputesPage() {
       <DataTable
         columns={[
           {
-            header: 'TICKET & TRIP ID',
+            header: "TICKET & TRIP ID",
             accessor: (d) => (
               <div>
-                <div style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--brand-primary)', fontSize: '0.8125rem' }}>
+                <div className="text-mono font-bold text-brand text-base">
                   #{d.id}
                 </div>
-                <div style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: 'var(--brand-secondary)', marginTop: '0.2rem' }}>
+                <div
+                  className="text-mono text-sm mt-compact"
+                  style={{ color: "var(--brand-secondary)" }}
+                >
                   Trip: {d.tripId}
                 </div>
               </div>
             ),
           },
           {
-            header: 'PARTIES INVOLVED',
+            header: "PARTIES INVOLVED",
             accessor: (d) => (
               <div>
-                <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.875rem' }}>
+                <div className="font-semibold text-primary text-md">
                   {d.reporterName || d.reporterId}
                 </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.125rem' }}>
-                  vs. <span style={{ color: 'var(--text-secondary)' }}>{d.accusedName || d.accusedId}</span>
+                <div className="text-sm text-muted mt-micro">
+                  vs.{" "}
+                  <span className="text-secondary">
+                    {d.accusedName || d.accusedId}
+                  </span>
                 </div>
               </div>
             ),
           },
           {
-            header: 'REASON & STATEMENT',
+            header: "REASON & STATEMENT",
             accessor: (d) => (
-              <div style={{ maxWidth: '320px' }}>
-                <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.8125rem' }}>
+              <div style={{ maxWidth: "320px" }}>
+                <div className="font-semibold text-primary text-base">
                   {d.reason}
                 </div>
-                <div
-                  style={{
-                    fontSize: '0.75rem',
-                    color: 'var(--text-muted)',
-                    marginTop: '0.2rem',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
-                >
-                  {d.description || 'No description provided'}
+                <div className="text-sm text-muted whitespace-nowrap overflow-hidden text-ellipsis mt-compact">
+                  {d.description || "No description provided"}
                 </div>
               </div>
             ),
           },
           {
-            header: 'STATUS',
+            header: "STATUS",
             accessor: (d) => <StatusBadge status={d.status} />,
           },
           {
-            header: 'DATE FILED',
+            header: "DATE FILED",
             accessor: (d) => (
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                {new Date(d.createdAt).toLocaleDateString('en-IN', {
-                  day: 'numeric',
-                  month: 'short',
-                  hour: '2-digit',
-                  minute: '2-digit',
+              <div className="text-sm text-secondary">
+                {new Date(d.createdAt).toLocaleDateString("en-IN", {
+                  day: "numeric",
+                  month: "short",
+                  hour: "2-digit",
+                  minute: "2-digit",
                 })}
               </div>
             ),
           },
           {
-            header: 'ACTIONS',
-            align: 'right',
+            header: "ACTIONS",
+            align: "right",
             accessor: (d) => (
               <Button
-                variant={d.status === 'OPEN' || d.status === 'UNDER_REVIEW' ? 'primary' : 'outline'}
+                variant={
+                  d.status === "OPEN" || d.status === "UNDER_REVIEW"
+                    ? "primary"
+                    : "outline"
+                }
                 size="sm"
                 onClick={(e) => {
                   e.stopPropagation();
                   setSelectedDispute(d);
-                  setResolutionText(d.resolutionText || '');
-                  setResolutionStatus(d.status === 'REJECTED' ? 'REJECTED' : 'RESOLVED');
+                  setResolutionText(d.resolutionText || "");
+                  setResolutionStatus(
+                    d.status === "REJECTED" ? "REJECTED" : "RESOLVED",
+                  );
                 }}
               >
-                {d.status === 'OPEN' || d.status === 'UNDER_REVIEW' ? 'Arbitrate →' : 'View Findings'}
+                {d.status === "OPEN" || d.status === "UNDER_REVIEW"
+                  ? "Arbitrate →"
+                  : "View Findings"}
               </Button>
             ),
           },
@@ -292,8 +322,10 @@ export default function DisputesPage() {
         loading={loading}
         onRowClick={(d) => {
           setSelectedDispute(d);
-          setResolutionText(d.resolutionText || '');
-          setResolutionStatus(d.status === 'REJECTED' ? 'REJECTED' : 'RESOLVED');
+          setResolutionText(d.resolutionText || "");
+          setResolutionStatus(
+            d.status === "REJECTED" ? "REJECTED" : "RESOLVED",
+          );
         }}
         emptyTitle="No dispute tickets found"
         emptySubtitle="No dispute tickets found matching this filter criteria."
@@ -303,11 +335,19 @@ export default function DisputesPage() {
       <Drawer
         isOpen={!!selectedDispute}
         onClose={() => setSelectedDispute(null)}
-        title={selectedDispute ? `Dispute Ticket #${selectedDispute.id}` : 'Dispute Arbitration'}
-        subtitle={selectedDispute ? `Trip Reference: ${selectedDispute.tripId}` : ''}
+        title={
+          selectedDispute
+            ? `Dispute Ticket #${selectedDispute.id}`
+            : "Dispute Arbitration"
+        }
+        subtitle={
+          selectedDispute ? `Trip Reference: ${selectedDispute.tripId}` : ""
+        }
         footer={
-          selectedDispute && (selectedDispute.status === 'OPEN' || selectedDispute.status === 'UNDER_REVIEW') ? (
-            <div style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'flex-end' }}>
+          selectedDispute &&
+          (selectedDispute.status === "OPEN" ||
+            selectedDispute.status === "UNDER_REVIEW") ? (
+            <div className="flex gap-3 w-full justify-end">
               <Button
                 variant="outline"
                 size="sm"
@@ -337,229 +377,155 @@ export default function DisputesPage() {
         }
       >
         {selectedDispute && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div className="flex flex-col gap-5">
             {/* Status Overview */}
-            <div
-              style={{
-                padding: '1rem',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--bg-card-elevated)',
-                border: '1px solid var(--border-subtle)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-            >
+            <div className="p-4 rounded-md bg-card-elevated border border-subtle flex justify-between items-center">
               <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Ticket Status</div>
-                <div style={{ marginTop: '0.25rem' }}>
+                <div className="text-sm text-muted">Ticket Status</div>
+                <div className="mt-1">
                   <StatusBadge status={selectedDispute.status} />
                 </div>
               </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Filed Date</div>
-                <div style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', marginTop: '0.25rem' }}>
+              <div className="text-right">
+                <div className="text-sm text-muted">Filed Date</div>
+                <div className="text-base text-primary mt-1">
                   {new Date(selectedDispute.createdAt).toLocaleString()}
                 </div>
               </div>
             </div>
 
             {/* Parties Card */}
-            <div
-              style={{
-                padding: '1.25rem',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--bg-card)',
-                border: '1px solid var(--border-subtle)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.75rem',
-              }}
-            >
-              <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.5rem' }}>
+            <div className="p-5 rounded-md bg-card border border-subtle flex flex-col gap-3">
+              <div className="text-base font-semibold text-primary border-b border-subtle pb-2">
                 Conflict Counterparties
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Filing Reporter:</span>
-                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+              <div className="flex justify-between text-base">
+                <span className="text-muted">Filing Reporter:</span>
+                <span className="font-semibold text-primary">
                   {selectedDispute.reporterName || selectedDispute.reporterId}
                 </span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Accused Counterparty:</span>
-                <span style={{ fontWeight: 600, color: 'var(--brand-secondary)' }}>
+              <div className="flex justify-between text-base">
+                <span className="text-muted">Accused Counterparty:</span>
+                <span
+                  className="font-semibold"
+                  style={{ color: "var(--brand-secondary)" }}
+                >
                   {selectedDispute.accusedName || selectedDispute.accusedId}
                 </span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Trip Reference:</span>
-                <span style={{ fontFamily: 'monospace', color: 'var(--brand-primary)' }}>
+              <div className="flex justify-between text-base">
+                <span className="text-muted">Trip Reference:</span>
+                <span className="text-mono text-brand">
                   {selectedDispute.tripId}
                 </span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Claim Category:</span>
-                <span style={{ fontWeight: 600, color: 'var(--color-warning)' }}>
+              <div className="flex justify-between text-base">
+                <span className="text-muted">Claim Category:</span>
+                <span className="font-semibold text-warning">
                   {selectedDispute.reason}
                 </span>
               </div>
             </div>
 
             {/* Reporter Statement */}
-            <div
-              style={{
-                padding: '1.25rem',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--bg-card)',
-                border: '1px solid var(--border-subtle)',
-              }}
-            >
-              <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+            <div className="p-5 rounded-md bg-card border border-subtle">
+              <div className="text-base font-semibold text-primary mb-2">
                 Complainant's Written Statement
               </div>
               <p
-                style={{
-                  fontSize: '0.8125rem',
-                  lineHeight: 1.5,
-                  color: 'var(--text-secondary)',
-                  padding: '0.875rem',
-                  borderRadius: 'var(--radius-sm)',
-                  backgroundColor: 'var(--bg-base)',
-                  border: '1px solid var(--border-subtle)',
-                }}
+                className="text-base text-secondary rounded-sm bg-base border border-subtle"
+                style={{ lineHeight: 1.5, padding: "0.875rem" }}
               >
-                {selectedDispute.description || 'No formal written explanation provided.'}
+                {selectedDispute.description ||
+                  "No formal written explanation provided."}
               </p>
             </div>
 
             {/* Resolution Form or Findings */}
-            {selectedDispute.status === 'OPEN' || selectedDispute.status === 'UNDER_REVIEW' ? (
-              <div
-                style={{
-                  background: 'var(--bg-card)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-lg)',
-                  padding: '1.25rem',
-                }}
-              >
-                <h4 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.1rem', marginBottom: '1rem' }}>
+            {selectedDispute.status === "OPEN" ||
+            selectedDispute.status === "UNDER_REVIEW" ? (
+              <div className="bg-card border border-subtle rounded-lg p-5">
+                <h4
+                  className="font-bold text-primary mb-4 text-title-sm"
+                  style={{ marginTop: "0.1rem" }}
+                >
                   Execute Official Arbitration Decision
                 </h4>
 
                 {/* Outcome Toggle */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+                <div
+                  className="grid gap-3 mb-4"
+                  style={{ gridTemplateColumns: "1fr 1fr" }}
+                >
                   <button
                     type="button"
-                    onClick={() => setResolutionStatus('RESOLVED')}
+                    onClick={() => setResolutionStatus("RESOLVED")}
+                    className="rounded-md text-base font-semibold cursor-pointer flex items-center justify-center gap-compact"
                     style={{
-                      padding: '0.625rem',
-                      borderRadius: 'var(--radius-md)',
-                      fontSize: '0.8125rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
+                      padding: "0.625rem",
                       border:
-                        resolutionStatus === 'RESOLVED'
-                          ? '1px solid var(--color-success)'
-                          : '1px solid var(--border-subtle)',
+                        resolutionStatus === "RESOLVED"
+                          ? "1px solid var(--color-success)"
+                          : "1px solid var(--border-subtle)",
                       backgroundColor:
-                        resolutionStatus === 'RESOLVED'
-                          ? 'rgba(16, 185, 129, 0.12)'
-                          : 'transparent',
+                        resolutionStatus === "RESOLVED"
+                          ? "rgba(16, 185, 129, 0.12)"
+                          : "transparent",
                       color:
-                        resolutionStatus === 'RESOLVED'
-                          ? 'var(--color-success)'
-                          : 'var(--text-secondary)',
-                      transition: 'all 0.15s ease',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '0.4rem',
+                        resolutionStatus === "RESOLVED"
+                          ? "var(--color-success)"
+                          : "var(--text-secondary)",
+                      transition: "all 0.15s ease",
                     }}
                   >
                     <Check size={14} /> Accept & Resolve
                   </button>
                   <button
                     type="button"
-                    onClick={() => setResolutionStatus('REJECTED')}
+                    onClick={() => setResolutionStatus("REJECTED")}
+                    className="rounded-md text-base font-semibold cursor-pointer flex items-center justify-center gap-compact"
                     style={{
-                      padding: '0.625rem',
-                      borderRadius: 'var(--radius-md)',
-                      fontSize: '0.8125rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
+                      padding: "0.625rem",
                       border:
-                        resolutionStatus === 'REJECTED'
-                          ? '1px solid var(--color-danger)'
-                          : '1px solid var(--border-subtle)',
+                        resolutionStatus === "REJECTED"
+                          ? "1px solid var(--color-danger)"
+                          : "1px solid var(--border-subtle)",
                       backgroundColor:
-                        resolutionStatus === 'REJECTED'
-                          ? 'rgba(239, 68, 68, 0.12)'
-                          : 'transparent',
+                        resolutionStatus === "REJECTED"
+                          ? "rgba(239, 68, 68, 0.12)"
+                          : "transparent",
                       color:
-                        resolutionStatus === 'REJECTED'
-                          ? 'var(--color-danger)'
-                          : 'var(--text-secondary)',
-                      transition: 'all 0.15s ease',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '0.4rem',
+                        resolutionStatus === "REJECTED"
+                          ? "var(--color-danger)"
+                          : "var(--text-secondary)",
+                      transition: "all 0.15s ease",
                     }}
                   >
                     <X size={14} /> Dismiss / Reject Claim
                   </button>
                 </div>
 
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.375rem', color: 'var(--text-primary)' }}>
-                    Findings & Action Plan *
-                  </label>
-                  <textarea
-                    rows={4}
-                    value={resolutionText}
-                    onChange={(e) => setResolutionText(e.target.value)}
-                    placeholder="Document telemetry cross-checks, route review, or any refund/credit issued..."
-                    className="form-textarea"
-                    style={{
-                      width: '100%',
-                      padding: '0.625rem 0.875rem',
-                      borderRadius: 'var(--radius-md)',
-                      backgroundColor: 'var(--bg-base)',
-                      border: '1px solid var(--border-subtle)',
-                      color: 'var(--text-primary)',
-                      fontSize: '0.8125rem',
-                      resize: 'vertical',
-                    }}
-                  />
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.375rem' }}>
-                    This finding will be permanently audited and sent to both parties in their incident logs.
-                  </p>
-                </div>
+                <Textarea
+                  label="Findings & Action Plan"
+                  required
+                  rows={4}
+                  value={resolutionText}
+                  onChange={(e) => setResolutionText(e.target.value)}
+                  placeholder="Document telemetry cross-checks, route review, or any refund/credit issued..."
+                  hint="This finding will be permanently audited and sent to both parties in their incident logs."
+                />
               </div>
             ) : (
-              <div
-                style={{
-                  padding: '1.25rem',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'var(--bg-card)',
-                  border: '1px solid var(--border-subtle)',
-                }}
-              >
-                <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+              <div className="p-5 rounded-md bg-card border border-subtle">
+                <div className="text-base font-semibold text-primary mb-2">
                   Arbitrator's Recorded Findings
                 </div>
                 <p
-                  style={{
-                    fontSize: '0.8125rem',
-                    lineHeight: 1.5,
-                    color: 'var(--text-secondary)',
-                    padding: '0.875rem',
-                    borderRadius: 'var(--radius-sm)',
-                    backgroundColor: 'var(--bg-canvas)',
-                    border: '1px solid var(--border-subtle)',
-                  }}
+                  className="text-base text-secondary rounded-sm bg-base border border-subtle"
+                  style={{ lineHeight: 1.5, padding: "0.875rem" }}
                 >
-                  {selectedDispute.resolutionText || 'Case marked closed.'}
+                  {selectedDispute.resolutionText || "Case marked closed."}
                 </p>
               </div>
             )}
@@ -571,23 +537,36 @@ export default function DisputesPage() {
         isOpen={confirmResolveOpen && !!selectedDispute}
         onClose={() => !actionLoading && setConfirmResolveOpen(false)}
         onConfirm={handleResolve}
-        variant={resolutionStatus === 'REJECTED' ? 'warning' : 'success'}
+        variant={resolutionStatus === "REJECTED" ? "warning" : "success"}
         isLoading={actionLoading}
-        title={resolutionStatus === 'REJECTED' ? 'Dismiss & Reject Dispute Claim?' : 'Accept & Resolve Dispute Claim?'}
+        title={
+          resolutionStatus === "REJECTED"
+            ? "Dismiss & Reject Dispute Claim?"
+            : "Accept & Resolve Dispute Claim?"
+        }
         subtitle={selectedDispute ? `Ticket #${selectedDispute.id}` : undefined}
         description={
           <span>
-            This arbitration finding will be recorded in the incident audit log and notifications will be dispatched to both{' '}
-            <strong>{selectedDispute?.reporterName || selectedDispute?.reporterId}</strong> and{' '}
-            <strong>{selectedDispute?.accusedName || selectedDispute?.accusedId}</strong>.
+            This arbitration finding will be recorded in the incident audit log
+            and notifications will be dispatched to both{" "}
+            <strong>
+              {selectedDispute?.reporterName || selectedDispute?.reporterId}
+            </strong>{" "}
+            and{" "}
+            <strong>
+              {selectedDispute?.accusedName || selectedDispute?.accusedId}
+            </strong>
+            .
           </span>
         }
         details={
-          <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+          <div className="text-base text-secondary">
             <strong>Recorded Decision:</strong> {resolutionText}
           </div>
         }
-        confirmLabel={resolutionStatus === 'REJECTED' ? 'Reject Claim' : 'Submit Resolution'}
+        confirmLabel={
+          resolutionStatus === "REJECTED" ? "Reject Claim" : "Submit Resolution"
+        }
       />
     </div>
   );

@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   TrendingUp,
   CreditCard,
@@ -21,8 +21,8 @@ import {
   ShieldCheck,
   Copy,
   Check,
-} from 'lucide-react';
-import { adminApi } from '../../lib/api/client';
+} from "lucide-react";
+import { adminApi } from "../../lib/api/client";
 import {
   FinanceDashboardData,
   FinanceTransactionItem,
@@ -30,37 +30,41 @@ import {
   FinanceSettlementReportItem,
   FinanceRefundItem,
   DriverFinancialHistoryDetail,
-} from '../../lib/api/types';
+} from "../../lib/api/types";
 import {
   PageHeader,
   Card,
   Button,
+  Form,
   DataTable,
   StatusBadge,
   Drawer,
-} from '../../components/common';
+} from "../../components/common";
 import {
   FinanceAreaChart,
   FinanceSparkline,
   formatINR,
-} from '../../components/finance/FinanceCharts';
+} from "../../components/finance/FinanceCharts";
 
-type SubTab = 'OVERVIEW' | 'TRANSACTIONS' | 'DRIVERS' | 'SETTLEMENTS' | 'REFUNDS';
-type TimeframeTab = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY';
+type SubTab =
+  "OVERVIEW" | "TRANSACTIONS" | "DRIVERS" | "SETTLEMENTS" | "REFUNDS";
+type TimeframeTab = "DAILY" | "WEEKLY" | "MONTHLY" | "QUARTERLY" | "YEARLY";
 
 export default function FinanceDashboardPage() {
   // Date range filter state
-  const [dateRange, setDateRange] = useState('30D');
-  const [customStart, setCustomStart] = useState('');
-  const [customEnd, setCustomEnd] = useState('');
+  const [dateRange, setDateRange] = useState("30D");
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
   const [showCustomRange, setShowCustomRange] = useState(false);
 
   // Active navigation sub-tab
-  const [activeTab, setActiveTab] = useState<SubTab>('OVERVIEW');
+  const [activeTab, setActiveTab] = useState<SubTab>("OVERVIEW");
 
   // Chart timeframe state
-  const [chartTimeframe, setChartTimeframe] = useState<TimeframeTab>('DAILY');
-  const [chartMetric, setChartMetric] = useState<'ALL' | 'DRIVER' | 'REVENUE'>('ALL');
+  const [chartTimeframe, setChartTimeframe] = useState<TimeframeTab>("DAILY");
+  const [chartMetric, setChartMetric] = useState<"ALL" | "DRIVER" | "REVENUE">(
+    "ALL",
+  );
 
   // Data state
   const [data, setData] = useState<FinanceDashboardData | null>(null);
@@ -69,73 +73,78 @@ export default function FinanceDashboardPage() {
   const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
 
   // Filter & Search states
-  const [transactionSearch, setTransactionSearch] = useState('');
-  const [transactionStatus, setTransactionStatus] = useState('ALL');
-  const [driverSearch, setDriverSearch] = useState('');
-  const [settlementStatus, setSettlementStatus] = useState('ALL');
+  const [transactionSearch, setTransactionSearch] = useState("");
+  const [transactionStatus, setTransactionStatus] = useState("ALL");
+  const [driverSearch, setDriverSearch] = useState("");
+  const [settlementStatus, setSettlementStatus] = useState("ALL");
 
   // Driver details drawer
   const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
-  const [driverDetail, setDriverDetail] = useState<DriverFinancialHistoryDetail | null>(null);
+  const [driverDetail, setDriverDetail] =
+    useState<DriverFinancialHistoryDetail | null>(null);
   const [driverDetailLoading, setDriverDetailLoading] = useState(false);
 
   // Single transaction preview modal
-  const [selectedTransaction, setSelectedTransaction] = useState<FinanceTransactionItem | null>(null);
+  const [selectedTransaction, setSelectedTransaction] =
+    useState<FinanceTransactionItem | null>(null);
 
   // Export dropdown state
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const loadData = useCallback(async (isManual = false) => {
-    if (isManual) setIsRefreshing(true);
-    else setLoading(true);
+  const loadData = useCallback(
+    async (isManual = false) => {
+      if (isManual) setIsRefreshing(true);
+      else setLoading(true);
 
-    try {
-      const res = await adminApi.getFinanceDashboard({
-        range: dateRange,
-        startDate: showCustomRange && customStart ? customStart : undefined,
-        endDate: showCustomRange && customEnd ? customEnd : undefined,
-      });
-      setData(res);
-      setLastSyncTime(new Date());
-    } catch {
-      // In case of network or API error, create a clean zero state with 0 undefined / NaN
-      setData({
-        isEmpty: true,
-        message: 'No financial data available',
-        range: dateRange,
-        startDate: new Date().toISOString(),
-        endDate: new Date().toISOString(),
-        metrics: {
-          totalRevenue: 0,
-          totalPaidToDrivers: 0,
-          pendingDriverPayments: 0,
-          totalTransactions: 0,
-          totalRefunds: 0,
-        },
-        revenueAnalytics: {
-          daily: [],
-          weekly: [],
-          monthly: [],
-          quarterly: [],
-          yearly: [],
-        },
-        driverSummary: {
-          totalDriverEarnings: 0,
-          amountPaidToDrivers: 0,
-          pendingDriverPayments: 0,
-          drivers: [],
-        },
-        transactions: [],
-        settlements: [],
-        refunds: [],
-        revenueBreakdown: [],
-      });
-    } finally {
-      setLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [dateRange, showCustomRange, customStart, customEnd]);
+      try {
+        const res = await adminApi.getFinanceDashboard({
+          range: dateRange,
+          startDate: showCustomRange && customStart ? customStart : undefined,
+          endDate: showCustomRange && customEnd ? customEnd : undefined,
+        });
+        setData(res);
+        setLastSyncTime(new Date());
+      } catch {
+        // In case of network or API error, create a clean zero state with 0 undefined / NaN
+        setData({
+          isEmpty: true,
+          message: "No financial data available",
+          range: dateRange,
+          startDate: new Date().toISOString(),
+          endDate: new Date().toISOString(),
+          metrics: {
+            totalRevenue: 0,
+            totalPaidToDrivers: 0,
+            pendingDriverPayments: 0,
+            totalTransactions: 0,
+            totalRefunds: 0,
+          },
+          revenueAnalytics: {
+            daily: [],
+            weekly: [],
+            monthly: [],
+            quarterly: [],
+            yearly: [],
+          },
+          driverSummary: {
+            totalDriverEarnings: 0,
+            amountPaidToDrivers: 0,
+            pendingDriverPayments: 0,
+            drivers: [],
+          },
+          transactions: [],
+          settlements: [],
+          refunds: [],
+          revenueBreakdown: [],
+        });
+      } finally {
+        setLoading(false);
+        setIsRefreshing(false);
+      }
+    },
+    [dateRange, showCustomRange, customStart, customEnd],
+  );
 
   useEffect(() => {
     loadData();
@@ -148,7 +157,7 @@ export default function FinanceDashboardPage() {
 
   const handleRangeChange = (val: string) => {
     setDateRange(val);
-    if (val === 'CUSTOM') {
+    if (val === "CUSTOM") {
       setShowCustomRange(true);
     } else {
       setShowCustomRange(false);
@@ -199,10 +208,12 @@ export default function FinanceDashboardPage() {
   // Current active chart points based on selected timeframe
   const currentChartPoints = useMemo(() => {
     if (!data?.revenueAnalytics) return [];
-    if (chartTimeframe === 'DAILY') return data.revenueAnalytics.daily || [];
-    if (chartTimeframe === 'WEEKLY') return data.revenueAnalytics.weekly || [];
-    if (chartTimeframe === 'MONTHLY') return data.revenueAnalytics.monthly || [];
-    if (chartTimeframe === 'QUARTERLY') return data.revenueAnalytics.quarterly || [];
+    if (chartTimeframe === "DAILY") return data.revenueAnalytics.daily || [];
+    if (chartTimeframe === "WEEKLY") return data.revenueAnalytics.weekly || [];
+    if (chartTimeframe === "MONTHLY")
+      return data.revenueAnalytics.monthly || [];
+    if (chartTimeframe === "QUARTERLY")
+      return data.revenueAnalytics.quarterly || [];
     return data.revenueAnalytics.yearly || [];
   }, [data, chartTimeframe]);
 
@@ -210,18 +221,22 @@ export default function FinanceDashboardPage() {
   const filteredTransactions = useMemo(() => {
     if (!data?.transactions) return [];
     let items = data.transactions;
-    if (transactionStatus !== 'ALL') {
-      items = items.filter((t) => (t.paymentStatus || '').toUpperCase() === transactionStatus.toUpperCase());
+    if (transactionStatus !== "ALL") {
+      items = items.filter(
+        (t) =>
+          (t.paymentStatus || "").toUpperCase() ===
+          transactionStatus.toUpperCase(),
+      );
     }
     if (transactionSearch.trim()) {
       const q = transactionSearch.toLowerCase().trim();
       items = items.filter(
         (t) =>
-          (t.transactionId || '').toLowerCase().includes(q) ||
-          (t.orderId || '').toLowerCase().includes(q) ||
-          (t.driverName || '').toLowerCase().includes(q) ||
-          (t.customerName || '').toLowerCase().includes(q) ||
-          (t.vehicleType || '').toLowerCase().includes(q)
+          (t.transactionId || "").toLowerCase().includes(q) ||
+          (t.orderId || "").toLowerCase().includes(q) ||
+          (t.driverName || "").toLowerCase().includes(q) ||
+          (t.customerName || "").toLowerCase().includes(q) ||
+          (t.vehicleType || "").toLowerCase().includes(q),
       );
     }
     return items;
@@ -235,10 +250,10 @@ export default function FinanceDashboardPage() {
       const q = driverSearch.toLowerCase().trim();
       list = list.filter(
         (d) =>
-          (d.driverName || '').toLowerCase().includes(q) ||
-          (d.driverPhone || '').toLowerCase().includes(q) ||
-          (d.vehiclePlate || '').toLowerCase().includes(q) ||
-          (d.vehicleType || '').toLowerCase().includes(q)
+          (d.driverName || "").toLowerCase().includes(q) ||
+          (d.driverPhone || "").toLowerCase().includes(q) ||
+          (d.vehiclePlate || "").toLowerCase().includes(q) ||
+          (d.vehicleType || "").toLowerCase().includes(q),
       );
     }
     return list;
@@ -248,30 +263,42 @@ export default function FinanceDashboardPage() {
   const filteredSettlements = useMemo(() => {
     if (!data?.settlements) return [];
     let items = data.settlements;
-    if (settlementStatus !== 'ALL') {
-      items = items.filter((s) => s.status.toUpperCase() === settlementStatus.toUpperCase());
+    if (settlementStatus !== "ALL") {
+      items = items.filter(
+        (s) => s.status.toUpperCase() === settlementStatus.toUpperCase(),
+      );
     }
     return items;
   }, [data, settlementStatus]);
 
   // Sparkline data generators
   const revenueTrend = useMemo(() => {
-    if (!data?.revenueAnalytics?.daily || data.revenueAnalytics.daily.length === 0) return [0, 0, 0, 0];
+    if (
+      !data?.revenueAnalytics?.daily ||
+      data.revenueAnalytics.daily.length === 0
+    )
+      return [0, 0, 0, 0];
     return data.revenueAnalytics.daily.map((d) => d.revenue);
   }, [data]);
 
   const driverTrend = useMemo(() => {
-    if (!data?.revenueAnalytics?.daily || data.revenueAnalytics.daily.length === 0) return [0, 0, 0, 0];
+    if (
+      !data?.revenueAnalytics?.daily ||
+      data.revenueAnalytics.daily.length === 0
+    )
+      return [0, 0, 0, 0];
     return data.revenueAnalytics.daily.map((d) => d.driverEarnings);
   }, [data]);
 
   // CSV Export functions with proper BOM for Excel compatibility
   const downloadCsv = (filename: string, csvContent: string) => {
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(["\uFEFF" + csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.href = url;
-    link.setAttribute('download', filename);
+    link.setAttribute("download", filename);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -281,22 +308,22 @@ export default function FinanceDashboardPage() {
 
   const handleExportTransactions = () => {
     const headers = [
-      'Transaction ID',
-      'Order ID',
-      'Driver Name',
-      'Driver Phone',
-      'Customer / Corporate',
-      'Order Amount (INR)',
-      'Driver Payout (INR)',
-      'Payment Status',
-      'Payment Method',
-      'Date & Time',
+      "Transaction ID",
+      "Order ID",
+      "Driver Name",
+      "Driver Phone",
+      "Customer / Corporate",
+      "Order Amount (INR)",
+      "Driver Payout (INR)",
+      "Payment Status",
+      "Payment Method",
+      "Date & Time",
     ];
     const rows = filteredTransactions.map((t) => [
       `"${t.transactionId}"`,
       `"${t.orderId}"`,
       `"${t.driverName}"`,
-      `"${t.driverPhone || ''}"`,
+      `"${t.driverPhone || ""}"`,
       `"${t.customerName}"`,
       t.totalOrderAmount,
       t.driverEarnings,
@@ -304,23 +331,26 @@ export default function FinanceDashboardPage() {
       `"${t.paymentMethod}"`,
       `"${t.transactionDate}"`,
     ]);
-    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-    downloadCsv(`adhocx_transactions_${dateRange}_${new Date().toISOString().slice(0, 10)}.csv`, csv);
+    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    downloadCsv(
+      `adhocx_transactions_${dateRange}_${new Date().toISOString().slice(0, 10)}.csv`,
+      csv,
+    );
   };
 
   const handleExportDrivers = () => {
     const headers = [
-      'Driver ID',
-      'Driver Name',
-      'Phone',
-      'Vehicle Type',
-      'Vehicle Plate',
-      'Trips Completed',
-      'Total Earnings (INR)',
-      'Amount Paid (INR)',
-      'Pending Balance (INR)',
-      'Bank Account',
-      'IFSC',
+      "Driver ID",
+      "Driver Name",
+      "Phone",
+      "Vehicle Type",
+      "Vehicle Plate",
+      "Trips Completed",
+      "Total Earnings (INR)",
+      "Amount Paid (INR)",
+      "Pending Balance (INR)",
+      "Bank Account",
+      "IFSC",
     ];
     const rows = filteredDrivers.map((d) => [
       `"${d.driverId}"`,
@@ -332,61 +362,71 @@ export default function FinanceDashboardPage() {
       d.totalEarnings,
       d.amountPaid,
       d.pendingBalance,
-      `"${d.bankAccountNumber || ''}"`,
-      `"${d.bankIfsc || ''}"`,
+      `"${d.bankAccountNumber || ""}"`,
+      `"${d.bankIfsc || ""}"`,
     ]);
-    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-    downloadCsv(`adhocx_driver_earnings_${dateRange}_${new Date().toISOString().slice(0, 10)}.csv`, csv);
+    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    downloadCsv(
+      `adhocx_driver_earnings_${dateRange}_${new Date().toISOString().slice(0, 10)}.csv`,
+      csv,
+    );
   };
 
   const handleExportSettlements = () => {
     const headers = [
-      'Settlement ID',
-      'Driver Name',
-      'Amount (INR)',
-      'Status',
-      'Bank Name',
-      'Account Number',
-      'IFSC',
-      'Bank UTR / Ref',
-      'Requested At',
-      'Processed At',
+      "Settlement ID",
+      "Driver Name",
+      "Amount (INR)",
+      "Status",
+      "Bank Name",
+      "Account Number",
+      "IFSC",
+      "Bank UTR / Ref",
+      "Requested At",
+      "Processed At",
     ];
     const rows = filteredSettlements.map((s) => [
       `"${s.settlementId}"`,
       `"${s.driverName}"`,
       s.amount,
       `"${s.status}"`,
-      `"${s.bankName || ''}"`,
-      `"${s.bankAccountNumber || ''}"`,
-      `"${s.bankIfsc || ''}"`,
-      `"${s.transactionRef || ''}"`,
+      `"${s.bankName || ""}"`,
+      `"${s.bankAccountNumber || ""}"`,
+      `"${s.bankIfsc || ""}"`,
+      `"${s.transactionRef || ""}"`,
       `"${s.requestedDate}"`,
-      `"${s.processedDate || ''}"`,
+      `"${s.processedDate || ""}"`,
     ]);
-    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-    downloadCsv(`adhocx_settlements_${dateRange}_${new Date().toISOString().slice(0, 10)}.csv`, csv);
+    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    downloadCsv(
+      `adhocx_settlements_${dateRange}_${new Date().toISOString().slice(0, 10)}.csv`,
+      csv,
+    );
   };
 
   const handleExportExecutiveSummary = () => {
     const lines = [
-      'AdhocX Executive Financial Audit Summary',
-      `Generated At: ${new Date().toLocaleString('en-IN')}`,
+      "AdhocX Executive Financial Audit Summary",
+      `Generated At: ${new Date().toLocaleString("en-IN")}`,
       `Filter Period: ${dateRange}`,
-      '',
-      'KEY METRIC,VALUE',
+      "",
+      "KEY METRIC,VALUE",
       `Total Revenue Generated (GMV),${metrics.totalRevenue}`,
       `Total Amount Paid to Drivers,${metrics.totalPaidToDrivers}`,
       `Pending Driver Payments,${metrics.pendingDriverPayments}`,
       `Total Transactions,${metrics.totalTransactions}`,
       `Refunds & Deductions,${metrics.totalRefunds || 0}`,
-      '',
-      'TIME PERIOD,REVENUE (INR),DRIVER PAYOUT (INR),TRANSACTIONS',
+      "",
+      "TIME PERIOD,REVENUE (INR),DRIVER PAYOUT (INR),TRANSACTIONS",
       ...currentChartPoints.map(
-        (p) => `"${p.label}",${p.revenue},${p.driverEarnings},${p.transactions}`
+        (p) =>
+          `"${p.label}",${p.revenue},${p.driverEarnings},${p.transactions}`,
       ),
     ];
-    downloadCsv(`adhocx_financial_summary_${dateRange}_${new Date().toISOString().slice(0, 10)}.csv`, lines.join('\n'));
+    downloadCsv(
+      `adhocx_financial_summary_${dateRange}_${new Date().toISOString().slice(0, 10)}.csv`,
+      lines.join("\n"),
+    );
   };
 
   return (
@@ -399,27 +439,21 @@ export default function FinanceDashboardPage() {
         subtitle="Real-time booking revenue, driver payouts, disbursements, and escrow settlements"
         liveStatus={
           isRefreshing
-            ? 'Syncing Live Telemetry...'
-            : `Ledger Synced (${lastSyncTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })})`
+            ? "Syncing Live Telemetry..."
+            : `Ledger Synced (${lastSyncTime.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })})`
         }
         actions={
-          <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div
+            className="flex items-center flex-wrap"
+            style={{ gap: "0.65rem" }}
+          >
             {/* Quick Presets Dropdown */}
-            <div style={{ position: 'relative' }}>
+            <div className="relative">
               <select
                 value={dateRange}
                 onChange={(e) => handleRangeChange(e.target.value)}
-                style={{
-                  padding: '0.38rem 0.72rem',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'var(--bg-card)',
-                  border: '1px solid var(--border-subtle)',
-                  color: 'var(--text-primary)',
-                  fontSize: '0.76rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  boxShadow: 'var(--shadow-sm)',
-                }}
+                className="rounded-md bg-card border border-subtle text-primary font-semibold cursor-pointer shadow-sm text-control-lg"
+                style={{ padding: "0.38rem 0.72rem" }}
               >
                 <option value="7D">Last 7 Days</option>
                 <option value="30D">Last 30 Days (Current Month)</option>
@@ -437,14 +471,19 @@ export default function FinanceDashboardPage() {
               size="md"
               onClick={() => loadData(true)}
               disabled={isRefreshing}
-              leftIcon={<RotateCcw size={15} className={isRefreshing ? 'animate-spin' : ''} />}
+              leftIcon={
+                <RotateCcw
+                  size={15}
+                  className={isRefreshing ? "animate-spin" : ""}
+                />
+              }
               title="Pull latest transaction and completed trip telemetry"
             >
-              {isRefreshing ? 'Syncing...' : 'Sync Live'}
+              {isRefreshing ? "Syncing..." : "Sync Live"}
             </Button>
 
             {/* Download Financial Reports Menu */}
-            <div style={{ position: 'relative' }}>
+            <div className="relative">
               <Button
                 variant="primary"
                 size="md"
@@ -456,67 +495,43 @@ export default function FinanceDashboardPage() {
 
               {showExportMenu && (
                 <div
+                  className="absolute right-0 bg-card border rounded-md shadow-elevated flex flex-col mt-tight"
                   style={{
-                    position: 'absolute',
-                    top: '100%',
-                    right: 0,
-                    marginTop: '0.35rem',
-                    background: 'var(--bg-card)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-md)',
-                    boxShadow: 'var(--shadow-elevated)',
+                    top: "100%",
                     zIndex: 50,
-                    minWidth: '240px',
-                    padding: '0.4rem',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.2rem',
+                    minWidth: "240px",
+                    padding: "0.4rem",
+                    gap: "0.2rem",
                   }}
                   onMouseLeave={() => setShowExportMenu(false)}
                 >
                   <button
                     type="button"
                     onClick={handleExportTransactions}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      padding: '0.55rem 0.75rem',
-                      borderRadius: 'var(--radius-sm)',
-                      border: 'none',
-                      background: 'transparent',
-                      color: 'var(--text-primary)',
-                      fontSize: '0.8125rem',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      width: '100%',
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bg-base)')}
-                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                    className="flex items-center gap-2 rounded-sm border-0 bg-transparent text-primary text-base text-left cursor-pointer w-full"
+                    style={{ padding: "0.55rem 0.75rem" }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.backgroundColor = "var(--bg-base)")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.backgroundColor = "transparent")
+                    }
                   >
-                    <FileSpreadsheet size={16} color="var(--brand-primary)" />
+                    <FileSpreadsheet size={16} color="var(--text-brand)" />
                     <span>Transactions Ledger (CSV)</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={handleExportDrivers}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      padding: '0.55rem 0.75rem',
-                      borderRadius: 'var(--radius-sm)',
-                      border: 'none',
-                      background: 'transparent',
-                      color: 'var(--text-primary)',
-                      fontSize: '0.8125rem',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      width: '100%',
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bg-base)')}
-                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                    className="flex items-center gap-2 rounded-sm border-0 bg-transparent text-primary text-base text-left cursor-pointer w-full"
+                    style={{ padding: "0.55rem 0.75rem" }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.backgroundColor = "var(--bg-base)")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.backgroundColor = "transparent")
+                    }
                   >
                     <Users size={16} color="var(--color-success)" />
                     <span>Driver Earnings Report (CSV)</span>
@@ -525,51 +540,40 @@ export default function FinanceDashboardPage() {
                   <button
                     type="button"
                     onClick={handleExportSettlements}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      padding: '0.55rem 0.75rem',
-                      borderRadius: 'var(--radius-sm)',
-                      border: 'none',
-                      background: 'transparent',
-                      color: 'var(--text-primary)',
-                      fontSize: '0.8125rem',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      width: '100%',
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bg-base)')}
-                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                    className="flex items-center gap-2 rounded-sm border-0 bg-transparent text-primary text-base text-left cursor-pointer w-full"
+                    style={{ padding: "0.55rem 0.75rem" }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.backgroundColor = "var(--bg-base)")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.backgroundColor = "transparent")
+                    }
                   >
-                    <CreditCard size={16} color="#8B5CF6" />
+                    <CreditCard size={16} color="var(--brand-violet-text)" />
                     <span>Settlements & Payouts (CSV)</span>
                   </button>
 
-                  <div style={{ height: '1px', background: 'var(--border-subtle)', margin: '0.2rem 0' }} />
+                  <div
+                    style={{
+                      height: "1px",
+                      background: "var(--border-subtle)",
+                      margin: "0.2rem 0",
+                    }}
+                  />
 
                   <button
                     type="button"
                     onClick={handleExportExecutiveSummary}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      padding: '0.55rem 0.75rem',
-                      borderRadius: 'var(--radius-sm)',
-                      border: 'none',
-                      background: 'transparent',
-                      color: 'var(--brand-primary)',
-                      fontWeight: 600,
-                      fontSize: '0.8125rem',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      width: '100%',
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bg-base)')}
-                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                    className="flex items-center gap-2 rounded-sm border-0 bg-transparent text-brand font-semibold text-base text-left cursor-pointer w-full"
+                    style={{ padding: "0.55rem 0.75rem" }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.backgroundColor = "var(--bg-base)")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.backgroundColor = "transparent")
+                    }
                   >
-                    <FileText size={16} color="var(--brand-primary)" />
+                    <FileText size={16} color="var(--text-brand)" />
                     <span>Full Executive Audit Summary (CSV)</span>
                   </button>
                 </div>
@@ -581,57 +585,45 @@ export default function FinanceDashboardPage() {
 
       {/* Custom Date Range Picker (Conditional Bar) */}
       {showCustomRange && (
-        <form
+        <Form
           onSubmit={handleApplyCustomRange}
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.75rem',
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 'var(--radius-md)',
-            padding: '0.75rem 1rem',
-            boxShadow: 'var(--shadow-sm)',
-            flexWrap: 'wrap',
+            display: "flex",
+            alignItems: "center",
+            gap: "0.75rem",
+            background: "var(--bg-card)",
+            border: "1px solid var(--border-subtle)",
+            borderRadius: "var(--radius-md)",
+            padding: "0.75rem 1rem",
+            boxShadow: "var(--shadow-sm)",
+            flexWrap: "wrap",
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-            <Calendar size={16} color="var(--brand-primary)" />
+          <div className="flex items-center font-semibold text-primary gap-compact text-body-md">
+            <Calendar size={16} color="var(--text-brand)" />
             <span>Select Custom Range:</span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>From:</label>
+          <div className="flex items-center gap-compact">
+            <label className="text-muted text-compact">From:</label>
             <input
               type="date"
               value={customStart}
               onChange={(e) => setCustomStart(e.target.value)}
               required
-              style={{
-                padding: '0.4rem 0.6rem',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border-subtle)',
-                background: 'var(--bg-base)',
-                color: 'var(--text-primary)',
-                fontSize: '0.8125rem',
-              }}
+              className="rounded-sm border border-subtle bg-base text-primary text-base"
+              style={{ padding: "0.4rem 0.6rem" }}
             />
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>To:</label>
+          <div className="flex items-center gap-compact">
+            <label className="text-muted text-compact">To:</label>
             <input
               type="date"
               value={customEnd}
               onChange={(e) => setCustomEnd(e.target.value)}
-              style={{
-                padding: '0.4rem 0.6rem',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border-subtle)',
-                background: 'var(--bg-base)',
-                color: 'var(--text-primary)',
-                fontSize: '0.8125rem',
-              }}
+              className="rounded-sm border border-subtle bg-base text-primary text-base"
+              style={{ padding: "0.4rem 0.6rem" }}
             />
           </div>
 
@@ -644,229 +636,345 @@ export default function FinanceDashboardPage() {
             size="sm"
             onClick={() => {
               setShowCustomRange(false);
-              setDateRange('30D');
+              setDateRange("30D");
             }}
           >
             Cancel
           </Button>
-        </form>
+        </Form>
       )}
 
       {/* ─────────────────────────────────────────────────────────────
        * Top 6 Summary Cards (All 6 in One Single Line)
        * ───────────────────────────────────────────────────────────── */}
       <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(6, minmax(0, 1fr))',
-          gap: '0.75rem',
-          width: '100%',
-        }}
+        className="grid gap-3 w-full"
+        style={{ gridTemplateColumns: "repeat(6, minmax(0, 1fr))" }}
       >
         {/* Card 1: Total Revenue Generated */}
         <div
-          style={{
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 'var(--radius-lg)',
-            padding: '0.78rem 0.8rem',
-            boxShadow: 'var(--shadow-card)',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            position: 'relative',
-            overflow: 'hidden',
-            minWidth: 0,
-          }}
+          className="bg-card border border-subtle rounded-lg shadow-card flex flex-col justify-between relative overflow-hidden min-w-0"
+          style={{ padding: "0.78rem 0.8rem" }}
         >
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: '#2563EB' }} />
+          <div
+            className="absolute top-0 left-0 right-0"
+            style={{ height: "3px", background: "#2563EB" }}
+          />
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem', gap: '0.25rem' }}>
-              <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div className="flex justify-between items-center gap-1 mb-compact">
+              <span
+                className="font-bold text-muted uppercase whitespace-nowrap overflow-hidden text-ellipsis text-caption"
+                style={{ letterSpacing: "0.03em" }}
+              >
                 Total Revenue
               </span>
-              <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(37, 99, 235, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <div
+                className="rounded-full flex items-center justify-center flex-shrink-0"
+                style={{
+                  width: "24px",
+                  height: "24px",
+                  background: "rgba(37, 99, 235, 0.1)",
+                }}
+              >
                 <TrendingUp size={15} color="#2563EB" />
               </div>
             </div>
-            <div style={{ fontSize: 'clamp(1.02rem, 1.15vw, 1.28rem)', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {loading ? '...' : formatINR(metrics.totalRevenue)}
+            <div
+              className="font-extrabold text-primary whitespace-nowrap overflow-hidden text-ellipsis"
+              style={{
+                fontSize: "clamp(1.02rem, 1.15vw, 1.28rem)",
+                letterSpacing: "-0.02em",
+              }}
+            >
+              {loading ? "..." : formatINR(metrics.totalRevenue)}
             </div>
-            <p style={{ fontSize: '0.68rem', color: 'var(--text-muted)', margin: '0.2rem 0 0 0', lineHeight: 1.25, height: '2.5em', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+            <p
+              className="text-muted overflow-hidden text-micro"
+              style={{
+                margin: "0.2rem 0 0 0",
+                lineHeight: 1.25,
+                height: "2.5em",
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+              }}
+            >
               Gross booking value (GMV) of completed orders
             </p>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '0.65rem', paddingTop: '0.45rem', borderTop: '1px solid var(--border-subtle)', gap: '0.25rem' }}>
-            <span style={{ fontSize: '0.68rem', color: '#2563EB', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div
+            className="flex justify-between items-end border-t border-subtle gap-1"
+            style={{ marginTop: "0.65rem", paddingTop: "0.45rem" }}
+          >
+            <span
+              className="font-semibold whitespace-nowrap overflow-hidden text-ellipsis text-micro"
+              style={{ color: "#2563EB" }}
+            >
               {metrics.totalTransactions} Invoiced
             </span>
-            <FinanceSparkline data={revenueTrend} color="#2563EB" width={68} height={24} />
+            <FinanceSparkline
+              data={revenueTrend}
+              color="#2563EB"
+              width={68}
+              height={24}
+            />
           </div>
         </div>
 
         {/* Card 2: Driver Earnings */}
         <div
-          style={{
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 'var(--radius-lg)',
-            padding: '0.78rem 0.8rem',
-            boxShadow: 'var(--shadow-card)',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            position: 'relative',
-            overflow: 'hidden',
-            minWidth: 0,
-          }}
+          className="bg-card border border-subtle rounded-lg shadow-card flex flex-col justify-between relative overflow-hidden min-w-0"
+          style={{ padding: "0.78rem 0.8rem" }}
         >
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'var(--brand-primary)' }} />
+          <div
+            className="absolute top-0 left-0 right-0 bg-brand"
+            style={{ height: "3px" }}
+          />
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem', gap: '0.25rem' }}>
-              <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div className="flex justify-between items-center gap-1 mb-compact">
+              <span
+                className="font-bold text-muted uppercase whitespace-nowrap overflow-hidden text-ellipsis text-caption"
+                style={{ letterSpacing: "0.03em" }}
+              >
                 Driver Earnings
               </span>
-              <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'var(--brand-primary-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <DollarSign size={15} color="var(--brand-primary)" />
+              <div
+                className="rounded-full bg-brand-subtle flex items-center justify-center flex-shrink-0"
+                style={{ width: "24px", height: "24px" }}
+              >
+                <DollarSign size={15} color="var(--text-brand)" />
               </div>
             </div>
-            <div style={{ fontSize: 'clamp(1.02rem, 1.15vw, 1.28rem)', fontWeight: 800, color: 'var(--brand-primary)', letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {loading ? '...' : formatINR(data?.driverSummary?.totalDriverEarnings)}
+            <div
+              className="font-extrabold text-brand whitespace-nowrap overflow-hidden text-ellipsis"
+              style={{
+                fontSize: "clamp(1.02rem, 1.15vw, 1.28rem)",
+                letterSpacing: "-0.02em",
+              }}
+            >
+              {loading
+                ? "..."
+                : formatINR(data?.driverSummary?.totalDriverEarnings)}
             </div>
-            <p style={{ fontSize: '0.68rem', color: 'var(--text-muted)', margin: '0.2rem 0 0 0', lineHeight: 1.25, height: '2.5em', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+            <p
+              className="text-muted overflow-hidden text-micro"
+              style={{
+                margin: "0.2rem 0 0 0",
+                lineHeight: 1.25,
+                height: "2.5em",
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+              }}
+            >
               Payouts based on the agreed rate card
             </p>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '0.65rem', paddingTop: '0.45rem', borderTop: '1px solid var(--border-subtle)', gap: '0.25rem' }}>
-            <span style={{ fontSize: '0.68rem', color: 'var(--brand-primary)', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div
+            className="flex justify-between items-end border-t border-subtle gap-1"
+            style={{ marginTop: "0.65rem", paddingTop: "0.45rem" }}
+          >
+            <span className="text-brand font-semibold whitespace-nowrap overflow-hidden text-ellipsis text-micro">
               Rate-card payout
             </span>
-            <FinanceSparkline data={driverTrend} color="var(--brand-primary)" width={68} height={24} />
+            <FinanceSparkline
+              data={driverTrend}
+              color="var(--text-brand)"
+              width={68}
+              height={24}
+            />
           </div>
         </div>
 
         {/* Card 3: Total Amount Paid to Drivers */}
         <div
-          style={{
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 'var(--radius-lg)',
-            padding: '0.78rem 0.8rem',
-            boxShadow: 'var(--shadow-card)',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            position: 'relative',
-            overflow: 'hidden',
-            minWidth: 0,
-          }}
+          className="bg-card border border-subtle rounded-lg shadow-card flex flex-col justify-between relative overflow-hidden min-w-0"
+          style={{ padding: "0.78rem 0.8rem" }}
         >
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'var(--color-success)' }} />
+          <div
+            className="absolute top-0 left-0 right-0"
+            style={{ height: "3px", background: "var(--color-success)" }}
+          />
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem', gap: '0.25rem' }}>
-              <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div className="flex justify-between items-center gap-1 mb-compact">
+              <span
+                className="font-bold text-muted uppercase whitespace-nowrap overflow-hidden text-ellipsis text-caption"
+                style={{ letterSpacing: "0.03em" }}
+              >
                 Paid to Drivers
               </span>
-              <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'var(--color-success-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <div
+                className="rounded-full bg-success-subtle flex items-center justify-center flex-shrink-0"
+                style={{ width: "24px", height: "24px" }}
+              >
                 <CheckCircle2 size={15} color="var(--color-success)" />
               </div>
             </div>
-            <div style={{ fontSize: 'clamp(1.02rem, 1.15vw, 1.28rem)', fontWeight: 800, color: 'var(--color-success)', letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {loading ? '...' : formatINR(metrics.totalPaidToDrivers)}
+            <div
+              className="font-extrabold text-success whitespace-nowrap overflow-hidden text-ellipsis"
+              style={{
+                fontSize: "clamp(1.02rem, 1.15vw, 1.28rem)",
+                letterSpacing: "-0.02em",
+              }}
+            >
+              {loading ? "..." : formatINR(metrics.totalPaidToDrivers)}
             </div>
-            <p style={{ fontSize: '0.68rem', color: 'var(--text-muted)', margin: '0.2rem 0 0 0', lineHeight: 1.25, height: '2.5em', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+            <p
+              className="text-muted overflow-hidden text-micro"
+              style={{
+                margin: "0.2rem 0 0 0",
+                lineHeight: 1.25,
+                height: "2.5em",
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+              }}
+            >
               Disbursed to driver bank accounts (SETTLED)
             </p>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '0.65rem', paddingTop: '0.45rem', borderTop: '1px solid var(--border-subtle)', gap: '0.25rem' }}>
-            <span style={{ fontSize: '0.68rem', color: 'var(--color-success)', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div
+            className="flex justify-between items-end border-t border-subtle gap-1"
+            style={{ marginTop: "0.65rem", paddingTop: "0.45rem" }}
+          >
+            <span className="text-success font-semibold whitespace-nowrap overflow-hidden text-ellipsis text-micro">
               Wire Settled
             </span>
-            <FinanceSparkline data={driverTrend} color="var(--color-success)" width={68} height={24} />
+            <FinanceSparkline
+              data={driverTrend}
+              color="var(--color-success)"
+              width={68}
+              height={24}
+            />
           </div>
         </div>
 
         {/* Card 4: Pending Driver Payments */}
         <div
-          style={{
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 'var(--radius-lg)',
-            padding: '0.78rem 0.8rem',
-            boxShadow: 'var(--shadow-card)',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            position: 'relative',
-            overflow: 'hidden',
-            minWidth: 0,
-          }}
+          className="bg-card border border-subtle rounded-lg shadow-card flex flex-col justify-between relative overflow-hidden min-w-0"
+          style={{ padding: "0.78rem 0.8rem" }}
         >
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'var(--color-warning)' }} />
+          <div
+            className="absolute top-0 left-0 right-0"
+            style={{ height: "3px", background: "var(--color-warning)" }}
+          />
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem', gap: '0.25rem' }}>
-              <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div className="flex justify-between items-center gap-1 mb-compact">
+              <span
+                className="font-bold text-muted uppercase whitespace-nowrap overflow-hidden text-ellipsis text-caption"
+                style={{ letterSpacing: "0.03em" }}
+              >
                 Pending Payments
               </span>
-              <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'var(--color-warning-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <div
+                className="rounded-full bg-warning-subtle flex items-center justify-center flex-shrink-0"
+                style={{ width: "24px", height: "24px" }}
+              >
                 <Clock size={15} color="var(--color-warning)" />
               </div>
             </div>
-            <div style={{ fontSize: 'clamp(1.02rem, 1.15vw, 1.28rem)', fontWeight: 800, color: 'var(--color-warning)', letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {loading ? '...' : formatINR(metrics.pendingDriverPayments)}
+            <div
+              className="font-extrabold text-warning whitespace-nowrap overflow-hidden text-ellipsis"
+              style={{
+                fontSize: "clamp(1.02rem, 1.15vw, 1.28rem)",
+                letterSpacing: "-0.02em",
+              }}
+            >
+              {loading ? "..." : formatINR(metrics.pendingDriverPayments)}
             </div>
-            <p style={{ fontSize: '0.68rem', color: 'var(--text-muted)', margin: '0.2rem 0 0 0', lineHeight: 1.25, height: '2.5em', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+            <p
+              className="text-muted overflow-hidden text-micro"
+              style={{
+                margin: "0.2rem 0 0 0",
+                lineHeight: 1.25,
+                height: "2.5em",
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+              }}
+            >
               Queued withdrawals & unsettled wallet balances
             </p>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '0.65rem', paddingTop: '0.45rem', borderTop: '1px solid var(--border-subtle)', gap: '0.25rem' }}>
-            <span style={{ fontSize: '0.68rem', color: 'var(--color-warning)', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div
+            className="flex justify-between items-end border-t border-subtle gap-1"
+            style={{ marginTop: "0.65rem", paddingTop: "0.45rem" }}
+          >
+            <span className="text-warning font-semibold whitespace-nowrap overflow-hidden text-ellipsis text-micro">
               Ready for Payout
             </span>
-            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-              {data?.settlements.filter((s) => s.status === 'PENDING').length || 0} queued
+            <span className="text-muted whitespace-nowrap text-micro">
+              {data?.settlements.filter((s) => s.status === "PENDING").length ||
+                0}{" "}
+              queued
             </span>
           </div>
         </div>
 
         {/* Card 5: Total Transactions */}
         <div
-          style={{
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 'var(--radius-lg)',
-            padding: '0.78rem 0.8rem',
-            boxShadow: 'var(--shadow-card)',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            position: 'relative',
-            overflow: 'hidden',
-            minWidth: 0,
-          }}
+          className="bg-card border border-subtle rounded-lg shadow-card flex flex-col justify-between relative overflow-hidden min-w-0"
+          style={{ padding: "0.78rem 0.8rem" }}
         >
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: '#8B5CF6' }} />
+          <div
+            className="absolute top-0 left-0 right-0"
+            style={{ height: "3px", background: "var(--brand-violet-text)" }}
+          />
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem', gap: '0.25rem' }}>
-              <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div className="flex justify-between items-center gap-1 mb-compact">
+              <span
+                className="font-bold text-muted uppercase whitespace-nowrap overflow-hidden text-ellipsis text-caption"
+                style={{ letterSpacing: "0.03em" }}
+              >
                 Transactions
               </span>
-              <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(139, 92, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <CreditCard size={15} color="#8B5CF6" />
+              <div
+                className="rounded-full flex items-center justify-center flex-shrink-0"
+                style={{
+                  width: "24px",
+                  height: "24px",
+                  background: "rgba(var(--brand-violet-rgb), 0.1)",
+                }}
+              >
+                <CreditCard size={15} color="var(--brand-violet-text)" />
               </div>
             </div>
-            <div style={{ fontSize: 'clamp(1.02rem, 1.15vw, 1.28rem)', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {loading ? '...' : (metrics.totalTransactions || 0).toLocaleString('en-IN')}
+            <div
+              className="font-extrabold text-primary whitespace-nowrap overflow-hidden text-ellipsis"
+              style={{
+                fontSize: "clamp(1.02rem, 1.15vw, 1.28rem)",
+                letterSpacing: "-0.02em",
+              }}
+            >
+              {loading
+                ? "..."
+                : (metrics.totalTransactions || 0).toLocaleString("en-IN")}
             </div>
-            <p style={{ fontSize: '0.68rem', color: 'var(--text-muted)', margin: '0.2rem 0 0 0', lineHeight: 1.25, height: '2.5em', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+            <p
+              className="text-muted overflow-hidden text-micro"
+              style={{
+                margin: "0.2rem 0 0 0",
+                lineHeight: 1.25,
+                height: "2.5em",
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+              }}
+            >
               Fulfilled ride orders and customer payments
             </p>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '0.65rem', paddingTop: '0.45rem', borderTop: '1px solid var(--border-subtle)', gap: '0.25rem' }}>
-            <span style={{ fontSize: '0.68rem', color: '#8B5CF6', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div
+            className="flex justify-between items-end border-t border-subtle gap-1"
+            style={{ marginTop: "0.65rem", paddingTop: "0.45rem" }}
+          >
+            <span
+              className="font-semibold whitespace-nowrap overflow-hidden text-ellipsis text-micro"
+              style={{ color: "var(--brand-violet-text)" }}
+            >
               Dual-Ledger
             </span>
-            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+            <span className="text-muted whitespace-nowrap text-micro">
               {data?.driverSummary?.drivers.length || 0} drivers
             </span>
           </div>
@@ -874,42 +982,67 @@ export default function FinanceDashboardPage() {
 
         {/* Card 6: Refunds */}
         <div
-          style={{
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 'var(--radius-lg)',
-            padding: '0.78rem 0.8rem',
-            boxShadow: 'var(--shadow-card)',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            position: 'relative',
-            overflow: 'hidden',
-            minWidth: 0,
-          }}
+          className="bg-card border border-subtle rounded-lg shadow-card flex flex-col justify-between relative overflow-hidden min-w-0"
+          style={{ padding: "0.78rem 0.8rem" }}
         >
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: '#0284C7' }} />
+          <div
+            className="absolute top-0 left-0 right-0"
+            style={{ height: "3px", background: "#0284C7" }}
+          />
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem', gap: '0.25rem' }}>
-              <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div className="flex justify-between items-center gap-1 mb-compact">
+              <span
+                className="font-bold text-muted uppercase whitespace-nowrap overflow-hidden text-ellipsis text-caption"
+                style={{ letterSpacing: "0.03em" }}
+              >
                 Refunds
               </span>
-              <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(2, 132, 199, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <div
+                className="rounded-full flex items-center justify-center flex-shrink-0"
+                style={{
+                  width: "24px",
+                  height: "24px",
+                  background: "rgba(2, 132, 199, 0.1)",
+                }}
+              >
                 <ShieldCheck size={15} color="#0284C7" />
               </div>
             </div>
-            <div style={{ fontSize: 'clamp(1.02rem, 1.15vw, 1.28rem)', fontWeight: 800, color: '#0284C7', letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {loading ? '...' : formatINR(metrics.totalRefunds || 0)}
+            <div
+              className="font-extrabold whitespace-nowrap overflow-hidden text-ellipsis"
+              style={{
+                fontSize: "clamp(1.02rem, 1.15vw, 1.28rem)",
+                color: "#0284C7",
+                letterSpacing: "-0.02em",
+              }}
+            >
+              {loading ? "..." : formatINR(metrics.totalRefunds || 0)}
             </div>
-            <p style={{ fontSize: '0.68rem', color: 'var(--text-muted)', margin: '0.2rem 0 0 0', lineHeight: 1.25, height: '2.5em', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+            <p
+              className="text-muted overflow-hidden text-micro"
+              style={{
+                margin: "0.2rem 0 0 0",
+                lineHeight: 1.25,
+                height: "2.5em",
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+              }}
+            >
               Refunded customer payments
             </p>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '0.65rem', paddingTop: '0.45rem', borderTop: '1px solid var(--border-subtle)', gap: '0.25rem' }}>
-            <span style={{ fontSize: '0.68rem', color: '#0284C7', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div
+            className="flex justify-between items-end border-t border-subtle gap-1"
+            style={{ marginTop: "0.65rem", paddingTop: "0.45rem" }}
+          >
+            <span
+              className="font-semibold whitespace-nowrap overflow-hidden text-ellipsis text-micro"
+              style={{ color: "#0284C7" }}
+            >
               Refunds recorded
             </span>
-            <span style={{ fontSize: '0.68rem', color: 'var(--color-success)', fontWeight: 600, whiteSpace: 'nowrap' }}>
+            <span className="text-success font-semibold whitespace-nowrap text-micro">
               Adjustments
             </span>
           </div>
@@ -919,21 +1052,33 @@ export default function FinanceDashboardPage() {
       {/* ─────────────────────────────────────────────────────────────
        * Sub-Navigation Navigation Bar (Tabs for All Key Finance Areas)
        * ───────────────────────────────────────────────────────────── */}
-      <div
-        style={{
-          display: 'flex',
-          gap: '0.5rem',
-          borderBottom: '1px solid var(--border)',
-          paddingBottom: '0.25rem',
-          overflowX: 'auto',
-        }}
-      >
+      <div className="flex gap-2 border-b pb-1 overflow-x-auto">
         {[
-          { id: 'OVERVIEW', label: 'Revenue Analytics & Overview', icon: PieChart },
-          { id: 'TRANSACTIONS', label: `Transactions Ledger (${filteredTransactions.length})`, icon: CreditCard },
-          { id: 'DRIVERS', label: `Driver Earnings & Payouts (${filteredDrivers.length})`, icon: Users },
-          { id: 'SETTLEMENTS', label: `Settlement Reports (${filteredSettlements.length})`, icon: Wallet },
-          { id: 'REFUNDS', label: `Refunds & Deductions (${data?.refunds?.length || 0})`, icon: AlertTriangle },
+          {
+            id: "OVERVIEW",
+            label: "Revenue Analytics & Overview",
+            icon: PieChart,
+          },
+          {
+            id: "TRANSACTIONS",
+            label: `Transactions Ledger (${filteredTransactions.length})`,
+            icon: CreditCard,
+          },
+          {
+            id: "DRIVERS",
+            label: `Driver Earnings & Payouts (${filteredDrivers.length})`,
+            icon: Users,
+          },
+          {
+            id: "SETTLEMENTS",
+            label: `Settlement Reports (${filteredSettlements.length})`,
+            icon: Wallet,
+          },
+          {
+            id: "REFUNDS",
+            label: `Refunds & Deductions (${data?.refunds?.length || 0})`,
+            icon: AlertTriangle,
+          },
         ].map((tab) => {
           const isActive = activeTab === tab.id;
           return (
@@ -941,21 +1086,16 @@ export default function FinanceDashboardPage() {
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id as SubTab)}
+              className="flex items-center gap-2 rounded-md border-0 cursor-pointer whitespace-nowrap text-body-lg"
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.65rem 1rem',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '0.84rem',
+                padding: "0.65rem 1rem",
                 fontWeight: isActive ? 700 : 500,
-                color: isActive ? '#ffffff' : 'var(--text-secondary)',
-                backgroundColor: isActive ? 'var(--brand-primary)' : 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                transition: 'all 0.15s ease',
-                boxShadow: isActive ? 'var(--shadow-glow-purple)' : 'none',
+                color: isActive ? "#ffffff" : "var(--text-secondary)",
+                backgroundColor: isActive
+                  ? "var(--brand-primary)"
+                  : "transparent",
+                transition: "all 0.15s ease",
+                boxShadow: isActive ? "var(--shadow-glow-purple)" : "none",
               }}
             >
               <tab.icon size={16} />
@@ -968,51 +1108,44 @@ export default function FinanceDashboardPage() {
       {/* ─────────────────────────────────────────────────────────────
        * TAB 1: REVENUE ANALYTICS & OVERVIEW
        * ───────────────────────────────────────────────────────────── */}
-      {activeTab === 'OVERVIEW' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      {activeTab === "OVERVIEW" && (
+        <div className="flex flex-col gap-6">
           {/* Timeframe Controls Bar */}
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: '0.75rem',
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 'var(--radius-md)',
-              padding: '0.75rem 1rem',
-              boxShadow: 'var(--shadow-sm)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+          <div className="flex justify-between items-center flex-wrap gap-3 bg-card border border-subtle rounded-md py-3 px-4 shadow-sm">
+            <div className="finance-timeframe-controls flex items-center gap-2">
+              <span className="font-bold text-primary text-body-md">
                 Aggregation Period:
               </span>
-              <div style={{ display: 'flex', gap: '0.25rem', background: 'var(--bg-base)', padding: '0.2rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+              <div
+                className="flex gap-1 bg-base rounded-md border border-subtle"
+                style={{ padding: "0.2rem" }}
+              >
                 {(
                   [
-                    { id: 'DAILY', label: 'Daily' },
-                    { id: 'WEEKLY', label: 'Weekly' },
-                    { id: 'MONTHLY', label: 'Monthly' },
-                    { id: 'QUARTERLY', label: 'Quarterly' },
-                    { id: 'YEARLY', label: 'Yearly' },
+                    { id: "DAILY", label: "Daily" },
+                    { id: "WEEKLY", label: "Weekly" },
+                    { id: "MONTHLY", label: "Monthly" },
+                    { id: "QUARTERLY", label: "Quarterly" },
+                    { id: "YEARLY", label: "Yearly" },
                   ] as const
                 ).map((t) => (
                   <button
                     key={t.id}
                     type="button"
                     onClick={() => setChartTimeframe(t.id)}
+                    className="rounded-sm border-0 cursor-pointer text-compact"
                     style={{
-                      padding: '0.35rem 0.75rem',
-                      borderRadius: 'var(--radius-sm)',
-                      fontSize: '0.78rem',
+                      padding: "0.35rem 0.75rem",
                       fontWeight: chartTimeframe === t.id ? 700 : 500,
-                      border: 'none',
-                      background: chartTimeframe === t.id ? 'var(--brand-primary)' : 'transparent',
-                      color: chartTimeframe === t.id ? '#ffffff' : 'var(--text-secondary)',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
+                      background:
+                        chartTimeframe === t.id
+                          ? "var(--brand-primary)"
+                          : "transparent",
+                      color:
+                        chartTimeframe === t.id
+                          ? "#ffffff"
+                          : "var(--text-secondary)",
+                      transition: "all 0.15s ease",
                     }}
                   >
                     {t.label}
@@ -1021,8 +1154,9 @@ export default function FinanceDashboardPage() {
               </div>
             </div>
 
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-              Showing {currentChartPoints.length} data intervals ({chartTimeframe.toLowerCase()})
+            <div className="text-muted text-compact">
+              Showing {currentChartPoints.length} data intervals (
+              {chartTimeframe.toLowerCase()})
             </div>
           </div>
 
@@ -1039,38 +1173,45 @@ export default function FinanceDashboardPage() {
       {/* ─────────────────────────────────────────────────────────────
        * TAB 2: TRANSACTIONS DETAILS TABLE
        * ───────────────────────────────────────────────────────────── */}
-      {activeTab === 'TRANSACTIONS' && (
+      {activeTab === "TRANSACTIONS" && (
         <Card>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', paddingTop: '0.15rem', flexWrap: 'wrap', gap: '1rem' }}>
+          <div
+            className="flex justify-between items-center mb-5 flex-wrap gap-4"
+            style={{ paddingTop: "0.15rem" }}
+          >
             <div>
-              <h3 style={{ fontSize: '1.06rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+              <h3
+                className="font-bold text-primary m-0"
+                style={{ fontSize: "1.06rem" }}
+              >
                 Unified Transactions Ledger
               </h3>
-              <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+              <p className="text-muted text-compact mt-compact">
                 Completed bookings, order amounts, and rate-card driver payouts
               </p>
             </div>
 
             {/* Filter toolbar */}
-            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div className="flex gap-3 items-center flex-wrap">
               {/* Search box */}
-              <div style={{ position: 'relative', minWidth: '240px' }}>
-                <Search size={15} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+              <div className="relative" style={{ minWidth: "240px" }}>
+                <Search
+                  size={15}
+                  style={{
+                    position: "absolute",
+                    left: "10px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    color: "var(--text-muted)",
+                  }}
+                />
                 <input
                   type="text"
                   placeholder="Search by ID, driver, client..."
                   value={transactionSearch}
                   onChange={(e) => setTransactionSearch(e.target.value)}
-                  style={{
-                    padding: '0.5rem 0.75rem 0.5rem 2.2rem',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-subtle)',
-                    background: 'var(--bg-base)',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.8125rem',
-                    width: '100%',
-                    boxSizing: 'border-box',
-                  }}
+                  className="rounded-md border border-subtle bg-base text-primary text-base w-full box-border"
+                  style={{ padding: "0.5rem 0.75rem 0.5rem 2.2rem" }}
                 />
               </div>
 
@@ -1078,16 +1219,8 @@ export default function FinanceDashboardPage() {
               <select
                 value={transactionStatus}
                 onChange={(e) => setTransactionStatus(e.target.value)}
-                style={{
-                  padding: '0.5rem 0.85rem',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-subtle)',
-                  background: 'var(--bg-base)',
-                  color: 'var(--text-primary)',
-                  fontSize: '0.8125rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
+                className="rounded-md border border-subtle bg-base text-primary text-base font-semibold cursor-pointer"
+                style={{ padding: "0.5rem 0.85rem" }}
               >
                 <option value="ALL">All Payment Statuses</option>
                 <option value="PAID">PAID / CAPTURED</option>
@@ -1096,7 +1229,12 @@ export default function FinanceDashboardPage() {
                 <option value="PENDING">PENDING</option>
               </select>
 
-              <Button variant="outline" size="sm" onClick={handleExportTransactions} leftIcon={<Download size={14} />}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportTransactions}
+                leftIcon={<Download size={14} />}
+              >
                 Export CSV
               </Button>
             </div>
@@ -1109,10 +1247,10 @@ export default function FinanceDashboardPage() {
             emptySubtitle="No transactions match the selected filters or date range. All new trips and orders automatically populate here."
             columns={[
               {
-                header: 'TRANSACTION ID',
+                header: "TRANSACTION ID",
                 accessor: (t: FinanceTransactionItem) => (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <span style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.82rem' }}>
+                  <div className="flex items-center gap-compact">
+                    <span className="text-mono font-bold text-primary text-body-md">
                       {t.transactionId}
                     </span>
                     <button
@@ -1121,49 +1259,58 @@ export default function FinanceDashboardPage() {
                         e.stopPropagation();
                         handleCopy(t.transactionId);
                       }}
-                      style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)', padding: '2px' }}
+                      className="border-0 bg-transparent cursor-pointer text-muted"
+                      style={{ padding: "2px" }}
                       title="Copy Transaction ID"
                     >
-                      {copiedId === t.transactionId ? <Check size={13} color="var(--color-success)" /> : <Copy size={13} />}
+                      {copiedId === t.transactionId ? (
+                        <Check size={13} color="var(--color-success)" />
+                      ) : (
+                        <Copy size={13} />
+                      )}
                     </button>
                   </div>
                 ),
               },
               {
-                header: 'ORDER / TRIP ID',
+                header: "ORDER / TRIP ID",
                 accessor: (t: FinanceTransactionItem) => (
                   <div>
-                    <span style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: 'var(--brand-primary)', fontWeight: 600 }}>
+                    <span className="text-mono text-brand font-semibold text-compact">
                       {t.orderId}
                     </span>
                     {t.vehicleType && (
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{t.vehicleType}</div>
+                      <div className="text-muted text-caption">
+                        {t.vehicleType}
+                      </div>
                     )}
                   </div>
                 ),
               },
               {
-                header: 'DRIVER NAME',
+                header: "DRIVER NAME",
                 accessor: (t: FinanceTransactionItem) => (
                   <div>
-                    <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.82rem' }}>
+                    <div className="font-semibold text-primary text-body-md">
                       {t.driverName}
                     </div>
-                    {t.driverPhone && t.driverPhone !== '—' && (
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{t.driverPhone}</div>
+                    {t.driverPhone && t.driverPhone !== "—" && (
+                      <div className="text-muted text-label">
+                        {t.driverPhone}
+                      </div>
                     )}
                   </div>
                 ),
               },
               {
-                header: 'CUSTOMER / CLIENT',
+                header: "CUSTOMER / CLIENT",
                 accessor: (t: FinanceTransactionItem) => (
                   <div>
-                    <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.82rem' }}>
+                    <div className="font-semibold text-primary text-body-md">
                       {t.customerName}
                     </div>
-                    {t.pickupCity && t.dropCity && t.pickupCity !== '—' && (
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                    {t.pickupCity && t.dropCity && t.pickupCity !== "—" && (
+                      <div className="text-muted text-caption">
                         {t.pickupCity} → {t.dropCity}
                       </div>
                     )}
@@ -1171,38 +1318,41 @@ export default function FinanceDashboardPage() {
                 ),
               },
               {
-                header: 'TOTAL ORDER AMOUNT',
+                header: "TOTAL ORDER AMOUNT",
                 accessor: (t: FinanceTransactionItem) => (
-                  <span style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '0.84rem' }}>
+                  <span className="font-extrabold text-primary text-body-lg">
                     {formatINR(t.totalOrderAmount)}
                   </span>
                 ),
               },
               {
-                header: 'DRIVER PAYOUT',
+                header: "DRIVER PAYOUT",
                 accessor: (t: FinanceTransactionItem) => (
-                  <span style={{ fontWeight: 700, color: 'var(--color-success)', fontSize: '0.84rem' }}>
+                  <span className="font-bold text-success text-body-lg">
                     {formatINR(t.driverEarnings)}
                   </span>
                 ),
               },
               {
-                header: 'PAYMENT STATUS',
+                header: "PAYMENT STATUS",
                 accessor: (t: FinanceTransactionItem) => (
-                  <StatusBadge status={t.paymentStatus || 'COMPLETED'} />
+                  <StatusBadge status={t.paymentStatus || "COMPLETED"} />
                 ),
               },
               {
-                header: 'TRANSACTION DATE',
+                header: "TRANSACTION DATE",
                 accessor: (t: FinanceTransactionItem) => (
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                    {new Date(t.transactionDate).toLocaleDateString('en-IN', {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric',
+                  <div className="text-sm text-secondary">
+                    {new Date(t.transactionDate).toLocaleDateString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
                     })}
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                      {new Date(t.transactionDate).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                    <div className="text-muted text-caption">
+                      {new Date(t.transactionDate).toLocaleTimeString("en-IN", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </div>
                   </div>
                 ),
@@ -1216,76 +1366,108 @@ export default function FinanceDashboardPage() {
       {/* ─────────────────────────────────────────────────────────────
        * TAB 3: DRIVER EARNINGS & PAYMENTS ROSTER
        * ───────────────────────────────────────────────────────────── */}
-      {activeTab === 'DRIVERS' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      {activeTab === "DRIVERS" && (
+        <div className="flex flex-col gap-6">
           {/* Driver Fleet Metric Overview Banner */}
           <div
+            className="grid gap-4"
             style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-              gap: '1rem',
+              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
             }}
           >
-            <div style={{ background: 'var(--bg-card)', padding: '1rem 1.25rem', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-card)' }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total Driver Gross Earnings</div>
-              <div style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.3rem' }}>
+            <div className="bg-card py-4 px-5 rounded-lg border border-subtle shadow-card">
+              <div className="text-sm font-semibold text-muted uppercase">
+                Total Driver Gross Earnings
+              </div>
+              <div
+                className="font-extrabold text-primary"
+                style={{ fontSize: "1.45rem", marginTop: "0.3rem" }}
+              >
                 {formatINR(data?.driverSummary?.totalDriverEarnings)}
               </div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>Total accumulated on completed trips</div>
+              <div className="text-muted text-label mt-compact">
+                Total accumulated on completed trips
+              </div>
             </div>
 
-            <div style={{ background: 'var(--bg-card)', padding: '1rem 1.25rem', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-card)' }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total Amount Paid (Disbursed)</div>
-              <div style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--color-success)', marginTop: '0.3rem' }}>
+            <div className="bg-card py-4 px-5 rounded-lg border border-subtle shadow-card">
+              <div className="text-sm font-semibold text-muted uppercase">
+                Total Amount Paid (Disbursed)
+              </div>
+              <div
+                className="font-extrabold text-success"
+                style={{ fontSize: "1.45rem", marginTop: "0.3rem" }}
+              >
                 {formatINR(data?.driverSummary?.amountPaidToDrivers)}
               </div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--color-success)', marginTop: '0.2rem' }}>Bank wire settlements successfully completed</div>
+              <div className="text-success text-label mt-compact">
+                Bank wire settlements successfully completed
+              </div>
             </div>
 
-            <div style={{ background: 'var(--bg-card)', padding: '1rem 1.25rem', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-card)' }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total Pending Payments</div>
-              <div style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--color-warning)', marginTop: '0.3rem' }}>
+            <div className="bg-card py-4 px-5 rounded-lg border border-subtle shadow-card">
+              <div className="text-sm font-semibold text-muted uppercase">
+                Total Pending Payments
+              </div>
+              <div
+                className="font-extrabold text-warning"
+                style={{ fontSize: "1.45rem", marginTop: "0.3rem" }}
+              >
                 {formatINR(data?.driverSummary?.pendingDriverPayments)}
               </div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--color-warning)', marginTop: '0.2rem' }}>Available wallet balance awaiting payout</div>
+              <div className="text-warning text-label mt-compact">
+                Available wallet balance awaiting payout
+              </div>
             </div>
-
           </div>
 
           {/* Driver Fleet Table */}
           <Card>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', paddingTop: '0.15rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div
+              className="flex justify-between items-center mb-5 flex-wrap gap-3"
+              style={{ paddingTop: "0.15rem" }}
+            >
               <div>
-                <h3 style={{ fontSize: '1.06rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                <h3
+                  className="font-bold text-primary m-0"
+                  style={{ fontSize: "1.06rem" }}
+                >
                   Driver Fleet Financial Accounts & Settlements
                 </h3>
-                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                  Individual driver earnings, bank payout progress, and dedicated wallet ledger breakdown
+                <p className="text-muted text-compact mt-compact">
+                  Individual driver earnings, bank payout progress, and
+                  dedicated wallet ledger breakdown
                 </p>
               </div>
 
-              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                <div style={{ position: 'relative', minWidth: '220px' }}>
-                  <Search size={15} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+              <div className="flex gap-3 items-center flex-wrap">
+                <div className="relative" style={{ minWidth: "220px" }}>
+                  <Search
+                    size={15}
+                    style={{
+                      position: "absolute",
+                      left: "10px",
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      color: "var(--text-muted)",
+                    }}
+                  />
                   <input
                     type="text"
                     placeholder="Search by driver name, phone, plate..."
                     value={driverSearch}
                     onChange={(e) => setDriverSearch(e.target.value)}
-                    style={{
-                      padding: '0.5rem 0.75rem 0.5rem 2.2rem',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-subtle)',
-                      background: 'var(--bg-base)',
-                      color: 'var(--text-primary)',
-                      fontSize: '0.8125rem',
-                      width: '100%',
-                      boxSizing: 'border-box',
-                    }}
+                    className="rounded-md border border-subtle bg-base text-primary text-base w-full box-border"
+                    style={{ padding: "0.5rem 0.75rem 0.5rem 2.2rem" }}
                   />
                 </div>
 
-                <Button variant="outline" size="sm" onClick={handleExportDrivers} leftIcon={<Download size={14} />}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportDrivers}
+                  leftIcon={<Download size={14} />}
+                >
                   Export Drivers CSV
                 </Button>
               </div>
@@ -1298,80 +1480,81 @@ export default function FinanceDashboardPage() {
               emptySubtitle="Driver accounts and payout ledgers will populate automatically as driver profiles complete trips."
               columns={[
                 {
-                  header: 'DRIVER DETAILS',
+                  header: "DRIVER DETAILS",
                   accessor: (d: FinanceDriverItem) => (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                    <div
+                      className="flex items-center"
+                      style={{ gap: "0.65rem" }}
+                    >
                       <div
+                        className="rounded-full flex items-center justify-center font-bold flex-shrink-0 text-body-sm"
                         style={{
-                          width: '36px',
-                          height: '36px',
-                          borderRadius: '50%',
-                          background: 'var(--brand-primary-gradient)',
-                          color: '#ffffff',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontWeight: 700,
-                          fontSize: '0.8rem',
-                          flexShrink: 0,
+                          width: "36px",
+                          height: "36px",
+                          background: "var(--brand-primary-gradient)",
+                          color: "#ffffff",
                         }}
                       >
                         {d.driverName.slice(0, 2).toUpperCase()}
                       </div>
                       <div>
-                        <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.84rem' }}>
+                        <div className="font-bold text-primary text-body-lg">
                           {d.driverName}
                         </div>
-                        <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>{d.driverPhone}</div>
+                        <div className="text-muted text-control">
+                          {d.driverPhone}
+                        </div>
                       </div>
                     </div>
                   ),
                 },
                 {
-                  header: 'VEHICLE ASSIGNED',
+                  header: "VEHICLE ASSIGNED",
                   accessor: (d: FinanceDriverItem) => (
                     <div>
-                      <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.82rem' }}>
+                      <div className="font-semibold text-primary text-body-md">
                         {d.vehicleType}
                       </div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                      <div className="text-muted text-mono text-label">
                         {d.vehiclePlate}
                       </div>
                     </div>
                   ),
                 },
                 {
-                  header: 'COMPLETED TRIPS',
+                  header: "COMPLETED TRIPS",
                   accessor: (d: FinanceDriverItem) => (
-                    <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.84rem' }}>
+                    <span className="font-bold text-primary text-body-lg">
                       {d.tripsCompleted}
                     </span>
                   ),
                 },
                 {
-                  header: 'TOTAL EARNINGS',
+                  header: "TOTAL EARNINGS",
                   accessor: (d: FinanceDriverItem) => (
-                    <span style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '0.85rem' }}>
+                    <span className="font-extrabold text-primary text-body">
                       {formatINR(d.totalEarnings)}
                     </span>
                   ),
                 },
                 {
-                  header: 'AMOUNT PAID',
+                  header: "AMOUNT PAID",
                   accessor: (d: FinanceDriverItem) => (
-                    <span style={{ fontWeight: 700, color: 'var(--color-success)', fontSize: '0.84rem' }}>
+                    <span className="font-bold text-success text-body-lg">
                       {formatINR(d.amountPaid)}
                     </span>
                   ),
                 },
                 {
-                  header: 'PENDING BALANCE',
+                  header: "PENDING BALANCE",
                   accessor: (d: FinanceDriverItem) => (
                     <span
+                      className="font-bold text-body-lg"
                       style={{
-                        fontWeight: 700,
-                        color: d.pendingBalance > 0 ? 'var(--color-warning)' : 'var(--text-muted)',
-                        fontSize: '0.84rem',
+                        color:
+                          d.pendingBalance > 0
+                            ? "var(--color-warning)"
+                            : "var(--text-muted)",
                       }}
                     >
                       {formatINR(d.pendingBalance)}
@@ -1379,18 +1562,20 @@ export default function FinanceDashboardPage() {
                   ),
                 },
                 {
-                  header: 'BANK ACCOUNT',
+                  header: "BANK ACCOUNT",
                   accessor: (d: FinanceDriverItem) => (
                     <div>
-                      <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
-                        {d.bankAccountNumber || '—'}
+                      <div className="text-secondary text-mono text-compact">
+                        {d.bankAccountNumber || "—"}
                       </div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{d.bankIfsc || ''}</div>
+                      <div className="text-muted text-caption">
+                        {d.bankIfsc || ""}
+                      </div>
                     </div>
                   ),
                 },
                 {
-                  header: 'ACTIONS',
+                  header: "ACTIONS",
                   accessor: (d: FinanceDriverItem) => (
                     <Button
                       variant="outline"
@@ -1411,32 +1596,31 @@ export default function FinanceDashboardPage() {
       {/* ─────────────────────────────────────────────────────────────
        * TAB 4: SETTLEMENT REPORTS & PAYOUTS
        * ───────────────────────────────────────────────────────────── */}
-      {activeTab === 'SETTLEMENTS' && (
+      {activeTab === "SETTLEMENTS" && (
         <Card>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', paddingTop: '0.15rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <div
+            className="flex justify-between items-center mb-5 flex-wrap gap-3"
+            style={{ paddingTop: "0.15rem" }}
+          >
             <div>
-              <h3 style={{ fontSize: '1.06rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+              <h3
+                className="font-bold text-primary m-0"
+                style={{ fontSize: "1.06rem" }}
+              >
                 Driver Bank Settlements & Disbursement Reports
               </h3>
-              <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                Bank wire settlements, withdrawal payout batches, and banking UTR reference logs
+              <p className="text-muted text-compact mt-compact">
+                Bank wire settlements, withdrawal payout batches, and banking
+                UTR reference logs
               </p>
             </div>
 
-            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <div className="flex gap-3 items-center">
               <select
                 value={settlementStatus}
                 onChange={(e) => setSettlementStatus(e.target.value)}
-                style={{
-                  padding: '0.5rem 0.85rem',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-subtle)',
-                  background: 'var(--bg-base)',
-                  color: 'var(--text-primary)',
-                  fontSize: '0.8125rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
+                className="rounded-md border border-subtle bg-base text-primary text-base font-semibold cursor-pointer"
+                style={{ padding: "0.5rem 0.85rem" }}
               >
                 <option value="ALL">All Settlement Statuses</option>
                 <option value="SETTLED">SETTLED (Bank Disbursed)</option>
@@ -1444,7 +1628,12 @@ export default function FinanceDashboardPage() {
                 <option value="FAILED">FAILED / CANCELLED</option>
               </select>
 
-              <Button variant="outline" size="sm" onClick={handleExportSettlements} leftIcon={<Download size={14} />}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportSettlements}
+                leftIcon={<Download size={14} />}
+              >
                 Export Settlements CSV
               </Button>
             </div>
@@ -1457,67 +1646,69 @@ export default function FinanceDashboardPage() {
             emptySubtitle="Driver withdrawal payout requests will appear here for processing and banking verification."
             columns={[
               {
-                header: 'SETTLEMENT ID',
+                header: "SETTLEMENT ID",
                 accessor: (s: FinanceSettlementReportItem) => (
-                  <span style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.82rem' }}>
+                  <span className="text-mono font-bold text-primary text-body-md">
                     {s.settlementId}
                   </span>
                 ),
               },
               {
-                header: 'DRIVER BENEFICIARY',
+                header: "DRIVER BENEFICIARY",
                 accessor: (s: FinanceSettlementReportItem) => (
                   <div>
-                    <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.84rem' }}>
+                    <div className="font-bold text-primary text-body-lg">
                       {s.driverName}
                     </div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                    <div className="text-muted text-label">
                       Acc: {s.bankAccountName || s.driverName}
                     </div>
                   </div>
                 ),
               },
               {
-                header: 'PAYOUT AMOUNT',
+                header: "PAYOUT AMOUNT",
                 accessor: (s: FinanceSettlementReportItem) => (
-                  <span style={{ fontWeight: 800, color: 'var(--color-success)', fontSize: '0.9rem' }}>
+                  <span className="font-extrabold text-success text-body-xl">
                     {formatINR(s.amount)}
                   </span>
                 ),
               },
               {
-                header: 'BANK DETAILS',
+                header: "BANK DETAILS",
                 accessor: (s: FinanceSettlementReportItem) => (
                   <div>
-                    <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.8rem' }}>
-                      {s.bankName || 'Bank Account'}
+                    <div className="font-semibold text-primary text-body-sm">
+                      {s.bankName || "Bank Account"}
                     </div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                    <div className="text-muted text-mono text-label">
                       {s.bankAccountNumber} • {s.bankIfsc}
                     </div>
                   </div>
                 ),
               },
               {
-                header: 'STATUS',
-                accessor: (s: FinanceSettlementReportItem) => <StatusBadge status={s.status} />,
+                header: "STATUS",
+                accessor: (s: FinanceSettlementReportItem) => (
+                  <StatusBadge status={s.status} />
+                ),
               },
               {
-                header: 'BANK UTR / REF',
+                header: "BANK UTR / REF",
                 accessor: (s: FinanceSettlementReportItem) => (
-                  <span style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                    {s.transactionRef || '—'}
+                  <span className="text-mono text-secondary text-compact">
+                    {s.transactionRef || "—"}
                   </span>
                 ),
               },
               {
-                header: 'REQUESTED DATE',
+                header: "REQUESTED DATE",
                 accessor: (s: FinanceSettlementReportItem) => (
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                    {new Date(s.requestedDate).toLocaleDateString('en-IN', {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric',
+                  <div className="text-sm text-secondary">
+                    {new Date(s.requestedDate).toLocaleDateString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
                     })}
                   </div>
                 ),
@@ -1530,14 +1721,18 @@ export default function FinanceDashboardPage() {
       {/* ─────────────────────────────────────────────────────────────
        * TAB 5: REFUNDS AND DEDUCTIONS
        * ───────────────────────────────────────────────────────────── */}
-      {activeTab === 'REFUNDS' && (
+      {activeTab === "REFUNDS" && (
         <Card>
-          <div style={{ marginBottom: '1.25rem', paddingTop: '0.15rem' }}>
-            <h3 style={{ fontSize: '1.06rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+          <div className="mb-5" style={{ paddingTop: "0.15rem" }}>
+            <h3
+              className="font-bold text-primary m-0"
+              style={{ fontSize: "1.06rem" }}
+            >
               Refunds, Deductions & SLA Penalties
             </h3>
-            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-              Summary of refunded customer payments, disputed cancellations, and driver penalty deductions
+            <p className="text-muted text-compact mt-compact">
+              Summary of refunded customer payments, disputed cancellations, and
+              driver penalty deductions
             </p>
           </div>
 
@@ -1548,55 +1743,59 @@ export default function FinanceDashboardPage() {
             emptySubtitle="All platform cancellations and disputed refund transactions will be tracked here."
             columns={[
               {
-                header: 'REFERENCE ID',
+                header: "REFERENCE ID",
                 accessor: (r: FinanceRefundItem) => (
-                  <span style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.82rem' }}>
+                  <span className="text-mono font-bold text-primary text-body-md">
                     {r.transactionRef}
                   </span>
                 ),
               },
               {
-                header: 'ORDER ID',
+                header: "ORDER ID",
                 accessor: (r: FinanceRefundItem) => (
-                  <span style={{ fontFamily: 'monospace', color: 'var(--brand-primary)', fontWeight: 600, fontSize: '0.8rem' }}>
+                  <span className="text-mono text-brand font-semibold text-body-sm">
                     {r.orderId}
                   </span>
                 ),
               },
               {
-                header: 'CLIENT / VENDOR',
+                header: "CLIENT / VENDOR",
                 accessor: (r: FinanceRefundItem) => (
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.82rem' }}>
+                  <span className="font-semibold text-primary text-body-md">
                     {r.customerName}
                   </span>
                 ),
               },
               {
-                header: 'REFUNDED AMOUNT',
+                header: "REFUNDED AMOUNT",
                 accessor: (r: FinanceRefundItem) => (
-                  <span style={{ fontWeight: 800, color: 'var(--color-danger)', fontSize: '0.85rem' }}>
+                  <span className="font-extrabold text-danger text-body">
                     {formatINR(r.amount)}
                   </span>
                 ),
               },
               {
-                header: 'REASON / REVERSAL NOTE',
+                header: "REASON / REVERSAL NOTE",
                 accessor: (r: FinanceRefundItem) => (
-                  <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{r.reason}</span>
+                  <span className="text-secondary text-compact">
+                    {r.reason}
+                  </span>
                 ),
               },
               {
-                header: 'STATUS',
-                accessor: (r: FinanceRefundItem) => <StatusBadge status={r.status} />,
+                header: "STATUS",
+                accessor: (r: FinanceRefundItem) => (
+                  <StatusBadge status={r.status} />
+                ),
               },
               {
-                header: 'REFUND DATE',
+                header: "REFUND DATE",
                 accessor: (r: FinanceRefundItem) => (
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    {new Date(r.date).toLocaleDateString('en-IN', {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric',
+                  <span className="text-sm text-muted">
+                    {new Date(r.date).toLocaleDateString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
                     })}
                   </span>
                 ),
@@ -1615,49 +1814,55 @@ export default function FinanceDashboardPage() {
           setSelectedDriverId(null);
           setDriverDetail(null);
         }}
-        title={driverDetail ? `${driverDetail.driver.fullName} — Financial Ledger` : 'Driver Financial Ledger'}
-        subtitle={driverDetail ? `Phone: ${driverDetail.driver.phone} • Plate: ${driverDetail.driver.vehiclePlate}` : 'Loading driver ledger...'}
+        title={
+          driverDetail
+            ? `${driverDetail.driver.fullName} — Financial Ledger`
+            : "Driver Financial Ledger"
+        }
+        subtitle={
+          driverDetail
+            ? `Phone: ${driverDetail.driver.phone} • Plate: ${driverDetail.driver.vehiclePlate}`
+            : "Loading driver ledger..."
+        }
         width="650px"
       >
         {driverDetailLoading ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '300px' }}>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Loading driver transactions...</p>
+          <div
+            className="flex items-center justify-center"
+            style={{ minHeight: "300px" }}
+          >
+            <p className="text-muted text-body">
+              Loading driver transactions...
+            </p>
           </div>
         ) : !driverDetail ? (
-          <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-muted)' }}>
+          <div className="text-center py-12 px-4 text-muted">
             Unable to load driver financial details.
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div className="flex flex-col gap-5">
             {/* Wallet Overview Box */}
-            <div
-              style={{
-                background: 'var(--brand-primary-subtle)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-md)',
-                padding: '1.25rem',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-            >
+            <div className="bg-brand-subtle border rounded-md p-5 flex justify-between items-center">
               <div>
-                <div style={{ fontSize: '0.74rem', fontWeight: 600, color: 'var(--brand-primary)', textTransform: 'uppercase' }}>
+                <div className="font-semibold text-brand uppercase text-control">
                   Current Wallet Balance
                 </div>
-                <div style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--brand-primary)', marginTop: '0.2rem' }}>
+                <div
+                  className="font-extrabold text-brand mt-compact"
+                  style={{ fontSize: "1.65rem" }}
+                >
                   {formatINR(driverDetail.driver.walletBalance)}
                 </div>
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                <div className="text-secondary text-label mt-snug">
                   Available for immediate bank withdrawal
                 </div>
               </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Vehicle Model</div>
-                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              <div className="text-right">
+                <div className="text-muted text-control">Vehicle Model</div>
+                <div className="font-bold text-primary text-body">
                   {driverDetail.driver.vehicleType}
                 </div>
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                <div className="text-muted text-mono text-label">
                   {driverDetail.driver.vehiclePlate}
                 </div>
               </div>
@@ -1665,42 +1870,43 @@ export default function FinanceDashboardPage() {
 
             {/* Completed Trips Breakdown */}
             <div>
-              <h4 style={{ fontSize: '1.04rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.15rem', marginBottom: '0.65rem' }}>
+              <h4
+                className="font-bold text-primary mt-snug"
+                style={{ fontSize: "1.04rem", marginBottom: "0.65rem" }}
+              >
                 Completed Trips & Earnings ({driverDetail.trips.length})
               </h4>
               {driverDetail.trips.length === 0 ? (
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', padding: '1rem', background: 'var(--bg-base)', borderRadius: 'var(--radius-sm)' }}>
+                <div className="text-muted p-4 bg-base rounded-sm text-body-sm">
                   No completed trips logged for this driver yet.
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '220px', overflowY: 'auto' }}>
+                <div
+                  className="flex flex-col gap-2 overflow-y-auto"
+                  style={{ maxHeight: "220px" }}
+                >
                   {driverDetail.trips.map((tr) => (
                     <div
                       key={tr.id}
-                      style={{
-                        padding: '0.65rem 0.85rem',
-                        background: 'var(--bg-card)',
-                        border: '1px solid var(--border-subtle)',
-                        borderRadius: 'var(--radius-sm)',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                      }}
+                      className="bg-card border border-subtle rounded-sm flex justify-between items-center"
+                      style={{ padding: "0.65rem 0.85rem" }}
                     >
                       <div>
-                        <div style={{ fontFamily: 'monospace', fontSize: '0.75rem', fontWeight: 700, color: 'var(--brand-primary)' }}>
+                        <div className="text-mono text-sm font-bold text-brand">
                           {tr.orderId}
                         </div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
-                          {tr.pickupAddress?.split(',')[0]} → {tr.dropAddress?.split(',')[0]}
+                        <div className="text-secondary text-label mt-snug">
+                          {tr.pickupAddress?.split(",")[0]} →{" "}
+                          {tr.dropAddress?.split(",")[0]}
                         </div>
                       </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontWeight: 800, color: 'var(--color-success)', fontSize: '0.84rem' }}>
+                      <div className="text-right">
+                        <div className="font-extrabold text-success text-body-lg">
                           +{formatINR(tr.totalEarnings)}
                         </div>
-                        <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                          Fare: {formatINR(tr.fare)} {tr.toll > 0 ? `+ Toll ${formatINR(tr.toll)}` : ''}
+                        <div className="text-muted text-micro">
+                          Fare: {formatINR(tr.fare)}{" "}
+                          {tr.toll > 0 ? `+ Toll ${formatINR(tr.toll)}` : ""}
                         </div>
                       </div>
                     </div>
@@ -1711,41 +1917,43 @@ export default function FinanceDashboardPage() {
 
             {/* Settlement Payout History */}
             <div>
-              <h4 style={{ fontSize: '1.04rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.15rem', marginBottom: '0.65rem' }}>
+              <h4
+                className="font-bold text-primary mt-snug"
+                style={{ fontSize: "1.04rem", marginBottom: "0.65rem" }}
+              >
                 Bank Payout History ({driverDetail.settlements.length})
               </h4>
               {driverDetail.settlements.length === 0 ? (
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', padding: '1rem', background: 'var(--bg-base)', borderRadius: 'var(--radius-sm)' }}>
+                <div className="text-muted p-4 bg-base rounded-sm text-body-sm">
                   No withdrawal settlements requested yet.
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '180px', overflowY: 'auto' }}>
+                <div
+                  className="flex flex-col gap-2 overflow-y-auto"
+                  style={{ maxHeight: "180px" }}
+                >
                   {driverDetail.settlements.map((st) => (
                     <div
                       key={st.id}
-                      style={{
-                        padding: '0.65rem 0.85rem',
-                        background: 'var(--bg-card)',
-                        border: '1px solid var(--border-subtle)',
-                        borderRadius: 'var(--radius-sm)',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                      }}
+                      className="bg-card border border-subtle rounded-sm flex justify-between items-center"
+                      style={{ padding: "0.65rem 0.85rem" }}
                     >
                       <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <span style={{ fontWeight: 700, fontSize: '0.82rem', color: 'var(--text-primary)' }}>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-primary text-body-md">
                             {formatINR(st.amount)}
                           </span>
                           <StatusBadge status={st.status} size="sm" />
                         </div>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
-                          UTR: {st.transactionRef || 'Pending bank release'}
+                        <div className="text-muted text-caption mt-snug">
+                          UTR: {st.transactionRef || "Pending bank release"}
                         </div>
                       </div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                        {new Date(st.requestedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                      <div className="text-muted text-caption">
+                        {new Date(st.requestedAt).toLocaleDateString("en-IN", {
+                          day: "numeric",
+                          month: "short",
+                        })}
                       </div>
                     </div>
                   ))}
@@ -1761,102 +1969,80 @@ export default function FinanceDashboardPage() {
        * ───────────────────────────────────────────────────────────── */}
       {selectedTransaction && (
         <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0, 0, 0, 0.45)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 100,
-            padding: '1rem',
-          }}
+          className="top-0 left-0 right-0 bottom-0 flex items-center justify-center p-4 fixed"
+          style={{ background: "rgba(0, 0, 0, 0.45)", zIndex: 100 }}
           onClick={() => setSelectedTransaction(null)}
         >
           <div
-            style={{
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-lg)',
-              maxWidth: '520px',
-              width: '100%',
-              padding: '1.5rem',
-              boxShadow: 'var(--shadow-elevated)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '1rem',
-            }}
+            className="bg-card border rounded-lg w-full p-6 shadow-elevated flex flex-col gap-4"
+            style={{ maxWidth: "520px" }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.75rem' }}>
+            <div className="flex justify-between items-center border-b border-subtle pb-3">
               <div>
-                <h3 style={{ fontSize: '1.08rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                <h3 className="font-bold text-primary m-0 text-title-md">
                   Transaction Receipt Details
                 </h3>
-                <span style={{ fontSize: '0.75rem', fontFamily: 'monospace', color: 'var(--text-muted)' }}>
+                <span className="text-sm text-mono text-muted">
                   {selectedTransaction.transactionId}
                 </span>
               </div>
               <StatusBadge status={selectedTransaction.paymentStatus} />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem', fontSize: '0.82rem' }}>
+            <div
+              className="grid gap-relaxed text-body-md"
+              style={{ gridTemplateColumns: "1fr 1fr" }}
+            >
               <div>
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Order Reference:</span>
-                <div style={{ fontWeight: 700, color: 'var(--brand-primary)', fontFamily: 'monospace' }}>
+                <span className="text-muted text-sm">Order Reference:</span>
+                <div className="font-bold text-brand text-mono">
                   {selectedTransaction.orderId}
                 </div>
               </div>
               <div>
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Payment Method:</span>
-                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                <span className="text-muted text-sm">Payment Method:</span>
+                <div className="font-semibold text-primary">
                   {selectedTransaction.paymentMethod}
                 </div>
               </div>
               <div>
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Customer / Client:</span>
-                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                <span className="text-muted text-sm">Customer / Client:</span>
+                <div className="font-semibold text-primary">
                   {selectedTransaction.customerName}
                 </div>
               </div>
               <div>
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Driver Beneficiary:</span>
-                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                <span className="text-muted text-sm">Driver Beneficiary:</span>
+                <div className="font-semibold text-primary">
                   {selectedTransaction.driverName}
                 </div>
               </div>
             </div>
 
-            <div
-              style={{
-                background: 'var(--bg-base)',
-                borderRadius: 'var(--radius-md)',
-                padding: '1rem',
-                border: '1px solid var(--border-subtle)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.5rem',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Gross Booking Fare (GMV):</span>
-                <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+            <div className="bg-base rounded-md p-4 border border-subtle flex flex-col gap-2">
+              <div className="flex justify-between text-body-lg">
+                <span className="text-secondary">
+                  Gross Booking Fare (GMV):
+                </span>
+                <span className="font-bold text-primary">
                   {formatINR(selectedTransaction.totalOrderAmount)}
                 </span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem' }}>
-                <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>Driver Payout:</span>
-                <span style={{ fontWeight: 800, color: 'var(--color-success)' }}>
+              <div className="flex justify-between text-body-lg">
+                <span className="font-bold text-success">Driver Payout:</span>
+                <span className="font-extrabold text-success">
                   {formatINR(selectedTransaction.driverEarnings)}
                 </span>
               </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '0.5rem' }}>
-              <Button variant="primary" size="sm" onClick={() => setSelectedTransaction(null)}>
+            <div className="flex justify-end pt-2">
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setSelectedTransaction(null)}
+              >
                 Close Receipt
               </Button>
             </div>
@@ -1866,4 +2052,3 @@ export default function FinanceDashboardPage() {
     </div>
   );
 }
-

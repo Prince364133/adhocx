@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { AlertTriangle } from 'lucide-react';
-import { VerificationItem } from '../../lib/api/types';
-import { Modal } from '../Modal';
-import { Button } from '../common/Button';
+import React from "react";
+import { AlertTriangle } from "lucide-react";
+import { VerificationItem } from "../../lib/api/types";
+import { Modal } from "../Modal";
+import { Button } from "../common/Button";
 
 interface DeclineModalProps {
   isOpen: boolean;
@@ -19,14 +19,14 @@ interface DeclineModalProps {
 }
 
 const PRESET_REASONS = [
-  'Blurry or unreadable Driving License image',
-  'Driving License is expired or invalid',
-  'Vehicle RC plate number mismatch with document',
-  'Vehicle exterior photo does not clearly show registration plate',
-  'Commercial insurance policy is expired or inactive',
-  'Aadhaar / National ID details mismatch with name',
-  'GST certificate registration inactive or entity name mismatch',
-  'Vehicle class does not match the selected category',
+  "Blurry or unreadable Driving License image",
+  "Driving License is expired or invalid",
+  "Vehicle RC plate number mismatch with document",
+  "Vehicle exterior photo does not clearly show registration plate",
+  "Commercial insurance policy is expired or inactive",
+  "Aadhaar / National ID details mismatch with name",
+  "GST certificate registration inactive or entity name mismatch",
+  "Vehicle class does not match the selected category",
 ];
 
 export const DeclineReasonModal: React.FC<DeclineModalProps> = ({
@@ -47,14 +47,21 @@ export const DeclineReasonModal: React.FC<DeclineModalProps> = ({
         if (!isProcessing) onClose();
       }}
       title="Decline Application"
-      subtitle={target ? `Specify feedback sent directly to ${target.name}` : undefined}
+      subtitle={
+        target ? `Specify feedback sent directly to ${target.name}` : undefined
+      }
       variant="danger"
       size="md"
       closeOnBackdrop={!isProcessing}
       icon={<AlertTriangle size={18} color="var(--color-danger)" />}
       footer={
         <>
-          <Button variant="secondary" size="md" onClick={onClose} disabled={isProcessing}>
+          <Button
+            variant="secondary"
+            size="md"
+            onClick={onClose}
+            disabled={isProcessing}
+          >
             Cancel
           </Button>
           <Button
@@ -64,37 +71,35 @@ export const DeclineReasonModal: React.FC<DeclineModalProps> = ({
             disabled={!presetReason}
             onClick={onConfirm}
           >
-            {isProcessing ? 'Processing...' : 'Confirm Decline'}
+            {isProcessing ? "Processing..." : "Confirm Decline"}
           </Button>
         </>
       }
     >
       {target && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.95rem' }}>
+        <div className="flex flex-col gap-wide">
           {/* Target summary banner */}
           <div
-            style={{
-              padding: '0.7rem 0.9rem',
-              background: 'var(--bg-card-elevated)',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border)',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              fontSize: '0.8125rem',
-            }}
+            className="bg-card-elevated rounded-md border flex justify-between items-center text-base"
+            style={{ padding: "0.7rem 0.9rem" }}
           >
             <div>
-              <span style={{ color: 'var(--text-muted)' }}>Target: </span>
-              <strong style={{ color: 'var(--text-primary)' }}>{target.name}</strong>
-              <span style={{ color: 'var(--text-muted)' }}> ({target.phone})</span>
+              <span className="text-muted">Target: </span>
+              <strong className="text-primary">{target.name}</strong>
+              <span className="text-muted"> ({target.phone})</span>
             </div>
             <span
               className="badge"
               style={{
-                backgroundColor: target.entityType === 'DRIVER' ? 'var(--brand-primary-subtle)' : 'var(--color-info-bg)',
-                color: target.entityType === 'DRIVER' ? 'var(--brand-primary)' : 'var(--color-info)',
-                border: `1px solid ${target.entityType === 'DRIVER' ? 'var(--brand-primary-border)' : 'var(--color-info-border)'}`,
+                backgroundColor:
+                  target.entityType === "DRIVER"
+                    ? "var(--brand-primary-subtle)"
+                    : "var(--color-info-bg)",
+                color:
+                  target.entityType === "DRIVER"
+                    ? "var(--text-brand)"
+                    : "var(--color-info)",
+                border: `1px solid ${target.entityType === "DRIVER" ? "var(--brand-primary-border)" : "var(--color-info-border)"}`,
               }}
             >
               {target.entityType}
@@ -103,18 +108,11 @@ export const DeclineReasonModal: React.FC<DeclineModalProps> = ({
 
           {/* Preset chips */}
           <div>
-            <label
-              style={{
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                color: 'var(--text-secondary)',
-                display: 'block',
-                marginBottom: '0.45rem',
-              }}
-            >
-              Select Rejection Reason Preset <span style={{ color: 'var(--color-danger)' }}>*</span>
+            <label className="text-sm font-semibold text-secondary block mb-snug">
+              Select Rejection Reason Preset{" "}
+              <span className="text-danger">*</span>
             </label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+            <div className="flex flex-wrap gap-compact">
               {PRESET_REASONS.map((r) => {
                 const isSelected = presetReason === r;
                 return (
@@ -122,17 +120,20 @@ export const DeclineReasonModal: React.FC<DeclineModalProps> = ({
                     key={r}
                     type="button"
                     onClick={() => onPresetReasonChange(r)}
+                    className="rounded-sm text-control text-left cursor-pointer"
                     style={{
-                      padding: '0.35rem 0.62rem',
-                      borderRadius: 'var(--radius-sm)',
-                      fontSize: '0.74rem',
+                      padding: "0.35rem 0.62rem",
                       fontWeight: isSelected ? 600 : 500,
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      transition: 'all 0.14s ease',
-                      background: isSelected ? 'var(--color-danger-bg)' : 'var(--bg-card-elevated)',
-                      color: isSelected ? 'var(--color-danger)' : 'var(--text-secondary)',
-                      border: isSelected ? '1px solid var(--color-danger)' : '1px solid var(--border)',
+                      transition: "all 0.14s ease",
+                      background: isSelected
+                        ? "var(--color-danger-bg)"
+                        : "var(--bg-card-elevated)",
+                      color: isSelected
+                        ? "var(--color-danger)"
+                        : "var(--text-secondary)",
+                      border: isSelected
+                        ? "1px solid var(--color-danger)"
+                        : "1px solid var(--border)",
                     }}
                   >
                     {r}
@@ -143,8 +144,10 @@ export const DeclineReasonModal: React.FC<DeclineModalProps> = ({
           </div>
 
           {/* Custom notes */}
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label">Additional Operational Notes / Instructions</label>
+          <div className="form-group mb-0">
+            <label className="form-label">
+              Additional Operational Notes / Instructions
+            </label>
             <textarea
               rows={3}
               className="form-textarea"

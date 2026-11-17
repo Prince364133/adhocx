@@ -1,10 +1,20 @@
-'use client';
+"use client";
 
-import React, { useEffect, useState } from 'react';
-import { ZoomIn, ZoomOut, RotateCw, X, FileText, ExternalLink } from 'lucide-react';
-import { DriverKycDocument } from '../../lib/api/types';
-import { resolveDocumentUrl, handleDocumentImageError } from '../../lib/api/client';
-import { acquireScrollLock } from '../common/scrollLock';
+import React, { useEffect, useState } from "react";
+import {
+  ZoomIn,
+  ZoomOut,
+  RotateCw,
+  X,
+  FileText,
+  ExternalLink,
+} from "lucide-react";
+import { DriverKycDocument } from "../../lib/api/types";
+import {
+  resolveDocumentUrl,
+  handleDocumentImageError,
+} from "../../lib/api/client";
+import { acquireScrollLock } from "../common/scrollLock";
 
 interface PreviewModalProps {
   isOpen: boolean;
@@ -27,81 +37,71 @@ export const DocumentPreviewModal: React.FC<PreviewModalProps> = ({
 
     const releaseLock = acquireScrollLock();
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         onClose();
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
     return () => {
       releaseLock();
-      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener("keydown", handleKeyDown);
     };
   }, [isOpen, document, onClose]);
 
   if (!isOpen || !document) return null;
 
   const toolbarBtnStyle: React.CSSProperties = {
-    padding: '0.4rem 0.65rem',
-    borderRadius: '8px',
-    background: 'rgba(15, 23, 42, 0.86)',
-    border: '1px solid rgba(255, 255, 255, 0.16)',
-    color: '#ffffff',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.3rem',
-    fontSize: '0.78rem',
+    padding: "0.4rem 0.65rem",
+    borderRadius: "8px",
+    background: "rgba(15, 23, 42, 0.86)",
+    border: "1px solid rgba(255, 255, 255, 0.16)",
+    color: "#ffffff",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    gap: "0.3rem",
+    fontSize: "0.78rem",
     fontWeight: 600,
-    transition: 'all 0.15s ease',
+    transition: "all 0.15s ease",
   };
 
   return (
     <div
-      className="animate-modal-backdrop"
+      className="animate-modal-backdrop fixed flex flex-col items-center justify-center p-6"
       role="dialog"
       aria-modal="true"
       aria-label={`Document preview: ${document.title}`}
       style={{
-        position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.88)',
-        backdropFilter: 'blur(8px)',
+        backgroundColor: "rgba(15, 23, 42, 0.88)",
+        backdropFilter: "blur(8px)",
         zIndex: 120,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '1.5rem',
       }}
       onClick={onClose}
     >
       {/* Header bar */}
       <div
-        className="animate-modal-pop"
-        style={{
-          width: '100%',
-          maxWidth: '900px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: '1rem',
-          flexWrap: 'wrap',
-          marginBottom: '0.85rem',
-          color: '#ffffff',
-        }}
+        className="animate-modal-pop w-full flex justify-between items-center gap-4 flex-wrap"
+        style={{ maxWidth: "900px", marginBottom: "0.85rem", color: "#ffffff" }}
         onClick={(e) => e.stopPropagation()}
       >
         <div>
-          <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0, color: '#ffffff' }}>
+          <h3
+            className="text-title-sm font-bold m-0"
+            style={{ color: "#ffffff" }}
+          >
             {document.title}
           </h3>
-          <p style={{ fontSize: '0.75rem', color: '#cbd5e1', margin: '0.15rem 0 0' }}>
+          <p
+            className="text-sm"
+            style={{ color: "#cbd5e1", margin: "0.15rem 0 0" }}
+          >
             Cloudflare R2 Encrypted Document Storage
           </p>
         </div>
 
         {/* Zoom and Rotate controls */}
-        <div style={{ display: 'flex', gap: '0.45rem', alignItems: 'center' }}>
+        <div className="flex gap-snug items-center">
           <button
             type="button"
             onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))}
@@ -110,7 +110,10 @@ export const DocumentPreviewModal: React.FC<PreviewModalProps> = ({
           >
             <ZoomOut size={15} />
           </button>
-          <span style={{ fontSize: '0.75rem', minWidth: '42px', textAlign: 'center', color: '#e2e8f0', fontWeight: 600 }}>
+          <span
+            className="text-sm text-center font-semibold"
+            style={{ minWidth: "42px", color: "#e2e8f0" }}
+          >
             {Math.round(zoom * 100)}%
           </span>
           <button
@@ -135,9 +138,9 @@ export const DocumentPreviewModal: React.FC<PreviewModalProps> = ({
             onClick={onClose}
             style={{
               ...toolbarBtnStyle,
-              background: 'rgba(220, 38, 38, 0.22)',
-              border: '1px solid rgba(248, 113, 113, 0.45)',
-              color: '#fecaca',
+              background: "rgba(220, 38, 38, 0.22)",
+              border: "1px solid rgba(248, 113, 113, 0.45)",
+              color: "#fecaca",
             }}
           >
             <X size={14} /> Close
@@ -147,66 +150,44 @@ export const DocumentPreviewModal: React.FC<PreviewModalProps> = ({
 
       {/* Document Viewport */}
       <div
-        style={{
-          width: '100%',
-          maxWidth: '900px',
-          maxHeight: '75vh',
-          background: 'var(--bg-base)',
-          border: '1px solid var(--border)',
-          borderRadius: '12px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          overflow: 'auto',
-          padding: '1.5rem',
-        }}
+        className="w-full bg-base border flex items-center justify-center overflow-auto p-6"
+        style={{ maxWidth: "900px", maxHeight: "75vh", borderRadius: "12px" }}
         onClick={(e) => e.stopPropagation()}
       >
         <div
+          className="flex flex-col items-center"
           style={{
             transform: `scale(${zoom}) rotate(${rotation}deg)`,
-            transition: 'transform 0.2s ease',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
+            transition: "transform 0.2s ease",
           }}
         >
           {(() => {
             const resolvedUrl = resolveDocumentUrl(document.fileUrl);
-            const isPdf = (resolvedUrl || '').toLowerCase().split('?')[0].endsWith('.pdf');
+            const isPdf = (resolvedUrl || "")
+              .toLowerCase()
+              .split("?")[0]
+              .endsWith(".pdf");
 
             if (isPdf) {
               return (
                 <div
+                  className="bg-surface-elevated flex flex-col items-center justify-center gap-4"
                   style={{
-                    width: '600px',
-                    height: '400px',
-                    background: 'var(--bg-surface-elevated)',
-                    borderRadius: '8px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '1rem',
+                    width: "600px",
+                    height: "400px",
+                    borderRadius: "8px",
                   }}
                 >
-                  <FileText size={48} color="var(--brand-primary)" />
-                  <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>PDF Document: {document.title}</span>
+                  <FileText size={48} color="var(--text-brand)" />
+                  <span className="text-primary font-semibold">
+                    PDF Document: {document.title}
+                  </span>
                   <a
                     href={resolvedUrl}
                     target="_blank"
                     rel="noreferrer"
-                    style={{
-                      padding: '0.5rem 1rem',
-                      background: 'var(--brand-primary)',
-                      borderRadius: '6px',
-                      color: '#fff',
-                      fontWeight: 600,
-                      fontSize: '0.875rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.35rem',
-                    }}
+                    className="py-2 px-4 bg-brand font-semibold text-md flex items-center gap-tight"
+                    style={{ borderRadius: "6px", color: "#fff" }}
                   >
                     <ExternalLink size={14} /> Open in New Tab
                   </a>
@@ -215,16 +196,16 @@ export const DocumentPreviewModal: React.FC<PreviewModalProps> = ({
             }
 
             return (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+              <div className="flex flex-col items-center gap-3">
                 <img
                   src={resolvedUrl}
                   alt={document.title}
                   style={{
-                    maxWidth: '100%',
-                    maxHeight: '65vh',
-                    objectFit: 'contain',
-                    borderRadius: '8px',
-                    boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                    maxWidth: "100%",
+                    maxHeight: "65vh",
+                    objectFit: "contain",
+                    borderRadius: "8px",
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
                   }}
                   onError={(e) => {
                     handleDocumentImageError(e, document.title);
@@ -235,14 +216,8 @@ export const DocumentPreviewModal: React.FC<PreviewModalProps> = ({
                     href={resolvedUrl}
                     target="_blank"
                     rel="noreferrer"
-                    style={{
-                      color: '#94a3b8',
-                      fontSize: '0.75rem',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.25rem',
-                      textDecoration: 'underline',
-                    }}
+                    className="text-sm inline-flex items-center gap-1"
+                    style={{ color: "#94a3b8", textDecoration: "underline" }}
                   >
                     <ExternalLink size={12} /> Open original asset in new window
                   </a>

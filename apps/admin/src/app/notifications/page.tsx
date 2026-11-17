@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import {
   Send,
   Smartphone,
@@ -20,8 +20,8 @@ import {
   Plus,
   Check,
   type LucideIcon,
-} from 'lucide-react';
-import { adminApi } from '../../lib/api/client';
+} from "lucide-react";
+import { adminApi } from "../../lib/api/client";
 import {
   NotificationCampaignItem,
   NotificationMetrics,
@@ -30,7 +30,7 @@ import {
   TestPushPayload,
   AudienceEstimateResult,
   UserListItem,
-} from '../../lib/api/types';
+} from "../../lib/api/types";
 import {
   PageHeader,
   KpiStrip,
@@ -41,16 +41,20 @@ import {
   Drawer,
   ConfirmDialog,
   FeedbackBanner,
-} from '../../components/common';
-import { Modal } from '../../components/Modal';
+  Modal,
+  Input,
+  Textarea,
+} from "../../components/common";
 
-const BLUE_PRIMARY = 'var(--brand-primary)';
-const BLUE_HOVER = 'var(--brand-primary-hover)';
-const BLUE_SUBTLE = 'var(--brand-primary-subtle)';
-const BLUE_BORDER = 'var(--brand-primary-border)';
+const BLUE_PRIMARY = "var(--brand-primary)";
+const BLUE_TEXT = "var(--text-brand)";
+const BLUE_FOCUS = "var(--border-focus)";
+const BLUE_HOVER = "var(--brand-primary-hover)";
+const BLUE_SUBTLE = "var(--brand-primary-subtle)";
+const BLUE_BORDER = "var(--brand-primary-border)";
 
-type AudienceMode = 'ALL' | 'DRIVER' | 'VENDOR' | 'SPECIFIC';
-type DeliveryStatusKey = 'SENT' | 'DELIVERED' | 'FAILED';
+type AudienceMode = "ALL" | "DRIVER" | "VENDOR" | "SPECIFIC";
+type DeliveryStatusKey = "SENT" | "DELIVERED" | "FAILED";
 
 const PAGE_SIZE = 10;
 
@@ -61,62 +65,64 @@ const AUDIENCE_OPTIONS: Array<{
   icon: LucideIcon;
 }> = [
   {
-    id: 'ALL',
-    label: 'All Users',
-    description: 'All active users, drivers, and vendors',
+    id: "ALL",
+    label: "All Users",
+    description: "All active users, drivers, and vendors",
     icon: Users,
   },
   {
-    id: 'DRIVER',
-    label: 'Drivers Only',
-    description: 'Registered fleet drivers',
+    id: "DRIVER",
+    label: "Drivers Only",
+    description: "Registered fleet drivers",
     icon: Car,
   },
   {
-    id: 'VENDOR',
-    label: 'Vendors Only',
-    description: 'Corporate & transport vendors',
+    id: "VENDOR",
+    label: "Vendors Only",
+    description: "Corporate & transport vendors",
     icon: Building2,
   },
   {
-    id: 'SPECIFIC',
-    label: 'Specific Users',
-    description: 'Select specific users if required',
+    id: "SPECIFIC",
+    label: "Specific Users",
+    description: "Select specific users if required",
     icon: UserCheck,
   },
 ];
 
-function getCampaignDeliveryStatus(c: NotificationCampaignItem): DeliveryStatusKey {
-  const status = (c.status || '').toUpperCase();
+function getCampaignDeliveryStatus(
+  c: NotificationCampaignItem,
+): DeliveryStatusKey {
+  const status = (c.status || "").toUpperCase();
   const targeted = c.totalTargeted ?? 0;
   const success = c.successCount ?? 0;
   const failed = c.failureCount ?? 0;
 
-  if (status === 'FAILED' || (targeted > 0 && success === 0 && failed > 0)) {
-    return 'FAILED';
+  if (status === "FAILED" || (targeted > 0 && success === 0 && failed > 0)) {
+    return "FAILED";
   }
-  if (status === 'DELIVERED' || (success > 0 && failed === 0)) {
-    return 'DELIVERED';
+  if (status === "DELIVERED" || (success > 0 && failed === 0)) {
+    return "DELIVERED";
   }
-  return 'SENT';
+  return "SENT";
 }
 
 function getRecipientCount(c: NotificationCampaignItem): number {
-  if (typeof c.totalTargeted === 'number' && c.totalTargeted > 0) {
+  if (typeof c.totalTargeted === "number" && c.totalTargeted > 0) {
     return c.totalTargeted;
   }
   return (c.successCount || 0) + (c.failureCount || 0);
 }
 
 function formatDate(isoString?: string): string {
-  if (!isoString) return '—';
+  if (!isoString) return "—";
   try {
-    return new Date(isoString).toLocaleDateString('en-IN', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+    return new Date(isoString).toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   } catch {
     return isoString;
@@ -124,33 +130,40 @@ function formatDate(isoString?: string): string {
 }
 
 const inputBaseStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '0.48rem 0.72rem',
-  borderRadius: 'var(--radius-md)',
-  border: '1px solid var(--border-light, #CBD5E1)',
-  fontSize: '0.78rem',
-  background: 'var(--bg-card, #FFFFFF)',
-  color: 'var(--text-primary)',
-  outline: 'none',
-  fontFamily: 'inherit',
-  transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
+  width: "100%",
+  padding: "0.48rem 0.72rem",
+  borderRadius: "var(--radius-md)",
+  border: "1px solid var(--border-light, #CBD5E1)",
+  fontSize: "0.78rem",
+  background: "var(--bg-card, #FFFFFF)",
+  color: "var(--text-primary)",
+  outline: "none",
+  fontFamily: "inherit",
+  transition: "border-color 0.15s ease, box-shadow 0.15s ease",
 };
 
-function applyBlueFocus(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) {
-  e.currentTarget.style.borderColor = BLUE_PRIMARY;
-  e.currentTarget.style.boxShadow = '0 0 0 3px var(--brand-primary-subtle)';
+function applyBlueFocus(
+  e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>,
+) {
+  e.currentTarget.style.borderColor = BLUE_FOCUS;
+  e.currentTarget.style.boxShadow = "0 0 0 3px var(--brand-primary-subtle)";
 }
 
-function clearBlueFocus(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) {
-  e.currentTarget.style.borderColor = 'var(--border-light, #CBD5E1)';
-  e.currentTarget.style.boxShadow = 'none';
+function clearBlueFocus(
+  e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>,
+) {
+  e.currentTarget.style.borderColor = "var(--border-light, #CBD5E1)";
+  e.currentTarget.style.boxShadow = "none";
 }
 
 export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [estimating, setEstimating] = useState(false);
-  const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [alert, setAlert] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
 
   // Metrics & Campaigns
   const [metrics, setMetrics] = useState<NotificationMetrics>({
@@ -165,39 +178,43 @@ export default function NotificationsPage() {
   const [totalCampaignsCount, setTotalCampaignsCount] = useState(0);
 
   // Create Notification Form
-  const [title, setTitle] = useState('');
-  const [body, setBody] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
 
   // Audience Selection
-  const [audienceMode, setAudienceMode] = useState<AudienceMode>('ALL');
+  const [audienceMode, setAudienceMode] = useState<AudienceMode>("ALL");
   const [selectedUsers, setSelectedUsers] = useState<UserListItem[]>([]);
   const [manualPhones, setManualPhones] = useState<string[]>([]);
-  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [userSearchQuery, setUserSearchQuery] = useState("");
   const [availableUsers, setAvailableUsers] = useState<UserListItem[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
 
   // Audience Estimate
-  const [audienceEstimate, setAudienceEstimate] = useState<AudienceEstimateResult>({
-    matchingUsers: 0,
-    matchingDevices: 0,
-    platformBreakdown: { android: 0, ios: 0, web: 0 },
-  });
+  const [audienceEstimate, setAudienceEstimate] =
+    useState<AudienceEstimateResult>({
+      matchingUsers: 0,
+      matchingDevices: 0,
+      platformBreakdown: { android: 0, ios: 0, web: 0 },
+    });
 
   // Campaign History Filters & Pagination
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | DeliveryStatusKey>('ALL');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"ALL" | DeliveryStatusKey>(
+    "ALL",
+  );
   const [currentPage, setCurrentPage] = useState(1);
 
   // Modals
   const [isConfirmBroadcastOpen, setIsConfirmBroadcastOpen] = useState(false);
   const [isTestPushOpen, setIsTestPushOpen] = useState(false);
-  const [testPhoneOrToken, setTestPhoneOrToken] = useState('');
-  const [testTitle, setTestTitle] = useState('');
-  const [testBody, setTestBody] = useState('');
-  const [testImageUrl, setTestImageUrl] = useState('');
+  const [testPhoneOrToken, setTestPhoneOrToken] = useState("");
+  const [testTitle, setTestTitle] = useState("");
+  const [testBody, setTestBody] = useState("");
+  const [testImageUrl, setTestImageUrl] = useState("");
   const [sendingTest, setSendingTest] = useState(false);
-  const [selectedCampaign, setSelectedCampaign] = useState<NotificationCampaignItem | null>(null);
+  const [selectedCampaign, setSelectedCampaign] =
+    useState<NotificationCampaignItem | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -230,7 +247,7 @@ export default function NotificationsPage() {
 
   // Build backend AudienceFilter cleanly (avoid passing both userIds and phones together)
   const activeAudienceFilter = useMemo<AudienceFilter | null>(() => {
-    if (audienceMode !== 'SPECIFIC') {
+    if (audienceMode !== "SPECIFIC") {
       return { role: audienceMode };
     }
 
@@ -240,22 +257,24 @@ export default function NotificationsPage() {
 
     if (manualPhones.length === 0) {
       return {
-        role: 'ALL',
+        role: "ALL",
         userIds: selectedUsers.map((u) => u.id),
       };
     }
 
     const phonesFromSelected = selectedUsers
       .map((u) => u.phone)
-      .filter((p): p is string => Boolean(p && p !== 'Not Available'));
+      .filter((p): p is string => Boolean(p && p !== "Not Available"));
 
-    const allPhones = Array.from(new Set([...phonesFromSelected, ...manualPhones]));
+    const allPhones = Array.from(
+      new Set([...phonesFromSelected, ...manualPhones]),
+    );
     if (allPhones.length > 0) {
-      return { role: 'ALL', phones: allPhones };
+      return { role: "ALL", phones: allPhones };
     }
 
     return {
-      role: 'ALL',
+      role: "ALL",
       userIds: selectedUsers.map((u) => u.id),
     };
   }, [audienceMode, selectedUsers, manualPhones]);
@@ -276,8 +295,10 @@ export default function NotificationsPage() {
     const timer = setTimeout(async () => {
       setEstimating(true);
       try {
-        const res = await adminApi.estimateNotificationAudience(activeAudienceFilter).catch(() => null);
-        if (!cancelled && res && typeof res.matchingUsers === 'number') {
+        const res = await adminApi
+          .estimateNotificationAudience(activeAudienceFilter)
+          .catch(() => null);
+        if (!cancelled && res && typeof res.matchingUsers === "number") {
           setAudienceEstimate(res);
         }
       } finally {
@@ -293,7 +314,7 @@ export default function NotificationsPage() {
 
   // Load searchable users when Specific Users mode is active
   useEffect(() => {
-    if (audienceMode !== 'SPECIFIC') return;
+    if (audienceMode !== "SPECIFIC") return;
 
     let cancelled = false;
     const timer = setTimeout(async () => {
@@ -301,7 +322,7 @@ export default function NotificationsPage() {
       try {
         const list = await adminApi
           .getUsers({
-            status: 'ACTIVE',
+            status: "ACTIVE",
             search: userSearchQuery.trim() || undefined,
             limit: 20,
           })
@@ -322,15 +343,31 @@ export default function NotificationsPage() {
 
   // Campaign Overview metrics
   const overviewStats = useMemo(() => {
-    const campaignTotalSent = campaigns.reduce((acc, c) => acc + getRecipientCount(c), 0);
-    const campaignSuccess = campaigns.reduce((acc, c) => acc + (c.successCount || 0), 0);
-    const campaignFailed = campaigns.reduce((acc, c) => acc + (c.failureCount || 0), 0);
+    const campaignTotalSent = campaigns.reduce(
+      (acc, c) => acc + getRecipientCount(c),
+      0,
+    );
+    const campaignSuccess = campaigns.reduce(
+      (acc, c) => acc + (c.successCount || 0),
+      0,
+    );
+    const campaignFailed = campaigns.reduce(
+      (acc, c) => acc + (c.failureCount || 0),
+      0,
+    );
 
     return {
-      totalSent: Math.max(metrics.totalDelivered + campaignFailed, campaignTotalSent),
+      totalSent: Math.max(
+        metrics.totalDelivered + campaignFailed,
+        campaignTotalSent,
+      ),
       totalDelivered: Math.max(metrics.totalDelivered, campaignSuccess),
       totalFailed: campaignFailed,
-      totalCampaigns: Math.max(metrics.totalCampaigns || 0, campaigns.length, totalCampaignsCount),
+      totalCampaigns: Math.max(
+        metrics.totalCampaigns || 0,
+        campaigns.length,
+        totalCampaignsCount,
+      ),
     };
   }, [campaigns, metrics, totalCampaignsCount]);
 
@@ -341,8 +378,8 @@ export default function NotificationsPage() {
     let failed = 0;
     campaigns.forEach((c) => {
       const s = getCampaignDeliveryStatus(c);
-      if (s === 'DELIVERED') delivered++;
-      else if (s === 'FAILED') failed++;
+      if (s === "DELIVERED") delivered++;
+      else if (s === "FAILED") failed++;
       else sent++;
     });
     return {
@@ -362,7 +399,10 @@ export default function NotificationsPage() {
         const matchesBody = c.body?.toLowerCase().includes(q);
         if (!matchesTitle && !matchesBody) return false;
       }
-      if (statusFilter !== 'ALL' && getCampaignDeliveryStatus(c) !== statusFilter) {
+      if (
+        statusFilter !== "ALL" &&
+        getCampaignDeliveryStatus(c) !== statusFilter
+      ) {
         return false;
       }
       return true;
@@ -373,15 +413,20 @@ export default function NotificationsPage() {
     setCurrentPage(1);
   }, [searchQuery, statusFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredCampaigns.length / PAGE_SIZE));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredCampaigns.length / PAGE_SIZE),
+  );
   const paginatedCampaigns = useMemo(() => {
     const start = (currentPage - 1) * PAGE_SIZE;
     return filteredCampaigns.slice(start, start + PAGE_SIZE);
   }, [filteredCampaigns, currentPage]);
 
   const specificCount = selectedUsers.length + manualPhones.length;
-  const isAudienceReady = audienceMode !== 'SPECIFIC' || specificCount > 0;
-  const canBroadcast = Boolean(title.trim() && body.trim() && isAudienceReady && !submitting);
+  const isAudienceReady = audienceMode !== "SPECIFIC" || specificCount > 0;
+  const canBroadcast = Boolean(
+    title.trim() && body.trim() && isAudienceReady && !submitting,
+  );
 
   function toggleSpecificUser(user: UserListItem) {
     setSelectedUsers((prev) => {
@@ -392,37 +437,38 @@ export default function NotificationsPage() {
 
   function handleAddManualPhone() {
     const trimmed = userSearchQuery.trim();
-    const digits = trimmed.replace(/\D/g, '');
+    const digits = trimmed.replace(/\D/g, "");
     if (digits.length < 10) return;
 
     if (!manualPhones.includes(trimmed)) {
       setManualPhones((prev) => [...prev, trimmed]);
     }
-    setUserSearchQuery('');
+    setUserSearchQuery("");
   }
 
   function clearForm() {
-    setTitle('');
-    setBody('');
-    setImageUrl('');
+    setTitle("");
+    setBody("");
+    setImageUrl("");
     setSelectedUsers([]);
     setManualPhones([]);
-    setUserSearchQuery('');
+    setUserSearchQuery("");
   }
 
   async function handleBroadcastPush() {
     if (!title.trim() || !body.trim()) {
       setAlert({
-        type: 'error',
-        message: 'Please enter both Notification Title and Notification Message before sending.',
+        type: "error",
+        message:
+          "Please enter both Notification Title and Notification Message before sending.",
       });
       return;
     }
 
     if (!activeAudienceFilter) {
       setAlert({
-        type: 'error',
-        message: 'Please select at least one specific user or phone number.',
+        type: "error",
+        message: "Please select at least one specific user or phone number.",
       });
       return;
     }
@@ -444,23 +490,27 @@ export default function NotificationsPage() {
 
       if (usersTargeted === 0) {
         setAlert({
-          type: 'error',
-          message: 'No active users matched the selected audience. Verify your selection and try again.',
+          type: "error",
+          message:
+            "No active users matched the selected audience. Verify your selection and try again.",
         });
-      } else if (res.status === 'FAILED' || (devicesTargeted > 0 && delivered === 0 && failed > 0)) {
+      } else if (
+        res.status === "FAILED" ||
+        (devicesTargeted > 0 && delivered === 0 && failed > 0)
+      ) {
         setAlert({
-          type: 'error',
+          type: "error",
           message: `Campaign recorded, but FCM delivery failed for ${failed} device(s). Verify Firebase Cloud Messaging configuration.`,
         });
       } else if (devicesTargeted === 0) {
         setAlert({
-          type: 'success',
+          type: "success",
           message: `Notification sent to ${usersTargeted} user(s) in-app (0 active FCM device tokens registered).`,
         });
       } else {
         setAlert({
-          type: 'success',
-          message: `Notification broadcast sent to ${usersTargeted} user(s) across ${devicesTargeted} device(s) — ${delivered} delivered${failed > 0 ? `, ${failed} failed` : ''}.`,
+          type: "success",
+          message: `Notification broadcast sent to ${usersTargeted} user(s) across ${devicesTargeted} device(s) — ${delivered} delivered${failed > 0 ? `, ${failed} failed` : ""}.`,
         });
       }
 
@@ -469,8 +519,10 @@ export default function NotificationsPage() {
       await loadData();
     } catch (err: any) {
       setAlert({
-        type: 'error',
-        message: err?.message || 'Failed to dispatch notification. Please verify FCM credentials and backend status.',
+        type: "error",
+        message:
+          err?.message ||
+          "Failed to dispatch notification. Please verify FCM credentials and backend status.",
       });
     } finally {
       setSubmitting(false);
@@ -478,8 +530,11 @@ export default function NotificationsPage() {
   }
 
   function openTestPushModal() {
-    setTestTitle(title.trim() || 'AdhocX Test Notification');
-    setTestBody(body.trim() || 'This is a live test notification from AdhocX Push Notifications.');
+    setTestTitle(title.trim() || "AdhocX Test Notification");
+    setTestBody(
+      body.trim() ||
+        "This is a live test notification from AdhocX Push Notifications.",
+    );
     setTestImageUrl(imageUrl.trim());
     setIsTestPushOpen(true);
   }
@@ -488,38 +543,41 @@ export default function NotificationsPage() {
     const target = testPhoneOrToken.trim();
     if (!target) {
       setAlert({
-        type: 'error',
-        message: 'Please enter a phone number or FCM registration token to send a test notification.',
+        type: "error",
+        message:
+          "Please enter a phone number or FCM registration token to send a test notification.",
       });
       return;
     }
 
     setSendingTest(true);
     try {
-      const isToken = target.length > 30 || target.includes(':');
+      const isToken = target.length > 30 || target.includes(":");
       const payload: TestPushPayload = {
-        title: testTitle.trim() || 'AdhocX Test Notification',
-        body: testBody.trim() || 'This is a live test notification from AdhocX Push Notifications.',
+        title: testTitle.trim() || "AdhocX Test Notification",
+        body:
+          testBody.trim() ||
+          "This is a live test notification from AdhocX Push Notifications.",
         imageUrl: testImageUrl.trim() || undefined,
         targetToken: isToken ? target : undefined,
         targetPhone: !isToken ? target : undefined,
-        data: { test: 'true', sentAt: new Date().toISOString() },
+        data: { test: "true", sentAt: new Date().toISOString() },
       };
 
       const res = await adminApi.sendTestPushNotification(payload);
       if (res.totalTokens === 0) {
         setAlert({
-          type: 'success',
+          type: "success",
           message: `User identified and in-app notification saved for ${target} (no active FCM device token registered yet).`,
         });
       } else if (res.successCount > 0) {
         setAlert({
-          type: 'success',
-          message: `Test notification delivered to ${res.successCount} device(s)${res.failureCount > 0 ? ` (${res.failureCount} failed)` : ''}.`,
+          type: "success",
+          message: `Test notification delivered to ${res.successCount} device(s)${res.failureCount > 0 ? ` (${res.failureCount} failed)` : ""}.`,
         });
       } else {
         setAlert({
-          type: 'error',
+          type: "error",
           message: `Test push delivery failed (${res.failureCount} failed). Verify the phone number or FCM device token.`,
         });
       }
@@ -528,8 +586,10 @@ export default function NotificationsPage() {
       await loadData();
     } catch (err: any) {
       setAlert({
-        type: 'error',
-        message: err?.message || 'Failed to send test notification. Verify recipient phone or FCM token.',
+        type: "error",
+        message:
+          err?.message ||
+          "Failed to send test notification. Verify recipient phone or FCM token.",
       });
     } finally {
       setSendingTest(false);
@@ -543,22 +603,18 @@ export default function NotificationsPage() {
     if (phones && phones.length > 0) {
       return (
         <span
+          className="inline-flex items-center rounded-full text-sm font-semibold whitespace-nowrap gap-tight"
           style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.35rem',
-            padding: '0.25rem 0.625rem',
-            borderRadius: 'var(--radius-pill)',
-            fontSize: '0.75rem',
-            fontWeight: 600,
-            background: 'rgba(217, 119, 6, 0.1)',
-            color: '#B45309',
-            border: '1px solid rgba(217, 119, 6, 0.25)',
-            whiteSpace: 'nowrap',
+            padding: "0.25rem 0.625rem",
+            background: "rgba(217, 119, 6, 0.1)",
+            color: "#B45309",
+            border: "1px solid rgba(217, 119, 6, 0.25)",
           }}
         >
           <UserCheck size={12} />
-          {phones.length === 1 ? phones[0] : `Specific Users (${phones.length})`}
+          {phones.length === 1
+            ? phones[0]
+            : `Specific Users (${phones.length})`}
         </span>
       );
     }
@@ -566,18 +622,12 @@ export default function NotificationsPage() {
     if (userIds && userIds.length > 0) {
       return (
         <span
+          className="inline-flex items-center rounded-full text-sm font-semibold whitespace-nowrap gap-tight"
           style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.35rem',
-            padding: '0.25rem 0.625rem',
-            borderRadius: 'var(--radius-pill)',
-            fontSize: '0.75rem',
-            fontWeight: 600,
-            background: 'rgba(217, 119, 6, 0.1)',
-            color: '#B45309',
-            border: '1px solid rgba(217, 119, 6, 0.25)',
-            whiteSpace: 'nowrap',
+            padding: "0.25rem 0.625rem",
+            background: "rgba(217, 119, 6, 0.1)",
+            color: "#B45309",
+            border: "1px solid rgba(217, 119, 6, 0.25)",
           }}
         >
           <UserCheck size={12} />
@@ -586,22 +636,16 @@ export default function NotificationsPage() {
       );
     }
 
-    const role = (c.targetRole || c.targetFilter?.role || 'ALL').toUpperCase();
-    if (role === 'DRIVER') {
+    const role = (c.targetRole || c.targetFilter?.role || "ALL").toUpperCase();
+    if (role === "DRIVER") {
       return (
         <span
+          className="inline-flex items-center rounded-full text-sm font-semibold whitespace-nowrap gap-tight"
           style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.35rem',
-            padding: '0.25rem 0.625rem',
-            borderRadius: 'var(--radius-pill)',
-            fontSize: '0.75rem',
-            fontWeight: 600,
-            background: 'rgba(22, 163, 74, 0.1)',
-            color: '#15803D',
-            border: '1px solid rgba(22, 163, 74, 0.25)',
-            whiteSpace: 'nowrap',
+            padding: "0.25rem 0.625rem",
+            background: "rgba(22, 163, 74, 0.1)",
+            color: "#15803D",
+            border: "1px solid rgba(22, 163, 74, 0.25)",
           }}
         >
           <Car size={12} />
@@ -610,21 +654,15 @@ export default function NotificationsPage() {
       );
     }
 
-    if (role === 'VENDOR') {
+    if (role === "VENDOR") {
       return (
         <span
+          className="inline-flex items-center rounded-full text-sm font-semibold whitespace-nowrap gap-tight"
           style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.35rem',
-            padding: '0.25rem 0.625rem',
-            borderRadius: 'var(--radius-pill)',
-            fontSize: '0.75rem',
-            fontWeight: 600,
-            background: 'rgba(2, 132, 199, 0.1)',
-            color: '#0369A1',
-            border: '1px solid rgba(2, 132, 199, 0.25)',
-            whiteSpace: 'nowrap',
+            padding: "0.25rem 0.625rem",
+            background: "rgba(2, 132, 199, 0.1)",
+            color: "#0369A1",
+            border: "1px solid rgba(2, 132, 199, 0.25)",
           }}
         >
           <Building2 size={12} />
@@ -635,18 +673,12 @@ export default function NotificationsPage() {
 
     return (
       <span
+        className="inline-flex items-center rounded-full text-sm font-semibold whitespace-nowrap gap-tight"
         style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '0.35rem',
-          padding: '0.25rem 0.625rem',
-          borderRadius: 'var(--radius-pill)',
-          fontSize: '0.75rem',
-          fontWeight: 600,
+          padding: "0.25rem 0.625rem",
           background: BLUE_SUBTLE,
           color: BLUE_HOVER,
           border: `1px solid ${BLUE_BORDER}`,
-          whiteSpace: 'nowrap',
         }}
       >
         <Users size={12} />
@@ -660,56 +692,63 @@ export default function NotificationsPage() {
 
     const badgeConfig: Record<
       DeliveryStatusKey,
-      { label: string; bg: string; color: string; border: string; icon: React.ReactNode }
+      {
+        label: string;
+        bg: string;
+        color: string;
+        border: string;
+        icon: React.ReactNode;
+      }
     > = {
       DELIVERED: {
-        label: 'Delivered',
-        bg: 'rgba(22, 163, 74, 0.1)',
-        color: '#15803D',
-        border: 'rgba(22, 163, 74, 0.25)',
+        label: "Delivered",
+        bg: "rgba(22, 163, 74, 0.1)",
+        color: "#15803D",
+        border: "rgba(22, 163, 74, 0.25)",
         icon: <CheckCircle2 size={13} />,
       },
       FAILED: {
-        label: 'Failed',
-        bg: 'rgba(220, 38, 38, 0.1)',
-        color: '#DC2626',
-        border: 'rgba(220, 38, 38, 0.25)',
+        label: "Failed",
+        bg: "rgba(220, 38, 38, 0.1)",
+        color: "#DC2626",
+        border: "rgba(220, 38, 38, 0.25)",
         icon: <XCircle size={13} />,
       },
       SENT: {
-        label: 'Sent',
+        label: "Sent",
         bg: BLUE_SUBTLE,
-        color: BLUE_PRIMARY,
+        color: BLUE_TEXT,
         border: BLUE_BORDER,
         icon: <Send size={12} />,
       },
     };
 
     const cfg = badgeConfig[status];
-    const hasPartialBreakdown = showCounts && status === 'SENT' && c.successCount > 0 && c.failureCount > 0;
+    const hasPartialBreakdown =
+      showCounts &&
+      status === "SENT" &&
+      c.successCount > 0 &&
+      c.failureCount > 0;
 
     return (
-      <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.2rem' }}>
+      <div
+        className="inline-flex flex-col items-start"
+        style={{ gap: "0.2rem" }}
+      >
         <span
+          className="inline-flex items-center rounded-full text-sm font-bold whitespace-nowrap gap-tight"
           style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.35rem',
-            padding: '0.25rem 0.65rem',
-            borderRadius: 'var(--radius-pill)',
-            fontSize: '0.75rem',
-            fontWeight: 700,
+            padding: "0.25rem 0.65rem",
             background: cfg.bg,
             color: cfg.color,
             border: `1px solid ${cfg.border}`,
-            whiteSpace: 'nowrap',
           }}
         >
           {cfg.icon}
           {cfg.label}
         </span>
         {hasPartialBreakdown && (
-          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+          <span className="text-muted whitespace-nowrap text-caption">
             {c.successCount} delivered · {c.failureCount} failed
           </span>
         )}
@@ -718,120 +757,78 @@ export default function NotificationsPage() {
   }
 
   function getAudienceLabelForConfirm(): string {
-    if (audienceMode === 'SPECIFIC') {
+    if (audienceMode === "SPECIFIC") {
       return `Specific Users (${specificCount} selected)`;
     }
-    if (audienceMode === 'DRIVER') return 'Drivers Only';
-    if (audienceMode === 'VENDOR') return 'Vendors Only';
-    return 'All Users';
+    if (audienceMode === "DRIVER") return "Drivers Only";
+    if (audienceMode === "VENDOR") return "Vendors Only";
+    return "All Users";
   }
 
   const campaignColumns: Column<NotificationCampaignItem>[] = [
     {
-      header: 'Campaign Name',
+      header: "Campaign Name",
       accessor: (c) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', maxWidth: '340px' }}>
+        <div className="flex items-center gap-3" style={{ maxWidth: "340px" }}>
           {c.imageUrl && (
             <img
               src={c.imageUrl}
               alt=""
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: 'var(--radius-sm)',
-                objectFit: 'cover',
-                border: '1px solid var(--border-subtle)',
-                flexShrink: 0,
-              }}
+              className="rounded-sm object-cover border border-subtle flex-shrink-0"
+              style={{ width: "36px", height: "36px" }}
               onError={(e) => {
-                (e.target as HTMLElement).style.display = 'none';
+                (e.target as HTMLElement).style.display = "none";
               }}
             />
           )}
-          <div style={{ minWidth: 0 }}>
-            <div
-              style={{
-                fontWeight: 600,
-                color: 'var(--text-primary)',
-                fontSize: '0.84rem',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {c.title || 'Untitled Campaign'}
+          <div className="min-w-0">
+            <div className="font-semibold text-primary overflow-hidden text-ellipsis whitespace-nowrap text-body-lg">
+              {c.title || "Untitled Campaign"}
             </div>
-            <div
-              style={{
-                fontSize: '0.75rem',
-                color: 'var(--text-muted)',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                marginTop: '0.15rem',
-              }}
-            >
-              {c.body || '—'}
+            <div className="text-sm text-muted overflow-hidden text-ellipsis whitespace-nowrap mt-snug">
+              {c.body || "—"}
             </div>
           </div>
         </div>
       ),
     },
     {
-      header: 'Target Audience',
+      header: "Target Audience",
       accessor: (c) => renderAudienceBadge(c),
     },
     {
-      header: 'Date',
+      header: "Date",
       accessor: (c) => (
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.4rem',
-            color: 'var(--text-secondary)',
-            fontSize: '0.8rem',
-            whiteSpace: 'nowrap',
-          }}
-        >
+        <span className="inline-flex items-center text-secondary whitespace-nowrap gap-compact text-body-sm">
           <Calendar size={13} color="var(--text-muted)" />
           {formatDate(c.createdAt)}
         </span>
       ),
     },
     {
-      header: 'Total Recipients',
+      header: "Total Recipients",
       accessor: (c) => {
         const count = getRecipientCount(c);
         return (
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.35rem',
-              fontWeight: 600,
-              color: 'var(--text-primary)',
-              whiteSpace: 'nowrap',
-            }}
-          >
+          <span className="inline-flex items-center font-semibold text-primary whitespace-nowrap gap-tight">
             <Users size={13} color="var(--text-muted)" />
-            {count.toLocaleString()} {count === 1 ? 'recipient' : 'recipients'}
+            {count.toLocaleString()} {count === 1 ? "recipient" : "recipients"}
           </span>
         );
       },
     },
     {
-      header: 'Delivery Status',
+      header: "Delivery Status",
       accessor: (c) => renderStatusBadge(c, true),
     },
     {
-      header: 'Action',
-      align: 'right',
+      header: "Action",
+      align: "right",
       accessor: (c) => (
         <Button
           variant="outline"
           size="sm"
-          leftIcon={<Eye size={13} color={BLUE_PRIMARY} />}
+          leftIcon={<Eye size={13} color={BLUE_TEXT} />}
           onClick={(e) => {
             e.stopPropagation();
             setSelectedCampaign(c);
@@ -839,7 +836,7 @@ export default function NotificationsPage() {
           style={{
             borderColor: BLUE_BORDER,
             color: BLUE_HOVER,
-            background: 'var(--bg-card)',
+            background: "var(--bg-card)",
           }}
         >
           View Details
@@ -848,7 +845,7 @@ export default function NotificationsPage() {
     },
   ];
 
-  const searchLooksLikePhone = userSearchQuery.replace(/\D/g, '').length >= 10;
+  const searchLooksLikePhone = userSearchQuery.replace(/\D/g, "").length >= 10;
 
   return (
     <div className="admin-page">
@@ -861,7 +858,9 @@ export default function NotificationsPage() {
           <Button
             variant="secondary"
             size="sm"
-            leftIcon={<RefreshCw size={14} className={loading ? 'animate-spin' : ''} />}
+            leftIcon={
+              <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+            }
             onClick={loadData}
             disabled={loading}
           >
@@ -881,36 +880,40 @@ export default function NotificationsPage() {
       )}
 
       {/* 1. CAMPAIGN OVERVIEW */}
-      <section aria-label="Campaign Overview" style={{ width: '100%', marginTop: '0.1rem' }}>
+      <section
+        aria-label="Campaign Overview"
+        className="w-full"
+        style={{ marginTop: "0.1rem" }}
+      >
         <KpiStrip
           columns={4}
           items={[
             {
-              label: 'Total Notifications Sent',
+              label: "Total Notifications Sent",
               value: overviewStats.totalSent.toLocaleString(),
-              subtext: 'Dispatched across all campaigns',
-              tone: 'primary',
+              subtext: "Dispatched across all campaigns",
+              tone: "primary",
               icon: <Send size={14} />,
             },
             {
-              label: 'Successful Deliveries',
+              label: "Successful Deliveries",
               value: overviewStats.totalDelivered.toLocaleString(),
-              subtext: 'Delivered to active devices',
-              tone: 'success',
+              subtext: "Delivered to active devices",
+              tone: "success",
               icon: <CheckCircle2 size={14} />,
             },
             {
-              label: 'Failed Notifications',
+              label: "Failed Notifications",
               value: overviewStats.totalFailed.toLocaleString(),
-              subtext: 'Invalid tokens or delivery errors',
-              tone: 'danger',
+              subtext: "Invalid tokens or delivery errors",
+              tone: "danger",
               icon: <XCircle size={14} />,
             },
             {
-              label: 'Total Campaigns',
+              label: "Total Campaigns",
               value: overviewStats.totalCampaigns.toLocaleString(),
-              subtext: 'Broadcast & targeted runs',
-              tone: 'info',
+              subtext: "Broadcast & targeted runs",
+              tone: "info",
               icon: <Layers size={14} />,
             },
           ]}
@@ -918,81 +921,74 @@ export default function NotificationsPage() {
       </section>
 
       {/* 2. CREATE NOTIFICATION & 3. AUDIENCE SELECTION */}
-      <section aria-label="Create Notification and Audience Selection" style={{ width: '100%', marginTop: '0.2rem' }}>
-        <Card padding="lg" style={{ width: '100%' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      <section
+        aria-label="Create Notification and Audience Selection"
+        className="w-full mt-compact"
+      >
+        <Card padding="lg" style={{ width: "100%" }}>
+          <div className="flex flex-col gap-6">
             {/* Section Header */}
             <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: '0.75rem',
-                paddingTop: '0.15rem',
-                paddingBottom: '1rem',
-                borderBottom: '1px solid var(--border-subtle)',
-              }}
+              className="flex items-center justify-between flex-wrap gap-3 pb-4 border-b border-subtle"
+              style={{ paddingTop: "0.15rem" }}
             >
               <div>
-                <h2 style={{ fontSize: '1.08rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.015em' }}>
+                <h2
+                  className="font-bold text-primary m-0 text-title-md"
+                  style={{ letterSpacing: "-0.015em" }}
+                >
                   Create Notification
                 </h2>
-                <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: '0.2rem 0 0 0' }}>
-                  Compose your push message, select the target audience, and send via Firebase Cloud Messaging.
+                <p
+                  className="text-base text-secondary"
+                  style={{ margin: "0.2rem 0 0 0" }}
+                >
+                  Compose your push message, select the target audience, and
+                  send via Firebase Cloud Messaging.
                 </p>
               </div>
               <div
+                className="inline-flex items-center rounded-full font-semibold gap-snug text-body-sm"
                 style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.45rem',
-                  fontSize: '0.8rem',
-                  padding: '0.35rem 0.75rem',
-                  borderRadius: 'var(--radius-pill)',
+                  padding: "0.35rem 0.75rem",
                   background: BLUE_SUBTLE,
                   color: BLUE_HOVER,
-                  fontWeight: 600,
                   border: `1px solid ${BLUE_BORDER}`,
                 }}
               >
                 <Users size={14} />
                 <span>
                   {estimating
-                    ? 'Calculating reach...'
-                    : audienceMode === 'SPECIFIC' && specificCount === 0
-                    ? 'Select at least 1 specific user'
-                    : `Estimated Reach: ${audienceEstimate.matchingUsers} user(s) · ${audienceEstimate.matchingDevices} device(s)`}
+                    ? "Calculating reach..."
+                    : audienceMode === "SPECIFIC" && specificCount === 0
+                      ? "Select at least 1 specific user"
+                      : `Estimated Reach: ${audienceEstimate.matchingUsers} user(s) · ${audienceEstimate.matchingDevices} device(s)`}
                 </span>
               </div>
             </div>
 
             {/* Notification Content Fields */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.15rem' }}>
+            <div className="flex flex-col" style={{ gap: "1.15rem" }}>
               <div
+                className="grid"
                 style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                  gap: '1.15rem',
+                  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                  gap: "1.15rem",
                 }}
               >
                 {/* Notification Title */}
                 <div>
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginBottom: '0.4rem',
-                    }}
-                  >
+                  <div className="flex justify-between items-center mb-compact">
                     <label
                       htmlFor="notif-title"
-                      style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-primary)' }}
+                      className="font-semibold text-primary text-body-lg"
                     >
-                      Notification Title <span style={{ color: '#DC2626' }}>*</span>
+                      Notification Title{" "}
+                      <span style={{ color: "#DC2626" }}>*</span>
                     </label>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{title.length} / 65</span>
+                    <span className="text-muted text-label">
+                      {title.length} / 65
+                    </span>
                   </div>
                   <input
                     id="notif-title"
@@ -1009,23 +1005,18 @@ export default function NotificationsPage() {
 
                 {/* Optional Image URL */}
                 <div>
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginBottom: '0.4rem',
-                    }}
-                  >
+                  <div className="flex justify-between items-center mb-compact">
                     <label
                       htmlFor="notif-image-url"
-                      style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-primary)' }}
+                      className="font-semibold text-primary text-body-lg"
                     >
                       Optional Image URL
                     </label>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Banner image (optional)</span>
+                    <span className="text-muted text-label">
+                      Banner image (optional)
+                    </span>
                   </div>
-                  <div style={{ position: 'relative' }}>
+                  <div className="relative">
                     <input
                       id="notif-image-url"
                       type="url"
@@ -1036,26 +1027,21 @@ export default function NotificationsPage() {
                       onBlur={clearBlueFocus}
                       style={{
                         ...inputBaseStyle,
-                        paddingRight: imageUrl ? '2.25rem' : inputBaseStyle.padding,
+                        paddingRight: imageUrl
+                          ? "2.25rem"
+                          : inputBaseStyle.padding,
                       }}
                     />
                     {imageUrl && (
                       <button
                         type="button"
-                        onClick={() => setImageUrl('')}
+                        onClick={() => setImageUrl("")}
                         title="Clear image URL"
+                        className="absolute center-y border-0 cursor-pointer text-muted flex items-center top-1/2"
                         style={{
-                          position: 'absolute',
-                          right: '0.6rem',
-                          top: '50%',
-                          transform: 'translateY(-50%)',
-                          background: 'none',
-                          border: 'none',
-                          cursor: 'pointer',
-                          color: 'var(--text-muted)',
-                          padding: '0.2rem',
-                          display: 'flex',
-                          alignItems: 'center',
+                          right: "0.6rem",
+                          background: "none",
+                          padding: "0.2rem",
                         }}
                       >
                         <X size={14} />
@@ -1067,21 +1053,17 @@ export default function NotificationsPage() {
 
               {/* Notification Message */}
               <div>
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: '0.4rem',
-                  }}
-                >
+                <div className="flex justify-between items-center mb-compact">
                   <label
                     htmlFor="notif-message"
-                    style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-primary)' }}
+                    className="font-semibold text-primary text-body-lg"
                   >
-                    Notification Message <span style={{ color: '#DC2626' }}>*</span>
+                    Notification Message{" "}
+                    <span style={{ color: "#DC2626" }}>*</span>
                   </label>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{body.length} / 240</span>
+                  <span className="text-muted text-label">
+                    {body.length} / 240
+                  </span>
                 </div>
                 <textarea
                   id="notif-message"
@@ -1094,7 +1076,7 @@ export default function NotificationsPage() {
                   onBlur={clearBlueFocus}
                   style={{
                     ...inputBaseStyle,
-                    resize: 'vertical',
+                    resize: "vertical",
                     lineHeight: 1.5,
                   }}
                 />
@@ -1102,21 +1084,27 @@ export default function NotificationsPage() {
             </div>
 
             {/* 3. AUDIENCE SELECTION */}
-            <div style={{ paddingTop: '1.45rem', borderTop: '1px solid var(--border-subtle)' }}>
-              <div style={{ marginBottom: '0.85rem' }}>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+            <div
+              className="border-t border-subtle"
+              style={{ paddingTop: "1.45rem" }}
+            >
+              <div style={{ marginBottom: "0.85rem" }}>
+                <h3 className="font-bold text-primary m-0 text-title-sm">
                   Audience Selection
                 </h3>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0.15rem 0 0 0' }}>
+                <p
+                  className="text-secondary text-body-sm"
+                  style={{ margin: "0.15rem 0 0 0" }}
+                >
                   Choose who should receive this notification.
                 </p>
               </div>
 
               <div
+                className="grid"
                 style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
-                  gap: '0.875rem',
+                  gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+                  gap: "0.875rem",
                 }}
               >
                 {AUDIENCE_OPTIONS.map((option) => {
@@ -1127,58 +1115,52 @@ export default function NotificationsPage() {
                       key={option.id}
                       type="button"
                       onClick={() => setAudienceMode(option.id)}
+                      className="text-left rounded-lg cursor-pointer flex items-start gap-3"
                       style={{
-                        textAlign: 'left',
-                        padding: '0.95rem 1.05rem',
-                        borderRadius: 'var(--radius-lg)',
-                        border: isSelected ? `2px solid ${BLUE_PRIMARY}` : '1px solid var(--border-subtle)',
-                        background: isSelected ? BLUE_SUBTLE : 'var(--bg-card)',
-                        cursor: 'pointer',
-                        transition: 'all 0.16s ease',
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: '0.75rem',
-                        fontFamily: 'inherit',
+                        padding: "0.95rem 1.05rem",
+                        border: isSelected
+                          ? `2px solid ${BLUE_FOCUS}`
+                          : "1px solid var(--border-subtle)",
+                        background: isSelected ? BLUE_SUBTLE : "var(--bg-card)",
+                        transition: "all 0.16s ease",
+                        fontFamily: "inherit",
                       }}
                     >
                       <div
+                        className="flex items-center justify-center flex-shrink-0"
                         style={{
-                          width: '34px',
-                          height: '34px',
-                          borderRadius: '8px',
-                          background: isSelected ? BLUE_PRIMARY : 'var(--bg-card-elevated)',
-                          color: isSelected ? '#FFFFFF' : 'var(--text-secondary)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0,
+                          width: "34px",
+                          height: "34px",
+                          borderRadius: "8px",
+                          background: isSelected
+                            ? BLUE_PRIMARY
+                            : "var(--bg-card-elevated)",
+                          color: isSelected
+                            ? "#FFFFFF"
+                            : "var(--text-secondary)",
                         }}
                       >
                         <Icon size={17} />
                       </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
-                          <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-bold text-primary text-body-xl">
                             {option.label}
                           </span>
                           <span
+                            className="rounded-full inline-flex items-center justify-center flex-shrink-0"
                             style={{
-                              width: '16px',
-                              height: '16px',
-                              borderRadius: '50%',
-                              border: `2px solid ${isSelected ? BLUE_PRIMARY : '#CBD5E1'}`,
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              flexShrink: 0,
+                              width: "16px",
+                              height: "16px",
+                              border: `2px solid ${isSelected ? BLUE_FOCUS : "var(--border-light)"}`,
                             }}
                           >
                             {isSelected && (
                               <span
+                                className="rounded-full"
                                 style={{
-                                  width: '8px',
-                                  height: '8px',
-                                  borderRadius: '50%',
+                                  width: "8px",
+                                  height: "8px",
                                   background: BLUE_PRIMARY,
                                 }}
                               />
@@ -1186,12 +1168,8 @@ export default function NotificationsPage() {
                           </span>
                         </div>
                         <p
-                          style={{
-                            margin: '0.25rem 0 0 0',
-                            fontSize: '0.775rem',
-                            color: 'var(--text-secondary)',
-                            lineHeight: 1.35,
-                          }}
+                          className="mt-1 mr-0 mb-0 ml-0 text-secondary"
+                          style={{ fontSize: "0.775rem", lineHeight: 1.35 }}
                         >
                           {option.description}
                         </p>
@@ -1202,71 +1180,52 @@ export default function NotificationsPage() {
               </div>
 
               {/* Specific Users Picker */}
-              {audienceMode === 'SPECIFIC' && (
+              {audienceMode === "SPECIFIC" && (
                 <div
+                  className="mt-4 rounded-md bg-card-elevated flex flex-col gap-relaxed"
                   style={{
-                    marginTop: '1rem',
-                    padding: '1rem 1.15rem',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'var(--bg-card-elevated)',
+                    padding: "1rem 1.15rem",
                     border: `1px solid ${BLUE_BORDER}`,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.85rem',
                   }}
                 >
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      flexWrap: 'wrap',
-                      gap: '0.5rem',
-                    }}
-                  >
-                    <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <span className="font-bold text-primary text-body-lg">
                       Select Specific Users
                     </span>
-                    <span style={{ fontSize: '0.78rem', color: BLUE_HOVER, fontWeight: 600 }}>
-                      {specificCount} {specificCount === 1 ? 'user' : 'users'} selected
+                    <span
+                      className="font-semibold text-compact"
+                      style={{ color: BLUE_HOVER }}
+                    >
+                      {specificCount} {specificCount === 1 ? "user" : "users"}{" "}
+                      selected
                     </span>
                   </div>
 
                   {/* Selected Chips */}
                   {specificCount > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem' }}>
+                    <div className="flex flex-wrap gap-snug">
                       {selectedUsers.map((u) => (
                         <span
                           key={u.id}
+                          className="inline-flex items-center rounded-full bg-card font-semibold gap-compact text-compact"
                           style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.4rem',
-                            padding: '0.25rem 0.6rem',
-                            borderRadius: 'var(--radius-pill)',
-                            background: 'var(--bg-card)',
+                            padding: "0.25rem 0.6rem",
                             border: `1px solid ${BLUE_BORDER}`,
                             color: BLUE_HOVER,
-                            fontSize: '0.78rem',
-                            fontWeight: 600,
                           }}
                         >
                           <span>{u.fullName || u.phone}</span>
                           {u.phone && u.fullName && (
-                            <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>({u.phone})</span>
+                            <span className="text-muted font-medium">
+                              ({u.phone})
+                            </span>
                           )}
                           <button
                             type="button"
                             onClick={() => toggleSpecificUser(u)}
                             aria-label={`Remove ${u.fullName || u.phone}`}
-                            style={{
-                              background: 'none',
-                              border: 'none',
-                              cursor: 'pointer',
-                              color: 'var(--text-muted)',
-                              display: 'inline-flex',
-                              padding: 0,
-                            }}
+                            className="border-0 cursor-pointer text-muted inline-flex p-0"
+                            style={{ background: "none" }}
                           >
                             <X size={13} />
                           </button>
@@ -1275,33 +1234,25 @@ export default function NotificationsPage() {
                       {manualPhones.map((phone) => (
                         <span
                           key={phone}
+                          className="inline-flex items-center rounded-full bg-card font-semibold gap-compact text-compact"
                           style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.4rem',
-                            padding: '0.25rem 0.6rem',
-                            borderRadius: 'var(--radius-pill)',
-                            background: 'var(--bg-card)',
+                            padding: "0.25rem 0.6rem",
                             border: `1px solid ${BLUE_BORDER}`,
                             color: BLUE_HOVER,
-                            fontSize: '0.78rem',
-                            fontWeight: 600,
                           }}
                         >
                           <Smartphone size={12} />
                           <span>{phone}</span>
                           <button
                             type="button"
-                            onClick={() => setManualPhones((prev) => prev.filter((p) => p !== phone))}
+                            onClick={() =>
+                              setManualPhones((prev) =>
+                                prev.filter((p) => p !== phone),
+                              )
+                            }
                             aria-label={`Remove ${phone}`}
-                            style={{
-                              background: 'none',
-                              border: 'none',
-                              cursor: 'pointer',
-                              color: 'var(--text-muted)',
-                              display: 'inline-flex',
-                              padding: 0,
-                            }}
+                            className="border-0 cursor-pointer text-muted inline-flex p-0"
+                            style={{ background: "none" }}
                           >
                             <X size={13} />
                           </button>
@@ -1311,17 +1262,20 @@ export default function NotificationsPage() {
                   )}
 
                   {/* Search & Add Phone Row */}
-                  <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap' }}>
-                    <div style={{ position: 'relative', flex: 1, minWidth: '220px' }}>
+                  <div className="flex flex-wrap" style={{ gap: "0.65rem" }}>
+                    <div
+                      className="relative flex-1"
+                      style={{ minWidth: "220px" }}
+                    >
                       <Search
                         size={15}
                         style={{
-                          position: 'absolute',
-                          left: '0.75rem',
-                          top: '50%',
-                          transform: 'translateY(-50%)',
-                          color: 'var(--text-muted)',
-                          pointerEvents: 'none',
+                          position: "absolute",
+                          left: "0.75rem",
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          color: "var(--text-muted)",
+                          pointerEvents: "none",
                         }}
                       />
                       <input
@@ -1330,7 +1284,7 @@ export default function NotificationsPage() {
                         value={userSearchQuery}
                         onChange={(e) => setUserSearchQuery(e.target.value)}
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter' && searchLooksLikePhone) {
+                          if (e.key === "Enter" && searchLooksLikePhone) {
                             e.preventDefault();
                             handleAddManualPhone();
                           }
@@ -1339,9 +1293,9 @@ export default function NotificationsPage() {
                         onBlur={clearBlueFocus}
                         style={{
                           ...inputBaseStyle,
-                          paddingLeft: '2.2rem',
-                          paddingTop: '0.5rem',
-                          paddingBottom: '0.5rem',
+                          paddingLeft: "2.2rem",
+                          paddingTop: "0.5rem",
+                          paddingBottom: "0.5rem",
                         }}
                       />
                     </div>
@@ -1353,9 +1307,9 @@ export default function NotificationsPage() {
                         leftIcon={<Plus size={14} />}
                         onClick={handleAddManualPhone}
                         style={{
-                          borderColor: BLUE_PRIMARY,
-                          color: BLUE_PRIMARY,
-                          background: 'var(--bg-card)',
+                          borderColor: BLUE_FOCUS,
+                          color: BLUE_TEXT,
+                          background: "var(--bg-card)",
                         }}
                       >
                         Add Phone
@@ -1365,94 +1319,77 @@ export default function NotificationsPage() {
 
                   {/* User Directory List */}
                   <div
-                    style={{
-                      maxHeight: '190px',
-                      overflowY: 'auto',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-subtle)',
-                      background: 'var(--bg-card)',
-                    }}
+                    className="overflow-y-auto rounded-md border border-subtle bg-card"
+                    style={{ maxHeight: "190px" }}
                   >
                     {loadingUsers ? (
-                      <div style={{ padding: '1.1rem', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                      <div
+                        className="text-center text-muted text-body-sm"
+                        style={{ padding: "1.1rem" }}
+                      >
                         Loading active users...
                       </div>
                     ) : availableUsers.length === 0 ? (
-                      <div style={{ padding: '1.1rem', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                        No matching users found. You can enter a phone number above and click &ldquo;Add Phone&rdquo;.
+                      <div
+                        className="text-center text-muted text-body-sm"
+                        style={{ padding: "1.1rem" }}
+                      >
+                        No matching users found. You can enter a phone number
+                        above and click &ldquo;Add Phone&rdquo;.
                       </div>
                     ) : (
                       availableUsers.map((user) => {
-                        const checked = selectedUsers.some((u) => u.id === user.id);
+                        const checked = selectedUsers.some(
+                          (u) => u.id === user.id,
+                        );
                         return (
                           <button
                             key={user.id}
                             type="button"
                             onClick={() => toggleSpecificUser(user)}
+                            className="w-full flex items-center justify-between gap-3 border-0 border-b border-subtle cursor-pointer text-left"
                             style={{
-                              width: '100%',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              gap: '0.75rem',
-                              padding: '0.6rem 0.85rem',
-                              border: 'none',
-                              borderBottom: '1px solid var(--border-subtle)',
-                              background: checked ? BLUE_SUBTLE : 'transparent',
-                              cursor: 'pointer',
-                              textAlign: 'left',
-                              fontFamily: 'inherit',
+                              padding: "0.6rem 0.85rem",
+                              background: checked ? BLUE_SUBTLE : "transparent",
+                              fontFamily: "inherit",
                             }}
                           >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', minWidth: 0 }}>
+                            <div
+                              className="flex items-center min-w-0"
+                              style={{ gap: "0.65rem" }}
+                            >
                               <span
+                                className="inline-flex items-center justify-center flex-shrink-0"
                                 style={{
-                                  width: '16px',
-                                  height: '16px',
-                                  borderRadius: '4px',
-                                  border: `1.5px solid ${checked ? BLUE_PRIMARY : '#CBD5E1'}`,
-                                  background: checked ? BLUE_PRIMARY : 'var(--bg-card)',
-                                  color: '#FFFFFF',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  flexShrink: 0,
+                                  width: "16px",
+                                  height: "16px",
+                                  borderRadius: "4px",
+                                  border: `1.5px solid ${checked ? BLUE_FOCUS : "var(--border-light)"}`,
+                                  background: checked
+                                    ? BLUE_PRIMARY
+                                    : "var(--bg-card)",
+                                  color: "#FFFFFF",
                                 }}
                               >
                                 {checked && <Check size={11} strokeWidth={3} />}
                               </span>
-                              <div style={{ minWidth: 0 }}>
+                              <div className="min-w-0">
                                 <div
-                                  style={{
-                                    fontSize: '0.825rem',
-                                    fontWeight: 600,
-                                    color: 'var(--text-primary)',
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap',
-                                  }}
+                                  className="font-semibold text-primary overflow-hidden text-ellipsis whitespace-nowrap"
+                                  style={{ fontSize: "0.825rem" }}
                                 >
-                                  {user.fullName || 'Unnamed User'}
+                                  {user.fullName || "Unnamed User"}
                                 </div>
-                                <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                                <div className="text-muted text-control">
                                   {user.phone || user.email || user.id}
                                 </div>
                               </div>
                             </div>
                             <span
-                              style={{
-                                fontSize: '0.6875rem',
-                                fontWeight: 700,
-                                textTransform: 'uppercase',
-                                padding: '0.15rem 0.5rem',
-                                borderRadius: 'var(--radius-pill)',
-                                background: 'var(--bg-card-elevated)',
-                                color: 'var(--text-secondary)',
-                                border: '1px solid var(--border-subtle)',
-                                flexShrink: 0,
-                              }}
+                              className="text-xs font-bold uppercase rounded-full bg-card-elevated text-secondary border border-subtle flex-shrink-0"
+                              style={{ padding: "0.15rem 0.5rem" }}
                             >
-                              {user.role || 'USER'}
+                              {user.role || "USER"}
                             </span>
                           </button>
                         );
@@ -1464,33 +1401,23 @@ export default function NotificationsPage() {
             </div>
 
             {/* Action Buttons Bar */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: '0.75rem',
-                paddingTop: '1.25rem',
-                borderTop: '1px solid var(--border-subtle)',
-              }}
-            >
+            <div className="flex items-center justify-between flex-wrap gap-3 pt-5 border-t border-subtle">
               <Button
                 type="button"
                 variant="outline"
                 size="md"
-                leftIcon={<Smartphone size={16} color={BLUE_PRIMARY} />}
+                leftIcon={<Smartphone size={16} color={BLUE_TEXT} />}
                 onClick={openTestPushModal}
                 style={{
                   borderColor: BLUE_BORDER,
                   color: BLUE_HOVER,
-                  background: 'var(--bg-card)',
+                  background: "var(--bg-card)",
                 }}
               >
                 Send Test Notification
               </Button>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div className="flex items-center gap-3">
                 <Button
                   type="button"
                   variant="ghost"
@@ -1518,49 +1445,64 @@ export default function NotificationsPage() {
       </section>
 
       {/* 4. CAMPAIGN HISTORY & 5. NOTIFICATION STATUS */}
-      <section aria-label="Campaign History and Notification Status" style={{ width: '100%', marginTop: '0.25rem' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
+      <section
+        aria-label="Campaign History and Notification Status"
+        className="w-full mt-1"
+      >
+        <div className="flex flex-col gap-4 w-full">
           {/* History Header + Notification Status Filter Bar */}
           <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '0.85rem',
-              paddingTop: '0.15rem',
-            }}
+            className="flex items-center justify-between flex-wrap gap-relaxed"
+            style={{ paddingTop: "0.15rem" }}
           >
             <div>
-              <h2 style={{ fontSize: '1.08rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.015em' }}>
+              <h2
+                className="font-bold text-primary m-0 text-title-md"
+                style={{ letterSpacing: "-0.015em" }}
+              >
                 Campaign History
               </h2>
-              <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: '0.15rem 0 0 0' }}>
+              <p
+                className="text-base text-secondary"
+                style={{ margin: "0.15rem 0 0 0" }}
+              >
                 Sent, delivered, and failed push notification campaigns.
               </p>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div className="flex items-center gap-3 flex-wrap">
               {/* 5. Notification Status Pills (All / Sent / Delivered / Failed) */}
               <div
                 role="tablist"
                 aria-label="Notification Status"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.25rem',
-                  background: 'var(--bg-surface-elevated)',
-                  padding: '0.25rem',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-subtle)',
-                }}
+                className="notification-status-tabs flex items-center gap-1 bg-surface-elevated p-1 rounded-md border border-subtle"
               >
                 {(
                   [
-                    { id: 'ALL', label: 'All', count: statusCounts.all, dotColor: null },
-                    { id: 'SENT', label: 'Sent', count: statusCounts.sent, dotColor: BLUE_PRIMARY },
-                    { id: 'DELIVERED', label: 'Delivered', count: statusCounts.delivered, dotColor: '#16A34A' },
-                    { id: 'FAILED', label: 'Failed', count: statusCounts.failed, dotColor: '#DC2626' },
+                    {
+                      id: "ALL",
+                      label: "All",
+                      count: statusCounts.all,
+                      dotColor: null,
+                    },
+                    {
+                      id: "SENT",
+                      label: "Sent",
+                      count: statusCounts.sent,
+                      dotColor: BLUE_TEXT,
+                    },
+                    {
+                      id: "DELIVERED",
+                      label: "Delivered",
+                      count: statusCounts.delivered,
+                      dotColor: "#16A34A",
+                    },
+                    {
+                      id: "FAILED",
+                      label: "Failed",
+                      count: statusCounts.failed,
+                      dotColor: "#DC2626",
+                    },
                   ] as const
                 ).map((tab) => {
                   const isActive = statusFilter === tab.id;
@@ -1571,42 +1513,37 @@ export default function NotificationsPage() {
                       role="tab"
                       aria-selected={isActive}
                       onClick={() => setStatusFilter(tab.id)}
+                      className="rounded-sm border-0 cursor-pointer inline-flex items-center text-control-lg gap-tight"
                       style={{
-                        padding: '0.3rem 0.65rem',
-                        borderRadius: 'var(--radius-sm)',
-                        fontSize: '0.76rem',
+                        padding: "0.3rem 0.65rem",
                         fontWeight: isActive ? 600 : 500,
-                        color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                        background: isActive ? 'var(--bg-surface)' : 'transparent',
-                        boxShadow: isActive ? 'var(--shadow-sm)' : 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.35rem',
-                        fontFamily: 'inherit',
+                        color: isActive
+                          ? "var(--text-primary)"
+                          : "var(--text-secondary)",
+                        background: isActive
+                          ? "var(--bg-surface)"
+                          : "transparent",
+                        boxShadow: isActive ? "var(--shadow-sm)" : "none",
+                        fontFamily: "inherit",
                       }}
                     >
                       {tab.dotColor && (
                         <span
+                          className="rounded-full inline-block"
                           style={{
-                            width: '7px',
-                            height: '7px',
-                            borderRadius: '50%',
+                            width: "7px",
+                            height: "7px",
                             background: tab.dotColor,
-                            display: 'inline-block',
                           }}
                         />
                       )}
                       <span>{tab.label}</span>
                       <span
+                        className="rounded-full text-xs font-bold"
                         style={{
-                          padding: '0.05rem 0.4rem',
-                          borderRadius: 'var(--radius-pill)',
-                          fontSize: '0.6875rem',
-                          fontWeight: 700,
-                          background: isActive ? BLUE_SUBTLE : 'var(--bg-base)',
-                          color: isActive ? BLUE_PRIMARY : 'var(--text-muted)',
+                          padding: "0.05rem 0.4rem",
+                          background: isActive ? BLUE_SUBTLE : "var(--bg-base)",
+                          color: isActive ? BLUE_TEXT : "var(--text-muted)",
                         }}
                       >
                         {tab.count}
@@ -1617,16 +1554,19 @@ export default function NotificationsPage() {
               </div>
 
               {/* Search Input */}
-              <div style={{ position: 'relative', width: '240px', maxWidth: '100%' }}>
+              <div
+                className="relative"
+                style={{ width: "240px", maxWidth: "100%" }}
+              >
                 <Search
                   size={15}
                   style={{
-                    position: 'absolute',
-                    left: '0.75rem',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    color: 'var(--text-muted)',
-                    pointerEvents: 'none',
+                    position: "absolute",
+                    left: "0.75rem",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    color: "var(--text-muted)",
+                    pointerEvents: "none",
                   }}
                 />
                 <input
@@ -1638,26 +1578,20 @@ export default function NotificationsPage() {
                   onBlur={clearBlueFocus}
                   style={{
                     ...inputBaseStyle,
-                    padding: '0.42rem 1.75rem 0.42rem 2.1rem',
-                    fontSize: '0.8rem',
+                    padding: "0.42rem 1.75rem 0.42rem 2.1rem",
+                    fontSize: "0.8rem",
                   }}
                 />
                 {searchQuery && (
                   <button
                     type="button"
-                    onClick={() => setSearchQuery('')}
+                    onClick={() => setSearchQuery("")}
                     aria-label="Clear campaign search"
+                    className="absolute center-y border-0 text-muted cursor-pointer flex top-1/2"
                     style={{
-                      position: 'absolute',
-                      right: '0.55rem',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      background: 'none',
-                      border: 'none',
-                      color: 'var(--text-muted)',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      padding: '0.15rem',
+                      right: "0.55rem",
+                      background: "none",
+                      padding: "0.15rem",
                     }}
                   >
                     <X size={13} />
@@ -1675,9 +1609,9 @@ export default function NotificationsPage() {
             emptyIcon={<Radio size={24} />}
             emptyTitle="No Notification Campaigns Found"
             emptySubtitle={
-              searchQuery || statusFilter !== 'ALL'
-                ? 'No campaigns match the current search or status filter.'
-                : 'Sent broadcast notifications will appear here.'
+              searchQuery || statusFilter !== "ALL"
+                ? "No campaigns match the current search or status filter."
+                : "Sent broadcast notifications will appear here."
             }
             pagination={
               filteredCampaigns.length > PAGE_SIZE
@@ -1699,110 +1633,104 @@ export default function NotificationsPage() {
         isOpen={!!selectedCampaign}
         onClose={() => setSelectedCampaign(null)}
         title="Campaign Details"
-        subtitle={selectedCampaign ? formatDate(selectedCampaign.createdAt) : undefined}
+        subtitle={
+          selectedCampaign ? formatDate(selectedCampaign.createdAt) : undefined
+        }
         icon={<Radio size={17} />}
         width="540px"
         footer={
-          <Button variant="secondary" size="md" onClick={() => setSelectedCampaign(null)}>
+          <Button
+            variant="secondary"
+            size="md"
+            onClick={() => setSelectedCampaign(null)}
+          >
             Close
           </Button>
         }
       >
         {selectedCampaign && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div className="flex flex-col gap-4">
             <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingBottom: '0.8rem',
-                borderBottom: '1px solid var(--border-subtle)',
-              }}
+              className="flex items-center justify-between border-b border-subtle"
+              style={{ paddingBottom: "0.8rem" }}
             >
               <div>
-                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                <div className="font-bold text-muted uppercase text-label">
                   Delivery Status
                 </div>
-                <div style={{ marginTop: '0.3rem' }}>{renderStatusBadge(selectedCampaign, false)}</div>
+                <div style={{ marginTop: "0.3rem" }}>
+                  {renderStatusBadge(selectedCampaign, false)}
+                </div>
               </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+              <div className="text-right">
+                <div className="font-bold text-muted uppercase text-label">
                   Date
                 </div>
-                <div style={{ fontSize: '0.82rem', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '0.3rem' }}>
+                <div
+                  className="font-medium text-secondary text-body-md"
+                  style={{ marginTop: "0.3rem" }}
+                >
                   {formatDate(selectedCampaign.createdAt)}
                 </div>
               </div>
             </div>
 
-            <div
-              style={{
-                background: 'var(--bg-card-elevated)',
-                borderRadius: 'var(--radius-md)',
-                padding: '1rem',
-                border: '1px solid var(--border-subtle)',
-              }}
-            >
+            <div className="bg-card-elevated rounded-md p-4 border border-subtle">
               {selectedCampaign.imageUrl && (
                 <img
                   src={selectedCampaign.imageUrl}
                   alt="Campaign banner"
-                  style={{
-                    width: '100%',
-                    maxHeight: '180px',
-                    objectFit: 'cover',
-                    borderRadius: 'var(--radius-sm)',
-                    marginBottom: '0.8rem',
-                    border: '1px solid var(--border-subtle)',
-                  }}
+                  className="w-full object-cover rounded-sm border border-subtle"
+                  style={{ maxHeight: "180px", marginBottom: "0.8rem" }}
                   onError={(e) => {
-                    (e.target as HTMLElement).style.display = 'none';
+                    (e.target as HTMLElement).style.display = "none";
                   }}
                 />
               )}
-              <h3 style={{ margin: '0 0 0.4rem 0', fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                {selectedCampaign.title || 'Untitled Campaign'}
+              <h3
+                className="font-bold text-primary text-title-sm"
+                style={{ margin: "0 0 0.4rem 0" }}
+              >
+                {selectedCampaign.title || "Untitled Campaign"}
               </h3>
               <p
-                style={{
-                  margin: 0,
-                  fontSize: '0.84rem',
-                  lineHeight: 1.5,
-                  color: 'var(--text-secondary)',
-                  whiteSpace: 'pre-wrap',
-                }}
+                className="m-0 text-secondary whitespace-pre-wrap text-body-lg"
+                style={{ lineHeight: 1.5 }}
               >
-                {selectedCampaign.body || 'No message content.'}
+                {selectedCampaign.body || "No message content."}
               </p>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '0.8rem' }}>
+            <div
+              className="grid"
+              style={{
+                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                gap: "0.8rem",
+              }}
+            >
               <div
-                style={{
-                  padding: '0.8rem 0.95rem',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'var(--bg-card)',
-                  border: '1px solid var(--border-subtle)',
-                }}
+                className="rounded-md bg-card border border-subtle"
+                style={{ padding: "0.8rem 0.95rem" }}
               >
-                <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                <div className="font-bold text-muted uppercase text-caption">
                   Target Audience
                 </div>
-                <div style={{ marginTop: '0.35rem' }}>{renderAudienceBadge(selectedCampaign)}</div>
+                <div className="mt-tight">
+                  {renderAudienceBadge(selectedCampaign)}
+                </div>
               </div>
 
               <div
-                style={{
-                  padding: '0.8rem 0.95rem',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'var(--bg-card)',
-                  border: '1px solid var(--border-subtle)',
-                }}
+                className="rounded-md bg-card border border-subtle"
+                style={{ padding: "0.8rem 0.95rem" }}
               >
-                <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                <div className="font-bold text-muted uppercase text-caption">
                   Total Recipients
                 </div>
-                <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.2rem' }}>
+                <div
+                  className="font-bold text-primary mt-compact"
+                  style={{ fontSize: "1.1rem" }}
+                >
                   {getRecipientCount(selectedCampaign).toLocaleString()}
                 </div>
               </div>
@@ -1810,32 +1738,45 @@ export default function NotificationsPage() {
 
             {/* Notification Status Breakdown */}
             <div
+              className="grid gap-3 rounded-md bg-card-elevated border border-subtle text-center"
               style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-                gap: '0.75rem',
-                padding: '0.9rem',
-                borderRadius: 'var(--radius-md)',
-                background: 'var(--bg-card-elevated)',
-                border: '1px solid var(--border-subtle)',
-                textAlign: 'center',
+                gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                padding: "0.9rem",
               }}
             >
               <div>
-                <span style={{ fontSize: '0.7rem', color: BLUE_PRIMARY, fontWeight: 700 }}>SENT</span>
-                <div style={{ fontSize: '1.15rem', fontWeight: 700, color: BLUE_PRIMARY, marginTop: '0.18rem' }}>
+                <span
+                  className="font-bold text-caption"
+                  style={{ color: BLUE_TEXT }}
+                >
+                  SENT
+                </span>
+                <div
+                  className="font-bold text-title-lg"
+                  style={{ color: BLUE_TEXT, marginTop: "0.18rem" }}
+                >
                   {getRecipientCount(selectedCampaign).toLocaleString()}
                 </div>
               </div>
               <div>
-                <span style={{ fontSize: '0.7rem', color: 'var(--color-success)', fontWeight: 700 }}>DELIVERED</span>
-                <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--color-success)', marginTop: '0.18rem' }}>
+                <span className="text-success font-bold text-caption">
+                  DELIVERED
+                </span>
+                <div
+                  className="font-bold text-success text-title-lg"
+                  style={{ marginTop: "0.18rem" }}
+                >
                   {(selectedCampaign.successCount ?? 0).toLocaleString()}
                 </div>
               </div>
               <div>
-                <span style={{ fontSize: '0.7rem', color: 'var(--color-danger)', fontWeight: 700 }}>FAILED</span>
-                <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--color-danger)', marginTop: '0.18rem' }}>
+                <span className="text-danger font-bold text-caption">
+                  FAILED
+                </span>
+                <div
+                  className="font-bold text-danger text-title-lg"
+                  style={{ marginTop: "0.18rem" }}
+                >
                   {(selectedCampaign.failureCount ?? 0).toLocaleString()}
                 </div>
               </div>
@@ -1854,7 +1795,11 @@ export default function NotificationsPage() {
         maxWidth="500px"
         footer={
           <>
-            <Button variant="secondary" size="md" onClick={() => setIsTestPushOpen(false)}>
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={() => setIsTestPushOpen(false)}
+            >
               Cancel
             </Button>
             <Button
@@ -1866,87 +1811,46 @@ export default function NotificationsPage() {
               disabled={!testPhoneOrToken.trim() || sendingTest}
               loading={sendingTest}
             >
-              {sendingTest ? 'Sending...' : 'Send Test Notification'}
+              {sendingTest ? "Sending..." : "Send Test Notification"}
             </Button>
           </>
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
-          <div>
-            <label
-              htmlFor="test-target"
-              style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.35rem' }}
-            >
-              Phone Number or FCM Device Token <span style={{ color: 'var(--color-danger)' }}>*</span>
-            </label>
-            <input
-              id="test-target"
-              type="text"
-              placeholder="e.g. +91 98765 43210 or FCM token"
-              value={testPhoneOrToken}
-              onChange={(e) => setTestPhoneOrToken(e.target.value)}
-              onFocus={applyBlueFocus}
-              onBlur={clearBlueFocus}
-              style={inputBaseStyle}
-            />
-          </div>
+        <div className="flex flex-col" style={{ gap: "0.9rem" }}>
+          <Input
+            id="test-target"
+            label="Phone Number or FCM Device Token"
+            required
+            placeholder="e.g. +91 98765 43210 or FCM token"
+            value={testPhoneOrToken}
+            onChange={(e) => setTestPhoneOrToken(e.target.value)}
+          />
 
-          <div>
-            <label
-              htmlFor="test-title"
-              style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.35rem' }}
-            >
-              Notification Title
-            </label>
-            <input
-              id="test-title"
-              type="text"
-              placeholder="AdhocX Test Notification"
-              value={testTitle}
-              onChange={(e) => setTestTitle(e.target.value)}
-              onFocus={applyBlueFocus}
-              onBlur={clearBlueFocus}
-              style={inputBaseStyle}
-            />
-          </div>
+          <Input
+            id="test-title"
+            label="Notification Title"
+            placeholder="AdhocX Test Notification"
+            value={testTitle}
+            onChange={(e) => setTestTitle(e.target.value)}
+          />
 
-          <div>
-            <label
-              htmlFor="test-body"
-              style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.35rem' }}
-            >
-              Notification Message
-            </label>
-            <textarea
-              id="test-body"
-              rows={3}
-              placeholder="This is a live test notification from AdhocX."
-              value={testBody}
-              onChange={(e) => setTestBody(e.target.value)}
-              onFocus={applyBlueFocus}
-              onBlur={clearBlueFocus}
-              style={{ ...inputBaseStyle, resize: 'none' }}
-            />
-          </div>
+          <Textarea
+            id="test-body"
+            label="Notification Message"
+            rows={3}
+            placeholder="This is a live test notification from AdhocX."
+            value={testBody}
+            onChange={(e) => setTestBody(e.target.value)}
+          />
 
-          <div>
-            <label
-              htmlFor="test-image"
-              style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.35rem' }}
-            >
-              Optional Image URL
-            </label>
-            <input
-              id="test-image"
-              type="url"
-              placeholder="https://example.com/banner.jpg"
-              value={testImageUrl}
-              onChange={(e) => setTestImageUrl(e.target.value)}
-              onFocus={applyBlueFocus}
-              onBlur={clearBlueFocus}
-              style={inputBaseStyle}
-            />
-          </div>
+          <Input
+            id="test-image"
+            type="url"
+            label="Optional Image URL"
+            placeholder="https://example.com/banner.jpg"
+            value={testImageUrl}
+            onChange={(e) => setTestImageUrl(e.target.value)}
+          />
         </div>
       </Modal>
 
@@ -1957,19 +1861,22 @@ export default function NotificationsPage() {
         onConfirm={handleBroadcastPush}
         title="Confirm Notification Broadcast"
         description="This will immediately dispatch a push notification via Firebase Cloud Messaging to the selected audience."
-        confirmLabel={submitting ? 'Sending...' : 'Confirm & Send'}
+        confirmLabel={submitting ? "Sending..." : "Confirm & Send"}
         variant="confirm"
         isLoading={submitting}
         details={
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.38rem' }}>
+          <div className="flex flex-col" style={{ gap: "0.38rem" }}>
             <div>
               <strong>Target Audience: </strong>
-              <span style={{ color: BLUE_PRIMARY, fontWeight: 600 }}>{getAudienceLabelForConfirm()}</span>
+              <span className="font-semibold" style={{ color: BLUE_TEXT }}>
+                {getAudienceLabelForConfirm()}
+              </span>
             </div>
             <div>
               <strong>Estimated Reach: </strong>
               <span>
-                {audienceEstimate.matchingUsers} user(s) ({audienceEstimate.matchingDevices} active device(s))
+                {audienceEstimate.matchingUsers} user(s) (
+                {audienceEstimate.matchingDevices} active device(s))
               </span>
             </div>
             <div>

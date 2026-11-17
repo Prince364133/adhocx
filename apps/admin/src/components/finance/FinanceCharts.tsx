@@ -1,13 +1,16 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { FinanceTimeSeriesPoint, FinanceRevenueBreakdownItem } from '../../lib/api/types';
+import React, { useState } from "react";
+import {
+  FinanceTimeSeriesPoint,
+  FinanceRevenueBreakdownItem,
+} from "../../lib/api/types";
 
 export const formatINR = (val: number | string | undefined | null): string => {
-  if (val == null) return '₹0';
-  const num = typeof val === 'string' ? parseFloat(val) : val;
-  if (isNaN(num) || !isFinite(num)) return '₹0';
-  return `₹${Math.round(num).toLocaleString('en-IN')}`;
+  if (val == null) return "₹0";
+  const num = typeof val === "string" ? parseFloat(val) : val;
+  if (isNaN(num) || !isFinite(num)) return "₹0";
+  return `₹${Math.round(num).toLocaleString("en-IN")}`;
 };
 
 export const FinanceSparkline: React.FC<{
@@ -15,7 +18,7 @@ export const FinanceSparkline: React.FC<{
   color?: string;
   height?: number;
   width?: number;
-}> = ({ data, color = 'var(--brand-primary)', height = 34, width = 110 }) => {
+}> = ({ data, color = "var(--text-brand)", height = 34, width = 110 }) => {
   const safeData = data && data.length > 0 ? data : [0, 0, 0, 0, 0];
   const min = Math.min(...safeData);
   const max = Math.max(...safeData);
@@ -25,19 +28,30 @@ export const FinanceSparkline: React.FC<{
   const points = safeData
     .map((val, idx) => {
       const x = (idx / Math.max(1, safeData.length - 1)) * (width - 4) + 2;
-      const y = isAllZero ? height - 6 : height - 4 - ((val - min) / range) * (height - 8);
+      const y = isAllZero
+        ? height - 6
+        : height - 4 - ((val - min) / range) * (height - 8);
       return `${x},${y}`;
     })
-    .join(' ');
+    .join(" ");
 
   const fillPoints = `${points} ${width - 2},${height} 2,${height}`;
-  const gradId = `sparkline-grad-${color.replace(/[^a-zA-Z0-9]/g, '')}`;
+  const gradId = `sparkline-grad-${color.replace(/[^a-zA-Z0-9]/g, "")}`;
 
   return (
-    <svg width={width} height={height} style={{ overflow: 'visible', flexShrink: 0 }}>
+    <svg
+      width={width}
+      height={height}
+      className="flex-shrink-0"
+      style={{ overflow: "visible" }}
+    >
       <defs>
         <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity={isAllZero ? 0.05 : 0.28} />
+          <stop
+            offset="0%"
+            stopColor={color}
+            stopOpacity={isAllZero ? 0.05 : 0.28}
+          />
           <stop offset="100%" stopColor={color} stopOpacity="0.0" />
         </linearGradient>
       </defs>
@@ -48,13 +62,19 @@ export const FinanceSparkline: React.FC<{
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeDasharray={isAllZero ? '3 3' : 'none'}
+        strokeDasharray={isAllZero ? "3 3" : "none"}
         points={points}
       />
       {safeData.length > 0 && (
         <circle
           cx={width - 2}
-          cy={isAllZero ? height - 6 : height - 4 - ((safeData[safeData.length - 1] - min) / range) * (height - 8)}
+          cy={
+            isAllZero
+              ? height - 6
+              : height -
+                4 -
+                ((safeData[safeData.length - 1] - min) / range) * (height - 8)
+          }
           r="3"
           fill={color}
         />
@@ -66,20 +86,28 @@ export const FinanceSparkline: React.FC<{
 export const FinanceAreaChart: React.FC<{
   points: FinanceTimeSeriesPoint[];
   title?: string;
-  selectedMetric?: 'ALL' | 'DRIVER' | 'REVENUE';
-  onMetricChange?: (metric: 'ALL' | 'DRIVER' | 'REVENUE') => void;
-}> = ({ points = [], title = 'Revenue & Driver Payouts', selectedMetric = 'ALL', onMetricChange }) => {
+  selectedMetric?: "ALL" | "DRIVER" | "REVENUE";
+  onMetricChange?: (metric: "ALL" | "DRIVER" | "REVENUE") => void;
+}> = ({
+  points = [],
+  title = "Revenue & Driver Payouts",
+  selectedMetric = "ALL",
+  onMetricChange,
+}) => {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
-  const safePoints = points && points.length > 0 ? points : [
-    { label: 'Day 1', revenue: 0, driverEarnings: 0, transactions: 0 },
-    { label: 'Day 2', revenue: 0, driverEarnings: 0, transactions: 0 },
-    { label: 'Day 3', revenue: 0, driverEarnings: 0, transactions: 0 },
-  ];
+  const safePoints =
+    points && points.length > 0
+      ? points
+      : [
+          { label: "Day 1", revenue: 0, driverEarnings: 0, transactions: 0 },
+          { label: "Day 2", revenue: 0, driverEarnings: 0, transactions: 0 },
+          { label: "Day 3", revenue: 0, driverEarnings: 0, transactions: 0 },
+        ];
 
   const maxVal = Math.max(
     ...safePoints.map((p) => Math.max(p.revenue || 0, p.driverEarnings || 0)),
-    100
+    100,
   );
 
   const width = 840;
@@ -93,13 +121,14 @@ export const FinanceAreaChart: React.FC<{
   const chartHeight = height - paddingTop - paddingBottom;
 
   const getCoordinates = (val: number, idx: number) => {
-    const x = paddingLeft + (idx / Math.max(1, safePoints.length - 1)) * chartWidth;
+    const x =
+      paddingLeft + (idx / Math.max(1, safePoints.length - 1)) * chartWidth;
     const y = paddingTop + chartHeight - (val / maxVal) * chartHeight;
     return { x, y };
   };
 
   const toSmoothPath = (pts: { x: number; y: number }[]) => {
-    if (pts.length === 0) return '';
+    if (pts.length === 0) return "";
     if (pts.length === 1) return `M ${pts[0].x},${pts[0].y}`;
     return pts.reduce((acc, curr, idx, arr) => {
       if (idx === 0) return `M ${curr.x},${curr.y}`;
@@ -109,11 +138,13 @@ export const FinanceAreaChart: React.FC<{
       const cp2x = prev.x + (curr.x - prev.x) / 2;
       const cp2y = curr.y;
       return `${acc} C ${cp1x},${cp1y} ${cp2x},${cp2y} ${curr.x},${curr.y}`;
-    }, '');
+    }, "");
   };
 
   const revCoords = safePoints.map((p, i) => getCoordinates(p.revenue || 0, i));
-  const driverCoords = safePoints.map((p, i) => getCoordinates(p.driverEarnings || 0, i));
+  const driverCoords = safePoints.map((p, i) =>
+    getCoordinates(p.driverEarnings || 0, i),
+  );
 
   const revPath = toSmoothPath(revCoords);
   const driverPath = toSmoothPath(driverCoords);
@@ -121,55 +152,66 @@ export const FinanceAreaChart: React.FC<{
   const revArea = `${revPath} L ${revCoords[revCoords.length - 1].x},${paddingTop + chartHeight} L ${revCoords[0].x},${paddingTop + chartHeight} Z`;
   const driverArea = `${driverPath} L ${driverCoords[driverCoords.length - 1].x},${paddingTop + chartHeight} L ${driverCoords[0].x},${paddingTop + chartHeight} Z`;
 
-  const hoveredPoint = hoverIndex !== null && safePoints[hoverIndex] ? safePoints[hoverIndex] : null;
+  const hoveredPoint =
+    hoverIndex !== null && safePoints[hoverIndex]
+      ? safePoints[hoverIndex]
+      : null;
 
   return (
     <div
-      style={{
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border-subtle)',
-        borderRadius: 'var(--radius-lg)',
-        padding: '1.2rem 1.2rem 1rem',
-        boxShadow: 'var(--shadow-card)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '0.8rem',
-      }}
+      className="bg-card border border-subtle rounded-lg shadow-card flex flex-col"
+      style={{ padding: "1.2rem 1.2rem 1rem", gap: "0.8rem" }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.65rem' }}>
+      <div
+        className="flex justify-between items-center flex-wrap"
+        style={{ gap: "0.65rem" }}
+      >
         <div>
-          <h3 style={{ fontSize: '1.06rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+          <h3
+            className="font-bold text-primary m-0"
+            style={{ fontSize: "1.06rem" }}
+          >
             {title}
           </h3>
-          <p style={{ fontSize: '0.73rem', color: 'var(--text-muted)', margin: '0.15rem 0 0 0' }}>
+          <p
+            className="text-muted"
+            style={{ fontSize: "0.73rem", margin: "0.15rem 0 0 0" }}
+          >
             Interactive view of booking revenue and rate-card driver payouts
           </p>
         </div>
 
         {onMetricChange && (
-          <div style={{ display: 'flex', gap: '0.28rem', background: 'var(--bg-base)', padding: '0.16rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+          <div
+            className="flex bg-base rounded-md border border-subtle"
+            style={{ gap: "0.28rem", padding: "0.16rem" }}
+          >
             {(
               [
-                { id: 'ALL', label: 'All Streams' },
-                { id: 'REVENUE', label: 'Gross GMV' },
-                { id: 'DRIVER', label: 'Driver Earnings' },
+                { id: "ALL", label: "All Streams" },
+                { id: "REVENUE", label: "Gross GMV" },
+                { id: "DRIVER", label: "Driver Earnings" },
               ] as const
             ).map((btn) => (
               <button
                 key={btn.id}
                 type="button"
                 onClick={() => onMetricChange(btn.id)}
+                className="rounded-sm text-caption border-0 cursor-pointer"
                 style={{
-                  padding: '0.24rem 0.56rem',
-                  borderRadius: 'var(--radius-sm)',
-                  fontSize: '0.7rem',
+                  padding: "0.24rem 0.56rem",
                   fontWeight: selectedMetric === btn.id ? 700 : 500,
-                  border: 'none',
-                  background: selectedMetric === btn.id ? 'var(--bg-card)' : 'transparent',
-                  color: selectedMetric === btn.id ? 'var(--brand-primary)' : 'var(--text-muted)',
-                  boxShadow: selectedMetric === btn.id ? 'var(--shadow-sm)' : 'none',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
+                  background:
+                    selectedMetric === btn.id
+                      ? "var(--bg-card)"
+                      : "transparent",
+                  color:
+                    selectedMetric === btn.id
+                      ? "var(--text-brand)"
+                      : "var(--text-muted)",
+                  boxShadow:
+                    selectedMetric === btn.id ? "var(--shadow-sm)" : "none",
+                  transition: "all 0.15s ease",
                 }}
               >
                 {btn.label}
@@ -179,10 +221,11 @@ export const FinanceAreaChart: React.FC<{
         )}
       </div>
 
-      <div style={{ position: 'relative', width: '100%', overflowX: 'auto' }}>
+      <div className="relative w-full overflow-x-auto">
         <svg
           viewBox={`0 0 ${width} ${height}`}
-          style={{ width: '100%', height: 'auto', display: 'block', minWidth: '600px' }}
+          className="w-full block"
+          style={{ height: "auto", minWidth: "600px" }}
           onMouseLeave={() => setHoverIndex(null)}
         >
           <defs>
@@ -227,18 +270,30 @@ export const FinanceAreaChart: React.FC<{
           })}
 
           {/* Area & Line for Revenue */}
-          {(selectedMetric === 'ALL' || selectedMetric === 'REVENUE') && (
+          {(selectedMetric === "ALL" || selectedMetric === "REVENUE") && (
             <>
               <path d={revArea} fill="url(#grad-revenue)" />
-              <path d={revPath} fill="none" stroke="#2563EB" strokeWidth="2.5" strokeLinecap="round" />
+              <path
+                d={revPath}
+                fill="none"
+                stroke="#2563EB"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              />
             </>
           )}
 
           {/* Area & Line for Driver Payouts */}
-          {(selectedMetric === 'ALL' || selectedMetric === 'DRIVER') && (
+          {(selectedMetric === "ALL" || selectedMetric === "DRIVER") && (
             <>
               <path d={driverArea} fill="url(#grad-driver)" />
-              <path d={driverPath} fill="none" stroke="#16A34A" strokeWidth="2.2" strokeLinecap="round" />
+              <path
+                d={driverPath}
+                fill="none"
+                stroke="#16A34A"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+              />
             </>
           )}
 
@@ -246,7 +301,10 @@ export const FinanceAreaChart: React.FC<{
           {safePoints.map((pt, idx) => {
             const { x } = getCoordinates(0, idx);
             // Skip labels if too crowded
-            const showLabel = safePoints.length <= 10 || idx % Math.ceil(safePoints.length / 8) === 0 || idx === safePoints.length - 1;
+            const showLabel =
+              safePoints.length <= 10 ||
+              idx % Math.ceil(safePoints.length / 8) === 0 ||
+              idx === safePoints.length - 1;
             if (!showLabel) return null;
             return (
               <text
@@ -275,7 +333,7 @@ export const FinanceAreaChart: React.FC<{
                 width={colWidth}
                 height={chartHeight}
                 fill="transparent"
-                style={{ cursor: 'pointer' }}
+                className="cursor-pointer"
                 onMouseEnter={() => setHoverIndex(idx)}
               />
             );
@@ -289,15 +347,29 @@ export const FinanceAreaChart: React.FC<{
                 y1={paddingTop}
                 x2={revCoords[hoverIndex].x}
                 y2={paddingTop + chartHeight}
-                stroke="var(--brand-primary)"
+                stroke="var(--text-brand)"
                 strokeWidth="1.5"
                 strokeDasharray="3 3"
               />
-              {(selectedMetric === 'ALL' || selectedMetric === 'REVENUE') && (
-                <circle cx={revCoords[hoverIndex].x} cy={revCoords[hoverIndex].y} r="5" fill="#2563EB" stroke="#ffffff" strokeWidth="2" />
+              {(selectedMetric === "ALL" || selectedMetric === "REVENUE") && (
+                <circle
+                  cx={revCoords[hoverIndex].x}
+                  cy={revCoords[hoverIndex].y}
+                  r="5"
+                  fill="#2563EB"
+                  stroke="#ffffff"
+                  strokeWidth="2"
+                />
               )}
-              {(selectedMetric === 'ALL' || selectedMetric === 'DRIVER') && (
-                <circle cx={driverCoords[hoverIndex].x} cy={driverCoords[hoverIndex].y} r="5" fill="#16A34A" stroke="#ffffff" strokeWidth="2" />
+              {(selectedMetric === "ALL" || selectedMetric === "DRIVER") && (
+                <circle
+                  cx={driverCoords[hoverIndex].x}
+                  cy={driverCoords[hoverIndex].y}
+                  r="5"
+                  fill="#16A34A"
+                  stroke="#ffffff"
+                  strokeWidth="2"
+                />
               )}
             </g>
           )}
@@ -306,39 +378,45 @@ export const FinanceAreaChart: React.FC<{
         {/* Hover Tooltip Overlay */}
         {hoveredPoint && hoverIndex !== null && (
           <div
+            className="absolute bg-card border rounded-md shadow-elevated pointer-events-none flex flex-col"
             style={{
-              position: 'absolute',
-              top: '12px',
+              top: "12px",
               left: `${Math.min(75, Math.max(15, (revCoords[hoverIndex].x / width) * 100))}%`,
-              transform: 'translateX(-50%)',
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-md)',
-              padding: '0.65rem 0.85rem',
-              boxShadow: 'var(--shadow-elevated)',
-              pointerEvents: 'none',
+              transform: "translateX(-50%)",
+              padding: "0.65rem 0.85rem",
               zIndex: 10,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.3rem',
-              minWidth: '180px',
+              gap: "0.3rem",
+              minWidth: "180px",
             }}
           >
-            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.25rem' }}>
+            <div className="text-compact font-bold text-primary border-b border-subtle pb-1">
               {hoveredPoint.label}
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', gap: '0.5rem' }}>
-              <span style={{ color: '#2563EB', fontWeight: 600 }}>● Gross Revenue:</span>
-              <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{formatINR(hoveredPoint.revenue)}</span>
+            <div className="flex justify-between text-sm gap-2">
+              <span className="font-semibold" style={{ color: "#2563EB" }}>
+                ● Gross Revenue:
+              </span>
+              <span className="font-bold text-primary">
+                {formatINR(hoveredPoint.revenue)}
+              </span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', gap: '0.5rem' }}>
-              <span style={{ color: '#16A34A', fontWeight: 600 }}>● Driver Payouts:</span>
-              <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>{formatINR(hoveredPoint.driverEarnings)}</span>
+            <div className="flex justify-between text-sm gap-2">
+              <span className="font-semibold" style={{ color: "#16A34A" }}>
+                ● Driver Payouts:
+              </span>
+              <span className="font-bold text-success">
+                {formatINR(hoveredPoint.driverEarnings)}
+              </span>
             </div>
             {hoveredPoint.transactions > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)', paddingTop: '0.15rem' }}>
+              <div
+                className="flex justify-between text-caption text-muted"
+                style={{ paddingTop: "0.15rem" }}
+              >
                 <span>Trips / Invoices:</span>
-                <span style={{ fontWeight: 600 }}>{hoveredPoint.transactions}</span>
+                <span className="font-semibold">
+                  {hoveredPoint.transactions}
+                </span>
               </div>
             )}
           </div>
@@ -346,13 +424,19 @@ export const FinanceAreaChart: React.FC<{
       </div>
 
       {/* Legend Footer */}
-      <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center', alignItems: 'center', paddingTop: '0.5rem', borderTop: '1px solid var(--border-subtle)', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#2563EB', display: 'inline-block' }} />
+      <div className="flex gap-6 justify-center items-center pt-2 border-t border-subtle flex-wrap">
+        <div className="flex items-center gap-compact text-compact text-secondary">
+          <span
+            className="rounded-full inline-block"
+            style={{ width: "10px", height: "10px", background: "#2563EB" }}
+          />
           <span>Gross Booking Value (GMV)</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#16A34A', display: 'inline-block' }} />
+        <div className="flex items-center gap-compact text-compact text-secondary">
+          <span
+            className="rounded-full inline-block"
+            style={{ width: "10px", height: "10px", background: "#16A34A" }}
+          />
           <span>Driver Net Disbursements</span>
         </div>
       </div>
@@ -363,17 +447,20 @@ export const FinanceAreaChart: React.FC<{
 export const FinanceBarComparisonChart: React.FC<{
   points: FinanceTimeSeriesPoint[];
   title?: string;
-}> = ({ points = [], title = 'Booking Revenue vs Driver Payouts' }) => {
+}> = ({ points = [], title = "Booking Revenue vs Driver Payouts" }) => {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
-  const safePoints = points && points.length > 0 ? points : [
-    { label: 'P1', revenue: 0, driverEarnings: 0, transactions: 0 },
-    { label: 'P2', revenue: 0, driverEarnings: 0, transactions: 0 },
-  ];
+  const safePoints =
+    points && points.length > 0
+      ? points
+      : [
+          { label: "P1", revenue: 0, driverEarnings: 0, transactions: 0 },
+          { label: "P2", revenue: 0, driverEarnings: 0, transactions: 0 },
+        ];
 
   const maxVal = Math.max(
     ...safePoints.map((p) => Math.max(p.revenue || 0, p.driverEarnings || 0)),
-    100
+    100,
   );
 
   const width = 840;
@@ -390,30 +477,29 @@ export const FinanceBarComparisonChart: React.FC<{
 
   return (
     <div
-      style={{
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border-subtle)',
-        borderRadius: 'var(--radius-lg)',
-        padding: '1.2rem 1.2rem 1rem',
-        boxShadow: 'var(--shadow-card)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '0.72rem',
-      }}
+      className="bg-card border border-subtle rounded-lg shadow-card flex flex-col"
+      style={{ padding: "1.2rem 1.2rem 1rem", gap: "0.72rem" }}
     >
       <div>
-        <h3 style={{ fontSize: '1.06rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+        <h3
+          className="font-bold text-primary m-0"
+          style={{ fontSize: "1.06rem" }}
+        >
           {title}
         </h3>
-        <p style={{ fontSize: '0.73rem', color: 'var(--text-muted)', margin: '0.15rem 0 0 0' }}>
+        <p
+          className="text-muted"
+          style={{ fontSize: "0.73rem", margin: "0.15rem 0 0 0" }}
+        >
           Side-by-side booking revenue and rate-card driver payouts
         </p>
       </div>
 
-      <div style={{ position: 'relative', width: '100%', overflowX: 'auto' }}>
+      <div className="relative w-full overflow-x-auto">
         <svg
           viewBox={`0 0 ${width} ${height}`}
-          style={{ width: '100%', height: 'auto', display: 'block', minWidth: '600px' }}
+          className="w-full block"
+          style={{ height: "auto", minWidth: "600px" }}
           onMouseLeave={() => setHoverIndex(null)}
         >
           {/* Y Grid lines */}
@@ -448,9 +534,14 @@ export const FinanceBarComparisonChart: React.FC<{
 
           {/* Bar Groups */}
           {safePoints.map((pt, idx) => {
-            const groupX = paddingLeft + idx * groupWidth + (groupWidth - barWidth * 2 - 4) / 2;
-            const revenueHeight = maxVal > 0 ? (pt.revenue / maxVal) * chartHeight : 0;
-            const driverHeight = maxVal > 0 ? (pt.driverEarnings / maxVal) * chartHeight : 0;
+            const groupX =
+              paddingLeft +
+              idx * groupWidth +
+              (groupWidth - barWidth * 2 - 4) / 2;
+            const revenueHeight =
+              maxVal > 0 ? (pt.revenue / maxVal) * chartHeight : 0;
+            const driverHeight =
+              maxVal > 0 ? (pt.driverEarnings / maxVal) * chartHeight : 0;
             const revenueY = paddingTop + chartHeight - revenueHeight;
             const driverY = paddingTop + chartHeight - driverHeight;
             const isHovered = hoverIndex === idx;
@@ -459,7 +550,7 @@ export const FinanceBarComparisonChart: React.FC<{
               <g
                 key={idx}
                 onMouseEnter={() => setHoverIndex(idx)}
-                style={{ cursor: 'pointer' }}
+                className="cursor-pointer"
               >
                 {/* Revenue Bar */}
                 <rect
@@ -487,7 +578,7 @@ export const FinanceBarComparisonChart: React.FC<{
                   y={height - 12}
                   textAnchor="middle"
                   fontSize="10"
-                  fill={isHovered ? 'var(--text-primary)' : 'var(--text-muted)'}
+                  fill={isHovered ? "var(--text-primary)" : "var(--text-muted)"}
                   fontWeight={isHovered ? 700 : 500}
                 >
                   {pt.label}
@@ -499,41 +590,45 @@ export const FinanceBarComparisonChart: React.FC<{
 
         {hoverIndex !== null && safePoints[hoverIndex] && (
           <div
-            style={{
-              position: 'absolute',
-              top: '8px',
-              right: '24px',
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-md)',
-              padding: '0.5rem 0.85rem',
-              boxShadow: 'var(--shadow-elevated)',
-              fontSize: '0.75rem',
-              display: 'flex',
-              gap: '1rem',
-              alignItems: 'center',
-            }}
+            className="absolute bg-card border rounded-md shadow-elevated text-sm flex gap-4 items-center"
+            style={{ top: "8px", right: "24px", padding: "0.5rem 0.85rem" }}
           >
-            <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+            <span className="font-bold text-primary">
               {safePoints[hoverIndex].label}:
             </span>
-            <span style={{ color: '#2563EB', fontWeight: 600 }}>
+            <span className="font-semibold" style={{ color: "#2563EB" }}>
               Revenue: {formatINR(safePoints[hoverIndex].revenue)}
             </span>
-            <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>
+            <span className="text-success font-semibold">
               Driver: {formatINR(safePoints[hoverIndex].driverEarnings)}
             </span>
           </div>
         )}
       </div>
 
-      <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center', alignItems: 'center', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
-          <span style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#2563EB', display: 'inline-block' }} />
+      <div className="flex gap-6 justify-center items-center border-t border-subtle pt-2">
+        <div className="flex items-center gap-compact text-control-lg text-secondary">
+          <span
+            className="inline-block"
+            style={{
+              width: "10px",
+              height: "10px",
+              borderRadius: "2px",
+              background: "#2563EB",
+            }}
+          />
           <span>Booking Revenue</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
-          <span style={{ width: '10px', height: '10px', borderRadius: '2px', background: 'var(--color-success)', display: 'inline-block' }} />
+        <div className="flex items-center gap-compact text-control-lg text-secondary">
+          <span
+            className="inline-block"
+            style={{
+              width: "10px",
+              height: "10px",
+              borderRadius: "2px",
+              background: "var(--color-success)",
+            }}
+          />
           <span>Driver Earnings Settled</span>
         </div>
       </div>
@@ -547,64 +642,79 @@ export const RevenueCategoryBreakdownCard: React.FC<{
 }> = ({ categories = [], totalRevenue = 0 }) => {
   return (
     <div
-      style={{
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border-subtle)',
-        borderRadius: 'var(--radius-lg)',
-        padding: '1.2rem 1.2rem 1rem',
-        boxShadow: 'var(--shadow-card)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '0.8rem',
-      }}
+      className="bg-card border border-subtle rounded-lg shadow-card flex flex-col"
+      style={{ padding: "1.2rem 1.2rem 1rem", gap: "0.8rem" }}
     >
       <div>
-        <h3 style={{ fontSize: '1.06rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+        <h3
+          className="font-bold text-primary m-0"
+          style={{ fontSize: "1.06rem" }}
+        >
           Vehicle Fleet & Category Revenue Breakdown
         </h3>
-        <p style={{ fontSize: '0.73rem', color: 'var(--text-muted)', margin: '0.15rem 0 0 0' }}>
-          Contribution of each vehicle class to platform gross bookings and fulfilled volume
+        <p
+          className="text-muted"
+          style={{ fontSize: "0.73rem", margin: "0.15rem 0 0 0" }}
+        >
+          Contribution of each vehicle class to platform gross bookings and
+          fulfilled volume
         </p>
       </div>
 
       {categories.length === 0 ? (
-        <div style={{ padding: '1.4rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.775rem' }}>
+        <div
+          className="text-center text-muted"
+          style={{ padding: "1.4rem 1rem", fontSize: "0.775rem" }}
+        >
           No category booking records available for this timeframe
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+        <div className="flex flex-col" style={{ gap: "0.8rem" }}>
           {categories.map((cat, idx) => {
-            const pct = totalRevenue > 0 ? Math.round((cat.revenue / totalRevenue) * 100) : 0;
+            const pct =
+              totalRevenue > 0
+                ? Math.round((cat.revenue / totalRevenue) * 100)
+                : 0;
             return (
-              <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.775rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                    <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{cat.category}</span>
-                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>({cat.count} fulfilled trips)</span>
+              <div
+                key={idx}
+                className="flex flex-col"
+                style={{ gap: "0.3rem" }}
+              >
+                <div
+                  className="flex justify-between items-center"
+                  style={{ fontSize: "0.775rem" }}
+                >
+                  <div className="flex items-center gap-snug">
+                    <span className="font-bold text-primary">
+                      {cat.category}
+                    </span>
+                    <span className="text-micro text-muted">
+                      ({cat.count} fulfilled trips)
+                    </span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
-                    <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{formatINR(cat.revenue)}</span>
-                    <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--brand-primary)', minWidth: '34px', textAlign: 'right' }}>
+                  <div className="flex items-center" style={{ gap: "0.55rem" }}>
+                    <span className="font-bold text-primary">
+                      {formatINR(cat.revenue)}
+                    </span>
+                    <span
+                      className="text-caption font-semibold text-brand text-right"
+                      style={{ minWidth: "34px" }}
+                    >
                       {pct}%
                     </span>
                   </div>
                 </div>
                 <div
-                  style={{
-                    height: '8px',
-                    width: '100%',
-                    background: 'var(--bg-base)',
-                    borderRadius: 'var(--radius-pill)',
-                    overflow: 'hidden',
-                  }}
+                  className="w-full bg-base rounded-full overflow-hidden"
+                  style={{ height: "8px" }}
                 >
                   <div
+                    className="h-full rounded-full"
                     style={{
-                      height: '100%',
                       width: `${Math.max(2, Math.min(100, pct))}%`,
-                      background: 'var(--brand-primary-gradient)',
-                      borderRadius: 'var(--radius-pill)',
-                      transition: 'width 0.4s ease',
+                      background: "var(--brand-primary-gradient)",
+                      transition: "width 0.4s ease",
                     }}
                   />
                 </div>
@@ -616,4 +726,3 @@ export const RevenueCategoryBreakdownCard: React.FC<{
     </div>
   );
 };
-
