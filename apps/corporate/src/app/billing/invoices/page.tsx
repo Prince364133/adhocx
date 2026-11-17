@@ -77,13 +77,13 @@ export default function InvoiceListPage({ searchParams }: PageProps) {
     const s = (status || '').toUpperCase();
     switch (s) {
       case 'PAID':
-        return { bg: '#DCFCE7', color: '#16A34A', border: '#86EFAC', label: 'Paid' };
+        return { bg: 'var(--color-success-bg)', color: 'var(--color-success)', border: 'var(--color-success-border)', label: 'Paid' };
       case 'ISSUED':
-        return { bg: '#EFF6FF', color: '#5728B2', border: '#BFDBFE', label: 'Issued' };
+        return { bg: 'var(--color-blue-bg)', color: 'var(--brand-primary)', border: 'var(--color-blue-border)', label: 'Issued' };
       case 'DISPUTED':
-        return { bg: '#FEF3C7', color: '#D97706', border: '#FCD34D', label: 'Disputed' };
+        return { bg: 'var(--color-warning-bg)', color: '#D97706', border: 'var(--color-warning-border)', label: 'Disputed' };
       case 'OVERDUE':
-        return { bg: '#FEE2E2', color: '#DC2626', border: '#FCA5A5', label: 'Overdue' };
+        return { bg: 'var(--color-danger-bg)', color: '#DC2626', border: 'var(--color-danger-border)', label: 'Overdue' };
       default:
         return { bg: 'var(--bg-surface-muted)', color: 'var(--text-secondary)', border: 'var(--border-color)', label: status };
     }
@@ -216,7 +216,7 @@ export default function InvoiceListPage({ searchParams }: PageProps) {
                       <td style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--text-primary)' }}>
                         <Link
                           href={`/billing/details?id=${inv.id}`}
-                          style={{ color: '#5728B2', textDecoration: 'none', fontWeight: 700 }}
+                          style={{ color: 'var(--brand-primary)', textDecoration: 'none', fontWeight: 700 }}
                         >
                           {inv.invoiceNumber}
                         </Link>
@@ -282,7 +282,7 @@ export default function InvoiceListPage({ searchParams }: PageProps) {
                               borderRadius: 6,
                               border: '1px solid var(--border-color)',
                               backgroundColor: 'var(--bg-surface)',
-                              color: '#5728B2',
+                              color: 'var(--brand-primary)',
                               cursor: 'pointer',
                             }}
                             title="Download PDF"

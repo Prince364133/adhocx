@@ -89,7 +89,7 @@ export default function RosterApprovalPublishingPage() {
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            backgroundColor: selectedIds.length > 0 ? '#5728B2' : '#94A3B8',
+            backgroundColor: selectedIds.length > 0 ? 'var(--brand-action)' : '#94A3B8',
             color: '#FFFFFF',
             border: 'none',
             borderRadius: 'var(--radius-md)',
@@ -97,7 +97,7 @@ export default function RosterApprovalPublishingPage() {
             fontSize: '13px',
             fontWeight: 700,
             cursor: selectedIds.length > 0 ? 'pointer' : 'not-allowed',
-            boxShadow: selectedIds.length > 0 ? '0 2px 4px rgba(87, 40, 178,0.25)' : 'none',
+            boxShadow: selectedIds.length > 0 ? '0 2px 4px rgba(var(--brand-primary-rgb), 0.25)' : 'none',
           }}
         >
           <Send size={15} />
@@ -116,8 +116,8 @@ export default function RosterApprovalPublishingPage() {
               fontWeight: 700,
               border: 'none',
               backgroundColor: 'transparent',
-              color: activeTab === 'pending' ? '#5728B2' : '#64748B',
-              borderBottom: `2px solid ${activeTab === 'pending' ? '#5728B2' : 'transparent'}`,
+              color: activeTab === 'pending' ? 'var(--brand-primary)' : '#64748B',
+              borderBottom: `2px solid ${activeTab === 'pending' ? 'var(--brand-primary)' : 'transparent'}`,
               cursor: 'pointer',
             }}
           >
@@ -131,8 +131,8 @@ export default function RosterApprovalPublishingPage() {
               fontWeight: 700,
               border: 'none',
               backgroundColor: 'transparent',
-              color: activeTab === 'published' ? '#5728B2' : '#64748B',
-              borderBottom: `2px solid ${activeTab === 'published' ? '#5728B2' : 'transparent'}`,
+              color: activeTab === 'published' ? 'var(--brand-primary)' : '#64748B',
+              borderBottom: `2px solid ${activeTab === 'published' ? 'var(--brand-primary)' : 'transparent'}`,
               cursor: 'pointer',
             }}
           >
@@ -195,9 +195,9 @@ export default function RosterApprovalPublishingPage() {
                             fontWeight: 700,
                             padding: '3px 8px',
                             borderRadius: '4px',
-                            backgroundColor: isPublished ? '#DCFCE7' : '#FEF3C7',
-                            color: isPublished ? '#16A34A' : '#D97706',
-                            border: `1px solid ${isPublished ? '#86EFAC' : '#FCD34D'}`,
+                            backgroundColor: isPublished ? 'var(--color-success-bg)' : 'var(--color-warning-bg)',
+                            color: isPublished ? 'var(--color-success)' : '#D97706',
+                            border: `1px solid ${isPublished ? 'var(--color-success-border)' : 'var(--color-warning-border)'}`,
                           }}
                         >
                           {v.status}

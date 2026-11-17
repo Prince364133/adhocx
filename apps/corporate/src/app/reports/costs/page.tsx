@@ -68,7 +68,7 @@ export default function CostDepartmentReportsPage({ searchParams }: PageProps) {
   const avgMonthlySpendPerEmp = employees.length > 0 ? Math.round((totalSpendPaise / 100) / employees.length) : 1850;
 
   // Department cost centers
-  const colors = ['#5728B2', '#8B5CF6', '#38BDF8', '#16A34A', '#F59E0B', '#EC4899'];
+  const colors = ['var(--brand-primary)', 'var(--color-chart-purple)', '#38BDF8', 'var(--color-success)', '#F59E0B', '#EC4899'];
   const breakdownRows = costCenters.length > 0
     ? costCenters.map((cc, idx) => {
         const share = 1 / costCenters.length;
@@ -243,7 +243,7 @@ export default function CostDepartmentReportsPage({ searchParams }: PageProps) {
                     <td style={{ padding: '14px 16px', color: 'var(--text-muted)', fontSize: 12 }}>
                       {row.code}
                     </td>
-                    <td style={{ padding: '14px 16px', fontWeight: 700, color: '#5728B2' }}>
+                    <td style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--brand-primary)' }}>
                       {row.spendInr}
                     </td>
                     <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>
@@ -253,8 +253,8 @@ export default function CostDepartmentReportsPage({ searchParams }: PageProps) {
                       <span
                         style={{
                           padding: '3px 8px',
-                          backgroundColor: '#DCFCE7',
-                          color: '#15803D',
+                          backgroundColor: 'var(--color-success-bg)',
+                          color: 'var(--color-success-text)',
                           borderRadius: 4,
                           fontSize: 11,
                           fontWeight: 600,

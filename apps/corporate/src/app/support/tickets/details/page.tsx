@@ -171,8 +171,8 @@ function TicketDetailsThreadContent() {
           style={{
             padding: '10px 16px',
             borderRadius: 6,
-            backgroundColor: feedback.type === 'success' ? '#DCFCE7' : '#FEE2E2',
-            border: `1px solid ${feedback.type === 'success' ? '#86EFAC' : '#FCA5A5'}`,
+            backgroundColor: feedback.type === 'success' ? 'var(--color-success-bg)' : 'var(--color-danger-bg)',
+            border: `1px solid ${feedback.type === 'success' ? 'var(--color-success-border)' : 'var(--color-danger-border)'}`,
             color: feedback.type === 'success' ? '#166534' : '#991B1B',
             fontSize: 13,
             display: 'flex',
@@ -222,17 +222,17 @@ function TicketDetailsThreadContent() {
                   padding: '2px 8px',
                   backgroundColor:
                     ticket.status === 'RESOLVED'
-                      ? '#DCFCE7'
+                      ? 'var(--color-success-bg)'
                       : ticket.status === 'IN_PROGRESS'
                       ? '#E0E7FF'
                       : ticket.status === 'CLOSED'
                       ? '#F1F5F9'
-                      : '#FEF3C7',
+                      : 'var(--color-warning-bg)',
                   color:
                     ticket.status === 'RESOLVED'
-                      ? '#16A34A'
+                      ? 'var(--color-success)'
                       : ticket.status === 'IN_PROGRESS'
-                      ? '#4338CA'
+                      ? 'var(--color-chart-indigo-hover)'
                       : ticket.status === 'CLOSED'
                       ? '#475569'
                       : '#D97706',
@@ -305,17 +305,17 @@ function TicketDetailsThreadContent() {
           style={{
             padding: 16,
             borderRadius: 8,
-            backgroundColor: '#FFFBEB',
-            border: '1px solid #FCD34D',
+            backgroundColor: 'var(--color-warning-bg-alt)',
+            border: '1px solid var(--color-warning-border)',
             display: 'flex',
             flexDirection: 'column',
             gap: 10,
           }}
         >
-          <div style={{ fontSize: 14, fontWeight: 700, color: '#92400E' }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-warning-text-deep)' }}>
             Reopen Support Ticket #{ticket.ticketNumber || ticket.id.slice(0, 8)}
           </div>
-          <p style={{ fontSize: 12, color: '#B45309', margin: 0 }}>
+          <p style={{ fontSize: 12, color: 'var(--color-warning-text)', margin: 0 }}>
             If the resolution was incomplete or the issue recurred, provide details below. The ticket will transition
             back to IN PROGRESS.
           </p>
@@ -328,8 +328,8 @@ function TicketDetailsThreadContent() {
               width: '100%',
               padding: '8px 10px',
               borderRadius: 6,
-              border: '1px solid #FBBF24',
-              backgroundColor: '#FFFFFF',
+              border: '1px solid var(--color-warning-text-bright)',
+              backgroundColor: 'var(--bg-surface)',
               fontSize: 13,
             }}
           />
@@ -341,8 +341,8 @@ function TicketDetailsThreadContent() {
               style={{
                 padding: '6px 12px',
                 borderRadius: 6,
-                border: '1px solid #D1D5DB',
-                backgroundColor: '#FFFFFF',
+                border: '1px solid var(--color-border-neutral)',
+                backgroundColor: 'var(--bg-surface)',
                 fontSize: 12,
                 cursor: 'pointer',
               }}
@@ -414,14 +414,14 @@ function TicketDetailsThreadContent() {
               style={{
                 padding: 14,
                 borderRadius: 8,
-                backgroundColor: '#F0FDF4',
+                backgroundColor: 'var(--color-success-bg-alt)',
                 border: '1px solid #BBF7D0',
                 display: 'flex',
                 alignItems: 'flex-start',
                 gap: 10,
               }}
             >
-              <CheckCircle2 size={18} color="#16A34A" style={{ marginTop: 2 }} />
+              <CheckCircle2 size={18} color="var(--color-success)" style={{ marginTop: 2 }} />
               <div>
                 <div style={{ fontSize: 12, fontWeight: 700, color: '#166534', marginBottom: 2 }}>
                   Official Resolution
@@ -430,7 +430,7 @@ function TicketDetailsThreadContent() {
                   {ticket.resolutionNotes}
                 </div>
                 {ticket.resolvedAt && (
-                  <div style={{ fontSize: 11, color: '#16A34A', marginTop: 4 }}>
+                  <div style={{ fontSize: 11, color: 'var(--color-success)', marginTop: 4 }}>
                     Resolved at: {new Date(ticket.resolvedAt).toLocaleString()}
                   </div>
                 )}
@@ -471,8 +471,8 @@ function TicketDetailsThreadContent() {
                     style={{
                       padding: 14,
                       borderRadius: 8,
-                      backgroundColor: isSupportTeam ? '#EFF6FF' : 'var(--bg-surface-muted)',
-                      border: `1px solid ${isSupportTeam ? '#BFDBFE' : 'var(--border-subtle)'}`,
+                      backgroundColor: isSupportTeam ? 'var(--color-blue-bg)' : 'var(--bg-surface-muted)',
+                      border: `1px solid ${isSupportTeam ? 'var(--color-blue-border)' : 'var(--border-subtle)'}`,
                       marginLeft: isSupportTeam ? 0 : 20,
                       marginRight: isSupportTeam ? 20 : 0,
                     }}
@@ -482,7 +482,7 @@ function TicketDetailsThreadContent() {
                         display: 'flex',
                         justifyContent: 'space-between',
                         fontSize: 11,
-                        color: isSupportTeam ? '#4338CA' : 'var(--text-primary)',
+                        color: isSupportTeam ? 'var(--color-chart-indigo-hover)' : 'var(--text-primary)',
                         fontWeight: 700,
                         marginBottom: 4,
                       }}
@@ -534,7 +534,7 @@ function TicketDetailsThreadContent() {
                   alignItems: 'center',
                   gap: 6,
                   padding: '8px 18px',
-                  backgroundColor: '#5728B2',
+                  backgroundColor: 'var(--brand-action)',
                   color: '#FFFFFF',
                   borderRadius: 6,
                   fontSize: 13,
@@ -584,7 +584,7 @@ function TicketDetailsThreadContent() {
 
             <div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Category</div>
-              <div style={{ fontWeight: 600, color: '#5728B2' }}>
+              <div style={{ fontWeight: 600, color: 'var(--brand-primary)' }}>
                 {ticket.category.replace('_', ' ')}
               </div>
             </div>
@@ -603,9 +603,9 @@ function TicketDetailsThreadContent() {
                   fontWeight: 700,
                   color:
                     ticket.status === 'RESOLVED'
-                      ? '#16A34A'
+                      ? 'var(--color-success)'
                       : ticket.status === 'IN_PROGRESS'
-                      ? '#4338CA'
+                      ? 'var(--color-chart-indigo-hover)'
                       : '#D97706',
                 }}
               >

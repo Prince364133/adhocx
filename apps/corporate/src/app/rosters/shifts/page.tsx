@@ -44,7 +44,7 @@ export default function ShiftManagementPage() {
           res.map((s, idx) => ({
             id: s.id,
             name: s.name,
-            iconColor: ['#3B82F6', '#F59E0B', '#8B5CF6', '#10B981', '#06B6D4'][idx % 5],
+            iconColor: ['#3B82F6', '#F59E0B', 'var(--color-chart-purple)', '#10B981', '#06B6D4'][idx % 5],
             type: ((s as any).type === 'Rotating' ? 'Rotating' : 'Fixed') as 'Fixed' | 'Rotating',
             loginTime: s.loginTime || '09:00 AM',
             logoutTime: s.logoutTime || '06:00 PM',
@@ -109,7 +109,7 @@ export default function ShiftManagementPage() {
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              backgroundColor: '#5728B2',
+              backgroundColor: 'var(--brand-action)',
               color: '#FFFFFF',
               border: 'none',
               borderRadius: 'var(--radius-md)',
@@ -117,7 +117,7 @@ export default function ShiftManagementPage() {
               fontSize: '13px',
               fontWeight: 700,
               cursor: 'pointer',
-              boxShadow: '0 2px 4px rgba(87, 40, 178,0.25)',
+              boxShadow: '0 2px 4px rgba(var(--brand-primary-rgb), 0.25)',
             }}
           >
             <Plus size={16} />
@@ -152,7 +152,7 @@ export default function ShiftManagementPage() {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
-                backgroundColor: '#5728B2',
+                backgroundColor: 'var(--brand-action)',
                 color: '#FFFFFF',
                 borderRadius: 6,
                 padding: '8px 16px',
@@ -216,7 +216,7 @@ export default function ShiftManagementPage() {
 
                   <div>
                     <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Assigned Headcount</div>
-                    <div style={{ fontSize: '13px', fontWeight: 700, color: '#5728B2' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--brand-primary)' }}>
                       {shift.assignedEmployees > 0 ? `${shift.assignedEmployees.toLocaleString()} employees` : 'General Pool'}
                     </div>
                   </div>
@@ -228,9 +228,9 @@ export default function ShiftManagementPage() {
                         fontWeight: 700,
                         padding: '3px 8px',
                         borderRadius: '4px',
-                        backgroundColor: shift.status === 'Active' ? '#DCFCE7' : '#F1F5F9',
-                        color: shift.status === 'Active' ? '#16A34A' : '#64748B',
-                        border: `1px solid ${shift.status === 'Active' ? '#86EFAC' : '#CBD5E1'}`,
+                        backgroundColor: shift.status === 'Active' ? 'var(--color-success-bg)' : '#F1F5F9',
+                        color: shift.status === 'Active' ? 'var(--color-success)' : '#64748B',
+                        border: `1px solid ${shift.status === 'Active' ? 'var(--color-success-border)' : '#CBD5E1'}`,
                       }}
                     >
                       {shift.status}

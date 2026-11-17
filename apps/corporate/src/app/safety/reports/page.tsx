@@ -235,16 +235,16 @@ export default function SafetyReportsPage() {
                   <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--text-primary)' }}>
                     {off.name}
                   </td>
-                  <td style={{ padding: '14px 16px', fontWeight: 600, color: '#5728B2' }}>
+                  <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--brand-primary)' }}>
                     0 Incidents
                   </td>
                   <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>
                     1.8 min
                   </td>
-                  <td style={{ padding: '14px 16px', fontWeight: 700, color: '#16A34A' }}>
+                  <td style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--color-success)' }}>
                     100%
                   </td>
-                  <td style={{ padding: '14px 16px', color: '#16A34A', fontWeight: 600 }}>
+                  <td style={{ padding: '14px 16px', color: 'var(--color-success)', fontWeight: 600 }}>
                     100% Compliant
                   </td>
                 </tr>

@@ -853,3 +853,26 @@ export interface TenantIntegrations {
     mapped: boolean;
   }>;
 }
+
+export interface InAppNotificationItem {
+  id: string;
+  userId: string;
+  title: string;
+  body: string;
+  type: string;
+  data?: Record<string, unknown> | null;
+  imageUrl?: string;
+  isRead: boolean;
+  readAt?: string;
+  createdAt: string;
+  isClicked?: boolean;
+  clickedAt?: string;
+}
+
+export interface InAppNotificationsResponse {
+  notifications: InAppNotificationItem[];
+  unreadCount: number;
+  total: number;
+  page?: number;
+  limit?: number;
+}

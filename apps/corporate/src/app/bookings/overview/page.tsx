@@ -53,7 +53,7 @@ export default function BookingOverviewPage() {
       label: 'Served / Confirmed',
       count: servedRequests,
       pct: totalRequests > 0 ? (servedRequests / totalRequests) * 100 : 100,
-      color: '#16A34A',
+      color: 'var(--color-success)',
     },
     {
       label: 'Pending / Unserved',
@@ -106,7 +106,7 @@ export default function BookingOverviewPage() {
           label="Total Requests"
           value={totalRequests.toLocaleString()}
           icon={<Ticket size={18} />}
-          highlightColor="#5728B2"
+          highlightColor="var(--brand-primary)"
         />
         <MetricCard
           label="Confirmed"
@@ -114,7 +114,7 @@ export default function BookingOverviewPage() {
           subtext={`${confirmedPct}% Confirmed`}
           icon={<CheckCircle2 size={18} />}
           trend={{ value: `${confirmedPct}%`, isPositive: true }}
-          highlightColor="#16A34A"
+          highlightColor="var(--color-success)"
         />
         <MetricCard
           label="Pending / Unserved"
@@ -157,7 +157,7 @@ export default function BookingOverviewPage() {
           <AreaTrendChart
             data={trend}
             height={210}
-            lineColor="#5728B2"
+            lineColor="var(--brand-primary)"
             metricLabel="Bookings"
           />
         </div>

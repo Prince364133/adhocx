@@ -99,7 +99,7 @@ export function KeyValue({ items }: { items: Array<[string, React.ReactNode]> })
 
 const GPS_STYLE: Record<GpsState, { color: string; bg: string; border: string; label: string }> = {
   LIVE: { color: '#4ADE80', bg: 'var(--color-success-bg)', border: 'var(--color-success-border)', label: 'LIVE' },
-  STALE: { color: '#FBBF24', bg: 'var(--color-warning-bg)', border: 'var(--color-warning-border)', label: 'STALE' },
+  STALE: { color: 'var(--color-warning-text-bright)', bg: 'var(--color-warning-bg)', border: 'var(--color-warning-border)', label: 'STALE' },
   OFFLINE: { color: '#F87171', bg: 'var(--color-danger-bg)', border: 'var(--color-danger-border)', label: 'OFFLINE' },
 };
 

@@ -88,7 +88,7 @@ function InvoiceDetailsContent() {
             alignItems: 'center',
             gap: 6,
             padding: '8px 16px',
-            backgroundColor: '#5728B2',
+            backgroundColor: 'var(--brand-action)',
             color: '#FFFFFF',
             borderRadius: 6,
             fontSize: 13,
@@ -122,8 +122,8 @@ function InvoiceDetailsContent() {
                 fontWeight: 700,
                 padding: '2px 8px',
                 borderRadius: '4px',
-                backgroundColor: invoice.status === 'PAID' ? '#DCFCE7' : '#EFF6FF',
-                color: invoice.status === 'PAID' ? '#16A34A' : '#5728B2',
+                backgroundColor: invoice.status === 'PAID' ? 'var(--color-success-bg)' : 'var(--color-blue-bg)',
+                color: invoice.status === 'PAID' ? 'var(--color-success)' : 'var(--brand-primary)',
                 border: '1px solid currentColor',
               }}
             >
@@ -142,7 +142,7 @@ function InvoiceDetailsContent() {
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              backgroundColor: '#5728B2',
+              backgroundColor: 'var(--brand-action)',
               color: '#FFFFFF',
               border: 'none',
               borderRadius: 'var(--radius-md)',
@@ -150,7 +150,7 @@ function InvoiceDetailsContent() {
               fontSize: '13px',
               fontWeight: 700,
               cursor: 'pointer',
-              boxShadow: '0 2px 4px rgba(87, 40, 178,0.25)',
+              boxShadow: '0 2px 4px rgba(var(--brand-primary-rgb), 0.25)',
             }}
           >
             <Download size={15} />
@@ -177,7 +177,7 @@ function InvoiceDetailsContent() {
 
         <div>
           <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Total Routes / Lines</div>
-          <div style={{ fontSize: '14px', fontWeight: 700, color: '#5728B2' }}>{invoice.lines?.length || 0} Routes</div>
+          <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--brand-primary)' }}>{invoice.lines?.length || 0} Routes</div>
         </div>
 
         <div>
@@ -192,7 +192,7 @@ function InvoiceDetailsContent() {
 
         <div>
           <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Total B2B Amount</div>
-          <div style={{ fontSize: '14px', fontWeight: 800, color: '#16A34A' }}>{formatPaiseToRupees(invoice.totalAmountPaise)}</div>
+          <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--color-success)' }}>{formatPaiseToRupees(invoice.totalAmountPaise)}</div>
         </div>
       </div>
 
@@ -207,8 +207,8 @@ function InvoiceDetailsContent() {
               fontWeight: 700,
               border: 'none',
               backgroundColor: 'transparent',
-              color: activeTab === 'summary' ? '#5728B2' : 'var(--text-secondary)',
-              borderBottom: `2px solid ${activeTab === 'summary' ? '#5728B2' : 'transparent'}`,
+              color: activeTab === 'summary' ? 'var(--brand-primary)' : 'var(--text-secondary)',
+              borderBottom: `2px solid ${activeTab === 'summary' ? 'var(--brand-primary)' : 'transparent'}`,
               cursor: 'pointer',
             }}
           >
@@ -222,8 +222,8 @@ function InvoiceDetailsContent() {
               fontWeight: 700,
               border: 'none',
               backgroundColor: 'transparent',
-              color: activeTab === 'lines' ? '#5728B2' : 'var(--text-secondary)',
-              borderBottom: `2px solid ${activeTab === 'lines' ? '#5728B2' : 'transparent'}`,
+              color: activeTab === 'lines' ? 'var(--brand-primary)' : 'var(--text-secondary)',
+              borderBottom: `2px solid ${activeTab === 'lines' ? 'var(--brand-primary)' : 'transparent'}`,
               cursor: 'pointer',
             }}
           >
@@ -257,7 +257,7 @@ function InvoiceDetailsContent() {
                   </tr>
                   <tr>
                     <td style={{ padding: '12px 0', fontWeight: 700, color: 'var(--text-primary)' }}>Total Net Payable</td>
-                    <td style={{ padding: '12px 0', fontWeight: 800, textAlign: 'right', color: '#16A34A', fontSize: 16 }}>
+                    <td style={{ padding: '12px 0', fontWeight: 800, textAlign: 'right', color: 'var(--color-success)', fontSize: 16 }}>
                       {formatPaiseToRupees(invoice.totalAmountPaise)}
                     </td>
                   </tr>
@@ -271,7 +271,7 @@ function InvoiceDetailsContent() {
               </h3>
               <div style={{ backgroundColor: 'var(--bg-surface-muted)', borderRadius: 8, padding: 16, border: '1px solid var(--border-color)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                  <ShieldCheck size={18} color="#16A34A" />
+                  <ShieldCheck size={18} color="var(--color-success)" />
                   <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-primary)' }}>GST Act Sec 31 Compliant</span>
                 </div>
                 <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 12px' }}>

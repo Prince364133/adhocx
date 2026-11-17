@@ -73,8 +73,8 @@ export default function IntegrationHealthWebhooksPage({ searchParams }: PageProp
           <span
             style={{
               padding: '6px 12px',
-              backgroundColor: '#DCFCE7',
-              color: '#15803D',
+              backgroundColor: 'var(--color-success-bg)',
+              color: 'var(--color-success-text)',
               borderRadius: 6,
               fontSize: 12,
               fontWeight: 700,
@@ -141,7 +141,7 @@ export default function IntegrationHealthWebhooksPage({ searchParams }: PageProp
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Key size={16} style={{ color: '#5728B2' }} />
+            <Key size={16} style={{ color: 'var(--brand-primary)' }} />
             <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
               Inbound Corporate Webhook Endpoint
             </h2>
@@ -239,8 +239,8 @@ export default function IntegrationHealthWebhooksPage({ searchParams }: PageProp
                 <span
                   style={{
                     padding: '2px 8px',
-                    backgroundColor: '#DCFCE7',
-                    color: '#15803D',
+                    backgroundColor: 'var(--color-success-bg)',
+                    color: 'var(--color-success-text)',
                     borderRadius: 4,
                     fontSize: 11,
                     fontWeight: 700,

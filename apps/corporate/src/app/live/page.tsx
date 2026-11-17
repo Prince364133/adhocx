@@ -101,7 +101,7 @@ export default function LiveOperationsMapPage() {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: 34, height: 34, borderRadius: 6, backgroundColor: '#DCFCE7', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 34, height: 34, borderRadius: 6, backgroundColor: 'var(--color-success-bg)', color: 'var(--color-success)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Car size={16} />
           </div>
           <div>
@@ -111,7 +111,7 @@ export default function LiveOperationsMapPage() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: 34, height: 34, borderRadius: 6, backgroundColor: '#EFF6FF', color: '#5728B2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 34, height: 34, borderRadius: 6, backgroundColor: 'var(--color-blue-bg)', color: 'var(--brand-action)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Users size={16} />
           </div>
           <div>
@@ -121,7 +121,7 @@ export default function LiveOperationsMapPage() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: 34, height: 34, borderRadius: 6, backgroundColor: '#F3E8FF', color: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 34, height: 34, borderRadius: 6, backgroundColor: 'var(--brand-blue-100)', color: 'var(--color-purple)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Car size={16} />
           </div>
           <div>
@@ -131,7 +131,7 @@ export default function LiveOperationsMapPage() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: 34, height: 34, borderRadius: 6, backgroundColor: '#FEF3C7', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 34, height: 34, borderRadius: 6, backgroundColor: 'var(--color-warning-bg)', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Navigation size={16} />
           </div>
           <div>
@@ -141,7 +141,7 @@ export default function LiveOperationsMapPage() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: 34, height: 34, borderRadius: 6, backgroundColor: '#FEE2E2', color: '#DC2626', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 34, height: 34, borderRadius: 6, backgroundColor: 'var(--color-danger-bg)', color: '#DC2626', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Clock size={16} />
           </div>
           <div>
@@ -151,7 +151,7 @@ export default function LiveOperationsMapPage() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: 34, height: 34, borderRadius: 6, backgroundColor: '#DCFCE7', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 34, height: 34, borderRadius: 6, backgroundColor: 'var(--color-success-bg)', color: 'var(--color-success)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <CheckCircle2 size={16} />
           </div>
           <div>
@@ -181,7 +181,7 @@ export default function LiveOperationsMapPage() {
                 style={{
                   fontSize: '12px',
                   fontWeight: 700,
-                  color: '#5728B2',
+                  color: 'var(--brand-primary)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '4px',
@@ -216,7 +216,7 @@ export default function LiveOperationsMapPage() {
                   borderRadius: '4px',
                   border: 'none',
                   cursor: 'pointer',
-                  backgroundColor: filterType === 'ALL' ? '#5728B2' : 'var(--bg-surface-muted)',
+                  backgroundColor: filterType === 'ALL' ? 'var(--brand-action)' : 'var(--bg-surface-muted)',
                   color: filterType === 'ALL' ? '#FFFFFF' : 'var(--text-secondary)',
                 }}
               >
@@ -231,7 +231,7 @@ export default function LiveOperationsMapPage() {
                   borderRadius: '4px',
                   border: 'none',
                   cursor: 'pointer',
-                  backgroundColor: filterType === 'LOGIN' ? '#5728B2' : 'var(--bg-surface-muted)',
+                  backgroundColor: filterType === 'LOGIN' ? 'var(--brand-action)' : 'var(--bg-surface-muted)',
                   color: filterType === 'LOGIN' ? '#FFFFFF' : 'var(--text-secondary)',
                 }}
               >
@@ -246,7 +246,7 @@ export default function LiveOperationsMapPage() {
                   borderRadius: '4px',
                   border: 'none',
                   cursor: 'pointer',
-                  backgroundColor: filterType === 'LOGOUT' ? '#5728B2' : 'var(--bg-surface-muted)',
+                  backgroundColor: filterType === 'LOGOUT' ? 'var(--brand-action)' : 'var(--bg-surface-muted)',
                   color: filterType === 'LOGOUT' ? '#FFFFFF' : 'var(--text-secondary)',
                 }}
               >
@@ -274,8 +274,8 @@ export default function LiveOperationsMapPage() {
                     style={{
                       padding: '12px 14px',
                       borderRadius: 'var(--radius-md)',
-                      border: `1px solid ${isSelected ? '#5728B2' : 'var(--border-subtle)'}`,
-                      backgroundColor: isSelected ? 'var(--brand-primary-subtle, #EFF6FF)' : 'var(--bg-surface)',
+                      border: `1px solid ${isSelected ? 'var(--brand-primary)' : 'var(--border-subtle)'}`,
+                      backgroundColor: isSelected ? 'var(--brand-primary-subtle)' : 'var(--bg-surface)',
                       cursor: 'pointer',
                       transition: 'all 0.15s ease',
                     }}
@@ -284,7 +284,7 @@ export default function LiveOperationsMapPage() {
                       <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
                         {rt.vehicle?.registrationNumber ?? rt.vehiclePlate ?? `RT-${rt.id.slice(0, 6)}`}
                       </span>
-                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#16A34A', backgroundColor: '#DCFCE7', padding: '2px 6px', borderRadius: '4px' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-success)', backgroundColor: 'var(--color-success-bg)', padding: '2px 6px', borderRadius: '4px' }}>
                         {rt.status}
                       </span>
                     </div>

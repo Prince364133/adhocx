@@ -87,8 +87,8 @@ function BookingDetailsContent() {
                 fontWeight: 800,
                 padding: '2px 8px',
                 borderRadius: 'var(--radius-pill)',
-                backgroundColor: booking.status === 'COMPLETED' ? '#DCFCE7' : '#EFF6FF',
-                color: booking.status === 'COMPLETED' ? '#16A34A' : '#5728B2',
+                backgroundColor: booking.status === 'COMPLETED' ? 'var(--color-success-bg)' : 'var(--color-blue-bg)',
+                color: booking.status === 'COMPLETED' ? 'var(--color-success)' : 'var(--brand-primary)',
                 border: '1px solid currentColor',
               }}
             >
@@ -107,9 +107,9 @@ function BookingDetailsContent() {
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              backgroundColor: '#FEE2E2',
+              backgroundColor: 'var(--color-danger-bg)',
               color: '#DC2626',
-              border: '1px solid #FCA5A5',
+              border: '1px solid var(--color-danger-border)',
               borderRadius: 'var(--radius-md)',
               padding: '8px 14px',
               fontSize: '13px',
@@ -128,7 +128,7 @@ function BookingDetailsContent() {
         {/* Left: Employee Profile & Booking Request Info */}
         <div className="surface-card" style={{ padding: '24px', backgroundColor: 'var(--bg-surface)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
-            <div style={{ width: 48, height: 48, borderRadius: '50%', backgroundColor: '#5728B2', color: '#FFFFFF', fontSize: '16px', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: 48, height: 48, borderRadius: '50%', backgroundColor: 'var(--brand-action)', color: '#FFFFFF', fontSize: '16px', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {initials}
             </div>
             <div>
@@ -150,7 +150,7 @@ function BookingDetailsContent() {
 
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>Direction</span>
-              <span style={{ fontSize: '11px', fontWeight: 700, color: '#5728B2', backgroundColor: '#EFF6FF', padding: '2px 8px', borderRadius: 4 }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--brand-primary)', backgroundColor: 'var(--color-blue-bg)', padding: '2px 8px', borderRadius: 4 }}>
                 {booking.direction === 'LOGIN' ? 'Login Pickup' : 'Logout Drop'}
               </span>
             </div>
@@ -171,7 +171,7 @@ function BookingDetailsContent() {
               <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
                 Fulfillment Status
               </h3>
-              <span style={{ fontSize: '12px', color: '#16A34A', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ fontSize: '12px', color: 'var(--color-success)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
                 {booking.status}
               </span>
             </div>
@@ -180,7 +180,7 @@ function BookingDetailsContent() {
             <div style={{ backgroundColor: 'var(--bg-surface-muted)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div style={{ width: 22, height: 22, borderRadius: '50%', backgroundColor: '#DCFCE7', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ width: 22, height: 22, borderRadius: '50%', backgroundColor: 'var(--color-success-bg)', color: 'var(--color-success)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <CheckCircle2 size={14} />
                   </div>
                   <div>
@@ -189,14 +189,14 @@ function BookingDetailsContent() {
                   </div>
                 </div>
 
-                <div style={{ height: 2, flex: 1, backgroundColor: '#5728B2', margin: '0 12px' }} />
+                <div style={{ height: 2, flex: 1, backgroundColor: 'var(--brand-action)', margin: '0 12px' }} />
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div style={{ width: 22, height: 22, borderRadius: '50%', backgroundColor: '#EFF6FF', color: '#5728B2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ width: 22, height: 22, borderRadius: '50%', backgroundColor: 'var(--color-blue-bg)', color: 'var(--brand-action)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <Car size={14} />
                   </div>
                   <div>
-                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#5728B2' }}>Routed</div>
+                    <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--brand-primary)' }}>Routed</div>
                     <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Vehicle Assigned</div>
                   </div>
                 </div>

@@ -201,19 +201,19 @@ export default function EmployeeLiveTrackingPage() {
                     gap: '8px',
                     padding: '6px 12px',
                     borderRadius: 'var(--radius-pill)',
-                    backgroundColor: isSelected ? '#EFF6FF' : '#F1F5F9',
-                    border: `1px solid ${isSelected ? '#5728B2' : '#CBD5E1'}`,
+                    backgroundColor: isSelected ? 'var(--color-blue-bg)' : '#F1F5F9',
+                    border: `1px solid ${isSelected ? 'var(--brand-primary)' : '#CBD5E1'}`,
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
                   }}
                 >
-                  <div style={{ width: 22, height: 22, borderRadius: '50%', backgroundColor: '#5728B2', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700 }}>
+                  <div style={{ width: 22, height: 22, borderRadius: '50%', backgroundColor: 'var(--brand-action)', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700 }}>
                     {name.slice(0, 2).toUpperCase()}
                   </div>
                   <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>
                     {name} ({emp.employeeCode})
                   </span>
-                  <span style={{ fontSize: '10px', fontWeight: 800, color: '#16A34A', backgroundColor: '#DCFCE7', padding: '1px 6px', borderRadius: '4px' }}>
+                  <span style={{ fontSize: '10px', fontWeight: 800, color: 'var(--color-success)', backgroundColor: 'var(--color-success-bg)', padding: '1px 6px', borderRadius: '4px' }}>
                     {emp.status || 'Active'}
                   </span>
                 </div>
@@ -275,9 +275,9 @@ export default function EmployeeLiveTrackingPage() {
                     style={{
                       fontSize: '11px',
                       fontWeight: 800,
-                      backgroundColor: '#DCFCE7',
-                      color: '#16A34A',
-                      border: '1px solid #86EFAC',
+                      backgroundColor: 'var(--color-success-bg)',
+                      color: 'var(--color-success)',
+                      border: '1px solid var(--color-success-border)',
                       padding: '2px 8px',
                       borderRadius: 'var(--radius-pill)',
                     }}
@@ -350,9 +350,9 @@ export default function EmployeeLiveTrackingPage() {
                           width: 24,
                           height: 24,
                           borderRadius: '50%',
-                          backgroundColor: isCompleted ? '#DCFCE7' : isCurrent ? '#EFF6FF' : '#F1F5F9',
-                          color: isCompleted ? '#16A34A' : isCurrent ? '#5728B2' : '#94A3B8',
-                          border: `2px solid ${isCompleted ? '#16A34A' : isCurrent ? '#5728B2' : '#CBD5E1'}`,
+                          backgroundColor: isCompleted ? 'var(--color-success-bg)' : isCurrent ? 'var(--color-blue-bg)' : '#F1F5F9',
+                          color: isCompleted ? 'var(--color-success)' : isCurrent ? 'var(--brand-primary)' : '#94A3B8',
+                          border: `2px solid ${isCompleted ? 'var(--color-success)' : isCurrent ? 'var(--brand-primary)' : '#CBD5E1'}`,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -360,12 +360,12 @@ export default function EmployeeLiveTrackingPage() {
                           marginTop: '2px',
                         }}
                       >
-                        {isCompleted ? <CheckCircle2 size={14} /> : <Circle size={10} fill={isCurrent ? '#5728B2' : 'none'} />}
+                        {isCompleted ? <CheckCircle2 size={14} /> : <Circle size={10} fill={isCurrent ? 'var(--brand-primary)' : 'none'} />}
                       </div>
 
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span style={{ fontSize: '13px', fontWeight: isCurrent ? 800 : 600, color: isCurrent ? '#5728B2' : '#0F172A' }}>
+                          <span style={{ fontSize: '13px', fontWeight: isCurrent ? 800 : 600, color: isCurrent ? 'var(--brand-primary)' : 'var(--text-primary-strong)' }}>
                             {step.title}
                           </span>
                           <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)' }}>
@@ -392,7 +392,7 @@ export default function EmployeeLiveTrackingPage() {
                 </h3>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span className="pulse-green" />
-                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#16A34A' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-success)' }}>
                     Streaming GPS
                   </span>
                 </div>
@@ -413,7 +413,7 @@ export default function EmployeeLiveTrackingPage() {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{ width: 38, height: 38, borderRadius: 8, backgroundColor: '#EFF6FF', color: '#5728B2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ width: 38, height: 38, borderRadius: 8, backgroundColor: 'var(--color-blue-bg)', color: 'var(--brand-action)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <User size={18} />
                   </div>
                   <div>
@@ -423,7 +423,7 @@ export default function EmployeeLiveTrackingPage() {
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{ width: 38, height: 38, borderRadius: 8, backgroundColor: '#F3E8FF', color: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ width: 38, height: 38, borderRadius: 8, backgroundColor: 'var(--brand-blue-100)', color: 'var(--color-purple)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <Car size={18} />
                   </div>
                   <div>
@@ -435,7 +435,7 @@ export default function EmployeeLiveTrackingPage() {
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{ width: 38, height: 38, borderRadius: 8, backgroundColor: '#FEF3C7', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ width: 38, height: 38, borderRadius: 8, backgroundColor: 'var(--color-warning-bg)', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <ShieldCheck size={18} />
                   </div>
                   <div>
@@ -445,12 +445,12 @@ export default function EmployeeLiveTrackingPage() {
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{ width: 38, height: 38, borderRadius: 8, backgroundColor: '#DCFCE7', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ width: 38, height: 38, borderRadius: 8, backgroundColor: 'var(--color-success-bg)', color: 'var(--color-success)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <Radio size={18} />
                   </div>
                   <div>
                     <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>GPS Telemetry</div>
-                    <div style={{ fontSize: '13px', fontWeight: 700, color: '#16A34A' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-success)' }}>
                       Updated {selectedEmployee.lastGpsUpdate}
                     </div>
                   </div>
@@ -462,9 +462,9 @@ export default function EmployeeLiveTrackingPage() {
                     style={{
                       width: '100%',
                       height: 36,
-                      backgroundColor: '#EFF6FF',
-                      color: '#5728B2',
-                      border: '1px solid #BFDBFE',
+                      backgroundColor: 'var(--color-blue-bg)',
+                      color: 'var(--brand-primary)',
+                      border: '1px solid var(--color-blue-border)',
                       borderRadius: '6px',
                       fontSize: '12px',
                       fontWeight: 700,

@@ -52,8 +52,8 @@ export default function ActiveRoutesListPage() {
                 alignItems: 'center',
                 gap: 6,
                 padding: '2px 8px',
-                backgroundColor: '#DCFCE7',
-                color: '#15803D',
+                backgroundColor: 'var(--color-success-bg)',
+                color: 'var(--color-success-text)',
                 borderRadius: 4,
                 fontSize: 11,
                 fontWeight: 700,
@@ -127,8 +127,8 @@ export default function ActiveRoutesListPage() {
                     <div
                       style={{
                         padding: '4px 10px',
-                        backgroundColor: '#EFF6FF',
-                        color: '#5728B2',
+                        backgroundColor: 'var(--color-blue-bg)',
+                        color: 'var(--brand-primary)',
                         borderRadius: 4,
                         fontSize: 12,
                         fontWeight: 800,
@@ -149,8 +149,8 @@ export default function ActiveRoutesListPage() {
                       style={{
                         fontSize: 11,
                         fontWeight: 700,
-                        backgroundColor: '#DCFCE7',
-                        color: '#16A34A',
+                        backgroundColor: 'var(--color-success-bg)',
+                        color: 'var(--color-success)',
                         padding: '2px 8px',
                         borderRadius: 4,
                       }}
@@ -162,7 +162,7 @@ export default function ActiveRoutesListPage() {
                       style={{
                         fontSize: 12,
                         fontWeight: 600,
-                        color: '#5728B2',
+                        color: 'var(--brand-primary)',
                         textDecoration: 'none',
                         display: 'flex',
                         alignItems: 'center',
@@ -183,8 +183,8 @@ export default function ActiveRoutesListPage() {
                       style={{
                         padding: '6px 12px',
                         borderRadius: 6,
-                        backgroundColor: stop.status === 'COMPLETED' ? '#DCFCE7' : '#F1F5F9',
-                        color: stop.status === 'COMPLETED' ? '#16A34A' : '#475569',
+                        backgroundColor: stop.status === 'COMPLETED' ? 'var(--color-success-bg)' : '#F1F5F9',
+                        color: stop.status === 'COMPLETED' ? 'var(--color-success)' : '#475569',
                         fontSize: 12,
                         fontWeight: 600,
                         whiteSpace: 'nowrap',

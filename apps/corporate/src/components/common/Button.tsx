@@ -45,9 +45,9 @@ export const Button: React.FC<ButtonProps> = ({
 
   const variantStyles: Record<string, React.CSSProperties> = {
     primary: {
-      backgroundColor: 'var(--brand-primary, #5728B2)',
+      backgroundColor: 'var(--brand-action)',
       color: '#FFFFFF',
-      borderColor: 'var(--brand-primary-hover, #431E8E)',
+      borderColor: 'var(--brand-primary-hover)',
     },
     secondary: {
       backgroundColor: 'var(--bg-surface-muted, #F1F5F9)',
@@ -57,12 +57,12 @@ export const Button: React.FC<ButtonProps> = ({
     danger: {
       backgroundColor: 'var(--color-danger, #DC2626)',
       color: '#FFFFFF',
-      borderColor: '#B91C1C',
+      borderColor: 'var(--color-danger-text)',
     },
     success: {
-      backgroundColor: 'var(--color-success, #16A34A)',
+      backgroundColor: 'var(--color-success)',
       color: '#FFFFFF',
-      borderColor: '#15803D',
+      borderColor: 'var(--color-success-text)',
     },
     outline: {
       backgroundColor: 'transparent',

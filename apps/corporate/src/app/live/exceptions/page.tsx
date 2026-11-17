@@ -64,15 +64,15 @@ export default function TrackingExceptionsPage() {
   const getBadgeStyle = (type: string) => {
     switch (type) {
       case 'Delayed':
-        return { bg: '#FEF3C7', color: '#D97706', border: '#FCD34D' };
+        return { bg: 'var(--color-warning-bg)', color: '#D97706', border: 'var(--color-warning-border)' };
       case 'Unassigned':
         return { bg: '#FFEDD5', color: '#EA580C', border: '#FDBA74' };
       case 'GPS Stale':
         return { bg: '#FEF9C3', color: '#CA8A04', border: '#FDE047' };
       case 'Route Deviation':
-        return { bg: '#F3E8FF', color: '#7C3AED', border: '#D8B4FE' };
+        return { bg: 'var(--brand-blue-100)', color: 'var(--color-purple)', border: 'var(--color-purple-border)' };
       case 'Safety Alert':
-        return { bg: '#FEE2E2', color: '#DC2626', border: '#FCA5A5' };
+        return { bg: 'var(--color-danger-bg)', color: '#DC2626', border: 'var(--color-danger-border)' };
       default:
         return { bg: '#F1F5F9', color: 'var(--text-secondary)', border: '#CBD5E1' };
     }
@@ -127,7 +127,7 @@ export default function TrackingExceptionsPage() {
           label="Route Deviations"
           value={summary.routeDeviations}
           icon={<Navigation size={18} />}
-          highlightColor="#7C3AED"
+          highlightColor="var(--color-purple)"
           onClick={() => setSelectedType(selectedType === 'DEVIATION' ? 'ALL' : 'DEVIATION')}
         />
         <MetricCard
@@ -156,7 +156,7 @@ export default function TrackingExceptionsPage() {
                 fontWeight: 700,
                 border: 'none',
                 cursor: 'pointer',
-                backgroundColor: activeTab === 'list' ? '#5728B2' : '#F1F5F9',
+                backgroundColor: activeTab === 'list' ? 'var(--brand-action)' : '#F1F5F9',
                 color: activeTab === 'list' ? '#FFFFFF' : '#475569',
               }}
             >
@@ -175,7 +175,7 @@ export default function TrackingExceptionsPage() {
                 fontWeight: 700,
                 border: 'none',
                 cursor: 'pointer',
-                backgroundColor: activeTab === 'map' ? '#5728B2' : '#F1F5F9',
+                backgroundColor: activeTab === 'map' ? 'var(--brand-action)' : '#F1F5F9',
                 color: activeTab === 'map' ? '#FFFFFF' : '#475569',
               }}
             >
@@ -269,7 +269,7 @@ export default function TrackingExceptionsPage() {
                             style={{
                               fontSize: '11px',
                               fontWeight: 700,
-                              color: item.status === 'Escalated' ? '#DC2626' : item.status === 'In Review' ? '#D97706' : '#5728B2',
+                              color: item.status === 'Escalated' ? '#DC2626' : item.status === 'In Review' ? '#D97706' : 'var(--brand-primary)',
                             }}
                           >
                             {item.status}
@@ -282,9 +282,9 @@ export default function TrackingExceptionsPage() {
                               padding: '4px 12px',
                               fontSize: '11px',
                               fontWeight: 700,
-                              backgroundColor: item.action === 'Resolve' ? '#FEE2E2' : '#EFF6FF',
-                              color: item.action === 'Resolve' ? '#DC2626' : '#5728B2',
-                              border: `1px solid ${item.action === 'Resolve' ? '#FCA5A5' : '#BFDBFE'}`,
+                              backgroundColor: item.action === 'Resolve' ? 'var(--color-danger-bg)' : 'var(--color-blue-bg)',
+                              color: item.action === 'Resolve' ? '#DC2626' : 'var(--brand-primary)',
+                              border: `1px solid ${item.action === 'Resolve' ? 'var(--color-danger-border)' : 'var(--color-blue-border)'}`,
                               borderRadius: '4px',
                               cursor: 'pointer',
                             }}

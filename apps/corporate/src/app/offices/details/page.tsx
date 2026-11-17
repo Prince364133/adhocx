@@ -173,7 +173,7 @@ function OfficeDetailsGatesContent() {
               alignItems: 'center',
               gap: 6,
               padding: '8px 14px',
-              backgroundColor: '#5728B2',
+              backgroundColor: 'var(--brand-action)',
               color: '#FFFFFF',
               borderRadius: 6,
               fontSize: 13,
@@ -212,7 +212,7 @@ function OfficeDetailsGatesContent() {
             <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
               Daily Commuters
             </div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#5728B2', marginTop: 4 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--brand-primary)', marginTop: 4 }}>
               {office.employeeCount ? `${office.employeeCount.toLocaleString()} Employees` : 'Active Campus'}
             </div>
             <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
@@ -223,7 +223,7 @@ function OfficeDetailsGatesContent() {
             <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
               Geofence Radius
             </div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#16A34A', marginTop: 4 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-success)', marginTop: 4 }}>
               {office.geofenceRadiusMeters || 500} Meters Buffer
             </div>
             <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
@@ -328,7 +328,7 @@ function OfficeDetailsGatesContent() {
                   </td>
                   <td style={{ padding: '14px 16px' }}>
                     {gate.rfidEnabled ? (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#15803D', fontWeight: 600 }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--color-success-text)', fontWeight: 600 }}>
                         <CheckCircle2 size={14} /> Enabled (FastTag)
                       </span>
                     ) : (
@@ -347,8 +347,8 @@ function OfficeDetailsGatesContent() {
                         alignItems: 'center',
                         gap: 6,
                         padding: '3px 8px',
-                        backgroundColor: gate.boomBarrierStatus === 'Online' ? '#DCFCE7' : '#FEE2E2',
-                        color: gate.boomBarrierStatus === 'Online' ? '#15803D' : '#DC2626',
+                        backgroundColor: gate.boomBarrierStatus === 'Online' ? 'var(--color-success-bg)' : 'var(--color-danger-bg)',
+                        color: gate.boomBarrierStatus === 'Online' ? 'var(--color-success-text)' : '#DC2626',
                         borderRadius: 4,
                         fontSize: 12,
                         fontWeight: 600,
@@ -368,7 +368,7 @@ function OfficeDetailsGatesContent() {
                         borderRadius: 4,
                         fontSize: 12,
                         fontWeight: 600,
-                        color: '#5728B2',
+                        color: 'var(--brand-primary)',
                         cursor: 'pointer',
                       }}
                     >

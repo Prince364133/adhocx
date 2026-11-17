@@ -249,16 +249,16 @@ export default function TransportPerformanceReportPage({ searchParams }: PagePro
                     <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>
                       {row.scheduled}
                     </td>
-                    <td style={{ padding: '14px 16px', fontWeight: 600, color: '#5728B2' }}>
+                    <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--brand-primary)' }}>
                       {row.completed}
                     </td>
-                    <td style={{ padding: '14px 16px', color: '#16A34A', fontWeight: 600 }}>
+                    <td style={{ padding: '14px 16px', color: 'var(--color-success)', fontWeight: 600 }}>
                       {row.onTime}
                     </td>
                     <td style={{ padding: '14px 16px', color: row.delayed > 5 ? '#DC2626' : 'var(--text-muted)' }}>
                       {row.delayed}
                     </td>
-                    <td style={{ padding: '14px 16px', fontWeight: 700, color: '#16A34A' }}>
+                    <td style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--color-success)' }}>
                       {punctuality}%
                     </td>
                   </tr>

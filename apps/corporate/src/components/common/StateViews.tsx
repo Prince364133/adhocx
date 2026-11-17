@@ -74,7 +74,7 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
 export function InlineAlert({ tone = 'danger', children }: { tone?: 'danger' | 'warning' | 'success' | 'info'; children: React.ReactNode }) {
   const map = {
     danger: ['var(--color-danger-bg)', 'var(--color-danger-border)', '#F87171'],
-    warning: ['var(--color-warning-bg)', 'var(--color-warning-border)', '#FBBF24'],
+    warning: ['var(--color-warning-bg)', 'var(--color-warning-border)', 'var(--color-warning-text-bright)'],
     success: ['var(--color-success-bg)', 'var(--color-success-border)', '#4ADE80'],
     info: ['var(--color-info-bg)', 'var(--color-info-border)', '#93C5FD'],
   }[tone];
@@ -133,7 +133,7 @@ export function RefreshStamp({
       <span title={at ? at.toISOString() : undefined}>
         {live ? 'Live · ' : ''}Updated <strong style={{ color: 'var(--text-primary)' }}>{time} IST</strong> ({ageLabel})
       </span>
-      {error ? <span style={{ color: '#FBBF24' }}>· last refresh failed, showing older data</span> : null}
+      {error ? <span style={{ color: 'var(--color-warning-text-bright)' }}>· last refresh failed, showing older data</span> : null}
       {onRefresh && (
         <Button
           variant="outline"

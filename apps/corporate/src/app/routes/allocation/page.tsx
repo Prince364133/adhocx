@@ -241,8 +241,8 @@ export default function FleetDriverAllocationPage() {
                       <span
                         style={{
                           padding: '2px 8px',
-                          backgroundColor: '#EFF6FF',
-                          color: '#5728B2',
+                          backgroundColor: 'var(--color-blue-bg)',
+                          color: 'var(--brand-primary)',
                           borderRadius: 4,
                           fontSize: 12,
                           fontFamily: 'monospace',
@@ -264,8 +264,8 @@ export default function FleetDriverAllocationPage() {
                       <span
                         style={{
                           padding: '2px 8px',
-                          backgroundColor: '#EFF6FF',
-                          color: '#5728B2',
+                          backgroundColor: 'var(--color-blue-bg)',
+                          color: 'var(--brand-primary)',
                           borderRadius: 4,
                           fontSize: 11,
                           fontWeight: 600,
@@ -275,7 +275,7 @@ export default function FleetDriverAllocationPage() {
                       </span>
                     </td>
                     <td style={{ padding: '14px 16px' }}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#15803D', fontSize: 12, fontWeight: 600 }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--color-success-text)', fontSize: 12, fontWeight: 600 }}>
                         <CheckCircle2 size={13} /> {item.complianceStatus}
                       </span>
                     </td>
@@ -286,8 +286,8 @@ export default function FleetDriverAllocationPage() {
                       <span
                         style={{
                           padding: '3px 8px',
-                          backgroundColor: item.status === 'Assigned' ? '#DCFCE7' : '#FEF3C7',
-                          color: item.status === 'Assigned' ? '#15803D' : '#B45309',
+                          backgroundColor: item.status === 'Assigned' ? 'var(--color-success-bg)' : 'var(--color-warning-bg)',
+                          color: item.status === 'Assigned' ? 'var(--color-success-text)' : 'var(--color-warning-text)',
                           borderRadius: 4,
                           fontSize: 11,
                           fontWeight: 600,

@@ -163,7 +163,7 @@ export default function VehicleRouteAnalyticsPage({ searchParams }: PageProps) {
               gap: 8,
             }}
           >
-            <TrendingUp size={18} style={{ color: '#16A34A' }} />
+            <TrendingUp size={18} style={{ color: 'var(--color-success)' }} />
             <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
               Top High-Velocity Corridors
             </h2>
@@ -191,10 +191,10 @@ export default function VehicleRouteAnalyticsPage({ searchParams }: PageProps) {
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: '#16A34A' }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-success)' }}>
                     {c.avgSpeedKmh} km/h
                   </div>
-                  <div style={{ fontSize: 10, color: '#16A34A', fontWeight: 600 }}>Punctual</div>
+                  <div style={{ fontSize: 10, color: 'var(--color-success)', fontWeight: 600 }}>Punctual</div>
                 </div>
               </div>
             ))}
@@ -230,27 +230,27 @@ export default function VehicleRouteAnalyticsPage({ searchParams }: PageProps) {
                 key={idx}
                 style={{
                   padding: '12px 14px',
-                  backgroundColor: '#FEF3C7',
+                  backgroundColor: 'var(--color-warning-bg)',
                   borderRadius: 6,
-                  border: '1px solid #FCD34D',
+                  border: '1px solid var(--color-warning-border)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                 }}
               >
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#92400E' }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-warning-text-deep)' }}>
                     {c.corridor}
                   </div>
-                  <div style={{ fontSize: 11, color: '#B45309', marginTop: 2 }}>
+                  <div style={{ fontSize: 11, color: 'var(--color-warning-text)', marginTop: 2 }}>
                     Delay Probability: {c.delayFreqPct}% during peak shift change
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: '#B45309' }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-warning-text)' }}>
                     {c.avgSpeedKmh} km/h
                   </div>
-                  <div style={{ fontSize: 10, color: '#92400E', fontWeight: 600 }}>+10 min buffer auto-added</div>
+                  <div style={{ fontSize: 10, color: 'var(--color-warning-text-deep)', fontWeight: 600 }}>+10 min buffer auto-added</div>
                 </div>
               </div>
             ))}

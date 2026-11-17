@@ -79,28 +79,28 @@ export default function RosterImportPreviewPage() {
       <div className="surface-card" style={{ padding: '16px 24px', backgroundColor: 'var(--bg-surface)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: 720, margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: '#5728B2', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: 'var(--brand-action)', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
               1
             </div>
-            <span style={{ fontSize: '13px', fontWeight: 700, color: '#5728B2' }}>Upload File</span>
+            <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--brand-primary)' }}>Upload File</span>
           </div>
 
           <div style={{ height: 2, flex: 1, backgroundColor: '#CBD5E1', margin: '0 12px' }} />
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: '#5728B2', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: 'var(--brand-action)', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
               2
             </div>
-            <span style={{ fontSize: '13px', fontWeight: 700, color: '#5728B2' }}>Map Columns</span>
+            <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--brand-primary)' }}>Map Columns</span>
           </div>
 
           <div style={{ height: 2, flex: 1, backgroundColor: '#CBD5E1', margin: '0 12px' }} />
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: selectedFile ? '#5728B2' : 'var(--bg-surface-hover)', color: selectedFile ? '#FFFFFF' : 'var(--text-secondary)', border: '1px solid var(--border-strong)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: selectedFile ? 'var(--brand-action)' : 'var(--bg-surface-hover)', color: selectedFile ? '#FFFFFF' : 'var(--text-secondary)', border: '1px solid var(--border-strong)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
               3
             </div>
-            <span style={{ fontSize: '13px', fontWeight: selectedFile ? 700 : 500, color: selectedFile ? '#5728B2' : 'var(--text-secondary)' }}>Preview & Validate</span>
+            <span style={{ fontSize: '13px', fontWeight: selectedFile ? 700 : 500, color: selectedFile ? 'var(--brand-primary)' : 'var(--text-secondary)' }}>Preview & Validate</span>
           </div>
 
           <div style={{ height: 2, flex: 1, backgroundColor: '#CBD5E1', margin: '0 12px' }} />
@@ -141,14 +141,14 @@ export default function RosterImportPreviewPage() {
               cursor: 'pointer',
             }}
           >
-            <div style={{ width: 44, height: 44, borderRadius: 8, backgroundColor: '#DCFCE7', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
+            <div style={{ width: 44, height: 44, borderRadius: 8, backgroundColor: 'var(--color-success-bg)', color: 'var(--color-success)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
               <FileSpreadsheet size={24} />
             </div>
 
             <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
               Drag & drop your roster file here
             </div>
-            <div style={{ fontSize: '13px', color: '#5728B2', fontWeight: 600, marginTop: '2px' }}>
+            <div style={{ fontSize: '13px', color: 'var(--brand-primary)', fontWeight: 600, marginTop: '2px' }}>
               or click to browse
             </div>
 
@@ -163,15 +163,15 @@ export default function RosterImportPreviewPage() {
                 marginTop: '16px',
                 padding: '12px 14px',
                 borderRadius: '8px',
-                border: '1px solid #BFDBFE',
-                backgroundColor: '#EFF6FF',
+                border: '1px solid var(--color-blue-border)',
+                backgroundColor: 'var(--color-blue-bg)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <FileSpreadsheet size={18} color="#16A34A" />
+                <FileSpreadsheet size={18} color="var(--color-success)" />
                 <div>
                   <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
                     {selectedFile.name}
@@ -214,7 +214,7 @@ export default function RosterImportPreviewPage() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                backgroundColor: selectedFile ? '#5728B2' : '#CBD5E1',
+                backgroundColor: selectedFile ? 'var(--brand-action)' : '#CBD5E1',
                 color: '#FFFFFF',
                 border: 'none',
                 borderRadius: '6px',
@@ -222,7 +222,7 @@ export default function RosterImportPreviewPage() {
                 fontSize: '13px',
                 fontWeight: 700,
                 cursor: selectedFile ? 'pointer' : 'not-allowed',
-                boxShadow: selectedFile ? '0 2px 4px rgba(87, 40, 178,0.25)' : 'none',
+                boxShadow: selectedFile ? '0 2px 4px rgba(var(--brand-primary-rgb), 0.25)' : 'none',
               }}
             >
               <span>Validate & Review</span>
@@ -243,7 +243,7 @@ export default function RosterImportPreviewPage() {
               </p>
             </div>
             {selectedFile && (
-              <span style={{ fontSize: '11px', fontWeight: 700, color: '#16A34A', backgroundColor: '#DCFCE7', padding: '2px 8px', borderRadius: '4px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-success)', backgroundColor: 'var(--color-success-bg)', padding: '2px 8px', borderRadius: '4px' }}>
                 ✓ Ready for Validation
               </span>
             )}

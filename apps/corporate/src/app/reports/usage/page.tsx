@@ -68,7 +68,7 @@ export default function EmployeeUsageReportPage({ searchParams }: PageProps) {
     };
   });
 
-  const donutColors = ['#5728B2', '#38BDF8', '#8B5CF6', '#F59E0B', '#10B981', '#EC4899'];
+  const donutColors = ['var(--brand-primary)', '#38BDF8', 'var(--color-chart-purple)', '#F59E0B', '#10B981', '#EC4899'];
   const shiftUsageChartData = departmentUsage.length > 0
     ? departmentUsage.slice(0, 5).map((d, idx) => ({
         label: d.department,
@@ -77,7 +77,7 @@ export default function EmployeeUsageReportPage({ searchParams }: PageProps) {
         color: donutColors[idx % donutColors.length],
       }))
     : [
-        { label: 'General Shift', count: regularCommuters, pct: 85, color: '#5728B2' },
+        { label: 'General Shift', count: regularCommuters, pct: 85, color: 'var(--brand-primary)' },
         { label: 'Evening Shift', count: occasionalCommuters, pct: 15, color: '#38BDF8' },
       ];
 
@@ -235,13 +235,13 @@ export default function EmployeeUsageReportPage({ searchParams }: PageProps) {
                       <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--text-primary)' }}>
                         {row.department}
                       </td>
-                      <td style={{ padding: '14px 16px', fontWeight: 600, color: '#5728B2' }}>
+                      <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--brand-primary)' }}>
                         {row.activeUsers} Users
                       </td>
                       <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>
                         {row.tripsMonth.toLocaleString()} Trips
                       </td>
-                      <td style={{ padding: '14px 16px', fontWeight: 700, color: '#16A34A' }}>
+                      <td style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--color-success)' }}>
                         {row.utilization}
                       </td>
                     </tr>

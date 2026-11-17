@@ -45,6 +45,18 @@ function formatIstTime(iso?: string | null): string {
   }).format(parsed);
 }
 
+const darkMapStyles = [
+  { elementType: 'geometry', stylers: [{ color: '#242424' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#B0B0B0' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#242424' }] },
+  { featureType: 'administrative', elementType: 'geometry.stroke', stylers: [{ color: '#383838' }] },
+  { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#292929' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#383838' }] },
+  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#292929' }] },
+  { featureType: 'transit', elementType: 'geometry', stylers: [{ color: '#303030' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#181818' }] },
+];
+
 export function GoogleRouteMap({
   office,
   stops,
@@ -64,6 +76,14 @@ export function GoogleRouteMap({
   const [mapError, setMapError] = useState<string | null>(
     apiKey ? null : 'Google Maps browser API key (NEXT_PUBLIC_GOOGLE_MAPS_KEY) is not configured.',
   );
+  const [themeRevision, setThemeRevision] = useState(0);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const observer = new MutationObserver(() => setThemeRevision((revision) => revision + 1));
+    observer.observe(root, { attributes: true, attributeFilter: ['class', 'data-theme'] });
+    return () => observer.disconnect();
+  }, []);
 
   const validStops = useMemo(
     () =>
@@ -153,6 +173,10 @@ export function GoogleRouteMap({
           : validStops[0]
             ? { lat: Number(validStops[0].lat), lng: Number(validStops[0].lng) }
             : { lat: 17.4435, lng: 78.3772 };
+      const root = document.documentElement;
+      const isDark = root.getAttribute('data-theme') === 'dark' || root.classList.contains('dark');
+      const routeColor =
+        getComputedStyle(root).getPropertyValue('--color-map-route').trim() || (isDark ? '#A3A3A3' : '#4F46E5');
 
       if (!mapRef.current) {
         mapRef.current = new MapConstructor(containerRef.current, {
@@ -161,7 +185,10 @@ export function GoogleRouteMap({
           mapTypeControl: false,
           streetViewControl: false,
           fullscreenControl: true,
+          styles: isDark ? darkMapStyles : [],
         });
+      } else {
+        mapRef.current.setOptions({ styles: isDark ? darkMapStyles : [] });
       }
 
       for (const m of markersRef.current) m.setMap(null);
@@ -180,7 +207,7 @@ export function GoogleRouteMap({
         polylineRef.current = new google.maps.Polyline({
           path: pathPoints,
           geodesic: true,
-          strokeColor: '#4F46E5',
+          strokeColor: routeColor,
           strokeOpacity: 0.92,
           strokeWeight: 5,
           map: mapRef.current,
@@ -209,7 +236,7 @@ export function GoogleRouteMap({
           icon: {
             path: google.maps.SymbolPath.CIRCLE,
             scale: isHighlighted ? 14 : 11,
-            fillColor: isBoarded ? '#10B981' : isHighlighted ? '#F59E0B' : '#4F46E5',
+            fillColor: isBoarded ? '#10B981' : isHighlighted ? '#F59E0B' : routeColor,
             fillOpacity: 1,
             strokeColor: '#FFFFFF',
             strokeWeight: 2,
@@ -223,11 +250,11 @@ export function GoogleRouteMap({
           if (infoWindowRef.current) {
             const dwellMin = Math.round((stop.dwellBufferSeconds ?? 600) / 60);
             infoWindowRef.current.setContent(
-              `<div style="font-family:system-ui,sans-serif;min-width:190px;padding:4px 2px;color:#0f172a">
+              `<div style="font-family:system-ui,sans-serif;min-width:190px;padding:4px 2px;color:var(--map-popup-text)">
                 <div style="font-weight:700;font-size:13px;margin-bottom:4px">Stop #${stop.stopSequence}: ${stop.employeeName || 'Employee'}</div>
                 ${stop.employeePhone ? `<div style="font-size:12px;margin-bottom:3px">Phone: <strong>${stop.employeePhone}</strong></div>` : ''}
-                <div style="font-size:12px;color:#475569;margin-bottom:4px">${stop.addressText || 'Pickup point'}</div>
-                <div style="font-size:11px;color:#64748b">ETA: ${formatIstTime(stop.plannedEta)} IST · Wait: ${dwellMin} min</div>
+                <div style="font-size:12px;color:var(--map-popup-secondary);margin-bottom:4px">${stop.addressText || 'Pickup point'}</div>
+                <div style="font-size:11px;color:var(--map-popup-muted)">ETA: ${formatIstTime(stop.plannedEta)} IST · Wait: ${dwellMin} min</div>
               </div>`,
             );
             infoWindowRef.current.open(mapRef.current, marker);
@@ -263,10 +290,10 @@ export function GoogleRouteMap({
         officeMarker.addListener('click', () => {
           if (infoWindowRef.current) {
             infoWindowRef.current.setContent(
-              `<div style="font-family:system-ui,sans-serif;min-width:180px;padding:4px 2px;color:#0f172a">
+              `<div style="font-family:system-ui,sans-serif;min-width:180px;padding:4px 2px;color:var(--map-popup-text)">
                 <div style="font-weight:700;font-size:13px;color:#059669">Destination Office</div>
                 <div style="font-weight:600;font-size:12px">${office.name}</div>
-                <div style="font-size:11px;color:#475569;margin-top:2px">${office.addressText || ''}</div>
+                <div style="font-size:11px;color:var(--map-popup-secondary);margin-top:2px">${office.addressText || ''}</div>
               </div>`,
             );
             infoWindowRef.current.open(mapRef.current, officeMarker);
@@ -284,7 +311,7 @@ export function GoogleRouteMap({
     return () => {
       cancelled = true;
     };
-  }, [mapReady, pathPoints, validStops, office, highlightedStopSequence, onSelectStop]);
+  }, [mapReady, pathPoints, validStops, office, highlightedStopSequence, onSelectStop, themeRevision]);
 
   if (mapError) {
     return (
@@ -292,19 +319,19 @@ export function GoogleRouteMap({
         style={{
           height,
           borderRadius: '12px',
-          border: '1px solid #e2e8f0',
-          backgroundColor: '#f8fafc',
+          border: '1px solid var(--border-subtle)',
+          backgroundColor: 'var(--bg-canvas)',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
           padding: '18px',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#b45309' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--color-warning-text)' }}>
           <AlertTriangle size={18} />
           <div>
             <div style={{ fontSize: '13px', fontWeight: 700 }}>Interactive Google Map Unavailable</div>
-            <div style={{ fontSize: '12px', color: '#475569', marginTop: 2 }}>{mapError}</div>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: 2 }}>{mapError}</div>
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto', marginTop: '12px' }}>
@@ -317,14 +344,14 @@ export function GoogleRouteMap({
                 gap: '10px',
                 padding: '8px 10px',
                 borderRadius: '8px',
-                backgroundColor: '#ffffff',
-                border: '1px solid #e2e8f0',
+                backgroundColor: 'var(--bg-surface)',
+                border: '1px solid var(--border-subtle)',
                 fontSize: '12px',
               }}
             >
               <MapPin size={14} />
               <span style={{ fontWeight: 600 }}>#{s.stopSequence} {s.employeeName || s.stopType}</span>
-              <span style={{ color: '#64748b', marginLeft: 'auto', fontFamily: 'monospace' }}>
+              <span style={{ color: 'var(--text-muted)', marginLeft: 'auto', fontFamily: 'monospace' }}>
                 {Number(s.lat).toFixed(4)}, {Number(s.lng).toFixed(4)}
               </span>
             </div>
@@ -335,7 +362,7 @@ export function GoogleRouteMap({
   }
 
   return (
-    <div style={{ position: 'relative', height, borderRadius: '12px', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+    <div style={{ position: 'relative', height, borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border-subtle)' }}>
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
       <div
         style={{

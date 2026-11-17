@@ -92,9 +92,9 @@ function LiveTripDetailsContent() {
                 fontWeight: 700,
                 padding: '3px 10px',
                 borderRadius: 'var(--radius-pill)',
-                backgroundColor: selectedRoute.status === 'IN_PROGRESS' ? '#DCFCE7' : '#F1F5F9',
-                color: selectedRoute.status === 'IN_PROGRESS' ? '#16A34A' : '#64748B',
-                border: `1px solid ${selectedRoute.status === 'IN_PROGRESS' ? '#86EFAC' : '#CBD5E1'}`,
+                backgroundColor: selectedRoute.status === 'IN_PROGRESS' ? 'var(--color-success-bg)' : '#F1F5F9',
+                color: selectedRoute.status === 'IN_PROGRESS' ? 'var(--color-success)' : '#64748B',
+                border: `1px solid ${selectedRoute.status === 'IN_PROGRESS' ? 'var(--color-success-border)' : '#CBD5E1'}`,
               }}
             >
               {selectedRoute.status}
@@ -142,7 +142,7 @@ function LiveTripDetailsContent() {
           <div className="surface-card" style={{ padding: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Navigation size={15} color="#5728B2" />
+                <Navigation size={15} color="var(--brand-primary)" />
                 <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
                   Sequential Waypoint Route
                 </span>
@@ -189,7 +189,7 @@ function LiveTripDetailsContent() {
 
             <div>
               <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Capacity</div>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: '#5728B2' }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--brand-primary)' }}>
                 {seatsOccupied} / {totalSeats} Seats
               </div>
             </div>
@@ -222,8 +222,8 @@ function LiveTripDetailsContent() {
                 fontWeight: 700,
                 border: 'none',
                 backgroundColor: 'transparent',
-                color: activeTab === 'info' ? '#5728B2' : '#64748B',
-                borderBottom: `2px solid ${activeTab === 'info' ? '#5728B2' : 'transparent'}`,
+                color: activeTab === 'info' ? 'var(--brand-primary)' : '#64748B',
+                borderBottom: `2px solid ${activeTab === 'info' ? 'var(--brand-primary)' : 'transparent'}`,
                 cursor: 'pointer',
               }}
             >
@@ -237,8 +237,8 @@ function LiveTripDetailsContent() {
                 fontWeight: 700,
                 border: 'none',
                 backgroundColor: 'transparent',
-                color: activeTab === 'employees' ? '#5728B2' : '#64748B',
-                borderBottom: `2px solid ${activeTab === 'employees' ? '#5728B2' : 'transparent'}`,
+                color: activeTab === 'employees' ? 'var(--brand-primary)' : '#64748B',
+                borderBottom: `2px solid ${activeTab === 'employees' ? 'var(--brand-primary)' : 'transparent'}`,
                 cursor: 'pointer',
               }}
             >
@@ -252,8 +252,8 @@ function LiveTripDetailsContent() {
                 fontWeight: 700,
                 border: 'none',
                 backgroundColor: 'transparent',
-                color: activeTab === 'timeline' ? '#5728B2' : '#64748B',
-                borderBottom: `2px solid ${activeTab === 'timeline' ? '#5728B2' : 'transparent'}`,
+                color: activeTab === 'timeline' ? 'var(--brand-primary)' : '#64748B',
+                borderBottom: `2px solid ${activeTab === 'timeline' ? 'var(--brand-primary)' : 'transparent'}`,
                 cursor: 'pointer',
               }}
             >
@@ -282,7 +282,7 @@ function LiveTripDetailsContent() {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid var(--border-subtle)' }}>
                 <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>Planned End</span>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: '#16A34A' }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-success)' }}>
                   {selectedRoute.plannedEndTime ? new Date(selectedRoute.plannedEndTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '08:45 AM'}
                 </span>
               </div>
@@ -292,7 +292,7 @@ function LiveTripDetailsContent() {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px' }}>
                 <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>Status</span>
-                <span style={{ fontSize: '12px', fontWeight: 800, color: '#16A34A', backgroundColor: '#DCFCE7', padding: '2px 8px', borderRadius: '4px' }}>
+                <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--color-success)', backgroundColor: 'var(--color-success-bg)', padding: '2px 8px', borderRadius: '4px' }}>
                   {selectedRoute.status}
                 </span>
               </div>
@@ -339,8 +339,8 @@ function LiveTripDetailsContent() {
                               style={{
                                 fontSize: '11px',
                                 fontWeight: 700,
-                                color: stop.status === 'COMPLETED' ? '#16A34A' : '#D97706',
-                                backgroundColor: stop.status === 'COMPLETED' ? '#DCFCE7' : '#FEF3C7',
+                                color: stop.status === 'COMPLETED' ? 'var(--color-success)' : '#D97706',
+                                backgroundColor: stop.status === 'COMPLETED' ? 'var(--color-success-bg)' : 'var(--color-warning-bg)',
                                 padding: '2px 6px',
                                 borderRadius: '4px',
                               }}
@@ -369,9 +369,9 @@ function LiveTripDetailsContent() {
                         width: 26,
                         height: 26,
                         borderRadius: '50%',
-                        backgroundColor: isCompleted ? '#DCFCE7' : '#EFF6FF',
-                        color: isCompleted ? '#16A34A' : '#5728B2',
-                        border: `2px solid ${isCompleted ? '#16A34A' : '#5728B2'}`,
+                        backgroundColor: isCompleted ? 'var(--color-success-bg)' : 'var(--color-blue-bg)',
+                        color: isCompleted ? 'var(--color-success)' : 'var(--brand-primary)',
+                        border: `2px solid ${isCompleted ? 'var(--color-success)' : 'var(--brand-primary)'}`,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',

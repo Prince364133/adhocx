@@ -112,7 +112,7 @@ export default function CostCentersOrgPage() {
               alignItems: 'center',
               gap: 6,
               padding: '8px 14px',
-              backgroundColor: '#5728B2',
+              backgroundColor: 'var(--brand-action)',
               color: '#FFFFFF',
               borderRadius: 6,
               fontSize: 13,
@@ -253,12 +253,12 @@ export default function CostCentersOrgPage() {
                           <span style={{ fontWeight: 600 }}>₹{cc.budgetSpentLakhs}L / ₹{cc.budgetAllocatedLakhs}L</span>
                           <span style={{ color: utilPct > 90 ? '#DC2626' : 'var(--text-muted)' }}>{utilPct}%</span>
                         </div>
-                        <div style={{ height: 6, backgroundColor: '#E2E8F0', borderRadius: 3, overflow: 'hidden' }}>
+                        <div style={{ height: 6, backgroundColor: 'var(--bg-surface-active)', borderRadius: 3, overflow: 'hidden' }}>
                           <div
                             style={{
                               height: '100%',
                               width: `${Math.min(utilPct, 100)}%`,
-                              backgroundColor: utilPct > 90 ? '#DC2626' : utilPct > 80 ? '#F59E0B' : '#16A34A',
+                              backgroundColor: utilPct > 90 ? '#DC2626' : utilPct > 80 ? '#F59E0B' : 'var(--color-success)',
                               borderRadius: 3,
                             }}
                           />
@@ -273,15 +273,15 @@ export default function CostCentersOrgPage() {
                             padding: '3px 8px',
                             backgroundColor:
                               cc.status === 'Within Budget'
-                                ? '#DCFCE7'
+                                ? 'var(--color-success-bg)'
                                 : cc.status === 'Near Cap'
-                                ? '#FEF3C7'
-                                : '#FEE2E2',
+                                ? 'var(--color-warning-bg)'
+                                : 'var(--color-danger-bg)',
                             color:
                               cc.status === 'Within Budget'
-                                ? '#15803D'
+                                ? 'var(--color-success-text)'
                                 : cc.status === 'Near Cap'
-                                ? '#B45309'
+                                ? 'var(--color-warning-text)'
                                 : '#DC2626',
                             borderRadius: 4,
                             fontSize: 11,

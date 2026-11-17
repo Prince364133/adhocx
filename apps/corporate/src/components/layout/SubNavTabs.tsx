@@ -55,10 +55,10 @@ export function SubNavTabs({ title, tabs }: SubNavTabsProps) {
                 fontSize: '12px',
                 fontWeight: isActive ? 600 : 500,
                 textDecoration: 'none',
-                backgroundColor: isActive ? 'var(--brand-primary, #5728B2)' : 'var(--bg-surface-muted, #F8FAFC)',
+                backgroundColor: isActive ? 'var(--brand-action)' : 'var(--bg-surface-muted, #F8FAFC)',
                 color: isActive ? '#FFFFFF' : 'var(--text-secondary, #475569)',
-                border: `1px solid ${isActive ? 'var(--brand-primary, #5728B2)' : 'var(--border-subtle, #E2E8F0)'}`,
-                boxShadow: isActive ? '0 2px 6px rgba(87, 40, 178, 0.25)' : 'none',
+                border: `1px solid ${isActive ? 'var(--brand-primary)' : 'var(--border-subtle, #E2E8F0)'}`,
+                boxShadow: isActive ? '0 2px 6px rgba(var(--brand-primary-rgb), 0.25)' : 'none',
                 transition: 'all 0.15s ease',
               }}
             >
