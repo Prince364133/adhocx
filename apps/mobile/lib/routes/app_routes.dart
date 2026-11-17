@@ -929,7 +929,9 @@ final GoRouter appRouter = GoRouter(
           routes: [
             GoRoute(
               path: AppRoutes.userPaymentsScreen,
-              builder: (context, state) => const UserPaymentsScreen(),
+              builder: (context, state) => UserPaymentsScreen(
+                openTopUpOnLoad: state.uri.queryParameters['topup'] == 'true',
+              ),
             ),
           ],
         ),

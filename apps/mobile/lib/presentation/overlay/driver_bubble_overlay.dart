@@ -79,6 +79,7 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
   bool _isLockedUp = false;
   double _dragOffsetY = 0.0;
   bool _isOfferActive = false;
+  bool _isClosingOffer = false;
 
   // Dynamic Driver Metadata & Theme (defaults to clean light theme to match app)
   String _driverName = '';
@@ -132,11 +133,25 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
       try {
         await _updateOverlayPosition(0, 150);
         await FlutterOverlayWindow.resizeOverlay(bubbleWidth, bubbleHeight, true);
-        await FlutterOverlayWindow.shareData(jsonEncode({'action': 'REQUEST_STATE_SYNC'}));
+        _sendToMainApp({'action': 'REQUEST_STATE_SYNC'});
       } catch (e) {
         debugPrint('⚠️ [Overlay] Post-frame initialization notice: $e');
       }
     });
+  }
+
+  /// Fire-and-forget message dispatch from Overlay -> Main App.
+  /// CRITICAL: flutter_overlay_window 0.5.0's OverlayService.java forwards messages on
+  /// BasicMessageChannel without invoking reply.reply(...), so awaiting shareData() from
+  /// the overlay isolate DEADLOCKS forever. Never await shareData() in this isolate.
+  void _sendToMainApp(Map<String, dynamic> payload) {
+    try {
+      unawaited(
+        FlutterOverlayWindow.shareData(jsonEncode(payload))
+            .timeout(const Duration(milliseconds: 200), onTimeout: () => null)
+            .catchError((_) => null),
+      );
+    } catch (_) {}
   }
 
   Future<void> _loadCachedPreferences() async {
@@ -290,62 +305,131 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
 
   }
 
-  Future<void> _dismissOfferLocally() async {
+  Future<void> _dismissOfferLocally({bool instant = false}) async {
+    // 1. Stop vibration & siren immediately without blocking dismissal
+    unawaited(Vibration.cancel().catchError((_) {}));
     try {
-      await Vibration.cancel();
-    } catch (_) {}
-    try {
-      await _overlayAudioPlayer?.stop();
-    } catch (_) {}
-
-    try {
-      await _sheetAnimController.reverse();
+      final player = _overlayAudioPlayer;
+      if (player != null) {
+        unawaited(player.stop().catchError((_) {}));
+      }
     } catch (_) {}
 
-    setState(() {
+    if (instant) {
+      _sheetAnimController.value = 0.0;
+    } else {
+      try {
+        await _sheetAnimController
+            .reverse()
+            .timeout(const Duration(milliseconds: 280));
+      } catch (_) {
+        _sheetAnimController.value = 0.0;
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _isOfferActive = false;
+        _currentOfferData = null;
+        _isBottomSheetOpen = false;
+        _isLockedUp = false;
+        _dragOffsetY = 0.0;
+        _isBallVisible = true;
+      });
+    } else {
       _isOfferActive = false;
       _currentOfferData = null;
+      _isBottomSheetOpen = false;
+      _isLockedUp = false;
       _dragOffsetY = 0.0;
-    });
+      _isBallVisible = true;
+    }
 
-    // If bottom sheet was not manually opened before this offer, collapse back to assistive ball
-    if (!_isBottomSheetOpen) {
+    // 2. Immediately collapse the full-width bottom sheet window back to the compact draggable ball.
+    // Fail-safe: if resizeOverlay fails or times out, stop OverlayService so it can NEVER lock the screen.
+    var collapsed = false;
+    try {
+      await _updateOverlayPosition(0, 150).timeout(const Duration(milliseconds: 350));
+      final resized = await FlutterOverlayWindow.resizeOverlay(bubbleWidth, bubbleHeight, true)
+          .timeout(const Duration(milliseconds: 500));
+      collapsed = resized == true;
+    } catch (e) {
+      debugPrint('⚠️ [Overlay] Error collapsing offer window: $e');
+    }
+
+    if (!collapsed) {
       try {
-        await _updateOverlayPosition(0, 150);
-        await FlutterOverlayWindow.resizeOverlay(bubbleWidth, bubbleHeight, true);
-        if (mounted) {
-          setState(() => _isBallVisible = true);
-        }
-      } catch (_) {}
+        await _foregroundChannel
+            .invokeMethod('closeOverlayService')
+            .timeout(const Duration(milliseconds: 400));
+      } catch (_) {
+        try {
+          await FlutterOverlayWindow.closeOverlay()
+              .timeout(const Duration(milliseconds: 400));
+        } catch (_) {}
+      }
     }
   }
 
   Future<void> _finishOverlayOffer(String outcome) async {
-    final offerId = (_currentOfferData?['id'] ?? _currentOfferData?['offerId'])?.toString();
-    if (offerId != null && offerId.isNotEmpty) {
-      try {
-        await FlutterOverlayWindow.shareData(jsonEncode({
+    if (_isClosingOffer) return;
+    _isClosingOffer = true;
+
+    try {
+      final offerId = (_currentOfferData?['id'] ?? _currentOfferData?['offerId'])?.toString();
+
+      // 1. Instantly close and collapse the bottom sheet FIRST so the screen is never blocked
+      await _dismissOfferLocally(
+        instant: outcome == 'accepted' || outcome == 'declined' || outcome == 'dismissed',
+      );
+
+      // 2. Fire-and-forget sync to the main app isolate (NEVER await shareData here!)
+      if (offerId != null && offerId.isNotEmpty) {
+        _sendToMainApp({
           'action': 'OFFER_ACTION_COMPLETED',
           'offerId': offerId,
           'outcome': outcome,
-        }));
-      } catch (e) {
-        debugPrint('⚠️ [Overlay] Could not sync offer outcome: $e');
+        });
       }
-    }
 
-    await _dismissOfferLocally();
-    if (outcome == 'accepted') {
-      await _bringAppToFront();
+      // 3. On Accept, immediately launch / bring the main AdhocX app to the foreground
+      if (outcome == 'accepted') {
+        await _bringAppToFront(acceptedOfferId: offerId);
+      }
+    } finally {
+      _isClosingOffer = false;
     }
   }
 
-  Future<void> _bringAppToFront() async {
+  Future<void> _bringAppToFront({String? acceptedOfferId}) async {
+    var launched = false;
+
+    // 1. Primary path: Native MainActivity foreground channel (works even when backgrounded)
     try {
-      await _foregroundChannel.invokeMethod('bringToFront');
+      final res = await _foregroundChannel
+          .invokeMethod('bringToFront')
+          .timeout(const Duration(milliseconds: 400));
+      launched = res == true;
     } catch (e) {
-      debugPrint('⚠️ [Foreground Channel] Error bringing app to front: $e');
+      debugPrint('⚠️ [Foreground Channel] Primary bringToFront unavailable: $e');
     }
+
+    // 2. Bulletproof fallback: Custom Android deep link intent (works even if MainActivity was killed)
+    if (!launched) {
+      try {
+        final query = acceptedOfferId != null && acceptedOfferId.isNotEmpty
+            ? '?action=trip_accepted&offerId=${Uri.encodeComponent(acceptedOfferId)}'
+            : '?action=open';
+        final deepLink = Uri.parse('adhocx://open$query');
+        launched = await launchUrl(deepLink, mode: LaunchMode.externalApplication)
+            .timeout(const Duration(milliseconds: 600));
+      } catch (e) {
+        debugPrint('⚠️ [Overlay] Deep link bringToFront fallback failed: $e');
+      }
+    }
+
+    // 3. Backup signal to main app isolate if alive
+    _sendToMainApp({'action': 'BRING_APP_TO_FRONT'});
   }
 
   /// Opens the Bottom Sheet over other apps, attached flush to the base
@@ -378,7 +462,7 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
         });
         await _sheetAnimController.forward(from: 0.0);
         // 4. Request sync with latest trip and available offers
-        FlutterOverlayWindow.shareData(jsonEncode({'action': 'REQUEST_STATE_SYNC'}));
+        _sendToMainApp({'action': 'REQUEST_STATE_SYNC'});
       }
     } catch (e) {
       debugPrint('⚠️ [Overlay] Error opening bottom sheet: $e');
@@ -434,7 +518,7 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
   /// Pull down to refresh handler for Ongoing & Coming rides
   Future<void> _handlePullToRefresh() async {
     HapticFeedback.lightImpact();
-    FlutterOverlayWindow.shareData(jsonEncode({'action': 'REQUEST_STATE_SYNC'}));
+    _sendToMainApp({'action': 'REQUEST_STATE_SYNC'});
     await Future.delayed(const Duration(milliseconds: 700));
   }
 
@@ -1137,10 +1221,10 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
                 flex: 2,
                 child: OutlinedButton.icon(
                   onPressed: () {
-                    FlutterOverlayWindow.shareData(jsonEncode({
+                    _sendToMainApp({
                       'action': 'OPEN_TRIP_IN_APP',
                       'tripId': tripId?.toString(),
-                    }));
+                    });
                     _bringAppToFront();
                   },
                   icon: const Icon(Icons.open_in_new_rounded, size: 14),
@@ -1168,21 +1252,48 @@ class _DriverAssistiveBubbleOverlayState extends State<DriverAssistiveBubbleOver
 
     return Align(
       alignment: Alignment.bottomCenter,
-      child: AnimatedBuilder(
-        animation: _sheetSlideAnim,
-        builder: (context, child) {
-          final dy = (1.0 - _sheetSlideAnim.value) * _currentSheetHeight;
-          return Transform.translate(offset: Offset(0, dy), child: child);
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onVerticalDragUpdate: (details) {
+          if (details.delta.dy > 0 || _dragOffsetY > 0) {
+            setState(() {
+              _dragOffsetY = (_dragOffsetY + details.delta.dy).clamp(0.0, 420.0);
+            });
+          }
         },
-        child: SizedBox(
-          width: double.infinity,
-          child: IncomingRequirementBottomSheet(
-            key: ValueKey(offer['id'] ?? offer['offerId']),
-            offerData: offer,
-            overlayPresentation: true,
-            onOverlayAccepted: () => unawaited(_finishOverlayOffer('accepted')),
-            onOverlayDeclined: () => unawaited(_finishOverlayOffer('declined')),
-            onOverlayExpired: () => unawaited(_finishOverlayOffer('expired')),
+        onVerticalDragEnd: (details) {
+          final velocity = details.primaryVelocity ?? 0.0;
+          if (_dragOffsetY > 65 || velocity > 280) {
+            HapticFeedback.lightImpact();
+            unawaited(_finishOverlayOffer('dismissed'));
+          } else if (_dragOffsetY != 0.0) {
+            setState(() => _dragOffsetY = 0.0);
+          }
+        },
+        onVerticalDragCancel: () {
+          if (_dragOffsetY != 0.0) {
+            setState(() => _dragOffsetY = 0.0);
+          }
+        },
+        child: AnimatedBuilder(
+          animation: _sheetSlideAnim,
+          builder: (context, child) {
+            final dy = (1.0 - _sheetSlideAnim.value) * _currentSheetHeight;
+            return Transform.translate(
+              offset: Offset(0, dy + _dragOffsetY.clamp(0.0, 420.0)),
+              child: child,
+            );
+          },
+          child: SizedBox(
+            width: double.infinity,
+            child: IncomingRequirementBottomSheet(
+              key: ValueKey(offer['id'] ?? offer['offerId']),
+              offerData: offer,
+              overlayPresentation: true,
+              onOverlayAccepted: () => unawaited(_finishOverlayOffer('accepted')),
+              onOverlayDeclined: () => unawaited(_finishOverlayOffer('declined')),
+              onOverlayExpired: () => unawaited(_finishOverlayOffer('expired')),
+            ),
           ),
         ),
       ),

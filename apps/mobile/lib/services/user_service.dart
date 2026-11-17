@@ -1,3 +1,4 @@
+import 'dart:convert';
 import '../core/networking/api_client.dart';
 import 'auth_service.dart';
 
@@ -664,6 +665,41 @@ class UserService {
   /// Generate dynamic time-limited QR boarding token
   Future<dynamic> getCorporateBoardingQr(String routeId, String stopId) async {
     return await _api.get('/corporate/trips/routes/$routeId/stops/$stopId/boarding-qr');
+  }
+
+  /// Upload vendor profile photo to Cloudflare R2 and sync reactive AuthService avatar.
+  Future<String?> uploadProfilePhoto({
+    required List<int> fileBytes,
+    String fileName = 'vendor_profile_photo.jpg',
+    String mimeType = 'image/jpeg',
+  }) async {
+    await _ensureSession();
+    final encoded = base64Encode(fileBytes);
+    final result = await _api.post(
+      '/vendors/profile-photo',
+      body: {
+        'contentBase64': encoded,
+        'filename': fileName,
+        'mimeType': mimeType,
+      },
+    );
+
+    final uploadedUrl = (result is Map && result['photoUrl'] != null)
+        ? result['photoUrl'].toString()
+        : (result is Map && result['url'] != null)
+            ? result['url'].toString()
+            : (result is Map && result['data'] is Map)
+                ? (result['data']['photoUrl'] ?? result['data']['url'])?.toString()
+                : null;
+
+    if (uploadedUrl != null && uploadedUrl.isNotEmpty && uploadedUrl != 'null') {
+      AuthService.instance.updateCurrentUserProfilePhoto(uploadedUrl);
+      try {
+        await AuthService.instance.fetchCurrentUser(forceRefresh: true);
+      } catch (_) {}
+      return uploadedUrl;
+    }
+    return null;
   }
 
   /// Trigger emergency SOS distress alert from employee mobile app

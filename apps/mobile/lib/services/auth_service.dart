@@ -285,6 +285,7 @@ class AuthService {
 
   void updateCurrentUserProfilePhoto(String photoUrl) {
     if (_currentUser == null) return;
+    final isDriver = _currentUser!.isDriver;
     final updated = UserModel(
       id: _currentUser!.id,
       phone: _currentUser!.phone,
@@ -294,11 +295,19 @@ class AuthService {
       photoUrl: photoUrl,
       hasPassword: _currentUser!.hasPassword,
       isOnboarded: _currentUser!.isOnboarded,
-      driverProfile: {
-        ...?_currentUser!.driverProfile,
-        'profilePhotoUrl': photoUrl,
-      },
-      vendorProfile: _currentUser!.vendorProfile,
+      driverProfile: isDriver || _currentUser!.driverProfile != null
+          ? {
+              ...?_currentUser!.driverProfile,
+              'profilePhotoUrl': photoUrl,
+            }
+          : null,
+      vendorProfile: !isDriver || _currentUser!.vendorProfile != null
+          ? {
+              ...?_currentUser!.vendorProfile,
+              'logoUrl': photoUrl,
+              'photoUrl': photoUrl,
+            }
+          : null,
     );
     _persistCurrentUser(updated);
   }

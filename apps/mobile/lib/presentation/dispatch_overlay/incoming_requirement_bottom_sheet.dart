@@ -44,18 +44,25 @@ class IncomingRequirementBottomSheet extends StatefulWidget {
     required Map<String, dynamic> offerData,
     VoidCallback? onDismissed,
   }) {
+    var didNotifyDismiss = false;
+    void notifyDismissOnce() {
+      if (didNotifyDismiss) return;
+      didNotifyDismiss = true;
+      onDismissed?.call();
+    }
+
     return showModalBottomSheet<T>(
       context: context,
       useRootNavigator: true,
-      isDismissible: false,
-      enableDrag: false,
+      isDismissible: true,
+      enableDrag: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => IncomingRequirementBottomSheet(
         offerData: offerData,
-        onDismissed: onDismissed,
+        onDismissed: notifyDismissOnce,
       ),
-    );
+    ).whenComplete(notifyDismissOnce);
   }
 
   @override
@@ -283,32 +290,46 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
     super.dispose();
   }
 
+  void _showSafeToast(String msg, {Color? backgroundColor, Toast toastLength = Toast.LENGTH_SHORT}) {
+    try {
+      Fluttertoast.showToast(
+        msg: msg,
+        backgroundColor: backgroundColor,
+        toastLength: toastLength,
+      );
+    } catch (_) {}
+  }
+
   Future<void> _handleAccept() async {
     if (_isSubmitting) return;
     setState(() => _isSubmitting = true);
     _countdownTimer?.cancel();
+    DispatchSoundPlayer.stopAlert();
     HapticFeedback.mediumImpact();
 
     final offerId = (widget.offerData['id'] ?? widget.offerData['offerId']) as String? ?? '';
     if (offerId.isEmpty) {
-      Fluttertoast.showToast(msg: 'Invalid offer reference', backgroundColor: AppColors.error);
-      setState(() => _isSubmitting = false);
+      _showSafeToast('Invalid offer reference', backgroundColor: AppColors.error);
+      if (mounted) setState(() => _isSubmitting = false);
       return;
     }
 
     try {
-      await (widget.acceptOffer ?? DriverService.instance.acceptOffer)(offerId);
+      await (widget.acceptOffer ?? DriverService.instance.acceptOffer)(offerId)
+          .timeout(const Duration(seconds: 12));
       HapticFeedback.heavyImpact();
-      Fluttertoast.showToast(
-        msg: 'Trip Accepted! Navigate to pickup.',
-        backgroundColor: AppColors.accentGreenDark,
-        toastLength: Toast.LENGTH_LONG,
-      );
 
       if (mounted) {
         if (widget.overlayPresentation) {
+          // Immediately close overlay and launch main app without waiting on toast or anything else
+          setState(() => _isSubmitting = false);
           widget.onOverlayAccepted?.call();
         } else {
+          _showSafeToast(
+            'Trip Accepted! Navigate to pickup.',
+            backgroundColor: AppColors.accentGreenDark,
+            toastLength: Toast.LENGTH_LONG,
+          );
           Navigator.of(context).pop(true);
           widget.onDismissed?.call();
           // Keep the accepted trip visible in the driver's home workflow.
@@ -322,8 +343,8 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
 
         // Edge Case: Expired or already claimed by another driver
         if (errStr.contains('expired') || errStr.contains('fulfilled') || errStr.contains('conflict')) {
-          Fluttertoast.showToast(
-            msg: 'This trip was already claimed by another driver or expired.',
+          _showSafeToast(
+            'This trip was already claimed by another driver or expired.',
             backgroundColor: AppColors.warning,
             toastLength: Toast.LENGTH_LONG,
           );
@@ -338,8 +359,8 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
 
         // Edge Case: Subscription required / frozen membership
         if (errStr.contains('subscription') || errStr.contains('frozen')) {
-          Fluttertoast.showToast(
-            msg: widget.overlayPresentation
+          _showSafeToast(
+            widget.overlayPresentation
                 ? 'Subscription required. Open Wallet in the app to continue.'
                 : 'Subscription required to accept trips. Redirecting to Wallet...',
             backgroundColor: AppColors.error,
@@ -355,8 +376,8 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
           return;
         }
 
-        Fluttertoast.showToast(
-          msg: 'Accept failed: $e',
+        _showSafeToast(
+          'Accept failed: $e',
           backgroundColor: AppColors.error,
         );
         _startCountdown(); // Resume timer if transient network failure
@@ -366,36 +387,13 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
 
   Future<void> _handleDecline() async {
     if (_isSubmitting) return;
-    setState(() => _isSubmitting = true);
     _countdownTimer?.cancel();
+    DispatchSoundPlayer.stopAlert();
     HapticFeedback.selectionClick();
 
     final offerId = (widget.offerData['id'] ?? widget.offerData['offerId']) as String? ?? '';
-    if (offerId.isNotEmpty) {
-      try {
-        if (widget.declineOffer != null) {
-          await widget.declineOffer!(offerId);
-        } else {
-          await DriverService.instance.declineOffer(offerId, reason: 'DRIVER_PASSED');
-        }
-      } catch (e) {
-        if (mounted) {
-          setState(() => _isSubmitting = false);
-          Fluttertoast.showToast(
-            msg: 'Could not pass this offer: $e',
-            backgroundColor: AppColors.error,
-          );
-          _startCountdown();
-        }
-        return;
-      }
-    }
 
-    Fluttertoast.showToast(
-      msg: 'Offer passed. Continuing radar scan.',
-      backgroundColor: AppColors.slate700,
-    );
-
+    // 1. Instantly close/dismiss the bottom sheet first so UI NEVER freezes or blocks
     if (mounted) {
       if (widget.overlayPresentation) {
         widget.onOverlayDeclined?.call();
@@ -403,6 +401,18 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
         Navigator.of(context).pop(false);
         widget.onDismissed?.call();
       }
+    }
+
+    // 2. Notify backend in the background (non-blocking)
+    if (offerId.isNotEmpty) {
+      final declineFuture = widget.declineOffer != null
+          ? widget.declineOffer!(offerId)
+          : DriverService.instance.declineOffer(offerId, reason: 'DRIVER_PASSED');
+      unawaited(
+        declineFuture
+            .timeout(const Duration(seconds: 10))
+            .catchError((_) => null),
+      );
     }
   }
 
@@ -813,7 +823,7 @@ class _IncomingRequirementBottomSheetState extends State<IncomingRequirementBott
                         ),
                       ),
                       child: Text(
-                        'PASS',
+                        'DISMISS',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,

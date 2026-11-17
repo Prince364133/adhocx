@@ -27,6 +27,7 @@ import '../../utils/vehicle_utils.dart';
 import '../../services/language_service.dart';
 import '../common/app_update_banner.dart';
 import '../../services/app_update_service.dart';
+import '../../shared/widgets/balance_summary_card.dart';
 
 enum DriverHomeState { offline, available, offerAttention, assignedTrip, activeTrip, completedTrip }
 
@@ -44,9 +45,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   DriverHomeState _currentState = DriverHomeState.offline;
   bool _isLoading = true;
+  bool _isWalletLoading = true;
   bool _isTogglingOnline = false;
   String? _togglingOnlineStep;
   String _driverName = 'Driver';
+  double _availablePayoutBalance = 0.0;
   double _todayEarnings = 0.0;
   int _todayTripsCount = 0;
   double _trustScore = 100.0;
@@ -64,10 +67,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _loadLiveDriverData();
     _startAutoRefresh();
     _listenToTripLifecycleEvents();
-    AppUpdateService.instance.checkForUpdate();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkStartupPermissionStatus();
       AppRoutes.checkAndHandlePendingNotification(context);
+      unawaited(AppUpdateService.instance.checkForUpdateAndPrompt(context));
     });
   }
 
@@ -110,8 +113,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && mounted && _currentState == DriverHomeState.offline && !_isTogglingOnline) {
-      unawaited(_resumePendingGoOnlineIfGranted());
+    if (state == AppLifecycleState.resumed && mounted) {
+      // Immediately refresh live trips/offers (e.g. after accepting a trip from the floating overlay)
+      unawaited(_loadLiveDriverData(silent: true, force: true));
+      unawaited(AppUpdateService.instance.checkForUpdateAndPrompt(context));
+      if (_currentState == DriverHomeState.offline && !_isTogglingOnline) {
+        unawaited(_resumePendingGoOnlineIfGranted());
+      }
     }
   }
 
@@ -168,7 +176,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     try {
       final results = await Future.wait([
         silent ? Future.value(null) : DriverService.instance.getProfile(forceRefresh: forceFetch).catchError((_) => null),
-        silent ? Future.value(null) : DriverService.instance.getWalletSummary(forceRefresh: forceFetch).catchError((_) => null),
+        (!silent || forceFetch) ? DriverService.instance.getWalletSummary(forceRefresh: forceFetch).catchError((_) => null) : Future.value(null),
         DriverService.instance.getOffers(forceRefresh: forceFetch).catchError((_) => []),
         Future.value([]),
         DriverService.instance.getTrips(forceRefresh: forceFetch).catchError((_) => []),
@@ -235,10 +243,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           }
 
           if (wallet != null) {
-            final num earn = wallet['todayEarnings'] as num? ?? wallet['availableBalance'] as num? ?? 0.0;
+            final num avail = wallet['availableBalance'] as num? ??
+                wallet['walletBalance'] as num? ??
+                wallet['balance'] as num? ??
+                0.0;
+            final num earn = wallet['todayEarnings'] as num? ?? avail;
             final num count = wallet['completedTripsCount'] as num? ?? wallet['totalTrips'] as num? ?? 0;
+            _availablePayoutBalance = avail.toDouble();
             _todayEarnings = earn.toDouble();
             _todayTripsCount = count.toInt();
+            _isWalletLoading = false;
+          } else if (!silent) {
+            _isWalletLoading = false;
           }
 
           // 1. Check if an active / in-progress / arrived trip exists
@@ -761,6 +777,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         physics: const AlwaysScrollableScrollPhysics(),
                         padding: const EdgeInsets.all(AppSpacing.lg),
                         children: [
+                          BalanceSummaryCard(
+                            label: context.tr('Current Payout Balance'),
+                            balance: _availablePayoutBalance,
+                            isLoading: _isWalletLoading,
+                            actionLabel: context.tr('View Wallet'),
+                            actionIcon: Icons.account_balance_wallet_outlined,
+                            onCardTap: () async {
+                              await context.push(AppRoutes.walletScreen);
+                              if (mounted) {
+                                unawaited(_loadLiveDriverData(silent: true, force: true));
+                              }
+                            },
+                          ),
+                          const SizedBox(height: AppSpacing.md),
                           switch (_currentState) {
                             DriverHomeState.offline => _buildOfflineState(isDark),
                             DriverHomeState.available => _buildAvailableState(isDark),

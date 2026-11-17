@@ -431,6 +431,14 @@ class GlobalDispatchOverlayService {
             DispatchSoundPlayer.stopAlert();
             LocalNotificationService.instance.cancelAll();
           }
+          if (outcome == 'accepted') {
+            DriverService.instance.notifyTripChanged(status: 'ASSIGNED');
+            await _bringAppToFront();
+            final navContext = rootNavigatorKey.currentContext;
+            if (navContext != null && navContext.mounted) {
+              navContext.go(AppRoutes.homeScreen);
+            }
+          }
         } else if (action == 'OFFER_EXPIRED' || action == 'DISMISS_OFFER') {
           DispatchSoundPlayer.stopAlert();
           dismissCurrentOffer(offerId: offerId);

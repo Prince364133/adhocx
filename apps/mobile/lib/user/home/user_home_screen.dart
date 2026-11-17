@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../routes/app_routes.dart';
@@ -10,9 +11,9 @@ import '../../shared/theme/app_colors.dart';
 import '../../shared/theme/app_radius.dart';
 import '../../shared/theme/app_spacing.dart';
 import '../../shared/theme/app_typography.dart';
-import '../../shared/theme/theme_provider.dart';
 import '../../shared/widgets/app_primary_button.dart';
 import '../../shared/widgets/app_profile_avatar.dart';
+import '../../shared/widgets/balance_summary_card.dart';
 import '../../shared/widgets/pending_review_gate.dart';
 import '../../presentation/common/app_update_banner.dart';
 import '../../services/app_update_service.dart';
@@ -26,6 +27,8 @@ class UserHomeScreen extends StatefulWidget {
 
 class _UserHomeScreenState extends State<UserHomeScreen> with WidgetsBindingObserver {
   bool _isLoading = true;
+  bool _isWalletLoading = true;
+  double _walletBalance = 0.0;
   Map<String, dynamic> _summary = {
     'totalRequirements': 0,
     'totalVehiclesRequired': 0,
@@ -40,10 +43,12 @@ class _UserHomeScreenState extends State<UserHomeScreen> with WidgetsBindingObse
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    AppUpdateService.instance.checkForUpdate();
     _loadDashboardData();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) AppRoutes.checkAndHandlePendingNotification(context);
+      if (mounted) {
+        AppRoutes.checkAndHandlePendingNotification(context);
+        unawaited(AppUpdateService.instance.checkForUpdateAndPrompt(context));
+      }
     });
   }
 
@@ -58,6 +63,27 @@ class _UserHomeScreenState extends State<UserHomeScreen> with WidgetsBindingObse
     // Trip may have completed while the app was backgrounded (or on another device)
     if (state == AppLifecycleState.resumed && mounted) {
       _checkPendingReview();
+      unawaited(_refreshWalletBalance());
+      unawaited(AppUpdateService.instance.checkForUpdateAndPrompt(context));
+    }
+  }
+
+  Future<void> _refreshWalletBalance() async {
+    try {
+      final walletRes = await UserService.instance.getWalletSummary();
+      final bal = (walletRes['walletBalance'] as num?)?.toDouble() ??
+          (walletRes['balance'] as num?)?.toDouble() ??
+          0.0;
+      if (mounted) {
+        setState(() {
+          _walletBalance = bal;
+          _isWalletLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isWalletLoading = false);
+      }
     }
   }
 
@@ -75,13 +101,24 @@ class _UserHomeScreenState extends State<UserHomeScreen> with WidgetsBindingObse
     setState(() => _isLoading = true);
     try {
       await AuthService.instance.ensureAuthenticatedSession(role: 'VENDOR');
-      final summaryRes = await UserService.instance.getRequirementsSummary();
-      final listRes = await UserService.instance.getRequirements();
+      final results = await Future.wait([
+        UserService.instance.getRequirementsSummary(),
+        UserService.instance.getRequirements(),
+        UserService.instance.getWalletSummary().catchError((_) => <String, dynamic>{}),
+      ]);
+      final summaryRes = results[0] as Map<String, dynamic>;
+      final listRes = results[1] as List<dynamic>;
+      final walletRes = results[2] is Map ? Map<String, dynamic>.from(results[2] as Map) : <String, dynamic>{};
+      final bal = (walletRes['walletBalance'] as num?)?.toDouble() ??
+          (walletRes['balance'] as num?)?.toDouble() ??
+          _walletBalance;
 
       if (mounted) {
         setState(() {
           _summary = summaryRes;
           _recentRequirements = listRes;
+          _walletBalance = bal;
+          _isWalletLoading = false;
           _isLoading = false;
         });
         NotificationService.instance.refreshUnreadCount();
@@ -90,7 +127,10 @@ class _UserHomeScreenState extends State<UserHomeScreen> with WidgetsBindingObse
     } catch (e) {
       debugPrint('Failed to load dashboard: $e');
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false;
+          _isWalletLoading = false;
+        });
       }
     }
   }
@@ -184,17 +224,6 @@ class _UserHomeScreenState extends State<UserHomeScreen> with WidgetsBindingObse
                     ),
                     Row(
                       children: [
-                        IconButton(
-                          tooltip: isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme',
-                          onPressed: () {
-                            context.read<ThemeProvider>().toggleTheme();
-                          },
-                          icon: Icon(
-                            isDark ? Icons.light_mode_rounded : Icons.dark_mode_outlined,
-                            color: isDark ? AppColors.starAmber : AppColors.textSecondaryLight,
-                            size: 22,
-                          ),
-                        ),
                         ValueListenableBuilder<int>(
                           valueListenable: NotificationService.instance.unreadCount,
                           builder: (context, count, _) {
@@ -202,6 +231,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> with WidgetsBindingObse
                               clipBehavior: Clip.none,
                               children: [
                                 IconButton(
+                                  tooltip: 'Notifications',
                                   onPressed: () async {
                                     await context.push(AppRoutes.notificationsFeedScreen);
                                     NotificationService.instance.refreshUnreadCount();
@@ -209,7 +239,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> with WidgetsBindingObse
                                   icon: Icon(
                                     Icons.notifications_outlined,
                                     color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-                                    size: 26,
+                                    size: 25,
                                   ),
                                 ),
                                 if (count > 0)
@@ -242,11 +272,20 @@ class _UserHomeScreenState extends State<UserHomeScreen> with WidgetsBindingObse
                             );
                           },
                         ),
+                        IconButton(
+                          tooltip: 'Requirement History',
+                          onPressed: () => context.go(AppRoutes.userRequirementsScreen),
+                          icon: Icon(
+                            Icons.history_rounded,
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                            size: 25,
+                          ),
+                        ),
                         const SizedBox(width: AppSpacing.xs),
                         GestureDetector(
-                          onTap: () => context.push(AppRoutes.userProfileScreen),
+                          onTap: () => context.go(AppRoutes.userProfileScreen),
                           child: AppProfileAvatar(
-                            radius: 17,
+                            radius: 18,
                             name: displayName,
                             isDark: isDark,
                           ),
@@ -256,7 +295,20 @@ class _UserHomeScreenState extends State<UserHomeScreen> with WidgetsBindingObse
                   ],
                 ),
 
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: AppSpacing.md),
+
+                // Current Wallet Balance Card (Click anywhere -> Full Wallet Page)
+                BalanceSummaryCard(
+                  label: 'Current Wallet Balance',
+                  balance: _walletBalance,
+                  isLoading: _isWalletLoading,
+                  actionLabel: 'Add Money',
+                  actionIcon: Icons.add_rounded,
+                  onCardTap: () => context.go(AppRoutes.userPaymentsScreen),
+                  onActionTap: () => context.go('${AppRoutes.userPaymentsScreen}?topup=true'),
+                ),
+
+                const SizedBox(height: AppSpacing.md),
 
                 // Active Requirements Summary Card
                 Container(

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import './user_app_navigation.dart';
+import './floating_requirement_history_button.dart';
 
 class UserAppScaffold extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
@@ -8,12 +8,30 @@ class UserAppScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        bottom: false,
-        child: navigationShell,
+    final isOnHome = navigationShell.currentIndex == 0;
+    final isOnRequirements = navigationShell.currentIndex == 1;
+
+    return PopScope(
+      canPop: isOnHome,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && !isOnHome) {
+          navigationShell.goBranch(0);
+        }
+      },
+      child: Scaffold(
+        body: Stack(
+          children: [
+            SafeArea(
+              bottom: false,
+              child: navigationShell,
+            ),
+            if (!isOnRequirements)
+              FloatingRequirementHistoryButton(
+                onTap: () => navigationShell.goBranch(1),
+              ),
+          ],
+        ),
       ),
-      bottomNavigationBar: UserAppNavigation(navigationShell: navigationShell),
     );
   }
 }

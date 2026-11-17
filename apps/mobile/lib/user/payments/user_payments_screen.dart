@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import './user_payment_details_screen.dart';
+import '../../routes/app_routes.dart';
 import '../../services/razorpay_checkout_service.dart';
 import '../../services/user_service.dart';
 import '../../shared/theme/app_colors.dart';
@@ -9,7 +11,8 @@ import '../../shared/theme/app_typography.dart';
 import '../../core/utils/app_toast.dart';
 
 class UserPaymentsScreen extends StatefulWidget {
-  const UserPaymentsScreen({super.key});
+  final bool openTopUpOnLoad;
+  const UserPaymentsScreen({super.key, this.openTopUpOnLoad = false});
 
   @override
   State<UserPaymentsScreen> createState() => _UserPaymentsScreenState();
@@ -17,6 +20,7 @@ class UserPaymentsScreen extends StatefulWidget {
 
 class _UserPaymentsScreenState extends State<UserPaymentsScreen> {
   bool _isLoading = true;
+  bool _didAutoOpenTopUp = false;
   Map<String, dynamic>? _walletData;
   List<dynamic> _transactions = [];
   String? _errorMessage;
@@ -25,6 +29,26 @@ class _UserPaymentsScreenState extends State<UserPaymentsScreen> {
   void initState() {
     super.initState();
     _loadWallet();
+    if (widget.openTopUpOnLoad) {
+      _scheduleAutoTopUp();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant UserPaymentsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.openTopUpOnLoad && !oldWidget.openTopUpOnLoad) {
+      _didAutoOpenTopUp = false;
+      _scheduleAutoTopUp();
+    }
+  }
+
+  void _scheduleAutoTopUp() {
+    if (_didAutoOpenTopUp) return;
+    _didAutoOpenTopUp = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _showTopUpDialog();
+    });
   }
 
   Future<void> _loadWallet() async {
@@ -469,6 +493,19 @@ class _UserPaymentsScreenState extends State<UserPaymentsScreen> {
       appBar: AppBar(
         backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
         elevation: 0,
+        leading: IconButton(
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go(AppRoutes.userHomeScreen);
+            }
+          },
+          icon: Icon(
+            Icons.arrow_back,
+            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+          ),
+        ),
         title: Text(
           'AdhocX Wallet',
           style: AppTypography.h2(

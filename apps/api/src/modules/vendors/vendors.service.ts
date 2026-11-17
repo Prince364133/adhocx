@@ -1,11 +1,15 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { CreateVendorProfileDto, VendorProfileDto, VerificationStatus } from '@adhocx/contracts';
 import { DatabaseService } from '../../database/database.service';
 import { assertPhoneAvailable, getPhoneVariants } from '../../common';
+import { StorageService } from '../../common/storage/storage.service';
 
 @Injectable()
 export class VendorsService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly storage: StorageService,
+  ) {}
 
   async createProfile(userId: string, dto: CreateVendorProfileDto, phone: string): Promise<VendorProfileDto> {
     let user: any = null;
@@ -143,6 +147,78 @@ export class VendorsService {
     return this.createProfile(userId, dto, dto.phone || '');
   }
 
+  async uploadProfilePhoto(
+    userId: string,
+    dto: { contentBase64?: string; filename?: string; mimeType?: string },
+    file?: { buffer: Buffer; originalname: string; mimetype: string; size: number },
+  ): Promise<{ url: string; photoUrl: string }> {
+    let buffer: Buffer;
+    let filename: string;
+    let mimeType: string;
+
+    if (file && file.buffer && file.buffer.length > 0) {
+      buffer = file.buffer;
+      filename = file.originalname || `vendor_profile_${Date.now()}.jpg`;
+      mimeType = file.mimetype || 'image/jpeg';
+    } else if (dto?.contentBase64 && dto.contentBase64.trim().length > 0) {
+      const cleanedBase64 = dto.contentBase64.includes(',')
+        ? dto.contentBase64.split(',').pop()!.trim()
+        : dto.contentBase64.trim();
+      buffer = Buffer.from(cleanedBase64, 'base64');
+      filename = dto.filename || `vendor_profile_${Date.now()}.jpg`;
+      mimeType = dto.mimeType || 'image/jpeg';
+    } else {
+      throw new BadRequestException('No valid profile image buffer or base64 content was provided.');
+    }
+
+    const stored = await this.storage.saveFile({
+      buffer,
+      originalname: filename,
+      mimetype: mimeType,
+      size: buffer.length,
+    });
+
+    const user = await this.db.user.findUnique({ where: { id: userId } });
+    const existingVendor = await this.db.vendor.findUnique({ where: { userId } });
+    const existingKyc =
+      existingVendor?.kycDocuments && typeof existingVendor.kycDocuments === 'object'
+        ? (existingVendor.kycDocuments as Record<string, any>)
+        : {};
+
+    const updatedKyc = {
+      ...existingKyc,
+      logoUrl: stored.url,
+      profilePhotoUrl: stored.url,
+      companyDetails: {
+        ...(existingKyc.companyDetails || {}),
+        logoUrl: stored.url,
+      },
+    };
+
+    if (existingVendor) {
+      await this.db.vendor.update({
+        where: { userId },
+        data: { kycDocuments: updatedKyc },
+      });
+    } else {
+      await this.db.vendor.create({
+        data: {
+          userId,
+          organizationName: user?.fullName || 'Business Booker',
+          fullName: user?.fullName || 'Business Booker',
+          phone: user?.phone || '',
+          kycDocuments: updatedKyc,
+          verificationStatus: VerificationStatus.PENDING,
+        },
+      });
+    }
+
+    return {
+      url: stored.url,
+      photoUrl: stored.url,
+    };
+  }
+
   async getProfile(userId: string): Promise<VendorProfileDto> {
     const vendor = await this.db.vendor.findUnique({
       where: { userId },
@@ -173,7 +249,9 @@ export class VendorsService {
       } as any;
     }
 
-    const savedCompanyDetails = (vendor.kycDocuments as any)?.companyDetails || {};
+    const kycDoc = (vendor.kycDocuments as any) || {};
+    const savedCompanyDetails = kycDoc.companyDetails || {};
+    const photoUrl = kycDoc.logoUrl || kycDoc.profilePhotoUrl || savedCompanyDetails.logoUrl || undefined;
 
     return {
       id: vendor.id,
@@ -185,6 +263,8 @@ export class VendorsService {
       verificationStatus: vendor.verificationStatus as VerificationStatus,
       gstNumber: vendor.gstNumber || undefined,
       address: vendor.address || undefined,
+      logoUrl: photoUrl,
+      photoUrl,
       createdAt: vendor.createdAt.toISOString(),
       updatedAt: vendor.updatedAt.toISOString(),
       ...savedCompanyDetails,

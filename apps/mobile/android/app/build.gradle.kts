@@ -85,4 +85,5 @@ dependencies {
     implementation("androidx.multidex:multidex:2.0.1")
     implementation("com.google.android.material:material:1.13.0")
     implementation("androidx.concurrent:concurrent-futures:1.3.0")
+    implementation("com.google.android.play:app-update:2.1.0")
 }
