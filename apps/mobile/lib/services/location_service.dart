@@ -815,29 +815,57 @@ class LocationService {
         },
         'travelMode': 'DRIVE',
         'routingPreference': 'TRAFFIC_AWARE',
+        'computeAlternativeRoutes': true,
+        'routeModifiers': {
+          'avoidTolls': true,
+        },
       };
 
-      final response = await http.post(
-        Uri.parse(_routesBase),
-        headers: {
-          ..._googleJsonHeaders,
-          'X-Goog-FieldMask': 'routes.distanceMeters,routes.duration,routes.description',
-        },
-        body: jsonEncode(body),
-      ).timeout(const Duration(seconds: 4));
+      Future<http.Response> query(Map<String, dynamic> payload) => http
+          .post(
+            Uri.parse(_routesBase),
+            headers: {
+              ..._googleJsonHeaders,
+              'X-Goog-FieldMask': 'routes.distanceMeters,routes.duration,routes.description',
+            },
+            body: jsonEncode(payload),
+          )
+          .timeout(const Duration(seconds: 5));
 
+      var response = await query(body);
+      List<dynamic>? routes;
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final routes = data['routes'] as List<dynamic>?;
-        if (routes != null && routes.isNotEmpty) {
-          final route = routes[0] as Map<String, dynamic>;
-          final distanceMeters = (route['distanceMeters'] as num?)?.toDouble() ?? 0.0;
-          final durationRaw = route['duration']?.toString() ?? '0s';
-          final durationSeconds = double.tryParse(durationRaw.replaceAll('s', '')) ?? 0.0;
+        routes = data['routes'] as List<dynamic>?;
+      }
+      // Fallback to standard routes only if no toll-free route exists
+      if (routes == null || routes.isEmpty) {
+        final fallbackBody = Map<String, dynamic>.from(body)..['routeModifiers'] = {'avoidTolls': false};
+        response = await query(fallbackBody);
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body) as Map<String, dynamic>;
+          routes = data['routes'] as List<dynamic>?;
+        }
+      }
 
-          if (distanceMeters > 0) {
-            return RoadRouteResult.fromMetersAndSeconds(distanceMeters, durationSeconds, isAccurate: true);
+      if (routes != null && routes.isNotEmpty) {
+        Map<String, dynamic>? shortest;
+        double shortestMeters = double.infinity;
+        for (final r in routes) {
+          if (r is! Map) continue;
+          final m = (r['distanceMeters'] as num?)?.toDouble() ?? 0.0;
+          if (m > 0 && m < shortestMeters) {
+            shortestMeters = m;
+            shortest = Map<String, dynamic>.from(r);
           }
+        }
+        final route = shortest ?? (routes[0] as Map<String, dynamic>);
+        final distanceMeters = (route['distanceMeters'] as num?)?.toDouble() ?? 0.0;
+        final durationRaw = route['duration']?.toString() ?? '0s';
+        final durationSeconds = double.tryParse(durationRaw.replaceAll('s', '')) ?? 0.0;
+
+        if (distanceMeters > 0) {
+          return RoadRouteResult.fromMetersAndSeconds(distanceMeters, durationSeconds, isAccurate: true);
         }
       }
     } catch (e) {
@@ -850,8 +878,109 @@ class LocationService {
     return RoadRouteResult.fromMetersAndSeconds(haversineKm * 1000.0, fallbackMins * 60.0, isAccurate: false);
   }
 
+  /// Fetches 2–3 alternative toll-free driving routes via Google Routes API (`computeRoutes`),
+  /// sorted strictly by shortest distance ascending so index 0 is ALWAYS the shortest route.
+  /// Automatically falls back to toll-allowed routes only if no toll-free route exists.
+  Future<List<RouteOption>> fetchAlternativeRoutes({
+    required double startLat,
+    required double startLng,
+    required double endLat,
+    required double endLng,
+    bool avoidTolls = true,
+  }) async {
+    if (startLat == 0.0 || startLng == 0.0 || endLat == 0.0 || endLng == 0.0) return const [];
+
+    Future<List<Map<String, dynamic>>> requestRoutes(bool noTolls) async {
+      final body = {
+        'origin': {'location': {'latLng': {'latitude': startLat, 'longitude': startLng}}},
+        'destination': {'location': {'latLng': {'latitude': endLat, 'longitude': endLng}}},
+        'travelMode': 'DRIVE',
+        'routingPreference': 'TRAFFIC_AWARE',
+        'computeAlternativeRoutes': true,
+        'routeModifiers': {'avoidTolls': noTolls},
+        'polylineQuality': 'OVERVIEW',
+      };
+      final response = await http
+          .post(
+            Uri.parse(_routesBase),
+            headers: {
+              ..._googleJsonHeaders,
+              'X-Goog-FieldMask':
+                  'routes.distanceMeters,routes.duration,routes.description,routes.polyline.encodedPolyline',
+            },
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 7));
+      if (response.statusCode != 200) {
+        debugPrint('Google Routes API (alternatives) HTTP ${response.statusCode}');
+        return const [];
+      }
+      final raw = (jsonDecode(response.body) as Map<String, dynamic>)['routes'] as List<dynamic>?;
+      if (raw == null || raw.isEmpty) return const [];
+      return raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+    }
+
+    try {
+      var effectiveAvoidTolls = avoidTolls;
+      var rawRoutes = await requestRoutes(avoidTolls);
+      if (rawRoutes.isEmpty && avoidTolls) {
+        effectiveAvoidTolls = false;
+        rawRoutes = await requestRoutes(false);
+      }
+      if (rawRoutes.isEmpty) return const [];
+
+      // Parse valid routes & deduplicate near-identical polylines/distances
+      final parsed = <RouteOption>[];
+      for (final r in rawRoutes) {
+        final distM = (r['distanceMeters'] as num?)?.toDouble() ?? 0.0;
+        if (distM <= 0) continue;
+        final encoded = (r['polyline'] as Map?)?['encodedPolyline']?.toString() ?? '';
+        final durSec = double.tryParse((r['duration']?.toString() ?? '0s').replaceAll('s', '')) ?? 0.0;
+        final desc = (r['description']?.toString() ?? '').trim();
+        parsed.add(
+          RouteOption.fromRaw(
+            index: parsed.length,
+            summary: desc,
+            distanceMeters: distM,
+            durationSeconds: durSec,
+            encodedPolyline: encoded,
+            avoidTolls: effectiveAvoidTolls,
+            isShortest: false,
+          ),
+        );
+      }
+
+      if (parsed.isEmpty) return const [];
+
+      // Always sort by shortest road distance ascending
+      parsed.sort((a, b) => a.distanceMeters.compareTo(b.distanceMeters));
+
+      // Keep top 3 routes and tag index 0 as shortest
+      final limited = parsed.take(3).toList();
+      return List<RouteOption>.generate(limited.length, (i) {
+        final r = limited[i];
+        return RouteOption(
+          index: i,
+          summary: r.summary.isNotEmpty ? r.summary : 'Route ${i + 1}',
+          distanceMeters: r.distanceMeters,
+          distanceKm: r.distanceKm,
+          durationSeconds: r.durationSeconds,
+          durationMinutes: r.durationMinutes,
+          formattedDistance: r.formattedDistance,
+          formattedEta: r.formattedEta,
+          encodedPolyline: r.encodedPolyline,
+          avoidTolls: r.avoidTolls,
+          isShortest: i == 0,
+        );
+      });
+    } catch (e) {
+      debugPrint('Google Routes API (alternatives) error: $e');
+      return const [];
+    }
+  }
+
   /// Road geometry + ETA for the live trip map (Routes API `computeRoutes`, encoded polyline).
-  ///
+  /// Uses toll-free alternative routing and selects the shortest road path.
   /// Returns null on any failure so the map simply draws no route line (it never invents one).
   Future<RoutePath?> fetchRoutePath({
     required double startLat,
@@ -861,37 +990,20 @@ class LocationService {
   }) async {
     if (startLat == 0.0 || startLng == 0.0 || endLat == 0.0 || endLng == 0.0) return null;
     try {
-      final body = {
-        'origin': {'location': {'latLng': {'latitude': startLat, 'longitude': startLng}}},
-        'destination': {'location': {'latLng': {'latitude': endLat, 'longitude': endLng}}},
-        'travelMode': 'DRIVE',
-        'routingPreference': 'TRAFFIC_AWARE',
-        'polylineQuality': 'OVERVIEW',
-      };
-      final response = await http
-          .post(
-            Uri.parse(_routesBase),
-            headers: {
-              ..._googleJsonHeaders,
-              'X-Goog-FieldMask': 'routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline',
-            },
-            body: jsonEncode(body),
-          )
-          .timeout(const Duration(seconds: 6));
-      if (response.statusCode != 200) {
-        debugPrint('Google Routes API (path) HTTP ${response.statusCode}');
-        return null;
-      }
-      final routes = (jsonDecode(response.body) as Map<String, dynamic>)['routes'] as List<dynamic>?;
-      if (routes == null || routes.isEmpty) return null;
-      final route = routes.first as Map<String, dynamic>;
-      final encoded = (route['polyline'] as Map<String, dynamic>?)?['encodedPolyline'] as String?;
-      if (encoded == null || encoded.isEmpty) return null;
-      final seconds = double.tryParse((route['duration']?.toString() ?? '0s').replaceAll('s', '')) ?? 0;
+      final options = await fetchAlternativeRoutes(
+        startLat: startLat,
+        startLng: startLng,
+        endLat: endLat,
+        endLng: endLng,
+        avoidTolls: true,
+      );
+      if (options.isEmpty) return null;
+      final shortest = options.first;
+      if (shortest.encodedPolyline.isEmpty) return null;
       return RoutePath(
-        encodedPolyline: encoded,
-        distanceMeters: (route['distanceMeters'] as num?)?.toDouble() ?? 0,
-        durationSeconds: seconds,
+        encodedPolyline: shortest.encodedPolyline,
+        distanceMeters: shortest.distanceMeters,
+        durationSeconds: shortest.durationSeconds,
       );
     } catch (e) {
       debugPrint('Google Routes API (path) error: $e');
@@ -938,6 +1050,63 @@ class RoutePath {
   final String encodedPolyline;
   final double distanceMeters;
   final double durationSeconds;
+}
+
+/// Selectable driving route option returned by Google Routes API (`computeAlternativeRoutes: true`).
+class RouteOption {
+  final int index;
+  final String summary;
+  final double distanceMeters;
+  final double distanceKm;
+  final double durationSeconds;
+  final int durationMinutes;
+  final String formattedDistance;
+  final String formattedEta;
+  final String encodedPolyline;
+  final bool avoidTolls;
+  final bool isShortest;
+
+  const RouteOption({
+    required this.index,
+    required this.summary,
+    required this.distanceMeters,
+    required this.distanceKm,
+    required this.durationSeconds,
+    required this.durationMinutes,
+    required this.formattedDistance,
+    required this.formattedEta,
+    required this.encodedPolyline,
+    this.avoidTolls = true,
+    this.isShortest = false,
+  });
+
+  factory RouteOption.fromRaw({
+    required int index,
+    required String summary,
+    required double distanceMeters,
+    required double durationSeconds,
+    required String encodedPolyline,
+    bool avoidTolls = true,
+    bool isShortest = false,
+  }) {
+    final km = distanceMeters / 1000.0;
+    final mins = (durationSeconds / 60.0).round().clamp(1, 1440);
+    final distStr = km < 1 ? '${distanceMeters.round()} m' : '${km.toStringAsFixed(1)} km';
+    final etaStr = mins < 60 ? '$mins mins' : '${mins ~/ 60}h ${mins % 60}m';
+    return RouteOption(
+      index: index,
+      summary: summary,
+      distanceMeters: distanceMeters,
+      distanceKm: km,
+      durationSeconds: durationSeconds,
+      durationMinutes: mins,
+      formattedDistance: distStr,
+      formattedEta: etaStr,
+      encodedPolyline: encodedPolyline,
+      avoidTolls: avoidTolls,
+      isShortest: isShortest,
+    );
+  }
 }
 
 /// Result of a Google Maps road routing computation

@@ -6,6 +6,7 @@ import '../../../shared/theme/app_colors.dart';
 import '../../../shared/theme/app_radius.dart';
 import '../../../shared/theme/app_spacing.dart';
 import '../../../shared/theme/app_typography.dart';
+import '../../../shared/widgets/multi_route_selector_map.dart';
 
 /// Pickup and drop selection for one cab. Any two places can be chosen; at most one can
 /// optionally be labelled "Office" (a display label only: the price comes from the road distance between them).
@@ -55,6 +56,8 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
   int _durationMinutes = 0;
   String _formattedDistance = '';
   String _formattedEta = '';
+  List<RouteOption> _routeOptions = const [];
+  int _selectedRouteIndex = 0;
 
   bool get _hasPickup => _pickupAddress.isNotEmpty && _pickupLat != 0.0 && _pickupLng != 0.0;
   bool get _hasDrop => _dropAddress.isNotEmpty && _dropLat != 0.0 && _dropLng != 0.0;
@@ -75,13 +78,51 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
     }
   }
 
+  void _applySelectedRoute(RouteOption route, int index) {
+    _selectedRouteIndex = index;
+    _distanceKm = route.distanceKm;
+    _durationMinutes = route.durationMinutes;
+    _formattedDistance = route.formattedDistance;
+    _formattedEta = route.formattedEta;
+  }
+
+  void _selectRoute(int index) {
+    if (index < 0 || index >= _routeOptions.length) return;
+    setState(() {
+      _applySelectedRoute(_routeOptions[index], index);
+    });
+  }
+
   Future<void> _calculateRoute() async {
     if (!_hasPickup || !_hasDrop) return;
     setState(() {
       _isCalculatingRoute = true;
       _routeError = null;
+      _routeOptions = const [];
+      _selectedRouteIndex = 0;
     });
     try {
+      // Fetch 2–3 toll-free alternative routes sorted by shortest distance ascending
+      final alternatives = await LocationService.instance.fetchAlternativeRoutes(
+        startLat: _pickupLat,
+        startLng: _pickupLng,
+        endLat: _dropLat,
+        endLng: _dropLng,
+        avoidTolls: true,
+      );
+
+      if (!mounted) return;
+      if (alternatives.isNotEmpty) {
+        setState(() {
+          _routeOptions = alternatives;
+          // Auto-select index 0 (always the shortest toll-free route)
+          _applySelectedRoute(alternatives.first, 0);
+          _isCalculatingRoute = false;
+        });
+        return;
+      }
+
+      // Fallback when alternative route fetch returned empty
       final res = await LocationService.instance.calculateRoadRoute(
         startLat: _pickupLat,
         startLng: _pickupLng,
@@ -89,7 +130,9 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
         endLng: _dropLng,
       );
       final distance = res.distanceKm;
-      final minutes = distance > 0 ? ((distance / 40.0) * 60.0).round().clamp(1, 1440) : 0;
+      final minutes = res.durationMinutes > 0
+          ? res.durationMinutes
+          : (distance > 0 ? ((distance / 40.0) * 60.0).round().clamp(1, 1440) : 0);
       if (!mounted) return;
       setState(() {
         _distanceKm = distance;
@@ -106,6 +149,7 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
         _durationMinutes = 0;
         _formattedDistance = '';
         _formattedEta = '';
+        _routeOptions = const [];
         _isCalculatingRoute = false;
         _routeError = 'Could not get the road route. The price will be checked when you add the cab.';
       });
@@ -361,7 +405,35 @@ class _SelectRouteSubBottomSheetState extends State<SelectRouteSubBottomSheet> {
                     ),
                     const SizedBox(height: 12),
                     if (_isCalculatingRoute)
-                      const Center(child: Padding(padding: EdgeInsets.all(8), child: CircularProgressIndicator(strokeWidth: 2)))
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        child: Column(
+                          children: [
+                            SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(strokeWidth: 2.2),
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Finding shortest toll-free routes...',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                            ),
+                          ],
+                        ),
+                      )
+                    else if (_hasPickup && _hasDrop && _routeOptions.isNotEmpty)
+                      MultiRouteSelectorMap(
+                        pickupLat: _pickupLat,
+                        pickupLng: _pickupLng,
+                        dropLat: _dropLat,
+                        dropLng: _dropLng,
+                        pickupAddress: _pickupAddress,
+                        dropAddress: _dropAddress,
+                        routes: _routeOptions,
+                        selectedIndex: _selectedRouteIndex,
+                        onSelectRoute: _selectRoute,
+                      )
                     else if (_formattedDistance.isNotEmpty)
                       Text('Road distance: $_formattedDistance • about $_formattedEta',
                           style: TextStyle(fontSize: 12, color: muted, fontWeight: FontWeight.w600))
