@@ -21,6 +21,7 @@ class HttpEmployeeAuthRepository implements EmployeeAuthRepository {
         if (isEmail) 'email': sanitized.toLowerCase() else 'phone': cleanPhone,
         'channel': isEmail ? 'EMAIL' : 'SMS',
         if (!isEmail) 'countryCode': '+91',
+        'role': 'EMPLOYEE',
         'isRegister': false,
       });
     } on ApiException catch (e) {
@@ -48,6 +49,7 @@ class HttpEmployeeAuthRepository implements EmployeeAuthRepository {
         if (isEmail) 'email': clean.toLowerCase() else 'phone': cleanPhone,
         'otp': cleanOtp,
         if (!isEmail) 'countryCode': '+91',
+        'role': 'EMPLOYEE',
       });
 
       final payload = res['data'] ?? res;

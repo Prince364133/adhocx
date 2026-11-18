@@ -1160,8 +1160,12 @@ export class CorporateRoutePlannerService {
   private async resolveEmployeeForStop(tx: any, tenantId: string, officeId: string, stop: any): Promise<string | undefined> {
     if (stop.employeeId) {
       if (typeof tx.corporateEmployee?.findFirst === 'function') {
-        const own = await tx.corporateEmployee.findFirst({ where: { id: stop.employeeId, tenantId }, select: { id: true } });
+        const own = await tx.corporateEmployee.findFirst({
+          where: { id: stop.employeeId, tenantId },
+          select: { id: true, userId: true, fullName: true, phoneNumber: true, email: true },
+        });
         if (!own) throw new BadRequestException(`Employee ${stop.employeeId} does not belong to this company`);
+        await this.ensureEmployeeLoginUser(tx, tenantId, own);
       }
       return stop.employeeId;
     }
@@ -1170,15 +1174,27 @@ export class CorporateRoutePlannerService {
     const code = String(stop.employeeCode ?? '').trim();
     const phone = normalizeIndianPhone(stop.phoneNumber);
     if (code) {
-      const byCode = await tx.corporateEmployee.findFirst({ where: { tenantId, employeeCode: code }, select: { id: true } });
-      if (byCode) return byCode.id;
+      const byCode = await tx.corporateEmployee.findFirst({
+        where: { tenantId, employeeCode: code },
+        select: { id: true, userId: true, fullName: true, phoneNumber: true, email: true },
+      });
+      if (byCode) {
+        await this.ensureEmployeeLoginUser(tx, tenantId, {
+          ...byCode,
+          phoneNumber: byCode.phoneNumber || phone,
+        });
+        return byCode.id;
+      }
     }
     if (phone) {
       const byPhone = await tx.corporateEmployee.findFirst({
         where: { tenantId, phoneNumber: { in: getPhoneVariants(phone) } },
-        select: { id: true },
+        select: { id: true, userId: true, fullName: true, phoneNumber: true, email: true },
       });
-      if (byPhone) return byPhone.id;
+      if (byPhone) {
+        await this.ensureEmployeeLoginUser(tx, tenantId, byPhone);
+        return byPhone.id;
+      }
     }
     if (typeof tx.corporateEmployee?.create !== 'function') return undefined;
 
@@ -1194,8 +1210,9 @@ export class CorporateRoutePlannerService {
         gender: this.normalizeCorporateGender(stop.gender),
         department: stop.department || null,
       },
-      select: { id: true },
+      select: { id: true, userId: true, fullName: true, phoneNumber: true, email: true },
     });
+    await this.ensureEmployeeLoginUser(tx, tenantId, created);
     if (typeof tx.corporateEmployeeLocation?.create === 'function') {
       await tx.corporateEmployeeLocation.create({
         data: {
@@ -1209,6 +1226,104 @@ export class CorporateRoutePlannerService {
       });
     }
     return created.id;
+  }
+
+  /**
+   * Provisions or links an EMPLOYEE login account (`users` row) for a corporate employee
+   * so they can sign in to the Employee App / Portal via OTP immediately after CSV commit.
+   * Respects the 1-account-1-role policy and never alters non-EMPLOYEE accounts.
+   */
+  private async ensureEmployeeLoginUser(
+    tx: any,
+    tenantId: string,
+    employee: {
+      id: string;
+      userId?: string | null;
+      fullName?: string | null;
+      phoneNumber?: string | null;
+      email?: string | null;
+    },
+  ): Promise<void> {
+    if (employee.userId) return;
+    if (
+      typeof tx.user?.findFirst !== 'function' ||
+      typeof tx.user?.create !== 'function' ||
+      typeof tx.corporateEmployee?.update !== 'function'
+    ) {
+      return;
+    }
+
+    const normalizedPhone = normalizeIndianPhone(employee.phoneNumber);
+    if (!normalizedPhone || /^(\+91)?0+$/.test(normalizedPhone)) {
+      return;
+    }
+
+    try {
+      const existingUser = await tx.user.findFirst({
+        where: { phone: { in: getPhoneVariants(normalizedPhone) } },
+        select: { id: true, role: true, corporateTenantId: true },
+      });
+
+      if (existingUser) {
+        const canLinkExisting =
+          existingUser.role === 'EMPLOYEE' &&
+          (!existingUser.corporateTenantId || existingUser.corporateTenantId === tenantId);
+        if (!canLinkExisting) {
+          this.logger.warn(
+            `Employee phone ${normalizedPhone} already belongs to ${existingUser.role} user ${existingUser.id}; skipping automatic EMPLOYEE login link.`,
+          );
+          return;
+        }
+        const alreadyLinked = await tx.corporateEmployee.findFirst({
+          where: { userId: existingUser.id },
+          select: { id: true },
+        });
+        if (alreadyLinked) return;
+
+        if (!existingUser.corporateTenantId && typeof tx.user.update === 'function') {
+          await tx.user.update({
+            where: { id: existingUser.id },
+            data: { corporateTenantId: tenantId },
+          });
+        }
+        await tx.corporateEmployee.update({
+          where: { id: employee.id },
+          data: { userId: existingUser.id },
+        });
+        return;
+      }
+
+      const rawEmail = String(employee.email ?? '').trim().toLowerCase();
+      let safeEmail: string | undefined;
+      if (rawEmail && rawEmail.includes('@') && !rawEmail.endsWith('@roster.corporate.local')) {
+        const emailOwner = await tx.user.findFirst({
+          where: { email: { equals: rawEmail, mode: 'insensitive' } },
+          select: { id: true },
+        });
+        if (!emailOwner) safeEmail = rawEmail;
+      }
+
+      const createdUser = await tx.user.create({
+        data: {
+          phone: normalizedPhone,
+          ...(safeEmail ? { email: safeEmail } : {}),
+          fullName: employee.fullName?.trim() || undefined,
+          role: 'EMPLOYEE',
+          corporateTenantId: tenantId,
+          status: 'ACTIVE',
+        },
+        select: { id: true },
+      });
+
+      await tx.corporateEmployee.update({
+        where: { id: employee.id },
+        data: { userId: createdUser.id },
+      });
+    } catch (err: any) {
+      this.logger.warn(
+        `Could not auto-provision EMPLOYEE login for corporateEmployee ${employee.id} (${normalizedPhone}): ${err?.message ?? err}`,
+      );
+    }
   }
 
   private async assertEmployeeNotOnLiveRoute(

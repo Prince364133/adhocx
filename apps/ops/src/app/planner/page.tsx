@@ -11,6 +11,9 @@ import {
   VehicleCategoryOption,
 } from '../../lib/api/opsTypes';
 import { Button } from '../../components/common/Button';
+import { useToast } from '../../components/common/ToastProvider';
+import { OfficeHubRequiredModal } from '../../components/operations/OfficeHubRequiredModal';
+import { OfficeLocationMismatchModal } from '../../components/operations/OfficeLocationMismatchModal';
 import { SpatialTopologyCanvas } from '../../components/operations/SpatialTopologyCanvas';
 import {
   Cpu,
@@ -75,6 +78,42 @@ interface RosterPlanSettings {
   stopDwellMinutes: number;
 }
 
+function stripApiErrorPrefix(message: string): string {
+  return message.replace(/^API Error\s*\[\d+\]:\s*/i, '').trim();
+}
+
+function parseOfficeLocationMismatch(
+  message: string,
+): { distanceKm?: string; savedOfficeName?: string } | null {
+  const cleaned = stripApiErrorPrefix(message);
+  const commitMatch = cleaned.match(
+    /optimized to an office location\s+([\d.]+)\s*km away from the saved office\s+"([^"]+)"/i,
+  );
+  if (commitMatch) {
+    return { distanceKm: commitMatch[1], savedOfficeName: commitMatch[2] };
+  }
+  const planWarnMatch = cleaned.match(
+    /saved office pin for\s+"([^"]+)"\s+differs from the geocoded address by\s+([\d.]+)\s*km/i,
+  );
+  if (planWarnMatch) {
+    return { distanceKm: planWarnMatch[2], savedOfficeName: planWarnMatch[1] };
+  }
+  if (/office location.*away from the saved office|saved office pin.*differs/i.test(cleaned)) {
+    return {};
+  }
+  return null;
+}
+
+function haversineDistanceKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 function getLocationShortcut(address: string, fallback: string): string {
   const location = address
     .split(',')
@@ -88,6 +127,7 @@ function getLocationShortcut(address: string, fallback: string): string {
 }
 
 export default function RouteOptimizerPage() {
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState<'FILE_UPLOAD' | 'DB_SHIFT'>('FILE_UPLOAD');
 
   // File Upload Form State
@@ -111,6 +151,26 @@ export default function RouteOptimizerPage() {
   const [selectedUploadTenantId, setSelectedUploadTenantId] = useState<string>('');
   const [selectedOfficeId, setSelectedOfficeId] = useState<string>('');
   const [uploadCompanyLoading, setUploadCompanyLoading] = useState(false);
+  const [tenantsLoaded, setTenantsLoaded] = useState(false);
+  const [missingOfficeModal, setMissingOfficeModal] = useState<{
+    open: boolean;
+    context: 'import' | 'post';
+    companyName?: string;
+    hasCompanies: boolean;
+  }>({
+    open: false,
+    context: 'post',
+    hasCompanies: true,
+  });
+  const [refreshingOffices, setRefreshingOffices] = useState(false);
+  const [refreshOfficesNotice, setRefreshOfficesNotice] = useState<string | null>(null);
+  const [officeMismatchModal, setOfficeMismatchModal] = useState<{
+    open: boolean;
+    distanceKm?: string;
+    savedOfficeName?: string;
+    savedOfficeAddress?: string;
+    plannedOfficeName?: string;
+  }>({ open: false });
   const [shiftDate, setShiftDate] = useState<string>(new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10));
   const [loginShiftTime, setLoginShiftTime] = useState<string>('08:00');
   const [logoutShiftTime, setLogoutShiftTime] = useState<string>('17:00');
@@ -226,6 +286,10 @@ export default function RouteOptimizerPage() {
           setErrorMsg(`Could not load companies or office details: ${err instanceof Error ? err.message : String(err)}`);
           setUploadCompanyLoading(false);
         }
+      } finally {
+        if (!cancelled) {
+          setTenantsLoaded(true);
+        }
       }
     })();
     return () => {
@@ -234,6 +298,78 @@ export default function RouteOptimizerPage() {
   }, []);
 
   const selectedUploadTenant = tenants.find((tenant) => tenant.id === selectedUploadTenantId);
+  const hasConfiguredOffices = Boolean(selectedUploadTenant?.offices?.length);
+  const isMissingOffices = tenantsLoaded && !uploadCompanyLoading && !hasConfiguredOffices;
+
+  function notifyMissingOffices(
+    tenantForContext?: CorporateTenantOption,
+    context: 'import' | 'post' = 'import',
+  ) {
+    setRefreshOfficesNotice(null);
+    setMissingOfficeModal({
+      open: true,
+      context,
+      companyName: tenantForContext?.name,
+      hasCompanies: tenants.length > 0,
+    });
+  }
+
+  async function handleRefreshOffices() {
+    setRefreshingOffices(true);
+    setRefreshOfficesNotice(null);
+    try {
+      const res = await opsApi.getTenants({ limit: 100 });
+      const items = res?.items ?? [];
+      setTenants(items);
+      const preferredId = selectedUploadTenantId || selectedTenantId;
+      let tenant = (preferredId ? items.find((item) => item.id === preferredId) : undefined) ?? items[0];
+      if (tenant && !tenant.offices?.length) {
+        tenant = await opsApi.getTenant(tenant.id);
+      }
+      if (tenant) {
+        setTenants((current) => [tenant!, ...current.filter((item) => item.id !== tenant!.id)]);
+        setSelectedTenantId(tenant.id);
+        setSelectedUploadTenantId(tenant.id);
+        const office =
+          tenant.offices?.find((item) => item.id === selectedOfficeId) ?? tenant.offices?.[0];
+        if (office) {
+          setSelectedOfficeId(office.id);
+          if (office.addressText || office.name) setOfficeAddress(office.addressText || office.name);
+          if (missingOfficeModal.open) {
+            setMissingOfficeModal((prev) => ({ ...prev, open: false }));
+            toast.success(
+              `Loaded office hub "${office.name}" for ${tenant.name}. You can now post your routes.`,
+              'Office Hub Ready',
+              'ops-planner-offices-loaded',
+            );
+          } else if (officeMismatchModal.open) {
+            setOfficeMismatchModal((prev) => ({
+              ...prev,
+              savedOfficeName: office.name,
+              savedOfficeAddress: office.addressText || office.name,
+            }));
+            setRefreshOfficesNotice(
+              `Updated office details loaded for "${office.name}". Click Edit Params and re-run Calculate Routes to apply the updated coordinates.`,
+            );
+          }
+          return;
+        }
+        setRefreshOfficesNotice(
+          `No office hubs found for ${tenant.name} yet. Please add and save an office in the Admin Dashboard, then click Refresh Offices again.`,
+        );
+      } else {
+        setRefreshOfficesNotice(
+          'No companies or office hubs found yet. Please add a company and office in the Admin Dashboard, then try again.',
+        );
+      }
+    } catch (err) {
+      setRefreshOfficesNotice(
+        err instanceof Error ? `Could not refresh offices: ${err.message}` : 'Could not refresh offices. Please try again.',
+      );
+    } finally {
+      setRefreshingOffices(false);
+    }
+  }
   const uncommittedSelectedRoutes = planResult?.routes.filter(
     (route) => selectedCabsForCommit.has(route.cab) && !committedRouteCabs.has(route.cab),
   ) ?? [];
@@ -513,6 +649,9 @@ export default function RouteOptimizerPage() {
       setErrorMsg('Upload a CSV, Excel workbook/template (.xls, .xlsx, .xlsm, .xlsb), or OpenDocument (.ods) file.');
       return;
     }
+    if (file && isMissingOffices) {
+      notifyMissingOffices(selectedUploadTenant);
+    }
     setSelectedFile(file);
     setPlanResult(null);
     setCommittedSuccess(null);
@@ -532,8 +671,12 @@ export default function RouteOptimizerPage() {
       return;
     }
     if (!selectedUploadTenantId || !selectedUploadTenant) {
+      notifyMissingOffices();
       setErrorMsg('Please select an onboarded company before importing the roster.');
       return;
+    }
+    if (!selectedUploadTenant.offices?.length) {
+      notifyMissingOffices(selectedUploadTenant);
     }
 
     const loginIso = direction === 'LOGIN' || direction === 'BOTH' ? istLocalToIso(loginDeadline) : undefined;
@@ -689,6 +832,34 @@ export default function RouteOptimizerPage() {
       );
       setSelectedCabsForCommit(new Set(finalRoutes.map((route) => route.cab)));
       setExpandedCabs(new Set(finalRoutes[0] ? [finalRoutes[0].cab] : []));
+      if (!selectedUploadTenant || !selectedOfficeId) {
+        notifyMissingOffices(selectedUploadTenant, 'post');
+      } else {
+        const matchedOffice = selectedUploadTenant.offices?.find((item) => item.id === selectedOfficeId);
+        const plannedOffice = sortedPlan.routes[0]?.office ?? sortedPlan.office;
+        const warnMismatch = (sortedPlan.warnings ?? [])
+          .map((warning) => parseOfficeLocationMismatch(warning))
+          .find((item) => Boolean(item));
+        const computedDriftKm =
+          matchedOffice &&
+          typeof matchedOffice.latitude === 'number' &&
+          typeof matchedOffice.longitude === 'number' &&
+          plannedOffice &&
+          typeof plannedOffice.lat === 'number' &&
+          typeof plannedOffice.lng === 'number'
+            ? haversineDistanceKm(matchedOffice.latitude, matchedOffice.longitude, plannedOffice.lat, plannedOffice.lng)
+            : null;
+        if (warnMismatch || (computedDriftKm !== null && computedDriftKm > 2)) {
+          setRefreshOfficesNotice(null);
+          setOfficeMismatchModal({
+            open: true,
+            distanceKm: warnMismatch?.distanceKm ?? (computedDriftKm !== null ? computedDriftKm.toFixed(1) : undefined),
+            savedOfficeName: matchedOffice?.name || warnMismatch?.savedOfficeName,
+            savedOfficeAddress: matchedOffice?.addressText || matchedOffice?.name,
+            plannedOfficeName: plannedOffice?.name,
+          });
+        }
+      }
       if (directionFailures.length > 0) {
         setErrorMsg(
           `Partial planning result: ${directionFailures
@@ -710,6 +881,7 @@ export default function RouteOptimizerPage() {
       return;
     }
     if (!selectedTenantId || !selectedOfficeId) {
+      notifyMissingOffices(tenants.find((item) => item.id === selectedTenantId));
       setErrorMsg('Please select a tenant and office hub');
       return;
     }
@@ -767,6 +939,7 @@ export default function RouteOptimizerPage() {
   async function handleCommitToDatabase() {
     if (!planResult || !planSettings || isMultiOfficePlan) return;
     if (!selectedUploadTenant || !selectedOfficeId) {
+      notifyMissingOffices(selectedUploadTenant, 'post');
       setErrorMsg('Select a real company with an office hub before committing routes.');
       return;
     }
@@ -873,12 +1046,46 @@ export default function RouteOptimizerPage() {
       }
       setCommitFailures(failures);
       if (failures.length > 0) {
-        setErrorMsg(
-          `Partial commit: ${failures.map(({ direction: failedDirection, error }) => `${failedDirection} failed: ${error}`).join('; ')}. Successful directions remain committed; retry the failed direction.`,
+        const mismatchEntry = failures
+          .map((entry) => ({ entry, parsed: parseOfficeLocationMismatch(entry.error) }))
+          .find((item) => Boolean(item.parsed));
+
+        if (mismatchEntry?.parsed) {
+          const matchedOffice = selectedUploadTenant.offices?.find((item) => item.id === selectedOfficeId);
+          const plannedOffice = planResult.routes[0]?.office ?? planResult.office;
+          setRefreshOfficesNotice(null);
+          setOfficeMismatchModal({
+            open: true,
+            distanceKm: mismatchEntry.parsed.distanceKm,
+            savedOfficeName: mismatchEntry.parsed.savedOfficeName || matchedOffice?.name,
+            savedOfficeAddress: matchedOffice?.addressText || matchedOffice?.name,
+            plannedOfficeName: plannedOffice?.name,
+          });
+        }
+
+        const allFailuresAreOfficeMismatch = failures.every((entry) =>
+          Boolean(parseOfficeLocationMismatch(entry.error)),
         );
+        if (successes.length > 0) {
+          setErrorMsg(
+            `Some shifts could not be posted: ${failures
+              .map(({ direction: failedDirection, error }) => `${failedDirection} — ${stripApiErrorPrefix(error)}`)
+              .join('; ')}. Already posted shifts remain saved.`,
+          );
+        } else if (!allFailuresAreOfficeMismatch) {
+          setErrorMsg(
+            failures
+              .map(({ direction: failedDirection, error }) =>
+                failures.length > 1
+                  ? `${failedDirection}: ${stripApiErrorPrefix(error)}`
+                  : stripApiErrorPrefix(error),
+              )
+              .join(' '),
+          );
+        }
       }
     } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to commit routes to live operational database.');
+      setErrorMsg(stripApiErrorPrefix(err.message || 'Could not post routes. Please try again.'));
     } finally {
       setCommitting(false);
     }
@@ -1205,7 +1412,11 @@ export default function RouteOptimizerPage() {
                 <form onSubmit={handleCalculateRoutes} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
                   <div style={{ padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px', flex: 1, minHeight: 0 }}>
                     {selectedUploadTenant && (
-                      <div>
+                      <div
+                        onClick={() => {
+                          if (isMissingOffices) notifyMissingOffices(selectedUploadTenant);
+                        }}
+                      >
                         <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
                           Company Office Hub *
                         </label>
@@ -1226,6 +1437,7 @@ export default function RouteOptimizerPage() {
                             color: 'var(--text-primary)',
                             fontSize: '13px',
                             outline: 'none',
+                            pointerEvents: !selectedUploadTenant.offices?.length ? 'none' : undefined,
                           }}
                         >
                           {!selectedUploadTenant.offices?.length && <option value="">No office hubs configured</option>}
@@ -2138,19 +2350,49 @@ export default function RouteOptimizerPage() {
                 </div>
               )}
               <div style={{ padding: '14px 18px', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: '10px' }}>
-                <Button
-                  variant="primary"
-                  style={{ width: '100%' }}
-                  disabled={committing || !canCommitUploadPlan || uploadCompanyLoading || isMultiOfficePlan}
-                  onClick={handleCommitToDatabase}
-                  leftIcon={committing ? <RefreshCw className="spin" size={14} /> : <CheckCircle size={14} />}
+                <div
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    cursor:
+                      !committing && !uploadCompanyLoading && !isMultiOfficePlan && (!selectedUploadTenant || !selectedOfficeId)
+                        ? 'pointer'
+                        : undefined,
+                  }}
+                  onClick={() => {
+                    if (
+                      !committing &&
+                      !uploadCompanyLoading &&
+                      !isMultiOfficePlan &&
+                      (!selectedUploadTenant || !selectedOfficeId)
+                    ) {
+                      notifyMissingOffices(selectedUploadTenant, 'post');
+                    }
+                  }}
                 >
-                  {committing
-                    ? 'Adding Routes...'
-                    : canCommitUploadPlan
-                      ? `Add ${selectedCabsForCommit.size === planResult.routes.length ? 'All' : selectedCabsForCommit.size} Route${selectedCabsForCommit.size === 1 ? '' : 's'} to Routes Page`
-                      : 'Select Company & Office to Add Routes'}
-                </Button>
+                  <Button
+                    variant="primary"
+                    style={{
+                      width: '100%',
+                      pointerEvents:
+                        !committing &&
+                        !uploadCompanyLoading &&
+                        !isMultiOfficePlan &&
+                        (!selectedUploadTenant || !selectedOfficeId)
+                          ? 'none'
+                          : undefined,
+                    }}
+                    disabled={committing || !canCommitUploadPlan || uploadCompanyLoading || isMultiOfficePlan}
+                    onClick={handleCommitToDatabase}
+                    leftIcon={committing ? <RefreshCw className="spin" size={14} /> : <CheckCircle size={14} />}
+                  >
+                    {committing
+                      ? 'Adding Routes...'
+                      : canCommitUploadPlan
+                        ? `Add ${selectedCabsForCommit.size === planResult.routes.length ? 'All' : selectedCabsForCommit.size} Route${selectedCabsForCommit.size === 1 ? '' : 's'} to Routes Page`
+                        : 'Select Company & Office to Add Routes'}
+                  </Button>
+                </div>
                 <Button variant="secondary" onClick={handleExportExcel} leftIcon={<FileSpreadsheet size={14} />}>
                   Export Excel
                 </Button>
@@ -2318,6 +2560,37 @@ export default function RouteOptimizerPage() {
           )}
         </div>
       </div>
+
+      {/* Prominent Popup when Company Offices are Missing */}
+      <OfficeHubRequiredModal
+        isOpen={missingOfficeModal.open}
+        onClose={() => setMissingOfficeModal((prev) => ({ ...prev, open: false }))}
+        context={missingOfficeModal.context}
+        companyName={missingOfficeModal.companyName}
+        hasCompanies={missingOfficeModal.hasCompanies}
+        refreshing={refreshingOffices}
+        refreshNotice={refreshOfficesNotice}
+        onRefreshOffices={handleRefreshOffices}
+      />
+
+      {/* Prominent Popup when Planned Destination Differs from Saved Office Coordinates */}
+      <OfficeLocationMismatchModal
+        isOpen={officeMismatchModal.open}
+        onClose={() => setOfficeMismatchModal((prev) => ({ ...prev, open: false }))}
+        distanceKm={officeMismatchModal.distanceKm}
+        savedOfficeName={officeMismatchModal.savedOfficeName}
+        savedOfficeAddress={officeMismatchModal.savedOfficeAddress}
+        plannedOfficeName={officeMismatchModal.plannedOfficeName}
+        refreshing={refreshingOffices}
+        refreshNotice={refreshOfficesNotice}
+        onRefreshOffices={handleRefreshOffices}
+        onEditParams={() => {
+          setOfficeMismatchModal((prev) => ({ ...prev, open: false }));
+          setPlanResult(null);
+          setCommittedSuccess(null);
+          setErrorMsg(null);
+        }}
+      />
     </div>
   );
 }

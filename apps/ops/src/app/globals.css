@@ -303,6 +303,52 @@ html.dark .code-tag,
   animation: pulse-red 1.2s infinite ease-in-out;
 }
 
+/* ── Toast Notifications ── */
+@keyframes ops-toast-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(20px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes ops-toast-slide-out {
+  from {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(16px) scale(0.98);
+  }
+}
+
+.ops-toast-in {
+  animation: ops-toast-slide-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.ops-toast-out {
+  animation: ops-toast-slide-out 0.18s ease-in forwards;
+}
+
+@keyframes ops-modal-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.ops-modal-in {
+  animation: ops-modal-pop 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 /* ── Scrollbars ── */
 ::-webkit-scrollbar {
   width: 6px;

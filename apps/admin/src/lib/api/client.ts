@@ -289,7 +289,7 @@ export async function apiClient<T = unknown>(
     headers = {},
     token,
     allowForbidden = false,
-    timeoutMs = 10000,
+    timeoutMs = 30000,
   } = options;
 
   const requestHeaders: Record<string, string> = {

@@ -28,7 +28,7 @@ import { RedisService } from '../../redis/redis.service';
 import { resolveJwtSecret } from '../../config/auth.config';
 import { NotificationsService } from '../notifications/notifications.service';
 import { LocationsService } from '../locations/locations.service';
-import { getPhoneVariants, assertPhoneAvailable, sanitizeRealName, isPlaceholderName } from '../../common';
+import { getPhoneVariants, normalizeIndianPhone, assertPhoneAvailable, sanitizeRealName, isPlaceholderName } from '../../common';
 import { isLocalTestOtpEnabled } from './test-otp.policy';
 
 @Injectable()
@@ -539,6 +539,67 @@ export class AuthService implements OnModuleInit {
         }
       }
 
+      // Fallback: Check if there is an active CorporateEmployee matching this phone number or email
+      if (!existingUser && typeof (this.db as any).corporateEmployee?.findFirst === 'function') {
+        try {
+          const employee = await this.db.corporateEmployee.findFirst({
+            where: {
+              isActive: true,
+              tenant: { status: 'ACTIVE' },
+              OR: [
+                ...(phoneVariants && phoneVariants.length > 0 ? [{ phoneNumber: { in: phoneVariants } }] : []),
+                ...(!isEmail ? [{ phoneNumber: value }] : []),
+                ...(isEmail ? [{ email: { equals: value, mode: 'insensitive' as const } }] : []),
+              ],
+            },
+            select: {
+              id: true,
+              tenantId: true,
+              employeeCode: true,
+              fullName: true,
+              phoneNumber: true,
+              email: true,
+              userId: true,
+            },
+          });
+          if (employee) {
+            if (employee.userId) {
+              existingUser = await this.db.user.findUnique({ where: { id: employee.userId } });
+            } else {
+              const normalizedEmpPhone = !isEmail ? value : (normalizeIndianPhone(employee.phoneNumber) || undefined);
+              const rawEmpEmail = (isEmail ? value : employee.email || '').trim().toLowerCase();
+              let safeEmail: string | undefined;
+              if (rawEmpEmail && rawEmpEmail.includes('@') && !rawEmpEmail.endsWith('@roster.corporate.local')) {
+                const emailClash = await this.db.user.findFirst({
+                  where: { email: { equals: rawEmpEmail, mode: 'insensitive' } },
+                  select: { id: true },
+                });
+                if (!emailClash) safeEmail = rawEmpEmail;
+              }
+              existingUser = await this.db.user.create({
+                data: {
+                  phone: normalizedEmpPhone,
+                  ...(safeEmail ? { email: safeEmail } : {}),
+                  fullName: employee.fullName || undefined,
+                  role: UserRole.EMPLOYEE as any,
+                  corporateTenantId: employee.tenantId,
+                  status: 'ACTIVE',
+                },
+              });
+              await this.db.corporateEmployee.update({
+                where: { id: employee.id },
+                data: { userId: existingUser.id },
+              });
+              this.logger.log(
+                `Auto-provisioned corporate employee user ${existingUser.id} (${value}) for employee ${employee.employeeCode}`,
+              );
+            }
+          }
+        } catch (empProvErr: any) {
+          this.logger.warn(`Could not auto-provision corporate employee user for ${value}: ${empProvErr.message}`);
+        }
+      }
+
       if (!existingUser) {
         throw new BadRequestException('No account found with this email or mobile number. Please check your details or sign up.');
       }
@@ -761,10 +822,74 @@ export class AuthService implements OnModuleInit {
     }
 
     user = await this.linkCorporateTenantContact(user);
+    user = await this.linkCorporateEmployeeUser(user);
 
     await this.verifyAccountActiveAndClearStaleRevocation(user);
 
     return this.generateAuthResponse(user);
+  }
+
+  /**
+   * Links an authenticated EMPLOYEE user to their matching unlinked CorporateEmployee record
+   * (e.g. uploaded via CSV/roster before first OTP login). Never modifies non-EMPLOYEE roles.
+   */
+  private async linkCorporateEmployeeUser(user: any): Promise<any> {
+    if (!user || user.role !== UserRole.EMPLOYEE) return user;
+    if (typeof (this.db as any).corporateEmployee?.findUnique !== 'function') return user;
+    try {
+      const linked = await this.db.corporateEmployee.findUnique({
+        where: { userId: user.id },
+        select: { id: true, tenantId: true },
+      });
+      if (linked) {
+        if (!user.corporateTenantId) {
+          return await this.db.user.update({
+            where: { id: user.id },
+            data: { corporateTenantId: linked.tenantId },
+            include: { vendor: true, driver: true },
+          });
+        }
+        return user;
+      }
+
+      const phoneNorm = user.phone ? this.normalizeIdentifier(user.phone) : null;
+      const matchOr = [
+        ...(phoneNorm?.phoneVariants ? [{ phoneNumber: { in: phoneNorm.phoneVariants } }] : []),
+        ...(user.phone ? [{ phoneNumber: user.phone }] : []),
+        ...(user.email ? [{ email: { equals: user.email, mode: 'insensitive' as const } }] : []),
+      ];
+      if (matchOr.length === 0) return user;
+
+      const employee = await this.db.corporateEmployee.findFirst({
+        where: {
+          isActive: true,
+          userId: null,
+          tenant: { status: 'ACTIVE' },
+          OR: matchOr,
+        },
+        select: { id: true, tenantId: true, fullName: true },
+      });
+      if (!employee) return user;
+
+      await this.db.corporateEmployee.update({
+        where: { id: employee.id },
+        data: { userId: user.id },
+      });
+
+      const updatedUser = await this.db.user.update({
+        where: { id: user.id },
+        data: {
+          corporateTenantId: employee.tenantId,
+          ...(!user.fullName && employee.fullName ? { fullName: employee.fullName } : {}),
+        },
+        include: { vendor: true, driver: true },
+      });
+      this.logger.log(`Linked EMPLOYEE user ${user.id} to CorporateEmployee ${employee.id} (tenant ${employee.tenantId})`);
+      return updatedUser;
+    } catch (err: any) {
+      this.logger.warn(`Failed to link EMPLOYEE user ${user?.id} to CorporateEmployee: ${err?.message ?? err}`);
+      return user;
+    }
   }
 
   /**
@@ -918,6 +1043,7 @@ export class AuthService implements OnModuleInit {
     }
 
     user = await this.linkCorporateTenantContact(user);
+    user = await this.linkCorporateEmployeeUser(user);
 
     await this.verifyAccountActiveAndClearStaleRevocation(user);
 
