@@ -14,14 +14,19 @@ interface Props {
 const {
   title,
   description,
-  canonical = 'https://www.adhocx.com/',
+  canonical: canonicalProp,
   ogTitle,
   ogDescription,
   ogType = 'website',
-  ogImage = 'https://www.adhocx.com/adhocx-logo.png',
+  ogImage = 'https://www.adhocx.com/images/hero-corporate-commute.jpg',
   ogImageAlt = 'AdhocX B2B Commercial Mobility Platform',
   noindex = false,
 } = Astro.props;
+
+const SITE = 'https://www.adhocx.com';
+// Always derive a canonical (no trailing slash, no query) so a page can never ship the wrong one.
+const rawCanonical = canonicalProp || SITE + Astro.url.pathname;
+const canonical = new URL(rawCanonical).pathname === '/' ? rawCanonical : rawCanonical.replace(/\/+$/, '');
 ---
 
 <meta charset="UTF-8" />
@@ -29,8 +34,6 @@ const {
 <title>{title}</title>
 <meta name="description" content={description} />
 <link rel="canonical" href={canonical} />
-<link rel="alternate" hreflang="en-IN" href={canonical} />
-<link rel="alternate" hreflang="x-default" href={canonical} />
 
 <!-- Robots Directives -->
 <meta
@@ -60,8 +63,6 @@ const {
 <meta property="og:type" content={ogType} />
 <meta property="og:url" content={canonical} />
 <meta property="og:image" content={ogImage} />
-<meta property="og:image:width" content="1200" />
-<meta property="og:image:height" content="630" />
 <meta property="og:image:alt" content={ogImageAlt} />
 
 <!-- Twitter Cards -->

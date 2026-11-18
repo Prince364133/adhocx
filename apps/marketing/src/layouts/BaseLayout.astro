@@ -117,11 +117,50 @@ const defaultOrganizationSchema = {
   ]
 };
 
-const combinedJsonLd = jsonLd
-  ? Array.isArray(jsonLd)
-    ? [defaultOrganizationSchema, ...jsonLd]
-    : [defaultOrganizationSchema, jsonLd]
-  : defaultOrganizationSchema;
+// ---- JSON-LD assembly -------------------------------------------------------
+// One @graph per page. Guards so these SEO mistakes cannot reappear:
+//   * Organization is emitted once (page-level duplicates are dropped)
+//   * LocalBusiness is emitted at most once (global default is not used; pages opt in)
+//   * HowTo is deprecated by Google, so it is always stripped
+//   * only one BreadcrumbList, and identical nodes are de-duplicated
+const SITE_URL = 'https://www.adhocx.com';
+const DROP_TYPES = new Set(['HowTo', 'HowToStep', 'HowToSection']);
+const typeOf = (n: any): string => (Array.isArray(n?.['@type']) ? n['@type'][0] : n?.['@type']);
+
+const globalNodes = [
+  ...(defaultOrganizationSchema['@graph'] as any[]).filter(
+    (n) => typeOf(n) !== 'LocalBusiness',
+  ),
+  {
+    '@type': 'WebSite',
+    '@id': `${SITE_URL}/#website`,
+    url: SITE_URL,
+    name: 'AdhocX',
+    inLanguage: 'en-IN',
+    publisher: { '@id': `${SITE_URL}/#organization` },
+  },
+];
+
+const pageNodes: any[] = (jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : []).flatMap(
+  (block: any) => (block?.['@graph'] ? block['@graph'] : [block]),
+);
+
+const seen = new Set<string>();
+const seenTypes = new Set<string>();
+const graph: any[] = [];
+for (const node of [...globalNodes, ...pageNodes]) {
+  const type = typeOf(node);
+  if (!type || DROP_TYPES.has(type)) continue;
+  const { ['@context']: _ctx, ...clean } = node;
+  const key = JSON.stringify(clean);
+  if (seen.has(key)) continue;
+  if (['Organization', 'LocalBusiness', 'BreadcrumbList', 'WebSite'].includes(type) && seenTypes.has(type)) continue;
+  seen.add(key);
+  seenTypes.add(type);
+  graph.push(clean);
+}
+
+const combinedJsonLd = { '@context': 'https://schema.org', '@graph': graph };
 ---
 
 <!DOCTYPE html>
