@@ -1196,7 +1196,7 @@ export class CorporateTripExecutionService {
           ? {
               employeeId: s.employee.id,
               name: s.employee.fullName,
-              phone: s.employee.phone,
+              phone: s.employee.phoneNumber ?? s.employee.phone ?? s.employeePhone ?? null,
               gender: s.employee.gender,
             }
           : null,
@@ -1250,8 +1250,8 @@ export class CorporateTripExecutionService {
         id: s.id,
         sequence: s.stopSequence,
         status: s.status,
-        passengerName: s.employee?.fullName,
-        passengerPhone: s.employee?.phone,
+        passengerName: s.employee?.fullName ?? s.employeeName ?? null,
+        passengerPhone: s.employee?.phoneNumber ?? s.employee?.phone ?? s.employeePhone ?? null,
         latitude: Number(s.latitude),
         longitude: Number(s.longitude),
       })),

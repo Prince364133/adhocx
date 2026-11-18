@@ -105,7 +105,7 @@ export class RosterLifecycleService {
       const entries: any[] = await tx.corporateRosterEntry.findMany({ where: { rosterId } });
       const holidays = await this.loadHolidays(tx, roster.tenantId, entries);
       const isHoliday = (e: any) => {
-        const day = toDateOnly(e.shiftDate);
+        const day = toDateOnly(e.shiftDate ?? e.scheduledDate);
         return holidays.has(`*:${day}`) || holidays.has(`${e.officeId}:${day}`);
       };
       const lines = entries.filter((e) => !isHoliday(e));
@@ -165,7 +165,7 @@ export class RosterLifecycleService {
   /** Holiday keys `<officeId>:<day>` and `*:<day>` (tenant-wide) covering the entries' shift days. */
   private async loadHolidays(tx: any, tenantId: string, entries: any[]): Promise<Set<string>> {
     if (entries.length === 0) return new Set();
-    const days = entries.map((e) => toDateOnly(e.shiftDate)).sort();
+    const days = entries.map((e) => toDateOnly(e.shiftDate ?? e.scheduledDate)).sort();
     const rows: any[] = await tx.corporateHoliday.findMany({
       where: {
         tenantId,

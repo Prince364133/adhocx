@@ -5,8 +5,10 @@ import { usePathname, useRouter } from "next/navigation";
 import { Bell, CheckCheck, ExternalLink, X, Send, LogOut } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { ConfirmDialog } from "./common/ConfirmDialog";
-import { adminApi, getStoredAdminUser } from "../lib/api/client";
+import { adminApi, getApiBaseUrl, getStoredAdminUser } from "../lib/api/client";
 import { InAppNotificationItem } from "../lib/api/types";
+
+type HealthStatus = "checking" | "healthy" | "degraded" | "offline";
 
 type HeaderProps = {
   title?: string;
@@ -30,6 +32,12 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Live API health state
+  const [healthStatus, setHealthStatus] = useState<HealthStatus>("checking");
+  const [healthTooltip, setHealthTooltip] = useState(
+    "Checking API health status...",
+  );
 
   const getSectionTitle = () => {
     if (title) return title;
@@ -80,6 +88,70 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
     loadNotifications();
     const interval = setInterval(loadNotifications, 20000);
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    let activeController: AbortController | null = null;
+
+    async function checkApiHealth() {
+      activeController?.abort();
+      const controller = new AbortController();
+      activeController = controller;
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+      try {
+        const res = await fetch(`${getApiBaseUrl()}/health`, {
+          method: "GET",
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        if (!active) return;
+        if (!res.ok) {
+          setHealthStatus("offline");
+          setHealthTooltip(`API health check failed (HTTP ${res.status})`);
+          return;
+        }
+        const json = await res.json().catch(() => null);
+        if (!active) return;
+        const report = json?.data ?? json;
+        const status = String(report?.status ?? "").toUpperCase();
+        const dbStatus = report?.components?.database?.status;
+        const redisStatus = report?.components?.redis?.status;
+        const details =
+          dbStatus || redisStatus
+            ? ` (DB: ${dbStatus ?? "UNKNOWN"}, Redis: ${redisStatus ?? "UNKNOWN"})`
+            : "";
+
+        if (status === "OK" || status === "UP" || status === "HEALTHY") {
+          setHealthStatus("healthy");
+          setHealthTooltip(`API Healthy${details}`);
+        } else if (status === "DEGRADED") {
+          setHealthStatus("degraded");
+          setHealthTooltip(`API Degraded${details}`);
+        } else {
+          setHealthStatus("offline");
+          setHealthTooltip(`API Offline${details}`);
+        }
+      } catch {
+        if (!active) return;
+        setHealthStatus("offline");
+        setHealthTooltip("API Offline — unable to reach /health endpoint");
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    }
+
+    void checkApiHealth();
+    const interval = setInterval(() => {
+      void checkApiHealth();
+    }, 30000);
+
+    return () => {
+      active = false;
+      activeController?.abort();
+      clearInterval(interval);
+    };
   }, []);
 
   useEffect(() => {
@@ -401,7 +473,14 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
                 </button>
 
                 <span className="text-micro text-muted">
-                  FCM Service Active
+                  API:{" "}
+                  {healthStatus === "healthy"
+                    ? "Healthy"
+                    : healthStatus === "degraded"
+                      ? "Degraded"
+                      : healthStatus === "offline"
+                        ? "Offline"
+                        : "Checking..."}
                 </span>
               </div>
             </div>
@@ -411,21 +490,67 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
         {/* Theme Switcher */}
         <ThemeToggle />
 
-        {/* Live Cluster Status */}
+        {/* Live API Health Status */}
         <div
-          className="admin-header-status inline-flex items-center gap-tight bg-success-subtle rounded-full text-micro font-semibold text-success"
+          className={`admin-header-status inline-flex items-center gap-tight rounded-full text-micro font-semibold ${
+            healthStatus === "healthy"
+              ? "bg-success-subtle text-success"
+              : healthStatus === "offline"
+                ? "bg-danger-subtle text-danger"
+                : ""
+          }`}
           style={{
             padding: "0.2rem 0.55rem",
-            border: "1px solid var(--color-success-border)",
+            border:
+              healthStatus === "healthy"
+                ? "1px solid var(--color-success-border)"
+                : healthStatus === "degraded"
+                  ? "1px solid var(--color-warning)"
+                  : healthStatus === "offline"
+                    ? "1px solid var(--color-danger-border)"
+                    : "1px solid var(--border-light)",
+            background:
+              healthStatus === "degraded"
+                ? "rgba(245, 158, 11, 0.14)"
+                : healthStatus === "checking"
+                  ? "var(--bg-surface-elevated)"
+                  : undefined,
+            color:
+              healthStatus === "degraded"
+                ? "var(--color-warning)"
+                : healthStatus === "checking"
+                  ? "var(--text-muted)"
+                  : undefined,
             letterSpacing: "0.01em",
           }}
-          title="All systems operational — PostgreSQL, Redis, and Firebase FCM Engine Connected"
+          title={healthTooltip}
         >
           <span
-            className="pulse-dot success"
-            style={{ width: "5px", height: "5px" }}
+            className={
+              healthStatus === "healthy" ? "pulse-dot success" : "rounded-full"
+            }
+            style={{
+              width: "5px",
+              height: "5px",
+              background:
+                healthStatus === "degraded"
+                  ? "var(--color-warning)"
+                  : healthStatus === "offline"
+                    ? "var(--color-danger)"
+                    : healthStatus === "checking"
+                      ? "var(--text-muted)"
+                      : undefined,
+            }}
           />
-          <span>Operational</span>
+          <span>
+            {healthStatus === "healthy"
+              ? "Healthy"
+              : healthStatus === "degraded"
+                ? "Degraded"
+                : healthStatus === "offline"
+                  ? "Offline"
+                  : "Checking..."}
+          </span>
         </div>
 
         {/* Admin Profile & Logout */}

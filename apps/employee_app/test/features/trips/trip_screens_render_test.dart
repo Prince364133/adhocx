@@ -100,11 +100,20 @@ void main() {
     expect(find.text('LANDED ${AppRoutes.contactDriverSheet}'), findsOneWidget);
   });
 
-  testWidgets('"Provide Feedback" opens completed trip details',
+  testWidgets('"Provide Feedback" opens post-trip feedback screen',
       (tester) async {
     await _pump(tester, const TripCompletedScreen());
     await tester.ensureVisible(find.text('Provide Feedback'));
     await tester.tap(find.text('Provide Feedback'));
+    await tester.pumpAndSettle();
+    expect(find.text('LANDED ${AppRoutes.postTripFeedback}'), findsOneWidget);
+  });
+
+  testWidgets('"View Trip Details" opens completed trip details',
+      (tester) async {
+    await _pump(tester, const TripCompletedScreen());
+    await tester.ensureVisible(find.text('View Trip Details'));
+    await tester.tap(find.text('View Trip Details'));
     await tester.pumpAndSettle();
     expect(find.text('LANDED ${AppRoutes.tripDetails}'), findsOneWidget);
   });

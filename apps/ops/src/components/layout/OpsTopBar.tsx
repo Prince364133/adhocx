@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Clock, Radio, ShieldAlert, LogOut, UserCheck } from 'lucide-react';
 import { opsApi, getStoredOpsUser, clearOpsSession } from '../../lib/api/opsClient';
 import { SosAlertItem } from '../../lib/api/opsTypes';
+import { isActiveSosStatus } from '../../lib/opsHelpers';
 import { ThemeToggle } from '../common/ThemeToggle';
 
 export const OpsTopBar: React.FC = () => {
@@ -51,7 +52,7 @@ export const OpsTopBar: React.FC = () => {
       try {
         const alerts = await opsApi.getSosAlerts();
         if (!cancelled) {
-          const active = alerts.filter((a) => a.status === 'NEW' || a.status === 'ACKNOWLEDGED' || a.status === 'INVESTIGATING');
+          const active = (Array.isArray(alerts) ? alerts : []).filter((a) => isActiveSosStatus(a.status));
           setActiveSosAlerts(active);
         }
       } catch {

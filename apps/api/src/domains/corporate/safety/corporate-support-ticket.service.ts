@@ -426,31 +426,38 @@ export class CorporateSupportTicketService {
         select: { id: true, fullName: true, email: true, role: true },
       });
     }
+    const canSeeInternal = actor?.role === 'ADMIN' || actor?.role === 'OPS';
     if (ticket.routeId && this.db.corporateRoute?.findUnique) {
-      ticket.route = await this.db.corporateRoute.findUnique({
+      const routeRec: any = await this.db.corporateRoute.findUnique({
         where: { id: ticket.routeId },
         include: {
           driver: {
-            include: {
-              user: { select: { fullName: true, phone: true, email: true } },
+            select: {
+              id: true,
+              fullName: true,
+              vehiclePlate: true,
+              ...(canSeeInternal ? { licenseNumber: true } : {}),
+              user: { select: { fullName: true, ...(canSeeInternal ? { phone: true, email: true } : {}) } },
             },
           },
           vehicle: { select: { id: true, registrationNumber: true, model: true, make: true } },
         },
       });
-      if (ticket.route?.driver) {
-        ticket.driver = {
-          id: ticket.route.driver.id,
-          name: ticket.route.driver.user?.fullName || 'Driver',
-          phone: ticket.route.driver.user?.phone || null,
-          email: ticket.route.driver.user?.email || null,
-          licenseNumber: ticket.route.driver.licenseNumber || null,
-          vehiclePlate: ticket.route.vehicle?.registrationNumber || null,
-        };
+      if (routeRec && routeRec.tenantId === ticket.tenantId) {
+        ticket.route = routeRec;
+        if (routeRec.driver) {
+          ticket.driver = {
+            id: routeRec.driver.id,
+            name: routeRec.driver.user?.fullName || routeRec.driver.fullName || 'Driver',
+            phone: canSeeInternal ? routeRec.driver.user?.phone || null : null,
+            email: canSeeInternal ? routeRec.driver.user?.email || null : null,
+            licenseNumber: canSeeInternal ? routeRec.driver.licenseNumber || null : null,
+            vehiclePlate: routeRec.vehicle?.registrationNumber || routeRec.driver.vehiclePlate || null,
+          };
+        }
       }
     }
 
-    const canSeeInternal = actor?.role === 'ADMIN' || actor?.role === 'OPS';
     const allComments = ticket.comments ?? [];
     const allActivities = ticket.activities ?? [];
     const ticketAttachments = ticket.attachments ?? [];
@@ -794,17 +801,28 @@ export class CorporateSupportTicketService {
       where.isInternal = false;
     }
 
-    const messages = await this.db.corporateTicketMessage.findMany({
-      where: where as any,
-      orderBy: { createdAt: 'asc' },
-      include: {
-        sender: {
-          select: { id: true, fullName: true, email: true, role: true },
+    const [messages, comments] = await Promise.all([
+      this.db.corporateTicketMessage.findMany({
+        where: where as any,
+        orderBy: { createdAt: 'asc' },
+        include: {
+          sender: {
+            select: { id: true, fullName: true, email: true, role: true },
+          },
         },
-      },
-    });
+      }),
+      typeof (this.db as any).corporateSupportTicketComment?.findMany === 'function'
+        ? this.db.corporateSupportTicketComment.findMany({
+            where: {
+              ticketId,
+              ...(isPlatformStaff ? {} : { visibility: 'PUBLIC' }),
+            },
+            orderBy: { createdAt: 'asc' },
+          })
+        : Promise.resolve([]),
+    ]);
 
-    return messages.map((m) => ({
+    const mappedMessages: CorporateTicketMessageResponse[] = messages.map((m) => ({
       id: m.id,
       ticketId: m.ticketId,
       senderId: m.senderId,
@@ -814,6 +832,21 @@ export class CorporateSupportTicketService {
       isInternal: m.isInternal,
       createdAt: m.createdAt.toISOString(),
     }));
+
+    const mappedComments: CorporateTicketMessageResponse[] = (comments ?? []).map((c: any) => ({
+      id: `cmt-${c.id}`,
+      ticketId: c.ticketId,
+      senderId: c.userId,
+      senderRole: c.user?.role || 'CORPORATE_ADMIN',
+      senderName: c.user?.fullName || c.user?.email || 'Support User',
+      message: c.message,
+      isInternal: c.visibility === 'INTERNAL',
+      createdAt: new Date(c.createdAt).toISOString(),
+    }));
+
+    return [...mappedMessages, ...mappedComments].sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+    );
   }
 
   /**

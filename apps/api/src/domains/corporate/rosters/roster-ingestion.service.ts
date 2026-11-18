@@ -420,7 +420,6 @@ export class RosterIngestionService {
             tenantId,
             employeeId: point.employeeId,
             officeId: rowOffice.id,
-            shiftDate: new Date(`${line.shiftDay}T00:00:00.000Z`),
             scheduledDate: new Date(`${line.scheduledDay}T00:00:00.000Z`),
             shiftTime: line.shiftTime,
             direction: line.direction,
@@ -507,6 +506,13 @@ export class RosterIngestionService {
         isActive: true,
       },
     });
+
+    if (typeof tx.corporateEmployeeLocation?.updateMany === 'function') {
+      await tx.corporateEmployeeLocation.updateMany({
+        where: { employeeId: employee.id, isDefault: true },
+        data: { isDefault: false },
+      });
+    }
 
     await tx.corporateEmployeeLocation.create({
       data: {

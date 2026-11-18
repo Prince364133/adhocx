@@ -1,10 +1,18 @@
+import 'dart:convert';
 import 'package:adhocx_employee/features/boarding/boarding.dart';
+import 'package:adhocx_employee/repositories/http_employee_rider_repository.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
+import 'package:adhocx_employee/services/employee_api_client.dart';
+import 'package:adhocx_employee/state/employee_data_provider.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 final _screens = <String, Widget Function()>{
   'Verify options': () => const BoardingVerifyOptionsScreen(),
@@ -20,6 +28,56 @@ final _screens = <String, Widget Function()>{
   'Safe reach': () => const SafeReachConfirmationScreen(),
   'Post-trip feedback': () => const PostTripFeedbackScreen(),
 };
+
+EmployeeDataProvider _seededBoardingProvider({
+  String? boardingOtp = '4829',
+  String stopStatus = 'ARRIVED',
+}) {
+  SharedPreferences.setMockInitialValues({});
+  final mockHttp = MockClient((req) async {
+    final path = req.url.path;
+    if (path.endsWith('/corporate/me/trips/next')) {
+      return http.Response(
+        jsonEncode({
+          'data': {
+            'hasActiveTrip': true,
+            'stopId': 'stop-1',
+            'routeId': 'route-1',
+            'stopStatus': stopStatus,
+            if (boardingOtp != null) 'boardingOtp': boardingOtp,
+          },
+        }),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    }
+    if (path.contains('/tracking')) {
+      return http.Response(
+        jsonEncode({
+          'data': {
+            'stopId': 'stop-1',
+            'routeId': 'route-1',
+            'stopStatus': stopStatus,
+            if (boardingOtp != null) 'boardingOtp': boardingOtp,
+            'dwellRemainingSeconds': 180,
+          },
+        }),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    }
+    return http.Response(
+      jsonEncode({'data': []}),
+      200,
+      headers: {'content-type': 'application/json'},
+    );
+  });
+  return EmployeeDataProvider(
+    repository: HttpEmployeeRiderRepository(
+      client: EmployeeApiClient(httpClient: mockHttp),
+    ),
+  );
+}
 
 GoRouter _router(Widget screen) {
   Widget landed(String route) => Scaffold(body: Text('LANDED $route'));
@@ -37,16 +95,29 @@ GoRouter _router(Widget screen) {
   );
 }
 
-Future<void> _pump(WidgetTester tester, Widget screen, {bool dark = false}) async {
+Future<void> _pump(
+  WidgetTester tester,
+  Widget screen, {
+  bool dark = false,
+  EmployeeDataProvider? dataProvider,
+}) async {
   tester.view.physicalSize = const Size(360, 640);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  await tester.pumpWidget(MaterialApp.router(
+  final app = MaterialApp.router(
     theme: AppTheme.lightTheme,
     darkTheme: AppTheme.darkTheme,
     themeMode: dark ? ThemeMode.dark : ThemeMode.light,
     routerConfig: _router(screen),
-  ));
+  );
+  await tester.pumpWidget(
+    dataProvider != null
+        ? ChangeNotifierProvider<EmployeeDataProvider>.value(
+            value: dataProvider,
+            child: app,
+          )
+        : app,
+  );
   // Spinners animate forever, so step time instead of pumpAndSettle.
   for (var i = 0; i < 8; i++) {
     await tester.pump(const Duration(milliseconds: 100));
@@ -75,10 +146,11 @@ void main() {
     });
   }
 
-  testWidgets('boarding OTP input accepts typed digits; right code verifies',
+  testWidgets('boarding OTP input accepts 4-digit code; right code verifies',
       (tester) async {
-    await _pump(tester, const BoardingOtpInputScreen());
-    await tester.enterText(find.byType(TextField), '583271');
+    final provider = _seededBoardingProvider(boardingOtp: '4829');
+    await _pump(tester, const BoardingOtpInputScreen(), dataProvider: provider);
+    await tester.enterText(find.byType(TextField), '4829');
     for (var i = 0; i < 5; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
@@ -87,12 +159,33 @@ void main() {
 
   testWidgets('a wrong boarding OTP opens the Invalid OTP state',
       (tester) async {
-    await _pump(tester, const BoardingOtpInputScreen());
-    await tester.enterText(find.byType(TextField), '111111');
+    final provider = _seededBoardingProvider(boardingOtp: '4829');
+    await _pump(tester, const BoardingOtpInputScreen(), dataProvider: provider);
+    await tester.enterText(find.byType(TextField), '1111');
     for (var i = 0; i < 5; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
     expect(find.text('LANDED ${AppRoutes.wrongOtp}'), findsOneWidget);
+  });
+
+  testWidgets('missing expected OTP never accepts arbitrary input',
+      (tester) async {
+    final provider = _seededBoardingProvider(boardingOtp: null);
+    await _pump(tester, const BoardingOtpInputScreen(), dataProvider: provider);
+    await tester.enterText(find.byType(TextField), '1234');
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.text('LANDED ${AppRoutes.verifyingBoarding}'), findsNothing);
+    expect(find.textContaining('No active boarding OTP'), findsOneWidget);
+  });
+
+  testWidgets('VerifyingBoardingScreen navigates on BOARDED tracking status',
+      (tester) async {
+    final provider = _seededBoardingProvider(stopStatus: 'BOARDED');
+    await _pump(tester, const VerifyingBoardingScreen(),
+        dataProvider: provider);
+    expect(find.text('LANDED ${AppRoutes.boardingSuccessful}'), findsOneWidget);
   });
 
   testWidgets('feedback character counter updates while typing',

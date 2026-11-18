@@ -7,6 +7,23 @@ import type { Dashboard, RouteListItem } from '../../../lib/api/types';
 import MetricCard from '../../../components/common/MetricCard';
 import { useSession } from '../../../lib/auth/SessionContext';
 
+function formatShiftDate(value?: string | null): string {
+  if (!value) return '—';
+  const isoDay = value.slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(isoDay)) {
+    const parsed = new Date(`${isoDay}T00:00:00`);
+    if (!Number.isNaN(parsed.getTime())) {
+      return new Intl.DateTimeFormat('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      }).format(parsed);
+    }
+    return isoDay;
+  }
+  return value;
+}
+
 export default function VehicleRouteAnalyticsPage() {
   const { tenantId } = useSession();
   const [loading, setLoading] = useState(true);
@@ -109,7 +126,7 @@ export default function VehicleRouteAnalyticsPage() {
                 {routes.map((route) => (
                   <tr key={route.id}>
                     <td>{route.routeNumber ?? route.routeCode ?? route.id}</td>
-                    <td>{route.shiftDate}</td>
+                    <td>{formatShiftDate(route.shiftDate)}</td>
                     <td>{route.direction}</td>
                     <td>{route.status}</td>
                     <td>{route.vehicle?.registrationNumber ?? route.vehiclePlate ?? '—'}</td>

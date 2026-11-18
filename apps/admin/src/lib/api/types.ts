@@ -142,9 +142,9 @@ export interface CorporateDepartmentItem {
 export interface CorporateDepartmentInput {
   code: string;
   name: string;
-  departmentHead?: string;
-  officeId?: string;
-  description?: string;
+  departmentHead?: string | null;
+  officeId?: string | null;
+  description?: string | null;
   isActive?: boolean;
 }
 
@@ -166,7 +166,7 @@ export interface CorporateTransportZoneInput {
   officeId: string;
   code: string;
   name: string;
-  description?: string;
+  description?: string | null;
   serviceArea: string;
   pickupLocations: string[];
   dropLocations: string[];

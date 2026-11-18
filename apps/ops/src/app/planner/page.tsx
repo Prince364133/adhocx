@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { opsApi, ShiftOptimizationResponse } from '../../lib/api/opsClient';
+import { isValidIndianMobile } from '../../lib/opsHelpers';
 import {
   CorporateRouteItem,
   CorporateTenantOption,
@@ -419,6 +420,10 @@ export default function RouteOptimizerPage() {
       const s = cleanedStops[i];
       if (!s.name || !s.phoneNumber || !s.address) {
         setErrorMsg(`Stop #${i + 1}: Name, Phone Number, and Address are all required.`);
+        return;
+      }
+      if (!isValidIndianMobile(s.phoneNumber)) {
+        setErrorMsg(`Stop #${i + 1}: Enter a valid 10-digit Indian mobile number (e.g. 9876543210 or +919876543210).`);
         return;
       }
     }

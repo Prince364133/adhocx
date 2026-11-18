@@ -176,12 +176,9 @@ class HttpEmployeeAuthRepository implements EmployeeAuthRepository {
 
   @override
   Future<void> deleteAccount() async {
-    try {
-      await _client.delete('/auth/account');
-    } finally {
-      _cachedUser = null;
-      await _client.clearSession();
-    }
+    await _client.delete('/auth/account');
+    _cachedUser = null;
+    await _client.clearSession();
   }
 
   Future<EmployeeUser> _fetchAndCacheProfile(

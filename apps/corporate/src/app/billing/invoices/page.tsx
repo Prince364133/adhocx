@@ -37,6 +37,7 @@ export default function InvoiceListPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
     async function fetchInvoices() {
@@ -49,11 +50,14 @@ export default function InvoiceListPage() {
           limit: 20,
         });
         setInvoices(res.items || []);
-        setTotalCount(res.pagination?.total || (res.items || []).length);
+        const total = res.pagination?.total ?? (res.items || []).length;
+        setTotalCount(total);
+        setTotalPages(Math.max(1, res.pagination?.totalPages ?? Math.ceil(total / 20)));
       } catch (err) {
         console.error('Failed to load corporate invoices:', err);
         setInvoices([]);
         setTotalCount(0);
+        setTotalPages(1);
       } finally {
         setLoading(false);
       }
@@ -295,6 +299,69 @@ export default function InvoiceListPage() {
             </tbody>
           </table>
         </div>
+        {!loading && totalCount > 0 && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '12px 16px',
+              borderTop: '1px solid var(--border-color)',
+              fontSize: '12px',
+              color: 'var(--text-secondary)',
+              flexWrap: 'wrap',
+              gap: '10px',
+            }}
+          >
+            <span>
+              Page <strong>{page}</strong> of <strong>{totalPages}</strong> ({totalCount} total invoices)
+            </span>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                type="button"
+                disabled={page <= 1}
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '6px 10px',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: 'var(--bg-surface)',
+                  color: 'var(--text-primary)',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: page <= 1 ? 'not-allowed' : 'pointer',
+                  opacity: page <= 1 ? 0.5 : 1,
+                }}
+              >
+                <ChevronLeft size={14} /> Previous
+              </button>
+              <button
+                type="button"
+                disabled={page >= totalPages}
+                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '6px 10px',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: 'var(--bg-surface)',
+                  color: 'var(--text-primary)',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: page >= totalPages ? 'not-allowed' : 'pointer',
+                  opacity: page >= totalPages ? 0.5 : 1,
+                }}
+              >
+                Next <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

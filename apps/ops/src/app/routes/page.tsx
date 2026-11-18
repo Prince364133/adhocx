@@ -29,6 +29,13 @@ import {
 } from 'lucide-react';
 import { opsApi } from '../../lib/api/opsClient';
 import { CorporateRouteItem, CorporateTenantOption } from '../../lib/api/opsTypes';
+import {
+  canCancelRoute,
+  canDeleteRoute,
+  canEditRoute,
+  canReassignRoute,
+  isOfficeHubStop,
+} from '../../lib/opsHelpers';
 import { Button } from '../../components/common/Button';
 import { Modal } from '../../components/common/Modal';
 import { StatusBadge } from '../../components/common/StatusBadge';
@@ -678,11 +685,11 @@ function OpsRoutesContent() {
             const effDispatch = getEffectiveDispatchStatus(route);
             const isExhausted = effDispatch === 'NO_DRIVERS_FOUND';
             const stopCount = route.stops?.length ?? route._count?.stops ?? 0;
-            const firstStop = route.stops?.[0];
+            const firstStop = route.stops?.find((s) => !isOfficeHubStop(s)) ?? route.stops?.[0];
             const distKm = route.estDistanceMeters ? (route.estDistanceMeters / 1000).toFixed(1) : '—';
             const durMin = route.estDurationSeconds ? Math.round(route.estDurationSeconds / 60) : null;
             const canRetryDispatch =
-              !route.driverId && route.status !== 'COMPLETED' && route.status !== 'CANCELLED';
+              !route.driverId && (route.status === 'PLANNED' || route.status === 'DISPATCHING');
 
             return (
               <div
@@ -738,7 +745,7 @@ function OpsRoutesContent() {
                     <span>{route.office?.name || 'Corporate Office'}</span>
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
-                    Route #{route.id.slice(0, 8)} • {route.direction} • {route.shiftDate} ({route.shiftTime} IST)
+                    Route #{route.id.slice(0, 8)} • {route.direction} • {String(route.shiftDate).slice(0, 10)} ({route.shiftTime} IST)
                   </div>
                 </div>
 
@@ -768,8 +775,11 @@ function OpsRoutesContent() {
                   </div>
                   {firstStop ? (
                     <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>
-                      1st pickup: {firstStop.employeeName || 'Employee'}
-                      {firstStop.employeePhone ? ` (${firstStop.employeePhone})` : ''}
+                      {route.direction === 'LOGOUT' ? '1st dropoff' : '1st pickup'}:{' '}
+                      {firstStop.employeeName ?? firstStop.employee?.fullName ?? 'Employee'}
+                      {(firstStop.employeePhone ?? firstStop.employee?.phoneNumber)
+                        ? ` (${firstStop.employeePhone ?? firstStop.employee?.phoneNumber})`
+                        : ''}
                     </div>
                   ) : (
                     <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
@@ -840,7 +850,7 @@ function OpsRoutesContent() {
                   >
                     Stops
                   </Button>
-                  {route.status !== 'COMPLETED' && route.status !== 'CANCELLED' && (
+                  {canReassignRoute(route) && (
                     <Button
                       variant="outline"
                       size="sm"
@@ -850,28 +860,31 @@ function OpsRoutesContent() {
                       Reassign
                     </Button>
                   )}
-                  {route.status !== 'IN_TRANSIT' && route.status !== 'COMPLETED' && (
-                    <>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        leftIcon={<Pencil size={13} />}
-                        onClick={() => setEditRoute(route)}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        title="Delete route"
-                        onClick={() => setDeleteRoute(route)}
-                        style={{ color: 'var(--color-danger, #DC2626)' }}
-                      >
-                        <Trash2 size={14} />
-                      </Button>
-                    </>
+                  {canEditRoute(route) && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      leftIcon={<Pencil size={13} />}
+                      onClick={() => setEditRoute(route)}
+                    >
+                      Edit
+                    </Button>
                   )}
-                  {route.status !== 'COMPLETED' && route.status !== 'CANCELLED' && (
+                  {canDeleteRoute(route) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      title="Delete route"
+                      onClick={() => {
+                        setErrorMsg(null);
+                        setDeleteRoute(route);
+                      }}
+                      style={{ color: 'var(--color-danger, #DC2626)' }}
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  )}
+                  {canCancelRoute(route) && (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -942,17 +955,42 @@ function OpsRoutesContent() {
 
       <Modal
         isOpen={Boolean(deleteRoute)}
-        onClose={() => setDeleteRoute(null)}
+        onClose={() => {
+          setDeleteRoute(null);
+          setErrorMsg(null);
+        }}
         title="Delete Corporate Route"
         subtitle={deleteRoute ? `Route RT-${deleteRoute.id.slice(0, 8).toUpperCase()} · ${deleteRoute.assignedPassengerCount} Passengers` : undefined}
         width="440px"
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {errorMsg && (
+            <div
+              role="alert"
+              style={{
+                padding: '10px 12px',
+                borderRadius: 8,
+                backgroundColor: 'var(--color-danger-bg)',
+                border: '1px solid var(--color-danger-border)',
+                color: 'var(--color-danger, #DC2626)',
+                fontSize: 12,
+              }}
+            >
+              {errorMsg}
+            </div>
+          )}
           <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
             Permanently delete this unstarted route and its pending stops/transport requests? This action cannot be undone.
           </p>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-            <Button variant="ghost" onClick={() => setDeleteRoute(null)} disabled={deletingRoute}>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setDeleteRoute(null);
+                setErrorMsg(null);
+              }}
+              disabled={deletingRoute}
+            >
               Keep Route
             </Button>
             <Button

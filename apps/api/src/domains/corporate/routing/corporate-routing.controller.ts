@@ -648,6 +648,7 @@ export class CorporateRoutingController {
 
   @Post()
   @Roles(UserRole.ADMIN, UserRole.OPS)
+  @CorporateTenantScoped()
   @ApiOperation({ summary: 'Manually create a corporate route with employee stops and auto-register employee login accounts' })
   public async createManualRoute(@Body() body: any) {
     if (!this.routePlannerService) {
@@ -809,21 +810,22 @@ export class CorporateRoutingController {
 
     const enrichedStops = (route.stops ?? []).map(({ boardingOtp, ...stop }: any) => {
       const isOwnStop = isEmployeeCaller && callerEmployeeId && stop.employeeId === callerEmployeeId;
+      const isCoPassengerStop = isEmployeeCaller && Boolean(stop.employeeId) && !isOwnStop;
       return {
         ...stop,
         ...(showOtp || isOwnStop ? { boardingOtp } : {}),
+        ...(isCoPassengerStop ? { latitude: null, longitude: null, transportRequest: null } : {}),
         isCurrentUserStop: isOwnStop || undefined,
-        employee: isEmployeeCaller && !isOwnStop && stop.employee
-          ? { id: stop.employee.id, fullName: stop.employee.fullName }
-          : stop.employee,
-        employeeName: stop.employeeName ?? stop.employee?.fullName ?? null,
-        employeePhone: isEmployeeCaller && !isOwnStop ? null : (stop.employeePhone ?? stop.employee?.phoneNumber ?? null),
-        addressText:
-          stop.addressText ??
-          stop.employee?.locations?.[0]?.addressText ??
-          (stop.stopType === 'DROPOFF' && !stop.employee
-            ? route.office?.addressText ?? route.office?.name ?? 'Corporate Office Hub'
-            : 'Pickup address unavailable'),
+        employee: isCoPassengerStop ? null : stop.employee,
+        employeeName: isCoPassengerStop ? `Co-passenger #${stop.stopSequence}` : (stop.employeeName ?? stop.employee?.fullName ?? null),
+        employeePhone: isCoPassengerStop ? null : (stop.employeePhone ?? stop.employee?.phoneNumber ?? null),
+        addressText: isCoPassengerStop
+          ? `Co-passenger Stop #${stop.stopSequence}`
+          : (stop.addressText ??
+            stop.employee?.locations?.[0]?.addressText ??
+            (stop.stopType === 'DROPOFF' && !stop.employee
+              ? route.office?.addressText ?? route.office?.name ?? 'Corporate Office Hub'
+              : 'Pickup address unavailable')),
       };
     });
 

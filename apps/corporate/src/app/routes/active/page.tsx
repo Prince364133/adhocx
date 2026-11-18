@@ -186,14 +186,14 @@ export default function ActiveRoutesListPage() {
                       style={{
                         padding: '6px 12px',
                         borderRadius: 6,
-                        backgroundColor: stop.status === 'COMPLETED' ? 'var(--color-success-bg)' : '#F1F5F9',
-                        color: stop.status === 'COMPLETED' ? 'var(--color-success)' : '#475569',
+                        backgroundColor: stop.status === 'BOARDED' ? 'var(--color-success-bg)' : '#F1F5F9',
+                        color: stop.status === 'BOARDED' ? 'var(--color-success)' : '#475569',
                         fontSize: 12,
                         fontWeight: 600,
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      {idx + 1}. {stop.locationName || `Stop ${idx + 1}`}
+                      {idx + 1}. {stop.addressText || stop.employeeName || stop.employee?.fullName || `Stop ${idx + 1}`}
                     </div>
                   ))}
                   {stops.length === 0 && (

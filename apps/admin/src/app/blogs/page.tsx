@@ -38,29 +38,6 @@ const CATEGORIES = [
   "Safety & Compliance",
 ];
 
-const PRESET_COVERS = [
-  {
-    label: "Fleet Vehicles",
-    url: "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    label: "Driver / Mobility",
-    url: "https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    label: "Logistics / Warehouse",
-    url: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    label: "City Transit / Night",
-    url: "https://images.unsplash.com/photo-1519641471654-76ce0107ad1b?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    label: "Airport / Highway",
-    url: "https://images.unsplash.com/photo-1506015391300-4802dc74de2e?auto=format&fit=crop&w=1200&q=80",
-  },
-];
-
 const MARKETING_URL =
   process.env.NEXT_PUBLIC_MARKETING_URL?.trim().replace(/\/+$/, "") || "";
 
@@ -103,12 +80,12 @@ export default function BlogsPage() {
     excerpt: "",
     content: "",
     category: CATEGORIES[0],
-    tags: ["Fleet Optimization", "Hyderabad Cab Service"],
-    coverImage: PRESET_COVERS[0].url,
-    authorName: "AdhocX Team",
-    authorRole: "Fleet Operations Research",
-    status: "PUBLISHED",
-    readTime: "5 min read",
+    tags: [],
+    coverImage: "",
+    authorName: "",
+    authorRole: "",
+    status: "DRAFT",
+    readTime: "",
     seoTitle: "",
     seoDescription: "",
     seoKeywords: "",
@@ -152,18 +129,17 @@ export default function BlogsPage() {
       title: "",
       slug: "",
       excerpt: "",
-      content: `## Introduction\n\nExplain the context, key industry challenge, and why commercial fleet operations in Hyderabad require modernization.\n\n---\n\n## Core Strategic Insights\n\n1. **First Advantage:** Direct reverse auction matching eliminates middleman broker markups.\n2. **Second Advantage:** Instant 1-hour driver bank payouts improve retention and route punctuality.\n\n\`\`\`\n[Enterprise Request] --> [AdhocX Verified Pool] --> [1-Hour Settlement]\n\`\`\`\n\n---\n\n## Conclusion & Action Items\n\nContact the AdhocX team to benchmark your corporate mobility fleet.`,
+      content: "",
       category: CATEGORIES[0],
-      tags: ["Corporate Mobility", "Fleet Management", "Hyderabad Transit"],
-      coverImage: PRESET_COVERS[0].url,
-      authorName: "AdhocX Team",
-      authorRole: "Fleet Operations Research",
-      status: "PUBLISHED",
-      readTime: "4 min read",
+      tags: [],
+      coverImage: "",
+      authorName: "",
+      authorRole: "",
+      status: "DRAFT",
+      readTime: "",
       seoTitle: "",
       seoDescription: "",
-      seoKeywords:
-        "B2B cab service, hyderabad employee transport, fleet optimization",
+      seoKeywords: "",
     });
     setTagInput("");
     setEditorTab("write");
@@ -180,7 +156,7 @@ export default function BlogsPage() {
       content: blog.content,
       category: blog.category,
       tags: blog.tags || [],
-      coverImage: blog.coverImage || PRESET_COVERS[0].url,
+      coverImage: blog.coverImage || "",
       authorName: blog.authorName,
       authorRole: blog.authorRole || "",
       status: blog.status,
@@ -256,7 +232,7 @@ export default function BlogsPage() {
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     const text = textarea.value;
-    const selected = text.substring(start, end) || "Sample Text";
+    const selected = text.substring(start, end);
     const replacement = `${prefix}${selected}${suffix}`;
     const newText =
       text.substring(0, start) + replacement + text.substring(end);
@@ -700,7 +676,7 @@ export default function BlogsPage() {
                   type="text"
                   required
                   className="form-input font-semibold"
-                  placeholder="e.g. How Managed Direct Dispatch Solves Corporate Cab Shortages in Hyderabad"
+                  placeholder="Enter article headline..."
                   value={formData.title}
                   onChange={handleTitleChange}
                 />
@@ -966,6 +942,7 @@ export default function BlogsPage() {
                     onChange={(e) =>
                       updateFormData({ authorName: e.target.value })
                     }
+                    placeholder="Author name"
                   />
                 </div>
                 <div>
@@ -979,49 +956,25 @@ export default function BlogsPage() {
                     onChange={(e) =>
                       updateFormData({ readTime: e.target.value })
                     }
-                    placeholder="5 min read"
+                    placeholder="e.g. 5 min read"
                   />
                 </div>
               </div>
 
-              {/* Cover Image & Presets */}
+              {/* Cover Image */}
               <div>
                 <label className="form-label block mb-tight">
                   Cover Image URL
                 </label>
                 <input
                   type="url"
-                  className="form-input mb-2"
+                  className="form-input"
                   value={formData.coverImage || ""}
                   onChange={(e) =>
                     updateFormData({ coverImage: e.target.value })
                   }
-                  placeholder="https://images.unsplash.com/..."
+                  placeholder="https://example.com/cover-image.jpg"
                 />
-                <div className="flex flex-wrap gap-tight">
-                  {PRESET_COVERS.map((preset) => (
-                    <button
-                      key={preset.label}
-                      type="button"
-                      onClick={() => updateFormData({ coverImage: preset.url })}
-                      className="rounded-sm text-xs font-semibold cursor-pointer"
-                      style={{
-                        background:
-                          formData.coverImage === preset.url
-                            ? "var(--brand-primary)"
-                            : "var(--bg-surface-elevated)",
-                        color:
-                          formData.coverImage === preset.url
-                            ? "#ffffff"
-                            : "var(--text-secondary)",
-                        border: `1px solid ${formData.coverImage === preset.url ? "var(--border-focus)" : "var(--border)"}`,
-                        padding: "0.2rem 0.5rem",
-                      }}
-                    >
-                      {preset.label}
-                    </button>
-                  ))}
-                </div>
               </div>
 
               {/* Tags */}

@@ -4,6 +4,11 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AlertTriangle, BellRing, Clock3, MapPin, Phone, RefreshCw, ShieldAlert } from 'lucide-react';
 import { getStoredOpsUser, opsApi } from '../../../lib/api/opsClient';
+import {
+  getSosAlertDisplay,
+  getSosNextAction,
+  isActiveSosStatus,
+} from '../../../lib/opsHelpers';
 import type {
   CorporateRouteItem,
   CorporateTenantOption,
@@ -115,13 +120,20 @@ export default function ExceptionsDashboardPage() {
   const rows = useMemo<ExceptionRow[]>(() => {
     const result: ExceptionRow[] = [];
     for (const alert of alerts) {
-      if (['RESOLVED', 'FALSE_ALARM'].includes(String(alert.status))) continue;
-      if (selectedTenantId !== 'ALL' && alert.tenantName && alert.tenantName !== selectedTenantName) continue;
+      if (!isActiveSosStatus(alert.status)) continue;
+      const display = getSosAlertDisplay(alert);
+      if (selectedTenantId !== 'ALL') {
+        if (display.tenantId) {
+          if (display.tenantId !== selectedTenantId) continue;
+        } else if (display.tenantName !== selectedTenantName) {
+          continue;
+        }
+      }
       result.push({
         id: `sos:${alert.id}`,
         type: 'SOS',
-        severity: alert.severity,
-        client: alert.tenantName ?? 'Corporate Client',
+        severity: display.severity,
+        client: display.tenantName,
         age: ageMinutes(alert.createdAt),
         status: alert.status,
         alert,
@@ -191,12 +203,13 @@ export default function ExceptionsDashboardPage() {
   }
 
   async function runSosAction(alert: SosAlertItem) {
+    const action = getSosNextAction(alert);
+    if (!action) return;
     setActionId(alert.id);
     setError('');
     setNotice('');
     try {
-      const isNew = String(alert.status) === 'NEW' || String(alert.status) === 'ACTIVE';
-      if (isNew) {
+      if (action === 'ACKNOWLEDGE') {
         await opsApi.acknowledgeSosAlert(alert.id);
         setNotice('SOS alert acknowledged.');
       } else {
@@ -290,7 +303,9 @@ export default function ExceptionsDashboardPage() {
             rows.map((row) => {
               const owner = claims[row.id];
               const isSos = row.type === 'SOS';
-              const driverPhone = row.type === 'SOS' ? row.alert.driverPhone : row.route?.driver?.phone;
+              const sosDisplay = row.type === 'SOS' ? getSosAlertDisplay(row.alert) : null;
+              const nextSosAction = row.type === 'SOS' ? getSosNextAction(row.alert) : null;
+              const driverPhone = row.type === 'SOS' ? sosDisplay?.driverPhone : row.route?.driver?.phone;
               return (
                 <div key={row.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(120px, .75fr) minmax(150px, 1fr) minmax(150px, 1fr) 70px 110px minmax(140px, 1fr) 150px', gap: 12, alignItems: 'center', padding: '13px 16px', borderTop: '1px solid var(--border-subtle)', background: isSos ? 'var(--color-danger-bg, #FEF2F2)' : 'var(--bg-surface)' }}>
                   <div>
@@ -312,7 +327,7 @@ export default function ExceptionsDashboardPage() {
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
                     {row.type === 'SOS'
-                      ? `${row.alert.triggerType.replaceAll('_', ' ')} · ${row.alert.driverName ?? 'Driver'}`
+                      ? `${sosDisplay!.triggerLabel} · ${sosDisplay!.driverName ?? 'Driver'}${sosDisplay!.notes ? ` · ${sosDisplay!.notes}` : ''}`
                       : row.feed
                         ? `${row.feed.details} · ${row.feed.office}`
                         : row.type === 'Stale GPS'
@@ -322,7 +337,11 @@ export default function ExceptionsDashboardPage() {
                   <span style={{ fontSize: 12, color: row.age > 15 ? '#DC2626' : 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                     <Clock3 size={12} />{row.feed ? row.feed.duration : ageLabel(row.age)}
                   </span>
-                  <StatusBadge status={row.status} size="sm" pulse={isSos && row.status === 'NEW'} />
+                  <StatusBadge
+                    status={row.status}
+                    size="sm"
+                    pulse={isSos && (row.status === 'NEW' || row.status === 'ACTIVE' || row.status === 'ESCALATED')}
+                  />
                   <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                     <span style={{ fontSize: 11, color: owner ? 'var(--text-primary)' : 'var(--text-muted)' }}>{owner ?? 'Unclaimed'}</span>
                     {!owner && (
@@ -338,14 +357,20 @@ export default function ExceptionsDashboardPage() {
                   </div>
                   <div>
                     {row.type === 'SOS' ? (
-                      <Button
-                        size="sm"
-                        variant={row.status === 'NEW' ? 'danger' : 'outline'}
-                        isLoading={actionId === row.alert.id}
-                        onClick={() => void runSosAction(row.alert)}
-                      >
-                        {row.status === 'NEW' ? 'Acknowledge' : 'Escalate'}
-                      </Button>
+                      nextSosAction ? (
+                        <Button
+                          size="sm"
+                          variant={nextSosAction === 'ACKNOWLEDGE' ? 'danger' : 'outline'}
+                          isLoading={actionId === row.alert.id}
+                          onClick={() => void runSosAction(row.alert)}
+                        >
+                          {nextSosAction === 'ACKNOWLEDGE' ? 'Acknowledge' : 'Escalate'}
+                        </Button>
+                      ) : (
+                        <Link href="/safety/cockpit" style={actionLink}>
+                          Open cockpit
+                        </Link>
+                      )
                     ) : row.type === 'Unassigned' ? (
                       <Button
                         size="sm"

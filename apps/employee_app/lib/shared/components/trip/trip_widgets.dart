@@ -20,15 +20,19 @@ EmployeeDataProvider? maybeEmployeeData(BuildContext context) {
 }
 
 /// Loads live active/next trip plus live tracking (if an active trip exists).
-Future<Map<String, dynamic>> loadLiveTripSnapshot(BuildContext context) async {
+Future<Map<String, dynamic>> loadLiveTripSnapshot(
+  BuildContext context, {
+  bool force = false,
+}) async {
   final data = maybeEmployeeData(context);
   if (data == null) return const {};
-  final nextTrip = await data.loadNextTrip() ?? const <String, dynamic>{};
+  final nextTrip =
+      await data.loadNextTrip(force: force) ?? const <String, dynamic>{};
   Map<String, dynamic>? tracking;
   if (nextTrip['hasActiveTrip'] == true) {
     final id = nextTrip['stopId']?.toString() ?? nextTrip['routeId']?.toString();
     if (id != null && id.isNotEmpty) {
-      tracking = await data.loadTracking(tripOrStopId: id);
+      tracking = await data.loadTracking(tripOrStopId: id, force: force);
     }
   }
   return {
@@ -737,11 +741,16 @@ class TripMetricRow extends StatelessWidget {
           ),
         ),
         const SizedBox(width: AppSpacing.sm),
-        Text(
-          value,
-          style: AppTypography.bodyMedium(
-            color: p.textPrimary,
-            fontWeight: FontWeight.w700,
+        Flexible(
+          child: Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.end,
+            style: AppTypography.bodyMedium(
+              color: p.textPrimary,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ],

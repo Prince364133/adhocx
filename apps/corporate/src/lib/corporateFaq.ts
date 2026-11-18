@@ -117,13 +117,13 @@ export const CORPORATE_FAQS: CorporateFaqEntry[] = [
     id: 'profile-permissions',
     category: 'company-profile',
     question: 'Why might an edit action be unavailable?',
-    answer: 'Company Profile edit controls depend on the permissions associated with your account. The page checks separate permissions for tenant details, offices, departments, and user invitations.',
+    answer: 'Company Profile edit controls depend on the permissions associated with your account. The page checks separate permissions for organization details, offices, departments, transport zones, and user invitations.',
   },
   {
     id: 'create-ticket',
     category: 'support-tickets',
     question: 'How do I create and follow a support ticket?',
-    answer: 'Open Support to create a ticket with a category, priority, and description. Existing tickets can be opened to view their details and conversation.',
+    answer: 'Open Support to create a ticket with a category, priority, and description, or open Employee Support to review, reply to, progress, and resolve employee commute tickets.',
   },
   {
     id: 'ticket-images',

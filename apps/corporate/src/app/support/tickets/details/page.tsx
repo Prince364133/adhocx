@@ -640,9 +640,9 @@ function TicketDetailsThreadContent() {
                     ID: {ticket.employee.employeeCode}
                   </div>
                 )}
-                {ticket.employee.phone && (
+                {(ticket.employee.phoneNumber ?? ticket.employee.phone) && (
                   <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                    Phone: {ticket.employee.phone}
+                    Phone: {ticket.employee.phoneNumber ?? ticket.employee.phone}
                   </div>
                 )}
               </div>

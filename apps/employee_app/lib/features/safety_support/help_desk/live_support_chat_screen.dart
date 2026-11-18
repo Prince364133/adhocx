@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
@@ -21,7 +22,9 @@ class _LiveSupportChatScreenState extends State<LiveSupportChatScreen> {
   final List<Map<String, dynamic>> _messages = [];
   final TextEditingController _msgController = TextEditingController();
   final ScrollController _scroll = ScrollController();
+  Timer? _pollTimer;
   bool _isLoading = true;
+  bool _refreshing = false;
   bool _sending = false;
   String? _ticketId;
 
@@ -29,6 +32,14 @@ class _LiveSupportChatScreenState extends State<LiveSupportChatScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadMessages());
+  }
+
+  void _startPolling() {
+    _pollTimer?.cancel();
+    if (_ticketId == null || _ticketId!.isEmpty) return;
+    _pollTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      _refreshMessages(silent: true);
+    });
   }
 
   Future<void> _loadMessages() async {
@@ -67,7 +78,37 @@ class _LiveSupportChatScreenState extends State<LiveSupportChatScreen> {
       _ticketId = ticketId;
       _isLoading = false;
     });
+    _startPolling();
     _scrollToEnd();
+  }
+
+  Future<void> _refreshMessages({bool silent = false}) async {
+    final data = maybeEmployeeData(context);
+    final ticketId = _ticketId;
+    if (data == null || ticketId == null || ticketId.isEmpty || _refreshing) {
+      return;
+    }
+    if (!silent && mounted) {
+      setState(() => _refreshing = true);
+    } else {
+      _refreshing = true;
+    }
+    try {
+      final rawMessages = await data.repository.getTicketMessages(ticketId);
+      if (!mounted) return;
+      setState(() {
+        _messages
+          ..clear()
+          ..addAll(rawMessages
+              .whereType<Map>()
+              .map((m) => _normalizeMessage(Map<String, dynamic>.from(m))));
+      });
+    } catch (_) {
+      // Preserve existing messages if refresh fails.
+    } finally {
+      _refreshing = false;
+      if (mounted && !silent) setState(() {});
+    }
   }
 
   Map<String, dynamic> _normalizeMessage(Map<String, dynamic> raw) {
@@ -119,6 +160,10 @@ class _LiveSupportChatScreenState extends State<LiveSupportChatScreen> {
           );
           ticketId = created['id']?.toString();
           _ticketId = ticketId;
+          if (ticketId != null && ticketId.isNotEmpty) {
+            await data.repository.sendTicketMessage(ticketId, text);
+            _startPolling();
+          }
           await data.loadTickets(force: true);
         } else {
           await data.repository.sendTicketMessage(ticketId, text);
@@ -165,6 +210,7 @@ class _LiveSupportChatScreenState extends State<LiveSupportChatScreen> {
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
     _msgController.dispose();
     _scroll.dispose();
     super.dispose();
@@ -178,6 +224,22 @@ class _LiveSupportChatScreenState extends State<LiveSupportChatScreen> {
       backgroundColor: p.background,
       appBar: EmployeeAppBar(
         centerTitle: false,
+        actions: [
+          IconButton(
+            tooltip: 'Refresh messages',
+            icon: _refreshing
+                ? SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: p.accent,
+                    ),
+                  )
+                : Icon(Icons.refresh_rounded, color: p.textPrimary),
+            onPressed: _refreshing ? null : () => _refreshMessages(),
+          ),
+        ],
         titleWidget: Row(
           children: [
             CircleAvatar(

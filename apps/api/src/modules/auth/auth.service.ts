@@ -526,10 +526,19 @@ export class AuthService implements OnModuleInit {
             },
           });
           if (tenant) {
+            const candidateEmail = (isEmail ? value : tenant.primaryContactEmail || '').trim().toLowerCase();
+            let safeTenantEmail: string | undefined;
+            if (candidateEmail && candidateEmail.includes('@')) {
+              const emailClash = await this.db.user.findFirst({
+                where: { email: { equals: candidateEmail, mode: 'insensitive' } },
+                select: { id: true },
+              });
+              if (!emailClash) safeTenantEmail = candidateEmail;
+            }
             existingUser = await this.db.user.create({
               data: {
                 phone: !isEmail ? value : (tenant.primaryContactPhone || undefined),
-                email: isEmail ? value : (tenant.primaryContactEmail || undefined),
+                ...(safeTenantEmail ? { email: safeTenantEmail } : {}),
                 fullName: tenant.primaryContactName || `${tenant.name} Administrator`,
                 role: UserRole.CORPORATE_ADMIN,
                 corporateRole: 'CORP_SUPER_ADMIN',
@@ -608,6 +617,9 @@ export class AuthService implements OnModuleInit {
 
       if (!existingUser) {
         throw new BadRequestException('No account found with this email or mobile number. Please check your details or sign up.');
+      }
+      if (existingUser.status === 'SUSPENDED' || existingUser.status === 'BANNED') {
+        throw new ForbiddenException('Your account has been suspended. Please contact support.');
       }
     }
 
@@ -762,6 +774,23 @@ export class AuthService implements OnModuleInit {
           );
         }
       } else {
+        if (dto.isRegister === false) {
+          throw new BadRequestException(
+            'No account found with this email or mobile number. Please verify your registered contact details.',
+          );
+        }
+        const blockedSelfRegisterRoles = new Set<string>([
+          UserRole.ADMIN,
+          UserRole.OPS,
+          UserRole.CORPORATE_ADMIN,
+          UserRole.CORPORATE_MANAGER,
+          UserRole.EMPLOYEE,
+        ]);
+        if (blockedSelfRegisterRoles.has(assignedRole)) {
+          throw new ForbiddenException(
+            `Self-registration is not allowed for ${assignedRole} accounts. Please contact your organization administrator.`,
+          );
+        }
         // Create new user with real phone (if provided) and real email (if provided)
         const effectivePhone = rawPhone
           ? this.normalizeIdentifier(rawPhone).value
@@ -820,7 +849,11 @@ export class AuthService implements OnModuleInit {
         this.logger.log(`Created new user via OTP: ${user.id} (${user.phone ?? user.email}) with role ${user.role}`);
       }
     } catch (dbErr: any) {
-      if (dbErr instanceof ConflictException || dbErr instanceof ForbiddenException) {
+      if (
+        dbErr instanceof ConflictException ||
+        dbErr instanceof ForbiddenException ||
+        dbErr instanceof BadRequestException
+      ) {
         throw dbErr;
       }
       this.logger.error(`Database error in verifyOtp: ${dbErr.message}`, dbErr.stack);
@@ -906,28 +939,37 @@ export class AuthService implements OnModuleInit {
     let fullName = dto.fullName;
     const provider = dto.provider;
 
-    // If Google idToken is provided, verify against Google OAuth Client ID
-    if (provider === 'GOOGLE' && dto.idToken) {
-      try {
-        const googleClientId =
-          this.configService.get<string>('GOOGLE_CLIENT_ID') || process.env.GOOGLE_CLIENT_ID;
-        if (googleClientId) {
-          const { OAuth2Client } = await import('google-auth-library');
-          const client = new OAuth2Client(googleClientId);
-          const ticket = await client.verifyIdToken({
-            idToken: dto.idToken,
-            audience: googleClientId,
-          });
-          const payload = ticket.getPayload();
-          if (payload?.email) {
-            email = payload.email.toLowerCase();
-            fullName = payload.name || fullName;
-            this.logger.log(`✅ [GOOGLE OAUTH VERIFIED] Token validated for ${email} (${fullName})`);
-          }
-        }
-      } catch (oauthErr: any) {
-        this.logger.warn(`⚠️ [GOOGLE OAUTH TOKEN VERIFICATION NOTICE] ${oauthErr.message}. Accepting verified social payload.`);
+    // Require verified identity token for Google OAuth (fail closed in production/when configured)
+    if (provider === 'GOOGLE') {
+      const googleClientId =
+        this.configService.get<string>('GOOGLE_CLIENT_ID') || process.env.GOOGLE_CLIENT_ID;
+      if (!dto.idToken) {
+        throw new UnauthorizedException('Google identity token (idToken) is required.');
       }
+      if (!googleClientId) {
+        throw new UnauthorizedException('Google OAuth is not configured on the server.');
+      }
+      try {
+        const { OAuth2Client } = await import('google-auth-library');
+        const client = new OAuth2Client(googleClientId);
+        const ticket = await client.verifyIdToken({
+          idToken: dto.idToken,
+          audience: googleClientId,
+        });
+        const payload = ticket.getPayload();
+        if (!payload?.email || payload.email_verified === false) {
+          throw new UnauthorizedException('Google identity token does not contain a verified email.');
+        }
+        email = payload.email.toLowerCase();
+        fullName = payload.name || fullName;
+        this.logger.log(`✅ [GOOGLE OAUTH VERIFIED] Token validated for ${email} (${fullName})`);
+      } catch (oauthErr: any) {
+        if (oauthErr instanceof UnauthorizedException) throw oauthErr;
+        this.logger.warn(`⚠️ [GOOGLE OAUTH REJECTED] ${oauthErr.message}`);
+        throw new UnauthorizedException('Invalid or expired Google identity token.');
+      }
+    } else {
+      throw new UnauthorizedException('Only verified Google OAuth is supported for social sign-in.');
     }
 
     this.logger.log(`🔑 [SOCIAL AUTH - ${provider}] Authenticating verified user: ${email} (${fullName || 'User'})`);
@@ -944,6 +986,21 @@ export class AuthService implements OnModuleInit {
         });
 
         const assignedRole = this.mapUserRole(dto.role);
+        if (user && (user.role === UserRole.ADMIN || user.role === UserRole.OPS)) {
+          throw new ForbiddenException('Platform staff accounts cannot sign in via social auth.');
+        }
+        if (!user) {
+          const blockedSocialRoles = new Set<string>([
+            UserRole.ADMIN,
+            UserRole.OPS,
+            UserRole.CORPORATE_ADMIN,
+            UserRole.CORPORATE_MANAGER,
+            UserRole.EMPLOYEE,
+          ]);
+          if (blockedSocialRoles.has(assignedRole)) {
+            throw new ForbiddenException(`Self-registration via social auth is not allowed for ${assignedRole} accounts.`);
+          }
+        }
 
         if (user && dto.role && user.role !== assignedRole) {
           this.logger.log(`[SOCIAL AUTO-DETECT] Account already registered as ${user.role}. Automatically logging in as ${user.role}.`);
@@ -1043,12 +1100,14 @@ export class AuthService implements OnModuleInit {
 
   private async verifyAccountActiveAndClearStaleRevocation(user: any): Promise<void> {
     if (!user?.id) return;
-    const isSuspended =
+    const isInactive =
       user.status === 'SUSPENDED' ||
+      user.status === 'DEACTIVATED' ||
+      user.status === 'BANNED' ||
       user.driver?.verificationStatus === 'SUSPENDED' ||
       user.vendor?.verificationStatus === 'SUSPENDED';
-    if (isSuspended) {
-      throw new ForbiddenException('Your account has been suspended. Please contact AdhocX support.');
+    if (isInactive) {
+      throw new ForbiddenException('Your account has been suspended or deactivated. Please contact AdhocX support.');
     }
     // Clear any stale user_revoked key for active (non-suspended) accounts, including
     // KYC-rejected drivers/vendors so they can log in, see rejection feedback, and re-apply.
@@ -1314,7 +1373,11 @@ export class AuthService implements OnModuleInit {
         isOnboarded,
         corporateTenantId: corporateClaims.corporateTenantId || user?.corporateTenantId || undefined,
         corporateRole: corporateClaims.corporateRole || user?.corporateRole || undefined,
-        corporateOfficeIds: corporateClaims.corporateOfficeIds || user?.corporateOfficeIds || undefined,
+        corporateOfficeIds:
+          corporateClaims.corporateOfficeIds ||
+          (Array.isArray(user?.corporateOfficeIds) && user.corporateOfficeIds.length > 0
+            ? user.corporateOfficeIds
+            : undefined),
         corporateEmployeeId: corporateClaims.corporateEmployeeId || undefined,
         vendorProfile: user.vendor
           ? {
@@ -1349,7 +1412,14 @@ export class AuthService implements OnModuleInit {
   async logout(accessToken: string, userId?: string): Promise<void> {
     if (accessToken) {
       try {
-        await this.redis.blacklistToken(accessToken, 3600);
+        let ttlSeconds = 7 * 24 * 3600;
+        if (typeof (this.jwtService as any)?.decode === 'function') {
+          const decoded = (this.jwtService as any).decode(accessToken);
+          if (decoded && typeof decoded === 'object' && typeof decoded.exp === 'number') {
+            ttlSeconds = Math.max(60, Math.ceil(decoded.exp - Date.now() / 1000));
+          }
+        }
+        await this.redis.blacklistToken(accessToken, ttlSeconds);
       } catch (_) {}
     }
 
@@ -1462,6 +1532,14 @@ export class AuthService implements OnModuleInit {
         await tx.vendor.delete({ where: { id: vendorId } });
       }
 
+      // If user is a corporate employee, deactivate their CorporateEmployee record so OTP login won't re-provision them
+      if (user.role === UserRole.EMPLOYEE && typeof (tx as any).corporateEmployee?.updateMany === 'function') {
+        await tx.corporateEmployee.updateMany({
+          where: { userId },
+          data: { isActive: false, userId: null },
+        });
+      }
+
       // Clean up user-direct child records
       await tx.deviceToken.deleteMany({ where: { userId } });
       await tx.notification.deleteMany({ where: { userId } });
@@ -1510,15 +1588,21 @@ export class AuthService implements OnModuleInit {
       include: { vendor: true, driver: true },
     });
 
-    // Corporate claims are re-derived from the database on every refresh so a
+    if (!user) {
+      throw new UnauthorizedException('User account no longer exists.');
+    }
+    await this.verifyAccountActiveAndClearStaleRevocation(user);
+
+    // Corporate claims and role are re-derived from the database on every refresh so a
     // tenant re-assignment / employee unlink takes effect without re-login.
-    const corporateClaims = await this.buildCorporateClaims(user ? { ...user, role: payload.role } : null);
+    const effectiveRole = (user?.role || payload.role) as UserRole;
+    const corporateClaims = await this.buildCorporateClaims(user ? { ...user, role: effectiveRole } : null);
     const tokenPayload = {
       jti: crypto.randomUUID(),
       id: payload.id,
-      phone: payload.phone,
-      email: payload.email,
-      role: payload.role,
+      phone: user?.phone || payload.phone,
+      email: user?.email || payload.email,
+      role: effectiveRole,
       ...corporateClaims,
     };
 
@@ -1595,7 +1679,7 @@ export class AuthService implements OnModuleInit {
         id: payload.id,
         phone: user?.phone || payload.phone || undefined,
         email: user?.email || payload.email || undefined,
-        role: payload.role as UserRole,
+        role: effectiveRole,
         fullName: user?.fullName || undefined,
         photoUrl: profilePhoto,
         isApproved,
@@ -1603,7 +1687,11 @@ export class AuthService implements OnModuleInit {
         isOnboarded,
         corporateTenantId: corporateClaims.corporateTenantId || user?.corporateTenantId || undefined,
         corporateRole: corporateClaims.corporateRole || user?.corporateRole || undefined,
-        corporateOfficeIds: corporateClaims.corporateOfficeIds || user?.corporateOfficeIds || undefined,
+        corporateOfficeIds:
+          corporateClaims.corporateOfficeIds ||
+          (Array.isArray(user?.corporateOfficeIds) && user.corporateOfficeIds.length > 0
+            ? user.corporateOfficeIds
+            : undefined),
         corporateEmployeeId: corporateClaims.corporateEmployeeId || undefined,
         vendorProfile: user?.vendor
           ? {

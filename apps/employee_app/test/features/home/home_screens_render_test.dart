@@ -1,17 +1,24 @@
+import 'dart:convert';
 import 'package:adhocx_employee/features/home/home.dart';
 import 'package:adhocx_employee/features/schedule/requests/request_change_options_screen.dart';
 import 'package:adhocx_employee/models/employee_user.dart';
 import 'package:adhocx_employee/repositories/employee_auth_repository.dart';
+import 'package:adhocx_employee/repositories/http_employee_rider_repository.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
+import 'package:adhocx_employee/services/employee_api_client.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
 import 'package:adhocx_employee/state/employee_auth_provider.dart';
+import 'package:adhocx_employee/state/employee_data_provider.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class _FakeAuthRepository implements EmployeeAuthRepository {
   @override
@@ -40,8 +47,80 @@ final _screens = <String, Widget Function()>{
   'Home no upcoming trip': () => const HomeNoUpcomingTripScreen(),
 };
 
-Widget _app(Widget home, {bool dark = false}) => ChangeNotifierProvider(
-      create: (_) => EmployeeAuthProvider(repository: _FakeAuthRepository()),
+EmployeeDataProvider _seededDataProvider() {
+  SharedPreferences.setMockInitialValues({});
+  final mockHttp = MockClient((req) async {
+    final path = req.url.path;
+    if (path.endsWith('/corporate/me')) {
+      return http.Response(
+        jsonEncode({
+          'data': {
+            'employeeId': 'emp-1',
+            'employeeCode': 'EMP001',
+            'fullName': 'Ananya Sharma',
+            'tenant': {'name': 'Acme Corp'},
+            'office': {'name': 'HITEC City Campus'},
+          },
+        }),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    }
+    if (path.endsWith('/corporate/me/trips/next')) {
+      return http.Response(
+        jsonEncode({
+          'data': {
+            'hasActiveTrip': true,
+            'stopId': 'stop-1',
+            'routeId': 'route-1',
+            'routeNumber': 'RT-101',
+            'direction': 'LOGIN',
+            'shiftDate': '2026-11-18',
+            'shiftTime': '09:00',
+            'plannedEta': '08:15',
+            'stopStatus': 'ASSIGNED',
+            'boardingOtp': '4829',
+            'pickupLocation': {'addressText': 'Madhapur Main Rd'},
+            'officeDestination': {'name': 'HITEC City Campus'},
+            'driver': {'name': 'Arjun Reddy', 'rating': 4.9},
+            'vehicle': {
+              'registrationNumber': 'TS09UB7845',
+              'model': 'Toyota Innova',
+            },
+          },
+        }),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    }
+    return http.Response(
+      jsonEncode({'data': []}),
+      200,
+      headers: {'content-type': 'application/json'},
+    );
+  });
+  return EmployeeDataProvider(
+    repository: HttpEmployeeRiderRepository(
+      client: EmployeeApiClient(httpClient: mockHttp),
+    ),
+  );
+}
+
+Widget _app(
+  Widget home, {
+  bool dark = false,
+  EmployeeDataProvider? dataProvider,
+}) =>
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (_) => EmployeeAuthProvider(repository: _FakeAuthRepository()),
+        ),
+        if (dataProvider != null)
+          ChangeNotifierProvider<EmployeeDataProvider>.value(
+            value: dataProvider,
+          ),
+      ],
       child: MaterialApp(
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkTheme,
@@ -79,7 +158,10 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(_app(const HomeUpcomingPickupScreen()));
+    final dataProvider = _seededDataProvider();
+    await tester.pumpWidget(
+      _app(const HomeUpcomingPickupScreen(), dataProvider: dataProvider),
+    );
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
@@ -105,6 +187,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
+    final dataProvider = _seededDataProvider();
     final router = GoRouter(
       initialLocation: AppRoutes.home,
       routes: [
@@ -125,8 +208,16 @@ void main() {
     addTearDown(router.dispose);
 
     await tester.pumpWidget(
-      ChangeNotifierProvider(
-        create: (_) => EmployeeAuthProvider(repository: _FakeAuthRepository()),
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(
+            create: (_) =>
+                EmployeeAuthProvider(repository: _FakeAuthRepository()),
+          ),
+          ChangeNotifierProvider<EmployeeDataProvider>.value(
+            value: dataProvider,
+          ),
+        ],
         child: MaterialApp.router(
           theme: AppTheme.lightTheme,
           routerConfig: router,

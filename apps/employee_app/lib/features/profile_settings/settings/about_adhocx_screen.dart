@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
-import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
@@ -61,15 +60,11 @@ class AboutAdhocxScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.xxl + 4),
-            EmployeeNavTile(
+            const EmployeeNavTile(
               icon: Icons.system_update_alt_rounded,
-              title: 'Check for Updates',
-              onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('You are using the latest version ($_version).'),
-                  backgroundColor: AppColors.success,
-                ),
-              ),
+              title: 'App Version',
+              subtitle: '$_version • Managed via your device app store',
+              trailing: SizedBox.shrink(),
             ),
             const SizedBox(height: AppSpacing.md),
             EmployeeNavTile(

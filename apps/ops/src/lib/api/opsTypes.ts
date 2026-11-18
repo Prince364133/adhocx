@@ -9,6 +9,7 @@ export interface CorporateTenantOption {
   activeShiftsCount?: number;
   activeCabsCount?: number;
   inTransitCount?: number;
+  inTransitPassengersCount?: number;
   onTimePunctualityPct?: number | null;
   delayedCount?: number;
   unassignedCount?: number;
@@ -82,6 +83,7 @@ export interface OnboardCorporateCompanyResponse {
 
 export interface RouteStop {
   id: string;
+  employeeId?: string | null;
   stopSequence: number;
   stopType: 'PICKUP' | 'DROPOFF';
   latitude: number;
@@ -464,19 +466,67 @@ export interface RouteWaypointsResponse {
 export interface SosAlertItem {
   id: string;
   routeId: string;
+  tenantId?: string;
+  stopId?: string | null;
+  triggeredById?: string | null;
+  triggeredByRole?: 'EMPLOYEE' | 'DRIVER' | string | null;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
+  batteryPct?: number | null;
+  audioUrl?: string | null;
+  status:
+    | 'NEW'
+    | 'ACTIVE'
+    | 'ACKNOWLEDGED'
+    | 'INVESTIGATING'
+    | 'ESCALATED'
+    | 'RESPONDED'
+    | 'RESOLVED'
+    | 'FALSE_ALARM'
+    | string;
+  escalationLevel?: number;
+  assignedToAdminId?: string | null;
+  assignedAdminName?: string | null;
+  resolutionNotes?: string | null;
+  createdAt: string;
+  acknowledgedAt?: string | null;
+  escalatedAt?: string | null;
+  resolvedAt?: string | null;
+  route?: {
+    id: string;
+    tenantId?: string;
+    direction?: 'LOGIN' | 'LOGOUT' | string;
+    shiftDate?: string;
+    shiftTime?: string;
+    driver?: {
+      id?: string;
+      fullName?: string | null;
+      phone?: string | null;
+    } | null;
+    vehicle?: {
+      id?: string;
+      registrationNumber?: string | null;
+      model?: string | null;
+    } | null;
+    tenant?: {
+      id: string;
+      name: string;
+      code?: string | null;
+    } | null;
+    office?: {
+      id: string;
+      name: string;
+    } | null;
+  } | null;
+  // Optional legacy aliases kept for backward compatibility
   tripId?: string;
   riderId?: string;
   driverId?: string;
-  status: 'NEW' | 'ACKNOWLEDGED' | 'INVESTIGATING' | 'RESOLVED' | 'ESCALATED';
-  severity: 'CRITICAL_P0' | 'HIGH_P1' | 'MEDIUM_P2';
-  triggerType: 'PANIC_BUTTON' | 'ROUTE_DEVIATION' | 'MANUAL_DISPATCHER';
-  locationLat: number;
-  locationLng: number;
+  severity?: 'CRITICAL_P0' | 'HIGH_P1' | 'MEDIUM_P2' | string;
+  triggerType?: string;
+  locationLat?: number;
+  locationLng?: number;
   addressText?: string;
-  createdAt: string;
-  acknowledgedAt?: string;
-  resolvedAt?: string;
-  escalatedAt?: string;
   responderNotes?: string;
   riderName?: string;
   riderPhone?: string;

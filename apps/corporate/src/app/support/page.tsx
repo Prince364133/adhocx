@@ -27,6 +27,13 @@ const CATEGORIES = [
   ['BILLING_PAYMENTS', 'Billing & Payments'],
   ['ACCOUNT_ACCESS', 'Account & Access'],
   ['GENERAL_SUPPORT', 'General Support'],
+  ['CAB_DELAY', 'Cab Delay'],
+  ['DRIVER_BEHAVIOR', 'Driver Behavior'],
+  ['ROUTE_ISSUE', 'Route Issue'],
+  ['BILLING', 'Billing'],
+  ['LOST_ITEM', 'Lost Item'],
+  ['VEHICLE_CONDITION', 'Vehicle Condition'],
+  ['SAFETY_CONCERN', 'Safety Concern'],
   ['OTHER', 'Other'],
 ] as const;
 const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const;
@@ -483,7 +490,7 @@ export default function SupportOverviewPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, paddingBottom: 18, borderBottom: '1px solid var(--border-color)' }}>
                 <DetailField label="Category" value={pretty(selected.category)} /><DetailField label="Created" value={formatDate(selected.createdAt)} />
                 <DetailField label="Assigned team" value={selected.assignedTeam || 'Not assigned'} /><DetailField label="Last updated" value={formatDate(selected.updatedAt)} />
-                <DetailField label="Assigned person" value={selected.assignedToUserId || 'Not assigned'} /><DetailField label="Employee" value={selected.employee?.fullName || '—'} />
+                <DetailField label="Assigned person" value={selected.assignedToUser?.fullName ?? selected.assignedToUserId ?? 'Not assigned'} /><DetailField label="Employee" value={selected.employee?.fullName || '—'} />
               </div>
               <div style={{ padding: '18px 0', borderBottom: '1px solid var(--border-color)' }}><h3 style={sectionTitleStyle}>Description</h3><p style={{ whiteSpace: 'pre-wrap', color: 'var(--text-secondary)', fontSize: 13, lineHeight: 1.6, margin: 0 }}>{selected.description}</p></div>
               {selected.resolutionNotes && <div style={{ padding: '18px 0', borderBottom: '1px solid var(--border-color)' }}><h3 style={sectionTitleStyle}>Resolution</h3><p style={{ color: 'var(--text-secondary)', fontSize: 13, margin: 0 }}>{selected.resolutionNotes}</p></div>}

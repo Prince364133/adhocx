@@ -209,7 +209,17 @@ function EmployeeEditor({
   );
 }
 
-function EmployeeDetails({ employee, onClose, onEdit }: { employee: EmployeeRecord; onClose: () => void; onEdit: () => void }) {
+function EmployeeDetails({
+  employee,
+  canWrite,
+  onClose,
+  onEdit,
+}: {
+  employee: EmployeeRecord;
+  canWrite: boolean;
+  onClose: () => void;
+  onEdit: () => void;
+}) {
   return (
     <div className={styles.overlay} onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <section className={styles.drawer} role="dialog" aria-modal="true" aria-labelledby="employee-detail-title">
@@ -239,7 +249,9 @@ function EmployeeDetails({ employee, onClose, onEdit }: { employee: EmployeeReco
         </div>
         <footer className={styles.drawerFooter}>
           <button type="button" className={styles.secondaryButton} onClick={onClose}>Close</button>
-          <button type="button" className={styles.primaryButton} onClick={onEdit}><Pencil size={14} /> Edit employee</button>
+          {canWrite && (
+            <button type="button" className={styles.primaryButton} onClick={onEdit}><Pencil size={14} /> Edit employee</button>
+          )}
         </footer>
       </section>
     </div>
@@ -328,7 +340,9 @@ export default function EmployeeDirectory() {
     }
     try {
       if (selectedEmployee) {
-        await employeeApi.update(tenantId, selectedEmployee.id, {
+        const trimmedAddress = values.homeAddress.trim();
+        const originalAddress = selectedEmployee.homeAddress.trim();
+        const updatePayload: Parameters<typeof employeeApi.update>[2] = {
           fullName: values.fullName.trim(),
           email: values.email.trim(),
           phoneNumber: values.phone.trim(),
@@ -336,9 +350,12 @@ export default function EmployeeDirectory() {
           department: values.department.trim(),
           costCenter: values.costCenter.trim(),
           officeId: values.officeId,
-          homeAddress: values.homeAddress.trim() || undefined,
           isActive: values.status === 'Active',
-        });
+        };
+        if (trimmedAddress && trimmedAddress !== originalAddress) {
+          updatePayload.homeAddress = trimmedAddress;
+        }
+        await employeeApi.update(tenantId, selectedEmployee.id, updatePayload);
       } else {
         await employeeApi.create(tenantId, {
           employeeCode: values.employeeId.trim(),
@@ -561,6 +578,7 @@ export default function EmployeeDirectory() {
       {drawerMode === 'view' && selectedEmployee && (
         <EmployeeDetails
           employee={selectedEmployee}
+          canWrite={canWrite}
           onClose={() => { setDrawerMode(null); setSelectedEmployee(null); }}
           onEdit={() => openEditor(selectedEmployee)}
         />

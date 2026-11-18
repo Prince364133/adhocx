@@ -2034,8 +2034,17 @@ export class CorporateRoutePlannerService {
     if (!dto.tenantId || !dto.officeId) {
       throw new BadRequestException('Company (tenantId) and office (officeId) are required');
     }
-    if (!dto.shiftDate || !dto.shiftTime) {
-      throw new BadRequestException('shiftDate (YYYY-MM-DD) and shiftTime (HH:mm) are required');
+    if (!dto.shiftDate || !/^\d{4}-\d{2}-\d{2}$/.test(dto.shiftDate)) {
+      throw new BadRequestException('shiftDate must be in YYYY-MM-DD format');
+    }
+    if (!dto.shiftTime || !/^\d{2}:\d{2}$/.test(dto.shiftTime)) {
+      throw new BadRequestException('shiftTime must be in HH:mm format');
+    }
+    if (dto.direction && dto.direction !== 'LOGIN' && dto.direction !== 'LOGOUT') {
+      throw new BadRequestException('direction must be LOGIN or LOGOUT');
+    }
+    if (dto.maxCapacity !== undefined && (!Number.isFinite(Number(dto.maxCapacity)) || Number(dto.maxCapacity) < 1)) {
+      throw new BadRequestException('maxCapacity must be a positive number');
     }
     if (!Array.isArray(dto.stops) || dto.stops.length === 0) {
       throw new BadRequestException('At least one employee stop is required to create a route');
@@ -2244,8 +2253,17 @@ export class CorporateRoutePlannerService {
       include: { stops: true },
     });
     if (!existing) throw new NotFoundException(`Route ${routeId} not found`);
-    if (existing.status === 'COMPLETED' || existing.status === 'IN_TRANSIT') {
+    if (existing.status === 'COMPLETED' || existing.status === 'IN_TRANSIT' || existing.status === 'CANCELLED') {
       throw new ConflictException(`Cannot edit route in ${existing.status} status`);
+    }
+    if (dto.shiftDate && !/^\d{4}-\d{2}-\d{2}$/.test(dto.shiftDate)) {
+      throw new BadRequestException('shiftDate must be in YYYY-MM-DD format');
+    }
+    if (dto.shiftTime && !/^\d{2}:\d{2}$/.test(dto.shiftTime)) {
+      throw new BadRequestException('shiftTime must be in HH:mm format');
+    }
+    if (dto.maxCapacity !== undefined && (!Number.isFinite(Number(dto.maxCapacity)) || Number(dto.maxCapacity) < 1)) {
+      throw new BadRequestException('maxCapacity must be a positive number');
     }
 
     const shiftDateStr = dto.shiftDate || existing.shiftDate.toISOString().slice(0, 10);
@@ -2259,11 +2277,12 @@ export class CorporateRoutePlannerService {
     if (dto.direction) data.direction = dto.direction;
     if (dto.vehicleCategory) data.vehicleCategory = dto.vehicleCategory.trim().toUpperCase();
     if (dto.maxCapacity !== undefined) data.maxCapacity = Math.max(existing.assignedPassengerCount, Number(dto.maxCapacity));
+    let nextOffice: any = null;
     if (dto.officeId) {
-      const office = await this.db.corporateOffice.findFirst({
+      nextOffice = await this.db.corporateOffice.findFirst({
         where: { id: dto.officeId, tenantId: existing.tenantId, isActive: true },
       });
-      if (!office) throw new BadRequestException('Selected office does not exist for this company');
+      if (!nextOffice) throw new BadRequestException('Selected office does not exist for this company');
       data.officeId = dto.officeId;
     }
 
@@ -2274,10 +2293,53 @@ export class CorporateRoutePlannerService {
       data.targetOfficeArrivalTime = isLogout ? new Date(anchor.getTime() + dur * 1000) : anchor;
     }
 
-    const updated = await this.db.corporateRoute.update({
-      where: { id: routeId },
-      data,
-      include: { office: true, stops: { orderBy: { stopSequence: 'asc' }, include: { employee: true } } },
+    const updated = await this.db.$transaction(async (tx) => {
+      const r = await tx.corporateRoute.update({
+        where: { id: routeId },
+        data,
+        include: { office: true, stops: { orderBy: { stopSequence: 'asc' }, include: { employee: true } } },
+      });
+
+      if (dto.shiftDate || dto.shiftTime || dto.direction) {
+        const reqIds = existing.stops.map((s) => s.transportRequestId).filter((id): id is string => Boolean(id));
+        if (reqIds.length > 0) {
+          await tx.corporateTransportRequest.updateMany({
+            where: { id: { in: reqIds } },
+            data: {
+              ...(dto.shiftDate ? { scheduledDate: new Date(`${dto.shiftDate}T00:00:00.000Z`) } : {}),
+              ...(dto.shiftTime ? { shiftTime: dto.shiftTime } : {}),
+              ...(dto.direction ? { direction: dto.direction } : {}),
+            },
+          });
+        }
+      }
+
+      if (dto.direction || nextOffice) {
+        for (const s of existing.stops) {
+          if (!s.employeeId) {
+            await tx.corporateRouteStop.update({
+              where: { id: s.id },
+              data: {
+                ...(dto.direction ? { stopType: isLogout ? 'PICKUP' : 'DROPOFF' } : {}),
+                ...(nextOffice
+                  ? {
+                      addressText: nextOffice.addressText || nextOffice.name,
+                      latitude: Number(nextOffice.latitude),
+                      longitude: Number(nextOffice.longitude),
+                    }
+                  : {}),
+              },
+            });
+          } else if (dto.direction) {
+            await tx.corporateRouteStop.update({
+              where: { id: s.id },
+              data: { stopType: isLogout ? 'DROPOFF' : 'PICKUP' },
+            });
+          }
+        }
+      }
+
+      return r;
     });
     return updated;
   }
@@ -2290,6 +2352,15 @@ export class CorporateRoutePlannerService {
     if (!existing) throw new NotFoundException(`Route ${routeId} not found`);
     if (existing.status === 'IN_TRANSIT' || existing.status === 'COMPLETED') {
       throw new ConflictException(`Cannot delete a route in ${existing.status} status`);
+    }
+    if (existing.status === 'ASSIGNED' || existing.driverId) {
+      throw new ConflictException('Assigned routes cannot be hard-deleted; use Cancel Route so the driver and employees are notified.');
+    }
+    const earningsCount = typeof (this.db as any).corporateDriverEarning?.count === 'function'
+      ? await this.db.corporateDriverEarning.count({ where: { routeId } })
+      : 0;
+    if (earningsCount > 0) {
+      throw new ConflictException('Cannot delete a route with driver earning records; cancel it instead.');
     }
 
     const requestIds = existing.stops.map((s) => s.transportRequestId).filter((id): id is string => Boolean(id));
@@ -2327,10 +2398,14 @@ export class CorporateRoutePlannerService {
       include: { office: true, stops: { orderBy: { stopSequence: 'asc' } } },
     });
     if (!route) throw new NotFoundException(`Route ${routeId} not found`);
-    if (route.status === 'COMPLETED' || route.status === 'CANCELLED') {
+    if (route.status === 'COMPLETED' || route.status === 'CANCELLED' || route.status === 'IN_TRANSIT') {
       throw new ConflictException(`Cannot add stops to a ${route.status} route`);
     }
     if (!dto.name?.trim()) throw new BadRequestException('Employee name is required');
+    const existingEmpCount = route.stops.filter((s) => Boolean(s.employeeId)).length;
+    if (existingEmpCount >= route.maxCapacity) {
+      throw new ConflictException(`Route is already at max capacity (${route.maxCapacity} seats)`);
+    }
 
     let lat = dto.lat !== undefined ? Number(dto.lat) : NaN;
     let lng = dto.lng !== undefined ? Number(dto.lng) : NaN;
@@ -2361,6 +2436,16 @@ export class CorporateRoutePlannerService {
         lat,
         lng,
       });
+      if (resolvedEmp) {
+        await this.assertEmployeeNotOnLiveRoute(
+          tx,
+          route.tenantId,
+          resolvedEmp.id,
+          shiftDateStr,
+          route.direction as 'LOGIN' | 'LOGOUT',
+          dto.name.trim(),
+        );
+      }
 
       if (!isLogout) {
         // Shift trailing office dropoff stop down by 1 sequence
@@ -2414,7 +2499,9 @@ export class CorporateRoutePlannerService {
           employeePhone: normalizeIndianPhone(dto.phoneNumber) || dto.phoneNumber?.trim() || null,
           latitude: lat,
           longitude: lng,
-          plannedEta: dto.plannedEta ? new Date(dto.plannedEta) : route.targetPickup1Time,
+          plannedEta: dto.plannedEta
+            ? this.resolvePlannedStopEta({ eta: dto.plannedEta }, shiftDateStr, route.targetPickup1Time, route.targetPickup1Time)
+            : route.targetPickup1Time,
           dwellBufferSeconds: 180,
           boardingOtp: generateBoardingOtp(),
           status: 'PENDING',
@@ -2457,9 +2544,27 @@ export class CorporateRoutePlannerService {
       include: { employee: true, route: true },
     });
     if (!stop) throw new NotFoundException(`Stop ${stopId} not found on route ${routeId}`);
+    if (stop.status === 'BOARDED' || ['COMPLETED', 'CANCELLED', 'IN_TRANSIT'].includes(String(stop.route.status))) {
+      throw new ConflictException(`Cannot edit stop in ${stop.status} / route ${stop.route.status} status`);
+    }
 
     const normalizedPhone = dto.phoneNumber !== undefined
       ? normalizeIndianPhone(dto.phoneNumber) || dto.phoneNumber.trim()
+      : undefined;
+
+    let nextLat = dto.lat !== undefined ? Number(dto.lat) : undefined;
+    let nextLng = dto.lng !== undefined ? Number(dto.lng) : undefined;
+    if (dto.address?.trim() && nextLat === undefined && nextLng === undefined) {
+      const geo = await this.geocodingAdapter.geocode(dto.address.trim()).catch(() => null);
+      if (geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lng)) {
+        nextLat = geo.lat;
+        nextLng = geo.lng;
+      }
+    }
+
+    const shiftDateStr = stop.route.shiftDate.toISOString().slice(0, 10);
+    const parsedEta = dto.plannedEta !== undefined
+      ? this.resolvePlannedStopEta({ eta: dto.plannedEta }, shiftDateStr, stop.route.targetPickup1Time, stop.plannedEta)
       : undefined;
 
     const updated = await this.db.corporateRouteStop.update({
@@ -2468,9 +2573,9 @@ export class CorporateRoutePlannerService {
         employeeName: dto.name !== undefined ? dto.name.trim() : undefined,
         employeePhone: normalizedPhone,
         addressText: dto.address !== undefined ? dto.address.trim() : undefined,
-        latitude: dto.lat !== undefined ? Number(dto.lat) : undefined,
-        longitude: dto.lng !== undefined ? Number(dto.lng) : undefined,
-        plannedEta: dto.plannedEta !== undefined ? new Date(dto.plannedEta) : undefined,
+        latitude: nextLat,
+        longitude: nextLng,
+        plannedEta: parsedEta,
       },
       include: { employee: true },
     });
@@ -2512,10 +2617,18 @@ export class CorporateRoutePlannerService {
   async deleteRouteStop(routeId: string, stopId: string) {
     const stop = await this.db.corporateRouteStop.findFirst({
       where: { id: stopId, routeId },
+      include: { route: { include: { stops: { select: { id: true, employeeId: true } } } } },
     });
     if (!stop) throw new NotFoundException(`Stop ${stopId} not found on route ${routeId}`);
-    if (stop.status === 'BOARDED') {
-      throw new ConflictException('Cannot delete a stop that has already been boarded');
+    if (!stop.employeeId) {
+      throw new BadRequestException('Cannot delete the office hub stop from a route');
+    }
+    if (stop.status === 'BOARDED' || ['COMPLETED', 'CANCELLED', 'IN_TRANSIT'].includes(String(stop.route.status))) {
+      throw new ConflictException(`Cannot delete stop in ${stop.status} / route ${stop.route.status} status`);
+    }
+    const totalEmployeeStops = stop.route.stops.filter((s) => Boolean(s.employeeId)).length;
+    if (totalEmployeeStops <= 1) {
+      throw new ConflictException('Cannot remove the last passenger stop from a route; delete or cancel the route instead.');
     }
 
     await this.db.$transaction(async (tx) => {

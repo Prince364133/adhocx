@@ -25,6 +25,13 @@ import {
 } from 'lucide-react';
 import { opsApi } from '../../lib/api/opsClient';
 import { CorporateRouteItem, RouteDirectionsResult, RouteStop } from '../../lib/api/opsTypes';
+import {
+  canCancelRoute,
+  canDeleteRoute,
+  canEditRoute,
+  canReassignRoute,
+  isOfficeHubStop,
+} from '../../lib/opsHelpers';
 import { Button } from '../common/Button';
 import { Modal } from '../common/Modal';
 import { StatusBadge } from '../common/StatusBadge';
@@ -200,7 +207,6 @@ export function OpsRouteDetailView({ routeId }: { routeId: string }) {
       router.push(route.tenantId ? `/routes?tenantId=${encodeURIComponent(route.tenantId)}` : '/routes');
     } catch (err: any) {
       setErrorMsg(err?.message || 'Could not delete route.');
-      setDeleteRouteOpen(false);
     } finally {
       setDeletingRoute(false);
     }
@@ -236,10 +242,11 @@ export function OpsRouteDetailView({ routeId }: { routeId: string }) {
   }
 
   function openEditStop(stop: RouteStop) {
+    setErrorMsg(null);
     setEditingStop(stop);
     setEditStopForm({
-      name: stop.employeeName || stop.employee?.fullName || '',
-      phoneNumber: stop.employeePhone || stop.employee?.phoneNumber || '',
+      name: stop.employeeName ?? stop.employee?.fullName ?? '',
+      phoneNumber: stop.employeePhone ?? stop.employee?.phoneNumber ?? '',
       address: stop.addressText || '',
     });
   }
@@ -402,7 +409,7 @@ export function OpsRouteDetailView({ routeId }: { routeId: string }) {
           >
             OTP / No-Show Drawer
           </Button>
-          {route.status !== 'COMPLETED' && route.status !== 'CANCELLED' && (
+          {canReassignRoute(route) && (
             <Button
               variant="outline"
               size="sm"
@@ -412,28 +419,31 @@ export function OpsRouteDetailView({ routeId }: { routeId: string }) {
               Reassign Driver
             </Button>
           )}
-          {route.status !== 'IN_TRANSIT' && route.status !== 'COMPLETED' && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setEditModalOpen(true)}
-                leftIcon={<Pencil size={14} />}
-              >
-                Edit Route
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setDeleteRouteOpen(true)}
-                leftIcon={<Trash2 size={14} />}
-                style={{ color: 'var(--color-danger, #DC2626)' }}
-              >
-                Delete
-              </Button>
-            </>
+          {canEditRoute(route) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setEditModalOpen(true)}
+              leftIcon={<Pencil size={14} />}
+            >
+              Edit Route
+            </Button>
           )}
-          {route.status !== 'COMPLETED' && route.status !== 'CANCELLED' && (
+          {canDeleteRoute(route) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setErrorMsg(null);
+                setDeleteRouteOpen(true);
+              }}
+              leftIcon={<Trash2 size={14} />}
+              style={{ color: 'var(--color-danger, #DC2626)' }}
+            >
+              Delete
+            </Button>
+          )}
+          {canCancelRoute(route) && (
             <Button
               variant="ghost"
               size="sm"
@@ -728,14 +738,18 @@ export function OpsRouteDetailView({ routeId }: { routeId: string }) {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                {orderedStops.filter((s) => !(s.stopType === 'DROPOFF' && !s.employeeName && !s.employee)).length} Pickups · Wait ≤ 10m/stop
+                {orderedStops.filter((s) => !isOfficeHubStop(s)).length}{' '}
+                {route.direction === 'LOGOUT' ? 'Dropoffs' : 'Pickups'} · Wait ≤ 10m/stop
               </span>
-              {route.status !== 'COMPLETED' && route.status !== 'CANCELLED' && (
+              {canEditRoute(route) && (
                 <Button
                   size="sm"
                   variant="outline"
                   leftIcon={<Plus size={13} />}
-                  onClick={() => setAddStopOpen(true)}
+                  onClick={() => {
+                    setErrorMsg(null);
+                    setAddStopOpen(true);
+                  }}
                 >
                   Add Stop
                 </Button>
@@ -745,11 +759,12 @@ export function OpsRouteDetailView({ routeId }: { routeId: string }) {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '580px', overflowY: 'auto', paddingRight: '4px' }}>
             {orderedStops.map((stop) => {
-              const isOfficeDropoff = stop.stopType === 'DROPOFF' && !stop.employeeName && !stop.employee;
-              const employeeName = isOfficeDropoff
-                ? route.office?.name || 'Corporate Office Destination'
-                : stop.employeeName || stop.employee?.fullName || `Stop #${stop.stopSequence}`;
-              const employeePhone = stop.employeePhone || stop.employee?.phoneNumber;
+              const isOfficeStop = isOfficeHubStop(stop);
+              const employeeName = isOfficeStop
+                ? route.office?.name ||
+                  (stop.stopType === 'PICKUP' ? 'Corporate Office Origin' : 'Corporate Office Destination')
+                : stop.employeeName ?? stop.employee?.fullName ?? `Stop #${stop.stopSequence}`;
+              const employeePhone = stop.employeePhone ?? stop.employee?.phoneNumber ?? null;
               const employeeCode = stop.employee?.employeeCode;
               const dwellMinutes = Math.round((stop.dwellBufferSeconds ?? 600) / 60);
               const nextLeg = legByFromSeq.get(stop.stopSequence);
@@ -758,19 +773,19 @@ export function OpsRouteDetailView({ routeId }: { routeId: string }) {
               return (
                 <div key={stop.id} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <div
-                    onClick={() => !isOfficeDropoff && setHighlightedStop(stop.stopSequence)}
+                    onClick={() => !isOfficeStop && setHighlightedStop(stop.stopSequence)}
                     style={{
                       padding: '12px 14px',
                       borderRadius: '10px',
                       border: isHighlighted
                         ? '2px solid var(--brand-primary, #4F46E5)'
                         : '1px solid var(--border-subtle)',
-                      backgroundColor: isOfficeDropoff
+                      backgroundColor: isOfficeStop
                         ? 'rgba(5, 150, 105, 0.06)'
                         : isHighlighted
                           ? 'rgba(79, 70, 229, 0.06)'
                           : 'var(--bg-muted, rgba(148,163,184,0.05))',
-                      cursor: isOfficeDropoff ? 'default' : 'pointer',
+                      cursor: isOfficeStop ? 'default' : 'pointer',
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
@@ -780,7 +795,7 @@ export function OpsRouteDetailView({ routeId }: { routeId: string }) {
                             width: 26,
                             height: 26,
                             borderRadius: '50%',
-                            backgroundColor: isOfficeDropoff ? '#059669' : '#4F46E5',
+                            backgroundColor: isOfficeStop ? '#059669' : '#4F46E5',
                             color: '#FFFFFF',
                             display: 'flex',
                             alignItems: 'center',
@@ -790,7 +805,7 @@ export function OpsRouteDetailView({ routeId }: { routeId: string }) {
                             flexShrink: 0,
                           }}
                         >
-                          {isOfficeDropoff ? 'HQ' : stop.stopSequence}
+                          {isOfficeStop ? 'HQ' : stop.stopSequence}
                         </div>
                         <div>
                           <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>
@@ -812,13 +827,13 @@ export function OpsRouteDetailView({ routeId }: { routeId: string }) {
                         <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
                           {formatIstTime(stop.plannedEta)}
                         </div>
-                        {!isOfficeDropoff && (
+                        {!isOfficeStop && (
                           <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Wait: {dwellMinutes} min</div>
                         )}
                       </div>
                     </div>
 
-                    {!isOfficeDropoff && (
+                    {!isOfficeStop && (
                       <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', fontSize: '12px' }}>
                         {employeePhone ? (
                           <a
@@ -847,7 +862,7 @@ export function OpsRouteDetailView({ routeId }: { routeId: string }) {
                             </span>
                           )}
                           <StatusBadge status={stop.status} />
-                          {route.status !== 'COMPLETED' && route.status !== 'CANCELLED' && (
+                          {canEditRoute(route) && (
                             <>
                               <button
                                 type="button"
@@ -877,6 +892,7 @@ export function OpsRouteDetailView({ routeId }: { routeId: string }) {
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
+                                    setErrorMsg(null);
                                     setRemovingStop(stop);
                                   }}
                                   title="Remove stop"
@@ -982,17 +998,42 @@ export function OpsRouteDetailView({ routeId }: { routeId: string }) {
       {/* Delete Route Confirmation Modal */}
       <Modal
         isOpen={deleteRouteOpen}
-        onClose={() => setDeleteRouteOpen(false)}
+        onClose={() => {
+          setDeleteRouteOpen(false);
+          setErrorMsg(null);
+        }}
         title="Delete Corporate Route"
         subtitle={`Route RT-${route.id.slice(0, 8).toUpperCase()}`}
         width="440px"
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {errorMsg && (
+            <div
+              role="alert"
+              style={{
+                padding: '10px 12px',
+                borderRadius: '8px',
+                backgroundColor: 'var(--color-danger-bg)',
+                border: '1px solid var(--color-danger-border)',
+                color: 'var(--color-danger)',
+                fontSize: '12px',
+              }}
+            >
+              {errorMsg}
+            </div>
+          )}
           <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
             Are you sure you want to permanently delete this route and its pending stops/transport requests? This cannot be undone.
           </p>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-            <Button variant="ghost" onClick={() => setDeleteRouteOpen(false)} disabled={deletingRoute}>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setDeleteRouteOpen(false);
+                setErrorMsg(null);
+              }}
+              disabled={deletingRoute}
+            >
               Cancel
             </Button>
             <Button
@@ -1010,12 +1051,30 @@ export function OpsRouteDetailView({ routeId }: { routeId: string }) {
       {/* Add Employee Stop Modal */}
       <Modal
         isOpen={addStopOpen}
-        onClose={() => setAddStopOpen(false)}
+        onClose={() => {
+          setAddStopOpen(false);
+          setErrorMsg(null);
+        }}
         title="Add Employee Stop"
         subtitle="Auto-registers employee and provisions commuter login account"
         width="480px"
       >
         <form onSubmit={handleAddStop} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {errorMsg && (
+            <div
+              role="alert"
+              style={{
+                padding: '10px 12px',
+                borderRadius: '8px',
+                backgroundColor: 'var(--color-danger-bg)',
+                border: '1px solid var(--color-danger-border)',
+                color: 'var(--color-danger)',
+                fontSize: '12px',
+              }}
+            >
+              {errorMsg}
+            </div>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             <div>
               <label style={modalLabelStyle}>Employee Name *</label>
@@ -1097,12 +1156,30 @@ export function OpsRouteDetailView({ routeId }: { routeId: string }) {
       {/* Edit Employee Stop Modal */}
       <Modal
         isOpen={Boolean(editingStop)}
-        onClose={() => setEditingStop(null)}
+        onClose={() => {
+          setEditingStop(null);
+          setErrorMsg(null);
+        }}
         title="Edit Employee Stop"
         subtitle={editingStop ? `Stop #${editingStop.stopSequence} · Updates stop & syncs employee contact` : undefined}
         width="460px"
       >
         <form onSubmit={handleUpdateStop} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {errorMsg && (
+            <div
+              role="alert"
+              style={{
+                padding: '10px 12px',
+                borderRadius: '8px',
+                backgroundColor: 'var(--color-danger-bg)',
+                border: '1px solid var(--color-danger-border)',
+                color: 'var(--color-danger)',
+                fontSize: '12px',
+              }}
+            >
+              {errorMsg}
+            </div>
+          )}
           <div>
             <label style={modalLabelStyle}>Employee Name</label>
             <input
@@ -1147,12 +1224,30 @@ export function OpsRouteDetailView({ routeId }: { routeId: string }) {
       {/* Remove Stop Confirmation Modal */}
       <Modal
         isOpen={Boolean(removingStop)}
-        onClose={() => setRemovingStop(null)}
+        onClose={() => {
+          setRemovingStop(null);
+          setErrorMsg(null);
+        }}
         title="Remove Employee Stop"
         subtitle={removingStop ? `${removingStop.employeeName || removingStop.employee?.fullName || 'Stop #' + removingStop.stopSequence}` : undefined}
         width="420px"
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {errorMsg && (
+            <div
+              role="alert"
+              style={{
+                padding: '10px 12px',
+                borderRadius: '8px',
+                backgroundColor: 'var(--color-danger-bg)',
+                border: '1px solid var(--color-danger-border)',
+                color: 'var(--color-danger)',
+                fontSize: '12px',
+              }}
+            >
+              {errorMsg}
+            </div>
+          )}
           <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
             Remove this employee stop from the route? Remaining stops will automatically be re-sequenced.
           </p>

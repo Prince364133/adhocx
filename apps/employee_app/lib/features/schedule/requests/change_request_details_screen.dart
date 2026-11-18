@@ -102,23 +102,52 @@ class _ChangeRequestDetailsScreenState
     String tripDateLabel = formatScheduleDayLabel(DateTime.now());
     try {
       if (data != null) {
-        final modifiable = data.scheduleItems.cast<Map<String, dynamic>?>().firstWhere(
-          (i) => i != null && i['canReschedule'] == true && i['requestId'] != null,
-          orElse: () => null,
-        );
-        if (modifiable != null) {
-          tripDateLabel = EmployeeDataProvider.formatDisplayDate(
-            modifiable['date']?.toString(),
-          );
-          final isTime = changeType.endsWith('Time');
-          await data.rescheduleRequest(
-            modifiable['requestId'].toString(),
-            {
-              if (isTime) 'newShiftTime': newValue,
-              if (!isTime) 'newAddress': newValue,
-              if (reason.isNotEmpty) 'reason': reason,
-            },
-          );
+        final isTime = changeType.endsWith('Time');
+        final isPickupLocation =
+            !isTime && changeType.toLowerCase().contains('pickup');
+
+        if (isTime) {
+          final modifiable =
+              data.scheduleItems.cast<Map<String, dynamic>?>().firstWhere(
+                    (i) =>
+                        i != null &&
+                        i['canReschedule'] == true &&
+                        i['requestId'] != null,
+                    orElse: () => null,
+                  );
+          if (modifiable != null) {
+            final shiftDate = modifiable['date']?.toString();
+            tripDateLabel = EmployeeDataProvider.formatDisplayDate(shiftDate);
+            await data.rescheduleRequest(
+              modifiable['requestId'].toString(),
+              {
+                'action': 'RESCHEDULE',
+                'newShiftTime': newValue,
+                if (shiftDate != null && shiftDate.isNotEmpty)
+                  'newShiftDate': shiftDate,
+                if (reason.isNotEmpty) 'reason': reason,
+              },
+            );
+          } else {
+            await data.repository.createTicket(
+              category: 'ROUTE_ISSUE',
+              subject: changeType,
+              description:
+                  'Requested $changeType: $newValue${reason.isNotEmpty ? '\nReason: $reason' : ''}',
+            );
+          }
+        } else if (isPickupLocation) {
+          await data.updateProfile(homeAddress: newValue);
+          if (reason.isNotEmpty) {
+            try {
+              await data.repository.createTicket(
+                category: 'ROUTE_ISSUE',
+                subject: changeType,
+                description:
+                    'Updated default pickup address to: $newValue\nReason: $reason',
+              );
+            } catch (_) {}
+          }
         } else {
           await data.repository.createTicket(
             category: 'ROUTE_ISSUE',

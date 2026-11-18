@@ -107,9 +107,11 @@ class _RequestDetailsTrackingScreenState
       EmployeeDataProvider.formatDisplayTime(ticket['createdAt']?.toString()),
     ].where((s) => s.isNotEmpty).join(', ');
     final description = ticket['description']?.toString() ?? '';
+    final resolutionNotes = ticket['resolutionNotes']?.toString().trim() ?? '';
     final isResolved = statusRaw == 'RESOLVED' || statusRaw == 'CLOSED';
-    final isInProgress =
-        statusRaw == 'IN_PROGRESS' || statusRaw == 'WAITING_FOR_CORPORATE';
+    final isInProgress = statusRaw == 'IN_PROGRESS' ||
+        statusRaw == 'WAITING_FOR_CORPORATE' ||
+        statusRaw == 'ASSIGNED';
 
     Widget meta(String label, String value) => Row(
           children: [
@@ -198,6 +200,21 @@ class _RequestDetailsTrackingScreenState
                         style: AppTypography.body(color: p.textPrimary),
                       ),
                     ],
+                    if (resolutionNotes.isNotEmpty) ...[
+                      Divider(color: p.border, height: AppSpacing.xxl),
+                      Text(
+                        'Resolution Notes',
+                        style: AppTypography.caption(
+                          color: p.textMuted,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        resolutionNotes,
+                        style: AppTypography.body(color: p.textPrimary),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -240,9 +257,11 @@ class _RequestDetailsTrackingScreenState
                               size: 12, color: Colors.white)
                           : null,
                       title: 'Resolution Update',
-                      subtitle: isResolved
-                          ? 'This request has been resolved.'
-                          : "You'll be notified once it's resolved.",
+                      subtitle: resolutionNotes.isNotEmpty
+                          ? resolutionNotes
+                          : (isResolved
+                              ? 'This request has been resolved.'
+                              : "You'll be notified once it's resolved."),
                     ),
                   ],
                 ),

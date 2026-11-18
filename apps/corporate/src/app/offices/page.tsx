@@ -91,13 +91,14 @@ export default function OfficesDirectoryPage() {
     const matchesSearch =
       (off.name || '').toLowerCase().includes(s) ||
       (off.code || '').toLowerCase().includes(s) ||
-      (off.address || '').toLowerCase().includes(s);
+      (off.addressText || off.address || '').toLowerCase().includes(s);
     const matchesStatus = statusFilter === 'All' || (off.isActive === true ? 'Active' : off.isActive === false ? 'Inactive' : 'Unknown') === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
-  const hasHeadcountForAllOffices = offices.length > 0 && offices.every((office) => office.employeeCount !== undefined);
-  const totalHeadcount = offices.reduce((sum, office) => sum + (office.employeeCount ?? 0), 0);
+  const headcountOf = (office: Office) => office._count?.employees ?? office.employeeCount;
+  const hasHeadcountForAllOffices = offices.length > 0 && offices.every((office) => headcountOf(office) !== undefined);
+  const totalHeadcount = offices.reduce((sum, office) => sum + (headcountOf(office) ?? 0), 0);
   const geofencedOfficeCount = offices.filter((office) => office.geofenceRadiusMeters !== undefined).length;
   const activeOfficesCount = offices.filter((office) => office.isActive === true).length;
 
@@ -345,7 +346,7 @@ export default function OfficesDirectoryPage() {
                     <div>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Headcount</div>
                       <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
-                        {office.employeeCount ? office.employeeCount.toLocaleString() : '—'}
+                        {headcountOf(office) !== undefined ? headcountOf(office)!.toLocaleString() : '—'}
                       </div>
                     </div>
                     <div>

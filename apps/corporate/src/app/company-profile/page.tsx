@@ -13,7 +13,7 @@ import {
   type CorporateRole,
 } from '../../lib/auth/permissions';
 import { useSession } from '../../lib/auth/SessionContext';
-import type { CorporateUser, Department, Office } from '../../lib/api/types';
+import type { CorporateUser, Department, Office, TransportZone } from '../../lib/api/types';
 import styles from './CompanyProfile.module.css';
 
 type SectionId = 'organization' | 'legal' | 'offices' | 'departments' | 'zones' | 'users';
@@ -22,11 +22,35 @@ type OfficeDraft = {
   code: string;
   name: string;
   city: string;
+  state: string;
+  pinCode: string;
+  country: string;
   addressText: string;
   latitude: string;
   longitude: string;
+  contactName: string;
+  contactEmail: string;
+  contactPhone: string;
+  isActive: boolean;
 };
-type DepartmentDraft = { code: string; name: string };
+type DepartmentDraft = {
+  code: string;
+  name: string;
+  departmentHead: string;
+  officeId: string;
+  description: string;
+  isActive: boolean;
+};
+type ZoneDraft = {
+  officeId: string;
+  code: string;
+  name: string;
+  serviceArea: string;
+  description: string;
+  pickupLocationsText: string;
+  dropLocationsText: string;
+  isActive: boolean;
+};
 type OrganizationDraft = {
   name: string;
   industry: string;
@@ -56,7 +80,18 @@ type UserDraft = {
   corporateRole: CorporateRole;
   officeIds: string[];
 };
-type ProfileDialog = 'office' | 'department' | 'invite' | 'edit-user' | 'view-user' | null;
+type ProfileDialog =
+  | 'office'
+  | 'edit-office'
+  | 'department'
+  | 'edit-department'
+  | 'zone'
+  | 'edit-zone'
+  | 'view-zone'
+  | 'invite'
+  | 'edit-user'
+  | 'view-user'
+  | null;
 
 const SECTIONS: Array<{ id: SectionId; label: string; icon: React.ReactNode }> = [
   {
@@ -75,11 +110,35 @@ const initialOfficeDraft: OfficeDraft = {
   code: '',
   name: '',
   city: '',
+  state: '',
+  pinCode: '',
+  country: 'India',
   addressText: '',
   latitude: '',
   longitude: '',
+  contactName: '',
+  contactEmail: '',
+  contactPhone: '',
+  isActive: true,
 };
-const initialDepartmentDraft: DepartmentDraft = { code: '', name: '' };
+const initialDepartmentDraft: DepartmentDraft = {
+  code: '',
+  name: '',
+  departmentHead: '',
+  officeId: '',
+  description: '',
+  isActive: true,
+};
+const initialZoneDraft: ZoneDraft = {
+  officeId: '',
+  code: '',
+  name: '',
+  serviceArea: '',
+  description: '',
+  pickupLocationsText: '',
+  dropLocationsText: '',
+  isActive: true,
+};
 const emptyOrganizationDraft: OrganizationDraft = {
   name: '',
   industry: '',
@@ -121,11 +180,14 @@ const PERMISSION_DISPLAY_LABELS: Partial<Record<CorporatePermission, string>> = 
   'users:invite': 'Manage users',
   'departments:read': 'View departments',
   'departments:write': 'Manage departments',
+  'zones:read': 'View transport zones',
+  'zones:write': 'Manage transport zones',
   'costcenters:read': 'View cost centers',
   'costcenters:write': 'Manage cost centers',
   'policy:read': 'View safety policies',
   'policy:write': 'Manage safety policies',
   'invoices:read': 'View invoices',
+  'bookings:read': 'View bookings',
   'billing:write': 'Financial access',
   'reports:read': 'View reports',
 };
@@ -346,9 +408,11 @@ export default function CompanyProfilePage() {
   const [dialog, setDialog] = useState<ProfileDialog>(null);
   const [selectedOffice, setSelectedOffice] = useState<Office | null>(null);
   const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);
+  const [selectedZone, setSelectedZone] = useState<TransportZone | null>(null);
   const [selectedUser, setSelectedUser] = useState<CorporateUser | null>(null);
   const [officeDraft, setOfficeDraft] = useState<OfficeDraft>(initialOfficeDraft);
   const [departmentDraft, setDepartmentDraft] = useState<DepartmentDraft>(initialDepartmentDraft);
+  const [zoneDraft, setZoneDraft] = useState<ZoneDraft>(initialZoneDraft);
   const [userDraft, setUserDraft] = useState<UserDraft>({
     fullName: '',
     email: '',
@@ -361,6 +425,7 @@ export default function CompanyProfilePage() {
   const [editingOrganization, setEditingOrganization] = useState(false);
   const [editingLegal, setEditingLegal] = useState(false);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [transportZones, setTransportZones] = useState<TransportZone[]>([]);
   const [corporateUsers, setCorporateUsers] = useState<CorporateUser[]>([]);
   const [sectionLoading, setSectionLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -370,9 +435,13 @@ export default function CompanyProfilePage() {
   const profileTenant = tenant;
   const profileOffices = offices;
   const profileDepartments = departments;
+  const profileZones = transportZones;
   const profileUsers = corporateUsers;
   const canCreateOffice = can('offices:write') && can('offices:read') && !officeScope;
+  const canEditOffice = can('offices:write') && can('offices:read');
   const canCreateDepartment = can('departments:write');
+  const canReadZones = can('zones:read');
+  const canManageZones = can('zones:write');
   const canReadUsers = can('users:read') && !officeScope;
   const canManageUsers = can('users:invite');
   const canEditProfile = can('tenant:write');
@@ -400,12 +469,18 @@ export default function CompanyProfilePage() {
     : 0;
 
   const loadSectionData = useCallback(async () => {
-    if (!tenantId || (activeSection !== 'departments' && activeSection !== 'users')) return;
+    if (!tenantId || (activeSection !== 'departments' && activeSection !== 'zones' && activeSection !== 'users')) return;
     setSectionLoading(true);
     setLoadError(null);
     try {
       if (activeSection === 'departments') {
-        setDepartments(await tenantApi.departments(tenantId));
+        setDepartments(await tenantApi.departments(tenantId, true));
+      } else if (activeSection === 'zones') {
+        if (canReadZones) {
+          setTransportZones(await tenantApi.transportZones(tenantId, true));
+        } else {
+          setTransportZones([]);
+        }
       } else if (canReadUsers) {
         setCorporateUsers(await usersApi.list(tenantId));
       } else {
@@ -416,7 +491,7 @@ export default function CompanyProfilePage() {
     } finally {
       setSectionLoading(false);
     }
-  }, [activeSection, canReadUsers, tenantId]);
+  }, [activeSection, canReadUsers, canReadZones, tenantId]);
 
   useEffect(() => {
     void loadSectionData();
@@ -425,7 +500,7 @@ export default function CompanyProfilePage() {
   const visibleOffices = useMemo(
     () =>
       profileOffices.filter((office) =>
-        `${office.name} ${office.code} ${office.addressText} ${office.city ?? ''} ${office.state ?? ''} ${office.pincode ?? ''}`
+        `${office.name} ${office.code} ${office.addressText} ${office.city ?? ''} ${office.state ?? ''} ${office.pinCode ?? office.pincode ?? ''}`
           .toLowerCase()
           .includes(search.toLowerCase()),
       ),
@@ -434,9 +509,20 @@ export default function CompanyProfilePage() {
   const visibleDepartments = useMemo(
     () =>
       profileDepartments.filter((department) =>
-        `${department.name} ${department.code}`.toLowerCase().includes(search.toLowerCase()),
+        `${department.name} ${department.code} ${department.departmentHead ?? ''} ${department.office?.name ?? ''}`
+          .toLowerCase()
+          .includes(search.toLowerCase()),
       ),
     [profileDepartments, search],
+  );
+  const visibleZones = useMemo(
+    () =>
+      profileZones.filter((zone) =>
+        `${zone.name} ${zone.code} ${zone.serviceArea} ${zone.office?.name ?? ''} ${(zone.pickupLocations ?? []).join(' ')}`
+          .toLowerCase()
+          .includes(search.toLowerCase()),
+      ),
+    [profileZones, search],
   );
   const visibleUsers = useMemo(
     () =>
@@ -459,6 +545,7 @@ export default function CompanyProfilePage() {
     setDialog(null);
     setSelectedOffice(null);
     setSelectedDepartment(null);
+    setSelectedZone(null);
     setSelectedUser(null);
     setFeedback(null);
   }
@@ -637,9 +724,61 @@ export default function CompanyProfilePage() {
     }
   }
 
+  function openOfficeEditor(office: Office) {
+    setSelectedOffice(office);
+    setOfficeDraft({
+      code: office.code ?? '',
+      name: office.name ?? '',
+      city: office.city ?? '',
+      state: office.state ?? '',
+      pinCode: office.pinCode ?? office.pincode ?? '',
+      country: office.country ?? 'India',
+      addressText: office.addressText || office.address || '',
+      latitude: office.latitude != null ? String(office.latitude) : '',
+      longitude: office.longitude != null ? String(office.longitude) : '',
+      contactName: office.contactName ?? '',
+      contactEmail: office.contactEmail ?? '',
+      contactPhone: office.contactPhone ?? '',
+      isActive: office.isActive ?? true,
+    });
+    setFeedback(null);
+    setDialog('edit-office');
+  }
+
+  function openDepartmentEditor(department: Department) {
+    setSelectedDepartment(department);
+    setDepartmentDraft({
+      code: department.code ?? '',
+      name: department.name ?? '',
+      departmentHead: department.departmentHead ?? '',
+      officeId: department.officeId ?? '',
+      description: department.description ?? '',
+      isActive: department.isActive ?? true,
+    });
+    setFeedback(null);
+    setDialog('edit-department');
+  }
+
+  function openZoneEditor(zone: TransportZone) {
+    setSelectedZone(zone);
+    setZoneDraft({
+      officeId: zone.officeId ?? '',
+      code: zone.code ?? '',
+      name: zone.name ?? '',
+      serviceArea: zone.serviceArea ?? '',
+      description: zone.description ?? '',
+      pickupLocationsText: (zone.pickupLocations ?? []).join('\n'),
+      dropLocationsText: (zone.dropLocations ?? []).join('\n'),
+      isActive: zone.isActive ?? true,
+    });
+    setFeedback(null);
+    setDialog('edit-zone');
+  }
+
   async function submitOffice(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!tenantId || submissionInProgress.current) return;
+    const isEditing = dialog === 'edit-office' && !!selectedOffice;
     const code = officeDraft.code.trim().toUpperCase();
     if (code.length < 2 || officeDraft.name.trim().length < 2 || officeDraft.addressText.trim().length < 5) {
       setFeedback({
@@ -650,7 +789,11 @@ export default function CompanyProfilePage() {
     }
     const latitude = Number(officeDraft.latitude);
     const longitude = Number(officeDraft.longitude);
-    if (profileOffices.some((office) => office.code.toUpperCase() === code)) {
+    if (
+      profileOffices.some(
+        (office) => office.code.toUpperCase() === code && (!isEditing || office.id !== selectedOffice.id),
+      )
+    ) {
       setFeedback({
         kind: 'error',
         text: 'An office with this code already exists in your organization.',
@@ -676,19 +819,32 @@ export default function CompanyProfilePage() {
     submissionInProgress.current = true;
     setSubmitting(true);
     setFeedback(null);
+    const payload = {
+      code,
+      name: officeDraft.name.trim(),
+      city: officeDraft.city.trim() || undefined,
+      state: officeDraft.state.trim() || undefined,
+      pinCode: officeDraft.pinCode.trim() || undefined,
+      country: officeDraft.country.trim() || undefined,
+      addressText: officeDraft.addressText.trim(),
+      latitude,
+      longitude,
+      contactName: officeDraft.contactName.trim() || undefined,
+      contactEmail: officeDraft.contactEmail.trim() || undefined,
+      contactPhone: officeDraft.contactPhone.trim() || undefined,
+      ...(isEditing ? { isActive: officeDraft.isActive } : {}),
+    };
     try {
-      await tenantApi.createOffice(tenantId, {
-        code,
-        name: officeDraft.name.trim(),
-        city: officeDraft.city.trim() || undefined,
-        addressText: officeDraft.addressText.trim(),
-        latitude,
-        longitude,
-      });
+      if (isEditing) {
+        await tenantApi.updateOffice(tenantId, selectedOffice.id, payload);
+      } else {
+        await tenantApi.createOffice(tenantId, payload);
+      }
       await reloadTenant();
       setDialog(null);
+      setSelectedOffice(null);
       setOfficeDraft(initialOfficeDraft);
-      setFeedback({ kind: 'success', text: 'Office added.' });
+      setFeedback({ kind: 'success', text: isEditing ? 'Office updated.' : 'Office added.' });
     } catch (error) {
       setFeedback({ kind: 'error', text: errorText(error) });
     } finally {
@@ -700,8 +856,14 @@ export default function CompanyProfilePage() {
   async function submitDepartment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!tenantId || submissionInProgress.current) return;
+    const isEditing = dialog === 'edit-department' && !!selectedDepartment;
     const code = departmentDraft.code.trim().toUpperCase();
-    if (profileDepartments.some((department) => department.code.toUpperCase() === code)) {
+    if (
+      profileDepartments.some(
+        (department) =>
+          department.code.toUpperCase() === code && (!isEditing || department.id !== selectedDepartment.id),
+      )
+    ) {
       setFeedback({
         kind: 'error',
         text: 'A department with this code already exists in your organization.',
@@ -725,14 +887,97 @@ export default function CompanyProfilePage() {
     submissionInProgress.current = true;
     setSubmitting(true);
     setFeedback(null);
+    const payload = {
+      code,
+      name: departmentDraft.name.trim(),
+      departmentHead: departmentDraft.departmentHead.trim() || undefined,
+      officeId: departmentDraft.officeId || undefined,
+      description: departmentDraft.description.trim() || undefined,
+      ...(isEditing ? { isActive: departmentDraft.isActive } : {}),
+    };
     try {
-      await tenantApi.createDepartment(tenantId, {
-        code,
-        name: departmentDraft.name.trim(),
-      });
+      if (isEditing) {
+        await tenantApi.updateDepartment(tenantId, selectedDepartment.id, payload);
+      } else {
+        await tenantApi.createDepartment(tenantId, payload);
+      }
       setDepartmentDraft(initialDepartmentDraft);
+      setSelectedDepartment(null);
       setDialog(null);
-      setFeedback({ kind: 'success', text: 'Department added.' });
+      setFeedback({ kind: 'success', text: isEditing ? 'Department updated.' : 'Department added.' });
+      await loadSectionData();
+    } catch (error) {
+      setFeedback({ kind: 'error', text: errorText(error) });
+    } finally {
+      submissionInProgress.current = false;
+      setSubmitting(false);
+    }
+  }
+
+  async function submitZone(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!tenantId || submissionInProgress.current) return;
+    const isEditing = dialog === 'edit-zone' && !!selectedZone;
+    const code = zoneDraft.code.trim().toUpperCase();
+    if (!zoneDraft.officeId) {
+      setFeedback({ kind: 'error', text: 'Select an office for this transport zone.' });
+      return;
+    }
+    if (
+      profileZones.some(
+        (zone) => zone.code.toUpperCase() === code && (!isEditing || zone.id !== selectedZone.id),
+      )
+    ) {
+      setFeedback({
+        kind: 'error',
+        text: 'A transport zone with this code already exists in your organization.',
+      });
+      return;
+    }
+    if (!/^[A-Z0-9][A-Z0-9_-]{0,31}$/.test(code)) {
+      setFeedback({
+        kind: 'error',
+        text: 'Zone code must be 1–32 characters using letters, numbers, underscores or hyphens.',
+      });
+      return;
+    }
+    if (zoneDraft.name.trim().length < 2) {
+      setFeedback({ kind: 'error', text: 'Zone name must be at least 2 characters.' });
+      return;
+    }
+    if (!zoneDraft.serviceArea.trim()) {
+      setFeedback({ kind: 'error', text: 'Service area is required.' });
+      return;
+    }
+    const splitLocations = (raw: string) =>
+      raw
+        .split(/[\n,]+/)
+        .map((item) => item.trim())
+        .filter(Boolean);
+
+    submissionInProgress.current = true;
+    setSubmitting(true);
+    setFeedback(null);
+    const payload = {
+      officeId: zoneDraft.officeId,
+      code,
+      name: zoneDraft.name.trim(),
+      serviceArea: zoneDraft.serviceArea.trim(),
+      description: zoneDraft.description.trim() || undefined,
+      pickupLocations: splitLocations(zoneDraft.pickupLocationsText),
+      dropLocations: splitLocations(zoneDraft.dropLocationsText),
+      ...(isEditing ? { isActive: zoneDraft.isActive } : {}),
+    };
+    try {
+      if (isEditing) {
+        await tenantApi.updateTransportZone(tenantId, selectedZone.id, payload);
+      } else {
+        await tenantApi.createTransportZone(tenantId, payload);
+      }
+      setZoneDraft(initialZoneDraft);
+      setSelectedZone(null);
+      setDialog(null);
+      setFeedback({ kind: 'success', text: isEditing ? 'Transport zone updated.' : 'Transport zone added.' });
       await loadSectionData();
     } catch (error) {
       setFeedback({ kind: 'error', text: errorText(error) });
@@ -1330,7 +1575,9 @@ export default function CompanyProfilePage() {
                       canCreateOffice ? (
                         <ActionButton
                           onClick={() => {
+                            setSelectedOffice(null);
                             setOfficeDraft(initialOfficeDraft);
+                            setFeedback(null);
                             setDialog('office');
                           }}
                         >
@@ -1377,7 +1624,12 @@ export default function CompanyProfilePage() {
                               )}
                             </Td>
                             <Td>
-                              <TextAction onClick={() => setSelectedOffice(office)}>View</TextAction>
+                              <div className={styles.rowActions}>
+                                <TextAction onClick={() => setSelectedOffice(office)}>View</TextAction>
+                                {canEditOffice && (
+                                  <TextAction onClick={() => openOfficeEditor(office)}>Edit</TextAction>
+                                )}
+                              </div>
                             </Td>
                           </tr>
                         ))}
@@ -1386,11 +1638,6 @@ export default function CompanyProfilePage() {
                   ) : (
                     <EmptyState>No offices match “{search}”.</EmptyState>
                   )}
-                  <div className={styles.cardFooter}>
-                    <Notice>
-                      Office contacts and edit/deactivate operations are not provided by the current corporate API.
-                    </Notice>
-                  </div>
                 </Card>
               )}
 
@@ -1403,7 +1650,9 @@ export default function CompanyProfilePage() {
                       canCreateDepartment ? (
                         <ActionButton
                           onClick={() => {
+                            setSelectedDepartment(null);
                             setDepartmentDraft(initialDepartmentDraft);
+                            setFeedback(null);
                             setDialog('department');
                           }}
                         >
@@ -1412,7 +1661,7 @@ export default function CompanyProfilePage() {
                       ) : undefined
                     }
                   />
-                  <SearchBox value={search} onChange={setSearch} placeholder="Search departments by name or code" />
+                  <SearchBox value={search} onChange={setSearch} placeholder="Search departments by name, code, head or office" />
                   {sectionLoading ? (
                     <EmptyState>Loading departments…</EmptyState>
                   ) : loadError && activeSection === 'departments' ? (
@@ -1427,6 +1676,8 @@ export default function CompanyProfilePage() {
                         <tr>
                           <Th>Department name</Th>
                           <Th>Department code</Th>
+                          <Th>Head</Th>
+                          <Th>Office</Th>
                           <Th>Employees</Th>
                           <Th>Status</Th>
                           <Th>Actions</Th>
@@ -1439,12 +1690,19 @@ export default function CompanyProfilePage() {
                             <Td>
                               <code>{department.code}</code>
                             </Td>
+                            <Td>{department.departmentHead || '—'}</Td>
+                            <Td>{department.office?.name || 'All offices'}</Td>
                             <Td>{department._count?.employees ?? '—'}</Td>
                             <Td>
                               <StatusBadge status={department.isActive ? 'ACTIVE' : 'INACTIVE'} size="sm" />
                             </Td>
                             <Td>
-                              <TextAction onClick={() => setSelectedDepartment(department)}>View</TextAction>
+                              <div className={styles.rowActions}>
+                                <TextAction onClick={() => setSelectedDepartment(department)}>View</TextAction>
+                                {canCreateDepartment && (
+                                  <TextAction onClick={() => openDepartmentEditor(department)}>Edit</TextAction>
+                                )}
+                              </div>
                             </Td>
                           </tr>
                         ))}
@@ -1453,12 +1711,6 @@ export default function CompanyProfilePage() {
                   ) : (
                     <EmptyState>No departments match “{search}”.</EmptyState>
                   )}
-                  <div className={styles.cardFooter}>
-                    <Notice>
-                      Department head, office association, description and edit/deactivate operations are not provided
-                      by the current corporate API.
-                    </Notice>
-                  </div>
                 </Card>
               )}
 
@@ -1466,12 +1718,95 @@ export default function CompanyProfilePage() {
                 <Card>
                   <SectionHeading
                     title="Transport zones"
-                    description={`Service areas and office assignments for ${profileTenant.name}.`}
+                    description={`Service areas, pickup corridors, and office assignments for ${profileTenant.name}.`}
+                    action={
+                      canManageZones ? (
+                        <ActionButton
+                          disabled={profileOffices.length === 0}
+                          onClick={() => {
+                            setSelectedZone(null);
+                            setZoneDraft({
+                              ...initialZoneDraft,
+                              officeId: profileOffices[0]?.id ?? '',
+                            });
+                            setFeedback(null);
+                            setDialog('zone');
+                          }}
+                        >
+                          <Plus size={14} /> Add transport zone
+                        </ActionButton>
+                      ) : undefined
+                    }
                   />
-                  <EmptyState>Transport zone information is not available.</EmptyState>
-                  <div className={styles.cardFooter}>
-                    <Notice>Transport zones are not provided by the current corporate API.</Notice>
-                  </div>
+                  {!canReadZones ? (
+                    <EmptyState>Your role does not have permission to view transport zones.</EmptyState>
+                  ) : (
+                    <>
+                      <SearchBox
+                        value={search}
+                        onChange={setSearch}
+                        placeholder="Search transport zones by name, code, office or service area"
+                      />
+                      {sectionLoading ? (
+                        <EmptyState>Loading transport zones…</EmptyState>
+                      ) : loadError && activeSection === 'zones' ? (
+                        <div style={{ padding: 20 }}>
+                          <Notice error>{loadError}</Notice>
+                        </div>
+                      ) : !profileZones.length ? (
+                        <EmptyState>No transport zones are configured for this organization yet.</EmptyState>
+                      ) : visibleZones.length ? (
+                        <Table>
+                          <thead>
+                            <tr>
+                              <Th>Zone name</Th>
+                              <Th>Zone code</Th>
+                              <Th>Office</Th>
+                              <Th>Service area</Th>
+                              <Th>Pickup / Drop points</Th>
+                              <Th>Status</Th>
+                              <Th>Actions</Th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {visibleZones.map((zone) => (
+                              <tr key={zone.id}>
+                                <Td strong>{zone.name}</Td>
+                                <Td>
+                                  <code>{zone.code}</code>
+                                </Td>
+                                <Td>{zone.office?.name ?? '—'}</Td>
+                                <Td>{zone.serviceArea}</Td>
+                                <Td>
+                                  {(zone.pickupLocations?.length ?? 0)} pickup · {(zone.dropLocations?.length ?? 0)} drop
+                                </Td>
+                                <Td>
+                                  <StatusBadge status={zone.isActive ? 'ACTIVE' : 'INACTIVE'} size="sm" />
+                                </Td>
+                                <Td>
+                                  <div className={styles.rowActions}>
+                                    <TextAction
+                                      onClick={() => {
+                                        setSelectedZone(zone);
+                                        setDialog('view-zone');
+                                      }}
+                                    >
+                                      View
+                                    </TextAction>
+                                    {canManageZones && (
+                                      <TextAction onClick={() => openZoneEditor(zone)}>Edit</TextAction>
+                                    )}
+                                  </div>
+                                </Td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </Table>
+                      ) : (
+                        <EmptyState>No transport zones match “{search}”.</EmptyState>
+                      )}
+                    </>
+                  )}
                 </Card>
               )}
 
@@ -1613,9 +1948,9 @@ export default function CompanyProfilePage() {
       </main>
 
       <ProfileDrawer
-        isOpen={dialog === 'office'}
+        isOpen={dialog === 'office' || dialog === 'edit-office'}
         onClose={closeDialog}
-        title="Add office"
+        title={dialog === 'edit-office' ? 'Edit office' : 'Add office'}
         subtitle="Office code must be unique within your organization."
       >
         <form onSubmit={submitOffice} className={styles.form}>
@@ -1634,16 +1969,33 @@ export default function CompanyProfilePage() {
             />
           </div>
           <Field
-            label="City"
-            value={officeDraft.city}
-            onChange={(city) => setOfficeDraft((draft) => ({ ...draft, city }))}
-          />
-          <Field
             label="Office address"
             value={officeDraft.addressText}
             required
             onChange={(addressText) => setOfficeDraft((draft) => ({ ...draft, addressText }))}
           />
+          <div className={styles.formGrid}>
+            <Field
+              label="City"
+              value={officeDraft.city}
+              onChange={(city) => setOfficeDraft((draft) => ({ ...draft, city }))}
+            />
+            <Field
+              label="State"
+              value={officeDraft.state}
+              onChange={(state) => setOfficeDraft((draft) => ({ ...draft, state }))}
+            />
+            <Field
+              label="PIN code"
+              value={officeDraft.pinCode}
+              onChange={(pinCode) => setOfficeDraft((draft) => ({ ...draft, pinCode }))}
+            />
+            <Field
+              label="Country"
+              value={officeDraft.country}
+              onChange={(country) => setOfficeDraft((draft) => ({ ...draft, country }))}
+            />
+          </div>
           <div className={styles.formGrid}>
             <Field
               label="Latitude"
@@ -1666,48 +2018,207 @@ export default function CompanyProfilePage() {
               onChange={(longitude) => setOfficeDraft((draft) => ({ ...draft, longitude }))}
             />
           </div>
+          <div className={styles.formGrid}>
+            <Field
+              label="Site contact name"
+              value={officeDraft.contactName}
+              onChange={(contactName) => setOfficeDraft((draft) => ({ ...draft, contactName }))}
+            />
+            <Field
+              label="Site contact email"
+              type="email"
+              value={officeDraft.contactEmail}
+              onChange={(contactEmail) => setOfficeDraft((draft) => ({ ...draft, contactEmail }))}
+            />
+            <Field
+              label="Site contact phone"
+              type="tel"
+              value={officeDraft.contactPhone}
+              onChange={(contactPhone) => setOfficeDraft((draft) => ({ ...draft, contactPhone }))}
+            />
+          </div>
+          {dialog === 'edit-office' && (
+            <label className={styles.checkboxField}>
+              <input
+                type="checkbox"
+                checked={officeDraft.isActive}
+                onChange={(event) =>
+                  setOfficeDraft((draft) => ({ ...draft, isActive: event.target.checked }))
+                }
+              />
+              Office is active
+            </label>
+          )}
           {feedback?.kind === 'error' && <Notice error>{feedback.text}</Notice>}
-          <Notice>
-            The existing office API requires coordinates to create an office and does not accept separate city/state,
-            contact or status fields.
-          </Notice>
           <div className={styles.formActions}>
             <ActionButton secondary onClick={closeDialog} disabled={submitting}>
               Cancel
             </ActionButton>
             <ActionButton type="submit" disabled={submitting}>
-              {submitting ? 'Saving…' : 'Save office'}
+              {submitting ? 'Saving…' : dialog === 'edit-office' ? 'Save changes' : 'Save office'}
             </ActionButton>
           </div>
         </form>
       </ProfileDrawer>
 
       <ProfileDrawer
-        isOpen={dialog === 'department'}
+        isOpen={dialog === 'department' || dialog === 'edit-department'}
         onClose={closeDialog}
-        title="Add department"
+        title={dialog === 'edit-department' ? 'Edit department' : 'Add department'}
         subtitle="Department code must be unique within your organization."
       >
         <form onSubmit={submitDepartment} className={styles.form}>
-          <Field
-            label="Department name"
-            value={departmentDraft.name}
-            required
-            onChange={(name) => setDepartmentDraft((draft) => ({ ...draft, name }))}
+          <div className={styles.formGrid}>
+            <Field
+              label="Department name"
+              value={departmentDraft.name}
+              required
+              onChange={(name) => setDepartmentDraft((draft) => ({ ...draft, name }))}
+            />
+            <Field
+              label="Department code"
+              value={departmentDraft.code}
+              required
+              onChange={(code) => setDepartmentDraft((draft) => ({ ...draft, code }))}
+            />
+          </div>
+          <div className={styles.formGrid}>
+            <Field
+              label="Department head"
+              value={departmentDraft.departmentHead}
+              onChange={(departmentHead) => setDepartmentDraft((draft) => ({ ...draft, departmentHead }))}
+            />
+            <label className={styles.field}>
+              Assigned office
+              <select
+                value={departmentDraft.officeId}
+                onChange={(event) =>
+                  setDepartmentDraft((draft) => ({ ...draft, officeId: event.target.value }))
+                }
+                className={styles.fieldSelect}
+              >
+                <option value="">All offices</option>
+                {profileOffices.map((office) => (
+                  <option key={office.id} value={office.id}>
+                    {office.name} ({office.code})
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <TextArea
+            label="Description"
+            value={departmentDraft.description}
+            onChange={(description) => setDepartmentDraft((draft) => ({ ...draft, description }))}
           />
-          <Field
-            label="Department code"
-            value={departmentDraft.code}
-            required
-            onChange={(code) => setDepartmentDraft((draft) => ({ ...draft, code }))}
-          />
+          {dialog === 'edit-department' && (
+            <label className={styles.checkboxField}>
+              <input
+                type="checkbox"
+                checked={departmentDraft.isActive}
+                onChange={(event) =>
+                  setDepartmentDraft((draft) => ({ ...draft, isActive: event.target.checked }))
+                }
+              />
+              Department is active
+            </label>
+          )}
           {feedback?.kind === 'error' && <Notice error>{feedback.text}</Notice>}
           <div className={styles.formActions}>
             <ActionButton secondary onClick={closeDialog} disabled={submitting}>
               Cancel
             </ActionButton>
             <ActionButton type="submit" disabled={submitting}>
-              {submitting ? 'Saving…' : 'Save department'}
+              {submitting ? 'Saving…' : dialog === 'edit-department' ? 'Save changes' : 'Save department'}
+            </ActionButton>
+          </div>
+        </form>
+      </ProfileDrawer>
+
+      <ProfileDrawer
+        isOpen={dialog === 'zone' || dialog === 'edit-zone'}
+        onClose={closeDialog}
+        title={dialog === 'edit-zone' ? 'Edit transport zone' : 'Add transport zone'}
+        subtitle="Define service area corridors and pickup/drop clusters for an office."
+      >
+        <form onSubmit={submitZone} className={styles.form}>
+          <label className={styles.field}>
+            Office *
+            <select
+              required
+              value={zoneDraft.officeId}
+              onChange={(event) =>
+                setZoneDraft((draft) => ({ ...draft, officeId: event.target.value }))
+              }
+              className={styles.fieldSelect}
+            >
+              <option value="">Select an office</option>
+              {profileOffices.map((office) => (
+                <option key={office.id} value={office.id}>
+                  {office.name} ({office.code})
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className={styles.formGrid}>
+            <Field
+              label="Zone name"
+              value={zoneDraft.name}
+              required
+              onChange={(name) => setZoneDraft((draft) => ({ ...draft, name }))}
+            />
+            <Field
+              label="Zone code"
+              value={zoneDraft.code}
+              required
+              onChange={(code) => setZoneDraft((draft) => ({ ...draft, code }))}
+            />
+          </div>
+          <Field
+            label="Service area"
+            value={zoneDraft.serviceArea}
+            required
+            placeholder="e.g. Gachibowli - Kondapur - HITEC City"
+            onChange={(serviceArea) => setZoneDraft((draft) => ({ ...draft, serviceArea }))}
+          />
+          <TextArea
+            label="Description"
+            value={zoneDraft.description}
+            onChange={(description) => setZoneDraft((draft) => ({ ...draft, description }))}
+          />
+          <TextArea
+            label="Pickup locations (one per line or comma-separated)"
+            value={zoneDraft.pickupLocationsText}
+            onChange={(pickupLocationsText) =>
+              setZoneDraft((draft) => ({ ...draft, pickupLocationsText }))
+            }
+          />
+          <TextArea
+            label="Drop locations (one per line or comma-separated)"
+            value={zoneDraft.dropLocationsText}
+            onChange={(dropLocationsText) =>
+              setZoneDraft((draft) => ({ ...draft, dropLocationsText }))
+            }
+          />
+          {dialog === 'edit-zone' && (
+            <label className={styles.checkboxField}>
+              <input
+                type="checkbox"
+                checked={zoneDraft.isActive}
+                onChange={(event) =>
+                  setZoneDraft((draft) => ({ ...draft, isActive: event.target.checked }))
+                }
+              />
+              Transport zone is active
+            </label>
+          )}
+          {feedback?.kind === 'error' && <Notice error>{feedback.text}</Notice>}
+          <div className={styles.formActions}>
+            <ActionButton secondary onClick={closeDialog} disabled={submitting}>
+              Cancel
+            </ActionButton>
+            <ActionButton type="submit" disabled={submitting}>
+              {submitting ? 'Saving…' : dialog === 'edit-zone' ? 'Save changes' : 'Save transport zone'}
             </ActionButton>
           </div>
         </form>
@@ -1799,7 +2310,11 @@ export default function CompanyProfilePage() {
         </form>
       </ProfileDrawer>
 
-      <ProfileDrawer isOpen={!!selectedOffice} onClose={() => setSelectedOffice(null)} title="Office details">
+      <ProfileDrawer
+        isOpen={!!selectedOffice && dialog !== 'edit-office'}
+        onClose={() => setSelectedOffice(null)}
+        title="Office details"
+      >
         {selectedOffice && (
           <DetailsList
             entries={[
@@ -1808,7 +2323,11 @@ export default function CompanyProfilePage() {
               ['Address', selectedOffice.addressText || selectedOffice.address],
               ['City', selectedOffice.city],
               ['State', selectedOffice.state],
-              ['PIN code', selectedOffice.pincode],
+              ['PIN code', selectedOffice.pinCode ?? selectedOffice.pincode ?? undefined],
+              ['Country', selectedOffice.country ?? undefined],
+              ['Site contact', selectedOffice.contactName ?? undefined],
+              ['Contact email', selectedOffice.contactEmail ?? undefined],
+              ['Contact phone', selectedOffice.contactPhone ?? undefined],
               [
                 'Status',
                 selectedOffice.isActive === undefined ? undefined : selectedOffice.isActive ? 'Active' : 'Inactive',
@@ -1820,7 +2339,7 @@ export default function CompanyProfilePage() {
         )}
       </ProfileDrawer>
       <ProfileDrawer
-        isOpen={!!selectedDepartment}
+        isOpen={!!selectedDepartment && dialog !== 'edit-department'}
         onClose={() => setSelectedDepartment(null)}
         title="Department details"
       >
@@ -1829,8 +2348,38 @@ export default function CompanyProfilePage() {
             entries={[
               ['Department name', selectedDepartment.name],
               ['Department code', selectedDepartment.code],
+              ['Department head', selectedDepartment.departmentHead ?? undefined],
+              ['Assigned office', selectedDepartment.office?.name ?? 'All offices'],
+              ['Description', selectedDepartment.description ?? undefined],
               ['Status', selectedDepartment.isActive ? 'Active' : 'Inactive'],
               ['Employees', String(selectedDepartment._count?.employees ?? '—')],
+            ]}
+          />
+        )}
+      </ProfileDrawer>
+      <ProfileDrawer
+        isOpen={dialog === 'view-zone' && !!selectedZone}
+        onClose={closeDialog}
+        title="Transport zone details"
+        subtitle="Service corridor and pickup/drop clusters."
+      >
+        {selectedZone && (
+          <DetailsList
+            entries={[
+              ['Zone name', selectedZone.name],
+              ['Zone code', selectedZone.code],
+              ['Office', selectedZone.office?.name ?? undefined],
+              ['Service area', selectedZone.serviceArea],
+              ['Description', selectedZone.description ?? undefined],
+              [
+                'Pickup locations',
+                selectedZone.pickupLocations?.length ? selectedZone.pickupLocations.join(', ') : undefined,
+              ],
+              [
+                'Drop locations',
+                selectedZone.dropLocations?.length ? selectedZone.dropLocations.join(', ') : undefined,
+              ],
+              ['Status', selectedZone.isActive ? 'Active' : 'Inactive'],
             ]}
           />
         )}

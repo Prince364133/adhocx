@@ -55,11 +55,13 @@ class PickupSequenceScreen extends StatelessWidget {
                             () {
                               final stop =
                                   Map<String, dynamic>.from(stops[i] as Map);
-                              final isCurrent = stop['isCurrentUser'] == true;
+                              final isCurrent = stop['isCurrentUser'] == true ||
+                                  stop['isCurrentUserStop'] == true;
                               final stopType =
                                   (stop['stopType'] ?? '').toString().toUpperCase();
-                              final isDrop =
-                                  stopType == 'DROP' || stopType == 'OFFICE';
+                              final isDrop = stopType == 'DROP' ||
+                                  stopType == 'DROPOFF' ||
+                                  stopType == 'OFFICE';
                               final seq =
                                   stop['stopSequence']?.toString() ?? '${i + 1}';
                               final eta = EmployeeDataProvider.formatDisplayTime(

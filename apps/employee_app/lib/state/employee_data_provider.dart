@@ -104,18 +104,40 @@ class EmployeeDataProvider extends ChangeNotifier {
   }
 
   void markAllNotificationsRead() {
+    final unreadIds = <String>[];
     for (final n in _notifications) {
       final id = n['id']?.toString();
-      if (id != null && id.isNotEmpty) {
+      if (id != null && id.isNotEmpty && isNotificationUnread(n)) {
         _readNotificationIds.add(id);
+        n['isRead'] = true;
+        unreadIds.add(id);
       }
     }
-    notifyListeners();
+    if (unreadIds.isNotEmpty) {
+      notifyListeners();
+      for (final id in unreadIds) {
+        _repository.markNotificationRead(id).catchError((Object e) {
+          debugPrint('[EmployeeDataProvider] markNotificationRead($id) failed: $e');
+        });
+      }
+    }
   }
 
-  void markNotificationRead(String id) {
-    if (id.isNotEmpty && _readNotificationIds.add(id)) {
+  Future<void> markNotificationRead(String id) async {
+    if (id.isEmpty) return;
+    final changed = _readNotificationIds.add(id);
+    for (final n in _notifications) {
+      if (n['id']?.toString() == id) {
+        n['isRead'] = true;
+      }
+    }
+    if (changed) {
       notifyListeners();
+    }
+    try {
+      await _repository.markNotificationRead(id);
+    } catch (e) {
+      debugPrint('[EmployeeDataProvider] markNotificationRead($id) failed: $e');
     }
   }
 

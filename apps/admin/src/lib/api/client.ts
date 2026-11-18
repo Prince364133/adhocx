@@ -321,12 +321,12 @@ export async function apiClient<T = unknown>(
     if (netErr.name === "AbortError") {
       throw new ApiError(
         504,
-        "Connection timed out while communicating with AdhocX API server (http://localhost:7001).",
+        "Request timed out while contacting the API server. Please check your connection and try again.",
       );
     }
     throw new ApiError(
       503,
-      "Unable to connect to AdhocX API server (http://localhost:7001). Please verify the backend service is running.",
+      "Unable to reach the API server. Please check your connection.",
     );
   } finally {
     clearTimeout(timeoutId);
@@ -1642,8 +1642,8 @@ export const adminApi = {
     userId: string,
     input: {
       fullName?: string;
-      email?: string;
-      phone?: string;
+      email?: string | null;
+      phone?: string | null;
       corporateRole?: string;
       officeIds?: string[];
       isActive?: boolean;

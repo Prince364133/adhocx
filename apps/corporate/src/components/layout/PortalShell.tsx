@@ -187,6 +187,7 @@ function TopBar() {
   const [notificationError, setNotificationError] = useState<string | null>(null);
   const [markingAllRead, setMarkingAllRead] = useState(false);
   const notificationDropdownRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   const loadNotifications = useCallback(async (showLoading = false) => {
     if (showLoading) setNotificationsLoading(true);
@@ -236,6 +237,27 @@ function TopBar() {
       document.removeEventListener('keydown', handleEscape);
     };
   }, [showNotifications]);
+
+  useEffect(() => {
+    if (!showUserMenu) return;
+
+    function handleOutsidePointerDown(event: PointerEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false);
+      }
+    }
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setShowUserMenu(false);
+    }
+
+    document.addEventListener('pointerdown', handleOutsidePointerDown);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('pointerdown', handleOutsidePointerDown);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [showUserMenu]);
 
   async function handleMarkNotificationRead(notification: InAppNotificationItem) {
     if (notification.isRead) return;
@@ -665,14 +687,21 @@ function TopBar() {
         <div style={{ height: 20, width: 1, backgroundColor: 'var(--border-subtle)' }} />
 
         {/* User Initials Avatar & Dropdown */}
-        <div style={{ position: 'relative' }}>
-          <div
-            onClick={() => setShowUserMenu(!showUserMenu)}
+        <div style={{ position: 'relative' }} ref={userMenuRef}>
+          <button
+            type="button"
+            aria-haspopup="menu"
+            aria-expanded={showUserMenu}
+            onClick={() => setShowUserMenu((open) => !open)}
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: 8,
               cursor: 'pointer',
+              background: 'transparent',
+              border: 'none',
+              padding: 0,
+              textAlign: 'left',
             }}
           >
             <div
@@ -700,16 +729,17 @@ function TopBar() {
                 {corporateRole ? CORPORATE_ROLE_LABELS[corporateRole] : 'Corporate User'}
               </div>
             </div>
-          </div>
+          </button>
 
           {/* User Menu Dropdown */}
           {showUserMenu && (
             <div
+              role="menu"
               style={{
                 position: 'absolute',
                 right: 0,
                 top: 48,
-                width: 200,
+                width: 220,
                 backgroundColor: 'var(--bg-surface)',
                 borderRadius: '8px',
                 boxShadow: 'var(--shadow-elevated)',
@@ -719,11 +749,22 @@ function TopBar() {
               }}
             >
               <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border-subtle)' }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>{user?.fullName}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{user?.email}</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>
+                  {user?.fullName || user?.email || user?.phone || 'Corporate User'}
+                </div>
+                {(user?.email || user?.phone) && (
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                    {user?.email || user?.phone}
+                  </div>
+                )}
               </div>
               <button
-                onClick={() => void logout()}
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setShowUserMenu(false);
+                  void logout();
+                }}
                 style={{
                   width: '100%',
                   display: 'flex',
@@ -894,11 +935,39 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
 }
 
 export function RequirePermission({
-  permission: _p,
+  permission,
+  fallback,
   children,
 }: {
   permission: CorporatePermission;
+  fallback?: React.ReactNode;
   children: React.ReactNode;
 }) {
+  const { status, can } = useSession();
+  if (status === 'loading') return null;
+  if (!can(permission)) {
+    if (fallback !== undefined) return <>{fallback}</>;
+    return (
+      <div
+        role="alert"
+        className="surface-card"
+        style={{
+          padding: '28px 24px',
+          textAlign: 'center',
+          color: 'var(--text-secondary)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 8,
+        }}
+      >
+        <ShieldAlert size={22} color="var(--color-danger, #DC2626)" />
+        <strong style={{ color: 'var(--text-primary)', fontSize: 15 }}>Permission required</strong>
+        <span style={{ fontSize: 13 }}>
+          Your corporate role does not include the <code>{permission}</code> permission needed to access this view.
+        </span>
+      </div>
+    );
+  }
   return <>{children}</>;
 }

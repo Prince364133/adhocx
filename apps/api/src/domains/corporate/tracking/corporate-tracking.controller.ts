@@ -21,7 +21,7 @@ import { JwtAuthGuard } from '../../../common/guards/auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { CorporateAccessGuard } from '../../../common/guards/corporate-access.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
-import { CorporateResource } from '../../../common/decorators/corporate-resource.decorator';
+import { CorporateResource, CorporateTenantScoped } from '../../../common/decorators/corporate-resource.decorator';
 import { CorporateTrackingService, TrackingScope } from './corporate-tracking.service';
 import { RedisPubSubService } from '../../../redis/redis-pubsub.service';
 import { TelemetryChannels } from './tracking.types';
@@ -92,10 +92,14 @@ export class CorporateTrackingController {
 
   @Get('routes/fleet/live')
   @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
+  @CorporateTenantScoped()
   @ApiQuery({ name: 'tenantId', required: false, description: 'Optional company scope for OPS fleet analytics' })
   @ApiOperation({ summary: 'Latest known position of every active cab in scope (hydrates the live map)' })
   getFleetSnapshot(@Req() req: any, @Query('tenantId') tenantId?: string) {
     const scope = trackingScopeOf(req);
+    if ('tenantId' in scope && !scope.tenantId) {
+      throw new ForbiddenException('No corporate tenant on this account');
+    }
     return this.tracking.getFleetSnapshot(scope.tenantId ? scope : tenantId ? { tenantId } : scope);
   }
 

@@ -871,26 +871,28 @@ export class CorporateSafetyService {
     }
 
     const ticketNumber = `SEC-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 900 + 100)}`;
-    try {
-      await this.db.corporateSupportTicket.create({
-        data: {
-          ticketNumber,
-          tenantId: stop.route.tenantId,
-          employeeId: stop.employeeId || '00000000-0000-0000-0000-000000000000',
-          routeId,
-          stopId,
-          category: 'SAFETY_CONCERN',
-          priority: 'MEDIUM',
-          status: 'RESOLVED',
-          subject: `Boarding OTP Fallback: ${dto.reason}`,
-          description: `Emergency boarding manual override authorized by commander ${adminUserId}. Reason: ${dto.reason}. Notes: ${dto.notes || 'None'}`,
-          adminNotes: `Authorized by ${adminUserId} (${dto.supervisorUserId})`,
-          resolvedAt: departureTime,
-          resolvedByUserId: adminUserId,
-        },
-      });
-    } catch (e: any) {
-      this.logger.warn(`Could not persist fallback ticket: ${e?.message}`);
+    if (stop.employeeId) {
+      try {
+        await this.db.corporateSupportTicket.create({
+          data: {
+            ticketNumber,
+            tenantId: stop.route.tenantId,
+            employeeId: stop.employeeId,
+            routeId,
+            stopId,
+            category: 'SAFETY_CONCERN',
+            priority: 'MEDIUM',
+            status: 'RESOLVED',
+            subject: `Boarding OTP Fallback: ${dto.reason}`,
+            description: `Emergency boarding manual override authorized by commander ${adminUserId}. Reason: ${dto.reason}. Notes: ${dto.notes || 'None'}`,
+            adminNotes: `Authorized by ${adminUserId} (${dto.supervisorUserId})`,
+            resolvedAt: departureTime,
+            resolvedByUserId: adminUserId,
+          },
+        });
+      } catch (e: any) {
+        this.logger.warn(`Could not persist fallback ticket: ${e?.message}`);
+      }
     }
 
     this.logger.warn(

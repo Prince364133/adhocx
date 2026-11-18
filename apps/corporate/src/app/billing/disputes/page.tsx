@@ -29,7 +29,8 @@ function formatPaiseToRupees(paise: string | number): string {
 }
 
 export default function BillingDisputesPage() {
-  const { tenantId: activeTenantId } = useSession();
+  const { tenantId: activeTenantId, can } = useSession();
+  const canRaiseDispute = can('billing:write');
   const [activeTab, setActiveTab] = useState<'all' | 'open' | 'resolved'>('all');
   const [loading, setLoading] = useState(true);
   const [disputes, setDisputes] = useState<InvoiceDispute[]>([]);
@@ -42,6 +43,7 @@ export default function BillingDisputesPage() {
   const [reason, setReason] = useState('');
   const [claimedAmountRupees, setClaimedAmountRupees] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   async function loadData() {
     if (!activeTenantId) return;
@@ -91,25 +93,32 @@ export default function BillingDisputesPage() {
 
   async function handleRaiseDispute(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedInvoiceId || !reason || !claimedAmountRupees) {
-      alert('Please fill in all dispute fields');
+    setFormError(null);
+    if (!canRaiseDispute) {
+      setFormError('Your role does not have permission to raise invoice disputes.');
+      return;
+    }
+    const parsedAmount = parseFloat(claimedAmountRupees);
+    if (!selectedInvoiceId || !reason.trim() || !Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      setFormError('Please select an invoice, enter a valid disputed amount, and provide a reason.');
       return;
     }
 
     try {
       setSubmitting(true);
-      const claimedPaise = String(Math.round(parseFloat(claimedAmountRupees) * 100));
+      const claimedPaise = String(Math.round(parsedAmount * 100));
       await billingApi.raiseDispute(selectedInvoiceId, {
-        reason,
+        reason: reason.trim(),
         claimedAmountPaise: claimedPaise,
       });
       setShowModal(false);
       setSelectedInvoiceId('');
       setReason('');
       setClaimedAmountRupees('');
+      setFormError(null);
       await loadData();
     } catch (err: any) {
-      alert(err.message || 'Failed to submit dispute');
+      setFormError(err?.message || 'Failed to submit dispute. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -128,26 +137,32 @@ export default function BillingDisputesPage() {
           </p>
         </div>
 
-        <button
-          onClick={() => setShowModal(true)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            backgroundColor: 'var(--brand-action)',
-            color: '#FFFFFF',
-            border: 'none',
-            borderRadius: 'var(--radius-md)',
-            padding: '8px 16px',
-            fontSize: '13px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            boxShadow: '0 2px 4px rgba(var(--brand-primary-rgb), 0.25)',
-          }}
-        >
-          <Plus size={16} />
-          <span>Raise Dispute</span>
-        </button>
+        {canRaiseDispute && (
+          <button
+            type="button"
+            onClick={() => {
+              setFormError(null);
+              setShowModal(true);
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              backgroundColor: 'var(--brand-action)',
+              color: '#FFFFFF',
+              border: 'none',
+              borderRadius: 'var(--radius-md)',
+              padding: '8px 16px',
+              fontSize: '13px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: '0 2px 4px rgba(var(--brand-primary-rgb), 0.25)',
+            }}
+          >
+            <Plus size={16} />
+            <span>Raise Dispute</span>
+          </button>
+        )}
       </div>
 
       {/* Summary KPI Cards */}
@@ -373,7 +388,7 @@ export default function BillingDisputesPage() {
       </div>
 
       {/* Modal: Raise Dispute */}
-      {showModal && (
+      {showModal && canRaiseDispute && (
         <div
           style={{
             position: 'fixed',
@@ -400,12 +415,33 @@ export default function BillingDisputesPage() {
               <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Raise Invoice Dispute</h3>
               <button
                 type="button"
-                onClick={() => setShowModal(false)}
+                onClick={() => {
+                  setFormError(null);
+                  setShowModal(false);
+                }}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
               >
                 <X size={18} />
               </button>
             </div>
+
+            {formError && (
+              <div
+                role="alert"
+                style={{
+                  marginBottom: 14,
+                  padding: '10px 12px',
+                  borderRadius: 6,
+                  backgroundColor: 'var(--color-danger-bg)',
+                  border: '1px solid var(--color-danger-border)',
+                  color: 'var(--color-danger, #DC2626)',
+                  fontSize: 12,
+                  fontWeight: 600,
+                }}
+              >
+                {formError}
+              </div>
+            )}
 
             <form onSubmit={handleRaiseDispute} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>

@@ -79,7 +79,8 @@ export default function CompanyHubPage() {
 
   // Aggregated operational metrics
   const totalCabs = tenants.reduce((sum, t) => sum + (t.activeCabsCount ?? 0), 0);
-  const totalRiders = tenants.reduce((sum, t) => sum + (t.inTransitCount ?? 0), 0);
+  const totalRiders = tenants.reduce((sum, t) => sum + (t.inTransitPassengersCount ?? t.inTransitCount ?? 0), 0);
+  const totalInTransitRoutes = tenants.reduce((sum, t) => sum + (t.inTransitCount ?? 0), 0);
   const totalExceptions = tenants.reduce(
     (sum, t) => sum + ((t.delayedCount ?? 0) + (t.unassignedCount ?? 0)),
     0,
@@ -135,9 +136,9 @@ export default function CompanyHubPage() {
           highlightColor="var(--color-success, #16A34A)"
         />
         <MetricCard
-          label="Employees In Transit"
+          label="In-Transit Riders"
           value={`${totalRiders} Riders`}
-          subtext="Scheduled shift pickups"
+          subtext={`${totalInTransitRoutes} In-Transit Routes`}
           icon={<Users size={20} />}
           highlightColor="var(--brand-blue-400, #733DD9)"
         />

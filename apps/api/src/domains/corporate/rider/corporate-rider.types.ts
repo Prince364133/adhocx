@@ -201,6 +201,15 @@ export interface RiderTripTrackingResponse {
     triggeredAt: Date;
   } | null;
   coPassengersCount: number;
+  routeStops?: Array<{
+    stopId: string;
+    stopSequence: number;
+    stopType: string;
+    addressText: string;
+    plannedEta: Date;
+    status: string;
+    isCurrentUser: boolean;
+  }>;
 }
 
 export interface SubmitSafeReachDto {
@@ -274,5 +283,6 @@ export interface RiderNotificationItem {
   title: string;
   message: string;
   timestamp: Date;
+  isRead?: boolean;
   metadata?: Record<string, any>;
 }

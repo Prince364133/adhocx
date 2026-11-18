@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AlertTriangle, Car, ExternalLink, MapPin, Phone, Radio, RefreshCw, Users } from 'lucide-react';
 import { opsApi } from '../../../lib/api/opsClient';
+import { canReassignRoute } from '../../../lib/opsHelpers';
 import type { CorporateRouteItem, CorporateTenantOption, OpsBoardResponse } from '../../../lib/api/opsTypes';
 import { Button } from '../../../components/common/Button';
 import { StatusBadge } from '../../../components/common/StatusBadge';
@@ -263,11 +264,12 @@ export default function LiveDispatchPage() {
               </p>
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-              {!selectedRoute.driverId ? (
+              {!selectedRoute.driverId && (selectedRoute.status === 'PLANNED' || selectedRoute.status === 'DISPATCHING') && (
                 <Button size="sm" variant="primary" isLoading={actionId === selectedRoute.id} onClick={() => void handleForceDispatch(selectedRoute)}>
                   Assign driver
                 </Button>
-              ) : (
+              )}
+              {canReassignRoute(selectedRoute) && (
                 <Button size="sm" variant="outline" onClick={() => setReassignRoute(selectedRoute)}>
                   Reassign
                 </Button>

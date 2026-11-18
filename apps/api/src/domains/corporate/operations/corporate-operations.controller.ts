@@ -187,7 +187,7 @@ export class CorporateOpsDriversController {
 
   @Post(':driverId/deactivate')
   @HttpCode(200)
-  @Roles(UserRole.OPS)
+  @Roles(UserRole.OPS, UserRole.ADMIN)
   @ApiOperation({ summary: 'Reversibly deactivate a driver user account without deleting driver history' })
   @ApiResponse({ status: 200, description: 'Driver user account deactivated; sessions revoked' })
   @ApiResponse({ status: 400, description: 'Driver account is not ACTIVE or reason is missing' })
@@ -201,7 +201,7 @@ export class CorporateOpsDriversController {
 
   @Post(':driverId/activate')
   @HttpCode(200)
-  @Roles(UserRole.OPS)
+  @Roles(UserRole.OPS, UserRole.ADMIN)
   @ApiOperation({ summary: 'Restore a reversibly deactivated driver user account' })
   @ApiResponse({ status: 200, description: 'Driver user account activated' })
   @ApiResponse({ status: 400, description: 'Driver account is not DEACTIVATED' })

@@ -109,6 +109,8 @@ async function bootstrap() {
       'x-correlation-id',
       'x-requested-with',
       'x-razorpay-signature',
+      'Idempotency-Key',
+      'idempotency-key',
     ],
     credentials: true,
     maxAge: 86400,

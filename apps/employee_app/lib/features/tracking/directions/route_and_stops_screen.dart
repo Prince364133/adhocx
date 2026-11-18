@@ -119,8 +119,10 @@ class _StopRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = EmployeePalette.of(context);
     final stopType = (stop['stopType'] ?? '').toString().toUpperCase();
-    final isDrop = stopType == 'DROP' || stopType == 'OFFICE';
-    final isCurrent = stop['isCurrentUser'] == true;
+    final isDrop =
+        stopType == 'DROP' || stopType == 'DROPOFF' || stopType == 'OFFICE';
+    final isCurrent =
+        stop['isCurrentUser'] == true || stop['isCurrentUserStop'] == true;
     final seq = stop['stopSequence']?.toString() ?? '${index + 1}';
     final eta = EmployeeDataProvider.formatDisplayTime(
       stop['plannedEta']?.toString(),

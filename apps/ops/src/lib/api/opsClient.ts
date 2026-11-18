@@ -663,8 +663,22 @@ export const opsApi = {
   reassignDriver: async (
     routeId: string,
     payload: { newDriverId?: string; reason: string },
-  ): Promise<{ success: boolean; routeId: string; message: string }> => {
-    return request<{ success: boolean; routeId: string; message: string }>(`/corporate/ops/routes/${routeId}/reassign`, {
+  ): Promise<{
+    routeId: string;
+    reassignmentId?: string;
+    status: string;
+    previousDriverId?: string;
+    mode?: 'DIRECT_OFFER' | 'AUTO_DISPATCH' | string;
+    dispatch?: Record<string, unknown>;
+  }> => {
+    return request<{
+      routeId: string;
+      reassignmentId?: string;
+      status: string;
+      previousDriverId?: string;
+      mode?: 'DIRECT_OFFER' | 'AUTO_DISPATCH' | string;
+      dispatch?: Record<string, unknown>;
+    }>(`/corporate/ops/routes/${routeId}/reassign`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
@@ -673,8 +687,26 @@ export const opsApi = {
   cancelRoute: async (
     routeId: string,
     payload: { reason: string },
-  ): Promise<{ success: boolean; routeId: string; message: string }> => {
-    return request<{ success: boolean; routeId: string; message: string }>(`/corporate/trips/routes/${routeId}/cancel`, {
+  ): Promise<{
+    routeId: string;
+    cancellationId?: string;
+    status: string;
+    previousStatus?: string;
+    cancelledAt?: string;
+    cancelledStops?: number;
+    cancelledRequests?: number;
+    voidedEarnings?: number;
+  }> => {
+    return request<{
+      routeId: string;
+      cancellationId?: string;
+      status: string;
+      previousStatus?: string;
+      cancelledAt?: string;
+      cancelledStops?: number;
+      cancelledRequests?: number;
+      voidedEarnings?: number;
+    }>(`/corporate/trips/routes/${routeId}/cancel`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });

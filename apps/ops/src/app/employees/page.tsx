@@ -648,7 +648,10 @@ function EmployeesDirectoryContent() {
                             size="sm"
                             variant="ghost"
                             title="Delete / Deactivate employee"
-                            onClick={() => setDeletingEmployee(emp)}
+                            onClick={() => {
+                              setErrorMsg(null);
+                              setDeletingEmployee(emp);
+                            }}
                             style={{ color: 'var(--color-danger, #DC2626)' }}
                           >
                             <Trash2 size={14} />
@@ -699,12 +702,30 @@ function EmployeesDirectoryContent() {
       {/* Add Employee Modal */}
       <Modal
         isOpen={createOpen}
-        onClose={() => setCreateOpen(false)}
+        onClose={() => {
+          setCreateOpen(false);
+          setErrorMsg(null);
+        }}
         title="Add Corporate Employee"
         subtitle={selectedTenant ? `${selectedTenant.name} · Provisions commuter login account automatically` : undefined}
         width="540px"
       >
         <form onSubmit={handleCreateEmployee} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {errorMsg && (
+            <div
+              role="alert"
+              style={{
+                padding: '10px 12px',
+                borderRadius: '8px',
+                backgroundColor: 'var(--color-danger-bg)',
+                border: '1px solid var(--color-danger-border)',
+                color: 'var(--color-danger)',
+                fontSize: '12px',
+              }}
+            >
+              {errorMsg}
+            </div>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             <div>
               <label style={labelStyle}>Office Hub *</label>
@@ -832,12 +853,30 @@ function EmployeesDirectoryContent() {
       {/* Edit Employee Modal */}
       <Modal
         isOpen={Boolean(editingEmployee)}
-        onClose={() => setEditingEmployee(null)}
+        onClose={() => {
+          setEditingEmployee(null);
+          setErrorMsg(null);
+        }}
         title="Edit Corporate Employee"
         subtitle={editingEmployee ? `${editingEmployee.employeeCode} · Syncs linked commuter login account` : undefined}
         width="540px"
       >
         <form onSubmit={handleUpdateEmployee} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {errorMsg && (
+            <div
+              role="alert"
+              style={{
+                padding: '10px 12px',
+                borderRadius: '8px',
+                backgroundColor: 'var(--color-danger-bg)',
+                border: '1px solid var(--color-danger-border)',
+                color: 'var(--color-danger)',
+                fontSize: '12px',
+              }}
+            >
+              {errorMsg}
+            </div>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             <div>
               <label style={labelStyle}>Full Name *</label>
@@ -922,6 +961,17 @@ function EmployeesDirectoryContent() {
             />
           </div>
 
+          <div>
+            <label style={labelStyle}>Landmark (Optional)</label>
+            <input
+              type="text"
+              value={editForm.landmark}
+              onChange={(e) => setEditForm((f) => ({ ...f, landmark: e.target.value }))}
+              placeholder="Near metro station / gate"
+              style={inputStyle}
+            />
+          </div>
+
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-primary)', cursor: 'pointer' }}>
             <input
               type="checkbox"
@@ -945,12 +995,30 @@ function EmployeesDirectoryContent() {
       {/* Delete / Deactivate Confirmation Modal */}
       <Modal
         isOpen={Boolean(deletingEmployee)}
-        onClose={() => setDeletingEmployee(null)}
+        onClose={() => {
+          setDeletingEmployee(null);
+          setErrorMsg(null);
+        }}
         title="Delete / Deactivate Employee"
         subtitle={deletingEmployee ? `${deletingEmployee.fullName} (${deletingEmployee.employeeCode})` : undefined}
         width="440px"
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {errorMsg && (
+            <div
+              role="alert"
+              style={{
+                padding: '10px 12px',
+                borderRadius: '8px',
+                backgroundColor: 'var(--color-danger-bg)',
+                border: '1px solid var(--color-danger-border)',
+                color: 'var(--color-danger)',
+                fontSize: '12px',
+              }}
+            >
+              {errorMsg}
+            </div>
+          )}
           <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
             Remove this employee from the company? If the employee has completed historical trips or support tickets, they will be soft-deactivated to preserve audit records; otherwise they will be permanently removed.
           </p>

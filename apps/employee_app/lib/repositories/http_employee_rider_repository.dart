@@ -73,7 +73,7 @@ class HttpEmployeeRiderRepository {
     final res = await _client.post(
       '/corporate/me/trips/$stopId/safe-reach',
       body: {
-        'confirmed': confirmed,
+        'confirmedResidenceEntry': confirmed,
         if (notes != null) 'notes': notes,
       },
     );
@@ -133,6 +133,22 @@ class HttpEmployeeRiderRepository {
     return data is List ? data : [];
   }
 
+  /// Marks an in-app notification as read on the backend
+  Future<void> markNotificationRead(String notificationId) async {
+    await _client.patch('/notifications/in-app/$notificationId/read');
+  }
+
+  /// Persists notification channel preferences on the backend
+  Future<Map<String, dynamic>> updateNotificationPreferences(
+    Map<String, dynamic> preferences,
+  ) async {
+    final res = await _client.patch(
+      '/notifications/preferences',
+      body: preferences,
+    );
+    return (res['data'] ?? res) as Map<String, dynamic>;
+  }
+
   /// Fetches rider-safe route details and ordered stops
   Future<Map<String, dynamic>> getRouteDetails(String routeId) async {
     final res = await _client.get('/corporate/routes/$routeId');
@@ -178,7 +194,8 @@ class HttpEmployeeRiderRepository {
         'routeId': routeId,
         'latitude': latitude,
         'longitude': longitude,
-        if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+        if (reason != null && reason.trim().isNotEmpty)
+          'triggerReason': reason.trim(),
       },
     );
     return (res['data'] ?? res) as Map<String, dynamic>;

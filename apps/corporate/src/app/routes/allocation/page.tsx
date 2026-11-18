@@ -7,6 +7,23 @@ import type { CorporateRoute } from '../../../lib/api/types';
 import MetricCard from '../../../components/common/MetricCard';
 import { useSession } from '../../../lib/auth/SessionContext';
 
+function formatShiftDate(value?: string | null): string {
+  if (!value) return '—';
+  const isoDay = value.slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(isoDay)) {
+    const parsed = new Date(`${isoDay}T00:00:00`);
+    if (!Number.isNaN(parsed.getTime())) {
+      return new Intl.DateTimeFormat('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      }).format(parsed);
+    }
+    return isoDay;
+  }
+  return value;
+}
+
 export default function FleetDriverAllocationPage() {
   const { tenantId } = useSession();
   const [routes, setRoutes] = useState<CorporateRoute[]>([]);
@@ -115,7 +132,7 @@ export default function FleetDriverAllocationPage() {
                     <td>{route.vehicle?.model ?? '—'}</td>
                     <td>{route.driver?.fullName ?? route.driverName ?? '—'}</td>
                     <td>{route.assignedPassengerCount} / {route.vehicle?.capacity ?? route.maxCapacity}</td>
-                    <td>{route.shiftDate} · {route.shiftTime}</td>
+                    <td>{formatShiftDate(route.shiftDate)} · {route.shiftTime}</td>
                     <td>{route.status}</td>
                   </tr>
                 ))}

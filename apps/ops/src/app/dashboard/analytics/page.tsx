@@ -141,6 +141,7 @@ export default function OperationsAnalyticsPage() {
   const [fromInput, setFromInput] = useState(() => formatDisplayDate(daysAgo(6)));
   const [toInput, setToInput] = useState(() => formatDisplayDate(today()));
   const [shiftTime, setShiftTime] = useState('');
+  const [availableShiftTimes, setAvailableShiftTimes] = useState<string[]>([]);
   const [data, setData] = useState<OperationsAnalyticsDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -152,6 +153,34 @@ export default function OperationsAnalyticsPage() {
       .catch((err) => setError(err instanceof Error ? err.message : 'Unable to load corporate clients.'))
       .finally(() => setTenantsLoaded(true));
   }, []);
+
+  useEffect(() => {
+    if (!tenantsLoaded) return;
+    let cancelled = false;
+    void opsApi
+      .getRoutes({
+        tenantId: tenantId === 'ALL' ? undefined : tenantId,
+        limit: 200,
+      })
+      .then((routes) => {
+        if (cancelled) return;
+        const times = Array.from(
+          new Set(
+            (Array.isArray(routes) ? routes : [])
+              .map((r) => (typeof r.shiftTime === 'string' ? r.shiftTime.trim() : ''))
+              .filter(Boolean),
+          ),
+        ).sort((a, b) => a.localeCompare(b));
+        setAvailableShiftTimes(times);
+        setShiftTime((prev) => (prev && !times.includes(prev) ? '' : prev));
+      })
+      .catch(() => {
+        if (!cancelled) setAvailableShiftTimes([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tenantId, tenantsLoaded]);
 
   const loadAnalytics = useCallback(async () => {
     if (!tenantsLoaded) return;
@@ -225,7 +254,8 @@ export default function OperationsAnalyticsPage() {
     setError('');
   }
 
-  const scheduled = data?.trips.total ?? 0;
+  const cancelled = data?.trips.byStatus.CANCELLED ?? 0;
+  const scheduled = Math.max(0, (data?.trips.total ?? 0) - cancelled);
   const fulfilled =
     (data?.trips.byStatus.ASSIGNED ?? 0) +
     (data?.trips.byStatus.IN_TRANSIT ?? 0) +
@@ -284,7 +314,7 @@ export default function OperationsAnalyticsPage() {
         <label style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600 }}>SHIFT
           <select value={shiftTime} onChange={(event) => setShiftTime(event.target.value)} style={filterStyle}>
             <option value="">All shifts</option>
-            {['05:00', '08:00', '09:00', '17:00', '18:00', '20:00'].map((time) => <option key={time} value={time}>{time}</option>)}
+            {availableShiftTimes.map((time) => <option key={time} value={time}>{time}</option>)}
           </select>
         </label>
       </section>

@@ -11,6 +11,11 @@ import {
 } from "lucide-react";
 import { adminApi } from "../../lib/api/client";
 import { CreateCorporateTenantInput } from "../../lib/api/types";
+import {
+  INDIAN_PHONE_PATTERN,
+  INDIAN_PHONE_TITLE,
+  validateIndianPhone,
+} from "../../lib/validation/phone";
 import { Button, Drawer, Input, Textarea } from "../common";
 
 type CompanyDraft = CreateCorporateTenantInput;
@@ -23,27 +28,6 @@ export interface CompanyOnboardingResult {
   portalAccessCreated: boolean;
   portalLoginPhone?: string;
   hqOfficeWarning?: string;
-}
-
-const INDIAN_PHONE_PATTERN =
-  "^(\\+91[\\s.-]?|91[\\s.-]?|0)?[6-9][0-9]{4}[\\s.-]?[0-9]{5}$";
-
-function validateIndianPhone(raw?: string): string | null {
-  const trimmed = (raw ?? "").trim();
-  if (!trimmed) {
-    return "Enter a 10-digit Indian mobile number for Corporate portal SMS OTP login.";
-  }
-  const digits = trimmed.replace(/\D/g, "");
-  const localDigits =
-    digits.length === 12 && digits.startsWith("91")
-      ? digits.slice(2)
-      : digits.length === 11 && digits.startsWith("0")
-        ? digits.slice(1)
-        : digits;
-  if (!/^[6-9]\d{9}$/.test(localDigits)) {
-    return "Enter a valid 10-digit Indian mobile number (e.g. +91 98765 43210 or 9876543210).";
-  }
-  return null;
 }
 
 const EMPTY_DRAFT: CompanyDraft = {
@@ -179,7 +163,11 @@ export function CompanyOnboardingDrawer({
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
-    const phoneError = validateIndianPhone(draft.primaryContactPhone);
+    const phoneError = validateIndianPhone(draft.primaryContactPhone, {
+      required: true,
+      requiredMessage:
+        "Enter a 10-digit Indian mobile number for Corporate portal SMS OTP login.",
+    });
     if (phoneError) {
       setError(phoneError);
       return;
@@ -552,7 +540,7 @@ export function CompanyOnboardingDrawer({
               required
               type="tel"
               pattern={INDIAN_PHONE_PATTERN}
-              title="Enter a valid 10-digit Indian mobile number (e.g. +91 98765 43210 or 9876543210)"
+              title={INDIAN_PHONE_TITLE}
               hint="10-digit Indian mobile number for Corporate Super Admin SMS OTP login."
               maxLength={24}
               placeholder="+91 98765 43210"

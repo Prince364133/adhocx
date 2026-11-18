@@ -86,6 +86,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       useRootNavigator: true,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (_) => modal,
     );
@@ -469,7 +470,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       iconColor: AppColors.info,
                       label: context.tr('Vehicle Details'),
                       subtitle: context.tr('Car model, plate & specifications'),
-                      onTap: () => context.push(AppRoutes.myVehicleScreen),
+                      onTap: () async {
+                        await context.push(AppRoutes.myVehicleScreen);
+                        if (mounted) _fetchProfile();
+                      },
                     ),
                   ],
                 ),

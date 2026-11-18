@@ -6,6 +6,7 @@ import { Button } from '../common/Button';
 import { StatusBadge } from '../common/StatusBadge';
 import { CorporateRouteItem, RouteStop } from '../../lib/api/opsTypes';
 import { opsApi } from '../../lib/api/opsClient';
+import { isOfficeHubStop } from '../../lib/opsHelpers';
 import {
   MapPin,
   Phone,
@@ -140,7 +141,9 @@ export const StopItineraryDrawer: React.FC<StopItineraryDrawerProps> = ({
           </div>
         ) : (
           stops.map((stop, index) => {
-            const isOffice = stop.stopType === 'DROPOFF';
+            const isOffice = isOfficeHubStop(stop);
+            const passengerName = stop.employeeName ?? stop.employee?.fullName ?? 'Passenger';
+            const passengerPhone = stop.employeePhone ?? stop.employee?.phoneNumber ?? null;
             const isBoarded = stop.status === 'BOARDED';
             const isPending = stop.status === 'PENDING' || stop.status === 'ARRIVED';
 
@@ -179,7 +182,9 @@ export const StopItineraryDrawer: React.FC<StopItineraryDrawerProps> = ({
                       {index + 1}
                     </div>
                     <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-primary)' }}>
-                      {isOffice ? 'Office Dropoff Hub' : stop.employee?.fullName || 'Passenger'}
+                      {isOffice
+                        ? route.office?.name || (stop.stopType === 'PICKUP' ? 'Office Pickup Hub' : 'Office Dropoff Hub')
+                        : passengerName}
                     </span>
                     {!isOffice && stop.employee?.gender && (
                       <span className="code-tag">{stop.employee.gender}</span>
@@ -196,7 +201,7 @@ export const StopItineraryDrawer: React.FC<StopItineraryDrawerProps> = ({
                 </div>
 
                 {/* Employee Metadata */}
-                {!isOffice && stop.employee && (
+                {!isOffice && (
                   <div
                     style={{
                       display: 'flex',
@@ -210,7 +215,7 @@ export const StopItineraryDrawer: React.FC<StopItineraryDrawerProps> = ({
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)' }}>
                       <Phone size={13} />
-                      <span>{stop.employee.phoneNumber || 'N/A'}</span>
+                      <span>{passengerPhone || 'N/A'}</span>
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>

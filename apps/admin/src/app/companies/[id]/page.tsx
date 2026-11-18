@@ -10,6 +10,7 @@ import React, {
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
+  AlertTriangle,
   ArrowLeft,
   Building2,
   Check,
@@ -23,7 +24,12 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { adminApi } from "../../../lib/api/client";
+import { adminApi, resolveDocumentUrl } from "../../../lib/api/client";
+import {
+  INDIAN_PHONE_PATTERN,
+  INDIAN_PHONE_TITLE,
+  validateIndianPhone,
+} from "../../../lib/validation/phone";
 import {
   CorporateCompanyUser,
   CorporateDepartmentInput,
@@ -70,6 +76,12 @@ const roleOptions = [
   { value: "READ_ONLY", label: "Read only" },
 ];
 
+const companyStatusOptions = [
+  { value: "ACTIVE", label: "Active" },
+  { value: "SUSPENDED", label: "Suspended" },
+  { value: "INACTIVE", label: "Inactive" },
+] as const;
+
 const fieldStyle: React.CSSProperties = {
   width: "100%",
   boxSizing: "border-box",
@@ -102,8 +114,10 @@ function Field({
   onChange,
   required,
   type = "text",
+  step,
   maxLength,
   pattern,
+  title,
   placeholder,
   readOnly,
 }: {
@@ -112,8 +126,10 @@ function Field({
   onChange?: (value: string) => void;
   required?: boolean;
   type?: string;
+  step?: string | number;
   maxLength?: number;
   pattern?: string;
+  title?: string;
   placeholder?: string;
   readOnly?: boolean;
 }) {
@@ -122,11 +138,13 @@ function Field({
       {label}
       <input
         type={type}
+        step={step ?? (type === "number" ? "any" : undefined)}
         value={value}
         onChange={(event) => onChange?.(event.target.value)}
         required={required}
         maxLength={maxLength}
         pattern={pattern}
+        title={title}
         placeholder={placeholder}
         readOnly={readOnly}
         style={{ ...fieldStyle, ...(readOnly ? { opacity: 0.75 } : {}) }}
@@ -330,6 +348,8 @@ export default function CompanyProfilePage() {
   const [users, setUsers] = useState<CorporateCompanyUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState<Notice>(null);
+  const [hqOfficeWarning, setHqOfficeWarning] = useState<string | null>(null);
+  const [drawerError, setDrawerError] = useState<string | null>(null);
   const [search, setSearch] = useState<
     Record<"offices" | "departments" | "zones" | "users", string>
   >({
@@ -368,6 +388,7 @@ export default function CompanyProfilePage() {
     primaryContactName: "",
     primaryContactEmail: "",
     primaryContactPhone: "",
+    status: "ACTIVE",
   });
   const [legalDraft, setLegalDraft] = useState({
     legalEntityName: "",
@@ -406,6 +427,7 @@ export default function CompanyProfilePage() {
         primaryContactName: profile.primaryContactName || "",
         primaryContactEmail: profile.primaryContactEmail || "",
         primaryContactPhone: profile.primaryContactPhone || "",
+        status: profile.status || "ACTIVE",
       });
       setLegalDraft({
         legalEntityName: profile.legalEntityName || "",
@@ -437,8 +459,11 @@ export default function CompanyProfilePage() {
     const params = new URLSearchParams(window.location.search);
     const logoUploadFailed = params.get("logoUpload") === "failed";
     const portalAccess = params.get("portalAccess");
-    const hqOfficeWarning = params.get("hqOfficeWarning");
-    if (logoUploadFailed || portalAccess || hqOfficeWarning) {
+    const warning = params.get("hqOfficeWarning");
+    if (logoUploadFailed || portalAccess || warning) {
+      if (warning) {
+        setHqOfficeWarning(warning);
+      }
       const baseText = logoUploadFailed
         ? portalAccess === "created"
           ? "Company and Corporate Super Admin account were created, but its logo could not be uploaded. You can try again in Organization details."
@@ -448,16 +473,16 @@ export default function CompanyProfilePage() {
           : portalAccess
             ? "Company was created, but Corporate portal account creation was not confirmed. Verify the company users before retrying."
             : "";
-      const text = [baseText, hqOfficeWarning].filter(Boolean).join(" ");
-      setNotice({
-        kind:
-          logoUploadFailed || Boolean(hqOfficeWarning)
+      if (baseText) {
+        setNotice({
+          kind: logoUploadFailed
             ? "error"
             : portalAccess === "created"
               ? "success"
               : "error",
-        text,
-      });
+          text: baseText,
+        });
+      }
       router.replace(`/companies/${companyId}`);
     }
   }, [companyId, router]);
@@ -518,6 +543,7 @@ export default function CompanyProfilePage() {
   }
 
   function openOffice(office?: CorporateOfficeItem) {
+    setDrawerError(null);
     setEditingId(office?.id || "");
     setOfficeDraft(
       office
@@ -542,6 +568,7 @@ export default function CompanyProfilePage() {
   }
 
   function openDepartment(department?: CorporateDepartmentItem) {
+    setDrawerError(null);
     setEditingId(department?.id || "");
     setDepartmentDraft(
       department
@@ -559,6 +586,7 @@ export default function CompanyProfilePage() {
   }
 
   function openZone(zone?: CorporateTransportZoneItem) {
+    setDrawerError(null);
     setEditingId(zone?.id || "");
     setZoneDraft(
       zone
@@ -578,6 +606,7 @@ export default function CompanyProfilePage() {
   }
 
   function openUser(user?: CorporateCompanyUser) {
+    setDrawerError(null);
     setEditingId(user?.id || "");
     setUserDraft(
       user
@@ -603,11 +632,20 @@ export default function CompanyProfilePage() {
     if (saving) return;
     setDrawer(null);
     setEditingId("");
+    setDrawerError(null);
   }
 
   async function saveOrganization(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!company) return;
+    const phoneError = validateIndianPhone(
+      organizationDraft.primaryContactPhone,
+      { required: false },
+    );
+    if (phoneError) {
+      setNotice({ kind: "error", text: phoneError });
+      return;
+    }
     setSaving(true);
     setNotice(null);
     try {
@@ -625,6 +663,36 @@ export default function CompanyProfilePage() {
           error instanceof Error
             ? error.message
             : "Could not update organization details.",
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function updateCompanyStatus(nextStatus: string) {
+    if (!company || nextStatus === company.status) return;
+    setSaving(true);
+    setNotice(null);
+    try {
+      const updated = await adminApi.updateCorporateTenant(companyId, {
+        status: nextStatus,
+      });
+      setCompany((current) => (current ? { ...current, ...updated } : updated));
+      setOrganizationDraft((current) => ({
+        ...current,
+        status: updated.status || nextStatus,
+      }));
+      setNotice({
+        kind: "success",
+        text: `Company status updated to ${updated.status || nextStatus}.`,
+      });
+    } catch (error) {
+      setNotice({
+        kind: "error",
+        text:
+          error instanceof Error
+            ? error.message
+            : "Could not update company status.",
       });
     } finally {
       setSaving(false);
@@ -692,8 +760,16 @@ export default function CompanyProfilePage() {
 
   async function saveOffice(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const phoneError = validateIndianPhone(officeDraft.contactPhone, {
+      required: true,
+    });
+    if (phoneError) {
+      setDrawerError(phoneError);
+      return;
+    }
     setSaving(true);
     setNotice(null);
+    setDrawerError(null);
     try {
       if (editingId) {
         await adminApi.updateCorporateOffice(companyId, editingId, officeDraft);
@@ -701,16 +777,16 @@ export default function CompanyProfilePage() {
         await adminApi.createCorporateOffice(companyId, officeDraft);
       }
       setDrawer(null);
+      setDrawerError(null);
       if (!(await loadData())) return;
       setNotice({
         kind: "success",
         text: editingId ? "Office updated." : "Office added.",
       });
     } catch (error) {
-      setNotice({
-        kind: "error",
-        text: error instanceof Error ? error.message : "Could not save office.",
-      });
+      const message =
+        error instanceof Error ? error.message : "Could not save office.";
+      setDrawerError(message);
     } finally {
       setSaving(false);
     }
@@ -720,30 +796,37 @@ export default function CompanyProfilePage() {
     event.preventDefault();
     setSaving(true);
     setNotice(null);
-    const payload = {
-      ...departmentDraft,
-      officeId: departmentDraft.officeId || undefined,
-      departmentHead: departmentDraft.departmentHead || undefined,
-      description: departmentDraft.description || undefined,
-    };
+    setDrawerError(null);
+    const trimmedOfficeId = (departmentDraft.officeId ?? "").trim();
+    const trimmedDepartmentHead = (departmentDraft.departmentHead ?? "").trim();
+    const trimmedDescription = (departmentDraft.description ?? "").trim();
     try {
       if (editingId) {
-        await adminApi.updateCorporateDepartment(companyId, editingId, payload);
+        await adminApi.updateCorporateDepartment(companyId, editingId, {
+          ...departmentDraft,
+          officeId: trimmedOfficeId || null,
+          departmentHead: trimmedDepartmentHead || null,
+          description: trimmedDescription || null,
+        });
       } else {
-        await adminApi.createCorporateDepartment(companyId, payload);
+        await adminApi.createCorporateDepartment(companyId, {
+          ...departmentDraft,
+          officeId: trimmedOfficeId || undefined,
+          departmentHead: trimmedDepartmentHead || undefined,
+          description: trimmedDescription || undefined,
+        });
       }
       setDrawer(null);
+      setDrawerError(null);
       if (!(await loadData())) return;
       setNotice({
         kind: "success",
         text: editingId ? "Department updated." : "Department added.",
       });
     } catch (error) {
-      setNotice({
-        kind: "error",
-        text:
-          error instanceof Error ? error.message : "Could not save department.",
-      });
+      const message =
+        error instanceof Error ? error.message : "Could not save department.";
+      setDrawerError(message);
     } finally {
       setSaving(false);
     }
@@ -753,9 +836,9 @@ export default function CompanyProfilePage() {
     event.preventDefault();
     setSaving(true);
     setNotice(null);
-    const payload = {
-      ...zoneDraft,
-      description: zoneDraft.description || undefined,
+    setDrawerError(null);
+    const trimmedDescription = (zoneDraft.description ?? "").trim();
+    const baseLocations = {
       pickupLocations: zoneDraft.pickupLocations
         .map((item) => item.trim())
         .filter(Boolean),
@@ -765,28 +848,31 @@ export default function CompanyProfilePage() {
     };
     try {
       if (editingId) {
-        await adminApi.updateCorporateTransportZone(
-          companyId,
-          editingId,
-          payload,
-        );
+        await adminApi.updateCorporateTransportZone(companyId, editingId, {
+          ...zoneDraft,
+          ...baseLocations,
+          description: trimmedDescription || null,
+        });
       } else {
-        await adminApi.createCorporateTransportZone(companyId, payload);
+        await adminApi.createCorporateTransportZone(companyId, {
+          ...zoneDraft,
+          ...baseLocations,
+          description: trimmedDescription || undefined,
+        });
       }
       setDrawer(null);
+      setDrawerError(null);
       if (!(await loadData())) return;
       setNotice({
         kind: "success",
         text: editingId ? "Transport zone updated." : "Transport zone added.",
       });
     } catch (error) {
-      setNotice({
-        kind: "error",
-        text:
-          error instanceof Error
-            ? error.message
-            : "Could not save transport zone.",
-      });
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Could not save transport zone.";
+      setDrawerError(message);
     } finally {
       setSaving(false);
     }
@@ -794,21 +880,36 @@ export default function CompanyProfilePage() {
 
   async function saveUser(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const trimmedEmail = (userDraft.email ?? "").trim();
+    const trimmedPhone = (userDraft.phone ?? "").trim();
+    const phoneError = validateIndianPhone(trimmedPhone, {
+      required: !trimmedEmail,
+    });
+    if (phoneError) {
+      setDrawerError(phoneError);
+      return;
+    }
     setSaving(true);
     setNotice(null);
-    const input = {
-      ...userDraft,
-      email: userDraft.email || undefined,
-      phone: userDraft.phone || undefined,
-      officeIds: userDraft.officeIds || [],
-    };
+    setDrawerError(null);
     try {
       if (editingId) {
-        await adminApi.updateCorporateCompanyUser(companyId, editingId, input);
+        await adminApi.updateCorporateCompanyUser(companyId, editingId, {
+          ...userDraft,
+          email: trimmedEmail || null,
+          phone: trimmedPhone || null,
+          officeIds: userDraft.officeIds || [],
+        });
       } else {
-        await adminApi.inviteCorporateCompanyUser(companyId, input);
+        await adminApi.inviteCorporateCompanyUser(companyId, {
+          ...userDraft,
+          email: trimmedEmail || undefined,
+          phone: trimmedPhone || undefined,
+          officeIds: userDraft.officeIds || [],
+        });
       }
       setDrawer(null);
+      setDrawerError(null);
       if (!(await loadData())) return;
       setNotice({
         kind: "success",
@@ -817,13 +918,11 @@ export default function CompanyProfilePage() {
           : "Corporate user account created. They can sign in through the existing OTP flow.",
       });
     } catch (error) {
-      setNotice({
-        kind: "error",
-        text:
-          error instanceof Error
-            ? error.message
-            : "Could not save corporate user.",
-      });
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Could not save corporate user.";
+      setDrawerError(message);
     } finally {
       setSaving(false);
     }
@@ -924,7 +1023,26 @@ export default function CompanyProfilePage() {
     );
   }
 
-  const activeOffices = offices.filter((office) => office.isActive);
+  const selectedDepartment =
+    drawer === "department" && editingId
+      ? departments.find((department) => department.id === editingId)
+      : undefined;
+  const departmentOfficeOptions = offices.filter(
+    (office) =>
+      office.isActive ||
+      office.id === departmentDraft.officeId ||
+      office.id === selectedDepartment?.officeId,
+  );
+  const selectedZone =
+    drawer === "zone" && editingId
+      ? zones.find((zone) => zone.id === editingId)
+      : undefined;
+  const zoneOfficeOptions = offices.filter(
+    (office) =>
+      office.isActive ||
+      office.id === zoneDraft.officeId ||
+      office.id === selectedZone?.officeId,
+  );
   const selectedUser = editingId
     ? users.find((user) => user.id === editingId)
     : undefined;
@@ -933,6 +1051,7 @@ export default function CompanyProfilePage() {
       office.isActive || selectedUser?.corporateOfficeIds.includes(office.id),
   );
   const currentSection = sectionItems.find((item) => item.id === section);
+  const resolvedLogoUrl = resolveDocumentUrl(company.logoUrl);
 
   return (
     <>
@@ -955,6 +1074,39 @@ export default function CompanyProfilePage() {
 
       {notice && <NoticeBanner notice={notice} />}
 
+      {hqOfficeWarning && (
+        <div
+          role="alert"
+          className="flex items-start justify-between mb-4 rounded-md text-base gap-medium"
+          style={{
+            padding: "0.75rem 0.9rem",
+            background: "rgba(245, 158, 11, 0.12)",
+            border: "1px solid var(--color-warning)",
+            color: "var(--text-primary)",
+          }}
+        >
+          <div className="flex items-start gap-medium">
+            <AlertTriangle
+              size={16}
+              style={{
+                flexShrink: 0,
+                marginTop: 2,
+                color: "var(--color-warning)",
+              }}
+            />
+            <span>{hqOfficeWarning}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setHqOfficeWarning(null)}
+            aria-label="Dismiss HQ office warning"
+            className="bg-transparent border-0 text-muted cursor-pointer p-0"
+          >
+            <X size={15} />
+          </button>
+        </div>
+      )}
+
       <Card padding="md" style={{ marginBottom: "1rem" }}>
         <div className="flex items-center gap-4 flex-wrap">
           <div
@@ -964,15 +1116,15 @@ export default function CompanyProfilePage() {
               width: 58,
               height: 58,
               border: "1px solid var(--border-light)",
-              backgroundImage: company.logoUrl
-                ? `url("${company.logoUrl}")`
+              backgroundImage: resolvedLogoUrl
+                ? `url("${resolvedLogoUrl}")`
                 : undefined,
               backgroundSize: "cover",
               backgroundPosition: "center",
               placeItems: "center",
             }}
           >
-            {!company.logoUrl && <Building2 size={24} />}
+            {!resolvedLogoUrl && <Building2 size={24} />}
           </div>
           <div style={{ flex: "1 1 220px" }}>
             <div className="flex items-center flex-wrap gap-medium">
@@ -1133,6 +1285,9 @@ export default function CompanyProfilePage() {
                       label="Primary contact phone"
                       value={organizationDraft.primaryContactPhone}
                       type="tel"
+                      pattern={INDIAN_PHONE_PATTERN}
+                      title={INDIAN_PHONE_TITLE}
+                      placeholder="+91 98765 43210"
                       maxLength={24}
                       onChange={(value) =>
                         setOrganizationDraft((current) => ({
@@ -1141,6 +1296,26 @@ export default function CompanyProfilePage() {
                         }))
                       }
                     />
+                    <label style={labelStyle}>
+                      Company status
+                      <select
+                        aria-label="Company status"
+                        value={organizationDraft.status}
+                        onChange={(event) =>
+                          setOrganizationDraft((current) => ({
+                            ...current,
+                            status: event.target.value,
+                          }))
+                        }
+                        style={fieldStyle}
+                      >
+                        {companyStatusOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
                     <Field
                       label="City"
                       value={organizationDraft.city}
@@ -1228,25 +1403,50 @@ export default function CompanyProfilePage() {
                     ]}
                   />
                   <div
-                    className="mt-5 pt-4"
+                    className="mt-5 pt-4 flex items-start gap-6 flex-wrap"
                     style={{ borderTop: "1px solid var(--border-light)" }}
                   >
-                    <label style={{ ...labelStyle, maxWidth: 320 }}>
-                      Company logo
-                      <input
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        disabled={saving}
-                        onChange={(event) => {
-                          void uploadLogo(event.target.files?.[0]);
-                          event.currentTarget.value = "";
-                        }}
-                        style={{ ...fieldStyle, padding: "0.45rem" }}
-                      />
-                    </label>
-                    <small className="block text-muted mt-tight">
-                      JPEG, PNG, or WebP up to 2 MB.
-                    </small>
+                    <div>
+                      <label style={{ ...labelStyle, minWidth: 200 }}>
+                        Company status
+                        <select
+                          aria-label="Company status"
+                          value={company.status}
+                          disabled={saving}
+                          onChange={(event) =>
+                            void updateCompanyStatus(event.target.value)
+                          }
+                          style={fieldStyle}
+                        >
+                          {companyStatusOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <small className="block text-muted mt-tight">
+                        Changes take effect immediately across corporate access.
+                      </small>
+                    </div>
+                    <div>
+                      <label style={{ ...labelStyle, maxWidth: 320 }}>
+                        Company logo
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          disabled={saving}
+                          onChange={(event) => {
+                            void uploadLogo(event.target.files?.[0]);
+                            event.currentTarget.value = "";
+                          }}
+                          style={{ ...fieldStyle, padding: "0.45rem" }}
+                        />
+                      </label>
+                      <small className="block text-muted mt-tight">
+                        JPEG, PNG, or WebP up to 2 MB.
+                      </small>
+                    </div>
                   </div>
                 </>
               )}
@@ -1708,6 +1908,19 @@ export default function CompanyProfilePage() {
         }
         width="640px"
       >
+        {drawerError && (
+          <div
+            role="alert"
+            className="flex items-start mb-4 rounded-md text-base gap-medium text-danger bg-danger-subtle"
+            style={{
+              padding: "0.75rem 0.9rem",
+              border: "1px solid var(--color-danger-border)",
+            }}
+          >
+            <X size={16} style={{ flexShrink: 0, marginTop: 2 }} />
+            <span>{drawerError}</span>
+          </div>
+        )}
         {drawer === "office" && (
           <Form onSubmit={saveOffice} style={{ display: "grid", gap: "1rem" }}>
             <div style={formGridStyle}>
@@ -1796,6 +2009,9 @@ export default function CompanyProfilePage() {
                 value={officeDraft.contactPhone}
                 required
                 type="tel"
+                pattern={INDIAN_PHONE_PATTERN}
+                title={INDIAN_PHONE_TITLE}
+                placeholder="+91 98765 43210"
                 maxLength={24}
                 onChange={(value) =>
                   setOfficeDraft((current) => ({
@@ -1813,6 +2029,7 @@ export default function CompanyProfilePage() {
                 }
                 required
                 type="number"
+                step="any"
                 onChange={(value) =>
                   setOfficeDraft((current) => ({
                     ...current,
@@ -1829,6 +2046,7 @@ export default function CompanyProfilePage() {
                 }
                 required
                 type="number"
+                step="any"
                 onChange={(value) =>
                   setOfficeDraft((current) => ({
                     ...current,
@@ -1918,9 +2136,10 @@ export default function CompanyProfilePage() {
                 style={fieldStyle}
               >
                 <option value="">All offices</option>
-                {activeOffices.map((office) => (
+                {departmentOfficeOptions.map((office) => (
                   <option key={office.id} value={office.id}>
                     {office.name} ({office.code})
+                    {office.isActive ? "" : " (Inactive)"}
                   </option>
                 ))}
               </select>
@@ -1992,9 +2211,10 @@ export default function CompanyProfilePage() {
                 style={fieldStyle}
               >
                 <option value="">Select an office</option>
-                {activeOffices.map((office) => (
+                {zoneOfficeOptions.map((office) => (
                   <option key={office.id} value={office.id}>
                     {office.name} ({office.code})
+                    {office.isActive ? "" : " (Inactive)"}
                   </option>
                 ))}
               </select>
@@ -2081,6 +2301,9 @@ export default function CompanyProfilePage() {
                 label="Phone"
                 value={userDraft.phone || ""}
                 type="tel"
+                pattern={INDIAN_PHONE_PATTERN}
+                title={INDIAN_PHONE_TITLE}
+                placeholder="+91 98765 43210"
                 maxLength={24}
                 required={!userDraft.email}
                 onChange={(value) =>

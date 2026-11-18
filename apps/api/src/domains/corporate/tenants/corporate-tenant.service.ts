@@ -8,6 +8,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import { DatabaseService } from '../../../database/database.service';
+import { RedisService } from '../../../redis/redis.service';
 import { AuditService } from '../../../modules/audit/audit.service';
 import { H3Service } from '../../../modules/locations/h3.service';
 import { sanitizeRealName } from '../../../common/utils/name.util';
@@ -40,6 +41,7 @@ export class CorporateTenantService {
     private readonly audit: AuditService,
     private readonly h3Service: H3Service,
     @Optional() private readonly geocoder?: GoogleGeocodingAdapter,
+    @Optional() private readonly redis?: RedisService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -354,25 +356,31 @@ export class CorporateTenantService {
     ]);
 
     const tenantIds = rawItems.map((t: any) => t.id);
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400_000);
     const liveRoutes =
       tenantIds.length > 0 && typeof (this.db as any).corporateRoute?.findMany === 'function'
         ? await this.db.corporateRoute.findMany({
-          where: { tenantId: { in: tenantIds } },
-          select: {
-            tenantId: true,
-            status: true,
-            driverId: true,
-            targetOfficeArrivalTime: true,
-            updatedAt: true,
-          },
-        })
-      : [];
+            where: {
+              tenantId: { in: tenantIds },
+              shiftDate: { gte: thirtyDaysAgo },
+            },
+            select: {
+              tenantId: true,
+              status: true,
+              driverId: true,
+              assignedPassengerCount: true,
+              targetOfficeArrivalTime: true,
+              updatedAt: true,
+            },
+          })
+        : [];
 
     const statsByTenant = new Map<
       string,
       {
         activeCabsCount: number;
         inTransitCount: number;
+        inTransitPassengersCount: number;
         delayedCount: number;
         unassignedCount: number;
         completedCount: number;
@@ -385,6 +393,7 @@ export class CorporateTenantService {
       const bucket = statsByTenant.get(r.tenantId) ?? {
         activeCabsCount: 0,
         inTransitCount: 0,
+        inTransitPassengersCount: 0,
         delayedCount: 0,
         unassignedCount: 0,
         completedCount: 0,
@@ -396,6 +405,7 @@ export class CorporateTenantService {
       }
       if (status === 'IN_TRANSIT') {
         bucket.inTransitCount += 1;
+        bucket.inTransitPassengersCount += Number((r as any).assignedPassengerCount ?? 0);
         if (r.targetOfficeArrivalTime && new Date(r.targetOfficeArrivalTime).getTime() + 10 * 60_000 < now) {
           bucket.delayedCount += 1;
         }
@@ -424,6 +434,7 @@ export class CorporateTenantService {
         ...tenant,
         activeCabsCount: s?.activeCabsCount ?? 0,
         inTransitCount: s?.inTransitCount ?? 0,
+        inTransitPassengersCount: s?.inTransitPassengersCount ?? 0,
         delayedCount: s?.delayedCount ?? 0,
         unassignedCount: s?.unassignedCount ?? 0,
         onTimePunctualityPct,
@@ -1121,11 +1132,22 @@ export class CorporateTenantService {
       }
     }
 
-    if (dto.homeAddress !== undefined && dto.homeAddress.trim()) {
+    const currentDefaultAddress = (
+      existing.locations?.find((l: any) => l.isDefault)?.addressText ??
+      existing.locations?.[0]?.addressText ??
+      ''
+    ).trim().toLowerCase();
+    const nextAddressTrimmed = dto.homeAddress !== undefined ? dto.homeAddress.trim() : '';
+    const addressChanged =
+      Boolean(nextAddressTrimmed) &&
+      (nextAddressTrimmed.toLowerCase() !== currentDefaultAddress ||
+        (dto.latitude !== undefined && dto.longitude !== undefined));
+
+    if (addressChanged) {
       let lat = dto.latitude !== undefined ? Number(dto.latitude) : 0;
       let lng = dto.longitude !== undefined ? Number(dto.longitude) : 0;
       if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
-        const resolved = await this.geocodeStrict(dto.homeAddress.trim());
+        const resolved = await this.geocodeStrict(nextAddressTrimmed);
         lat = resolved.latitude;
         lng = resolved.longitude;
       }
@@ -1137,7 +1159,7 @@ export class CorporateTenantService {
       await this.db.corporateEmployeeLocation.create({
         data: {
           employeeId,
-          addressText: dto.homeAddress.trim(),
+          addressText: nextAddressTrimmed,
           landmark: dto.landmark?.trim() || null,
           latitude: lat,
           longitude: lng,
@@ -1184,6 +1206,9 @@ export class CorporateTenantService {
           where: { id: updated.userId },
           data: userPatch,
         });
+        if (dto.isActive === false && typeof this.redis?.revokeUserSessions === 'function') {
+          await this.redis.revokeUserSessions(updated.userId).catch(() => undefined);
+        }
       }
     } else if (updated.isActive) {
       await this.ensureEmployeeLoginAccount(updated.id, tenantId, {
@@ -1212,7 +1237,20 @@ export class CorporateTenantService {
   ) {
     const existing = await this.getEmployeeById(tenantId, employeeId, officeScope);
 
-    const [historicalStopsCount, ticketsCount] = await Promise.all([
+    const activeInTransitStops = await this.db.corporateRouteStop.count({
+      where: {
+        employeeId,
+        status: { in: ['PENDING', 'ARRIVED', 'BOARDED'] as any },
+        route: { status: 'IN_TRANSIT' as any },
+      },
+    });
+    if (activeInTransitStops > 0) {
+      throw new ConflictException(
+        'Cannot delete or deactivate an employee while they are on an active IN_TRANSIT route.',
+      );
+    }
+
+    const [historicalStopsCount, ticketsCount, completedReqsCount, feedbackCount, rosterEntriesCount] = await Promise.all([
       this.db.corporateRouteStop.count({
         where: {
           employeeId,
@@ -1222,9 +1260,26 @@ export class CorporateTenantService {
       this.db.corporateSupportTicket.count({
         where: { employeeId },
       }),
+      typeof (this.db as any).corporateTransportRequest?.count === 'function'
+        ? this.db.corporateTransportRequest.count({
+            where: { employeeId, status: { in: ['COMPLETED', 'IN_PROGRESS'] as any } },
+          })
+        : Promise.resolve(0),
+      typeof (this.db as any).corporateTripFeedback?.count === 'function'
+        ? (this.db as any).corporateTripFeedback.count({ where: { employeeId } })
+        : Promise.resolve(0),
+      typeof (this.db as any).corporateRosterEntry?.count === 'function'
+        ? (this.db as any).corporateRosterEntry.count({ where: { employeeId } })
+        : Promise.resolve(0),
     ]);
 
-    if (historicalStopsCount > 0 || ticketsCount > 0) {
+    if (
+      historicalStopsCount > 0 ||
+      ticketsCount > 0 ||
+      completedReqsCount > 0 ||
+      feedbackCount > 0 ||
+      rosterEntriesCount > 0
+    ) {
       await this.db.$transaction(async (tx) => {
         await tx.corporateEmployee.update({
           where: { id: employeeId },
@@ -1252,12 +1307,24 @@ export class CorporateTenantService {
         }
       });
 
+      if (existing.userId && typeof this.redis?.revokeUserSessions === 'function') {
+        await this.redis.revokeUserSessions(existing.userId).catch(() => undefined);
+      }
+
       await this.audit.log({
         action: 'CORPORATE_EMPLOYEE_DEACTIVATED',
         userId: actorUserId,
         entityId: employeeId,
         entityType: 'CORPORATE_EMPLOYEE',
-        metadata: { tenantId, reason: 'historical_records_present', historicalStopsCount, ticketsCount },
+        metadata: {
+          tenantId,
+          reason: 'historical_records_present',
+          historicalStopsCount,
+          ticketsCount,
+          completedReqsCount,
+          feedbackCount,
+          rosterEntriesCount,
+        },
       });
 
       return {
@@ -1269,13 +1336,42 @@ export class CorporateTenantService {
     }
 
     await this.db.$transaction(async (tx) => {
+      const pendingStops = await tx.corporateRouteStop.findMany({
+        where: { employeeId },
+        select: { routeId: true },
+      });
+      const affectedRouteIds = Array.from(new Set(pendingStops.map((s) => s.routeId)));
+
       await tx.corporateRouteStop.deleteMany({ where: { employeeId } });
       await tx.corporateTransportRequest.deleteMany({ where: { employeeId } });
       await tx.corporateEmployeeLocation.deleteMany({ where: { employeeId } });
       await tx.corporateEmployee.delete({ where: { id: employeeId } });
+
+      for (const rId of affectedRouteIds) {
+        const remaining = await tx.corporateRouteStop.findMany({
+          where: { routeId: rId },
+          orderBy: { stopSequence: 'asc' },
+        });
+        for (let i = 0; i < remaining.length; i++) {
+          if (remaining[i].stopSequence !== i + 1) {
+            await tx.corporateRouteStop.update({
+              where: { id: remaining[i].id },
+              data: { stopSequence: i + 1 },
+            });
+          }
+        }
+        const empCount = remaining.filter((s) => Boolean(s.employeeId)).length;
+        await tx.corporateRoute.update({
+          where: { id: rId },
+          data: { assignedPassengerCount: empCount },
+        });
+      }
     });
 
     if (existing.userId) {
+      if (typeof this.redis?.revokeUserSessions === 'function') {
+        await this.redis.revokeUserSessions(existing.userId).catch(() => undefined);
+      }
       const linkedUser = await this.db.user.findUnique({
         where: { id: existing.userId },
         select: { id: true, role: true },

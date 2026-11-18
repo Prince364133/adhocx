@@ -83,7 +83,7 @@ export class CorporateRiderService {
       include: {
         tenant: true,
         office: true,
-        locations: { take: 1, orderBy: { id: 'asc' } },
+        locations: { take: 1, orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }] },
       },
     });
 
@@ -457,7 +457,10 @@ export class CorporateRiderService {
         stopId: rs.id,
         stopSequence: rs.stopSequence,
         stopType: rs.stopType,
-        addressText: rs.addressText || (rs.employeeId ? 'Commuter Stop' : route.office?.name || 'Corporate Office'),
+        addressText:
+          rs.employeeId === emp.id || !rs.employeeId
+            ? rs.addressText || (!rs.employeeId ? route.office?.name || 'Corporate Office' : 'Designated Pickup')
+            : `Co-passenger Stop #${rs.stopSequence}`,
         plannedEta: rs.plannedEta,
         status: rs.status,
         isCurrentUser: rs.employeeId === emp.id,
@@ -548,10 +551,10 @@ export class CorporateRiderService {
     //    the stop's dwell buffer (default 300 s = the 5-minute wait before a no-show).
     let dwellRemainingSeconds: number | null = null;
     if (client) {
-      const dwellKey = `corporate:dwell:${route.id}:${stop.id}`;
-      const ttl = await client.ttl(dwellKey);
-      if (ttl > 0) {
-        dwellRemainingSeconds = ttl;
+      const stopTimerTtl = await client.ttl(`corporate:stop:timer:${stop.id}`);
+      const legacyTtl = stopTimerTtl > 0 ? stopTimerTtl : await client.ttl(`corporate:dwell:${route.id}:${stop.id}`);
+      if (legacyTtl > 0) {
+        dwellRemainingSeconds = legacyTtl;
       }
     }
     if (dwellRemainingSeconds === null && stop.status === 'ARRIVED' && stop.actualArrivalTime) {
@@ -573,8 +576,10 @@ export class CorporateRiderService {
       dynamicQrToken = this.generateFallbackQrToken(route.id, stop.id, stop.boardingOtp);
     }
 
-    // 4. Co-passengers count
-    const coPassengersCount = Math.max(0, (route.stops?.length ?? 1) - 1);
+    // 4. Co-passengers count (only active employee stops other than current rider; excludes office hub & cancelled)
+    const coPassengersCount = (route.stops ?? []).filter(
+      (s: any) => Boolean(s.employeeId) && s.id !== stop.id && !['CANCELLED', 'NO_SHOW'].includes(String(s.status)),
+    ).length;
 
     const activeSos = route.sosAlerts && route.sosAlerts.length > 0 ? route.sosAlerts[0] : null;
 
@@ -622,6 +627,18 @@ export class CorporateRiderService {
           }
         : null,
       coPassengersCount,
+      routeStops: (route.stops ?? []).map((rs: any) => ({
+        stopId: rs.id,
+        stopSequence: rs.stopSequence,
+        stopType: rs.stopType,
+        addressText:
+          rs.employeeId === emp.id || !rs.employeeId
+            ? rs.addressText || (!rs.employeeId ? route.office?.name || 'Corporate Office' : 'Designated Pickup')
+            : `Co-passenger Stop #${rs.stopSequence}`,
+        plannedEta: rs.plannedEta,
+        status: rs.status,
+        isCurrentUser: rs.employeeId === emp.id,
+      })),
     };
   }
 
@@ -804,6 +821,16 @@ export class CorporateRiderService {
     const cleanName = dto.fullName?.trim();
     const cleanEmail = dto.email?.trim().toLowerCase();
 
+    if (cleanEmail) {
+      const emailClash = await this.db.user.findFirst({
+        where: { email: { equals: cleanEmail, mode: 'insensitive' }, id: { not: userId } },
+        select: { id: true },
+      });
+      if (emailClash) {
+        throw new BadRequestException('This email address is already registered to another account');
+      }
+    }
+
     await this.db.corporateEmployee.update({
       where: { id: emp.id },
       data: {
@@ -814,13 +841,7 @@ export class CorporateRiderService {
 
     const userPatch: Record<string, any> = {};
     if (cleanName) userPatch.fullName = cleanName;
-    if (cleanEmail) {
-      const emailClash = await this.db.user.findFirst({
-        where: { email: { equals: cleanEmail, mode: 'insensitive' }, id: { not: userId } },
-        select: { id: true },
-      });
-      if (!emailClash) userPatch.email = cleanEmail;
-    }
+    if (cleanEmail) userPatch.email = cleanEmail;
     if (Object.keys(userPatch).length > 0) {
       await this.db.user.update({ where: { id: userId }, data: userPatch });
     }
@@ -831,6 +852,17 @@ export class CorporateRiderService {
         await this.db.corporateEmployeeLocation.update({
           where: { id: existingLoc.id },
           data: { addressText: dto.homeAddress.trim() },
+        });
+      } else if (typeof (this.db as any).corporateEmployeeLocation?.create === 'function') {
+        await this.db.corporateEmployeeLocation.create({
+          data: {
+            employeeId: emp.id,
+            addressText: dto.homeAddress.trim(),
+            latitude: Number(emp.office?.latitude ?? 0),
+            longitude: Number(emp.office?.longitude ?? 0),
+            h3Res8Index: emp.office?.h3Res8Index ?? '8860a25a01fffff',
+            isDefault: true,
+          },
         });
       }
     }
@@ -850,6 +882,19 @@ export class CorporateRiderService {
     if (stop.status !== 'PENDING') {
       throw new BadRequestException(`Cannot cancel stop in ${stop.status} status`);
     }
+    if (!['PLANNED', 'DISPATCHING', 'ASSIGNED'].includes(String(stop.route.status))) {
+      throw new BadRequestException(`Cannot cancel stop when route is already ${stop.route.status}`);
+    }
+
+    const now = new Date();
+    const cutoffHours = await resolveCancelCutoffHours(this.db as any, emp.tenantId, now);
+    const pickupAt = stop.plannedEta ? new Date(stop.plannedEta) : new Date(stop.route.targetPickup1Time);
+    const cutoff = evaluateCutoff(pickupAt, 'stop_eta' as any, now, null, cutoffHours);
+    if (!cutoff.allowed) {
+      throw new BadRequestException(
+        `Cancellation window closed (${cutoffHours}-hour cutoff). Please contact your transport desk.`,
+      );
+    }
 
     await this.db.$transaction(async (tx) => {
       await tx.corporateRouteStop.update({
@@ -860,6 +905,14 @@ export class CorporateRiderService {
         await tx.corporateTransportRequest.update({
           where: { id: stop.transportRequestId },
           data: { status: 'CANCELLED' },
+        });
+      }
+      if (typeof (tx as any).corporateRoute?.update === 'function') {
+        await tx.corporateRoute.update({
+          where: { id: stop.routeId },
+          data: {
+            assignedPassengerCount: Math.max(0, Number(stop.route.assignedPassengerCount ?? 1) - 1),
+          },
         });
       }
     });
@@ -886,6 +939,7 @@ export class CorporateRiderService {
       title: row.title,
       message: row.body,
       timestamp: row.createdAt,
+      isRead: Boolean((row as any).isRead),
       metadata: (row.data as Record<string, any>) ?? {},
     }));
   }

@@ -44,9 +44,14 @@ class _MyRequestsTicketsScreenState extends State<MyRequestsTicketsScreen> {
     final status = (ticket['status'] ?? '').toString().toUpperCase();
     switch (_selectedFilter) {
       case 1:
-        return status == 'OPEN' || status == 'NEW' || status == 'REOPENED';
+        return status == 'OPEN' ||
+            status == 'NEW' ||
+            status == 'REOPENED' ||
+            status == 'ASSIGNED';
       case 2:
-        return status == 'IN_PROGRESS' || status == 'WAITING_FOR_CORPORATE';
+        return status == 'IN_PROGRESS' ||
+            status == 'WAITING_FOR_CORPORATE' ||
+            status == 'ASSIGNED';
       case 3:
         return status == 'RESOLVED' || status == 'CLOSED';
       default:

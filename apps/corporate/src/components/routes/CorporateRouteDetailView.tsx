@@ -21,6 +21,23 @@ import { Button } from '../common/Button';
 import { StatusBadge } from '../common/StatusBadge';
 import { GoogleRouteMap, GoogleRouteMapStop } from '../maps/GoogleRouteMap';
 
+function formatShiftDate(value?: string | null): string {
+  if (!value) return '—';
+  const isoDay = value.slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(isoDay)) {
+    const parsed = new Date(`${isoDay}T00:00:00`);
+    if (!Number.isNaN(parsed.getTime())) {
+      return new Intl.DateTimeFormat('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      }).format(parsed);
+    }
+    return isoDay;
+  }
+  return value;
+}
+
 function formatIstTime(iso?: string | null): string {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -210,7 +227,7 @@ export function CorporateRouteDetailView({ routeId }: { routeId: string }) {
               />
             </div>
             <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 3 }}>
-              {route.shiftDate} • {route.shiftTime} IST • {route.direction} • {route.vehicleCategory} (
+              {formatShiftDate(route.shiftDate)} • {route.shiftTime} IST • {route.direction} • {route.vehicleCategory} (
               {route.assignedPassengerCount}/{route.maxCapacity} seats)
             </div>
           </div>

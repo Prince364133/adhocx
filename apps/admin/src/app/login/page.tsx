@@ -79,7 +79,7 @@ function AdminLoginForm() {
         msg.includes("NetworkError")
       ) {
         setErrorMessage(
-          "Unable to connect to AdhocX API server (http://localhost:7001). Please verify the backend service is active.",
+          "Unable to reach the API server. Please check your connection.",
         );
       } else if (status === 401) {
         setErrorMessage(

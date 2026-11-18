@@ -82,7 +82,7 @@ function normalizeTicket(ticket: SupportTicket): NormalizedComplaint {
     ticketNumber: ticket.ticketNumber || ticket.id.slice(0, 8).toUpperCase(),
     employeeName: ticket.employee?.fullName || 'Employee',
     employeeCode: ticket.employee?.employeeCode || ticket.employeeId?.slice(0, 8) || '—',
-    employeePhone: ticket.employee?.phone || '',
+    employeePhone: ticket.employee?.phoneNumber ?? ticket.employee?.phone ?? '',
     employeeEmail: ticket.employee?.email || '',
     categoryRaw: ticket.category || 'OTHER',
     categoryLabel: formatCategoryLabel(ticket.category),
@@ -211,13 +211,6 @@ export default function EmployeeSupportPage() {
   const { tenantId, status: sessionStatus } = useSession();
 
   const [complaints, setComplaints] = useState<NormalizedComplaint[] | null>(null);
-  const [summaryTotals, setSummaryTotals] = useState<{
-    total: number;
-    open: number;
-    inProgress: number;
-    resolved: number;
-    closed: number;
-  } | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -242,7 +235,6 @@ export default function EmployeeSupportPage() {
     if (sessionStatus === 'loading') return;
     if (!tenantId) {
       setComplaints([]);
-      setSummaryTotals(null);
       setLoadError('Sign in with a corporate account to view employee complaints.');
       return;
     }
@@ -250,13 +242,9 @@ export default function EmployeeSupportPage() {
     setRefreshing(true);
     setLoadError(null);
     try {
-      const [ticketsRes, summaryRes] = await Promise.all([
-        supportApi.list(tenantId, { limit: 200 }),
-        supportApi.summary().catch(() => null),
-      ]);
+      const ticketsRes = await supportApi.list(tenantId, { limit: 200 });
       const normalized = (Array.isArray(ticketsRes) ? ticketsRes : []).map(normalizeTicket);
       setComplaints(normalized);
-      setSummaryTotals(summaryRes);
       setSelectedComplaint((current) => {
         if (!current) return null;
         return normalized.find((item) => item.id === current.id) ?? current;
@@ -327,6 +315,15 @@ export default function EmployeeSupportPage() {
     setUpdatingStatus(true);
     setDrawerFeedback(null);
     try {
+      const currentRawStatus = selectedComplaint.statusRaw;
+      const needsInProgressStep =
+        nextStatus === 'RESOLVED' &&
+        (currentRawStatus === 'OPEN' || currentRawStatus === 'ASSIGNED' || currentRawStatus === 'REOPENED');
+
+      if (needsInProgressStep) {
+        await supportApi.updateStatus(selectedComplaint.id, 'IN_PROGRESS');
+      }
+
       const updatedTicket = await supportApi.updateStatus(
         selectedComplaint.id,
         nextStatus,
@@ -395,22 +392,15 @@ export default function EmployeeSupportPage() {
 
   useEffect(() => setPage(1), [datePreset, customFrom, customTo, search, categoryFilter, statusFilter]);
 
-  const counts = useMemo(() => {
-    if (datePreset === 'all' && summaryTotals) {
-      return {
-        total: summaryTotals.total,
-        open: summaryTotals.open,
-        inProgress: summaryTotals.inProgress,
-        resolved: summaryTotals.resolved + summaryTotals.closed,
-      };
-    }
-    return {
+  const counts = useMemo(
+    () => ({
       total: dateFilteredComplaints.length,
       open: dateFilteredComplaints.filter((complaint) => complaint.statusGroup === 'Open').length,
       inProgress: dateFilteredComplaints.filter((complaint) => complaint.statusGroup === 'In Progress').length,
       resolved: dateFilteredComplaints.filter((complaint) => complaint.statusGroup === 'Resolved').length,
-    };
-  }, [dateFilteredComplaints, datePreset, summaryTotals]);
+    }),
+    [dateFilteredComplaints],
+  );
 
   const categorySegments: DonutSegment[] = useMemo(() => {
     const map = new Map<string, number>();
@@ -731,6 +721,9 @@ export default function EmployeeSupportPage() {
                 <div className={styles.detailGrid}>
                   <div className={styles.detailField}><span>Employee</span><strong><UserRound size={14} /> {selectedComplaint.employeeName}</strong></div>
                   <div className={styles.detailField}><span>Employee ID</span><strong>{selectedComplaint.employeeCode}</strong></div>
+                  {selectedComplaint.employeePhone && (
+                    <div className={styles.detailField}><span>Phone</span><strong>{selectedComplaint.employeePhone}</strong></div>
+                  )}
                   <div className={styles.detailField}><span>Category</span><strong>{selectedComplaint.categoryLabel}</strong></div>
                   <div className={styles.detailField}><span>Raised on</span><strong>{formatDate(selectedComplaint.raisedAt, { dateStyle: 'medium', timeStyle: 'short' })}</strong></div>
                 </div>
@@ -745,7 +738,7 @@ export default function EmployeeSupportPage() {
 
                 {selectedComplaint.statusRaw !== 'CLOSED' && (
                   <div className={styles.statusActions}>
-                    {selectedComplaint.statusGroup !== 'In Progress' && selectedComplaint.statusGroup !== 'Resolved' && (
+                    {['OPEN', 'ASSIGNED', 'REOPENED', 'WAITING_FOR_CORPORATE'].includes(selectedComplaint.statusRaw) && (
                       <button
                         type="button"
                         className={styles.statusActionBtn}
@@ -755,7 +748,7 @@ export default function EmployeeSupportPage() {
                         <Clock3 size={14} /> {updatingStatus ? 'Updating…' : 'Mark In Progress'}
                       </button>
                     )}
-                    {selectedComplaint.statusGroup !== 'Resolved' && (
+                    {selectedComplaint.statusRaw !== 'RESOLVED' && (
                       <button
                         type="button"
                         className={`${styles.statusActionBtn} ${styles.statusActionResolve}`}
