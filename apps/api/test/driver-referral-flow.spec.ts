@@ -245,89 +245,20 @@ describe('Driver Referral Flow & 100-Ride Milestone Guard', () => {
     });
   });
 
-  describe('Tier Multiplier System (Bronze, Silver, Gold)', () => {
-    it('11. Accurately calculates dynamic tier multipliers and next tier thresholds', () => {
-      // Bronze: 0-2 verified
+  describe('Flat ₹500 Referral Reward Rule', () => {
+    it('11. Accurately calculates flat ₹500 reward for driver referrals', () => {
       expect(service.getRewardPaiseForTier(0)).toBe(50000);
-      expect(service.getRewardPaiseForTier(2)).toBe(50000);
+      expect(service.getRewardPaiseForTier(5)).toBe(50000);
+      expect(service.getRewardPaiseForTier(15)).toBe(50000);
       expect(service.getTierInfo(0)).toEqual({
         tier: 'BRONZE',
         rewardRupees: 500,
-        nextTier: 'SILVER',
-        referralsToNextTier: 3,
-      });
-
-      // Silver: 3-8 verified
-      expect(service.getRewardPaiseForTier(3)).toBe(65000);
-      expect(service.getRewardPaiseForTier(8)).toBe(65000);
-      expect(service.getTierInfo(5)).toEqual({
-        tier: 'SILVER',
-        rewardRupees: 650,
-        nextTier: 'GOLD',
-        referralsToNextTier: 4,
-      });
-
-      // Gold: 9+ verified
-      expect(service.getRewardPaiseForTier(9)).toBe(80000);
-      expect(service.getRewardPaiseForTier(15)).toBe(80000);
-      expect(service.getTierInfo(10)).toEqual({
-        tier: 'GOLD',
-        rewardRupees: 800,
       });
     });
   });
 
-  describe('Dual-Sided Reciprocity: 10-Ride Welcome Fuel Bonus', () => {
-    it('12. Credits â‚¹250 Welcome Fuel Bonus to referee upon completing 10 rides', async () => {
-      db.driver.findUnique.mockResolvedValue({
-        id: mockRefereeDriver.id,
-        referredById: mockReferrerDriver.id,
-        totalTrips: 10,
-        walletBalance: 350.0,
-      });
-
-      // Not credited previously
-      db.ledgerEntry.findFirst = jest.fn().mockResolvedValue(null);
-      db.driver.update.mockResolvedValue({
-        id: mockRefereeDriver.id,
-        walletBalance: 600.0,
-      });
-
-      const credited = await service.checkAndCreditRefereeWelcomeBonus(mockRefereeDriver.id);
-
-      expect(credited).toBe(true);
-      expect(db.driver.update).toHaveBeenCalledWith({
-        where: { id: mockRefereeDriver.id },
-        data: {
-          walletBalance: { increment: 250 },
-        },
-      });
-      expect(db.ledgerEntry.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          accountType: 'DRIVER',
-          accountId: mockRefereeDriver.id,
-          entryType: 'CREDIT',
-          amount: 250,
-          balanceAfter: 600.0,
-          referenceType: 'REFERRAL_WELCOME_BONUS',
-        }),
-      });
-    });
-
-    it('13. Idempotently skips welcome bonus if already credited', async () => {
-      db.driver.findUnique.mockResolvedValue({
-        id: mockRefereeDriver.id,
-        referredById: mockReferrerDriver.id,
-        totalTrips: 12,
-        walletBalance: 600.0,
-      });
-
-      // Already exists in ledger
-      db.ledgerEntry.findFirst = jest.fn().mockResolvedValue({
-        id: 'ledger-bonus-1',
-        referenceType: 'REFERRAL_WELCOME_BONUS',
-      });
-
+  describe('Referee Reward Rule', () => {
+    it('12. Confirms referee driver receives no bonus (only referrer receives ₹500)', async () => {
       const credited = await service.checkAndCreditRefereeWelcomeBonus(mockRefereeDriver.id);
       expect(credited).toBe(false);
       expect(db.driver.update).not.toHaveBeenCalled();

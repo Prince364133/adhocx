@@ -38,62 +38,57 @@ export class ReferralsService {
    * Silver (3-8 verified): ₹650 (65,000 paise)
    * Gold (9+ verified): ₹800 (80,000 paise)
    */
-  getRewardPaiseForTier(verifiedCount: number): number {
-    if (verifiedCount >= 9) {
-      return 80000; // ₹800
-    }
-    if (verifiedCount >= 3) {
-      return 65000; // ₹650
-    }
-    return 50000; // ₹500
+  /**
+   * Flat referral reward of ₹500 (50,000 paise) per verified driver partner.
+   */
+  getRewardPaiseForTier(_verifiedCount: number): number {
+    return REFERRAL_DEFAULT_REWARD_PAISE;
   }
 
-  getTierInfo(verifiedCount: number): {
+  getTierInfo(_verifiedCount: number): {
     tier: 'BRONZE' | 'SILVER' | 'GOLD';
     rewardRupees: number;
     nextTier?: 'SILVER' | 'GOLD';
     referralsToNextTier?: number;
   } {
-    if (verifiedCount >= 9) {
-      return {
-        tier: 'GOLD',
-        rewardRupees: 800,
-      };
-    }
-    if (verifiedCount >= 3) {
-      return {
-        tier: 'SILVER',
-        rewardRupees: 650,
-        nextTier: 'GOLD',
-        referralsToNextTier: 9 - verifiedCount,
-      };
-    }
     return {
       tier: 'BRONZE',
-      rewardRupees: 500,
-      nextTier: 'SILVER',
-      referralsToNextTier: 3 - verifiedCount,
+      rewardRupees: REFERRAL_DEFAULT_REWARD_RUPEES,
     };
   }
 
   /**
    * Ensure the given driver has a unique referral code.
+   * By default, the driver's registered 10-digit phone number is used as their primary referral code.
    */
   async ensureDriverReferralCode(driverId: string): Promise<string> {
     const driver = await this.db.driver.findUnique({
       where: { id: driverId },
-      select: { id: true, referralCode: true },
+      select: { id: true, referralCode: true, phone: true },
     });
 
     if (!driver) {
       throw new NotFoundException('Driver not found');
     }
 
+    const cleanDigits = (driver.phone || '').replace(/\D/g, '');
+    const phone10 = cleanDigits.length >= 10 ? cleanDigits.slice(-10) : cleanDigits;
+
+    if (phone10) {
+      if (driver.referralCode !== phone10) {
+        await this.db.driver.update({
+          where: { id: driverId },
+          data: { referralCode: phone10 },
+        });
+      }
+      return phone10;
+    }
+
     if (driver.referralCode) {
       return driver.referralCode;
     }
 
-    // Generate unique code with collision retry loop
+    // Fallback if driver has no phone registered
     for (let attempts = 0; attempts < 10; attempts++) {
       const candidateCode = generateDriverReferralCode();
       const existing = await this.db.driver.findUnique({
@@ -110,7 +105,7 @@ export class ReferralsService {
       }
     }
 
-    throw new ConflictException('Failed to generate unique referral code. Please retry.');
+    return driver.id.slice(0, 8).toUpperCase();
   }
 
   /**
@@ -205,14 +200,8 @@ export class ReferralsService {
       return false;
     }
 
-    // Determine tier reward based on referrer's current referral tier
-    const verifiedCount = await this.db.driverReferral.count({
-      where: {
-        referrerDriverId: referrerId,
-        status: { in: [ReferralStatus.UNLOCKED_READY_TO_CLAIM, ReferralStatus.CLAIMED] },
-      },
-    });
-    const rewardPaise = this.getRewardPaiseForTier(verifiedCount);
+    // Flat reward: ₹500 (50,000 paise) per verified driver partner
+    const rewardPaise = REFERRAL_DEFAULT_REWARD_PAISE;
 
     await this.db.$transaction(async (tx) => {
       // 1. Create referral record with tier-based reward
@@ -372,59 +361,11 @@ export class ReferralsService {
   }
 
   /**
-   * Dual-Sided Enhancement #2:
-   * Credit ₹250 Welcome Fuel Bonus to referee driver when they complete 10 trips.
+   * Only the referring driver receives ₹500 per verified driver upon reaching their 100-ride milestone.
+   * The referee driver receives no bonus.
    */
-  async checkAndCreditRefereeWelcomeBonus(driverId: string): Promise<boolean> {
-    const driver = await this.db.driver.findUnique({
-      where: { id: driverId },
-      select: { id: true, referredById: true, totalTrips: true, walletBalance: true },
-    });
-
-    if (!driver || !driver.referredById) {
-      return false;
-    }
-
-    if ((driver.totalTrips || 0) < 10) {
-      return false;
-    }
-
-    const existingBonus = await this.db.ledgerEntry.findFirst({
-      where: {
-        accountId: driver.id,
-        referenceType: 'REFERRAL_WELCOME_BONUS',
-      },
-    });
-
-    if (existingBonus) {
-      return false;
-    }
-
-    const welcomeBonusRs = REFERRAL_WELCOME_BONUS_RUPEES;
-    await this.db.$transaction(async (tx) => {
-      const updated = await tx.driver.update({
-        where: { id: driver.id },
-        data: {
-          walletBalance: { increment: welcomeBonusRs },
-        },
-      });
-
-      await tx.ledgerEntry.create({
-        data: {
-          accountType: 'DRIVER',
-          accountId: driver.id,
-          entryType: 'CREDIT',
-          amount: welcomeBonusRs,
-          balanceAfter: updated.walletBalance,
-          referenceType: 'REFERRAL_WELCOME_BONUS',
-          referenceId: driver.id,
-          description: `Referral Welcome Bonus: Completed 10 rides milestone (+₹${welcomeBonusRs})`,
-        },
-      });
-    }, { timeout: 30000, maxWait: 10000 });
-
-    this.logger.log(`Credited ₹${welcomeBonusRs} referral welcome bonus to referee driver ${driverId}`);
-    return true;
+  async checkAndCreditRefereeWelcomeBonus(_driverId: string): Promise<boolean> {
+    return false;
   }
 
   /**

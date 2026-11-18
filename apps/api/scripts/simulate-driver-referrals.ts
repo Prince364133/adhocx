@@ -164,38 +164,16 @@ async function runSimulation() {
             description: `Referral Bonus: Onboarding ${referee.fullName} (+₹${rewardRs})`,
           },
         });
-      });
+      }, { timeout: 30000, maxWait: 10000 });
 
       console.log(`   💰 Claimed ₹${rewardRs} for ${referee.fullName}! New Wallet Balance: ₹${runningWallet.toFixed(2)}`);
     }
 
-    // 6b. Test Dual-Sided Enhancement: Referee 1 completes 10 rides and earns ₹250 Welcome Fuel Bonus
-    console.log(`\n[Step 6b] Referee 1 (Vikram Singh) completes 10 rides and earns Welcome Fuel Bonus...`);
+    // 6b. Verify Referee Reward Rule: Referee gets no bonus (only referrer receives ₹500)
+    console.log(`\n[Step 6b] Validating Referee Reward Rule...`);
     const ref1 = refereeDrivers[0];
-    const updatedRef1 = await prisma.$transaction(async (tx) => {
-      const updated = await tx.driver.update({
-        where: { id: ref1.id },
-        data: {
-          totalTrips: 10,
-          walletBalance: { increment: 250 },
-        },
-      });
-      await tx.ledgerEntry.create({
-        data: {
-          accountType: 'DRIVER',
-          accountId: ref1.id,
-          entryType: 'CREDIT',
-          amount: 250,
-          balanceAfter: updated.walletBalance,
-          referenceType: 'REFERRAL_WELCOME_BONUS',
-          referenceId: ref1.id,
-          description: `Referral Welcome Bonus: Completed 10 rides milestone (+₹250)`,
-        },
-      });
-      return updated;
-    });
-    console.log(`   🎉 Dual-Sided Bonus Credited! Referee ${ref1.fullName} reached ${updatedRef1.totalTrips} rides.`);
-    console.log(`   ⛽ Credited ₹250 Welcome Fuel Bonus. Referee Wallet: ₹${updatedRef1.walletBalance}`);
+    const initialRef1 = await prisma.driver.findUnique({ where: { id: ref1.id } });
+    console.log(`   ✓ Referee ${ref1.fullName} wallet balance: ₹${initialRef1?.walletBalance || 0} (Referees receive ₹0, only referrers earn ₹500/driver)`);
 
     // 7. Verify Invariants
     console.log(`\n[Step 7] Validating System Invariants...`);
@@ -206,8 +184,7 @@ async function runSimulation() {
 
     const claimedCount = finalDriverA?.referralsMade.filter((r) => r.status === 'CLAIMED').length;
     console.log(`   ✓ All ${claimedCount} referrals marked as CLAIMED`);
-    console.log(`   ✓ Final Driver A Wallet Balance: ₹${finalDriverA?.walletBalance} (Initial ₹250 + ₹1,500 referral earnings)`);
-    console.log(`   ✓ Referee 1 Welcome Bonus: ₹250 credited with immutable financial ledger entry`);
+    console.log(`   ✓ Final Driver A Wallet Balance: ₹${finalDriverA?.walletBalance} (Initial ₹250 + ₹1,500 referral earnings from 3 drivers @ ₹500 each)`);
     console.log(`   ✓ Double-claim protection: Verified idempotent and tamper-proof.`);
 
     // Clean up simulation artifacts to leave database pristine

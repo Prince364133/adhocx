@@ -148,10 +148,14 @@ class _ReferralScreenState extends State<ReferralScreen> {
   }
 
   Future<void> _shareOnWhatsApp(String code, String phone) async {
+    final cleanDigits = (phone.isNotEmpty ? phone : code).replaceAll(RegExp(r'\D'), '');
+    final sharePhone = cleanDigits.length >= 10 ? cleanDigits.substring(cleanDigits.length - 10) : (code.isNotEmpty ? code : cleanDigits);
+
     final message =
         'Namaste! Join AdhocX as a Driver Partner and earn guaranteed distance-based payouts.\n\n'
-        'Use my Referral Code: *$code* OR my Mobile Number: *$phone* during registration!\n\n'
-        'Download the AdhocX Driver App: https://adhocx.com/driver';
+        'Use my Referral Phone Number: *$sharePhone* during registration!\n\n'
+        'Download the AdhocX Driver App from Google Play Store:\n'
+        'https://play.google.com/store/apps/details?id=com.adhocx.app';
 
     final uri = Uri.parse('whatsapp://send?text=${Uri.encodeComponent(message)}');
     try {
@@ -198,10 +202,6 @@ class _ReferralScreenState extends State<ReferralScreen> {
                   children: [
                     _buildShareCodeCard(isDark),
                     const SizedBox(height: AppSpacing.md),
-                    _buildTierMultiplierCard(isDark),
-                    const SizedBox(height: AppSpacing.md),
-                    _buildDualSidedPerksCard(isDark),
-                    const SizedBox(height: AppSpacing.md),
                     _buildVaultMilestoneCard(isDark),
                     const SizedBox(height: AppSpacing.lg),
                     _buildRefereesSection(isDark),
@@ -213,8 +213,11 @@ class _ReferralScreenState extends State<ReferralScreen> {
   }
 
   Widget _buildShareCodeCard(bool isDark) {
-    final referralCode = _dashboardData?['referralCode']?.toString() ?? 'ADHOCX';
-    final phone = _dashboardData?['phone']?.toString() ?? '';
+    final rawPhone = _dashboardData?['phone']?.toString() ?? '';
+    final rawCode = _dashboardData?['referralCode']?.toString() ?? '';
+    final cleanPhone = rawPhone.replaceAll(RegExp(r'\D'), '');
+    final phone10 = cleanPhone.length >= 10 ? cleanPhone.substring(cleanPhone.length - 10) : cleanPhone;
+    final displayCode = phone10.isNotEmpty ? phone10 : (rawCode.isNotEmpty ? rawCode : '');
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -253,7 +256,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
                       style: AppTypography.h4(color: isDark ? Colors.white : AppColors.textPrimaryLight),
                     ),
                     Text(
-                      context.tr('Friends can sign up with your code OR phone number'),
+                      context.tr('Friends sign up using your registered phone number. You earn ₹500 for each verified driver!'),
                       style: AppTypography.caption(
                         color: isDark ? Colors.white70 : AppColors.textSecondaryLight,
                       ),
@@ -264,7 +267,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
             ],
           ),
           const SizedBox(height: AppSpacing.md),
-          // Referral Code Pill Box
+          // Referral Code (Phone Number) Box
           Container(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
             decoration: BoxDecoration(
@@ -279,7 +282,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      context.tr('YOUR UNIQUE REFERRAL CODE'),
+                      context.tr('YOUR REFERRAL CODE (PHONE NUMBER)'),
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
@@ -289,9 +292,9 @@ class _ReferralScreenState extends State<ReferralScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      referralCode,
+                      displayCode.isNotEmpty ? displayCode : (rawPhone.isNotEmpty ? rawPhone : 'Loading...'),
                       style: const TextStyle(
-                        fontSize: 20,
+                        fontSize: 22,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 1.5,
                         color: AppColors.primaryLight,
@@ -301,36 +304,20 @@ class _ReferralScreenState extends State<ReferralScreen> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.copy_rounded, color: AppColors.primary),
-                  tooltip: context.tr('Copy Code'),
-                  onPressed: () => _copyToClipboard(referralCode, context.tr('Referral Code')),
+                  tooltip: context.tr('Copy Phone Number'),
+                  onPressed: () => _copyToClipboard(displayCode.isNotEmpty ? displayCode : rawPhone, context.tr('Referral Phone Number')),
                 ),
               ],
             ),
           ),
-          if (phone.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.xs),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Row(
-                children: [
-                  Icon(Icons.phone_android_rounded, size: 14, color: isDark ? Colors.white60 : AppColors.textSecondaryLight),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${context.tr('Or share registered number:')} $phone',
-                    style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : AppColors.textSecondaryLight),
-                  ),
-                  const Spacer(),
-                  GestureDetector(
-                    onTap: () => _copyToClipboard(phone, context.tr('Phone Number')),
-                    child: Text(
-                      context.tr('Copy'),
-                      style: const TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ),
+          const SizedBox(height: AppSpacing.xs),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Text(
+              context.tr('New drivers enter your mobile number while registering to link you as their referrer.'),
+              style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : AppColors.textSecondaryLight),
             ),
-          ],
+          ),
           const SizedBox(height: AppSpacing.md),
           // Share on WhatsApp Button
           SizedBox(
@@ -348,222 +335,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
                 context.tr('Share via WhatsApp'),
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
               ),
-              onPressed: () => _shareOnWhatsApp(referralCode, phone),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTierMultiplierCard(bool isDark) {
-    final currentTier = _dashboardData?['currentTier']?.toString() ?? 'BRONZE';
-    final rewardRupees = (_dashboardData?['currentRewardRupees'] as num?)?.toInt() ?? 500;
-    final nextTier = _dashboardData?['nextTier']?.toString();
-    final toNext = (_dashboardData?['referralsToNextTier'] as num?)?.toInt();
-
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : Colors.white,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: currentTier == 'GOLD'
-                      ? Colors.amber.withValues(alpha: 0.15)
-                      : (currentTier == 'SILVER'
-                          ? Colors.blueGrey.withValues(alpha: 0.15)
-                          : AppColors.primarySubtle),
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-                child: Icon(
-                  currentTier == 'GOLD'
-                      ? Icons.military_tech_rounded
-                      : (currentTier == 'SILVER' ? Icons.workspace_premium_rounded : Icons.star_rounded),
-                  color: currentTier == 'GOLD'
-                      ? Colors.amber.shade700
-                      : (currentTier == 'SILVER' ? Colors.blueGrey.shade700 : AppColors.primary),
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '$currentTier PARTNER • ₹$rewardRupees / REFERRAL',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.5,
-                        color: currentTier == 'GOLD'
-                            ? Colors.amber.shade700
-                            : (currentTier == 'SILVER' ? Colors.blueGrey.shade700 : AppColors.primary),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      nextTier != null && toNext != null && toNext > 0
-                          ? '$toNext more verified referral${toNext > 1 ? 's' : ''} to unlock $nextTier tier!'
-                          : 'Top tier reached! Maximum reward unlocked per driver.',
-                      style: AppTypography.caption(
-                        color: isDark ? Colors.white70 : AppColors.textSecondaryLight,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Row(
-            children: [
-              Expanded(
-                child: _buildTierPill(
-                  title: 'Bronze',
-                  amount: '₹500',
-                  range: '1-3 Drivers',
-                  isActive: currentTier == 'BRONZE',
-                  isDark: isDark,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Expanded(
-                child: _buildTierPill(
-                  title: 'Silver',
-                  amount: '₹650',
-                  range: '4-9 Drivers',
-                  isActive: currentTier == 'SILVER',
-                  isDark: isDark,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Expanded(
-                child: _buildTierPill(
-                  title: 'Gold',
-                  amount: '₹800',
-                  range: '10+ Drivers',
-                  isActive: currentTier == 'GOLD',
-                  isDark: isDark,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTierPill({
-    required String title,
-    required String amount,
-    required String range,
-    required bool isActive,
-    required bool isDark,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-      decoration: BoxDecoration(
-        color: isActive
-            ? (isDark ? AppColors.primary.withValues(alpha: 0.25) : AppColors.primarySubtle)
-            : (isDark ? AppColors.surfaceElevatedDark : AppColors.surfaceElevatedLight),
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(
-          color: isActive ? AppColors.primary : (isDark ? AppColors.borderDark : AppColors.borderLight),
-          width: isActive ? 1.5 : 1,
-        ),
-      ),
-      child: Column(
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
-              color: isActive ? AppColors.primaryLight : (isDark ? Colors.white70 : AppColors.textSecondaryLight),
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            amount,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w900,
-              color: isActive ? AppColors.primaryLight : (isDark ? Colors.white : AppColors.textPrimaryLight),
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            range,
-            style: TextStyle(
-              fontSize: 9,
-              color: isDark ? Colors.white54 : AppColors.textSecondaryLight,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDualSidedPerksCard(bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E2838) : const Color(0xFFF0FDF4),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(
-          color: isDark ? const Color(0xFF2D3F58) : const Color(0xFFBBF7D0),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.handshake_rounded, color: AppColors.accentGreen, size: 20),
-              const SizedBox(width: AppSpacing.xs),
-              Text(
-                context.tr('Dual-Sided Win-Win Perks'),
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                  color: isDark ? Colors.white : const Color(0xFF166534),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            '• ${context.tr('Your Friend')}: ${context.tr('Gets ₹250 Welcome Fuel Bonus upon finishing 10 rides.')}',
-            style: TextStyle(
-              fontSize: 12,
-              height: 1.4,
-              color: isDark ? Colors.white70 : const Color(0xFF15803D),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '• ${context.tr('You (Referrer)')}: ${context.tr('Earn ₹500–₹800 per driver in your Vault, claimable to your bank upon completing 100 rides.')}',
-            style: TextStyle(
-              fontSize: 12,
-              height: 1.4,
-              color: isDark ? Colors.white70 : const Color(0xFF15803D),
+              onPressed: () => _shareOnWhatsApp(displayCode, rawPhone),
             ),
           ),
         ],
