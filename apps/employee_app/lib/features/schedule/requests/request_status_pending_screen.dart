@@ -12,7 +12,9 @@ import 'package:adhocx_employee/theme/employee_palette.dart';
 import '../widgets/schedule_widgets.dart';
 
 class RequestStatusPendingScreen extends StatelessWidget {
-  const RequestStatusPendingScreen({super.key});
+  final Map<String, dynamic>? request;
+
+  const RequestStatusPendingScreen({super.key, this.request});
 
   @override
   Widget build(BuildContext context) {
@@ -23,6 +25,16 @@ class RequestStatusPendingScreen extends StatelessWidget {
       },
       builder: (context, data) {
         final p = EmployeePalette.of(context);
+        final requestType = request?['requestType'] ??
+            data['requestType'] ??
+            'Change Pickup Location';
+        final newValue = request?['newValue'] ??
+            request?['newLocation'] ??
+            data['newLocation'] ??
+            'Green Meadows, Kondapur';
+        final valueLabel = requestType.toString().endsWith('Time')
+            ? 'New Time'
+            : 'New Location';
 
         return Scaffold(
           backgroundColor: p.background,
@@ -90,17 +102,18 @@ class RequestStatusPendingScreen extends StatelessWidget {
                         TripInfoItem(
                           icon: Icons.edit_note_rounded,
                           label: 'Request Type',
-                          value: data['requestType'] ?? 'Change Pickup Location',
+                          value: requestType.toString(),
                         ),
                         TripInfoItem(
                           icon: Icons.location_on_outlined,
-                          label: 'New Location',
-                          value: data['newLocation'] ?? 'Green Meadows, Kondapur',
+                          label: valueLabel,
+                          value: newValue.toString(),
                         ),
                         TripInfoItem(
                           icon: Icons.calendar_month_outlined,
                           label: 'Trip Date',
-                          value: data['tripDate'] ?? 'Tue, 09 Dec 2026',
+                          value: data['tripDate']?.toString() ??
+                              'Tue, 09 Dec 2026',
                         ),
                       ],
                     ),

@@ -14,9 +14,8 @@ class TripLiveMapFullScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TripDataBuilder(
-      load: () async =>
-          (await MockDataService.getLiveTracking())['liveState']
-              as Map<String, dynamic>?,
+      load: () async => (await MockDataService.getLiveTracking())['liveState']
+          as Map<String, dynamic>?,
       builder: (context, data) {
         final p = EmployeePalette.of(context);
         final arrivingIn = data['arrivingIn'] ?? '6 min';
@@ -25,11 +24,13 @@ class TripLiveMapFullScreen extends StatelessWidget {
         return Scaffold(
           backgroundColor: p.background,
           body: Stack(
+            fit: StackFit.expand,
             children: [
               const Positioned.fill(
                 child: VectorLiveMapCanvas(
                   height: double.infinity,
                   showControls: false,
+                  fullScreen: true,
                 ),
               ),
 

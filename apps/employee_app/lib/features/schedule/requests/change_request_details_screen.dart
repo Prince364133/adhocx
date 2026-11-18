@@ -167,8 +167,14 @@ class _ChangeRequestDetailsScreenState
                 delay: const Duration(milliseconds: 120),
                 child: EmployeePrimaryButton(
                   label: 'Submit Request',
-                  onPressed: () =>
-                      context.pushReplacement(AppRoutes.tripPlanning),
+                  onPressed: () => context.pushReplacement(
+                    AppRoutes.changeSubmitted,
+                    extra: <String, dynamic>{
+                      'requestType': changeType,
+                      'newValue': currentValue,
+                      'reason': _reasonController.text.trim(),
+                    },
+                  ),
                 ),
               ),
             ],
