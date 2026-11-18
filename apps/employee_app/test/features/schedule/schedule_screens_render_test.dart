@@ -1,5 +1,4 @@
 import 'package:adhocx_employee/features/schedule/schedule.dart';
-import 'package:adhocx_employee/features/trips/planning/trip_planning_screen.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
 import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
@@ -41,12 +40,26 @@ Future<GoRouter> _pump(WidgetTester tester, Widget screen,
         builder: (_, __) => const ChangeRequestDetailsScreen(),
       ),
       GoRoute(
-        path: AppRoutes.tripCancelled,
-        builder: (_, __) => const Scaffold(body: Text('LANDED cancelled')),
+        path: AppRoutes.changeSubmitted,
+        builder: (_, state) {
+          final extra = state.extra;
+          return ChangeRequestSubmittedScreen(
+            request: extra is Map<String, dynamic> ? extra : null,
+          );
+        },
       ),
       GoRoute(
-        path: AppRoutes.tripPlanning,
-        builder: (_, __) => const TripPlanningScreen(),
+        path: AppRoutes.requestPending,
+        builder: (_, state) {
+          final extra = state.extra;
+          return RequestStatusPendingScreen(
+            request: extra is Map<String, dynamic> ? extra : null,
+          );
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.tripCancelled,
+        builder: (_, __) => const Scaffold(body: Text('LANDED cancelled')),
       ),
     ],
   );
@@ -87,15 +100,28 @@ void main() {
     expect(find.text('New Drop Time'), findsOneWidget);
   });
 
-  testWidgets('submitting a change continues to Today\'s Pickup',
+  testWidgets('change request proceeds through submitted and pending screens',
       (tester) async {
-    await _pump(tester, const ChangeRequestDetailsScreen());
+    await _pump(tester, const RequestChangeOptionsScreen());
+    await tester.tap(find.text('Change Drop Time'));
+    await tester.pump();
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+
     await tester.ensureVisible(find.text('Submit Request'));
     await tester.tap(find.text('Submit Request'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Today\'s Pickup'), findsOneWidget);
-    expect(find.text('Planning'), findsWidgets);
+    expect(find.text('Change Request\nSubmitted'), findsOneWidget);
+    expect(find.text('New Drop Time'), findsOneWidget);
+    expect(find.text('6:30 PM'), findsOneWidget);
+
+    await tester.tap(find.text('View Request Status'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Request Status'), findsOneWidget);
+    expect(find.text('Change Drop Time'), findsOneWidget);
+    expect(find.text('6:30 PM'), findsOneWidget);
   });
 
   testWidgets('request change screen uses compact page gutters',
