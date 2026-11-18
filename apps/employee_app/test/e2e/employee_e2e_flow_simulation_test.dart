@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:adhocx_employee/features/home/home.dart';
 import 'package:adhocx_employee/features/safety_support/safety_support.dart';
@@ -674,6 +675,336 @@ void main() {
         failDeleteAccount = false;
         await authRepo.deleteAccount();
         expect(await client.getAccessToken(), isNull);
+      },
+    );
+
+    test(
+      '5) API base URL resolves production HTTPS on both iOS and Android release builds',
+      () {
+        // P0 Crash #4: iOS release builds must NEVER fall back to localhost
+        expect(
+          EmployeeApiClient.resolveBaseUrl(
+            configuredUrl: '',
+            isReleaseMode: true,
+            platform: TargetPlatform.iOS,
+            isWeb: false,
+          ),
+          'https://api.adhocx.com/api/v1',
+        );
+        expect(
+          EmployeeApiClient.resolveBaseUrl(
+            configuredUrl: '',
+            isReleaseMode: true,
+            platform: TargetPlatform.android,
+            isWeb: false,
+          ),
+          'https://api.adhocx.com/api/v1',
+        );
+        // Debug defaults remain emulator / localhost
+        expect(
+          EmployeeApiClient.resolveBaseUrl(
+            configuredUrl: '',
+            isReleaseMode: false,
+            platform: TargetPlatform.android,
+            isWeb: false,
+          ),
+          'http://10.0.2.2:7001/api/v1',
+        );
+        expect(
+          EmployeeApiClient.resolveBaseUrl(
+            configuredUrl: '',
+            isReleaseMode: false,
+            platform: TargetPlatform.iOS,
+            isWeb: false,
+          ),
+          'http://localhost:7001/api/v1',
+        );
+        // Explicit dart-define override always wins
+        expect(
+          EmployeeApiClient.resolveBaseUrl(
+            configuredUrl: 'https://staging.adhocx.com/api/v1',
+            isReleaseMode: true,
+            platform: TargetPlatform.iOS,
+            isWeb: false,
+          ),
+          'https://staging.adhocx.com/api/v1',
+        );
+      },
+    );
+
+    test(
+      '6) EmployeeDataProvider deduplicates concurrent fetches, caches with TTL + LRU(20), batches refreshHome(), and uses single read-all endpoint',
+      () async {
+        final calls = <_RecordedCall>[];
+        final profileGate = Completer<void>();
+        final nextTripGate = Completer<void>();
+        var now = DateTime(2026, 11, 18, 9, 0, 0);
+
+        final mockHttp = MockClient((req) async {
+          final parsedBody = req.body.isNotEmpty
+              ? jsonDecode(req.body) as Map<String, dynamic>
+              : null;
+          calls.add(_RecordedCall(req.method, req.url.path, parsedBody));
+
+          final path = req.url.path;
+          if (path.endsWith('/corporate/me')) {
+            if (!profileGate.isCompleted) {
+              await profileGate.future;
+            }
+            return http.Response(
+              jsonEncode({
+                'data': {
+                  'employeeId': 'emp-uuid-01',
+                  'fullName': 'Priya Menon',
+                },
+              }),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          if (path.endsWith('/corporate/me/trips/next')) {
+            if (!nextTripGate.isCompleted) {
+              await nextTripGate.future;
+            }
+            return http.Response(
+              jsonEncode({
+                'data': {
+                  'hasActiveTrip': true,
+                  'stopId': 'stop-101',
+                  'routeId': 'route-901',
+                },
+              }),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          if (path.endsWith('/corporate/me/notifications')) {
+            return http.Response(
+              jsonEncode({
+                'data': [
+                  {'id': 'n-1', 'title': 'Alert 1', 'isRead': false},
+                  {'id': 'n-2', 'title': 'Alert 2', 'isRead': false},
+                  {'id': 'n-3', 'title': 'Alert 3', 'isRead': false},
+                ],
+              }),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          if (path.endsWith('/corporate/me/schedule')) {
+            return http.Response(
+              jsonEncode({
+                'data': {
+                  'schedule': [
+                    {'requestId': 'req-1', 'shiftTime': '09:00'},
+                  ],
+                },
+              }),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          if (path.endsWith('/corporate/me/tickets')) {
+            return http.Response(
+              jsonEncode({
+                'data': [
+                  {'id': 'ticket-1', 'status': 'OPEN'},
+                ],
+              }),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          if (path.contains('/corporate/routes/')) {
+            final routeId = path.split('/').last;
+            return http.Response(
+              jsonEncode({
+                'data': {'id': routeId, 'stops': const []},
+              }),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          if (path.endsWith('/notifications/in-app/read-all') &&
+              req.method == 'PATCH') {
+            return http.Response(
+              jsonEncode({'data': {'updatedCount': 3}}),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          return http.Response(
+            jsonEncode({'data': {}}),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        });
+
+        final client = EmployeeApiClient(
+          baseUrl: 'https://api.test.adhocx.local/api/v1',
+          httpClient: mockHttp,
+        );
+        final riderRepo = HttpEmployeeRiderRepository(client: client);
+        final provider = EmployeeDataProvider(
+          repository: riderRepo,
+          clock: () => now,
+        );
+        addTearDown(provider.dispose);
+
+        // 6a. Concurrent fetches for profile & nextTrip deduplicate to 1 HTTP call each
+        final p1 = provider.loadProfile();
+        final p2 = provider.loadProfile();
+        final t1 = provider.loadNextTrip();
+        final t2 = provider.loadNextTrip();
+        profileGate.complete();
+        nextTripGate.complete();
+        await Future.wait([p1, p2, t1, t2]);
+
+        expect(
+          calls.where((c) => c.path.endsWith('/corporate/me')).length,
+          1,
+        );
+        expect(
+          calls.where((c) => c.path.endsWith('/corporate/me/trips/next')).length,
+          1,
+        );
+
+        // 6b. Within TTL, non-forced calls return cached values with 0 new HTTP requests;
+        // after TTL expires (or force: true), fresh fetch runs.
+        await provider.loadProfile();
+        expect(
+          calls.where((c) => c.path.endsWith('/corporate/me')).length,
+          1,
+        );
+        now = now.add(const Duration(minutes: 6));
+        await provider.loadProfile();
+        expect(
+          calls.where((c) => c.path.endsWith('/corporate/me')).length,
+          2,
+        );
+
+        // 6c. scheduleItems is cached (same list instance across reads)
+        await provider.loadSchedule();
+        final itemsA = provider.scheduleItems;
+        final itemsB = provider.scheduleItems;
+        expect(identical(itemsA, itemsB), isTrue);
+        expect(itemsA.length, 1);
+
+        // 6d. refreshHome() batches notifyListeners() into a single notification
+        var notifyCount = 0;
+        void listener() => notifyCount++;
+        provider.addListener(listener);
+        await provider.refreshHome();
+        provider.removeListener(listener);
+        expect(notifyCount, 1);
+
+        // 6e. markAllNotificationsRead() uses single PATCH /notifications/in-app/read-all
+        expect(provider.unreadNotificationsCount, 3);
+        calls.clear();
+        await provider.markAllNotificationsRead();
+        expect(provider.unreadNotificationsCount, 0);
+        expect(
+          calls
+              .where((c) =>
+                  c.method == 'PATCH' &&
+                  c.path.endsWith('/notifications/in-app/read-all'))
+              .length,
+          1,
+        );
+        expect(
+          calls.where((c) => c.path.contains('/notifications/in-app/n-')),
+          isEmpty,
+        );
+
+        // 6f. _routeDetailsCache is capped to 20 entries with LRU eviction
+        for (var i = 1; i <= 20; i++) {
+          await provider.loadRouteDetails('route-$i');
+        }
+        expect(provider.routeDetailsCacheLength, 20);
+        // Touch route-1 so route-2 becomes least-recently-used
+        expect(provider.cachedRouteDetails('route-1'), isNotNull);
+        await provider.loadRouteDetails('route-21');
+        expect(provider.routeDetailsCacheLength, 20);
+        expect(provider.cachedRouteDetails('route-1'), isNotNull);
+        expect(provider.cachedRouteDetails('route-2'), isNull);
+        expect(provider.cachedRouteDetails('route-21'), isNotNull);
+      },
+    );
+
+    testWidgets(
+      '7) LiveSupportChatScreen pauses 10s message polling in background and resumes on foreground',
+      (tester) async {
+        var messageFetchCount = 0;
+
+        final mockHttp = MockClient((req) async {
+          final path = req.url.path;
+          if (path.endsWith('/corporate/me/tickets')) {
+            return http.Response(
+              jsonEncode({
+                'data': [
+                  {'id': 'ticket-chat-1', 'status': 'OPEN'},
+                ],
+              }),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          if (path.endsWith('/corporate/support/tickets/ticket-chat-1/messages')) {
+            messageFetchCount++;
+            return http.Response(
+              jsonEncode({
+                'data': [
+                  {
+                    'id': 'm-1',
+                    'senderRole': 'SUPPORT',
+                    'message': 'Hello! How can we help?',
+                  },
+                ],
+              }),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          return http.Response(jsonEncode({'data': []}), 200);
+        });
+
+        final client = EmployeeApiClient(
+          baseUrl: 'https://api.test.adhocx.local/api/v1',
+          httpClient: mockHttp,
+        );
+        final riderRepo = HttpEmployeeRiderRepository(client: client);
+        final provider = EmployeeDataProvider(repository: riderRepo);
+        addTearDown(provider.dispose);
+
+        await tester.pumpWidget(
+          ChangeNotifierProvider<EmployeeDataProvider>.value(
+            value: provider,
+            child: MaterialApp(
+              theme: AppTheme.lightTheme,
+              home: const LiveSupportChatScreen(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(messageFetchCount, 1);
+
+        // Background the app (resumed -> inactive -> hidden -> paused) -> polling stops
+        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+        await tester.pump(const Duration(seconds: 25));
+        expect(messageFetchCount, 1);
+
+        // Resume the app (paused -> hidden -> inactive -> resumed) -> catches up & restarts 10s polling
+        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+        await tester.pump();
+        expect(messageFetchCount, 2);
+
+        await tester.pump(const Duration(seconds: 10));
+        expect(messageFetchCount, 3);
       },
     );
   });

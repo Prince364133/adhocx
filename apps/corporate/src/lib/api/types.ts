@@ -538,6 +538,25 @@ export interface RouteTimeline {
 
 // ── Safety & support ───────────────────────────────────────────────────────
 
+export type CorporateSosStatus =
+  | 'NEW'
+  | 'ACTIVE'
+  | 'ACKNOWLEDGED'
+  | 'INVESTIGATING'
+  | 'ESCALATED'
+  | 'RESPONDED'
+  | 'RESOLVED'
+  | 'FALSE_ALARM';
+
+export const OPEN_SOS_STATUSES: readonly CorporateSosStatus[] = [
+  'NEW',
+  'ACTIVE',
+  'ACKNOWLEDGED',
+  'INVESTIGATING',
+  'ESCALATED',
+  'RESPONDED',
+];
+
 export interface SosAlert {
   id: string;
   routeId: string;

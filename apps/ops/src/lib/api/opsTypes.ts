@@ -268,7 +268,7 @@ export interface OpsBoardResponse {
 
 export interface OperationsAnalyticsDashboard {
   asOf: string;
-  filter: { tenantId: string; from: string; to: string; shiftTime?: string | null; timezone: string };
+  filter: { tenantId: string | null; from: string; to: string; shiftTime?: string | null; timezone: string };
   trips: { total: number; byStatus: Record<string, number> };
   employeesServed: number;
   requests: { total: number; byStatus: Record<string, number>; cancelled: number; noShows: number; unserved: number };
@@ -750,7 +750,7 @@ export interface CorporateEmployeeItem {
   fullName: string;
   email: string;
   phoneNumber: string;
-  gender: 'MALE' | 'FEMALE' | 'OTHER' | 'UNSPECIFIED' | string;
+  gender: 'MALE' | 'FEMALE' | 'OTHER' | string;
   department?: string | null;
   costCenter?: string | null;
   isActive: boolean;
@@ -775,7 +775,7 @@ export interface CreateTenantEmployeePayload {
   fullName: string;
   email: string;
   phoneNumber: string;
-  gender: 'MALE' | 'FEMALE' | 'OTHER' | 'UNSPECIFIED';
+  gender: 'MALE' | 'FEMALE' | 'OTHER';
   department?: string;
   costCenter?: string;
   homeAddress: string;
@@ -789,7 +789,7 @@ export interface UpdateTenantEmployeePayload {
   fullName?: string;
   email?: string;
   phoneNumber?: string;
-  gender?: 'MALE' | 'FEMALE' | 'OTHER' | 'UNSPECIFIED';
+  gender?: 'MALE' | 'FEMALE' | 'OTHER';
   department?: string;
   costCenter?: string;
   homeAddress?: string;

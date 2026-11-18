@@ -163,7 +163,7 @@ export enum NotificationType {
 export enum CorporateTenantStatus {
   ACTIVE = 'ACTIVE',
   SUSPENDED = 'SUSPENDED',
-  INACTIVE = 'INACTIVE',
+  TERMINATED = 'TERMINATED',
 }
 
 export enum CorporateTransportDirection {

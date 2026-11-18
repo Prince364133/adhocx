@@ -225,7 +225,7 @@ export default function CompaniesPage() {
                 { value: "ALL", label: "All statuses" },
                 { value: "ACTIVE", label: "Active" },
                 { value: "SUSPENDED", label: "Suspended" },
-                { value: "INACTIVE", label: "Inactive" },
+                { value: "TERMINATED", label: "Terminated" },
               ]}
               wrapperClassName="!mb-0"
             />

@@ -78,8 +78,16 @@ export class CorporateSafetyController {
     @Query('status') status?: CorporateSosStatus,
     @Query('routeId') routeId?: string,
     @Query('tenantId') tenantId?: string,
+    @Query('activeOnly') activeOnly?: string,
+    @Query('limit') limit?: string,
   ) {
-    return this.safetyService.listSosAlerts({ status, routeId, tenantId });
+    return this.safetyService.listSosAlerts({
+      status,
+      routeId,
+      tenantId,
+      activeOnly: activeOnly === 'true',
+      limit: limit ? parseInt(limit, 10) : undefined,
+    });
   }
 
   @Post('alerts/:id/acknowledge')

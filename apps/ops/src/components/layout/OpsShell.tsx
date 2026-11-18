@@ -59,7 +59,7 @@ export const OpsShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       }
 
       void opsApi
-        .getTenants({ limit: 100 })
+        .getTenants({ limit: 100, minimal: true })
         .then((response) => {
           const firstTenantId = response.items?.[0]?.id;
           if (firstTenantId) {

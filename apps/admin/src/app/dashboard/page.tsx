@@ -464,25 +464,29 @@ export default function DashboardPage() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const mountedRef = useRef(false);
   const requestInFlightRef = useRef(false);
+  const requestSeqRef = useRef(0);
 
   const loadDashboardData = useCallback(async () => {
     if (requestInFlightRef.current) return;
     requestInFlightRef.current = true;
+    const reqSeq = ++requestSeqRef.current;
     if (mountedRef.current) setIsRefreshing(true);
 
-    const results = await Promise.allSettled([
-      adminApi.getMetrics(),
-      adminApi.getDrivers("ALL"),
-      adminApi.getVendors("ALL"),
-      adminApi.getCorporateTenants({ page: 1, limit: 100 }),
-      adminApi.getUsers({ role: "EMPLOYEE", page: 1, limit: 100 }),
-      adminApi.getUserCount({ role: "EMPLOYEE" }),
-      adminApi.getRequirements("ALL"),
-      adminApi.getFinanceDashboard({ range: "30D" }),
-      adminApi.getTripFrequencyReport(year, month),
-    ]);
+    try {
+      const results = await Promise.allSettled([
+        adminApi.getMetrics(),
+        adminApi.getDrivers("ALL"),
+        adminApi.getVendors("ALL"),
+        adminApi.getCorporateTenants({ page: 1, limit: 100 }),
+        adminApi.getUsers({ role: "EMPLOYEE", page: 1, limit: 100 }),
+        adminApi.getUserCount({ role: "EMPLOYEE" }),
+        adminApi.getRequirements("ALL"),
+        adminApi.getFinanceDashboard({ range: "30D" }),
+        adminApi.getTripFrequencyReport(year, month),
+      ]);
 
-    if (mountedRef.current) {
+      if (!mountedRef.current || reqSeq !== requestSeqRef.current) return;
+
       const sourceNames = [
         "Summary metrics",
         "Drivers",
@@ -555,20 +559,55 @@ export default function DashboardPage() {
       setLastUpdated(new Date());
       setIsLoading(false);
       setIsRefreshing(false);
+    } finally {
+      if (reqSeq === requestSeqRef.current) {
+        requestInFlightRef.current = false;
+      }
     }
-
-    requestInFlightRef.current = false;
   }, [year, month]);
 
   useEffect(() => {
     mountedRef.current = true;
-    void loadDashboardData();
-    const intervalId = window.setInterval(() => {
+    let intervalId: number | null = null;
+
+    const stopPolling = () => {
+      if (intervalId !== null) {
+        window.clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+
+    const startPolling = () => {
+      stopPolling();
+      if (!mountedRef.current || document.hidden) return;
+      intervalId = window.setInterval(() => {
+        if (!document.hidden) {
+          void loadDashboardData();
+        }
+      }, 60_000);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        void loadDashboardData();
+        startPolling();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    if (!document.hidden) {
       void loadDashboardData();
-    }, 60_000);
+      startPolling();
+    }
+
     return () => {
       mountedRef.current = false;
-      window.clearInterval(intervalId);
+      requestSeqRef.current += 1;
+      requestInFlightRef.current = false;
+      stopPolling();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [loadDashboardData]);
 

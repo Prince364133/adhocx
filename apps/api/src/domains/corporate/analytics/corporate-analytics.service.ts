@@ -79,7 +79,7 @@ export class CorporateAnalyticsService {
     }
     if (f.officeId) {
       const office = await (this.db as any).corporateOffice.findFirst({
-        where: { id: f.officeId, tenantId: f.tenantId },
+        where: { id: f.officeId, ...(f.tenantId ? { tenantId: f.tenantId } : {}) },
         select: { id: true },
       });
       // Same answer for "does not exist" and "belongs to another tenant": no cross-tenant probing.
@@ -89,20 +89,30 @@ export class CorporateAnalyticsService {
   }
 
   private routeWhere(f: AnalyticsFilter): Record<string, any> {
+    const officeFilter = f.officeId
+      ? { officeId: f.officeId }
+      : f.officeScope && f.officeScope.length > 0
+        ? { officeId: { in: f.officeScope } }
+        : {};
     return {
-      tenantId: f.tenantId,
+      ...(f.tenantId ? { tenantId: f.tenantId } : {}),
       shiftDate: { gte: f.fromDate, lte: f.toDate },
-      ...(f.officeId ? { officeId: f.officeId } : {}),
+      ...officeFilter,
       ...(f.direction ? { direction: f.direction } : {}),
       ...(f.shiftTime ? { shiftTime: f.shiftTime } : {}),
     };
   }
 
   private requestWhere(f: AnalyticsFilter): Record<string, any> {
+    const officeFilter = f.officeId
+      ? { employee: { officeId: f.officeId } }
+      : f.officeScope && f.officeScope.length > 0
+        ? { employee: { officeId: { in: f.officeScope } } }
+        : {};
     return {
-      tenantId: f.tenantId,
+      ...(f.tenantId ? { tenantId: f.tenantId } : {}),
       scheduledDate: { gte: f.fromDate, lte: f.toDate },
-      ...(f.officeId ? { employee: { officeId: f.officeId } } : {}),
+      ...officeFilter,
       ...(f.direction ? { direction: f.direction } : {}),
       ...(f.shiftTime ? { shiftTime: f.shiftTime } : {}),
     };
@@ -113,11 +123,17 @@ export class CorporateAnalyticsService {
   }
 
   private sosWhere(f: AnalyticsFilter): Record<string, any> {
+    const officeFilter = f.officeId
+      ? { officeId: f.officeId }
+      : f.officeScope && f.officeScope.length > 0
+        ? { officeId: { in: f.officeScope } }
+        : {};
     return {
+      ...(f.tenantId ? { tenantId: f.tenantId } : {}),
       createdAt: { gte: f.fromInstant, lt: f.toInstantExclusive },
       route: {
-        tenantId: f.tenantId,
-        ...(f.officeId ? { officeId: f.officeId } : {}),
+        ...(f.tenantId ? { tenantId: f.tenantId } : {}),
+        ...officeFilter,
         ...(f.direction ? { direction: f.direction } : {}),
         ...(f.shiftTime ? { shiftTime: f.shiftTime } : {}),
       },
@@ -126,7 +142,7 @@ export class CorporateAnalyticsService {
 
   private filterEcho(f: AnalyticsFilter) {
     return {
-      tenantId: f.tenantId,
+      tenantId: f.tenantId ?? 'ALL',
       officeId: f.officeId ?? null,
       from: f.from,
       to: f.to,
@@ -596,10 +612,14 @@ export class CorporateAnalyticsService {
         orderBy: { scheduledDate: 'desc' },
       }),
       db.corporateRouteStop.findMany({
-        where: { ...stopWhere, status: { in: ['PENDING', 'ARRIVED'] } },
+        where: {
+          ...stopWhere,
+          status: { in: ['PENDING', 'ARRIVED'] },
+          plannedEta: { lte: new Date(now.getTime() - 10 * 60_000) },
+        },
         take: 60,
         include: { employee: true, route: { include: { office: true } } },
-        orderBy: { plannedEta: 'desc' },
+        orderBy: { plannedEta: 'asc' },
       }),
       db.corporateSosAlert.findMany({
         where: { ...this.sosWhere(f), status: { in: ['NEW', 'ACTIVE', 'ACKNOWLEDGED', 'INVESTIGATING', 'ESCALATED', 'RESPONDED'] } },
@@ -676,13 +696,16 @@ export class CorporateAnalyticsService {
       safetyAlerts: sosAlerts.length,
     };
 
+    const toIstDay = (dt: Date | string) =>
+      new Date(new Date(dt).getTime() + 330 * 60_000).toISOString().slice(0, 10);
+
     const dayBuckets = new Map<string, { delayed: number; unassigned: number; safety: number }>();
     for (let i = 0; i < 7; i++) {
       const d = new Date(now.getTime() - (6 - i) * 86400000);
-      dayBuckets.set(d.toISOString().slice(0, 10), { delayed: 0, unassigned: 0, safety: 0 });
+      dayBuckets.set(toIstDay(d), { delayed: 0, unassigned: 0, safety: 0 });
     }
     for (const d of trulyDelayedStops) {
-      const key = d.plannedEta ? new Date(d.plannedEta).toISOString().slice(0, 10) : '';
+      const key = d.plannedEta ? toIstDay(d.plannedEta) : '';
       const b = dayBuckets.get(key);
       if (b) b.delayed += 1;
     }
@@ -692,17 +715,17 @@ export class CorporateAnalyticsService {
       if (b) b.unassigned += 1;
     }
     for (const s of sosAlerts) {
-      const key = s.createdAt ? new Date(s.createdAt).toISOString().slice(0, 10) : '';
+      const key = s.createdAt ? toIstDay(s.createdAt) : '';
       const b = dayBuckets.get(key);
       if (b) b.safety += 1;
     }
 
     const trend = Array.from({ length: 7 }, (_, i) => {
       const d = new Date(now.getTime() - (6 - i) * 86400000);
-      const iso = d.toISOString().slice(0, 10);
+      const iso = toIstDay(d);
       const b = dayBuckets.get(iso) ?? { delayed: 0, unassigned: 0, safety: 0 };
       return {
-        day: d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
+        day: d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', timeZone: 'Asia/Kolkata' }),
         delayed: b.delayed,
         unassigned: b.unassigned,
         gpsStale: 0,

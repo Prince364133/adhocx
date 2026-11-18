@@ -155,3 +155,16 @@ export function isValidIndianMobile(phone: string): boolean {
   }
   return /^[6-9]\d{9}$/.test(local);
 }
+
+/**
+ * Escapes HTML special characters before interpolating untrusted strings into
+ * raw HTML sinks (such as Google Maps InfoWindow content).
+ */
+export function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}

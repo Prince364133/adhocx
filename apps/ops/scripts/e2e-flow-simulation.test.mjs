@@ -16,6 +16,7 @@ import {
   canEditRoute,
   canDeleteRoute,
   isValidIndianMobile,
+  escapeHtml,
 } from '../src/lib/opsHelpers.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -244,4 +245,59 @@ test('5. Zero-mock scan across apps/ops/src finds no mock-ops-db, 98.4, or local
   }
 
   assert.deepEqual(violations, [], `Forbidden mock/hardcoded references found:\n${violations.join('\n')}`);
+});
+
+test('6. Employee gender uses OTHER enum (zero UNSPECIFIED), InfoWindows use escapeHtml, and analytics uses single fleet-wide call', () => {
+  // (a) Employee gender enum alignment (Prisma CorporateGender = MALE | FEMALE | OTHER)
+  const employeesSrc = readOpsFile('app/employees/page.tsx');
+  assert.equal(employeesSrc.includes('UNSPECIFIED'), false, 'employees/page.tsx must not contain UNSPECIFIED');
+  assert.match(employeesSrc, /gender:\s*'OTHER'/);
+  assert.match(employeesSrc, /<option value="OTHER">/);
+
+  const opsTypesSrc = readOpsFile('lib/api/opsTypes.ts');
+  assert.equal(opsTypesSrc.includes('UNSPECIFIED'), false, 'opsTypes.ts must not contain UNSPECIFIED');
+
+  // (b) Stored XSS protection via escapeHtml in Google Maps InfoWindows
+  assert.equal(
+    escapeHtml(`<img src=x onerror="alert('xss')">&`),
+    '&lt;img src=x onerror=&quot;alert(&#39;xss&#39;)&quot;&gt;&amp;',
+  );
+  assert.equal(escapeHtml(null), '');
+  assert.equal(escapeHtml(undefined), '');
+
+  const googleRouteMapSrc = readOpsFile('components/maps/GoogleRouteMap.tsx');
+  assert.match(googleRouteMapSrc, /escapeHtml\s*\(\s*stop\.employeeName/);
+  assert.match(googleRouteMapSrc, /escapeHtml\s*\(\s*stop\.addressText/);
+  assert.match(googleRouteMapSrc, /escapeHtml\s*\(\s*office\.name/);
+
+  const plannerSrc = readOpsFile('app/planner/page.tsx');
+  assert.match(plannerSrc, /escapeHtml\s*\(\s*locationShortcut\s*\)/);
+  assert.match(plannerSrc, /escapeHtml\s*\(\s*stop\.name\s*\)/);
+  assert.match(plannerSrc, /escapeHtml\s*\(\s*stop\.matchedAddress\s*\)/);
+
+  // (c) Single fleet-wide analytics request when ALL is selected (no N-tenant fan-out)
+  const analyticsSrc = readOpsFile('app/dashboard/analytics/page.tsx');
+  assert.equal(analyticsSrc.includes('Promise.allSettled'), false, 'analytics must not fan out per-tenant requests');
+  assert.match(analyticsSrc, /tenantId:\s*tenantId\s*===\s*'ALL'\s*\?\s*undefined\s*:\s*tenantId/);
+  assert.match(analyticsSrc, /AbortController/);
+  assert.match(analyticsSrc, /minimal:\s*true/);
+
+  // (d) Visibility-aware SOS polling with activeOnly and stable map office-marker effect
+  const topBarSrc = readOpsFile('components/layout/OpsTopBar.tsx');
+  assert.match(topBarSrc, /activeOnly:\s*true/);
+  assert.match(topBarSrc, /document\.hidden/);
+
+  const exceptionsSrc = readOpsFile('app/dashboard/exceptions/page.tsx');
+  assert.match(exceptionsSrc, /activeOnly:\s*true/);
+  assert.match(exceptionsSrc, /document\.hidden/);
+
+  const cockpitSrc = readOpsFile('app/safety/cockpit/page.tsx');
+  assert.match(cockpitSrc, /document\.hidden/);
+
+  const mapSrc = readOpsFile('app/map/page.tsx');
+  assert.equal(
+    /\[mapReady,\s*selectedTenantId,\s*selectedCompany,\s*companies,\s*routes,\s*ui\.gpsCount\]/.test(mapSrc),
+    false,
+    'map office-marker effect must not depend on ui.gpsCount',
+  );
 });

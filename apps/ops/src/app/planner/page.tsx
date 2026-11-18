@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { opsApi, ShiftOptimizationResponse } from '../../lib/api/opsClient';
-import { isValidIndianMobile } from '../../lib/opsHelpers';
+import { escapeHtml, isValidIndianMobile } from '../../lib/opsHelpers';
 import {
   CorporateRouteItem,
   CorporateTenantOption,
@@ -274,7 +274,7 @@ export default function RouteOptimizerPage() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await opsApi.getTenants({ limit: 100 });
+        const res = await opsApi.getTenants({ limit: 100, minimal: true });
         const items = res?.items ?? [];
         if (cancelled) return;
         setTenants(items);
@@ -476,7 +476,7 @@ export default function RouteOptimizerPage() {
     setRefreshingOffices(true);
     setRefreshOfficesNotice(null);
     try {
-      const res = await opsApi.getTenants({ limit: 100 });
+      const res = await opsApi.getTenants({ limit: 100, minimal: true });
       const items = res?.items ?? [];
       setTenants(items);
       const preferredId = selectedUploadTenantId || selectedTenantId;
@@ -741,11 +741,11 @@ export default function RouteOptimizerPage() {
         const infoWindow = new google.maps.InfoWindow({
           content: `
             <div style="color: #191B1C; padding: 4px; font-family: Inter, sans-serif; font-size: 13px;">
-              <strong style="color: #5728B2; font-size: 14px;">${locationShortcut}: ${stop.name}</strong><br/>
-              <span style="color: #595F61;">${stop.matchedAddress}</span><br/>
+              <strong style="color: #5728B2; font-size: 14px;">${escapeHtml(locationShortcut)}: ${escapeHtml(stop.name)}</strong><br/>
+              <span style="color: #595F61;">${escapeHtml(stop.matchedAddress)}</span><br/>
               ${stop.outOfRadius ? '<span style="color: #DC2626; font-weight: bold;">⚠️ Outside Catchment Radius</span><br/>' : ''}
-              <strong>Pickup ETA:</strong> ${stop.eta} (Dwell until ${stop.dwellUntil})<br/>
-              <strong>Distance to office:</strong> ${stop.officeDistanceKm} km
+              <strong>Pickup ETA:</strong> ${escapeHtml(stop.eta)} (Dwell until ${escapeHtml(stop.dwellUntil)})<br/>
+              <strong>Distance to office:</strong> ${escapeHtml(stop.officeDistanceKm)} km
             </div>
           `,
         });

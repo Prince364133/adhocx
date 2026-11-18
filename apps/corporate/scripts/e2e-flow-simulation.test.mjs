@@ -340,3 +340,72 @@ test('Zero-mock scan across apps/corporate/src finds no hardcoded mock datasets'
 
   assert.deepEqual(violations, [], `Found mock data violations:\n${violations.join('\n')}`);
 });
+
+// ---------------------------------------------------------------------------
+// 8. SOS Status Enum, IST Date Defaults, Polling Guards & Geofences Focused Fetch
+// ---------------------------------------------------------------------------
+test('Zero TRIGGERED SOS status checks across corporate src and canonical OPEN_SOS_STATUSES used', () => {
+  const files = walkSourceFiles(SRC_ROOT);
+  const triggeredHits = [];
+  for (const file of files) {
+    const content = fs.readFileSync(file, 'utf8');
+    if (/['"]TRIGGERED['"]/.test(content)) {
+      triggeredHits.push(path.relative(CORPORATE_ROOT, file));
+    }
+  }
+  assert.deepEqual(triggeredHits, [], `Found invalid 'TRIGGERED' SOS status checks in: ${triggeredHits.join(', ')}`);
+
+  const typesSrc = readSrc('lib/api/types.ts');
+  for (const status of ['NEW', 'ACTIVE', 'ACKNOWLEDGED', 'INVESTIGATING', 'ESCALATED', 'RESPONDED']) {
+    assert.match(typesSrc, new RegExp(`'${status}'`), `OPEN_SOS_STATUSES must include ${status}`);
+  }
+
+  const safetySrc = readSrc('app/safety/page.tsx');
+  const safetyReportsSrc = readSrc('app/safety/reports/page.tsx');
+  assert.match(safetySrc, /OPEN_SOS_STATUSES/, 'safety/page.tsx must use OPEN_SOS_STATUSES');
+  assert.match(safetyReportsSrc, /OPEN_SOS_STATUSES/, 'safety/reports/page.tsx must use OPEN_SOS_STATUSES');
+});
+
+test('IST todayIst() helper is used instead of UTC new Date().toISOString().slice(0, 10) across dashboards/reports/live', () => {
+  const formatSrc = readSrc('lib/format.ts');
+  assert.match(formatSrc, /export function todayIst\(\): string/, 'format.ts must export todayIst()');
+
+  for (const relPath of [
+    'app/live/page.tsx',
+    'app/reports/page.tsx',
+    'app/reports/usage/page.tsx',
+    'app/dashboard/analytics/page.tsx',
+    'app/safety/reports/page.tsx',
+  ]) {
+    const src = readSrc(relPath);
+    assert.match(src, /\btodayIst\(/, `${relPath} must use todayIst()`);
+    assert.doesNotMatch(
+      src,
+      /new Date\([^)]*\)\.toISOString\(\)\.slice\(0,\s*10\)/,
+      `${relPath} must not compute UTC date defaults via new Date().toISOString().slice(0, 10)`,
+    );
+  }
+});
+
+test('useApi and PortalShell pause polling when document.hidden and skip overlapping in-flight polls', () => {
+  const useApiSrc = readSrc('lib/hooks/useApi.ts');
+  assert.match(useApiSrc, /document\.hidden/, 'useApi must check document.hidden');
+  assert.match(useApiSrc, /visibilitychange/, 'useApi must listen for visibilitychange');
+  assert.match(useApiSrc, /inFlightRef/, 'useApi must track in-flight polls to avoid overlap');
+  assert.match(useApiSrc, /AbortController/, 'useApi must cancel/abort on unmount or dependency change');
+
+  const shellSrc = readSrc('components/layout/PortalShell.tsx');
+  assert.match(shellSrc, /document\.hidden/, 'PortalShell notification poller must pause when document.hidden');
+  assert.match(shellSrc, /visibilitychange/, 'PortalShell notification poller must resume on visibilitychange');
+  assert.match(shellSrc, /notificationsInFlightRef/, 'PortalShell notification poller must skip overlapping in-flight fetches');
+});
+
+test('offices/geofences avoids N+1 fan-out when ?id= focuses a single office', () => {
+  const geofencesSrc = readSrc('app/offices/geofences/page.tsx');
+  assert.match(geofencesSrc, /displayedOffices\.filter/, 'offices/geofences must only fetch geofences for displayedOffices');
+  assert.doesNotMatch(
+    geofencesSrc,
+    /officeList\.map\(\(office\)\s*=>\s*tenantApi\.geofences/,
+    'offices/geofences must not blindly fan out tenantApi.geofences across all officeList items',
+  );
+});

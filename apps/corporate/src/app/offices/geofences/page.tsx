@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { tenantApi } from '../../../lib/api/corporate';
@@ -14,52 +14,99 @@ function GeofencesPickupPointsContent() {
   const [showAllOffices, setShowAllOffices] = useState(false);
   const [offices, setOffices] = useState<Office[]>([]);
   const [geofenceByOffice, setGeofenceByOffice] = useState<Record<string, OfficeGeofenceDetails | null>>({});
-  const [loading, setLoading] = useState(true);
+  const [loadingOffices, setLoadingOffices] = useState(true);
+  const [loadingGeofences, setLoadingGeofences] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fetchedOfficeIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     setShowAllOffices(false);
   }, [requestedOfficeId]);
 
-  const loadOfficesAndGeofences = useCallback(async () => {
+  useEffect(() => {
     if (status === 'loading') return;
     if (!tenantId) {
-      setLoading(false);
+      setOffices([]);
+      setGeofenceByOffice({});
+      fetchedOfficeIdsRef.current.clear();
+      setLoadingOffices(false);
       setError('Sign in with a corporate account to view this tenant’s offices and geofences.');
       return;
     }
 
-    setLoading(true);
+    let cancelled = false;
+    setLoadingOffices(true);
     setError(null);
-    try {
-      const officeList = await tenantApi.offices(tenantId);
-      setOffices(officeList);
+    setGeofenceByOffice({});
+    fetchedOfficeIdsRef.current.clear();
 
-      const results = await Promise.allSettled(
-        officeList.map((office) => tenantApi.geofences(tenantId, office.id)),
-      );
-      const nextMap: Record<string, OfficeGeofenceDetails | null> = {};
-      officeList.forEach((office, idx) => {
-        const res = results[idx];
-        nextMap[office.id] = res && res.status === 'fulfilled' ? res.value : null;
+    tenantApi
+      .offices(tenantId)
+      .then((officeList) => {
+        if (!cancelled) setOffices(officeList);
+      })
+      .catch((requestError) => {
+        if (!cancelled) {
+          setError(
+            requestError instanceof Error ? requestError.message : 'Unable to load office geofences.',
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingOffices(false);
       });
-      setGeofenceByOffice(nextMap);
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Unable to load office geofences.');
-    } finally {
-      setLoading(false);
-    }
+
+    return () => {
+      cancelled = true;
+    };
   }, [status, tenantId]);
 
-  useEffect(() => {
-    void loadOfficesAndGeofences();
-  }, [loadOfficesAndGeofences]);
+  const requestedOffice = useMemo(
+    () => (requestedOfficeId ? offices.find((office) => office.id === requestedOfficeId) ?? null : null),
+    [offices, requestedOfficeId],
+  );
+  const displayedOffices = useMemo(
+    () => (requestedOffice && !showAllOffices ? [requestedOffice] : offices),
+    [offices, requestedOffice, showAllOffices],
+  );
 
-  const requestedOffice = requestedOfficeId
-    ? offices.find((office) => office.id === requestedOfficeId) ?? null
-    : null;
-  const displayedOffices =
-    requestedOffice && !showAllOffices ? [requestedOffice] : offices;
+  useEffect(() => {
+    if (!tenantId || displayedOffices.length === 0) return;
+
+    const officesToFetch = displayedOffices.filter(
+      (office) => !fetchedOfficeIdsRef.current.has(office.id),
+    );
+    if (officesToFetch.length === 0) return;
+
+    let cancelled = false;
+    setLoadingGeofences(true);
+
+    Promise.allSettled(
+      officesToFetch.map((office) => tenantApi.geofences(tenantId, office.id)),
+    )
+      .then((results) => {
+        if (cancelled) return;
+        setGeofenceByOffice((current) => {
+          const next = { ...current };
+          officesToFetch.forEach((office, idx) => {
+            const res = results[idx];
+            next[office.id] = res && res.status === 'fulfilled' ? res.value : null;
+            fetchedOfficeIdsRef.current.add(office.id);
+          });
+          return next;
+        });
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingGeofences(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tenantId, displayedOffices]);
+
+  const hasUnloadedDisplayed = displayedOffices.some((office) => !(office.id in geofenceByOffice));
+  const loading = loadingOffices || (loadingGeofences && hasUnloadedDisplayed && Object.keys(geofenceByOffice).length === 0);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -126,13 +173,16 @@ function GeofencesPickupPointsContent() {
             </thead>
             <tbody>
               {displayedOffices.map((office) => {
+                const isRowLoading = loadingGeofences && !(office.id in geofenceByOffice);
                 const details = geofenceByOffice[office.id];
                 const isRequested = Boolean(requestedOfficeId && office.id === requestedOfficeId);
                 const radiusLabel = details?.geofence
                   ? `${details.geofence.radiusMeters} m radius`
                   : office.geofenceRadiusMeters
                     ? `${office.geofenceRadiusMeters} m radius`
-                    : 'Not configured';
+                    : isRowLoading
+                      ? 'Loading…'
+                      : 'Not configured';
                 const gatesCount = details?.gates?.length ?? 0;
                 const pickupCount = details?.pickupPoints?.length ?? 0;
 
@@ -154,14 +204,18 @@ function GeofencesPickupPointsContent() {
                     </td>
                     <td style={{ padding: 12 }}>{radiusLabel}</td>
                     <td style={{ padding: 12 }}>
-                      {gatesCount > 0
-                        ? details?.gates.map((g) => g.name).join(', ')
-                        : 'None'}
+                      {isRowLoading
+                        ? 'Loading…'
+                        : gatesCount > 0
+                          ? details?.gates.map((g) => g.name).join(', ')
+                          : 'None'}
                     </td>
                     <td style={{ padding: 12 }}>
-                      {pickupCount > 0
-                        ? details?.pickupPoints.map((p) => p.name).join(', ')
-                        : 'None'}
+                      {isRowLoading
+                        ? 'Loading…'
+                        : pickupCount > 0
+                          ? details?.pickupPoints.map((p) => p.name).join(', ')
+                          : 'None'}
                     </td>
                     <td style={{ padding: 12, textAlign: 'right' }}>
                       <Link

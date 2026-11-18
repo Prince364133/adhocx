@@ -45,25 +45,47 @@ export const OpsTopBar: React.FC = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Poll for active SOS alerts every 10 seconds
+  // Poll for active SOS alerts every 10 seconds (pauses when tab is hidden, with in-flight guard)
   useEffect(() => {
     let cancelled = false;
+    let inFlight = false;
+
     async function checkAlerts() {
+      if (cancelled || inFlight) return;
+      if (typeof document !== 'undefined' && document.hidden) return;
+      inFlight = true;
       try {
-        const alerts = await opsApi.getSosAlerts();
+        const alerts = await opsApi.getSosAlerts({ activeOnly: true });
         if (!cancelled) {
           const active = (Array.isArray(alerts) ? alerts : []).filter((a) => isActiveSosStatus(a.status));
           setActiveSosAlerts(active);
         }
       } catch {
         // quiet in polling
+      } finally {
+        inFlight = false;
       }
     }
-    checkAlerts();
-    const interval = setInterval(checkAlerts, 10000);
+
+    const handleVisibilityChange = () => {
+      if (typeof document !== 'undefined' && !document.hidden) {
+        void checkAlerts();
+      }
+    };
+
+    void checkAlerts();
+    const interval = setInterval(() => {
+      void checkAlerts();
+    }, 10000);
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    }
     return () => {
       cancelled = true;
       clearInterval(interval);
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
     };
   }, []);
 

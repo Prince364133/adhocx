@@ -85,20 +85,80 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
   };
 
   useEffect(() => {
-    loadNotifications();
-    const interval = setInterval(loadNotifications, 20000);
-    return () => clearInterval(interval);
+    let active = true;
+    let inFlight = false;
+    let intervalId: number | null = null;
+
+    async function loadNotifications() {
+      if (!active || inFlight) return;
+      inFlight = true;
+      try {
+        const data = await adminApi.getInAppNotifications({ limit: 8 });
+        if (!active) return;
+        if (data && Array.isArray(data.notifications)) {
+          setNotifications(data.notifications);
+          setUnreadCount(data.unreadCount || 0);
+        }
+      } catch {
+        // Graceful fallback in dev mode if notifications endpoint is pending
+      } finally {
+        inFlight = false;
+      }
+    }
+
+    const stopPolling = () => {
+      if (intervalId !== null) {
+        window.clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+
+    const startPolling = () => {
+      stopPolling();
+      if (!active || document.hidden) return;
+      intervalId = window.setInterval(() => {
+        if (!document.hidden) {
+          void loadNotifications();
+        }
+      }, 20_000);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        void loadNotifications();
+        startPolling();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    if (!document.hidden) {
+      void loadNotifications();
+      startPolling();
+    }
+
+    return () => {
+      active = false;
+      stopPolling();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, []);
 
   useEffect(() => {
     let active = true;
+    let inFlight = false;
     let activeController: AbortController | null = null;
+    let activeTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    let intervalId: number | null = null;
 
     async function checkApiHealth() {
-      activeController?.abort();
+      if (!active || inFlight) return;
+      inFlight = true;
       const controller = new AbortController();
       activeController = controller;
       const timeoutId = setTimeout(() => controller.abort(), 6000);
+      activeTimeoutId = timeoutId;
 
       try {
         const res = await fetch(`${getApiBaseUrl()}/health`, {
@@ -106,14 +166,14 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
           cache: "no-store",
           signal: controller.signal,
         });
-        if (!active) return;
+        if (!active || activeController !== controller) return;
         if (!res.ok) {
           setHealthStatus("offline");
           setHealthTooltip(`API health check failed (HTTP ${res.status})`);
           return;
         }
         const json = await res.json().catch(() => null);
-        if (!active) return;
+        if (!active || activeController !== controller) return;
         const report = json?.data ?? json;
         const status = String(report?.status ?? "").toUpperCase();
         const dbStatus = report?.components?.database?.status;
@@ -134,23 +194,59 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
           setHealthTooltip(`API Offline${details}`);
         }
       } catch {
-        if (!active) return;
+        if (!active || activeController !== controller) return;
         setHealthStatus("offline");
         setHealthTooltip("API Offline — unable to reach /health endpoint");
       } finally {
         clearTimeout(timeoutId);
+        if (activeTimeoutId === timeoutId) activeTimeoutId = null;
+        if (activeController === controller) activeController = null;
+        inFlight = false;
       }
     }
 
-    void checkApiHealth();
-    const interval = setInterval(() => {
+    const stopPolling = () => {
+      if (intervalId !== null) {
+        window.clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+
+    const startPolling = () => {
+      stopPolling();
+      if (!active || document.hidden) return;
+      intervalId = window.setInterval(() => {
+        if (!document.hidden) {
+          void checkApiHealth();
+        }
+      }, 30_000);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        void checkApiHealth();
+        startPolling();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    if (!document.hidden) {
       void checkApiHealth();
-    }, 30000);
+      startPolling();
+    }
 
     return () => {
       active = false;
+      stopPolling();
+      if (activeTimeoutId !== null) {
+        clearTimeout(activeTimeoutId);
+        activeTimeoutId = null;
+      }
       activeController?.abort();
-      clearInterval(interval);
+      activeController = null;
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 
@@ -166,18 +262,6 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  async function loadNotifications() {
-    try {
-      const data = await adminApi.getInAppNotifications({ limit: 8 });
-      if (data && Array.isArray(data.notifications)) {
-        setNotifications(data.notifications);
-        setUnreadCount(data.unreadCount || 0);
-      }
-    } catch {
-      // Graceful fallback in dev mode if notifications endpoint is pending
-    }
-  }
 
   async function handleMarkRead(id: string, e: React.MouseEvent) {
     e.stopPropagation();

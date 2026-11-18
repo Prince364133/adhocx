@@ -11,6 +11,8 @@ export interface AdminMetrics {
   pendingSettlements: number;
 }
 
+export type CorporateTenantStatus = "ACTIVE" | "SUSPENDED" | "TERMINATED";
+
 export interface CorporateTenantListItem {
   id: string;
   code: string;
@@ -31,7 +33,7 @@ export interface CorporateTenantListItem {
   primaryContactPhone?: string | null;
   billingAddress?: string | null;
   billingSameAsRegistered: boolean;
-  status: "ACTIVE" | "SUSPENDED" | "INACTIVE" | string;
+  status: CorporateTenantStatus | string;
   createdAt: string;
   updatedAt?: string;
   _count?: {

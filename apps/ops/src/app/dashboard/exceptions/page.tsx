@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { AlertTriangle, BellRing, Clock3, MapPin, Phone, RefreshCw, ShieldAlert } from 'lucide-react';
 import { getStoredOpsUser, opsApi } from '../../../lib/api/opsClient';
@@ -70,22 +70,27 @@ export default function ExceptionsDashboardPage() {
   const [actionId, setActionId] = useState('');
   const [notice, setNotice] = useState('');
   const ownerName = getStoredOpsUser()?.fullName ?? 'Me';
+  const inFlightRef = useRef(false);
+  const requestSeqRef = useRef(0);
 
   useEffect(() => {
     void opsApi
-      .getTenants({ page: 1, limit: 100 })
+      .getTenants({ page: 1, limit: 100, minimal: true })
       .then((res) => setTenants(res?.items ?? []))
       .catch(() => setTenants([]));
   }, []);
 
-  const loadData = useCallback(async (isManualRefresh = false) => {
+  const loadData = useCallback(async (isManualRefresh = false, force = false) => {
+    if (!force && !isManualRefresh && inFlightRef.current) return;
+    inFlightRef.current = true;
+    const reqId = ++requestSeqRef.current;
     if (isManualRefresh) setRefreshing(true);
     setError('');
     try {
       const tenantFilter = selectedTenantId === 'ALL' ? undefined : selectedTenantId;
       const [boardRes, alertsRes, exceptionsRes] = await Promise.all([
         opsApi.getOpsBoard({ date: todayIst(), tenantId: tenantFilter, pageSize: 200 }),
-        opsApi.getSosAlerts().catch(() => [] as SosAlertItem[]),
+        opsApi.getSosAlerts({ activeOnly: true }).catch(() => [] as SosAlertItem[]),
         tenantFilter
           ? opsApi
               .getExceptions({ tenantId: tenantFilter, from: daysAgoIst(6), to: todayIst() })
@@ -93,23 +98,42 @@ export default function ExceptionsDashboardPage() {
               .catch(() => [] as OperationsExceptionFeedItem[])
           : Promise.resolve([] as OperationsExceptionFeedItem[]),
       ]);
+      if (reqId !== requestSeqRef.current) return;
       setBoard(boardRes);
       setAlerts(Array.isArray(alertsRes) ? alertsRes : []);
       setAnalyticsExceptions(exceptionsRes);
     } catch (err) {
+      if (reqId !== requestSeqRef.current) return;
       setError(err instanceof Error ? err.message : 'Unable to load current exceptions.');
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (reqId === requestSeqRef.current) {
+        inFlightRef.current = false;
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, [selectedTenantId]);
 
   useEffect(() => {
-    void loadData();
+    void loadData(false, true);
     const timer = setInterval(() => {
-      void loadData();
+      if (typeof document !== 'undefined' && document.hidden) return;
+      void loadData(false);
     }, 15_000);
-    return () => clearInterval(timer);
+    const handleVisibilityChange = () => {
+      if (typeof document !== 'undefined' && !document.hidden) {
+        void loadData(false);
+      }
+    };
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    }
+    return () => {
+      clearInterval(timer);
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
+    };
   }, [loadData]);
 
   const selectedTenantName = useMemo(
@@ -216,7 +240,7 @@ export default function ExceptionsDashboardPage() {
         await opsApi.escalateSosAlert(alert.id);
         setNotice('SOS alert escalated.');
       }
-      await loadData();
+      await loadData(false, true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to update the SOS alert.');
     } finally {
@@ -235,7 +259,7 @@ export default function ExceptionsDashboardPage() {
       } else {
         setNotice(`Dispatch scan status: ${res.status}`);
       }
-      await loadData();
+      await loadData(false, true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to trigger route dispatch.');
     } finally {

@@ -99,12 +99,14 @@ export class CorporateTenantController {
     @Query('status') status?: CorporateTenantStatus,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('minimal') minimal?: string,
   ) {
     return this.tenantService.listTenants({
       search,
       status,
       page: page ? parseInt(page, 10) : undefined,
       limit: limit ? parseInt(limit, 10) : undefined,
+      minimal: minimal === 'true' || minimal === '1',
     });
   }
 

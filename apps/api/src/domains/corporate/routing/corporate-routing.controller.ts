@@ -59,7 +59,7 @@ export class CorporateRoutingController {
   @Post('plan-from-file')
   @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateTenantScoped()
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024, files: 1 } }))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Calculate traffic-aware routes using employee, office, and arrival details from each roster row' })
   public async planFromFile(
@@ -80,7 +80,7 @@ export class CorporateRoutingController {
   @Post('plan-stream')
   @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateTenantScoped()
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024, files: 1 } }))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Stream route planning progress for an uploaded employee route CSV via Server-Sent Events (SSE)' })
   public async planStream(
@@ -194,7 +194,7 @@ export class CorporateRoutingController {
   @Post('plan-from-file/stream')
   @Roles(UserRole.ADMIN, UserRole.OPS)
   @CorporateTenantScoped()
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024, files: 1 } }))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Alias for plan-stream via Server-Sent Events' })
   public async planFromFileStream(
@@ -717,7 +717,6 @@ export class CorporateRoutingController {
     UserRole.ADMIN,
     UserRole.OPS,
     UserRole.DRIVER,
-    UserRole.EMPLOYEE,
     UserRole.CORPORATE_ADMIN,
     UserRole.CORPORATE_MANAGER,
   )
@@ -834,7 +833,7 @@ export class CorporateRoutingController {
       stops: enrichedStops,
     };
 
-    if (includeDirections === 'true' && this.directionsService) {
+    if (includeDirections === 'true' && !isEmployeeCaller && this.directionsService) {
       // Shared 180 s cache with GET :id/directions: a page load is not a Google Routes call.
       enrichedRoute.directions = await this.directionsService
         .getDirectionsForRoute(id, { routeRecord: enrichedRoute })

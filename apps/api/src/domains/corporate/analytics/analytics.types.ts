@@ -8,6 +8,8 @@ export type ReportFormat = 'csv' | 'json';
 export interface AnalyticsQuery {
   tenantId?: string;
   officeId?: string;
+  officeScope?: string[] | null;
+  allowFleetWide?: boolean;
   from?: string;
   to?: string;
   direction?: string;
@@ -16,8 +18,9 @@ export interface AnalyticsQuery {
 
 /** Validated filter. Dates are UTC-midnight `Date`s, the representation Prisma uses for Postgres DATE. */
 export interface AnalyticsFilter {
-  tenantId: string;
+  tenantId?: string;
   officeId?: string;
+  officeScope?: string[];
   from: string;
   to: string;
   fromDate: Date;
@@ -47,7 +50,7 @@ export function toIstIso(d: Date | string | null | undefined): string | null {
 }
 
 export function buildAnalyticsFilter(q: AnalyticsQuery): AnalyticsFilter {
-  if (!q.tenantId) throw new AnalyticsFilterError('tenantId is required');
+  if (!q.tenantId && !q.allowFleetWide) throw new AnalyticsFilterError('tenantId is required');
   if (!isValidShiftDate(q.from) || !isValidShiftDate(q.to)) {
     throw new AnalyticsFilterError('from and to must be valid YYYY-MM-DD IST calendar days');
   }
@@ -69,9 +72,15 @@ export function buildAnalyticsFilter(q: AnalyticsQuery): AnalyticsFilter {
     shiftTime = q.shiftTime;
   }
 
+  const officeScope = Array.isArray(q.officeScope) && q.officeScope.length > 0 ? q.officeScope : undefined;
+  if (q.officeId && officeScope && !officeScope.includes(q.officeId)) {
+    throw new AnalyticsFilterError('Requested officeId is outside your assigned corporate office scope');
+  }
+
   return {
-    tenantId: q.tenantId,
+    tenantId: q.tenantId || undefined,
     officeId: q.officeId || undefined,
+    officeScope,
     from: q.from as string,
     to: q.to as string,
     fromDate,

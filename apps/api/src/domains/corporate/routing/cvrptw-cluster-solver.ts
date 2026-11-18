@@ -230,8 +230,12 @@ export async function solveCabRoute(
     Math.max(targetArrival.getTime() - (route.durationSeconds + dwellSeconds) * 1000, earliestDeparture.getTime()),
   );
 
-  // Pass 1 refinement if departure differs by >60 seconds
-  if (Math.abs(departure.getTime() - initialDeparture.getTime()) > 60_000) {
+  // Pass 1 refinement if departure differs by >60 seconds (only meaningful when traffic-aware,
+  // since TRAFFIC_UNAWARE travel time is invariant to departure time)
+  if (
+    options.routingPreference !== 'TRAFFIC_UNAWARE' &&
+    Math.abs(departure.getTime() - initialDeparture.getTime()) > 60_000
+  ) {
     route = await routesAdapter.computeRoute(
       driver.coord,
       pending.map((p) => p.coord),

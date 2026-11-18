@@ -8,6 +8,7 @@ import type { TripsAnalyticsReport } from '../../lib/api/corporate';
 import MetricCard from '../../components/common/MetricCard';
 import BarComparisonChart from '../../components/charts/BarComparisonChart';
 import { useSession } from '../../lib/auth/SessionContext';
+import { addDays, todayIst } from '../../lib/format';
 
 export default function TransportPerformanceReportPage() {
   const { tenantId } = useSession();
@@ -25,8 +26,8 @@ export default function TransportPerformanceReportPage() {
     }
 
     let active = true;
-    const to = new Date().toISOString().slice(0, 10);
-    const from = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const to = todayIst();
+    const from = addDays(to, -6);
     setLoading(true);
     setError(null);
     Promise.all([

@@ -618,8 +618,8 @@ export class AuthService implements OnModuleInit {
       if (!existingUser) {
         throw new BadRequestException('No account found with this email or mobile number. Please check your details or sign up.');
       }
-      if (existingUser.status === 'SUSPENDED' || existingUser.status === 'BANNED') {
-        throw new ForbiddenException('Your account has been suspended. Please contact support.');
+      if (existingUser.status === 'SUSPENDED' || existingUser.status === 'DEACTIVATED' || existingUser.status === 'BANNED') {
+        throw new ForbiddenException('Your account has been suspended or deactivated. Please contact support.');
       }
     }
 
@@ -957,7 +957,7 @@ export class AuthService implements OnModuleInit {
           audience: googleClientId,
         });
         const payload = ticket.getPayload();
-        if (!payload?.email || payload.email_verified === false) {
+        if (!payload?.email || payload.email_verified !== true) {
           throw new UnauthorizedException('Google identity token does not contain a verified email.');
         }
         email = payload.email.toLowerCase();

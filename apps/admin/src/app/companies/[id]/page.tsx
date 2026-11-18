@@ -79,7 +79,7 @@ const roleOptions = [
 const companyStatusOptions = [
   { value: "ACTIVE", label: "Active" },
   { value: "SUSPENDED", label: "Suspended" },
-  { value: "INACTIVE", label: "Inactive" },
+  { value: "TERMINATED", label: "Terminated" },
 ] as const;
 
 const fieldStyle: React.CSSProperties = {

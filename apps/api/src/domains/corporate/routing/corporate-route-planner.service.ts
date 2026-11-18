@@ -2062,18 +2062,43 @@ export class CorporateRoutePlannerService {
     const vehicleCategory = (dto.vehicleCategory || 'SEDAN').trim().toUpperCase();
     const maxCapacity = Math.max(dto.stops.length, Number(dto.maxCapacity) || 4);
 
-    // Resolve coordinates for stops lacking valid lat/lng
-    const resolvedStops: Array<typeof dto.stops[number] & { matchedAddress: string; lat: number; lng: number }> = [];
+    // Resolve coordinates for stops lacking valid lat/lng in parallel via batchGeocode
+    const addressesToGeocode: string[] = [];
     for (const stop of dto.stops) {
       if (!stop.name?.trim()) {
         throw new BadRequestException('Every stop must include an employee name');
       }
+      const lat = stop.lat !== undefined ? Number(stop.lat) : NaN;
+      const lng = stop.lng !== undefined ? Number(stop.lng) : NaN;
+      const addr = stop.address?.trim() || '';
+      if ((!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) && addr) {
+        addressesToGeocode.push(addr);
+      }
+    }
+
+    const geocodedMap = new Map<string, { lat: number; lng: number; matchedAddress?: string }>();
+    if (addressesToGeocode.length > 0) {
+      if (typeof this.geocodingAdapter?.batchGeocode === 'function') {
+        const batchRes = await this.geocodingAdapter.batchGeocode(addressesToGeocode, 6).catch(() => new Map());
+        for (const [k, v] of batchRes.entries()) {
+          geocodedMap.set(k.toLowerCase(), v);
+        }
+      } else if (typeof this.geocodingAdapter?.geocode === 'function') {
+        for (const addr of Array.from(new Set(addressesToGeocode))) {
+          const geo = await this.geocodingAdapter.geocode(addr).catch(() => null);
+          if (geo) geocodedMap.set(addr.toLowerCase(), geo);
+        }
+      }
+    }
+
+    const resolvedStops: Array<typeof dto.stops[number] & { matchedAddress: string; lat: number; lng: number }> = [];
+    for (const stop of dto.stops) {
       let lat = stop.lat !== undefined ? Number(stop.lat) : NaN;
       let lng = stop.lng !== undefined ? Number(stop.lng) : NaN;
       let matchedAddress = stop.address?.trim() || '';
       if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) {
         if (matchedAddress) {
-          const geo = await this.geocodingAdapter.geocode(matchedAddress).catch(() => null);
+          const geo = geocodedMap.get(matchedAddress.toLowerCase());
           if (geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lng)) {
             lat = geo.lat;
             lng = geo.lng;
@@ -2314,6 +2339,8 @@ export class CorporateRoutePlannerService {
         }
       }
 
+      const directionChanged = Boolean(dto.direction && dto.direction !== existing.direction);
+
       if (dto.direction || nextOffice) {
         for (const s of existing.stops) {
           if (!s.employeeId) {
@@ -2337,6 +2364,36 @@ export class CorporateRoutePlannerService {
             });
           }
         }
+      }
+
+      // When direction flips (LOGIN <-> LOGOUT), move the office anchor stop to sequence 1 (LOGOUT)
+      // or last (LOGIN) using two-pass negative offsets so unique (routeId, stopSequence) never collides.
+      if (directionChanged && existing.stops.length > 1) {
+        const sortedStops = [...existing.stops].sort((a, b) => a.stopSequence - b.stopSequence);
+        const officeStops = sortedStops.filter((s) => !s.employeeId);
+        const empStops = sortedStops.filter((s) => Boolean(s.employeeId));
+        const reordered = isLogout ? [...officeStops, ...empStops] : [...empStops, ...officeStops];
+
+        for (let i = 0; i < reordered.length; i++) {
+          await tx.corporateRouteStop.update({
+            where: { id: reordered[i].id },
+            data: { stopSequence: -(i + 1) },
+          });
+        }
+        for (let i = 0; i < reordered.length; i++) {
+          await tx.corporateRouteStop.update({
+            where: { id: reordered[i].id },
+            data: { stopSequence: i + 1 },
+          });
+        }
+      }
+
+      if (dto.direction || nextOffice) {
+        const refreshed = await tx.corporateRoute.findUnique({
+          where: { id: routeId },
+          include: { office: true, stops: { orderBy: { stopSequence: 'asc' }, include: { employee: true } } },
+        });
+        if (refreshed) return refreshed;
       }
 
       return r;

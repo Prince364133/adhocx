@@ -79,7 +79,7 @@ function EmployeesDirectoryContent() {
     fullName: '',
     email: '',
     phoneNumber: '',
-    gender: 'UNSPECIFIED' as 'MALE' | 'FEMALE' | 'OTHER' | 'UNSPECIFIED',
+    gender: 'OTHER' as 'MALE' | 'FEMALE' | 'OTHER',
     department: '',
     homeAddress: '',
     landmark: '',
@@ -93,7 +93,7 @@ function EmployeesDirectoryContent() {
     fullName: '',
     email: '',
     phoneNumber: '',
-    gender: 'UNSPECIFIED' as 'MALE' | 'FEMALE' | 'OTHER' | 'UNSPECIFIED',
+    gender: 'OTHER' as 'MALE' | 'FEMALE' | 'OTHER',
     department: '',
     homeAddress: '',
     landmark: '',
@@ -110,7 +110,7 @@ function EmployeesDirectoryContent() {
     (async () => {
       setTenantsLoading(true);
       try {
-        const res = await opsApi.getTenants({ page: 1, limit: 100 });
+        const res = await opsApi.getTenants({ page: 1, limit: 100, minimal: true });
         const items = res?.items ?? [];
         if (cancelled) return;
         setTenants(items);
@@ -223,7 +223,7 @@ function EmployeesDirectoryContent() {
       fullName: '',
       email: '',
       phoneNumber: '',
-      gender: 'UNSPECIFIED',
+      gender: 'OTHER',
       department: '',
       homeAddress: '',
       landmark: '',
@@ -272,9 +272,9 @@ function EmployeesDirectoryContent() {
       fullName: emp.fullName || '',
       email: emp.email || '',
       phoneNumber: emp.phoneNumber || '',
-      gender: (['MALE', 'FEMALE', 'OTHER', 'UNSPECIFIED'].includes(emp.gender)
+      gender: (['MALE', 'FEMALE', 'OTHER'].includes(emp.gender)
         ? emp.gender
-        : 'UNSPECIFIED') as 'MALE' | 'FEMALE' | 'OTHER' | 'UNSPECIFIED',
+        : 'OTHER') as 'MALE' | 'FEMALE' | 'OTHER',
       department: emp.department || '',
       homeAddress: defaultLoc?.addressText || '',
       landmark: defaultLoc?.landmark || '',
@@ -794,13 +794,12 @@ function EmployeesDirectoryContent() {
               <label style={labelStyle}>Gender</label>
               <select
                 value={createForm.gender}
-                onChange={(e) => setCreateForm((f) => ({ ...f, gender: e.target.value as any }))}
+                onChange={(e) => setCreateForm((f) => ({ ...f, gender: e.target.value as 'MALE' | 'FEMALE' | 'OTHER' }))}
                 style={inputStyle}
               >
-                <option value="UNSPECIFIED">Unspecified</option>
+                <option value="OTHER">Other</option>
                 <option value="FEMALE">Female</option>
                 <option value="MALE">Male</option>
-                <option value="OTHER">Other</option>
               </select>
             </div>
           </div>
@@ -915,13 +914,12 @@ function EmployeesDirectoryContent() {
               <label style={labelStyle}>Gender</label>
               <select
                 value={editForm.gender}
-                onChange={(e) => setEditForm((f) => ({ ...f, gender: e.target.value as any }))}
+                onChange={(e) => setEditForm((f) => ({ ...f, gender: e.target.value as 'MALE' | 'FEMALE' | 'OTHER' }))}
                 style={inputStyle}
               >
-                <option value="UNSPECIFIED">Unspecified</option>
+                <option value="OTHER">Other</option>
                 <option value="FEMALE">Female</option>
                 <option value="MALE">Male</option>
-                <option value="OTHER">Other</option>
               </select>
             </div>
           </div>

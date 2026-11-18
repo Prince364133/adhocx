@@ -138,6 +138,11 @@ class HttpEmployeeRiderRepository {
     await _client.patch('/notifications/in-app/$notificationId/read');
   }
 
+  /// Marks all in-app notifications as read on the backend in a single request
+  Future<void> markAllNotificationsRead() async {
+    await _client.markAllNotificationsRead();
+  }
+
   /// Persists notification channel preferences on the backend
   Future<Map<String, dynamic>> updateNotificationPreferences(
     Map<String, dynamic> preferences,

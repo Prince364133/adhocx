@@ -74,7 +74,7 @@ export class CorporateRosterController {
       required: ['file', 'tenantId'],
     },
   })
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024, files: 1 } }))
   public async validateRoster(
     @UploadedFile() file: Express.Multer.File,
     @Body('tenantId') tenantIdFromBody?: string,
@@ -116,7 +116,7 @@ export class CorporateRosterController {
       required: ['file', 'tenantId'],
     },
   })
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024, files: 1 } }))
   public async uploadRoster(
     @UploadedFile() file: Express.Multer.File,
     @Body('tenantId') tenantIdFromBody?: string,

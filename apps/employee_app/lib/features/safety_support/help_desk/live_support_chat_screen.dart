@@ -18,7 +18,8 @@ class LiveSupportChatScreen extends StatefulWidget {
   State<LiveSupportChatScreen> createState() => _LiveSupportChatScreenState();
 }
 
-class _LiveSupportChatScreenState extends State<LiveSupportChatScreen> {
+class _LiveSupportChatScreenState extends State<LiveSupportChatScreen>
+    with WidgetsBindingObserver {
   final List<Map<String, dynamic>> _messages = [];
   final TextEditingController _msgController = TextEditingController();
   final ScrollController _scroll = ScrollController();
@@ -26,17 +27,44 @@ class _LiveSupportChatScreenState extends State<LiveSupportChatScreen> {
   bool _isLoading = true;
   bool _refreshing = false;
   bool _sending = false;
+  bool _isAppForeground = true;
   String? _ticketId;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadMessages());
   }
 
-  void _startPolling() {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.resumed:
+        _isAppForeground = true;
+        if (_ticketId != null && _ticketId!.isNotEmpty) {
+          _refreshMessages(silent: true);
+          _startPolling();
+        }
+        break;
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.detached:
+        _isAppForeground = false;
+        _stopPolling();
+        break;
+    }
+  }
+
+  void _stopPolling() {
     _pollTimer?.cancel();
-    if (_ticketId == null || _ticketId!.isEmpty) return;
+    _pollTimer = null;
+  }
+
+  void _startPolling() {
+    _stopPolling();
+    if (!_isAppForeground || _ticketId == null || _ticketId!.isEmpty) return;
     _pollTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       _refreshMessages(silent: true);
     });
@@ -210,7 +238,8 @@ class _LiveSupportChatScreenState extends State<LiveSupportChatScreen> {
 
   @override
   void dispose() {
-    _pollTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    _stopPolling();
     _msgController.dispose();
     _scroll.dispose();
     super.dispose();

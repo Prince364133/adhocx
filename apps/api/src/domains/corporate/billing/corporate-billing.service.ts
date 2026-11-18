@@ -183,7 +183,21 @@ export class CorporateBillingService {
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
     const invoiceNumber = `INV-${tenant.code}-${periodMonthStr}-${randomSuffix}`;
 
+    const billedRouteIds = lineItemData.map((l) => l.routeId);
     const invoice = await this.db.$transaction(async (tx) => {
+      // Re-check inside transaction to prevent concurrent double-billing race conditions
+      if (billedRouteIds.length > 0 && typeof (tx as any).corporateInvoiceLine?.findMany === 'function') {
+        const concurrentLines = await tx.corporateInvoiceLine.findMany({
+          where: { routeId: { in: billedRouteIds } },
+          select: { routeId: true },
+        });
+        if (concurrentLines && concurrentLines.length > 0) {
+          throw new ConflictException(
+            `One or more routes (${concurrentLines.length}) were already billed by a concurrent invoice generation request`,
+          );
+        }
+      }
+
       const createdInvoice = await tx.corporateInvoice.create({
         data: {
           tenantId: dto.tenantId,
@@ -197,20 +211,24 @@ export class CorporateBillingService {
         },
       });
 
-      for (const line of lineItemData) {
-        await tx.corporateInvoiceLine.create({
-          data: {
-            invoiceId: createdInvoice.id,
-            routeId: line.routeId,
-            billableDistanceMeters: line.billableDistanceMeters,
-            amountPaise: line.amountPaise,
-            lineType: line.lineType,
-            rateCardId: line.rateCardId,
-            rateCardVersion: line.rateCardVersion,
-            noShowCount: line.noShowCount,
-            noShowPaise: line.noShowPaise,
-          },
-        });
+      const linePayloads = lineItemData.map((line) => ({
+        invoiceId: createdInvoice.id,
+        routeId: line.routeId,
+        billableDistanceMeters: line.billableDistanceMeters,
+        amountPaise: line.amountPaise,
+        lineType: line.lineType,
+        rateCardId: line.rateCardId,
+        rateCardVersion: line.rateCardVersion,
+        noShowCount: line.noShowCount,
+        noShowPaise: line.noShowPaise,
+      }));
+
+      if (typeof (tx as any).corporateInvoiceLine?.createMany === 'function') {
+        await tx.corporateInvoiceLine.createMany({ data: linePayloads });
+      } else {
+        for (const payload of linePayloads) {
+          await tx.corporateInvoiceLine.create({ data: payload });
+        }
       }
 
       return createdInvoice;

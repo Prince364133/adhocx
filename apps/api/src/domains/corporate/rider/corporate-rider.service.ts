@@ -79,6 +79,7 @@ export class CorporateRiderService {
       where: {
         OR: [{ userId: userOrEmployeeId }, { id: userOrEmployeeId }],
         isActive: true,
+        tenant: { status: 'ACTIVE' },
       },
       include: {
         tenant: true,
@@ -142,8 +143,10 @@ export class CorporateRiderService {
     const emp = await this.resolveEmployee(userId);
 
     const now = new Date();
-    const start = startDate ? new Date(startDate) : new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const end = endDate ? new Date(endDate) : new Date(start.getTime() + 7 * 86400000);
+    const istNow = new Date(now.getTime() + 330 * 60_000);
+    const todayIstStr = istNow.toISOString().slice(0, 10);
+    const start = startDate ? new Date(`${startDate.slice(0, 10)}T00:00:00.000Z`) : new Date(`${todayIstStr}T00:00:00.000Z`);
+    const end = endDate ? new Date(`${endDate.slice(0, 10)}T00:00:00.000Z`) : new Date(start.getTime() + 7 * 86400000);
 
     const [requests, directStops] = await Promise.all([
       this.db.corporateTransportRequest.findMany({

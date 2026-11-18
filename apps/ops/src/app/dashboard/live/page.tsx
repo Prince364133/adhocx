@@ -83,7 +83,7 @@ export default function LiveDispatchPage() {
 
   useEffect(() => {
     void opsApi
-      .getTenants({ page: 1, limit: 100 })
+      .getTenants({ page: 1, limit: 100, minimal: true })
       .then((res) => setTenants(res?.items ?? []))
       .catch(() => setTenants([]));
   }, []);

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Activity, BarChart3, Clock3, Gauge, RefreshCw, Timer } from 'lucide-react';
 import { opsApi } from '../../../lib/api/opsClient';
 import type { CorporateTenantOption, OperationsAnalyticsDashboard } from '../../../lib/api/opsTypes';
@@ -28,113 +28,8 @@ function parseDisplayDate(value: string): string | null {
   return `${year}-${month}-${day}`;
 }
 
-function emptyAnalytics(from: string, to: string, shiftTime: string): OperationsAnalyticsDashboard {
-  return {
-    asOf: new Date().toISOString(),
-    filter: { tenantId: 'ALL', from, to, shiftTime: shiftTime || null, timezone: 'Asia/Kolkata' },
-    trips: { total: 0, byStatus: {} },
-    employeesServed: 0,
-    requests: { total: 0, byStatus: {}, cancelled: 0, noShows: 0, unserved: 0 },
-    punctuality: { measuredStops: 0, onTimePickups: 0, latePickups: 0, onTimePct: null, avgDelayMinutes: null },
-    seatUtilisation: { completedRoutes: 0, assignedSeats: 0, capacitySeats: 0, pct: null },
-    dailyTrips: [],
-  };
-}
-
-function mergeAnalytics(
-  results: OperationsAnalyticsDashboard[],
-  from: string,
-  to: string,
-  shiftTime: string,
-): OperationsAnalyticsDashboard {
-  if (results.length === 0) return emptyAnalytics(from, to, shiftTime);
-  if (results.length === 1) return results[0];
-
-  const tripByStatus: Record<string, number> = {};
-  const reqByStatus: Record<string, number> = {};
-  const dailyMap = new Map<string, { scheduled: number; completed: number }>();
-
-  let tripsTotal = 0;
-  let employeesServed = 0;
-  let reqTotal = 0;
-  let reqCancelled = 0;
-  let reqNoShows = 0;
-  let reqUnserved = 0;
-  let measuredStops = 0;
-  let onTimePickups = 0;
-  let latePickups = 0;
-  let weightedDelaySum = 0;
-  let completedRoutes = 0;
-  let assignedSeats = 0;
-  let capacitySeats = 0;
-
-  for (const r of results) {
-    tripsTotal += r.trips.total;
-    for (const [k, v] of Object.entries(r.trips.byStatus)) {
-      tripByStatus[k] = (tripByStatus[k] ?? 0) + v;
-    }
-    employeesServed += r.employeesServed;
-    reqTotal += r.requests.total;
-    reqCancelled += r.requests.cancelled;
-    reqNoShows += r.requests.noShows;
-    reqUnserved += r.requests.unserved;
-    for (const [k, v] of Object.entries(r.requests.byStatus)) {
-      reqByStatus[k] = (reqByStatus[k] ?? 0) + v;
-    }
-    measuredStops += r.punctuality.measuredStops;
-    onTimePickups += r.punctuality.onTimePickups;
-    latePickups += r.punctuality.latePickups;
-    if (r.punctuality.avgDelayMinutes !== null && r.punctuality.measuredStops > 0) {
-      weightedDelaySum += r.punctuality.avgDelayMinutes * r.punctuality.measuredStops;
-    }
-    completedRoutes += r.seatUtilisation.completedRoutes;
-    assignedSeats += r.seatUtilisation.assignedSeats;
-    capacitySeats += r.seatUtilisation.capacitySeats;
-
-    for (const d of r.dailyTrips) {
-      const prev = dailyMap.get(d.date) ?? { scheduled: 0, completed: 0 };
-      prev.scheduled += d.scheduled;
-      prev.completed += d.completed;
-      dailyMap.set(d.date, prev);
-    }
-  }
-
-  const dailyTrips = Array.from(dailyMap.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, counts]) => ({ date, ...counts }));
-
-  return {
-    asOf: new Date().toISOString(),
-    filter: { tenantId: 'ALL', from, to, shiftTime: shiftTime || null, timezone: 'Asia/Kolkata' },
-    trips: { total: tripsTotal, byStatus: tripByStatus },
-    employeesServed,
-    requests: {
-      total: reqTotal,
-      byStatus: reqByStatus,
-      cancelled: reqCancelled,
-      noShows: reqNoShows,
-      unserved: reqUnserved,
-    },
-    punctuality: {
-      measuredStops,
-      onTimePickups,
-      latePickups,
-      onTimePct: measuredStops > 0 ? Math.round((onTimePickups * 10000) / measuredStops) / 100 : null,
-      avgDelayMinutes: measuredStops > 0 ? Math.round((weightedDelaySum / measuredStops) * 100) / 100 : null,
-    },
-    seatUtilisation: {
-      completedRoutes,
-      assignedSeats,
-      capacitySeats,
-      pct: capacitySeats > 0 ? Math.round((assignedSeats * 10000) / capacitySeats) / 100 : null,
-    },
-    dailyTrips,
-  };
-}
-
 export default function OperationsAnalyticsPage() {
   const [tenants, setTenants] = useState<CorporateTenantOption[]>([]);
-  const [tenantsLoaded, setTenantsLoaded] = useState(false);
   const [tenantId, setTenantId] = useState('ALL');
   const [from, setFrom] = useState(daysAgo(6));
   const [to, setTo] = useState(today());
@@ -145,17 +40,25 @@ export default function OperationsAnalyticsPage() {
   const [data, setData] = useState<OperationsAnalyticsDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const requestSeqRef = useRef(0);
 
   useEffect(() => {
+    let cancelled = false;
     void opsApi
-      .getTenants({ page: 1, limit: 100 })
-      .then((res) => setTenants(res?.items ?? []))
-      .catch((err) => setError(err instanceof Error ? err.message : 'Unable to load corporate clients.'))
-      .finally(() => setTenantsLoaded(true));
+      .getTenants({ page: 1, limit: 100, minimal: true })
+      .then((res) => {
+        if (!cancelled) setTenants(res?.items ?? []);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Unable to load corporate clients.');
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
-    if (!tenantsLoaded) return;
     let cancelled = false;
     void opsApi
       .getRoutes({
@@ -180,56 +83,46 @@ export default function OperationsAnalyticsPage() {
     return () => {
       cancelled = true;
     };
-  }, [tenantId, tenantsLoaded]);
+  }, [tenantId]);
 
   const loadAnalytics = useCallback(async () => {
-    if (!tenantsLoaded) return;
     if (from > to) {
       setError('Start date must be on or before end date.');
       return;
     }
+
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const reqId = ++requestSeqRef.current;
+
     setLoading(true);
     setError('');
     try {
-      if (tenantId !== 'ALL') {
-        const res = await opsApi.getAnalyticsDashboard({
-          tenantId,
-          from,
-          to,
-          shiftTime: shiftTime || undefined,
-        });
-        setData(res);
-      } else if (tenants.length === 0) {
-        setData(emptyAnalytics(from, to, shiftTime));
-      } else {
-        const settled = await Promise.allSettled(
-          tenants.map((t) =>
-            opsApi.getAnalyticsDashboard({
-              tenantId: t.id,
-              from,
-              to,
-              shiftTime: shiftTime || undefined,
-            }),
-          ),
-        );
-        const ok = settled
-          .filter((r): r is PromiseFulfilledResult<OperationsAnalyticsDashboard> => r.status === 'fulfilled')
-          .map((r) => r.value);
-        if (ok.length === 0 && settled.length > 0) {
-          const firstErr = settled.find((r): r is PromiseRejectedResult => r.status === 'rejected');
-          throw new Error(firstErr?.reason instanceof Error ? firstErr.reason.message : 'Unable to load analytics.');
-        }
-        setData(mergeAnalytics(ok, from, to, shiftTime));
-      }
-    } catch (err) {
+      const res = await opsApi.getAnalyticsDashboard({
+        tenantId: tenantId === 'ALL' ? undefined : tenantId,
+        from,
+        to,
+        shiftTime: shiftTime || undefined,
+        signal: controller.signal,
+      });
+      if (controller.signal.aborted || reqId !== requestSeqRef.current) return;
+      setData(res);
+    } catch (err: any) {
+      if (controller.signal.aborted || err?.name === 'AbortError' || reqId !== requestSeqRef.current) return;
       setError(err instanceof Error ? err.message : 'Unable to load operations analytics.');
     } finally {
-      setLoading(false);
+      if (reqId === requestSeqRef.current) {
+        setLoading(false);
+      }
     }
-  }, [from, shiftTime, tenantId, tenants, tenantsLoaded, to]);
+  }, [from, shiftTime, tenantId, to]);
 
   useEffect(() => {
     void loadAnalytics();
+    return () => {
+      abortControllerRef.current?.abort();
+    };
   }, [loadAnalytics]);
 
   function commitFromDate() {

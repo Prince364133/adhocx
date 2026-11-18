@@ -659,6 +659,7 @@ model Notification {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, isRead])
+  @@index([userId, createdAt])
   @@index([idempotencyKey])
   @@index([createdAt])
   @@map("notifications")
@@ -1238,6 +1239,8 @@ model CorporateEmployee {
 
   @@unique([tenantId, employeeCode])
   @@index([tenantId])
+  @@index([tenantId, phoneNumber])
+  @@index([tenantId, isActive])
   @@index([officeId])
   @@map("corporate_employees")
 }
@@ -1314,7 +1317,9 @@ model CorporateTransportRequest {
   routeStop CorporateRouteStop?
 
   @@index([tenantId, scheduledDate, shiftTime])
+  @@index([tenantId, status, scheduledDate])
   @@index([employeeId])
+  @@index([employeeId, scheduledDate])
   @@index([h3PickupIndex])
   @@map("corporate_transport_requests")
 }
@@ -1357,7 +1362,9 @@ model CorporateRoute {
 
   @@index([tenantId, shiftDate, shiftTime])
   @@index([shiftDate, tenantId, status])
+  @@index([tenantId, status, shiftDate])
   @@index([driverId])
+  @@index([driverId, status, targetPickup1Time])
   @@index([status])
   @@map("corporate_routes")
 }
@@ -1391,7 +1398,10 @@ model CorporateRouteStop {
 
   @@unique([routeId, stopSequence])
   @@index([routeId])
+  @@index([routeId, status])
   @@index([employeeId])
+  @@index([employeeId, status])
+  @@index([status, plannedEta])
   @@map("corporate_route_stops")
 }
 
@@ -1510,8 +1520,10 @@ model CorporateSosAlert {
 
   @@index([routeId])
   @@index([tenantId])
+  @@index([tenantId, status, createdAt])
   @@index([status])
   @@index([status, createdAt])
+  @@index([status, acknowledgedAt, escalatedAt])
   @@map("corporate_sos_alerts")
 }
 

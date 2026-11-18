@@ -130,17 +130,26 @@ export class CorporateSafetyService {
     status?: CorporateSosStatus;
     routeId?: string;
     tenantId?: string;
+    activeOnly?: boolean;
+    limit?: number;
   }) {
     const where: any = {};
-    if (query?.status) where.status = query.status;
+    if (query?.status) {
+      where.status = query.status;
+    } else if (query?.activeOnly) {
+      where.status = { in: ['NEW', 'ACTIVE', 'ACKNOWLEDGED', 'INVESTIGATING', 'ESCALATED', 'RESPONDED'] };
+    }
     if (query?.routeId) where.routeId = query.routeId;
     if (query?.tenantId) {
-      where.route = { tenantId: query.tenantId };
+      where.tenantId = query.tenantId;
     }
+
+    const take = Math.min(200, Math.max(1, Number.isFinite(query?.limit) ? Number(query?.limit) : 100));
 
     return this.db.corporateSosAlert.findMany({
       where,
       orderBy: { createdAt: 'desc' },
+      take,
       include: {
         route: {
           select: {

@@ -183,6 +183,9 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
       headers,
     });
   } catch (err: any) {
+    if (err?.name === 'AbortError' || fetchOptions.signal?.aborted) {
+      throw err;
+    }
     throw new Error(`Network failure: ${err?.message || 'Could not connect to the API at ' + baseUrl}`, { cause: err });
   }
 
@@ -440,7 +443,7 @@ export const opsApi = {
     return categories.filter((category) => category.isActive);
   },
 
-  getTenants: async (params: { search?: string; page?: number; limit?: number } = {}): Promise<{
+  getTenants: async (params: { search?: string; page?: number; limit?: number; minimal?: boolean } = {}): Promise<{
     items: CorporateTenantOption[];
     pagination: { total: number; page: number; limit: number; totalPages: number };
   }> => {
@@ -448,6 +451,7 @@ export const opsApi = {
     if (params.search) q.set('search', params.search);
     q.set('page', String(params.page ?? 1));
     q.set('limit', String(params.limit ?? 100));
+    if (params.minimal) q.set('minimal', 'true');
     return request<{
       items: CorporateTenantOption[];
       pagination: { total: number; page: number; limit: number; totalPages: number };
@@ -609,22 +613,25 @@ export const opsApi = {
 
   // ── Analytics & Exceptions ──
   getAnalyticsDashboard: (params: {
-    tenantId: string;
+    tenantId?: string;
     officeId?: string;
     from: string;
     to: string;
     direction?: string;
     shiftTime?: string;
+    signal?: AbortSignal;
   }): Promise<OperationsAnalyticsDashboard> => {
     const q = new URLSearchParams({
-      tenantId: params.tenantId,
       from: params.from,
       to: params.to,
     });
+    if (params.tenantId && params.tenantId !== 'ALL') q.set('tenantId', params.tenantId);
     if (params.officeId) q.set('officeId', params.officeId);
     if (params.direction) q.set('direction', params.direction);
     if (params.shiftTime) q.set('shiftTime', params.shiftTime);
-    return request<OperationsAnalyticsDashboard>(`/corporate/analytics/dashboard?${q.toString()}`);
+    return request<OperationsAnalyticsDashboard>(`/corporate/analytics/dashboard?${q.toString()}`, {
+      signal: params.signal,
+    });
   },
 
   getExceptions: (params: {
@@ -924,8 +931,24 @@ export const opsApi = {
   },
 
   // ── SOS Crisis Cockpit ──
-  getSosAlerts: async (): Promise<SosAlertItem[]> => {
-    return request<SosAlertItem[]>(`/corporate/safety/alerts`);
+  getSosAlerts: async (params: {
+    activeOnly?: boolean;
+    limit?: number;
+    tenantId?: string;
+    status?: string;
+    routeId?: string;
+    signal?: AbortSignal;
+  } = {}): Promise<SosAlertItem[]> => {
+    const q = new URLSearchParams();
+    if (params.activeOnly) q.set('activeOnly', 'true');
+    if (params.limit !== undefined) q.set('limit', String(params.limit));
+    if (params.tenantId) q.set('tenantId', params.tenantId);
+    if (params.status) q.set('status', params.status);
+    if (params.routeId) q.set('routeId', params.routeId);
+    const suffix = q.size ? `?${q.toString()}` : '';
+    return request<SosAlertItem[]>(`/corporate/safety/alerts${suffix}`, {
+      signal: params.signal,
+    });
   },
 
   getSupportTickets: async (): Promise<OpsSupportTicket[]> =>

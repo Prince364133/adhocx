@@ -135,10 +135,27 @@ describe("2. Company profile page ([id]/page.tsx) structural & functional checks
     }
   });
 
-  test("includes Company Status control (ACTIVE / SUSPENDED / INACTIVE) wired to updateCorporateTenant", () => {
+  test("includes Company Status control (ACTIVE / SUSPENDED / TERMINATED) wired to updateCorporateTenant", () => {
+    const companiesPageSrc = readAdminFile("src/app/companies/page.tsx");
+    const typesSrc = readAdminFile("src/lib/api/types.ts");
+
     assert.match(companyProfileSrc, /value:\s*"ACTIVE"/);
     assert.match(companyProfileSrc, /value:\s*"SUSPENDED"/);
-    assert.match(companyProfileSrc, /value:\s*"INACTIVE"/);
+    assert.match(companyProfileSrc, /value:\s*"TERMINATED"/);
+    assert.doesNotMatch(
+      companyProfileSrc,
+      /const companyStatusOptions = \[[\s\S]*?value:\s*"INACTIVE"/,
+    );
+    assert.match(companiesPageSrc, /value:\s*"TERMINATED"/);
+    assert.doesNotMatch(companiesPageSrc, /value:\s*"INACTIVE"/);
+    assert.match(
+      typesSrc,
+      /export type CorporateTenantStatus = "ACTIVE" \| "SUSPENDED" \| "TERMINATED";/,
+    );
+    assert.doesNotMatch(
+      typesSrc,
+      /interface CorporateTenantListItem[\s\S]*?status:[^;]*?"INACTIVE"/,
+    );
     assert.match(companyProfileSrc, /aria-label="Company status"/);
     assert.match(
       companyProfileSrc,
@@ -479,13 +496,20 @@ describe("4. Simulated HTTP E2E round-trip (Tenant -> Patch -> Office -> Dept ->
     assert.equal(createdTenant.portalAccess.created, true);
     assert.ok(createdTenant.hqOfficeWarning);
 
-    // 2. PATCH /corporate/tenants/:id (status toggle)
+    // 2. PATCH /corporate/tenants/:id (status toggle: SUSPENDED -> TERMINATED -> ACTIVE)
     const suspendedTenant = await api(
       `/corporate/tenants/${createdTenant.id}`,
       "PATCH",
       { status: "SUSPENDED" },
     );
     assert.equal(suspendedTenant.status, "SUSPENDED");
+
+    const terminatedTenant = await api(
+      `/corporate/tenants/${createdTenant.id}`,
+      "PATCH",
+      { status: "TERMINATED" },
+    );
+    assert.equal(terminatedTenant.status, "TERMINATED");
 
     const reactivatedTenant = await api(
       `/corporate/tenants/${createdTenant.id}`,

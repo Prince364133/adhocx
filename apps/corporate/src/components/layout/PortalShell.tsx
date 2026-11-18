@@ -188,20 +188,36 @@ function TopBar() {
   const [markingAllRead, setMarkingAllRead] = useState(false);
   const notificationDropdownRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const notificationsInFlightRef = useRef(false);
+  const notificationsMountedRef = useRef(true);
+
+  useEffect(() => {
+    notificationsMountedRef.current = true;
+    return () => {
+      notificationsMountedRef.current = false;
+    };
+  }, []);
 
   const loadNotifications = useCallback(async (showLoading = false) => {
+    if (notificationsInFlightRef.current) return;
+    notificationsInFlightRef.current = true;
     if (showLoading) setNotificationsLoading(true);
     setNotificationError(null);
     try {
       const result = await notificationsApi.list();
+      if (!notificationsMountedRef.current) return;
       setNotifications(result.notifications);
       setUnreadCount(result.unreadCount);
     } catch (error) {
+      if (!notificationsMountedRef.current) return;
       setNotificationError(
         error instanceof Error ? error.message : 'Unable to load notifications.',
       );
     } finally {
-      if (showLoading) setNotificationsLoading(false);
+      notificationsInFlightRef.current = false;
+      if (showLoading && notificationsMountedRef.current) {
+        setNotificationsLoading(false);
+      }
     }
   }, []);
 
@@ -209,11 +225,39 @@ function TopBar() {
     if (status !== 'ready') return;
     const refreshNotifications = () => void loadNotifications();
     void loadNotifications(true);
-    const interval = window.setInterval(() => void loadNotifications(), 20000);
+
+    let interval: number | null = null;
+    const stopPolling = () => {
+      if (interval !== null) {
+        window.clearInterval(interval);
+        interval = null;
+      }
+    };
+    const startPolling = () => {
+      stopPolling();
+      if (typeof document !== 'undefined' && document.hidden) return;
+      interval = window.setInterval(() => {
+        if (typeof document !== 'undefined' && document.hidden) return;
+        void loadNotifications();
+      }, 20000);
+    };
+    const handleVisibilityChange = () => {
+      if (typeof document === 'undefined') return;
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        void loadNotifications();
+        startPolling();
+      }
+    };
+
+    startPolling();
     window.addEventListener('adhocx:notifications-updated', refreshNotifications);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => {
-      window.clearInterval(interval);
+      stopPolling();
       window.removeEventListener('adhocx:notifications-updated', refreshNotifications);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [loadNotifications, status]);
 

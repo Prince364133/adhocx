@@ -63,31 +63,47 @@ async function bootstrap() {
   // Global response transform & Tenant Context isolation
   app.useGlobalInterceptors(new TransformInterceptor(), new TenantContextInterceptor());
 
+  const nodeEnv = configService.get<string>('app.nodeEnv') || process.env.NODE_ENV || 'development';
+  const isProd = nodeEnv === 'production';
+
   // CORS (with origin reflection and 24h preflight caching to prevent browser OPTIONS request flooding)
   const allowedOrigins = [
     'https://app.adhocx.com',
     'https://admin.adhocx.com',
+    'https://ops.adhocx.com',
+    'https://corporate.adhocx.com',
     'https://adhocx.com',
     'https://www.adhocx.com',
     'https://api.adhocx.com',
-    'http://3.110.42.191',
-    'http://localhost:7002',
-    'http://localhost:7003',
-    'http://localhost:3000',
-    'http://localhost:3001',
+    ...(!isProd
+      ? [
+          'http://3.110.42.191',
+          'http://localhost:7002',
+          'http://localhost:7003',
+          'http://localhost:7004',
+          'http://localhost:7006',
+          'http://localhost:3000',
+          'http://localhost:3001',
+        ]
+      : []),
     ...(configService.get<string[]>('app.corsOrigins') || []),
   ];
 
   app.enableCors({
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
+      const isHttpsAdhocxSubdomain =
+        origin.startsWith('https://') && origin.endsWith('.adhocx.com');
+      const isLocalOrLan =
+        !isProd &&
+        (origin.startsWith('http://localhost:') ||
+          origin.startsWith('http://127.0.0.1:') ||
+          /^http:\/\/(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(:\d+)?$/.test(origin));
       if (
         allowedOrigins.includes(origin) ||
-        origin.endsWith('.adhocx.com') ||
+        isHttpsAdhocxSubdomain ||
         origin === 'https://adhocx.com' ||
-        origin.startsWith('http://localhost:') ||
-        origin.startsWith('http://127.0.0.1:') ||
-        /^http:\/\/(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(:\d+)?$/.test(origin)
+        isLocalOrLan
       ) {
         return callback(null, true);
       }
@@ -117,8 +133,7 @@ async function bootstrap() {
   });
 
   // Swagger API documentation (Disabled in production per CERT-In / OWASP API8 guidelines)
-  const nodeEnv = configService.get<string>('app.nodeEnv') || process.env.NODE_ENV || 'development';
-  const enableSwagger = configService.get<boolean>('app.enableSwagger') || process.env.ENABLE_SWAGGER === 'true' || nodeEnv !== 'production';
+  const enableSwagger = configService.get<boolean>('app.enableSwagger') || process.env.ENABLE_SWAGGER === 'true' || !isProd;
 
   if (enableSwagger) {
     const swaggerConfig = new DocumentBuilder()

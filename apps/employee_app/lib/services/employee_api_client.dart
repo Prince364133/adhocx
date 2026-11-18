@@ -20,12 +20,40 @@ class EmployeeApiClient {
   })  : baseUrl = baseUrl ?? defaultBaseUrl,
         _httpClient = httpClient ?? http.Client();
 
+  static const String _envApiBaseUrl = String.fromEnvironment('API_BASE_URL');
+  static const String _envApiUrl = String.fromEnvironment('API_URL');
+
   static String get defaultBaseUrl {
-    const envUrl = String.fromEnvironment('API_URL');
-    if (envUrl.isNotEmpty) return envUrl;
-    if (kIsWeb) {
-      final appHost = Uri.base.host;
-      if (appHost == 'localhost' || appHost == '127.0.0.1') {
+    final configured =
+        _envApiBaseUrl.isNotEmpty ? _envApiBaseUrl : _envApiUrl;
+    return resolveBaseUrl(
+      configuredUrl: configured,
+      isReleaseMode: kReleaseMode,
+      platform: defaultTargetPlatform,
+      isWeb: kIsWeb,
+      webHost: kIsWeb ? Uri.base.host : null,
+    );
+  }
+
+  /// Resolves the API base URL across platforms and build modes.
+  ///
+  /// Priority:
+  /// 1. Explicit compile-time override (`API_BASE_URL` / `API_URL`)
+  /// 2. Web origin-based host detection
+  /// 3. Production HTTPS endpoint for all non-web release builds (Android + iOS)
+  /// 4. Local development defaults (`10.0.2.2` on Android emulator, `localhost` elsewhere)
+  static String resolveBaseUrl({
+    String configuredUrl = '',
+    bool isReleaseMode = kReleaseMode,
+    TargetPlatform? platform,
+    bool isWeb = kIsWeb,
+    String? webHost,
+  }) {
+    final trimmed = configuredUrl.trim();
+    if (trimmed.isNotEmpty) return trimmed;
+    if (isWeb) {
+      final appHost = (webHost ?? Uri.base.host).trim();
+      if (appHost.isEmpty || appHost == 'localhost' || appHost == '127.0.0.1') {
         return 'http://localhost:7001/api/v1';
       }
       if (appHost == 'adhocx.com' || appHost.endsWith('.adhocx.com')) {
@@ -38,10 +66,11 @@ class EmployeeApiClient {
         path: '/api/v1',
       ).toString();
     }
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      if (kReleaseMode) {
-        return 'https://api.adhocx.com/api/v1';
-      }
+    if (isReleaseMode) {
+      return 'https://api.adhocx.com/api/v1';
+    }
+    final resolvedPlatform = platform ?? defaultTargetPlatform;
+    if (resolvedPlatform == TargetPlatform.android) {
       return 'http://10.0.2.2:7001/api/v1';
     }
     return 'http://localhost:7001/api/v1';
@@ -191,6 +220,11 @@ class EmployeeApiClient {
       final headers = _buildHeaders(token);
       return _httpClient.delete(uri, headers: headers);
     });
+  }
+
+  /// Marks all in-app notifications as read in a single request.
+  Future<Map<String, dynamic>> markAllNotificationsRead() {
+    return patch('/notifications/in-app/read-all');
   }
 
   Map<String, String> _buildHeaders(String? token) {

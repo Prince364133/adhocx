@@ -229,12 +229,12 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       if (!this.isConnected || !this.client) {
         throw new Error('Shared Redis store is unavailable; distributed session revocation cannot be guaranteed');
       }
-      await this.client.set(`user_revoked:${userId}`, '1', 'EX', 86400);
+      await this.client.set(`user_revoked:${userId}`, '1', 'EX', 86400 * 7);
       await this.client.del(`user_session:${userId}`);
       this.announceRevocation({ userId });
       return;
     }
-    await this.set(`user_revoked:${userId}`, '1', 86400);
+    await this.set(`user_revoked:${userId}`, '1', 86400 * 7);
     await this.del(`user_session:${userId}`);
     this.announceRevocation({ userId });
   }
@@ -267,7 +267,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     userId: string,
     minIssuedAtSec: number = Math.floor(Date.now() / 1000),
   ): Promise<void> {
-    await this.set(`user_min_iat:${userId}`, String(minIssuedAtSec), 86400 * 7);
+    await this.set(`user_min_iat:${userId}`, String(minIssuedAtSec), 86400 * 90);
     await this.del(`user_session:${userId}`);
     this.announceRevocation({ userId });
   }

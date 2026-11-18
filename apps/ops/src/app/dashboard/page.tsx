@@ -12,6 +12,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { opsApi } from '../../lib/api/opsClient';
+import { isActiveSosStatus } from '../../lib/opsHelpers';
 import type {
   CorporateTenantOption,
   OpsBoardResponse,
@@ -44,7 +45,7 @@ export default function OperationsOverviewPage() {
       const [boardRes, tenantsRes, alertsRes] = await Promise.all([
         opsApi.getOpsBoard({ date: todayIst(), pageSize: 200 }),
         opsApi.getTenants({ page: 1, limit: 100 }),
-        opsApi.getSosAlerts().catch(() => [] as SosAlertItem[]),
+        opsApi.getSosAlerts({ activeOnly: true }).catch(() => [] as SosAlertItem[]),
       ]);
       setBoard(boardRes);
       setTenants(tenantsRes?.items ?? []);
@@ -61,9 +62,7 @@ export default function OperationsOverviewPage() {
   }, [loadData]);
 
   const counts = board?.counts;
-  const activeAlerts = alerts.filter((alert) =>
-    ['NEW', 'ACTIVE', 'ACKNOWLEDGED', 'INVESTIGATING', 'ESCALATED'].includes(String(alert.status)),
-  );
+  const activeAlerts = alerts.filter((alert) => isActiveSosStatus(alert.status));
   const affectedRoutes = new Set([
     ...(board?.atRisk?.items.map((route) => route.id) ?? []),
     ...(board?.staleGps?.items.map((route) => route.id) ?? []),

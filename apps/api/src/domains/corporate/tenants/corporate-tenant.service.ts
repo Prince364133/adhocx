@@ -289,14 +289,21 @@ export class CorporateTenantService {
     };
   }
 
-  async listTenants(query?: { search?: string; status?: CorporateTenantStatus; page?: number; limit?: number }) {
+  async listTenants(query?: {
+    search?: string;
+    status?: CorporateTenantStatus | string;
+    page?: number;
+    limit?: number;
+    minimal?: boolean;
+  }) {
     const page = Math.max(1, query?.page || 1);
     const limit = Math.min(100, Math.max(1, query?.limit || 20));
     const skip = (page - 1) * limit;
 
     const where: any = {};
     if (query?.status) {
-      where.status = query.status;
+      const normalizedStatus = String(query.status).trim().toUpperCase();
+      where.status = normalizedStatus === 'INACTIVE' ? 'TERMINATED' : normalizedStatus;
     }
     if (query?.search) {
       const s = query.search.trim();
@@ -358,7 +365,7 @@ export class CorporateTenantService {
     const tenantIds = rawItems.map((t: any) => t.id);
     const thirtyDaysAgo = new Date(Date.now() - 30 * 86400_000);
     const liveRoutes =
-      tenantIds.length > 0 && typeof (this.db as any).corporateRoute?.findMany === 'function'
+      !query?.minimal && tenantIds.length > 0 && typeof (this.db as any).corporateRoute?.findMany === 'function'
         ? await this.db.corporateRoute.findMany({
             where: {
               tenantId: { in: tenantIds },
@@ -507,6 +514,13 @@ export class CorporateTenantService {
   async updateTenant(tenantId: string, dto: UpdateCorporateTenantDto, actorUserId?: string) {
     const tenant = await this.getTenantById(tenantId);
 
+    const normalizedStatus =
+      dto.status !== undefined
+        ? String(dto.status).trim().toUpperCase() === 'INACTIVE'
+          ? 'TERMINATED'
+          : dto.status
+        : undefined;
+
     const updated = await this.db.corporateTenant.update({
       where: { id: tenantId },
       data: {
@@ -514,7 +528,7 @@ export class CorporateTenantService {
         ...(dto.legalEntityName !== undefined ? { legalEntityName: dto.legalEntityName.trim() } : {}),
         ...this.validateTenantProfile(dto),
         ...(dto.logoUrl !== undefined ? { logoUrl: dto.logoUrl?.trim() || null } : {}),
-        status: dto.status as any,
+        ...(normalizedStatus !== undefined ? { status: normalizedStatus as any } : {}),
       },
     });
 
@@ -1281,10 +1295,39 @@ export class CorporateTenantService {
       rosterEntriesCount > 0
     ) {
       await this.db.$transaction(async (tx) => {
+        // Re-verify IN_TRANSIT inside transaction to avoid TOCTOU race while boarding
+        if (typeof (tx as any).corporateRouteStop?.count === 'function') {
+          const txInTransit = await tx.corporateRouteStop.count({
+            where: {
+              employeeId,
+              status: { in: ['PENDING', 'ARRIVED', 'BOARDED'] as any },
+              route: { status: 'IN_TRANSIT' as any },
+            },
+          });
+          if (txInTransit > 0) {
+            throw new ConflictException(
+              'Cannot delete or deactivate an employee while they are on an active IN_TRANSIT route.',
+            );
+          }
+        }
+
         await tx.corporateEmployee.update({
           where: { id: employeeId },
           data: { isActive: false },
         });
+
+        const openStops =
+          typeof (tx as any).corporateRouteStop?.findMany === 'function'
+            ? await tx.corporateRouteStop.findMany({
+                where: {
+                  employeeId,
+                  status: { in: ['PENDING', 'ARRIVED'] as any },
+                },
+                select: { id: true, routeId: true },
+              })
+            : [];
+        const affectedRouteIds = Array.from(new Set(openStops.map((s: any) => s.routeId)));
+
         await tx.corporateRouteStop.updateMany({
           where: {
             employeeId,
@@ -1292,6 +1335,23 @@ export class CorporateTenantService {
           },
           data: { status: 'CANCELLED' as any },
         });
+
+        for (const rId of affectedRouteIds) {
+          if (typeof (tx as any).corporateRouteStop?.count === 'function' && typeof (tx as any).corporateRoute?.update === 'function') {
+            const activePassengerCount = await tx.corporateRouteStop.count({
+              where: {
+                routeId: rId,
+                employeeId: { not: null },
+                status: { not: 'CANCELLED' as any },
+              },
+            });
+            await tx.corporateRoute.update({
+              where: { id: rId },
+              data: { assignedPassengerCount: activePassengerCount },
+            });
+          }
+        }
+
         await tx.corporateTransportRequest.updateMany({
           where: {
             employeeId,
@@ -1336,6 +1396,21 @@ export class CorporateTenantService {
     }
 
     await this.db.$transaction(async (tx) => {
+      if (typeof (tx as any).corporateRouteStop?.count === 'function') {
+        const txInTransit = await tx.corporateRouteStop.count({
+          where: {
+            employeeId,
+            status: { in: ['PENDING', 'ARRIVED', 'BOARDED'] as any },
+            route: { status: 'IN_TRANSIT' as any },
+          },
+        });
+        if (txInTransit > 0) {
+          throw new ConflictException(
+            'Cannot delete or deactivate an employee while they are on an active IN_TRANSIT route.',
+          );
+        }
+      }
+
       const pendingStops = await tx.corporateRouteStop.findMany({
         where: { employeeId },
         select: { routeId: true },

@@ -51,6 +51,59 @@ export class DriverEligibilityService {
       })) ?? [];
     const categoryCapacities = await this.getActiveCategoryCapacities();
 
+    // Batch-fetch committed duty routes and active overlap routes in 2 queries (eliminates 2N+1)
+    const foundDriverIds = drivers.map((d) => d.id);
+    const committedByDriver = new Map<string, any[]>();
+    const activeByDriver = new Map<string, any[]>();
+    if (foundDriverIds.length > 0 && this.db?.corporateRoute?.findMany) {
+      const routeStart = route.targetPickup1Time ? new Date(route.targetPickup1Time) : new Date();
+      const windowStart = new Date(routeStart.getTime() - 24 * 3600 * 1000);
+      const excludeRoute = route.id ? { id: { not: route.id } } : {};
+
+      try {
+        const [allCommitted, allActive] = await Promise.all([
+          this.db.corporateRoute.findMany({
+            where: {
+              driverId: { in: foundDriverIds },
+              status: { in: ['ASSIGNED', 'IN_TRANSIT', 'COMPLETED'] },
+              targetPickup1Time: { gte: windowStart, lte: routeStart },
+              ...excludeRoute,
+            },
+            select: { driverId: true, estDurationSeconds: true },
+          }),
+          this.db.corporateRoute.findMany({
+            where: {
+              driverId: { in: foundDriverIds },
+              status: { in: ['ASSIGNED', 'IN_TRANSIT'] },
+              ...excludeRoute,
+            },
+            select: {
+              id: true,
+              driverId: true,
+              direction: true,
+              targetPickup1Time: true,
+              targetOfficeArrivalTime: true,
+              estDurationSeconds: true,
+            },
+          }),
+        ]);
+        for (const r of allCommitted ?? []) {
+          if (!r?.driverId) continue;
+          const list = committedByDriver.get(r.driverId) ?? [];
+          list.push(r);
+          committedByDriver.set(r.driverId, list);
+        }
+        for (const r of allActive ?? []) {
+          if (!r?.driverId) continue;
+          const list = activeByDriver.get(r.driverId) ?? [];
+          list.push(r);
+          activeByDriver.set(r.driverId, list);
+        }
+      } catch {
+        // Leave maps empty on query error (matches per-driver graceful fallback)
+      }
+    }
+
     const eligibleDriverIds: string[] = [];
     const driverVehicleMap = new Map<string, string>();
     const rejectionReasons = new Map<string, DriverIneligibilityReason>();
@@ -58,7 +111,10 @@ export class DriverEligibilityService {
 
     for (const driver of drivers) {
       found.add(driver.id);
-      const res = await this.evaluateDriverRecord(driver, route, categoryCapacities);
+      const res = await this.evaluateDriverRecord(driver, route, categoryCapacities, {
+        committedRoutes: committedByDriver.get(driver.id) ?? [],
+        activeRoutes: activeByDriver.get(driver.id) ?? [],
+      });
       if (res.isEligible && res.matchedVehicleId) {
         eligibleDriverIds.push(driver.id);
         driverVehicleMap.set(driver.id, res.matchedVehicleId);
@@ -81,6 +137,7 @@ export class DriverEligibilityService {
     driver: any,
     route: any,
     categoryCapacities: Map<string, number>,
+    prefetched?: { committedRoutes?: any[]; activeRoutes?: any[] },
   ): Promise<DriverEligibilityResult> {
     const driverId = driver.id;
 
@@ -144,7 +201,7 @@ export class DriverEligibilityService {
     }
 
     // 5. 24-Hour Duty Hour Limit Enforcement (PRD ALLOC-06, ADM-07: max 12h in rolling 24h)
-    const dutyCheck = await this.evaluateDutyHours(driverId, route);
+    const dutyCheck = await this.evaluateDutyHours(driverId, route, prefetched?.committedRoutes);
     if (!dutyCheck.allowed) {
       return {
         driverId,
@@ -155,7 +212,7 @@ export class DriverEligibilityService {
     }
 
     // 6. Overlap & Turnaround Check (PRD ALLOC-01: minimum 30-min turnaround between corporate duties)
-    const overlapCheck = await this.evaluateTurnaroundOverlap(driverId, route);
+    const overlapCheck = await this.evaluateTurnaroundOverlap(driverId, route, prefetched?.activeRoutes);
     if (!overlapCheck.allowed) {
       return {
         driverId,
@@ -207,26 +264,31 @@ export class DriverEligibilityService {
   private async evaluateDutyHours(
     driverId: string,
     route: any,
+    prefetchedCommittedRoutes?: any[],
   ): Promise<{ allowed: boolean; totalHoursLast24h: number }> {
     const routeStart = route.targetPickup1Time ? new Date(route.targetPickup1Time) : new Date();
     const windowStart = new Date(routeStart.getTime() - 24 * 3600 * 1000);
     const thisRouteDurationSec = Number(route.estDurationSeconds) || 5400;
 
     let committedRoutes: any[] = [];
-    try {
-      if (this.db?.corporateRoute?.findMany) {
-        committedRoutes = (await this.db.corporateRoute.findMany({
-          where: {
-            driverId: { in: [driverId] },
-            status: { in: ['ASSIGNED', 'IN_TRANSIT', 'COMPLETED'] },
-            targetPickup1Time: { gte: windowStart, lte: routeStart },
-            ...(route.id ? { id: { not: route.id } } : {}),
-          },
-          select: { estDurationSeconds: true },
-        })) ?? [];
+    if (prefetchedCommittedRoutes !== undefined) {
+      committedRoutes = prefetchedCommittedRoutes;
+    } else {
+      try {
+        if (this.db?.corporateRoute?.findMany) {
+          committedRoutes = (await this.db.corporateRoute.findMany({
+            where: {
+              driverId: { in: [driverId] },
+              status: { in: ['ASSIGNED', 'IN_TRANSIT', 'COMPLETED'] },
+              targetPickup1Time: { gte: windowStart, lte: routeStart },
+              ...(route.id ? { id: { not: route.id } } : {}),
+            },
+            select: { estDurationSeconds: true },
+          })) ?? [];
+        }
+      } catch {
+        committedRoutes = [];
       }
-    } catch {
-      committedRoutes = [];
     }
 
     const existingDurationSec = committedRoutes.reduce(
@@ -246,30 +308,35 @@ export class DriverEligibilityService {
   private async evaluateTurnaroundOverlap(
     driverId: string,
     route: any,
+    prefetchedActiveRoutes?: any[],
   ): Promise<{ allowed: boolean; conflictingRouteId?: string }> {
     const turnaroundMs = CORPORATE_DRIVER_TURNAROUND_MINUTES * 60_000;
     const targetWindow = corporateRouteBusyWindow(route);
 
     let activeRoutes: any[] = [];
-    try {
-      if (this.db?.corporateRoute?.findMany) {
-        activeRoutes = (await this.db.corporateRoute.findMany({
-          where: {
-            driverId: { in: [driverId] },
-            status: { in: ['ASSIGNED', 'IN_TRANSIT'] },
-            ...(route.id ? { id: { not: route.id } } : {}),
-          },
-          select: {
-            id: true,
-            direction: true,
-            targetPickup1Time: true,
-            targetOfficeArrivalTime: true,
-            estDurationSeconds: true,
-          },
-        })) ?? [];
+    if (prefetchedActiveRoutes !== undefined) {
+      activeRoutes = prefetchedActiveRoutes;
+    } else {
+      try {
+        if (this.db?.corporateRoute?.findMany) {
+          activeRoutes = (await this.db.corporateRoute.findMany({
+            where: {
+              driverId: { in: [driverId] },
+              status: { in: ['ASSIGNED', 'IN_TRANSIT'] },
+              ...(route.id ? { id: { not: route.id } } : {}),
+            },
+            select: {
+              id: true,
+              direction: true,
+              targetPickup1Time: true,
+              targetOfficeArrivalTime: true,
+              estDurationSeconds: true,
+            },
+          })) ?? [];
+        }
+      } catch {
+        activeRoutes = [];
       }
-    } catch {
-      activeRoutes = [];
     }
 
     for (const r of activeRoutes) {

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { opsApi } from '../../../lib/api/opsClient';
 import { SosAlertItem } from '../../../lib/api/opsTypes';
 import {
@@ -25,29 +25,55 @@ export default function SosEmergencyCockpitPage() {
   const [resolveNotes, setResolveNotes] = useState<Record<string, string>>({});
   const [loadError, setLoadError] = useState('');
   const [actionError, setActionError] = useState('');
+  const inFlightRef = useRef(false);
+  const requestSeqRef = useRef(0);
 
-  useEffect(() => {
-    void loadAlerts();
-    const interval = setInterval(() => void loadAlerts(), 6000); // 6s poll
-    return () => clearInterval(interval);
-  }, []);
-
-  async function loadAlerts() {
+  const loadAlerts = useCallback(async (force = false) => {
+    if (!force && inFlightRef.current) return;
+    inFlightRef.current = true;
+    const reqId = ++requestSeqRef.current;
     try {
-      const data = await opsApi.getSosAlerts();
+      const data = await opsApi.getSosAlerts({ limit: 100 });
+      if (reqId !== requestSeqRef.current) return;
       setAlerts(Array.isArray(data) ? data : []);
       setLoadError('');
     } catch (error) {
+      if (reqId !== requestSeqRef.current) return;
       setLoadError(error instanceof Error ? error.message : 'Failed to load SOS alerts.');
     } finally {
-      setLoading(false);
+      if (reqId === requestSeqRef.current) {
+        inFlightRef.current = false;
+        setLoading(false);
+      }
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    void loadAlerts(true);
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      void loadAlerts(false);
+    }, 6000); // 6s poll (paused when tab is hidden)
+    const handleVisibilityChange = () => {
+      if (typeof document !== 'undefined' && !document.hidden) {
+        void loadAlerts(false);
+      }
+    };
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    }
+    return () => {
+      clearInterval(interval);
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
+    };
+  }, [loadAlerts]);
 
   async function handleRefresh() {
     setRefreshing(true);
     try {
-      await loadAlerts();
+      await loadAlerts(true);
     } finally {
       setRefreshing(false);
     }
@@ -58,7 +84,7 @@ export default function SosEmergencyCockpitPage() {
     setActionError('');
     try {
       await opsApi.acknowledgeSosAlert(id);
-      await loadAlerts();
+      await loadAlerts(true);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'Failed to acknowledge SOS alert.');
     } finally {
@@ -71,7 +97,7 @@ export default function SosEmergencyCockpitPage() {
     setActionError('');
     try {
       await opsApi.investigateSosAlert(id);
-      await loadAlerts();
+      await loadAlerts(true);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'Failed to mark SOS alert as investigating.');
     } finally {
@@ -85,7 +111,7 @@ export default function SosEmergencyCockpitPage() {
     setActionError('');
     try {
       await opsApi.resolveSosAlert(id, notes);
-      await loadAlerts();
+      await loadAlerts(true);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'Failed to resolve SOS alert.');
     } finally {
@@ -98,7 +124,7 @@ export default function SosEmergencyCockpitPage() {
     setActionError('');
     try {
       await opsApi.escalateSosAlert(id);
-      await loadAlerts();
+      await loadAlerts(true);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'Failed to escalate SOS alert.');
     } finally {
