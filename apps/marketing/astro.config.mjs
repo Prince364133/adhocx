@@ -12,6 +12,8 @@ export default defineConfig({
     }),
   ],
   output: 'static',
+  trailingSlash: 'never',
+  build: { format: 'file' },
   outDir: './dist',
   ...(process.env.VERCEL ? { adapter: vercel() } : {}),
 });
