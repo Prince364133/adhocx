@@ -947,7 +947,7 @@ export class AuthService implements OnModuleInit {
    * Google & Apple Social Auth (Pre-Verified Identity, Skips OTP)
    */
   async socialAuth(dto: SocialAuthDto): Promise<AuthResponseDto> {
-    let email = dto.email.trim().toLowerCase();
+    let email: string;
     let fullName = dto.fullName;
     const provider = dto.provider;
 

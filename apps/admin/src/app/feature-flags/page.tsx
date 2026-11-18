@@ -119,7 +119,7 @@ export default function FeatureFlagsPage() {
         if (f.key !== flag.key) return f;
         const currentMeta = (f.metadata && typeof f.metadata === "object") ? { ...f.metadata } : {};
         const nextMeta = { ...currentMeta };
-        let nextIsEnabled = f.isEnabled;
+        let nextIsEnabled: boolean;
 
         if (platform === "android") {
           nextMeta.android = targetState;

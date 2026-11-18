@@ -3,7 +3,6 @@
  * shared or production database. They must refuse to run unless the operator names that host.
  * (The guard is tested in isolation; no script is executed.)
  */
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { requireConfirmedDatabase, requireEnv } = require('../scripts/_db-guard');
 
 describe('scripts/_db-guard', () => {
