@@ -90,6 +90,7 @@ import {
   FeatureFlagItem,
   CreateFeatureFlagPayload,
   UpdateFeatureFlagPayload,
+  AnalyticsTrendsData,
 } from "./types";
 
 export function getApiBaseUrl(): string {
@@ -1198,6 +1199,19 @@ export const adminApi = {
 
   getOperationalReports: () =>
     apiClient<OperationalReportData>("/admin/reports/analytics"),
+
+  getAnalyticsTrends: (params?: {
+    range?: string;
+    startDate?: string;
+    endDate?: string;
+  }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.range) searchParams.append("range", params.range);
+    if (params?.startDate) searchParams.append("startDate", params.startDate);
+    if (params?.endDate) searchParams.append("endDate", params.endDate);
+    const query = searchParams.toString() ? `?${searchParams.toString()}` : "";
+    return apiClient<AnalyticsTrendsData>(`/admin/reports/analytics-trends${query}`);
+  },
 
   // Platform Finance, Revenue & Payout Operations
   getFinanceDashboard: (params?: {

@@ -69,8 +69,8 @@ const formatCurrency = (amount: number) =>
 
 /**
  * Computes performance aggregates and time-series data for a driver
- * Prioritizes actual trip records from the DB and complements deterministically
- * to ensure all tabs and charts render interactive data points smoothly.
+ * Derived strictly from actual trip records and wallet records in the database.
+ * If no data exists, zeroes are returned without any mock, seed, or fallback numbers.
  */
 function computeDriverPerformance(driver: DriverDetail, selectedYear: number) {
   const actualTrips = Array.isArray(driver.trips) ? driver.trips : [];
@@ -90,41 +90,16 @@ function computeDriverPerformance(driver: DriverDetail, selectedYear: number) {
     );
 
   const totalOrders = Math.max(dbTotalTrips, actualTrips.length);
-  const acceptanceRate = driver.acceptanceRate ?? 100;
-  const completedOrders =
-    totalOrders > 0
-      ? dbCompleted > 0
-        ? dbCompleted
-        : Math.round(totalOrders * (acceptanceRate / 100))
-      : 0;
-  const cancelledOrders =
-    totalOrders > 0
-      ? dbCancelled > 0
-        ? dbCancelled
-        : Math.max(0, totalOrders - completedOrders)
-      : 0;
+  const completedOrders = dbCompleted;
+  const cancelledOrders = dbCancelled;
 
   const rawWallet = Number(driver.walletBalance || 0);
-  const totalEarnings =
-    dbTotalRevenue > 0
-      ? dbTotalRevenue
-      : rawWallet > 0
-        ? rawWallet
-        : completedOrders > 0
-          ? completedOrders * 420
-          : 0;
+  const totalEarnings = dbTotalRevenue > 0 ? dbTotalRevenue : rawWallet;
 
-  const registeredAt = driver.createdAt
-    ? new Date(driver.createdAt)
-    : new Date(Date.now() - 90 * 86400000);
-  const daysSinceReg = Math.max(
-    1,
-    Math.floor((Date.now() - registeredAt.getTime()) / 86400000),
-  );
-  const activeDays =
-    totalOrders > 0
-      ? Math.min(daysSinceReg, Math.max(1, Math.round(totalOrders * 0.45)))
-      : 0;
+  const uniqueDaysOverall = new Set(
+    actualTrips.map((t) => new Date(t.createdAt).toDateString()),
+  ).size;
+  const activeDays = uniqueDaysOverall;
 
   // Monthly breakdown for selectedYear
   const months = [
@@ -176,34 +151,6 @@ function computeDriverPerformance(driver: DriverDetail, selectedYear: number) {
       };
     }
 
-    if (totalOrders > 0) {
-      const seed =
-        (driver.id.charCodeAt(0) || 1) + idx * 7 + (selectedYear % 10);
-      const weight = ((seed % 9) + 4) / 100;
-      const mOrders = Math.max(0, Math.round(totalOrders * weight));
-      const mCompleted = Math.max(
-        0,
-        Math.round(mOrders * (acceptanceRate / 100)),
-      );
-      const mCancelled = Math.max(0, mOrders - mCompleted);
-      const mEarnings = Math.round(totalEarnings * weight);
-      const mActiveDays = Math.min(
-        26,
-        Math.max(mCompleted > 0 ? 1 : 0, Math.round(mOrders * 0.42)),
-      );
-      return {
-        month: `${monthName} ${selectedYear}`,
-        monthShort: monthName,
-        monthIndex: idx,
-        year: selectedYear,
-        totalOrders: mOrders,
-        completedOrders: mCompleted,
-        cancelledOrders: mCancelled,
-        earnings: mEarnings,
-        activeDays: mActiveDays,
-      };
-    }
-
     return {
       month: `${monthName} ${selectedYear}`,
       monthShort: monthName,
@@ -243,87 +190,59 @@ function computeDriverPerformance(driver: DriverDetail, selectedYear: number) {
       return tripDate === dateStr;
     });
 
-    if (tripsToday.length > 0) {
-      const completed = tripsToday.filter(
-        (t) => t.status === "COMPLETED",
-      ).length;
-      const cancelled = tripsToday.filter(
-        (t) => t.status === "CANCELLED",
-      ).length;
-      const rev = tripsToday
-        .filter((t) => t.status === "COMPLETED")
-        .reduce(
-          (sum, t) => sum + Number(t.totalDriverEarnings || t.driverRate || 0),
-          0,
-        );
-      dailyData.push({
-        date: formattedDate,
-        day: dayName,
-        totalOrders: tripsToday.length,
-        completedOrders: completed,
-        cancelledOrders: cancelled,
-        earnings: rev,
-      });
-    } else if (totalOrders > 0) {
-      const daySeed = (driver.id.charCodeAt(i % driver.id.length) || 1) + i * 3;
-      const isActiveDay = daySeed % 7 < 5;
-      const dOrders = isActiveDay ? (daySeed % 4) + 1 : 0;
-      const dCompleted =
-        dOrders > 0
-          ? dOrders > 1 && daySeed % 10 === 0
-            ? dOrders - 1
-            : dOrders
-          : 0;
-      const dCancelled = dOrders - dCompleted;
-      const dEarnings = dCompleted * (380 + (daySeed % 180));
-      dailyData.push({
-        date: formattedDate,
-        day: dayName,
-        totalOrders: dOrders,
-        completedOrders: dCompleted,
-        cancelledOrders: dCancelled,
-        earnings: dEarnings,
-      });
-    } else {
-      dailyData.push({
-        date: formattedDate,
-        day: dayName,
-        totalOrders: 0,
-        completedOrders: 0,
-        cancelledOrders: 0,
-        earnings: 0,
-      });
-    }
+    const completed = tripsToday.filter(
+      (t) => t.status === "COMPLETED",
+    ).length;
+    const cancelled = tripsToday.filter(
+      (t) => t.status === "CANCELLED",
+    ).length;
+    const rev = tripsToday
+      .filter((t) => t.status === "COMPLETED")
+      .reduce(
+        (sum, t) => sum + Number(t.totalDriverEarnings || t.driverRate || 0),
+        0,
+      );
+
+    dailyData.push({
+      date: formattedDate,
+      day: dayName,
+      totalOrders: tripsToday.length,
+      completedOrders: completed,
+      cancelledOrders: cancelled,
+      earnings: rev,
+    });
   }
 
   // Yearly breakdown
-  const yearlyData = [2026, 2025, 2024].map((yr) => {
-    if (yr === selectedYear) {
-      const yOrders = monthData.reduce((s, m) => s + m.totalOrders, 0);
-      const yCompleted = monthData.reduce((s, m) => s + m.completedOrders, 0);
-      const yCancelled = monthData.reduce((s, m) => s + m.cancelledOrders, 0);
-      const yEarnings = monthData.reduce((s, m) => s + m.earnings, 0);
-      const yActive = Math.min(
-        310,
-        monthData.reduce((s, m) => s + m.activeDays, 0),
+  const currentYear = new Date().getFullYear();
+  const yearlyData = [currentYear, currentYear - 1, currentYear - 2].map((yr) => {
+    const tripsThisYear = actualTrips.filter((t) => {
+      const d = new Date(t.createdAt);
+      return d.getFullYear() === yr;
+    });
+    const completed = tripsThisYear.filter(
+      (t) => t.status === "COMPLETED",
+    ).length;
+    const cancelled = tripsThisYear.filter(
+      (t) => t.status === "CANCELLED",
+    ).length;
+    const rev = tripsThisYear
+      .filter((t) => t.status === "COMPLETED")
+      .reduce(
+        (sum, t) => sum + Number(t.totalDriverEarnings || t.driverRate || 0),
+        0,
       );
-      return {
-        year: yr,
-        totalOrders: yOrders || totalOrders,
-        completedOrders: yCompleted || completedOrders,
-        cancelledOrders: yCancelled || cancelledOrders,
-        earnings: yEarnings || totalEarnings,
-        activeDays: yActive || activeDays,
-      };
-    }
-    const ratio = yr === 2025 ? 0.72 : 0.38;
+    const uniqueDays = new Set(
+      tripsThisYear.map((t) => new Date(t.createdAt).toDateString()),
+    ).size;
+
     return {
       year: yr,
-      totalOrders: Math.round(totalOrders * ratio),
-      completedOrders: Math.round(completedOrders * ratio),
-      cancelledOrders: Math.round(cancelledOrders * ratio),
-      earnings: Math.round(totalEarnings * ratio),
-      activeDays: Math.round(activeDays * ratio),
+      totalOrders: tripsThisYear.length,
+      completedOrders: completed,
+      cancelledOrders: cancelled,
+      earnings: rev,
+      activeDays: uniqueDays,
     };
   });
 
@@ -1989,6 +1908,24 @@ export default function DriversPage() {
                   </>
                 )}
               </svg>
+
+              {/* Empty state overlay when no monthly activity exists */}
+              {chartMonths.every((m) => m.earnings === 0 && m.activeDays === 0) && (
+                <div
+                  className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center p-4 rounded-lg"
+                  style={{
+                    background: "rgba(var(--bg-surface-rgb, 255, 255, 255), 0.7)",
+                    backdropFilter: "blur(1.5px)",
+                  }}
+                >
+                  <span className="text-sm font-bold text-primary mb-1">
+                    No Operational Activity in {selectedYear}
+                  </span>
+                  <span className="text-caption text-muted max-w-xs">
+                    Monthly revenue and active day trajectories will update automatically when trips are completed.
+                  </span>
+                </div>
+              )}
 
               {/* Floating Tooltip Card */}
               {hoveredGraphPoint !== null && chartMonths[hoveredGraphPoint] && (

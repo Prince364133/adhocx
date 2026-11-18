@@ -264,6 +264,7 @@ export interface DriverDetail extends DriverListItem {
   tripsCount?: number;
   trips?: any[];
   vehicles?: any[];
+  corporateRoutes?: any[];
 }
 
 export interface VendorListItem {
@@ -1849,3 +1850,109 @@ export interface UpdateFeatureFlagPayload {
   isEnabled?: boolean;
   metadata?: Record<string, any>;
 }
+
+export interface AnalyticsTrendsData {
+  range: string;
+  startDate: string;
+  endDate: string;
+  totals: {
+    totalBookings: number;
+    completedBookings: number;
+    cancelledBookings: number;
+    totalRevenue: number;
+    totalDriverPayouts: number;
+    totalPlatformMargin: number;
+    marginPercentage: number;
+    totalActiveRequirements: number;
+    totalRequirements: number;
+  };
+  bookingTrends: {
+    daily: Array<{
+      date: string;
+      label: string;
+      count: number;
+      completedCount: number;
+      cancelledCount: number;
+    }>;
+    weekly: Array<{
+      weekStart: string;
+      label: string;
+      count: number;
+      completedCount: number;
+      cancelledCount: number;
+      revenue: number;
+      driverPayouts: number;
+      margin: number;
+      marginPercentage: number;
+    }>;
+    monthly: Array<{
+      month: string;
+      label: string;
+      count: number;
+      completedCount: number;
+      cancelledCount: number;
+      revenue: number;
+      driverPayouts: number;
+      margin: number;
+      marginPercentage: number;
+    }>;
+  };
+  financialTrends: {
+    daily: Array<{
+      date: string;
+      label: string;
+      revenue: number;
+      driverPayouts: number;
+      margin: number;
+      marginPercentage: number;
+    }>;
+    weekly: Array<{
+      weekStart: string;
+      label: string;
+      revenue: number;
+      driverPayouts: number;
+      margin: number;
+      marginPercentage: number;
+    }>;
+    monthly: Array<{
+      month: string;
+      label: string;
+      revenue: number;
+      driverPayouts: number;
+      margin: number;
+      marginPercentage: number;
+    }>;
+  };
+  bookingStatusDistribution: Array<{
+    status: string;
+    label: string;
+    count: number;
+    percentage: number;
+    color: string;
+  }>;
+  activeRequirementsByStatus: Array<{
+    status: string;
+    label: string;
+    count: number;
+    percentage: number;
+  }>;
+  allRequirementsByStatus: Array<{
+    status: string;
+    label: string;
+    count: number;
+    percentage: number;
+  }>;
+  userGrowth: {
+    months: Array<{ key: string; label: string }>;
+    series: Array<{
+      name: string;
+      key: string;
+      color: string;
+      values: number[];
+      current: number;
+      previous: number;
+      growthRate: number | null;
+    }>;
+  };
+}
+
