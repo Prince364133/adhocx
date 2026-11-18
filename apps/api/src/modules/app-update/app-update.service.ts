@@ -10,12 +10,12 @@ export class AppUpdateService {
     const latestVersion =
       this.configService.get<string>('MOBILE_LATEST_VERSION_NAME') ||
       process.env.MOBILE_LATEST_VERSION_NAME ||
-      '1.0.42';
+      '1.0.43';
 
     const latestVersionCode = parseInt(
       this.configService.get<string>('MOBILE_LATEST_VERSION_CODE') ||
         process.env.MOBILE_LATEST_VERSION_CODE ||
-        '49',
+        '50',
       10,
     );
 

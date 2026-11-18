@@ -124,8 +124,8 @@ class AppUpdateService extends ChangeNotifier {
       // 1. Resolve installed package version from Android/iOS platform
       await _resolveInstalledVersion();
 
-      final currentCode = _installedVersionCode ?? 49;
-      final currentName = _installedVersionName ?? '1.0.42';
+      final currentCode = _installedVersionCode ?? 50;
+      final currentName = _installedVersionName ?? '1.0.43';
 
       debugPrint('🔍 [AppUpdateService] Checking updates. Installed: v$currentName ($currentCode)...');
 
@@ -481,11 +481,11 @@ class AppUpdateService extends ChangeNotifier {
     try {
       final packageInfo = await PackageInfo.fromPlatform();
       _installedVersionName = packageInfo.version;
-      _installedVersionCode = int.tryParse(packageInfo.buildNumber) ?? 49;
+      _installedVersionCode = int.tryParse(packageInfo.buildNumber) ?? 50;
     } catch (_) {
       // Fallback defaults matching pubspec.yaml
-      _installedVersionName ??= '1.0.42';
-      _installedVersionCode ??= 49;
+      _installedVersionName ??= '1.0.43';
+      _installedVersionCode ??= 50;
     }
   }
 }
