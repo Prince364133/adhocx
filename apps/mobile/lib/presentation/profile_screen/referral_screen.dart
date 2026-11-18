@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../routes/app_routes.dart';
+import '../../services/auth_service.dart';
 import '../../services/driver_service.dart';
 import '../../services/language_service.dart';
 import '../../theme/app_colors.dart';
@@ -40,10 +41,30 @@ class _ReferralScreenState extends State<ReferralScreen> {
           _isLoading = false;
         });
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
-        setState(() => _isLoading = false);
-        Fluttertoast.showToast(msg: 'Failed to load referral details');
+        setState(() {
+          _isLoading = false;
+          if (_dashboardData == null) {
+            final authUser = AuthService.instance.currentUser;
+            final clean = (authUser?.phone ?? '').replaceAll(RegExp(r'\D'), '');
+            final p10 = clean.length >= 10 ? clean.substring(clean.length - 10) : clean;
+            _dashboardData = {
+              'phone': authUser?.phone,
+              'referralCode': p10,
+              'vaultLockedRupees': 0,
+              'claimableRupees': 0,
+              'claimedRupees': 0,
+              'completedRides': 0,
+              'milestoneRides': 100,
+              'milestoneReached': false,
+              'ridesRemainingToMilestone': 100,
+              'totalReferrals': 0,
+              'verifiedReferrals': 0,
+              'referees': [],
+            };
+          }
+        });
       }
     }
   }
@@ -148,7 +169,9 @@ class _ReferralScreenState extends State<ReferralScreen> {
   }
 
   Future<void> _shareOnWhatsApp(String code, String phone) async {
-    final cleanDigits = (phone.isNotEmpty ? phone : code).replaceAll(RegExp(r'\D'), '');
+    final authPhone = AuthService.instance.currentUser?.phone ?? '';
+    final effective = phone.isNotEmpty ? phone : (authPhone.isNotEmpty ? authPhone : code);
+    final cleanDigits = effective.replaceAll(RegExp(r'\D'), '');
     final sharePhone = cleanDigits.length >= 10 ? cleanDigits.substring(cleanDigits.length - 10) : (code.isNotEmpty ? code : cleanDigits);
 
     final message =
@@ -213,11 +236,14 @@ class _ReferralScreenState extends State<ReferralScreen> {
   }
 
   Widget _buildShareCodeCard(bool isDark) {
-    final rawPhone = _dashboardData?['phone']?.toString() ?? '';
+    final authPhone = AuthService.instance.currentUser?.phone ?? '';
+    final rawPhone = (_dashboardData?['phone']?.toString() ?? '').isNotEmpty
+        ? _dashboardData!['phone'].toString()
+        : authPhone;
     final rawCode = _dashboardData?['referralCode']?.toString() ?? '';
     final cleanPhone = rawPhone.replaceAll(RegExp(r'\D'), '');
     final phone10 = cleanPhone.length >= 10 ? cleanPhone.substring(cleanPhone.length - 10) : cleanPhone;
-    final displayCode = phone10.isNotEmpty ? phone10 : (rawCode.isNotEmpty ? rawCode : '');
+    final displayCode = phone10.isNotEmpty ? phone10 : (rawCode.isNotEmpty ? rawCode : cleanPhone);
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -292,7 +318,11 @@ class _ReferralScreenState extends State<ReferralScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      displayCode.isNotEmpty ? displayCode : (rawPhone.isNotEmpty ? rawPhone : 'Loading...'),
+                      displayCode.isNotEmpty
+                          ? displayCode
+                          : (rawPhone.isNotEmpty
+                              ? rawPhone
+                              : (authPhone.isNotEmpty ? authPhone : 'Loading...')),
                       style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w800,

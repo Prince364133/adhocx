@@ -17,6 +17,8 @@ import {
   ValidateReferralResponseDto,
   DriverReferralDashboardDto,
   ClaimReferralResponseDto,
+  VerificationStatus,
+  DriverAvailability,
 } from '@adhocx/contracts';
 
 export const REFERRAL_MILESTONE_RIDES = 100;
@@ -62,24 +64,42 @@ export class ReferralsService {
    * By default, the driver's registered 10-digit phone number is used as their primary referral code.
    */
   async ensureDriverReferralCode(driverId: string): Promise<string> {
-    const driver = await this.db.driver.findUnique({
-      where: { id: driverId },
-      select: { id: true, referralCode: true, phone: true },
+    const driver = await this.db.driver.findFirst({
+      where: {
+        OR: [
+          { id: driverId },
+          { userId: driverId },
+        ],
+      },
+      select: {
+        id: true,
+        referralCode: true,
+        phone: true,
+        user: { select: { phone: true } },
+      },
     });
 
     if (!driver) {
       throw new NotFoundException('Driver not found');
     }
 
-    const cleanDigits = (driver.phone || '').replace(/\D/g, '');
+    const rawPhone = driver.phone || driver.user?.phone || '';
+    const cleanDigits = rawPhone.replace(/\D/g, '');
     const phone10 = cleanDigits.length >= 10 ? cleanDigits.slice(-10) : cleanDigits;
 
     if (phone10) {
-      if (driver.referralCode !== phone10) {
-        await this.db.driver.update({
-          where: { id: driverId },
-          data: { referralCode: phone10 },
-        });
+      try {
+        if (driver.referralCode !== phone10) {
+          await this.db.driver.update({
+            where: { id: driver.id },
+            data: {
+              referralCode: phone10,
+              ...(driver.phone ? {} : (driver.user?.phone ? { phone: driver.user.phone } : {})),
+            },
+          });
+        }
+      } catch (err: any) {
+        this.logger.warn(`Could not sync referral code / phone for driver ${driver.id}: ${err?.message}`);
       }
       return phone10;
     }
@@ -96,11 +116,13 @@ export class ReferralsService {
         select: { id: true },
       });
       if (!existing) {
-        await this.db.driver.update({
-          where: { id: driverId },
-          data: { referralCode: candidateCode },
-        });
-        this.logger.log(`Assigned referral code ${candidateCode} to driver ${driverId}`);
+        try {
+          await this.db.driver.update({
+            where: { id: driver.id },
+            data: { referralCode: candidateCode },
+          });
+          this.logger.log(`Assigned referral code ${candidateCode} to driver ${driver.id}`);
+        } catch (_) {}
         return candidateCode;
       }
     }
@@ -257,9 +279,15 @@ export class ReferralsService {
    * Fetch driver referral dashboard stats, 100-ride milestone, and list of referees.
    */
   async getDashboard(userId: string): Promise<DriverReferralDashboardDto> {
-    const driver = await this.db.driver.findUnique({
-      where: { userId },
+    let driver: any = await this.db.driver.findFirst({
+      where: {
+        OR: [
+          { userId },
+          { id: userId },
+        ],
+      },
       include: {
+        user: true,
         referralsMade: {
           include: {
             refereeDriver: {
@@ -278,10 +306,39 @@ export class ReferralsService {
     });
 
     if (!driver) {
+      const user = await this.db.user.findUnique({ where: { id: userId } });
+      if (user) {
+        try {
+          driver = await this.db.driver.create({
+            data: {
+              userId: user.id,
+              fullName: user.fullName || 'Driver Partner',
+              phone: user.phone || undefined,
+              verificationStatus: VerificationStatus.PENDING,
+              availabilityStatus: DriverAvailability.OFFLINE,
+            },
+            include: {
+              user: true,
+              referralsMade: true,
+            },
+          });
+        } catch (_) {
+          driver = await this.db.driver.findFirst({
+            where: {
+              OR: [{ userId: user.id }, { phone: user.phone || undefined }],
+            },
+            include: { user: true, referralsMade: true },
+          });
+        }
+      }
+    }
+
+    if (!driver) {
       throw new NotFoundException('Driver profile not found');
     }
 
     const referralCode = await this.ensureDriverReferralCode(driver.id);
+    const effectivePhone = driver.phone || driver.user?.phone || undefined;
 
     // Compute effective completed trips
     const completedTripsCount = await this.db.trip.count({
@@ -299,7 +356,8 @@ export class ReferralsService {
     let claimedRupees = 0;
     let verifiedCount = 0;
 
-    const referees = driver.referralsMade.map((ref) => {
+    const referralsMade = (driver.referralsMade || []) as any[];
+    const referees = referralsMade.map((ref: any) => {
       const rewardRs = Math.round(ref.rewardPaise / 100);
       const isVerified =
         ref.status === ReferralStatus.UNLOCKED_READY_TO_CLAIM ||
@@ -342,7 +400,7 @@ export class ReferralsService {
 
     return {
       referralCode,
-      phone: driver.phone || undefined,
+      phone: effectivePhone,
       totalReferrals: driver.referralsMade.length,
       verifiedReferrals: verifiedCount,
       vaultLockedRupees,
