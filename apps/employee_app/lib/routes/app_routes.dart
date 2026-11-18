@@ -283,10 +283,20 @@ class AppRoutes {
           builder: (context, state) => const ChangeRequestDetailsScreen()),
       GoRoute(
           path: changeSubmitted,
-          builder: (context, state) => const ChangeRequestSubmittedScreen()),
+          builder: (context, state) {
+            final extra = state.extra;
+            return ChangeRequestSubmittedScreen(
+              request: extra is Map<String, dynamic> ? extra : null,
+            );
+          }),
       GoRoute(
           path: requestPending,
-          builder: (context, state) => const RequestStatusPendingScreen()),
+          builder: (context, state) {
+            final extra = state.extra;
+            return RequestStatusPendingScreen(
+              request: extra is Map<String, dynamic> ? extra : null,
+            );
+          }),
       GoRoute(
           path: requestApproved,
           builder: (context, state) => const RequestStatusApprovedScreen()),
