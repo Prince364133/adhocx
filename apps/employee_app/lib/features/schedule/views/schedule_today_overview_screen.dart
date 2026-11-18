@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
-import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
+import 'package:adhocx_employee/state/employee_auth_provider.dart';
+import 'package:adhocx_employee/state/employee_data_provider.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_radius.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
@@ -11,173 +12,255 @@ import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
 import '../widgets/schedule_widgets.dart';
 
-/// Schedule tab: today's pickup + drop on the brand card.
-class ScheduleTodayOverviewScreen extends StatelessWidget {
+/// Schedule tab: today's pickup + drop on the brand card backed by live API.
+class ScheduleTodayOverviewScreen extends StatefulWidget {
   const ScheduleTodayOverviewScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return TripDataBuilder(
-      load: () async => {
-        'profile': await MockDataService.getEmployeeProfile(),
-        'today': await loadScheduleSection('today'),
-      },
-      builder: (context, data) {
-        final p = EmployeePalette.of(context);
-        final profile = data['profile'] as Map<String, dynamic>?;
-        final today = data['today'] as Map<String, dynamic>?;
-        final pickup = today?['pickup'] as Map<String, dynamic>?;
-        final drop = today?['drop'] as Map<String, dynamic>?;
+  State<ScheduleTodayOverviewScreen> createState() =>
+      _ScheduleTodayOverviewScreenState();
+}
 
-        return Scaffold(
-          backgroundColor: p.background,
-          body: SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.pageHorizontal,
-                vertical: AppSpacing.lg,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  EmployeeGreetingHeader(
-                    name: profile?['name'] ?? 'Ravi Kumar',
-                    unreadNotificationsCount: 1,
-                    onNotificationTap: () =>
-                        context.push(AppRoutes.notificationsCenter),
-                    onProfileTap: () => context.push(AppRoutes.profileDetails),
-                  ),
-                  const SizedBox(height: AppSpacing.xxl),
-                  Row(
-                    children: [
-                      Icon(Icons.calendar_month_rounded,
-                          color: p.accent, size: 20),
-                      const SizedBox(width: AppSpacing.sm),
-                      Expanded(
-                        child: Text(
-                          today?['date'] ?? 'Tue, 09 Dec 2026',
-                          style: AppTypography.h4(
-                            color: p.textPrimary,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                          ),
+class _ScheduleTodayOverviewScreenState
+    extends State<ScheduleTodayOverviewScreen> {
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
+  }
+
+  Future<void> _loadData({bool force = false}) async {
+    EmployeeDataProvider? data;
+    try {
+      data = context.read<EmployeeDataProvider>();
+    } catch (_) {
+      data = null;
+    }
+    if (data == null) {
+      if (mounted) setState(() => _initialized = true);
+      return;
+    }
+    final now = DateTime.now();
+    await Future.wait([
+      data.loadProfile(force: force),
+      data.loadSchedule(
+        startDate: DateTime(now.year, now.month, now.day),
+        endDate: DateTime(now.year, now.month, now.day).add(const Duration(days: 7)),
+        force: force,
+      ),
+      data.loadNotifications(force: force),
+    ]);
+    if (mounted) setState(() => _initialized = true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = EmployeePalette.of(context);
+    EmployeeDataProvider? dataProvider;
+    EmployeeAuthProvider? authProvider;
+    try {
+      dataProvider = context.watch<EmployeeDataProvider>();
+    } catch (_) {}
+    try {
+      authProvider = context.watch<EmployeeAuthProvider>();
+    } catch (_) {}
+
+    if (!_initialized && (dataProvider?.loadingSchedule ?? false)) {
+      return const EmployeeLoadingScaffold();
+    }
+
+    final now = DateTime.now();
+    final todayIso = EmployeeDataProvider.formatIsoDate(now);
+    final items = dataProvider?.scheduleItems ?? const [];
+    final todayItems = items.where((item) => item['date'] == todayIso).toList();
+
+    final name = dataProvider?.profile?['fullName']?.toString() ??
+        authProvider?.currentUser?.fullName ??
+        'Commuter';
+    final unreadCount = dataProvider?.unreadNotificationsCount ?? 0;
+
+    return Scaffold(
+      backgroundColor: p.background,
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: () => _loadData(force: true),
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.pageHorizontal,
+              vertical: AppSpacing.lg,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                EmployeeGreetingHeader(
+                  name: name.isNotEmpty ? name : 'Commuter',
+                  unreadNotificationsCount: unreadCount,
+                  onNotificationTap: () =>
+                      context.push(AppRoutes.notificationsCenter),
+                  onProfileTap: () => context.push(AppRoutes.profileDetails),
+                ),
+                const SizedBox(height: AppSpacing.xxl),
+                Row(
+                  children: [
+                    Icon(Icons.calendar_month_rounded,
+                        color: p.accent, size: 20),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        formatScheduleDayLabel(now),
+                        style: AppTypography.h4(
+                          color: p.textPrimary,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                      OutlinedButton(
-                        onPressed: () => context.push(AppRoutes.scheduleWeekly),
-                        style: OutlinedButton.styleFrom(
-                          backgroundColor: p.surface,
-                          side: BorderSide(color: p.border, width: 1.2),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: AppRadius.borderMd,
-                          ),
-                          visualDensity: VisualDensity.compact,
+                    ),
+                    OutlinedButton(
+                      onPressed: () => context.push(AppRoutes.scheduleWeekly),
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor: p.surface,
+                        side: BorderSide(color: p.border, width: 1.2),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: AppRadius.borderMd,
                         ),
-                        child: Text(
-                          'Weekly',
-                          style: AppTypography.caption(
-                            color: p.accent,
-                            fontWeight: FontWeight.w600,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      child: Text(
+                        'Weekly',
+                        style: AppTypography.caption(
+                          color: p.accent,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                Container(
+                  width: double.infinity,
+                  padding: AppSpacing.paddingXl,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        AppColors.primaryGradientStart,
+                        AppColors.primaryGradientEnd,
+                      ],
+                    ),
+                    borderRadius: AppRadius.borderXxl,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              "Today's Schedule",
+                              style: AppTypography.h3(color: Colors.white),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.sm + 2,
+                              vertical: AppSpacing.xs,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withAlpha(51),
+                              borderRadius: AppRadius.borderPill,
+                            ),
+                            child: Text(
+                              todayItems.isEmpty
+                                  ? 'No Rides'
+                                  : '${todayItems.length} Scheduled',
+                              style: AppTypography.micro(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      if (todayItems.isEmpty)
+                        Container(
+                          width: double.infinity,
+                          padding: AppSpacing.paddingLg,
+                          decoration: BoxDecoration(
+                            color: p.surface,
+                            borderRadius: AppRadius.borderLg,
+                          ),
+                          child: Text(
+                            items.isEmpty
+                                ? 'No scheduled commute rides for today.'
+                                : 'No rides today. You have ${items.length} upcoming ride${items.length == 1 ? '' : 's'} this week.',
+                            style: AppTypography.small(color: p.textSecondary),
+                          ),
+                        )
+                      else
+                        for (var i = 0; i < todayItems.length; i++) ...[
+                          if (i > 0) const SizedBox(height: AppSpacing.md),
+                          _buildLegFromScheduleItem(todayItems[i], tiled: true),
+                        ],
+                      const SizedBox(height: AppSpacing.xl),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 46,
+                        child: ElevatedButton(
+                          onPressed: () =>
+                              context.push(AppRoutes.scheduleDaily),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: AppColors.primaryHover,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: AppRadius.borderMd,
+                            ),
+                          ),
+                          child: Text(
+                            'View Full Schedule  →',
+                            style: AppTypography.button(
+                              color: AppColors.primaryHover,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: AppSpacing.lg),
-                  Container(
-                    width: double.infinity,
-                    padding: AppSpacing.paddingXl,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          AppColors.primaryGradientStart,
-                          AppColors.primaryGradientEnd,
-                        ],
-                      ),
-                      borderRadius: AppRadius.borderXxl,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                "Today's Schedule",
-                                style: AppTypography.h3(color: Colors.white),
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppSpacing.sm + 2,
-                                vertical: AppSpacing.xs,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withAlpha(51),
-                                borderRadius: AppRadius.borderPill,
-                              ),
-                              child: Text(
-                                'Confirmed',
-                                style: AppTypography.micro(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: AppSpacing.lg),
-                        ScheduleLegRow(
-                          isDrop: false,
-                          time: pickup?['time'] ?? '8:15 AM',
-                          route: pickup?['route'] ?? 'Home → Office',
-                          tiled: true,
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        ScheduleLegRow(
-                          isDrop: true,
-                          time: drop?['time'] ?? '6:30 PM',
-                          route: drop?['route'] ?? 'Office → Home',
-                          tiled: true,
-                        ),
-                        const SizedBox(height: AppSpacing.xl),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 46,
-                          child: ElevatedButton(
-                            onPressed: () =>
-                                context.push(AppRoutes.scheduleDaily),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: AppColors.primaryHover,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: AppRadius.borderMd,
-                              ),
-                            ),
-                            child: Text(
-                              'View Full Schedule  →',
-                              style: AppTypography.button(
-                                color: AppColors.primaryHover,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xxl),
-                ],
-              ),
+                ),
+                const SizedBox(height: AppSpacing.xxl),
+              ],
             ),
           ),
-          bottomNavigationBar: const EmployeeBottomNavBar(currentIndex: 1),
-        );
-      },
+        ),
+      ),
+      bottomNavigationBar: const EmployeeBottomNavBar(currentIndex: 1),
+    );
+  }
+
+  Widget _buildLegFromScheduleItem(
+    Map<String, dynamic> item, {
+    required bool tiled,
+  }) {
+    final dir = (item['direction'] ?? '').toString().toUpperCase();
+    final isDrop = dir == 'LOGOUT' || dir == 'DROP';
+    final time = EmployeeDataProvider.formatDisplayTime(
+      item['pickupTime']?.toString() ?? item['shiftTime']?.toString(),
+    );
+    final pickup = item['pickupAddress']?.toString() ?? 'Pickup';
+    final office = item['officeAddress']?.toString() ?? 'Office';
+    final routeText = isDrop ? '$office → $pickup' : '$pickup → $office';
+    return ScheduleLegRow(
+      isDrop: isDrop,
+      time: time.isNotEmpty ? time : 'Scheduled',
+      route: routeText,
+      tiled: tiled,
     );
   }
 }

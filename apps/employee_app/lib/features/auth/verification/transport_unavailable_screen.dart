@@ -51,7 +51,7 @@ class TransportUnavailableScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'transport-desk@company.com',
+                            'Reach out to your company HR or workplace transport coordinator to activate your profile.',
                             style: AppTypography.caption(color: p.textSecondary),
                           ),
                         ],

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import {
   Car,
   User,
@@ -25,8 +25,9 @@ function BookingDetailsContent() {
   const { tenantId } = useSession();
   const activeTenantId = tenantId;
 
+  const params = useParams();
   const searchParams = useSearchParams();
-  const bookingId = searchParams.get('id');
+  const bookingId = (Array.isArray(params?.id) ? params.id[0] : params?.id) || searchParams.get('id');
 
   const [booking, setBooking] = useState<BookingRequestItem | null>(null);
   const [loading, setLoading] = useState(true);
@@ -233,43 +234,124 @@ function BookingDetailsContent() {
             </div>
 
             {/* Progress Step Bar */}
-            <div style={{ backgroundColor: 'var(--bg-surface-muted)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div style={{ width: 22, height: 22, borderRadius: '50%', backgroundColor: 'var(--color-success-bg)', color: 'var(--color-success)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <CheckCircle2 size={14} />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>Request Logged</div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>System Processed</div>
+            {(() => {
+              const normalizedStatus = (booking.status || '').toUpperCase();
+              const isTerminated = ['CANCELLED', 'REJECTED', 'NO_SHOW', 'FAILED'].includes(normalizedStatus);
+              const isCompleted = normalizedStatus === 'COMPLETED' || normalizedStatus === 'DROPPED';
+              const isRouted =
+                isCompleted ||
+                Boolean(booking.routeStop) ||
+                ['PLANNED', 'ASSIGNED', 'ROSTERED', 'DISPATCHED', 'IN_TRANSIT', 'BOARDED', 'IN_PROGRESS'].includes(normalizedStatus);
+
+              const step1Color = isTerminated ? 'var(--color-danger)' : 'var(--color-success)';
+              const step1Bg = isTerminated ? 'var(--color-danger-bg)' : 'var(--color-success-bg)';
+              const step2Bg = isTerminated
+                ? 'var(--bg-surface)'
+                : isCompleted
+                  ? 'var(--color-success-bg)'
+                  : isRouted
+                    ? 'var(--color-blue-bg)'
+                    : 'var(--bg-surface)';
+              const step2Color = isTerminated
+                ? 'var(--text-muted)'
+                : isCompleted
+                  ? 'var(--color-success)'
+                  : isRouted
+                    ? 'var(--brand-action)'
+                    : 'var(--text-muted)';
+              const step3Bg = isCompleted ? 'var(--color-success-bg)' : 'var(--bg-surface)';
+              const step3Color = isCompleted ? 'var(--color-success)' : 'var(--text-muted)';
+
+              return (
+                <div style={{ backgroundColor: 'var(--bg-surface-muted)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ width: 22, height: 22, borderRadius: '50%', backgroundColor: step1Bg, color: step1Color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {isTerminated ? <XCircle size={14} /> : <CheckCircle2 size={14} />}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          {isTerminated ? normalizedStatus.replace('_', ' ') : 'Request Logged'}
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                          {isTerminated ? 'Closed' : 'System Processed'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        height: 2,
+                        flex: 1,
+                        backgroundColor: !isTerminated && isRouted ? 'var(--brand-action)' : 'var(--border-color)',
+                        margin: '0 12px',
+                      }}
+                    />
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div
+                        style={{
+                          width: 22,
+                          height: 22,
+                          borderRadius: '50%',
+                          backgroundColor: step2Bg,
+                          color: step2Color,
+                          border: !isRouted || isTerminated ? '1px solid var(--border-color)' : 'none',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <Car size={14} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '12px', fontWeight: 700, color: !isTerminated && isRouted ? 'var(--brand-primary)' : 'var(--text-muted)' }}>
+                          {isRouted && !isTerminated ? 'Routed' : 'Pending Route'}
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                          {isRouted && !isTerminated ? 'Vehicle Assigned' : 'Awaiting Assignment'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        height: 2,
+                        flex: 1,
+                        backgroundColor: isCompleted ? 'var(--color-success)' : 'var(--border-color)',
+                        margin: '0 12px',
+                      }}
+                    />
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div
+                        style={{
+                          width: 22,
+                          height: 22,
+                          borderRadius: '50%',
+                          backgroundColor: step3Bg,
+                          color: step3Color,
+                          border: isCompleted ? 'none' : '1px solid var(--border-color)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        {isCompleted ? <CheckCircle2 size={14} /> : <MapPin size={14} />}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '12px', fontWeight: 700, color: isCompleted ? 'var(--color-success)' : 'var(--text-primary)' }}>
+                          {officeName}
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                          {isCompleted ? 'Completed' : 'Destination'}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
-
-                <div style={{ height: 2, flex: 1, backgroundColor: 'var(--brand-action)', margin: '0 12px' }} />
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div style={{ width: 22, height: 22, borderRadius: '50%', backgroundColor: 'var(--color-blue-bg)', color: 'var(--brand-action)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Car size={14} />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--brand-primary)' }}>Routed</div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Vehicle Assigned</div>
-                  </div>
-                </div>
-
-                <div style={{ height: 2, flex: 1, backgroundColor: 'var(--border-color)', margin: '0 12px' }} />
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div style={{ width: 22, height: 22, borderRadius: '50%', backgroundColor: 'var(--bg-surface)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-color)' }}>
-                    <MapPin size={14} />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>{officeName}</div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Destination</div>
-                  </div>
-                </div>
-              </div>
-            </div>
+              );
+            })()}
           </div>
         </div>
       </div>

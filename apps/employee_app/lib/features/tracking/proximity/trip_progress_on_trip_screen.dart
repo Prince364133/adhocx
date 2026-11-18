@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
 import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
 import 'package:adhocx_employee/shared/illustrations/tracking_illustrations.dart';
@@ -7,24 +6,33 @@ import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
 
-/// Screen 7: Trip Progress (On Trip)
+/// Trip Progress (On Trip) backed by live tracking + nextTrip APIs.
 class TripProgressOnTripScreen extends StatelessWidget {
   const TripProgressOnTripScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return TripDataBuilder(
-      load: () async =>
-          (await MockDataService.getLiveTracking())['tripProgress']
-              as Map<String, dynamic>?,
-      builder: (context, data) {
+      load: () => loadLiveTripSnapshot(context),
+      builder: (context, snapshot) {
         final p = EmployeePalette.of(context);
-        final eta = data['eta'] ?? '18 min';
-        final distance = data['distance'] ?? '7.6 km';
+        final next = (snapshot['nextTrip'] as Map<String, dynamic>?) ?? const {};
+        final tracking =
+            (snapshot['tracking'] as Map<String, dynamic>?) ?? const {};
+        final etaMins = tracking['estimatedArrivalMinutes'];
+        final distMeters = tracking['distanceToPickupMeters'];
+        final officeDest = next['officeDestination'] as Map?;
+        final destName =
+            officeDest?['name']?.toString() ?? 'Destination';
+
+        final eta = etaMins != null ? '$etaMins min' : 'Updating';
+        final distance = distMeters is num
+            ? '${(distMeters / 1000).toStringAsFixed(1)} km'
+            : 'Tracking live';
 
         return Scaffold(
           backgroundColor: p.background,
-          appBar: EmployeeAppBar(title: data['title'] ?? 'Trip in Progress'),
+          appBar: const EmployeeAppBar(title: 'Trip in Progress'),
           body: SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(
@@ -46,7 +54,7 @@ class TripProgressOnTripScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          data['headline'] ?? 'En Route to Office',
+                          'En Route to $destName',
                           style: AppTypography.h3(
                             color: p.textPrimary,
                             fontWeight: FontWeight.w800,

@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:adhocx_employee/features/boarding/completion/driver_rating_prompt_service.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
-import 'package:adhocx_employee/shared/illustrations/trip_illustrations.dart';
-import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
+import 'package:adhocx_employee/shared/illustrations/trip_illustrations.dart';
+import 'package:adhocx_employee/state/employee_data_provider.dart';
+import 'package:adhocx_employee/theme/app_spacing.dart';
 
 class TripCompletedScreen extends StatefulWidget {
   final Map<String, dynamic>? tripData;
@@ -59,8 +59,23 @@ class _TripCompletedScreenState extends State<TripCompletedScreen> {
   @override
   Widget build(BuildContext context) {
     return TripDataBuilder(
-      load: () => MockDataService.getTrip('completed'),
+      load: () async => widget.tripData ?? await loadLiveLatestTrip(context),
       builder: (context, trip) {
+        final destination = trip['destinationAddress']?.toString() ??
+            (trip['officeDestination'] is Map
+                ? (trip['officeDestination'] as Map)['name']?.toString()
+                : null) ??
+            'Destination';
+        final dropTime = EmployeeDataProvider.formatDisplayTime(
+          trip['actualDepartureTime']?.toString() ??
+              trip['actualArrivalTime']?.toString() ??
+              trip['plannedEta']?.toString() ??
+              trip['shiftTime']?.toString(),
+        );
+        final shiftDate = EmployeeDataProvider.formatDisplayDate(
+          trip['shiftDate']?.toString(),
+        );
+
         return TripStageScaffold(
           title: "Today's Trip",
           statusLabel: 'Completed',
@@ -78,18 +93,18 @@ class _TripCompletedScreenState extends State<TripCompletedScreen> {
               items: [
                 TripInfoItem(
                   icon: Icons.apartment_rounded,
-                  label: 'Office',
-                  value: trip['destination'] ?? 'HITEC City Office',
+                  label: 'Destination',
+                  value: destination,
                 ),
                 TripInfoItem(
                   icon: Icons.access_time_rounded,
                   label: 'Drop Time',
-                  value: trip['dropTime'] ?? '9:02 AM',
+                  value: dropTime.isNotEmpty ? dropTime : 'Completed',
                 ),
                 TripInfoItem(
-                  icon: Icons.timer_outlined,
-                  label: 'Trip Duration',
-                  value: trip['duration'] ?? '47 min',
+                  icon: Icons.calendar_today_outlined,
+                  label: 'Shift Date',
+                  value: shiftDate.isNotEmpty ? shiftDate : 'Today',
                 ),
               ],
             ),
@@ -97,7 +112,7 @@ class _TripCompletedScreenState extends State<TripCompletedScreen> {
             EmployeePrimaryButton(
               label: 'Provide Feedback',
               icon: Icons.star_border_rounded,
-              onPressed: () => context.push(AppRoutes.tripDetails),
+              onPressed: () => context.push(AppRoutes.postTripFeedback),
             ),
             const SizedBox(height: AppSpacing.md),
             EmployeeTextLink(

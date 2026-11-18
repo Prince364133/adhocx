@@ -2,15 +2,16 @@
 
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { tenantApi } from '../../../lib/api/corporate';
 import type { Office, OfficeGeofenceDetails } from '../../../lib/api/types';
 import { useSession } from '../../../lib/auth/SessionContext';
 
 function OfficeDetailsContent() {
   const { tenantId, status } = useSession();
+  const params = useParams();
   const searchParams = useSearchParams();
-  const officeIdParam = searchParams.get('id');
+  const officeIdParam = (Array.isArray(params?.id) ? params.id[0] : params?.id) || searchParams.get('id');
   const [offices, setOffices] = useState<Office[]>([]);
   const [selectedOfficeId, setSelectedOfficeId] = useState('');
   const [geofenceDetails, setGeofenceDetails] = useState<OfficeGeofenceDetails | null>(null);

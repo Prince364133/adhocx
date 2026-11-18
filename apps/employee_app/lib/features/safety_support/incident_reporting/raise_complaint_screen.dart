@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:adhocx_employee/features/schedule/widgets/schedule_widgets.dart';
+import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
+import 'package:adhocx_employee/state/employee_data_provider.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import '../widgets/incident_form.dart';
 
@@ -20,10 +23,45 @@ class _RaiseComplaintScreenState extends State<RaiseComplaintScreen> {
   ];
   String _category = _categories.first;
 
+  String get _apiCategory {
+    switch (_category) {
+      case 'Driver Behavior':
+        return 'DRIVER_BEHAVIOR';
+      case 'AC / Vehicle Cleanliness':
+        return 'VEHICLE_CONDITION';
+      case 'Rash Driving':
+      case 'Safety Escort Missing':
+        return 'SAFETY_CONCERN';
+      case 'Billing / Roster Issue':
+        return 'BILLING';
+      default:
+        return 'OTHER';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final data = maybeEmployeeData(context);
+    final nextTrip = data?.hasActiveTrip == true ? data!.nextTrip : null;
+    final tripTitle = nextTrip != null
+        ? EmployeeDataProvider.formatDirectionLabel(
+            nextTrip['direction']?.toString(),
+          )
+        : 'Current Commute Roster';
+    final tripSubtitle = nextTrip != null
+        ? [
+            EmployeeDataProvider.formatDisplayDate(
+                nextTrip['shiftDate']?.toString()),
+            EmployeeDataProvider.formatDisplayTime(
+                nextTrip['plannedEta']?.toString() ??
+                    nextTrip['shiftTime']?.toString()),
+          ].where((s) => s.isNotEmpty).join(' • ')
+        : formatScheduleDayLabel(DateTime.now());
+
     return IncidentFormScreen(
       title: 'Raise a Complaint',
+      ticketCategory: _apiCategory,
+      ticketSubject: 'Complaint: $_category',
       topFields: (context) => [
         const FormFieldLabel('Complaint Category *'),
         FormSelectField(
@@ -32,16 +70,16 @@ class _RaiseComplaintScreenState extends State<RaiseComplaintScreen> {
           onChanged: (v) => setState(() => _category = v),
         ),
         const SizedBox(height: AppSpacing.xl),
-        const FormFieldLabel('Trip (Optional)'),
-        const FormValueBox(
+        const FormFieldLabel('Related Trip'),
+        FormValueBox(
           icon: Icons.directions_car_filled_rounded,
-          title: 'Login (Pickup)',
-          subtitle: 'Tue, 09 Dec, 8:15 AM',
+          title: tripTitle,
+          subtitle: tripSubtitle,
         ),
         const SizedBox(height: AppSpacing.xl),
       ],
       descriptionLabel: 'Details *',
-      descriptionHint: 'e.g. Driver was rude during pickup.',
+      descriptionHint: 'Share details of your concern...',
       submitLabel: 'Submit Complaint',
       submittedMessage: 'Complaint submitted to Transport Manager.',
     );

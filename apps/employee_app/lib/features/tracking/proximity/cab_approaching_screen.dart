@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
 import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
 import 'package:adhocx_employee/theme/app_radius.dart';
@@ -9,20 +8,27 @@ import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
 
-/// Screen 5: Cab Approaching
+/// Cab Approaching screen backed by live tracking API.
 class CabApproachingScreen extends StatelessWidget {
   const CabApproachingScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return TripDataBuilder(
-      load: () async =>
-          (await MockDataService.getLiveTracking())['approaching']
-              as Map<String, dynamic>?,
-      builder: (context, data) {
+      load: () => loadLiveTripSnapshot(context),
+      builder: (context, snapshot) {
         final p = EmployeePalette.of(context);
-        final eta = data['eta'] ?? 'Arriving in ~ 6 min';
-        final distance = data['distance'] ?? '1.8 km away';
+        final tracking =
+            (snapshot['tracking'] as Map<String, dynamic>?) ?? const {};
+        final etaMins = tracking['estimatedArrivalMinutes'];
+        final distMeters = tracking['distanceToPickupMeters'];
+
+        final eta = etaMins != null
+            ? 'Arriving in ~ $etaMins min'
+            : 'Live ETA updating';
+        final distance = distMeters is num
+            ? '${(distMeters / 1000).toStringAsFixed(1)} km away'
+            : 'En route';
 
         return TripStageScaffold(
           title: "Today's Pickup",
@@ -43,7 +49,7 @@ class CabApproachingScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.xl),
-            TripHeadline(title: data['title'] ?? 'Your cab is on the way!'),
+            const TripHeadline(title: 'Your cab is on the way!'),
             const SizedBox(height: AppSpacing.xl),
             AppCard(
               width: double.infinity,
@@ -58,7 +64,6 @@ class CabApproachingScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.xxl + 4),
-            // Was `currentStep: 1`, which highlighted "Assigned".
             const EmployeeStepTracker(currentStep: TripStep.approaching),
             const SizedBox(height: AppSpacing.xxxl),
             EmployeePrimaryButton(

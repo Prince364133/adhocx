@@ -8,18 +8,32 @@ import 'package:adhocx_employee/theme/app_radius.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 
-/// Screen 10: Request Resolved
+/// Request Resolved screen backed by route extra ticket payload.
 class RequestResolvedScreen extends StatelessWidget {
   const RequestResolvedScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    Map<String, dynamic>? ticket;
+    try {
+      final extra = GoRouterState.of(context).extra;
+      if (extra is Map) ticket = Map<String, dynamic>.from(extra);
+    } catch (_) {}
+
+    final ticketRef = ticket?['ticketNumber']?.toString() ??
+        ticket?['id']?.toString() ??
+        '';
+    final resolution = ticket?['resolutionNotes']?.toString() ??
+        'Your request has been reviewed and resolved by the corporate transport desk.';
+
     return EmployeeCenteredLayout(
       appBar: const EmployeeAppBar(),
       illustration: const BoardingSuccessBadge(),
       illustrationGap: AppSpacing.xxl,
       title: 'Request Resolved',
-      message: 'Your complaint (ADH-784512)\nhas been resolved.',
+      message: ticketRef.isNotEmpty
+          ? 'Your request ($ticketRef)\nhas been resolved.'
+          : 'Your support request\nhas been resolved.',
       content: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(AppSpacing.lg + 2),
@@ -47,7 +61,7 @@ class RequestResolvedScreen extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'The driver has been warned and appropriate action has been taken.',
+              resolution,
               style: AppTypography.body(color: AppColors.successText),
             ),
           ],
@@ -56,7 +70,10 @@ class RequestResolvedScreen extends StatelessWidget {
       actions: [
         EmployeePrimaryButton(
           label: 'View Details',
-          onPressed: () => context.push(AppRoutes.requestDetailsTracking),
+          onPressed: () => context.push(
+            AppRoutes.requestDetailsTracking,
+            extra: ticket,
+          ),
         ),
         EmployeeTextLink(
           label: 'Back to Requests',

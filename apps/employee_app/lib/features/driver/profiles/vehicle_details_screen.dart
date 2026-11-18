@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
 import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
@@ -8,17 +7,30 @@ import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
 
-/// Screen 4: Vehicle Details
+/// Vehicle Details backed by live nextTrip + tracking APIs.
 class VehicleDetailsScreen extends StatelessWidget {
   const VehicleDetailsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return TripDataBuilder(
-      load: () async => (await MockDataService.getDriverAssignment())['vehicle']
-          as Map<String, dynamic>?,
-      builder: (context, vehicle) {
+      load: () => loadLiveTripSnapshot(context),
+      builder: (context, snapshot) {
         final p = EmployeePalette.of(context);
+        final next = (snapshot['nextTrip'] as Map<String, dynamic>?) ?? const {};
+        final tracking =
+            (snapshot['tracking'] as Map<String, dynamic>?) ?? const {};
+        final vehicle = (tracking['vehicle'] ?? next['vehicle']) as Map?;
+
+        final model = vehicle?['model']?.toString() ??
+            vehicle?['vehicleType']?.toString() ??
+            'Not yet assigned';
+        final plate = vehicle?['registrationNumber']?.toString() ??
+            vehicle?['plateNumber']?.toString() ??
+            'Pending assignment';
+        final color = vehicle?['color']?.toString();
+        final category =
+            vehicle?['category']?.toString() ?? vehicle?['vehicleType']?.toString();
 
         Widget specPill(IconData icon, String text) => Container(
               padding: const EdgeInsets.symmetric(
@@ -105,11 +117,10 @@ class VehicleDetailsScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.lg + 2),
                   Text(
-                    vehicle['model'] ?? 'Maruti Ertiga',
+                    model,
                     style: AppTypography.h2(color: p.textPrimary),
                   ),
                   const SizedBox(height: AppSpacing.sm),
-                  // Number plate (Indian commercial plates are yellow)
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppSpacing.md + 2,
@@ -121,7 +132,7 @@ class VehicleDetailsScreen extends StatelessWidget {
                       border: Border.all(color: AppColors.starAmber, width: 1.5),
                     ),
                     child: Text(
-                      vehicle['plateNumber'] ?? 'TS09UB7845',
+                      plate,
                       style: AppTypography.bodyMedium(
                         color: AppColors.warningText,
                         fontWeight: FontWeight.w800,
@@ -134,12 +145,10 @@ class VehicleDetailsScreen extends StatelessWidget {
                     spacing: AppSpacing.sm,
                     runSpacing: AppSpacing.sm,
                     children: [
-                      specPill(Icons.palette_outlined,
-                          '${vehicle['color'] ?? 'White'} Color'),
-                      specPill(Icons.airline_seat_recline_normal_rounded,
-                          vehicle['seating'] ?? '7 Seater'),
-                      specPill(Icons.local_gas_station_rounded,
-                          '${vehicle['fuel'] ?? 'CNG'} Fuel'),
+                      if (color != null && color.isNotEmpty)
+                        specPill(Icons.palette_outlined, '$color Color'),
+                      if (category != null && category.isNotEmpty)
+                        specPill(Icons.directions_car_outlined, category),
                     ],
                   ),
                   const SizedBox(height: AppSpacing.xxl + 4),
@@ -148,13 +157,13 @@ class VehicleDetailsScreen extends StatelessWidget {
                     child: Column(
                       children: [
                         verification('Registration (RC)',
-                            vehicle['registrationRc'] ?? 'Verified'),
+                            vehicle != null ? 'Verified' : 'Pending'),
                         Divider(color: p.border, height: AppSpacing.xxl),
-                        verification(
-                            'Insurance', vehicle['insurance'] ?? 'Valid'),
+                        verification('Insurance',
+                            vehicle != null ? 'Valid' : 'Pending'),
                         Divider(color: p.border, height: AppSpacing.xxl),
                         verification('Fitness / Permit',
-                            vehicle['fitnessPermit'] ?? 'Valid'),
+                            vehicle != null ? 'Valid' : 'Pending'),
                       ],
                     ),
                   ),

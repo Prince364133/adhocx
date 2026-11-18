@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
-import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
+import 'package:adhocx_employee/state/employee_data_provider.dart';
+import 'package:adhocx_employee/theme/app_spacing.dart';
 
 class TripAssignedScreen extends StatelessWidget {
   const TripAssignedScreen({super.key});
@@ -10,11 +10,41 @@ class TripAssignedScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TripDataBuilder(
-      load: () => MockDataService.getTrip('assigned'),
-      builder: (context, trip) {
-        final driver = trip['driver'] as Map<String, dynamic>?;
-        final vehicleColor = driver?['vehicleColor'] ?? 'White';
-        final capacity = driver?['capacity'] ?? '7 Seater';
+      load: () => loadLiveTripSnapshot(context),
+      builder: (context, snapshot) {
+        final next = (snapshot['nextTrip'] as Map<String, dynamic>?) ?? const {};
+        final tracking =
+            (snapshot['tracking'] as Map<String, dynamic>?) ?? const {};
+        final driver = (tracking['driver'] ?? next['driver']) as Map?;
+        final vehicle = (tracking['vehicle'] ?? next['vehicle']) as Map?;
+
+        final driverName = driver?['fullName']?.toString() ??
+            driver?['name']?.toString() ??
+            'Not yet assigned';
+        final driverRating = driver?['rating']?.toString() ?? 'Verified';
+        final model = vehicle?['model']?.toString() ??
+            vehicle?['vehicleType']?.toString() ??
+            'Pending assignment';
+        final plate = vehicle?['registrationNumber']?.toString() ??
+            vehicle?['plateNumber']?.toString() ??
+            'Pending';
+        final detailsParts = [
+          if (vehicle?['color'] != null &&
+              vehicle!['color'].toString().isNotEmpty)
+            vehicle['color'].toString(),
+          if (vehicle?['category'] != null &&
+              vehicle!['category'].toString().isNotEmpty)
+            vehicle['category'].toString(),
+          if (vehicle?['vehicleType'] != null &&
+              vehicle!['vehicleType'].toString().isNotEmpty)
+            vehicle['vehicleType'].toString(),
+        ];
+        final pickupLoc = next['pickupLocation'] is Map
+            ? (next['pickupLocation'] as Map)['addressText']?.toString()
+            : null;
+        final pickupTime = EmployeeDataProvider.formatDisplayTime(
+          next['plannedEta']?.toString() ?? next['shiftTime']?.toString(),
+        );
 
         return TripStageScaffold(
           title: "Today's Pickup",
@@ -22,14 +52,16 @@ class TripAssignedScreen extends StatelessWidget {
           statusVariant: BadgeVariant.approved,
           children: [
             TripDriverRow(
-              name: driver?['name'] ?? 'Suresh R',
-              rating: (driver?['rating'] ?? 4.8).toString(),
+              name: driverName,
+              rating: driverRating,
             ),
             const SizedBox(height: AppSpacing.md + 2),
             TripVehicleCard(
-              model: driver?['vehicleModel'] ?? 'Maruti Ertiga',
-              plate: driver?['vehicleNumber'] ?? 'TS09UB7845',
-              details: '$vehicleColor • $capacity',
+              model: model,
+              plate: plate,
+              details: detailsParts.isNotEmpty
+                  ? detailsParts.join(' • ')
+                  : 'Corporate Cab',
             ),
             const SizedBox(height: AppSpacing.xxl),
             const EmployeeStepTracker(currentStep: TripStep.assigned),
@@ -39,12 +71,14 @@ class TripAssignedScreen extends StatelessWidget {
                 TripInfoItem(
                   icon: Icons.location_on_outlined,
                   label: 'Pickup Point',
-                  value: trip['pickupPoint'] ?? 'Home - Hitech City',
+                  value: pickupLoc?.isNotEmpty == true
+                      ? pickupLoc!
+                      : 'Not yet assigned',
                 ),
                 TripInfoItem(
                   icon: Icons.access_time_rounded,
                   label: 'Pickup Time',
-                  value: trip['pickupTime'] ?? '8:15 AM',
+                  value: pickupTime.isNotEmpty ? pickupTime : 'Pending',
                 ),
               ],
             ),

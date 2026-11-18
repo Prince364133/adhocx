@@ -47,7 +47,7 @@ export default function VehicleRouteAnalyticsPage() {
     };
   }, [tenantId]);
 
-  const activeTrips = dashboard?.trips.byStatus.IN_PROGRESS ?? 0;
+  const activeTrips = dashboard?.trips.byStatus.IN_TRANSIT ?? 0;
   const vehicleCount = new Set(routes.map((route) => route.vehicleId).filter(Boolean)).size;
   const seatUtilisation = dashboard?.seatUtilisation.pct;
   const delayedPickups = dashboard?.punctuality.latePickups;

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
 import 'package:adhocx_employee/shared/illustrations/trip_illustrations.dart';
+import 'package:adhocx_employee/state/employee_auth_provider.dart';
+import 'package:adhocx_employee/state/employee_data_provider.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
@@ -17,31 +19,34 @@ class HomeNoUpcomingTripScreen extends StatefulWidget {
 }
 
 class _HomeNoUpcomingTripScreenState extends State<HomeNoUpcomingTripScreen> {
-  Map<String, dynamic>? _profile;
-  bool _isLoading = true;
-
   @override
   void initState() {
     super.initState();
-    _loadJsonData();
-  }
-
-  Future<void> _loadJsonData() async {
-    final profile = await MockDataService.getEmployeeProfile();
-    if (mounted) {
-      setState(() {
-        _profile = profile;
-        _isLoading = false;
-      });
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      try {
+        final data = context.read<EmployeeDataProvider>();
+        data.loadProfile();
+        data.loadNotifications();
+      } catch (_) {}
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) return const EmployeeLoadingScaffold();
-
     final p = EmployeePalette.of(context);
-    final name = _profile?['name'] ?? 'Ravi Kumar';
+    EmployeeDataProvider? dataProvider;
+    EmployeeAuthProvider? authProvider;
+    try {
+      dataProvider = context.watch<EmployeeDataProvider>();
+    } catch (_) {}
+    try {
+      authProvider = context.watch<EmployeeAuthProvider>();
+    } catch (_) {}
+
+    final name = dataProvider?.profile?['fullName']?.toString() ??
+        authProvider?.currentUser?.fullName ??
+        'Commuter';
+    final unreadCount = dataProvider?.unreadNotificationsCount ?? 0;
 
     return Scaffold(
       backgroundColor: p.background,
@@ -60,8 +65,8 @@ class _HomeNoUpcomingTripScreenState extends State<HomeNoUpcomingTripScreen> {
                 child: Column(
                   children: [
                     EmployeeGreetingHeader(
-                      name: name,
-                      unreadNotificationsCount: 1,
+                      name: name.isNotEmpty ? name : 'Commuter',
+                      unreadNotificationsCount: unreadCount,
                       onNotificationTap: () =>
                           context.push(AppRoutes.notificationsCenter),
                       onSosTap: () => context.push(AppRoutes.safetySos),

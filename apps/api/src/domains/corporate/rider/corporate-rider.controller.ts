@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   Req,
@@ -33,6 +34,14 @@ export class CorporateRiderController {
   async getProfile(@Req() req: any) {
     const userId = req.user?.id || req.user?.sub;
     return this.riderService.getRiderProfile(userId);
+  }
+
+  @Patch()
+  @Roles(UserRole.EMPLOYEE, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Update current commuter profile details and default pickup address' })
+  async updateProfile(@Req() req: any, @Body() body: { fullName?: string; email?: string; homeAddress?: string }) {
+    const userId = req.user?.id || req.user?.sub;
+    return this.riderService.updateRiderProfile(userId, body);
   }
 
   @Get('schedule')
@@ -77,6 +86,18 @@ export class CorporateRiderController {
   async getTripTracking(@Req() req: any, @Param('id') id: string) {
     const userId = req.user?.id || req.user?.sub;
     return this.riderService.getRiderTripTracking(userId, id);
+  }
+
+  @Post('trips/:id/cancel')
+  @Roles(UserRole.EMPLOYEE, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Cancel or opt-out of an upcoming commuter route stop' })
+  async cancelTripStop(
+    @Req() req: any,
+    @Param('id') stopId: string,
+    @Body() body: { reason?: string },
+  ) {
+    const userId = req.user?.id || req.user?.sub;
+    return this.riderService.cancelRiderStop(userId, stopId, body?.reason);
   }
 
   @Post('trips/:id/safe-reach')

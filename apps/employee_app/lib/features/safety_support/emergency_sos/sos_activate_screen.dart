@@ -3,14 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
+import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
 import 'package:adhocx_employee/shared/illustrations/safety_illustrations.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 
-/// SOS trigger. Emergency surface: fixed crimson in light and dark mode.
-///
-/// Press and hold the siren for 3 seconds to send the alert.
+/// SOS trigger wired to POST /corporate/safety/sos.
+/// Press and hold the siren for 3 seconds to send the emergency alert.
 class SosActivateScreen extends StatefulWidget {
   const SosActivateScreen({super.key});
 
@@ -24,6 +24,7 @@ class _SosActivateScreenState extends State<SosActivateScreen> {
   Timer? _holdTimer;
   bool _holding = false;
   bool _sent = false;
+  bool _sending = false;
 
   @override
   void dispose() {
@@ -31,12 +32,57 @@ class _SosActivateScreenState extends State<SosActivateScreen> {
     super.dispose();
   }
 
-  void _send() {
-    if (_sent) return; // never fire twice
+  Future<void> _send() async {
+    if (_sent || _sending) return;
     _sent = true;
     _holdTimer?.cancel();
-    if (mounted && _holding) setState(() => _holding = false);
-    context.push(AppRoutes.sosAlertConfirmed).then((_) {
+    if (mounted) {
+      setState(() {
+        _holding = false;
+        _sending = true;
+      });
+    }
+
+    Map<String, dynamic>? alertPayload;
+    final data = maybeEmployeeData(context);
+    if (data != null) {
+      try {
+        final next = await data.loadNextTrip();
+        final routeId = next?['routeId']?.toString() ?? data.activeRouteId;
+        if (routeId != null && routeId.isNotEmpty) {
+          final tracking = data.activeTracking;
+          final drvLoc = tracking?['driverLocation'] as Map?;
+          final pickupLoc = next?['pickupLocation'] as Map?;
+          final lat = (drvLoc?['latitude'] as num?)?.toDouble() ??
+              (pickupLoc?['latitude'] as num?)?.toDouble() ??
+              0.0;
+          final lng = (drvLoc?['longitude'] as num?)?.toDouble() ??
+              (pickupLoc?['longitude'] as num?)?.toDouble() ??
+              0.0;
+          alertPayload = await data.repository.triggerSos(
+            routeId: routeId,
+            latitude: lat,
+            longitude: lng,
+            reason: 'Emergency SOS triggered from Employee App',
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'SOS dispatch notice: ${e.toString().replaceFirst('Exception: ', '')}',
+              ),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+      }
+    }
+
+    if (!mounted) return;
+    setState(() => _sending = false);
+    context.push(AppRoutes.sosAlertConfirmed, extra: alertPayload).then((_) {
       if (mounted) setState(() => _sent = false);
     });
   }
@@ -93,9 +139,11 @@ class _SosActivateScreenState extends State<SosActivateScreen> {
               ),
               const SizedBox(height: AppSpacing.xxxl),
               Text(
-                _holding
-                    ? 'Keep holding…'
-                    : 'Press and hold for 3 seconds\nto send an emergency alert.',
+                _sending
+                    ? 'Sending emergency SOS alert…'
+                    : (_holding
+                        ? 'Keep holding…'
+                        : 'Press and hold for 3 seconds\nto send an emergency alert.'),
                 textAlign: TextAlign.center,
                 style: AppTypography.bodyLarge(
                   color: Colors.white.withAlpha(230),

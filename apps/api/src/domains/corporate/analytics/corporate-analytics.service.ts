@@ -586,32 +586,26 @@ export class CorporateAnalyticsService {
   async getExceptions(q: AnalyticsQuery, now: Date = new Date()) {
     const f = await this.resolveFilter(q);
     const db: any = this.db;
-    const routeWhere = this.routeWhere(f);
     const stopWhere = this.stopWhere(f);
 
-    const [unservedRequests, delayedStops, activeRoutes, sosAlerts] = await Promise.all([
+    const [unservedRequests, delayedStops, sosAlerts] = await Promise.all([
       db.corporateTransportRequest.findMany({
         where: { ...this.requestWhere(f), status: 'UNSERVED' },
         take: 30,
-        include: { employee: true },
+        include: { employee: { include: { office: true } } },
         orderBy: { scheduledDate: 'desc' },
       }),
       db.corporateRouteStop.findMany({
         where: { ...stopWhere, status: 'ARRIVED' },
         take: 30,
-        include: { employee: true, route: true },
+        include: { employee: true, route: { include: { office: true } } },
         orderBy: { plannedEta: 'desc' },
       }),
-      db.corporateRoute.findMany({
-        where: { ...routeWhere, status: 'IN_PROGRESS' },
-        take: 30,
-        include: { office: true },
-      }),
       db.corporateSosAlert.findMany({
-        where: { ...this.sosWhere(f), status: { in: ['OPEN', 'INVESTIGATING'] } },
+        where: { ...this.sosWhere(f), status: { in: ['NEW', 'ACTIVE', 'ACKNOWLEDGED', 'INVESTIGATING', 'ESCALATED'] } },
         take: 30,
-        include: { route: true },
-        orderBy: { triggeredAt: 'desc' },
+        include: { route: { include: { office: true } } },
+        orderBy: { createdAt: 'desc' },
       }),
     ]);
 
@@ -632,70 +626,88 @@ export class CorporateAnalyticsService {
         type: 'Unassigned',
         target: `${u.employee?.employeeCode ?? 'EMP'} (${u.employee?.fullName ?? 'Employee'})`,
         details: `Unserved request for shift ${u.shiftTime}`,
-        office: f.officeId ?? 'Main Campus',
+        office: u.employee?.office?.name ?? '—',
         duration: 'Pending',
         status: 'Open',
         action: 'Assign',
       });
     }
 
-    for (const d of delayedStops) {
+    const trulyDelayedStops = delayedStops.filter((d: any) => {
+      if (!d.plannedEta) return false;
+      const actual = d.actualArrivalTime ? new Date(d.actualArrivalTime).getTime() : now.getTime();
+      return actual - new Date(d.plannedEta).getTime() > 10 * 60_000;
+    });
+
+    for (const d of trulyDelayedStops) {
+      const actualMs = d.actualArrivalTime ? new Date(d.actualArrivalTime).getTime() : now.getTime();
+      const delayMins = Math.max(1, Math.round((actualMs - new Date(d.plannedEta).getTime()) / 60_000));
       items.push({
         id: `EXC-D-${d.id.slice(0, 8)}`,
         type: 'Delayed',
-        target: d.route?.routeNumber ?? `Stop #${d.stopSequence}`,
+        target: d.route?.id ? `CR-${d.route.id.slice(0, 8).toUpperCase()}` : `Stop #${d.stopSequence}`,
         details: `Stop delay detected for passenger ${d.employee?.fullName ?? 'Passenger'}`,
-        office: f.officeId ?? 'Main Campus',
-        duration: '15 min',
+        office: d.route?.office?.name ?? '—',
+        duration: `${delayMins} min`,
         status: 'In Review',
         action: 'View',
       });
     }
 
-    for (const r of activeRoutes) {
-      items.push({
-        id: `EXC-G-${r.id.slice(0, 8)}`,
-        type: 'GPS Stale',
-        target: r.vehiclePlate ?? r.routeNumber ?? 'Vehicle',
-        details: `Active route ${r.routeNumber ?? r.id.slice(0, 8)} monitoring live telemetry`,
-        office: r.office?.name ?? 'Main Campus',
-        duration: 'Active',
-        status: 'Open',
-        action: 'Track',
-      });
-    }
-
     for (const s of sosAlerts) {
+      const ageMins = Math.max(0, Math.round((now.getTime() - new Date(s.createdAt).getTime()) / 60_000));
       items.push({
         id: `EXC-S-${s.id.slice(0, 8)}`,
         type: 'Safety Alert',
-        target: `SOS-${s.id.slice(0, 6)}`,
-        details: `Triggered alert: ${s.reason ?? 'Emergency SOS pressed'}`,
-        office: f.officeId ?? 'Main Campus',
-        duration: 'Active',
-        status: s.status === 'INVESTIGATING' ? 'In Review' : 'Escalated',
+        target: `SOS-${s.id.slice(0, 6).toUpperCase()}`,
+        details: s.reason ?? 'Emergency SOS triggered',
+        office: s.route?.office?.name ?? '—',
+        duration: ageMins < 60 ? `${ageMins}m ago` : `${Math.floor(ageMins / 60)}h ago`,
+        status: s.status === 'INVESTIGATING' || s.status === 'ACKNOWLEDGED' ? 'In Review' : 'Escalated',
         action: 'Resolve',
       });
     }
 
     const summary = {
-      delayedPickups: delayedStops.length,
+      delayedPickups: trulyDelayedStops.length,
       unassignedTrips: unservedRequests.length,
-      gpsStaleCount: activeRoutes.length > 0 ? 1 : 0,
+      gpsStaleCount: 0,
       routeDeviations: 0,
       safetyAlerts: sosAlerts.length,
     };
 
+    const dayBuckets = new Map<string, { delayed: number; unassigned: number; safety: number }>();
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(now.getTime() - (6 - i) * 86400000);
+      dayBuckets.set(d.toISOString().slice(0, 10), { delayed: 0, unassigned: 0, safety: 0 });
+    }
+    for (const d of trulyDelayedStops) {
+      const key = d.plannedEta ? new Date(d.plannedEta).toISOString().slice(0, 10) : '';
+      const b = dayBuckets.get(key);
+      if (b) b.delayed += 1;
+    }
+    for (const u of unservedRequests) {
+      const key = u.scheduledDate ? new Date(u.scheduledDate).toISOString().slice(0, 10) : '';
+      const b = dayBuckets.get(key);
+      if (b) b.unassigned += 1;
+    }
+    for (const s of sosAlerts) {
+      const key = s.createdAt ? new Date(s.createdAt).toISOString().slice(0, 10) : '';
+      const b = dayBuckets.get(key);
+      if (b) b.safety += 1;
+    }
+
     const trend = Array.from({ length: 7 }, (_, i) => {
       const d = new Date(now.getTime() - (6 - i) * 86400000);
-      const dayLabel = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+      const iso = d.toISOString().slice(0, 10);
+      const b = dayBuckets.get(iso) ?? { delayed: 0, unassigned: 0, safety: 0 };
       return {
-        day: dayLabel,
-        delayed: Math.max(0, summary.delayedPickups - i),
-        unassigned: Math.max(0, summary.unassignedTrips - i),
-        gpsStale: summary.gpsStaleCount,
+        day: d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
+        delayed: b.delayed,
+        unassigned: b.unassigned,
+        gpsStale: 0,
         deviation: 0,
-        safety: summary.safetyAlerts,
+        safety: b.safety,
       };
     });
 

@@ -173,7 +173,7 @@ export const OpsTopBar: React.FC = () => {
             paddingLeft: '12px',
           }}
         >
-          Port <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>7004</span> · Staging
+          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Ops Desk</span> · {process.env.NEXT_PUBLIC_APP_ENV || 'Live'}
         </div>
 
         {/* Dispatcher Identity Pill & Logout */}

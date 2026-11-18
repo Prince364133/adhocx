@@ -2,10 +2,11 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
   Users,
+  Route,
   LifeBuoy,
   Receipt,
   BarChart3,
@@ -16,6 +17,7 @@ import {
   Building,
   CalendarX,
   Headphones,
+  ShieldAlert,
   X,
 } from 'lucide-react';
 import { SessionProvider, useSession } from '../../lib/auth/SessionContext';
@@ -34,6 +36,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { href: '/dashboard', label: 'Overview', icon: <LayoutDashboard size={18} /> },
+  { href: '/routes', label: 'Routes', icon: <Route size={18} /> },
   { href: '/employees', label: 'Employees', icon: <Users size={18} /> },
   { href: '/cancellations', label: 'Cancellation Requests', icon: <CalendarX size={18} /> },
   { href: '/support', label: 'Support', icon: <LifeBuoy size={18} /> },
@@ -45,10 +48,33 @@ const NAV_ITEMS: NavItem[] = [
 
 function isActive(pathname: string, href: string): boolean {
   if (href === '/dashboard') {
-    return pathname === '/dashboard' || pathname.startsWith('/dashboard/');
+    return (
+      pathname === '/dashboard' ||
+      (pathname.startsWith('/dashboard/') && !pathname.startsWith('/dashboard/analytics'))
+    );
   }
   if (pathname === href) return true;
   return pathname.startsWith(href + '/');
+}
+
+function computeInitials(fullName?: string | null, email?: string | null, phone?: string | null): string {
+  const name = (fullName || '').trim();
+  if (name) {
+    const parts = name.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+      return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+    }
+    return parts[0].slice(0, 2).toUpperCase();
+  }
+  const mail = (email || '').trim();
+  if (mail) {
+    return mail.split('@')[0].slice(0, 2).toUpperCase();
+  }
+  const digits = (phone || '').replace(/\D/g, '');
+  if (digits.length >= 2) {
+    return digits.slice(-2);
+  }
+  return 'CO';
 }
 
 function Sidebar() {
@@ -150,7 +176,9 @@ function Sidebar() {
 }
 
 function TopBar() {
+  const router = useRouter();
   const { user, corporateRole, logout, status } = useSession();
+  const [searchQuery, setSearchQuery] = useState('');
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<InAppNotificationItem[]>([]);
@@ -279,15 +307,26 @@ function TopBar() {
       </div>
 
       {/* Middle: Global Omnisearch */}
-      <div style={{ flex: 1, maxWidth: 440, position: 'relative' }} className="hide-narrow">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          const trimmed = searchQuery.trim();
+          router.push(trimmed ? `/employees?search=${encodeURIComponent(trimmed)}` : '/employees');
+        }}
+        style={{ flex: 1, maxWidth: 440, position: 'relative' }}
+        className="hide-narrow"
+      >
         <Search
           size={15}
           color="var(--text-muted)"
-          style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }}
+          style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
         />
         <input
-          type="text"
-          placeholder="Search employees, trips, drivers..."
+          type="search"
+          aria-label="Search employees"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search employees by name, ID, email or phone..."
           style={{
             width: '100%',
             height: 36,
@@ -312,7 +351,7 @@ function TopBar() {
             e.currentTarget.style.boxShadow = 'none';
           }}
         />
-      </div>
+      </form>
 
       {/* Right: Actions, Alerts, ThemeToggle, User Profile */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -651,14 +690,14 @@ function TopBar() {
                 letterSpacing: '0.04em',
               }}
             >
-              RK
+              {computeInitials(user?.fullName, user?.email, user?.phone)}
             </div>
             <div className="hide-narrow" style={{ lineHeight: 1.2 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
-                {user?.fullName || 'Rakesh Kumar'}
+                {user?.fullName || user?.email || user?.phone || 'Corporate User'}
               </div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                {corporateRole ? CORPORATE_ROLE_LABELS[corporateRole] : 'Corporate Admin'}
+                {corporateRole ? CORPORATE_ROLE_LABELS[corporateRole] : 'Corporate User'}
               </div>
             </div>
           </div>
@@ -721,6 +760,124 @@ function formatNotificationDateTime(value: string): string {
   }).format(date);
 }
 
+function PortalShellFrame({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname() ?? '';
+  const router = useRouter();
+  const { status, logout } = useSession();
+
+  useEffect(() => {
+    if (status === 'anonymous' && !pathname.startsWith('/login')) {
+      const target = pathname && pathname !== '/' ? `/login?redirect=${encodeURIComponent(pathname)}` : '/login';
+      router.replace(target);
+    }
+  }, [pathname, router, status]);
+
+  if (status === 'loading' || status === 'anonymous') {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'var(--bg-canvas)',
+          color: 'var(--text-muted)',
+          fontSize: 14,
+          fontWeight: 600,
+        }}
+      >
+        {status === 'loading' ? 'Loading Corporate Portal…' : 'Redirecting to sign in…'}
+      </div>
+    );
+  }
+
+  if (status === 'forbidden') {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 24,
+          backgroundColor: 'var(--bg-canvas)',
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 440,
+            width: '100%',
+            padding: '28px 32px',
+            borderRadius: 12,
+            backgroundColor: 'var(--bg-surface)',
+            border: '1px solid var(--border-subtle)',
+            boxShadow: 'var(--shadow-elevated)',
+            textAlign: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 12,
+          }}
+        >
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: '50%',
+              backgroundColor: 'var(--color-danger-bg)',
+              color: 'var(--color-danger, #DC2626)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <ShieldAlert size={24} />
+          </div>
+          <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>
+            Access Denied — Corporate account required
+          </h1>
+          <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+            Your signed-in account does not have Corporate Portal access or is not linked to a corporate tenant. Please sign out and sign in with an authorized corporate account.
+          </p>
+          <button
+            type="button"
+            onClick={() => void logout()}
+            style={{
+              marginTop: 8,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '9px 18px',
+              borderRadius: 8,
+              border: 'none',
+              backgroundColor: 'var(--color-danger, #DC2626)',
+              color: '#FFFFFF',
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            <LogOut size={15} />
+            <span>Sign Out</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'var(--bg-canvas)', transition: 'background-color 0.2s ease' }}>
+      <TopBar />
+      <div style={{ display: 'flex', flex: 1 }}>
+        <Sidebar />
+        <main style={{ flex: 1, minWidth: 0, padding: '24px 32px' }}>
+          {children}
+        </main>
+      </div>
+    </div>
+  );
+}
+
 export function PortalShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? '';
   const onLogin = pathname.startsWith('/login');
@@ -731,15 +888,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
 
   return (
     <SessionProvider>
-      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'var(--bg-canvas)', transition: 'background-color 0.2s ease' }}>
-        <TopBar />
-        <div style={{ display: 'flex', flex: 1 }}>
-          <Sidebar />
-          <main style={{ flex: 1, minWidth: 0, padding: '24px 32px' }}>
-            {children}
-          </main>
-        </div>
-      </div>
+      <PortalShellFrame>{children}</PortalShellFrame>
     </SessionProvider>
   );
 }

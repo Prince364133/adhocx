@@ -11,7 +11,7 @@ export interface CompanyCardProps {
 export const CompanyCard: React.FC<CompanyCardProps> = ({ tenant, isSelected, onSelect }) => {
   const activeCabs = tenant.activeCabsCount ?? 0;
   const inTransit = tenant.inTransitCount ?? 0;
-  const onTimePct = tenant.onTimePunctualityPct ?? 98.4;
+  const onTimePctDisplay = tenant.onTimePunctualityPct != null ? `${tenant.onTimePunctualityPct}%` : '—';
   const delayedCount = tenant.delayedCount ?? 0;
   const unassignedCount = tenant.unassignedCount ?? 0;
   const hasExceptions = delayedCount > 0 || unassignedCount > 0;
@@ -155,8 +155,8 @@ export const CompanyCard: React.FC<CompanyCardProps> = ({ tenant, isSelected, on
               <CheckCircle size={13} color="var(--color-success, #16A34A)" />
               <span>ON-TIME OTP</span>
             </div>
-            <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--color-success, #16A34A)', marginTop: '2px' }}>
-              {onTimePct}%
+            <div style={{ fontSize: '16px', fontWeight: 700, color: tenant.onTimePunctualityPct != null ? 'var(--color-success, #16A34A)' : 'var(--text-muted)', marginTop: '2px' }}>
+              {onTimePctDisplay}
             </div>
           </div>
 

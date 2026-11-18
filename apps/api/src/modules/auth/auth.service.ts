@@ -492,8 +492,14 @@ export class AuthService implements OnModuleInit {
     }
 
     let existingUser: any = null;
-    // If explicit login or password recovery (isRegister === false), verify user exists and matches role
-    if (dto.isRegister === false) {
+    const requestedRoleUpper = dto.role?.toUpperCase();
+    const isPortalOrEmployeeLogin =
+      dto.isRegister !== true &&
+      (requestedRoleUpper === 'EMPLOYEE' ||
+        requestedRoleUpper === 'CORPORATE_ADMIN' ||
+        requestedRoleUpper === 'CORPORATE_MANAGER');
+    // If explicit login / password recovery (isRegister === false) or corporate/employee login, verify user exists and matches role
+    if (dto.isRegister === false || isPortalOrEmployeeLogin) {
       try {
         if (isEmail) {
           existingUser = await this.db.user.findFirst({
@@ -1021,21 +1027,6 @@ export class AuthService implements OnModuleInit {
         this.logger.warn(`⚠️ [SOCIAL AUTH ATTEMPT ${retries}/${maxRetries} FAILED]: ${dbErr.message}`);
         if (retries >= maxRetries) {
           this.logger.error(`Database error in socialAuth after retries: ${dbErr.message}`, dbErr.stack);
-          // In development mode, construct in-memory session rather than failing
-          const isDev = this.configService.get<string>('app.nodeEnv') === 'development';
-          if (isDev) {
-            const assignedRole = this.mapUserRole(dto.role);
-            user = {
-              id: '5a91aadb-d7be-4199-a412-479c0a69271d',
-              email,
-              phone: '',
-              role: assignedRole as any,
-              fullName: fullName || 'Verified User',
-              driver: assignedRole === UserRole.DRIVER ? { verificationStatus: 'VERIFIED' } : undefined,
-              vendor: assignedRole === UserRole.VENDOR ? { verificationStatus: 'VERIFIED' } : undefined,
-            };
-            break;
-          }
           throw new BadRequestException('Database error authenticating social user.');
         }
         await new Promise((resolve) => setTimeout(resolve, 500 * retries));
@@ -1238,13 +1229,14 @@ export class AuthService implements OnModuleInit {
   }
 
   private async generateAuthResponse(user: any): Promise<AuthResponseDto> {
+    const corporateClaims = await this.buildCorporateClaims(user);
     const tokenPayload = {
       jti: crypto.randomUUID(),
       id: user.id,
       phone: user.phone,
       email: user.email,
       role: user.role,
-      ...(await this.buildCorporateClaims(user)),
+      ...corporateClaims,
     };
 
     const accessSecret = this.configService.get<string>('auth.jwtAccessSecret') || resolveJwtSecret('access');
@@ -1289,7 +1281,13 @@ export class AuthService implements OnModuleInit {
     } else if (user.role === UserRole.VENDOR) {
       isApproved = user.vendor?.verificationStatus === 'VERIFIED';
       isOnboarded = hasVendorSubmission;
-    } else if (user.role === UserRole.ADMIN) {
+    } else if (
+      user.role === UserRole.ADMIN ||
+      user.role === UserRole.OPS ||
+      user.role === UserRole.CORPORATE_ADMIN ||
+      user.role === UserRole.CORPORATE_MANAGER ||
+      user.role === UserRole.EMPLOYEE
+    ) {
       isApproved = true;
       isOnboarded = true;
     }
@@ -1314,9 +1312,10 @@ export class AuthService implements OnModuleInit {
         isApproved,
         hasPassword,
         isOnboarded,
-        corporateTenantId: user?.corporateTenantId || undefined,
-        corporateRole: user?.corporateRole || undefined,
-        corporateOfficeIds: user?.corporateOfficeIds || undefined,
+        corporateTenantId: corporateClaims.corporateTenantId || user?.corporateTenantId || undefined,
+        corporateRole: corporateClaims.corporateRole || user?.corporateRole || undefined,
+        corporateOfficeIds: corporateClaims.corporateOfficeIds || user?.corporateOfficeIds || undefined,
+        corporateEmployeeId: corporateClaims.corporateEmployeeId || undefined,
         vendorProfile: user.vendor
           ? {
               id: user.vendor.id,
@@ -1513,13 +1512,14 @@ export class AuthService implements OnModuleInit {
 
     // Corporate claims are re-derived from the database on every refresh so a
     // tenant re-assignment / employee unlink takes effect without re-login.
+    const corporateClaims = await this.buildCorporateClaims(user ? { ...user, role: payload.role } : null);
     const tokenPayload = {
       jti: crypto.randomUUID(),
       id: payload.id,
       phone: payload.phone,
       email: payload.email,
       role: payload.role,
-      ...(await this.buildCorporateClaims(user ? { ...user, role: payload.role } : null)),
+      ...corporateClaims,
     };
 
     const accessSecret = this.configService.get<string>('auth.jwtAccessSecret') || resolveJwtSecret('access');
@@ -1565,7 +1565,13 @@ export class AuthService implements OnModuleInit {
       } else if (user.role === UserRole.VENDOR) {
         isApproved = user.vendor?.verificationStatus === 'VERIFIED';
         isOnboarded = hasVendorSubmission;
-      } else if (user.role === UserRole.ADMIN) {
+      } else if (
+        user.role === UserRole.ADMIN ||
+        user.role === UserRole.OPS ||
+        user.role === UserRole.CORPORATE_ADMIN ||
+        user.role === UserRole.CORPORATE_MANAGER ||
+        user.role === UserRole.EMPLOYEE
+      ) {
         isApproved = true;
         isOnboarded = true;
       }
@@ -1595,9 +1601,10 @@ export class AuthService implements OnModuleInit {
         isApproved,
         hasPassword,
         isOnboarded,
-        corporateTenantId: user?.corporateTenantId || undefined,
-        corporateRole: user?.corporateRole || undefined,
-        corporateOfficeIds: user?.corporateOfficeIds || undefined,
+        corporateTenantId: corporateClaims.corporateTenantId || user?.corporateTenantId || undefined,
+        corporateRole: corporateClaims.corporateRole || user?.corporateRole || undefined,
+        corporateOfficeIds: corporateClaims.corporateOfficeIds || user?.corporateOfficeIds || undefined,
+        corporateEmployeeId: corporateClaims.corporateEmployeeId || undefined,
         vendorProfile: user?.vendor
           ? {
               id: user.vendor.id,
@@ -1664,9 +1671,17 @@ export class AuthService implements OnModuleInit {
       isOnboarded = hasDriverSubmission;
     } else if (user.role === UserRole.VENDOR) {
       isOnboarded = hasVendorSubmission;
-    } else if (user.role === UserRole.ADMIN) {
+    } else if (
+      user.role === UserRole.ADMIN ||
+      user.role === UserRole.OPS ||
+      user.role === UserRole.CORPORATE_ADMIN ||
+      user.role === UserRole.CORPORATE_MANAGER ||
+      user.role === UserRole.EMPLOYEE
+    ) {
       isOnboarded = true;
     }
+
+    const corporateClaims = await this.buildCorporateClaims(user);
 
     if (hasVendorSubmission || hasDriverSubmission) {
       isOnboarded = true;
@@ -1711,6 +1726,10 @@ export class AuthService implements OnModuleInit {
       status: user.status,
       hasPassword,
       isOnboarded,
+      corporateTenantId: corporateClaims.corporateTenantId || user.corporateTenantId || undefined,
+      corporateRole: corporateClaims.corporateRole || user.corporateRole || undefined,
+      corporateOfficeIds: corporateClaims.corporateOfficeIds || (Array.isArray(user.corporateOfficeIds) && user.corporateOfficeIds.length > 0 ? user.corporateOfficeIds : undefined),
+      corporateEmployeeId: corporateClaims.corporateEmployeeId || undefined,
       vendorProfile: user.vendor
         ? {
             id: user.vendor.id,

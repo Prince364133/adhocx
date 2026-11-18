@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
+import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
 import 'package:adhocx_employee/shared/illustrations/trip_illustrations.dart';
+import 'package:adhocx_employee/state/employee_data_provider.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
-import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
 
 class TripCancelledScreen extends StatelessWidget {
   const TripCancelledScreen({super.key});
@@ -15,9 +15,25 @@ class TripCancelledScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TripDataBuilder(
-      load: () => MockDataService.getTrip('cancelled'),
+      load: () async {
+        final data = maybeEmployeeData(context);
+        if (data == null) return const {};
+        final history = await data.loadTripsHistory(limit: 20);
+        return history.firstWhere(
+          (t) =>
+              (t['status'] ?? t['routeStatus'] ?? '').toString().toUpperCase() ==
+              'CANCELLED',
+          orElse: () => history.isNotEmpty ? history.first : const {},
+        );
+      },
       builder: (context, trip) {
         final p = EmployeePalette.of(context);
+        final pickupPoint = trip['pickupAddress']?.toString() ?? 'Pickup point';
+        final scheduledTime = EmployeeDataProvider.formatDisplayTime(
+          trip['plannedEta']?.toString() ?? trip['shiftTime']?.toString(),
+        );
+        final reason = trip['noShowReason']?.toString() ??
+            'This trip has been cancelled as per your request.';
 
         return TripStageScaffold(
           title: "Today's Pickup",
@@ -29,8 +45,7 @@ class TripCancelledScreen extends StatelessWidget {
             const SizedBox(height: AppSpacing.xxl),
             TripHeadline(
               title: 'Trip Cancelled',
-              subtitle: trip['message'] ??
-                  'This trip has been cancelled as per your request.',
+              subtitle: reason,
             ),
             const SizedBox(height: AppSpacing.xxxl),
             TripInfoCard(
@@ -38,17 +53,17 @@ class TripCancelledScreen extends StatelessWidget {
                 TripInfoItem(
                   icon: Icons.location_on_outlined,
                   label: 'Pickup Point',
-                  value: trip['pickupPoint'] ?? 'Home - Hitech City',
+                  value: pickupPoint,
                 ),
                 TripInfoItem(
                   icon: Icons.access_time_rounded,
                   label: 'Scheduled Time',
-                  value: trip['scheduledTime'] ?? '8:15 AM',
+                  value: scheduledTime.isNotEmpty ? scheduledTime : 'Cancelled',
                 ),
-                TripInfoItem(
+                const TripInfoItem(
                   icon: Icons.cancel_outlined,
-                  label: 'Cancelled At',
-                  value: trip['cancelledAt'] ?? 'Today, 7:42 AM',
+                  label: 'Status',
+                  value: 'Cancelled',
                   valueColor: AppColors.error,
                 ),
               ],

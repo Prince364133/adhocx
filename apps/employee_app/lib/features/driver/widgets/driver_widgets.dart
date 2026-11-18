@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_radius.dart';
@@ -9,12 +8,7 @@ import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
 
-/// Loads one section of the mock driver-assignment data.
-Future<Map<String, dynamic>?> loadAssignmentSection(String key) async =>
-    (await MockDataService.getDriverAssignment())[key] as Map<String, dynamic>?;
-
-/// "Contact Support" outline button → live support chat (several driver
-/// screens previously showed a "Connecting…" snackbar that went nowhere).
+/// "Contact Support" outline button → live support chat.
 class ContactSupportButton extends StatelessWidget {
   const ContactSupportButton({super.key});
 

@@ -9,7 +9,7 @@ export interface CorporateTenantOption {
   activeShiftsCount?: number;
   activeCabsCount?: number;
   inTransitCount?: number;
-  onTimePunctualityPct?: number;
+  onTimePunctualityPct?: number | null;
   delayedCount?: number;
   unassignedCount?: number;
   _count?: {
@@ -637,4 +637,144 @@ export interface OpsSupportTicket {
   comments?: Array<{ id: string; message: string; userId: string; visibility: 'PUBLIC' | 'INTERNAL'; createdAt: string }>;
   activities?: Array<{ id: string; description: string; visibility: 'PUBLIC' | 'INTERNAL'; createdAt: string }>;
   attachments?: Array<{ id: string; fileName: string; fileType: string; fileSize: number; url: string; createdAt: string }>;
+}
+
+export interface ManualRouteStopInput {
+  employeeId?: string;
+  employeeCode?: string;
+  name: string;
+  phoneNumber: string;
+  email?: string;
+  gender?: string;
+  department?: string;
+  address: string;
+  lat?: number;
+  lng?: number;
+  plannedEta?: string;
+}
+
+export interface CreateManualRoutePayload {
+  tenantId: string;
+  officeId: string;
+  shiftDate: string;
+  shiftTime: string;
+  direction: 'LOGIN' | 'LOGOUT';
+  vehicleCategory?: string;
+  maxCapacity?: number;
+  stops: ManualRouteStopInput[];
+}
+
+export interface UpdateRoutePayload {
+  shiftDate?: string;
+  shiftTime?: string;
+  direction?: 'LOGIN' | 'LOGOUT';
+  vehicleCategory?: string;
+  maxCapacity?: number;
+  officeId?: string;
+}
+
+export interface UpdateRouteStopPayload {
+  name?: string;
+  phoneNumber?: string;
+  address?: string;
+  lat?: number;
+  lng?: number;
+  plannedEta?: string;
+}
+
+export interface CorporateEmployeeLocation {
+  id: string;
+  addressText: string;
+  landmark?: string | null;
+  latitude: number;
+  longitude: number;
+  isDefault: boolean;
+}
+
+export interface CorporateEmployeeItem {
+  id: string;
+  tenantId: string;
+  officeId: string;
+  userId?: string | null;
+  employeeCode: string;
+  fullName: string;
+  email: string;
+  phoneNumber: string;
+  gender: 'MALE' | 'FEMALE' | 'OTHER' | 'UNSPECIFIED' | string;
+  department?: string | null;
+  costCenter?: string | null;
+  isActive: boolean;
+  createdAt?: string;
+  office?: { id: string; name: string; code: string } | null;
+  locations?: CorporateEmployeeLocation[];
+}
+
+export interface CorporateEmployeeListResponse {
+  items: CorporateEmployeeItem[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+export interface CreateTenantEmployeePayload {
+  officeId: string;
+  employeeCode: string;
+  fullName: string;
+  email: string;
+  phoneNumber: string;
+  gender: 'MALE' | 'FEMALE' | 'OTHER' | 'UNSPECIFIED';
+  department?: string;
+  costCenter?: string;
+  homeAddress: string;
+  landmark?: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+export interface UpdateTenantEmployeePayload {
+  officeId?: string;
+  fullName?: string;
+  email?: string;
+  phoneNumber?: string;
+  gender?: 'MALE' | 'FEMALE' | 'OTHER' | 'UNSPECIFIED';
+  department?: string;
+  costCenter?: string;
+  homeAddress?: string;
+  landmark?: string;
+  latitude?: number;
+  longitude?: number;
+  isActive?: boolean;
+}
+
+export interface OperationsExceptionFeedItem {
+  id: string;
+  type: 'Delayed' | 'Unassigned' | 'GPS Stale' | 'Route Deviation' | 'Safety Alert';
+  target: string;
+  details: string;
+  office: string;
+  duration: string;
+  status: 'Open' | 'In Review' | 'Escalated' | 'Resolved';
+  action: 'View' | 'Assign' | 'Track' | 'Resolve' | 'Locate';
+}
+
+export interface OperationsExceptionsResponse {
+  summary: {
+    delayedPickups: number;
+    unassignedTrips: number;
+    gpsStaleCount: number;
+    routeDeviations: number;
+    safetyAlerts: number;
+  };
+  items: OperationsExceptionFeedItem[];
+  trend: Array<{
+    day: string;
+    delayed: number;
+    unassigned: number;
+    gpsStale: number;
+    deviation: number;
+    safety: number;
+  }>;
 }

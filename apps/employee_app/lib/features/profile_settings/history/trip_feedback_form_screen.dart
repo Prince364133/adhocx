@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
+import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
 import 'package:adhocx_employee/shared/illustrations/boarding_illustrations.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
 
+/// Trip Feedback Form wired to POST /corporate/me/trips/:stopId/feedback.
 class TripFeedbackFormScreen extends StatefulWidget {
   const TripFeedbackFormScreen({super.key});
 
@@ -25,20 +28,70 @@ class _TripFeedbackFormScreenState extends State<TripFeedbackFormScreen> {
   ];
 
   int _rating = 5;
-  // Starts empty: pre-selected answers biased the feedback.
+  bool _submitting = false;
   final Set<String> _selectedTags = {};
   final TextEditingController _feedback = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _feedback.addListener(() => setState(() {})); // live counter
+    _feedback.addListener(() => setState(() {}));
   }
 
   @override
   void dispose() {
     _feedback.dispose();
     super.dispose();
+  }
+
+  Future<String?> _resolveStopId() async {
+    try {
+      final extra = GoRouterState.of(context).extra;
+      if (extra is Map && extra['stopId'] != null) {
+        return extra['stopId'].toString();
+      }
+      if (extra is String && extra.isNotEmpty) return extra;
+    } catch (_) {}
+    final latest = await loadLiveLatestTrip(context);
+    return latest['stopId']?.toString();
+  }
+
+  Future<void> _submit() async {
+    if (_submitting) return;
+    setState(() => _submitting = true);
+    final data = maybeEmployeeData(context);
+    final stopId = await _resolveStopId();
+    final comment = _feedback.text.trim();
+
+    try {
+      if (data != null && stopId != null && stopId.isNotEmpty) {
+        await data.repository.submitFeedback(
+          stopId,
+          rating: _rating,
+          feltSafe: _rating >= 3,
+          tags: _selectedTags.toList(),
+          comment: comment.isNotEmpty ? comment : null,
+        );
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Thank you! Feedback recorded.'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+      Navigator.of(context).maybePop();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 
   @override
@@ -97,8 +150,9 @@ class _TripFeedbackFormScreenState extends State<TripFeedbackFormScreen> {
                     FilterChip(
                       label: Text(tag),
                       selected: _selectedTags.contains(tag),
-                      onSelected: (on) => setState(() =>
-                          on ? _selectedTags.add(tag) : _selectedTags.remove(tag)),
+                      onSelected: (on) => setState(() => on
+                          ? _selectedTags.add(tag)
+                          : _selectedTags.remove(tag)),
                       selectedColor: p.accentTint,
                       checkmarkColor: p.accent,
                       labelStyle: AppTypography.small(
@@ -145,12 +199,8 @@ class _TripFeedbackFormScreenState extends State<TripFeedbackFormScreen> {
               const SizedBox(height: AppSpacing.xxxl + 4),
               EmployeePrimaryButton(
                 label: 'Submit Feedback',
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Thank you! Feedback recorded.')),
-                  );
-                  Navigator.of(context).maybePop();
-                },
+                isLoading: _submitting,
+                onPressed: _submitting ? null : _submit,
               ),
             ],
           ),

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
 import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
@@ -10,19 +9,23 @@ import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
 
-/// Screen 6: Cab Arrived
+/// Cab Arrived screen backed by live tracking / nextTrip boardingOtp.
 class CabArrivedScreen extends StatelessWidget {
   const CabArrivedScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return TripDataBuilder(
-      load: () async =>
-          (await MockDataService.getLiveTracking())['arrived']
-              as Map<String, dynamic>?,
-      builder: (context, data) {
+      load: () => loadLiveTripSnapshot(context),
+      builder: (context, snapshot) {
         final p = EmployeePalette.of(context);
-        final otp = data['otp']?.toString() ?? '583271';
+        final next = (snapshot['nextTrip'] as Map<String, dynamic>?) ?? const {};
+        final tracking =
+            (snapshot['tracking'] as Map<String, dynamic>?) ?? const {};
+        final otp = tracking['boardingOtp']?.toString() ??
+            next['boardingOtp']?.toString() ??
+            '';
+        final dwellSecs = tracking['dwellRemainingSeconds'];
 
         return TripStageScaffold(
           title: "Today's Pickup",
@@ -52,7 +55,10 @@ class CabArrivedScreen extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.xl),
             TripHeadline(
-              title: data['title'] ?? 'Your cab has arrived! Please board now.',
+              title: 'Your cab has arrived! Please board now.',
+              subtitle: dwellSecs is num && dwellSecs > 0
+                  ? 'Waiting timer: ${(dwellSecs / 60).ceil()} min remaining'
+                  : null,
             ),
             const SizedBox(height: AppSpacing.xxl),
             AppCard(
@@ -68,18 +74,22 @@ class CabArrivedScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.md + 2),
-                  TripOtpDigits(otp: otp),
+                  otp.isNotEmpty
+                      ? TripOtpDigits(otp: otp)
+                      : Text(
+                          'OTP will appear when your trip is active',
+                          style: AppTypography.small(color: p.textMuted),
+                        ),
                 ],
               ),
             ),
             const SizedBox(height: AppSpacing.xxl + 4),
-            // Was `currentStep: 2`, which highlighted "Approaching".
             const EmployeeStepTracker(currentStep: TripStep.arrived),
             const SizedBox(height: AppSpacing.xxxl),
             EmployeePrimaryButton(
               label: 'Verify Boarding',
               icon: Icons.qr_code_scanner_rounded,
-              onPressed: () => context.push(AppRoutes.tripBoarded),
+              onPressed: () => context.push(AppRoutes.boardingVerifyOptions),
             ),
           ],
         );

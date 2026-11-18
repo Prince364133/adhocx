@@ -159,6 +159,7 @@ export class AuthUserDto {
   corporateTenantId?: string;
   corporateRole?: string;
   corporateOfficeIds?: string[];
+  corporateEmployeeId?: string;
 }
 
 export class AuthResponseDto {
@@ -204,6 +205,10 @@ export class UserMeResponseDto {
   status!: string;
   hasPassword?: boolean;
   isOnboarded?: boolean;
+  corporateTenantId?: string;
+  corporateRole?: string;
+  corporateOfficeIds?: string[];
+  corporateEmployeeId?: string;
   vendorProfile?: {
     id: string;
     organizationName: string;

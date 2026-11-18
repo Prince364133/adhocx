@@ -2,12 +2,49 @@
 
 import React, { useEffect, useState } from "react";
 import Image from "next/image";
-import { Building2, Upload } from "lucide-react";
+import {
+  AlertTriangle,
+  Building2,
+  CheckCircle2,
+  Phone,
+  Upload,
+} from "lucide-react";
 import { adminApi } from "../../lib/api/client";
 import { CreateCorporateTenantInput } from "../../lib/api/types";
 import { Button, Drawer, Input, Textarea } from "../common";
 
 type CompanyDraft = CreateCorporateTenantInput;
+
+export interface CompanyOnboardingResult {
+  companyId: string;
+  companyName: string;
+  companyCode: string;
+  logoUploadFailed: boolean;
+  portalAccessCreated: boolean;
+  portalLoginPhone?: string;
+  hqOfficeWarning?: string;
+}
+
+const INDIAN_PHONE_PATTERN =
+  "^(\\+91[\\s.-]?|91[\\s.-]?|0)?[6-9][0-9]{4}[\\s.-]?[0-9]{5}$";
+
+function validateIndianPhone(raw?: string): string | null {
+  const trimmed = (raw ?? "").trim();
+  if (!trimmed) {
+    return "Enter a 10-digit Indian mobile number for Corporate portal SMS OTP login.";
+  }
+  const digits = trimmed.replace(/\D/g, "");
+  const localDigits =
+    digits.length === 12 && digits.startsWith("91")
+      ? digits.slice(2)
+      : digits.length === 11 && digits.startsWith("0")
+        ? digits.slice(1)
+        : digits;
+  if (!/^[6-9]\d{9}$/.test(localDigits)) {
+    return "Enter a valid 10-digit Indian mobile number (e.g. +91 98765 43210 or 9876543210).";
+  }
+  return null;
+}
 
 const EMPTY_DRAFT: CompanyDraft = {
   code: "",
@@ -37,6 +74,8 @@ function Field({
   required = false,
   type = "text",
   pattern,
+  title,
+  hint,
   maxLength,
   placeholder,
   multiline = false,
@@ -48,6 +87,8 @@ function Field({
   required?: boolean;
   type?: string;
   pattern?: string;
+  title?: string;
+  hint?: string;
   maxLength?: number;
   placeholder?: string;
   multiline?: boolean;
@@ -74,6 +115,8 @@ function Field({
       value={value}
       required={required}
       pattern={pattern}
+      title={title}
+      hint={hint}
       maxLength={maxLength}
       placeholder={placeholder}
       onChange={(event) => onChange(name, event.target.value)}
@@ -88,13 +131,25 @@ export function CompanyOnboardingDrawer({
 }: {
   isOpen: boolean;
   onClose: () => void;
-  onCreated: (companyId: string, logoUploadFailed: boolean, portalAccessCreated: boolean) => void;
+  onCreated: (
+    result: CompanyOnboardingResult,
+    options?: { navigate?: boolean },
+  ) => void;
 }) {
   const [draft, setDraft] = useState<CompanyDraft>(EMPTY_DRAFT);
   const [logo, setLogo] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [createdResult, setCreatedResult] =
+    useState<CompanyOnboardingResult | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setCreatedResult(null);
+      setError("");
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (!logo) {
@@ -110,9 +165,25 @@ export function CompanyOnboardingDrawer({
     setDraft((current) => ({ ...current, [name]: value }));
   }
 
+  function handleDismiss() {
+    if (saving) return;
+    if (createdResult) {
+      const result = createdResult;
+      setCreatedResult(null);
+      onCreated(result, { navigate: false });
+      return;
+    }
+    onClose();
+  }
+
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+    const phoneError = validateIndianPhone(draft.primaryContactPhone);
+    if (phoneError) {
+      setError(phoneError);
+      return;
+    }
     if (!draft.billingSameAsRegistered && !draft.billingAddress?.trim()) {
       setError(
         "Enter the billing address, or select “Same as registered address”.",
@@ -138,7 +209,7 @@ export function CompanyOnboardingDrawer({
         gstin: draft.gstin?.trim().toUpperCase() || undefined,
         cin: draft.cin?.trim().toUpperCase() || undefined,
         website: draft.website?.trim() || undefined,
-        registeredAddress: draft.registeredAddress?.trim(),
+        registeredAddress: draft.registeredAddress?.trim() || undefined,
         city: draft.city?.trim(),
         state: draft.state?.trim(),
         pinCode: draft.pinCode?.trim(),
@@ -163,7 +234,16 @@ export function CompanyOnboardingDrawer({
       }
       setDraft(EMPTY_DRAFT);
       setLogo(null);
-      onCreated(company.id, logoUploadFailed, company.portalAccess?.created === true);
+      setCreatedResult({
+        companyId: company.id,
+        companyName: company.name || input.name,
+        companyCode: company.code || input.code,
+        logoUploadFailed,
+        portalAccessCreated: company.portalAccess?.created === true,
+        portalLoginPhone:
+          company.portalAccess?.phone || input.primaryContactPhone,
+        hqOfficeWarning: company.hqOfficeWarning,
+      });
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : "Company onboarding failed.",
@@ -176,30 +256,166 @@ export function CompanyOnboardingDrawer({
   return (
     <Drawer
       isOpen={isOpen}
-      onClose={saving ? () => undefined : onClose}
-      title="Onboard a company"
-      subtitle="The primary contact is also created as an active Corporate Super Admin and can sign in using SMS OTP. Offices, departments, and zones can be set up in its profile."
+      onClose={handleDismiss}
+      title={createdResult ? "Company onboarded" : "Onboard a company"}
+      subtitle={
+        createdResult
+          ? `${createdResult.companyName} (${createdResult.companyCode}) has been created.`
+          : "The primary contact is also created as an active Corporate Super Admin and can sign in using SMS OTP. Offices, departments, and zones can be set up in its profile."
+      }
       width="680px"
       footer={
-        <div className="flex justify-end" style={{ gap: 8 }}>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onClose}
-            disabled={saving}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            form="company-onboarding-form"
-            isLoading={saving}
-          >
-            Create company
-          </Button>
-        </div>
+        createdResult ? (
+          <div className="flex justify-end" style={{ gap: 8 }}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleDismiss}
+            >
+              Done
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                const result = createdResult;
+                setCreatedResult(null);
+                onCreated(result, { navigate: true });
+              }}
+            >
+              Open company profile
+            </Button>
+          </div>
+        ) : (
+          <div className="flex justify-end" style={{ gap: 8 }}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={saving}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="company-onboarding-form"
+              isLoading={saving}
+            >
+              Create company
+            </Button>
+          </div>
+        )
       }
     >
+      {createdResult ? (
+        <div className="flex flex-col" style={{ gap: 16 }}>
+          <div
+            role="status"
+            className="bg-success-subtle text-success"
+            style={{
+              padding: 16,
+              border: "1px solid var(--color-success-border)",
+              borderRadius: 10,
+            }}
+          >
+            <div className="flex items-start" style={{ gap: 10 }}>
+              <CheckCircle2 size={20} style={{ flexShrink: 0, marginTop: 2 }} />
+              <div>
+                <div className="font-bold text-primary" style={{ fontSize: 15 }}>
+                  {createdResult.companyName} ({createdResult.companyCode}) is
+                  active
+                </div>
+                <p
+                  className="text-secondary"
+                  style={{ margin: "6px 0 0", fontSize: 13, lineHeight: 1.5 }}
+                >
+                  {createdResult.portalAccessCreated
+                    ? "Corporate Super Admin portal access is provisioned and ready for SMS OTP sign-in."
+                    : "Company record was created, but Corporate Super Admin portal access was not confirmed. Check Users & roles in the company profile."}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {createdResult.portalAccessCreated && (
+            <div
+              className="border border-subtle bg-surface-elevated"
+              style={{ padding: 14, borderRadius: 10 }}
+            >
+              <div
+                className="flex items-center font-semibold text-primary"
+                style={{ gap: 8, fontSize: 13, marginBottom: 6 }}
+              >
+                <Phone size={15} />
+                Corporate Portal Login Readiness
+              </div>
+              <p
+                className="text-secondary"
+                style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}
+              >
+                Login phone:{" "}
+                <strong className="text-primary">
+                  {createdResult.portalLoginPhone || "Primary contact phone"}
+                </strong>
+                <br />
+                Login method:{" "}
+                <strong className="text-primary">SMS OTP</strong> (Role:
+                Corporate Super Admin)
+              </p>
+            </div>
+          )}
+
+          {createdResult.hqOfficeWarning && (
+            <div
+              role="alert"
+              style={{
+                padding: 14,
+                borderRadius: 10,
+                background: "rgba(245, 158, 11, 0.12)",
+                border: "1px solid var(--color-warning)",
+                color: "var(--text-primary)",
+                fontSize: 13,
+                lineHeight: 1.5,
+              }}
+            >
+              <div
+                className="flex items-start"
+                style={{ gap: 10 }}
+              >
+                <AlertTriangle
+                  size={18}
+                  style={{
+                    flexShrink: 0,
+                    marginTop: 2,
+                    color: "var(--color-warning)",
+                  }}
+                />
+                <div>
+                  <div className="font-bold" style={{ marginBottom: 4 }}>
+                    HQ office geocoding requires attention
+                  </div>
+                  <div>{createdResult.hqOfficeWarning}</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {createdResult.logoUploadFailed && (
+            <div
+              role="alert"
+              className="text-danger bg-danger-subtle"
+              style={{
+                padding: 12,
+                border: "1px solid var(--color-danger-border)",
+                borderRadius: 8,
+                fontSize: 13,
+              }}
+            >
+              The company logo could not be uploaded. You can upload a JPEG,
+              PNG, or WebP logo (up to 2 MB) in Organization details.
+            </div>
+          )}
+        </div>
+      ) : (
       <form
         id="company-onboarding-form"
         onSubmit={submit}
@@ -335,7 +551,9 @@ export function CompanyOnboardingDrawer({
               onChange={changeField}
               required
               type="tel"
-              pattern="[+0-9() .-]{7,24}"
+              pattern={INDIAN_PHONE_PATTERN}
+              title="Enter a valid 10-digit Indian mobile number (e.g. +91 98765 43210 or 9876543210)"
+              hint="10-digit Indian mobile number for Corporate Super Admin SMS OTP login."
               maxLength={24}
               placeholder="+91 98765 43210"
             />
@@ -452,6 +670,7 @@ export function CompanyOnboardingDrawer({
           </div>
         </section>
       </form>
+      )}
     </Drawer>
   );
 }

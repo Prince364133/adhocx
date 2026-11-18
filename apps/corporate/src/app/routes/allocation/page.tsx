@@ -40,7 +40,7 @@ export default function FleetDriverAllocationPage() {
 
   const vehicleCount = new Set(routes.map((route) => route.vehicleId).filter(Boolean)).size;
   const driverAssignedCount = routes.filter((route) => Boolean(route.driverId)).length;
-  const inProgressCount = routes.filter((route) => route.status === 'IN_PROGRESS').length;
+  const inProgressCount = routes.filter((route) => route.status === 'IN_TRANSIT').length;
   const filteredRoutes = useMemo(() => routes.filter((route) => {
     const query = search.trim().toLowerCase();
     const matchesSearch = !query || [

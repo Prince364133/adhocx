@@ -4,7 +4,6 @@ import 'package:adhocx_employee/repositories/employee_auth_repository.dart';
 import 'package:adhocx_employee/repositories/http_employee_rider_repository.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
 import 'package:adhocx_employee/services/employee_api_client.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/state/employee_auth_provider.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_theme.dart';
@@ -24,6 +23,8 @@ class _FakeAuthRepository implements EmployeeAuthRepository {
   Future<EmployeeUser?> getCurrentUser() async => null;
   @override
   Future<void> signOut() async {}
+  @override
+  Future<void> deleteAccount() async {}
   @override
   Future<EmployeeUser> verifyOtp({
     required String mobileNumber,
@@ -60,7 +61,6 @@ Future<void> _pump(WidgetTester tester, Widget screen,
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   SharedPreferences.setMockInitialValues({});
-  await tester.runAsync(MockDataService.loadData);
   _theme = ThemeProvider();
   final riderRepository = HttpEmployeeRiderRepository(
     client: EmployeeApiClient(

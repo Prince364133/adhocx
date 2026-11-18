@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:adhocx_employee/theme/app_colors.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
+import 'package:adhocx_employee/routes/app_routes.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
+import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
+import 'package:adhocx_employee/theme/app_colors.dart';
 
-/// Screen: Contact Driver Sheet
-/// Uses the Driver app's AppBottomSheet + EmployeeDriverContactSheet.
+/// Contact Driver Sheet backed by live nextTrip / tracking driver info.
 class ContactDriverSheetScreen extends StatefulWidget {
   const ContactDriverSheetScreen({super.key});
 
@@ -16,6 +17,7 @@ class ContactDriverSheetScreen extends StatefulWidget {
 
 class _ContactDriverSheetScreenState extends State<ContactDriverSheetScreen> {
   Map<String, dynamic>? _driver;
+  Map<String, dynamic>? _vehicle;
   bool _isLoading = true;
 
   @override
@@ -25,10 +27,16 @@ class _ContactDriverSheetScreenState extends State<ContactDriverSheetScreen> {
   }
 
   Future<void> _loadData() async {
-    final assignment = await MockDataService.getDriverAssignment();
+    final snapshot = await loadLiveTripSnapshot(context);
+    final next = (snapshot['nextTrip'] as Map<String, dynamic>?) ?? const {};
+    final tracking =
+        (snapshot['tracking'] as Map<String, dynamic>?) ?? const {};
+    final drv = tracking['driver'] ?? next['driver'];
+    final veh = tracking['vehicle'] ?? next['vehicle'];
     if (mounted) {
       setState(() {
-        _driver = assignment['driver'] as Map<String, dynamic>?;
+        _driver = drv is Map ? Map<String, dynamic>.from(drv) : null;
+        _vehicle = veh is Map ? Map<String, dynamic>.from(veh) : null;
         _isLoading = false;
       });
     }
@@ -36,6 +44,13 @@ class _ContactDriverSheetScreenState extends State<ContactDriverSheetScreen> {
 
   Future<void> _launchCall(String phone) async {
     final cleanPhone = phone.replaceAll(RegExp(r'[^0-9+]'), '');
+    if (cleanPhone.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Driver phone number is not available yet.')),
+      );
+      return;
+    }
     final uri = Uri.parse('tel:$cleanPhone');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
@@ -44,10 +59,18 @@ class _ContactDriverSheetScreenState extends State<ContactDriverSheetScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final name = _driver?['name'] ?? 'Suresh R';
-    final rating = (_driver?['rating'] ?? 4.8).toDouble();
-    final vehicleNumber = _driver?['vehicleNumber'] ?? 'TS09UB7845';
-    final phone = _driver?['phone'] ?? '+91 98765 00111';
+    final name = _driver?['fullName']?.toString() ??
+        _driver?['name']?.toString() ??
+        'Not yet assigned';
+    final rating = (_driver?['rating'] is num)
+        ? (_driver!['rating'] as num).toDouble()
+        : 5.0;
+    final vehicleNumber = _vehicle?['registrationNumber']?.toString() ??
+        _vehicle?['plateNumber']?.toString() ??
+        'Pending assignment';
+    final phone = _driver?['phoneNumber']?.toString() ??
+        _driver?['phone']?.toString() ??
+        '';
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -85,17 +108,11 @@ class _ContactDriverSheetScreenState extends State<ContactDriverSheetScreen> {
                             driverName: name,
                             rating: rating,
                             vehicleNumber: vehicleNumber,
-                            phone: phone,
+                            phone: phone.isNotEmpty ? phone : 'Unavailable',
                             onCall: () => _launchCall(phone),
                             onChat: () {
                               Navigator.of(context).pop();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                      'In-app chat connected with driver.'),
-                                  duration: Duration(seconds: 2),
-                                ),
-                              );
+                              context.push(AppRoutes.safetyLiveChat);
                             },
                           ),
                   ),

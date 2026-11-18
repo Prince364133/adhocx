@@ -1,7 +1,8 @@
 'use client';
 
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Building2, Check, ChevronLeft, ChevronRight, Download, FilterX, Mail, Pencil, Phone, Plus, Search, Users, X } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { Building2, Check, ChevronLeft, ChevronRight, Download, FilterX, Mail, Pencil, Phone, Plus, Search, Trash2, Users, X } from 'lucide-react';
 import styles from './EmployeeDirectory.module.css';
 import { employeeApi } from '../../lib/api/corporate';
 import type { Employee, Office } from '../../lib/api/types';
@@ -63,7 +64,7 @@ function mapEmployee(employee: Employee): EmployeeRecord {
     costCenter: employee.costCenter ?? '',
     officeId: employee.officeId,
     office: employee.office?.name ?? '',
-    homeAddress: employee.locations?.find((location) => location.isDefault)?.addressText ?? '',
+    homeAddress: employee.locations?.find((location) => location.isDefault)?.addressText ?? employee.locations?.[0]?.addressText ?? '',
     status: employee.isActive ? 'Active' : 'Inactive',
   };
 }
@@ -176,7 +177,7 @@ function EmployeeEditor({
                   {offices.map((office) => <option key={office.id} value={office.id}>{office.name} ({office.code})</option>)}
                 </select>
               </label>
-              {employee ? (
+              {employee && (
                 <label className={styles.field}>
                   <span>Employment status</span>
                   <select value={values.status} onChange={(event) => update('status', event.target.value as EmploymentStatus)}>
@@ -184,12 +185,16 @@ function EmployeeEditor({
                     <option value="Inactive">Inactive</option>
                   </select>
                 </label>
-              ) : (
-                <label className={styles.field}>
-                  <span>Home address <b>*</b></span>
-                  <textarea required value={values.homeAddress} onChange={(event) => update('homeAddress', event.target.value)} />
-                </label>
               )}
+              <label className={`${styles.field} ${styles.fieldFull}`}>
+                <span>Home address {!employee && <b>*</b>}</span>
+                <textarea
+                  required={!employee}
+                  placeholder="Enter full pickup / drop residential address"
+                  value={values.homeAddress}
+                  onChange={(event) => update('homeAddress', event.target.value)}
+                />
+              </label>
             </fieldset>
           </div>
           <footer className={styles.drawerFooter}>
@@ -243,10 +248,12 @@ function EmployeeDetails({ employee, onClose, onEdit }: { employee: EmployeeReco
 
 export default function EmployeeDirectory() {
   const { tenantId, status: sessionStatus, offices, can } = useSession();
+  const searchParams = useSearchParams();
+  const initialSearchParam = searchParams.get('search') ?? '';
   const [employees, setEmployees] = useState<EmployeeRecord[]>([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(initialSearchParam);
   const [officeId, setOfficeId] = useState('');
   const [employmentStatus, setEmploymentStatus] = useState('');
   const [loading, setLoading] = useState(true);
@@ -256,10 +263,20 @@ export default function EmployeeDirectory() {
   const [drawerMode, setDrawerMode] = useState<DrawerMode>(null);
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeRecord | null>(null);
   const [statusTarget, setStatusTarget] = useState<EmployeeRecord | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<EmployeeRecord | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [toast, setToast] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
   const requestSequence = useRef(0);
   const canWrite = can('employees:write');
+
+  useEffect(() => {
+    const paramSearch = searchParams.get('search');
+    if (paramSearch !== null) {
+      setSearch(paramSearch);
+      setCurrentPage(1);
+    }
+  }, [searchParams]);
 
   const loadEmployees = useCallback(async () => {
     const requestId = ++requestSequence.current;
@@ -319,6 +336,7 @@ export default function EmployeeDirectory() {
           department: values.department.trim(),
           costCenter: values.costCenter.trim(),
           officeId: values.officeId,
+          homeAddress: values.homeAddress.trim() || undefined,
           isActive: values.status === 'Active',
         });
       } else {
@@ -355,6 +373,30 @@ export default function EmployeeDirectory() {
       notify(requestError instanceof Error ? requestError.message : 'Unable to update employee status.');
     } finally {
       setStatusTarget(null);
+    }
+  };
+
+  const deleteEmployee = async () => {
+    if (!tenantId || !deleteTarget) return;
+    setDeleting(true);
+    try {
+      const result = await employeeApi.delete(tenantId, deleteTarget.id);
+      if (selectedEmployee?.id === deleteTarget.id) {
+        setDrawerMode(null);
+        setSelectedEmployee(null);
+      }
+      await loadEmployees();
+      notify(
+        result?.message ||
+          (result?.deactivated
+            ? `${deleteTarget.fullName} has historical records and was deactivated.`
+            : `${deleteTarget.fullName} was deleted.`),
+      );
+    } catch (requestError) {
+      notify(requestError instanceof Error ? requestError.message : 'Unable to delete employee.');
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
     }
   };
 
@@ -479,9 +521,10 @@ export default function EmployeeDirectory() {
                   <td><a className={styles.phoneLink} href={`tel:${employee.phone.replace(/[^\d+]/g, '')}`}>{employee.phone}</a></td>
                   <td><span className={`${styles.status} ${employee.status === 'Active' ? styles.statusActive : styles.statusInactive}`}><i />{employee.status}</span></td>
                   <td><div className={styles.rowActions}>
-                    <button type="button" className={styles.actionButton} aria-label={`View ${employee.fullName}`} onClick={() => { setSelectedEmployee(employee); setDrawerMode('view'); }}><Search size={15} /></button>
-                    {canWrite && <button type="button" className={styles.actionButton} aria-label={`Edit ${employee.fullName}`} onClick={() => openEditor(employee)}><Pencil size={14} /></button>}
-                    {canWrite && <button type="button" className={styles.actionButton} onClick={() => setStatusTarget(employee)}>{employee.status === 'Active' ? 'Deactivate' : 'Activate'}</button>}
+                    <button type="button" className={styles.actionButton} aria-label={`View ${employee.fullName}`} title="View details" onClick={() => { setSelectedEmployee(employee); setDrawerMode('view'); }}><Search size={15} /></button>
+                    {canWrite && <button type="button" className={styles.actionButton} aria-label={`Edit ${employee.fullName}`} title="Edit employee" onClick={() => openEditor(employee)}><Pencil size={14} /></button>}
+                    {canWrite && <button type="button" className={styles.actionButton} style={{ width: 'auto', padding: '0 8px', fontSize: 11 }} onClick={() => setStatusTarget(employee)}>{employee.status === 'Active' ? 'Deactivate' : 'Activate'}</button>}
+                    {canWrite && <button type="button" className={styles.actionButton} aria-label={`Delete ${employee.fullName}`} title="Delete employee" style={{ color: 'var(--color-danger)' }} onClick={() => setDeleteTarget(employee)}><Trash2 size={14} /></button>}
                   </div></td>
                 </tr>
               ))}
@@ -530,6 +573,23 @@ export default function EmployeeDirectory() {
             <div className={styles.confirmActions}>
               <button type="button" className={styles.secondaryButton} onClick={() => setStatusTarget(null)}>Cancel</button>
               <button type="button" className={styles.primaryButton} onClick={() => void changeEmploymentStatus()}>Confirm</button>
+            </div>
+          </section>
+        </div>
+      )}
+      {deleteTarget && (
+        <div className={styles.overlay} onMouseDown={(event) => !deleting && event.target === event.currentTarget && setDeleteTarget(null)}>
+          <section className={styles.confirmDialog} role="alertdialog" aria-modal="true" aria-labelledby="delete-employee-title">
+            <span className={styles.deleteIcon} aria-hidden="true"><Trash2 size={18} /></span>
+            <h2 id="delete-employee-title">Delete employee?</h2>
+            <p>
+              Delete <strong>{deleteTarget.fullName}</strong> ({deleteTarget.employeeId})? If this employee has historical trips or support tickets, the account will be safely deactivated instead of permanently deleted.
+            </p>
+            <div className={styles.confirmActions}>
+              <button type="button" className={styles.secondaryButton} disabled={deleting} onClick={() => setDeleteTarget(null)}>Cancel</button>
+              <button type="button" className={styles.dangerButton} disabled={deleting} onClick={() => void deleteEmployee()}>
+                {deleting ? 'Deleting…' : 'Delete employee'}
+              </button>
             </div>
           </section>
         </div>

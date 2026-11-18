@@ -27,6 +27,9 @@ class _FakeAuthRepository implements EmployeeAuthRepository {
   Future<void> signOut() async {}
 
   @override
+  Future<void> deleteAccount() async {}
+
+  @override
   Future<EmployeeUser> verifyOtp({
     required String mobileNumber,
     required String otp,

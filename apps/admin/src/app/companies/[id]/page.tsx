@@ -14,10 +14,13 @@ import {
   Building2,
   Check,
   FileText,
+  Layers,
+  Map,
   MapPin,
   Pencil,
   Plus,
   Shield,
+  Users,
   X,
 } from "lucide-react";
 import { adminApi } from "../../../lib/api/client";
@@ -53,6 +56,9 @@ const sectionItems: { id: Section; label: string; icon: React.ReactNode }[] = [
   { id: "organization", label: "Organization", icon: <Building2 size={17} /> },
   { id: "legal", label: "Legal & tax", icon: <FileText size={17} /> },
   { id: "offices", label: "Offices & sites", icon: <MapPin size={17} /> },
+  { id: "departments", label: "Departments", icon: <Layers size={17} /> },
+  { id: "zones", label: "Transport zones", icon: <Map size={17} /> },
+  { id: "users", label: "Users & roles", icon: <Users size={17} /> },
 ];
 
 const roleOptions = [
@@ -429,18 +435,28 @@ export default function CompanyProfilePage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const logoUploadFailed = params.get('logoUpload') === 'failed';
-    const portalAccess = params.get('portalAccess');
-    if (logoUploadFailed || portalAccess) {
+    const logoUploadFailed = params.get("logoUpload") === "failed";
+    const portalAccess = params.get("portalAccess");
+    const hqOfficeWarning = params.get("hqOfficeWarning");
+    if (logoUploadFailed || portalAccess || hqOfficeWarning) {
+      const baseText = logoUploadFailed
+        ? portalAccess === "created"
+          ? "Company and Corporate Super Admin account were created, but its logo could not be uploaded. You can try again in Organization details."
+          : "Company was created, but its logo could not be uploaded. You can try again in Organization details."
+        : portalAccess === "created"
+          ? "Company and Corporate Super Admin account created. The primary contact can sign in using SMS OTP."
+          : portalAccess
+            ? "Company was created, but Corporate portal account creation was not confirmed. Verify the company users before retrying."
+            : "";
+      const text = [baseText, hqOfficeWarning].filter(Boolean).join(" ");
       setNotice({
-        kind: logoUploadFailed ? 'error' : portalAccess === 'created' ? 'success' : 'error',
-        text: logoUploadFailed
-          ? portalAccess === 'created'
-            ? 'Company and Corporate Super Admin account were created, but its logo could not be uploaded. You can try again in Organization details.'
-            : 'Company was created, but its logo could not be uploaded. You can try again in Organization details.'
-          : portalAccess === 'created'
-            ? 'Company and Corporate Super Admin account created. The primary contact can sign in using SMS OTP.'
-            : 'Company was created, but Corporate portal account creation was not confirmed. Verify the company users before retrying.',
+        kind:
+          logoUploadFailed || Boolean(hqOfficeWarning)
+            ? "error"
+            : portalAccess === "created"
+              ? "success"
+              : "error",
+        text,
       });
       router.replace(`/companies/${companyId}`);
     }
@@ -643,17 +659,13 @@ export default function CompanyProfilePage() {
 
   async function uploadLogo(file?: File) {
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
+    if (
+      !["image/jpeg", "image/png", "image/webp"].includes(file.type) ||
+      file.size > 2 * 1024 * 1024
+    ) {
       setNotice({
         kind: "error",
-        text: "Choose an image file for the company logo.",
-      });
-      return;
-    }
-    if (file.size > 2 * 1024 * 1024) {
-      setNotice({
-        kind: "error",
-        text: "The company logo must be 2 MB or smaller.",
+        text: "Choose a JPEG, PNG, or WebP logo up to 2 MB.",
       });
       return;
     }
@@ -1177,7 +1189,7 @@ export default function CompanyProfilePage() {
                   <TextAreaField
                     label="Registered address"
                     value={organizationDraft.registeredAddress}
-                    required
+                    placeholder="Building, Street, Area (optional)"
                     rows={3}
                     onChange={(value) =>
                       setOrganizationDraft((current) => ({
@@ -1223,7 +1235,7 @@ export default function CompanyProfilePage() {
                       Company logo
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/jpeg,image/png,image/webp"
                         disabled={saving}
                         onChange={(event) => {
                           void uploadLogo(event.target.files?.[0]);
@@ -1233,7 +1245,7 @@ export default function CompanyProfilePage() {
                       />
                     </label>
                     <small className="block text-muted mt-tight">
-                      Image files up to 5 MB.
+                      JPEG, PNG, or WebP up to 2 MB.
                     </small>
                   </div>
                 </>

@@ -145,30 +145,53 @@ export class CorporateRiderService {
     const start = startDate ? new Date(startDate) : new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const end = endDate ? new Date(endDate) : new Date(start.getTime() + 7 * 86400000);
 
-    const requests = await this.db.corporateTransportRequest.findMany({
-      where: {
-        employeeId: emp.id,
-        scheduledDate: { gte: start, lte: end },
-        status: { notIn: ['CANCELLED'] },
-      },
-      include: {
-        routeStop: {
-          include: {
-            route: {
-              include: { office: true },
+    const [requests, directStops] = await Promise.all([
+      this.db.corporateTransportRequest.findMany({
+        where: {
+          employeeId: emp.id,
+          scheduledDate: { gte: start, lte: end },
+          status: { notIn: ['CANCELLED'] },
+        },
+        include: {
+          routeStop: {
+            include: {
+              route: {
+                include: { office: true },
+              },
             },
           },
         },
-      },
-      orderBy: [{ scheduledDate: 'asc' }, { shiftTime: 'asc' }],
-    });
+        orderBy: [{ scheduledDate: 'asc' }, { shiftTime: 'asc' }],
+      }),
+      typeof (this.db as any).corporateRouteStop?.findMany === 'function'
+        ? this.db.corporateRouteStop.findMany({
+            where: {
+              employeeId: emp.id,
+              transportRequestId: null,
+              status: { notIn: ['CANCELLED'] },
+              route: {
+                shiftDate: { gte: start, lte: end },
+                status: { notIn: ['CANCELLED'] },
+              },
+            },
+            include: {
+              route: {
+                include: { office: true },
+              },
+            },
+            orderBy: { plannedEta: 'asc' },
+          })
+        : Promise.resolve([]),
+    ]);
+
+    const safeDirectStops = Array.isArray(directStops) ? directStops : [];
 
     const defaultAddress = emp.locations && emp.locations.length > 0 ? emp.locations[0].addressText : 'Home Address';
     // Same tenant policy, pickup anchor and IST interpretation as POST requests/:id/reschedule,
     // so the app never offers an action the API will reject (or hides one it would accept).
     const cutoffHours = await resolveCancelCutoffHours(this.db as any, emp.tenantId, now);
 
-    const schedule: RiderScheduleItem[] = requests.map((req) => {
+    const requestItems: RiderScheduleItem[] = requests.map((req) => {
       const shiftDateStr = req.scheduledDate.toISOString().substring(0, 10);
       const { pickupAt, source } = resolvePickupTime(req as any);
       const cutoff = evaluateCutoff(pickupAt, source, now, null, cutoffHours);
@@ -183,12 +206,13 @@ export class CorporateRiderService {
         direction: req.direction as CorporateTransportDirection,
         status: req.status,
         requestId: req.id,
+        stopId: stop?.id ?? null,
         routeId: route?.id ?? null,
         pickupTime: stop?.plannedEta ? stop.plannedEta.toISOString() : null,
         officeArrivalTime: route?.targetOfficeArrivalTime
           ? route.targetOfficeArrivalTime.toISOString()
           : null,
-        pickupAddress: defaultAddress,
+        pickupAddress: (stop as any)?.addressText || defaultAddress,
         officeAddress: route?.office?.addressText ?? emp.office.addressText,
         vehicleCategory: route?.vehicleCategory ?? '',
         canCancel: canModify,
@@ -201,6 +225,40 @@ export class CorporateRiderService {
         dropoffPoint: toPoint(req.dropoffLat, req.dropoffLng),
       };
     });
+
+    const directStopItems: RiderScheduleItem[] = safeDirectStops.map((stop: any) => {
+      const route = stop.route;
+      const shiftDateStr = route.shiftDate.toISOString().substring(0, 10);
+      const pickupAt = stop.plannedEta ? new Date(stop.plannedEta) : new Date(route.targetPickup1Time);
+      const cutoff = evaluateCutoff(pickupAt, 'stop_eta' as any, now, null, cutoffHours);
+      const canModify = cutoff.allowed && stop.status === 'PENDING' && ['PLANNED', 'DISPATCHING', 'ASSIGNED'].includes(String(route.status));
+      return {
+        date: shiftDateStr,
+        shiftTime: route.shiftTime,
+        direction: route.direction as CorporateTransportDirection,
+        status: route.status === 'COMPLETED' ? 'COMPLETED' : stop.status === 'BOARDED' ? 'IN_PROGRESS' : 'PLANNED',
+        requestId: stop.id,
+        stopId: stop.id,
+        routeId: route.id,
+        pickupTime: stop.plannedEta ? stop.plannedEta.toISOString() : null,
+        officeArrivalTime: route.targetOfficeArrivalTime ? route.targetOfficeArrivalTime.toISOString() : null,
+        pickupAddress: stop.addressText || defaultAddress,
+        officeAddress: route.office?.addressText ?? emp.office.addressText,
+        vehicleCategory: route.vehicleCategory ?? '',
+        canCancel: canModify,
+        canReschedule: false,
+        pickupAt: pickupAt.toISOString(),
+        cancelCutoffAt: cutoff.cutoffAt.toISOString(),
+        cutoffHours,
+        canModify,
+        pickupPoint: toPoint(stop.latitude, stop.longitude),
+        dropoffPoint: toPoint(route.office?.latitude, route.office?.longitude),
+      };
+    });
+
+    const schedule: RiderScheduleItem[] = [...requestItems, ...directStopItems].sort((a, b) =>
+      `${a.date} ${a.shiftTime}`.localeCompare(`${b.date} ${b.shiftTime}`),
+    );
 
     return {
       employeeId: emp.id,
@@ -278,7 +336,7 @@ export class CorporateRiderService {
         actualArrivalTime: s.actualArrivalTime,
         actualDepartureTime: s.actualDepartureTime,
         boardingOtp: s.boardingOtp,
-        pickupAddress: defaultAddress,
+        pickupAddress: s.addressText || defaultAddress,
         destinationAddress: route.office?.name ?? 'Corporate Office',
         driver: driver
           ? {
@@ -329,6 +387,18 @@ export class CorporateRiderService {
             driver: true,
             vehicle: true,
             office: true,
+            stops: {
+              orderBy: { stopSequence: 'asc' },
+              select: {
+                id: true,
+                employeeId: true,
+                stopSequence: true,
+                stopType: true,
+                addressText: true,
+                plannedEta: true,
+                status: true,
+              },
+            },
           },
         },
       },
@@ -348,6 +418,8 @@ export class CorporateRiderService {
       stopId: stop.id,
       routeId: stop.routeId,
       routeNumber: `CR-${stop.routeId.slice(0, 8).toUpperCase()}`,
+      shiftDate: route.shiftDate.toISOString().substring(0, 10),
+      shiftTime: route.shiftTime,
       direction: route.direction,
       routeStatus: route.status,
       stopStatus: stop.status,
@@ -359,7 +431,7 @@ export class CorporateRiderService {
       pickupLocation: {
         latitude: Number(stop.latitude),
         longitude: Number(stop.longitude),
-        addressText: emp.locations?.[0]?.addressText || 'Designated Pickup Node',
+        addressText: stop.addressText || emp.locations?.[0]?.addressText || 'Designated Pickup Node',
       },
       officeDestination: {
         id: route.office.id,
@@ -381,6 +453,15 @@ export class CorporateRiderService {
             vehicleType: route.vehicle.vehicleType,
           }
         : null,
+      routeStops: (route.stops ?? []).map((rs: any) => ({
+        stopId: rs.id,
+        stopSequence: rs.stopSequence,
+        stopType: rs.stopType,
+        addressText: rs.addressText || (rs.employeeId ? 'Commuter Stop' : route.office?.name || 'Corporate Office'),
+        plannedEta: rs.plannedEta,
+        status: rs.status,
+        isCurrentUser: rs.employeeId === emp.id,
+      })),
     };
   }
 
@@ -715,48 +796,97 @@ export class CorporateRiderService {
     return this.tickets.listEmployeeTickets(emp.id);
   }
 
-  /**
-   * GET /corporate/me/notifications
-   * Commuter push/in-app notification stream.
-   */
-  async getRiderNotifications(userId: string): Promise<RiderNotificationItem[]> {
+  async updateRiderProfile(
+    userId: string,
+    dto: { fullName?: string; email?: string; homeAddress?: string },
+  ): Promise<RiderProfileResponse> {
     const emp = await this.resolveEmployee(userId);
+    const cleanName = dto.fullName?.trim();
+    const cleanEmail = dto.email?.trim().toLowerCase();
 
-    // Retrieve active upcoming stops to generate current status notifications
-    const upcomingStops = await this.db.corporateRouteStop.findMany({
-      where: {
-        employeeId: emp.id,
-        status: { in: ['PENDING', 'ARRIVED'] },
+    await this.db.corporateEmployee.update({
+      where: { id: emp.id },
+      data: {
+        ...(cleanName ? { fullName: cleanName } : {}),
+        ...(cleanEmail ? { email: cleanEmail } : {}),
       },
-      include: { route: true },
-      orderBy: { plannedEta: 'asc' },
-      take: 5,
     });
 
-    const notifications: RiderNotificationItem[] = [];
+    const userPatch: Record<string, any> = {};
+    if (cleanName) userPatch.fullName = cleanName;
+    if (cleanEmail) {
+      const emailClash = await this.db.user.findFirst({
+        where: { email: { equals: cleanEmail, mode: 'insensitive' }, id: { not: userId } },
+        select: { id: true },
+      });
+      if (!emailClash) userPatch.email = cleanEmail;
+    }
+    if (Object.keys(userPatch).length > 0) {
+      await this.db.user.update({ where: { id: userId }, data: userPatch });
+    }
 
-    for (const s of upcomingStops) {
-      if (s.status === 'ARRIVED') {
-        notifications.push({
-          id: `notif-arrived-${s.id}`,
-          type: 'CAB_ARRIVED',
-          title: 'Cab Has Arrived',
-          message: `Your cab has arrived at the pickup location. Dwell timer active. Boarding OTP: ${s.boardingOtp}`,
-          timestamp: s.actualArrivalTime || new Date(),
-          metadata: { stopId: s.id, routeId: s.routeId, otp: s.boardingOtp },
-        });
-      } else {
-        notifications.push({
-          id: `notif-eta-${s.id}`,
-          type: 'TRIP_SCHEDULED',
-          title: 'Upcoming Corporate Ride',
-          message: `Your cab is scheduled for ${s.route.shiftTime} (${s.route.direction}). Planned pickup at ${s.plannedEta.toISOString().substring(11, 16)} IST.`,
-          timestamp: s.plannedEta,
-          metadata: { stopId: s.id, routeId: s.routeId },
+    if (dto.homeAddress?.trim()) {
+      const existingLoc = emp.locations?.[0];
+      if (existingLoc) {
+        await this.db.corporateEmployeeLocation.update({
+          where: { id: existingLoc.id },
+          data: { addressText: dto.homeAddress.trim() },
         });
       }
     }
 
-    return notifications;
+    return this.getRiderProfile(userId);
+  }
+
+  async cancelRiderStop(userId: string, stopId: string, reason?: string) {
+    const emp = await this.resolveEmployee(userId);
+    const stop = await this.db.corporateRouteStop.findFirst({
+      where: { id: stopId, employeeId: emp.id },
+      include: { route: true },
+    });
+    if (!stop) {
+      throw new NotFoundException('Upcoming ride stop not found for this employee');
+    }
+    if (stop.status !== 'PENDING') {
+      throw new BadRequestException(`Cannot cancel stop in ${stop.status} status`);
+    }
+
+    await this.db.$transaction(async (tx) => {
+      await tx.corporateRouteStop.update({
+        where: { id: stop.id },
+        data: { status: 'CANCELLED', noShowReason: reason?.trim() || 'Cancelled by employee' },
+      });
+      if (stop.transportRequestId) {
+        await tx.corporateTransportRequest.update({
+          where: { id: stop.transportRequestId },
+          data: { status: 'CANCELLED' },
+        });
+      }
+    });
+
+    return { stopId: stop.id, routeId: stop.routeId, status: 'CANCELLED' };
+  }
+
+  /**
+   * GET /corporate/me/notifications
+   * Commuter push/in-app notification stream backed by persisted Notification rows.
+   */
+  async getRiderNotifications(userId: string): Promise<RiderNotificationItem[]> {
+    await this.resolveEmployee(userId);
+
+    const rows = await this.db.notification.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+
+    return rows.map((row) => ({
+      id: row.id,
+      type: String(row.type || 'GENERAL'),
+      title: row.title,
+      message: row.body,
+      timestamp: row.createdAt,
+      metadata: (row.data as Record<string, any>) ?? {},
+    }));
   }
 }

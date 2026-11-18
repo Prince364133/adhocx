@@ -1,33 +1,105 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Calendar, ChevronDown, RefreshCw } from 'lucide-react';
+import { schedulingApi } from '../../lib/api/corporate';
+import type { ShiftTemplate } from '../../lib/api/types';
 import { useSession } from '../../lib/auth/SessionContext';
+
+export interface FilterBarShiftOption {
+  value: string;
+  label: string;
+}
 
 export interface FilterBarProps {
   showOffices?: boolean;
   showDateRange?: boolean;
   dateRangeLabel?: string;
   showShifts?: boolean;
+  shifts?: FilterBarShiftOption[];
+  selectedOffice?: string;
+  onOfficeChange?: (office: string) => void;
+  selectedShift?: string;
+  onShiftChange?: (shift: string) => void;
   showTripTypes?: boolean;
+  selectedTripType?: string;
+  onTripTypeChange?: (tripType: string) => void;
   showExceptionTypes?: boolean;
+  selectedExceptionType?: string;
+  onExceptionTypeChange?: (exceptionType: string) => void;
   liveStatusText?: string;
   onRefresh?: () => void;
+}
+
+function formatCurrentWeekRange(): string {
+  const end = new Date();
+  const start = new Date(end);
+  start.setDate(end.getDate() - 6);
+  const startFmt = new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short' }).format(start);
+  const endFmt = new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }).format(end);
+  return `${startFmt} – ${endFmt}`;
 }
 
 export const FilterBar: React.FC<FilterBarProps> = ({
   showOffices = true,
   showDateRange = true,
-  dateRangeLabel = '08 - 14 Dec 2026',
+  dateRangeLabel,
   showShifts = false,
+  shifts,
+  selectedOffice: controlledOffice,
+  onOfficeChange,
+  selectedShift: controlledShift,
+  onShiftChange,
   showTripTypes = false,
+  selectedTripType: controlledTripType,
+  onTripTypeChange,
   showExceptionTypes = false,
+  selectedExceptionType: controlledExceptionType,
+  onExceptionTypeChange,
   liveStatusText,
   onRefresh,
 }) => {
-  const { offices } = useSession();
-  const [selectedOffice, setSelectedOffice] = useState('All Offices');
+  const { tenantId, offices } = useSession();
+  const [internalOffice, setInternalOffice] = useState('All Offices');
+  const [internalShift, setInternalShift] = useState('All Shifts');
+  const [internalTripType, setInternalTripType] = useState('All Trip Types');
+  const [internalExceptionType, setInternalExceptionType] = useState('All Exception Types');
+  const [shiftTemplates, setShiftTemplates] = useState<ShiftTemplate[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const resolvedDateLabel = useMemo(
+    () => dateRangeLabel ?? formatCurrentWeekRange(),
+    [dateRangeLabel],
+  );
+
+  useEffect(() => {
+    if (!showShifts || shifts || !tenantId) return;
+    let active = true;
+    schedulingApi
+      .shiftTemplates(tenantId)
+      .then((rows) => {
+        if (active && Array.isArray(rows)) setShiftTemplates(rows);
+      })
+      .catch(() => {
+        if (active) setShiftTemplates([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [showShifts, shifts, tenantId]);
+
+  const shiftOptions: FilterBarShiftOption[] = useMemo(() => {
+    if (shifts) return shifts;
+    return shiftTemplates.map((tpl) => ({
+      value: tpl.id,
+      label: `${tpl.name} (${tpl.loginTime} - ${tpl.logoutTime})`,
+    }));
+  }, [shifts, shiftTemplates]);
+
+  const activeOffice = controlledOffice ?? internalOffice;
+  const activeShift = controlledShift ?? internalShift;
+  const activeTripType = controlledTripType ?? internalTripType;
+  const activeExceptionType = controlledExceptionType ?? internalExceptionType;
 
   const handleRefresh = () => {
     setIsRefreshing(true);
@@ -85,13 +157,16 @@ export const FilterBar: React.FC<FilterBarProps> = ({
       {showOffices && (
         <div style={{ position: 'relative' }}>
           <select
-            value={selectedOffice}
-            onChange={(e) => setSelectedOffice(e.target.value)}
+            value={activeOffice}
+            onChange={(e) => {
+              setInternalOffice(e.target.value);
+              onOfficeChange?.(e.target.value);
+            }}
             style={selectStyle}
           >
             <option value="All Offices">All Offices</option>
             {offices.map((o) => (
-              <option key={o.id} value={o.name}>
+              <option key={o.id} value={o.id}>
                 {o.name}
               </option>
             ))}
@@ -110,7 +185,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         </div>
       )}
 
-      {/* Date Range Dropdown */}
+      {/* Date Range Pill */}
       {showDateRange && (
         <div
           style={{
@@ -124,14 +199,12 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             fontSize: '12px',
             fontWeight: 600,
             color: 'var(--text-secondary, #475569)',
-            cursor: 'pointer',
             boxShadow: 'var(--shadow-xs)',
             transition: 'background-color 0.15s ease, border-color 0.15s ease',
           }}
         >
           <Calendar size={13} color="var(--text-muted, #64748B)" />
-          <span>{dateRangeLabel}</span>
-          <ChevronDown size={14} color="var(--text-muted, #64748B)" />
+          <span>{resolvedDateLabel}</span>
         </div>
       )}
 
@@ -139,13 +212,19 @@ export const FilterBar: React.FC<FilterBarProps> = ({
       {showShifts && (
         <div style={{ position: 'relative' }}>
           <select
-            defaultValue="All Shifts"
+            value={activeShift}
+            onChange={(e) => {
+              setInternalShift(e.target.value);
+              onShiftChange?.(e.target.value);
+            }}
             style={selectStyle}
           >
             <option value="All Shifts">All Shifts</option>
-            <option value="General (08:00 AM - 05:00 PM)">General (08:00 AM - 05:00 PM)</option>
-            <option value="Shift A (09:00 AM - 06:00 PM)">Shift A (09:00 AM - 06:00 PM)</option>
-            <option value="Night (10:00 PM - 07:00 AM)">Night (10:00 PM - 07:00 AM)</option>
+            {shiftOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
           </select>
           <ChevronDown
             size={14}
@@ -165,13 +244,16 @@ export const FilterBar: React.FC<FilterBarProps> = ({
       {showTripTypes && (
         <div style={{ position: 'relative' }}>
           <select
-            defaultValue="All Trip Types"
+            value={activeTripType}
+            onChange={(e) => {
+              setInternalTripType(e.target.value);
+              onTripTypeChange?.(e.target.value);
+            }}
             style={selectStyle}
           >
             <option value="All Trip Types">All Trip Types</option>
-            <option value="Login (Pickup)">Login (Pickup)</option>
-            <option value="Logout (Drop)">Logout (Drop)</option>
-            <option value="Ad-hoc">Ad-hoc</option>
+            <option value="LOGIN">Login (Pickup)</option>
+            <option value="LOGOUT">Logout (Drop)</option>
           </select>
           <ChevronDown
             size={14}
@@ -191,7 +273,11 @@ export const FilterBar: React.FC<FilterBarProps> = ({
       {showExceptionTypes && (
         <div style={{ position: 'relative' }}>
           <select
-            defaultValue="All Exception Types"
+            value={activeExceptionType}
+            onChange={(e) => {
+              setInternalExceptionType(e.target.value);
+              onExceptionTypeChange?.(e.target.value);
+            }}
             style={selectStyle}
           >
             <option value="All Exception Types">All Exception Types</option>
@@ -217,6 +303,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
 
       {/* Refresh Button */}
       <button
+        type="button"
         onClick={handleRefresh}
         style={{
           display: 'flex',

@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
+import 'package:adhocx_employee/state/employee_auth_provider.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_radius.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
@@ -17,15 +19,44 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen> {
   Timer? _timer;
+  bool _navigated = false;
 
   @override
   void initState() {
     super.initState();
-    _timer = Timer(const Duration(milliseconds: 2400), () {
-      if (mounted) {
-        context.go(AppRoutes.welcome);
-      }
+    _resolveInitialRoute();
+  }
+
+  Future<void> _resolveInitialRoute() async {
+    EmployeeAuthProvider? authProvider;
+    try {
+      authProvider = context.read<EmployeeAuthProvider>();
+    } catch (_) {
+      authProvider = null;
+    }
+
+    final minDelay = Completer<void>();
+    _timer = Timer(const Duration(milliseconds: 1400), () {
+      if (!minDelay.isCompleted) minDelay.complete();
     });
+
+    if (authProvider != null) {
+      await Future.wait([
+        authProvider.ensureSessionChecked(),
+        minDelay.future,
+      ]);
+    } else {
+      await minDelay.future;
+    }
+
+    if (!mounted || _navigated) return;
+    _navigated = true;
+
+    if (authProvider != null && authProvider.isAuthenticated) {
+      context.go(AppRoutes.homeUpcomingPickup);
+    } else {
+      context.go(AppRoutes.welcome);
+    }
   }
 
   @override

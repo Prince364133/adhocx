@@ -3,19 +3,113 @@ import 'package:go_router/go_router.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
 import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
+import 'package:adhocx_employee/state/employee_data_provider.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_radius.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
 
-/// Screen 9: Request Details & Tracking
-class RequestDetailsTrackingScreen extends StatelessWidget {
+/// Request Details & Tracking backed by GET /corporate/support/tickets/:id.
+class RequestDetailsTrackingScreen extends StatefulWidget {
   const RequestDetailsTrackingScreen({super.key});
 
   @override
+  State<RequestDetailsTrackingScreen> createState() =>
+      _RequestDetailsTrackingScreenState();
+}
+
+class _RequestDetailsTrackingScreenState
+    extends State<RequestDetailsTrackingScreen> {
+  Map<String, dynamic>? _ticket;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadTicket());
+  }
+
+  Future<void> _loadTicket() async {
+    Map<String, dynamic>? initial;
+    String? ticketId;
+    try {
+      final extra = GoRouterState.of(context).extra;
+      if (extra is Map) {
+        initial = Map<String, dynamic>.from(extra);
+        ticketId = initial['id']?.toString() ?? initial['ticketId']?.toString();
+      } else if (extra is String && extra.isNotEmpty) {
+        ticketId = extra;
+      }
+    } catch (_) {}
+
+    final data = maybeEmployeeData(context);
+    if (data != null) {
+      if (ticketId == null || ticketId.isEmpty) {
+        final tickets = await data.loadTickets();
+        if (tickets.isNotEmpty) {
+          initial = tickets.first;
+          ticketId = initial['id']?.toString();
+        }
+      }
+      if (ticketId != null && ticketId.isNotEmpty) {
+        try {
+          final detailed = await data.repository.getTicketDetails(ticketId);
+          initial = detailed;
+        } catch (_) {}
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _ticket = initial;
+        _loading = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return const EmployeeLoadingScaffold(
+        appBar: EmployeeAppBar(title: 'Request Details'),
+      );
+    }
     final p = EmployeePalette.of(context);
+    final ticket = _ticket;
+
+    if (ticket == null) {
+      return Scaffold(
+        backgroundColor: p.background,
+        appBar: const EmployeeAppBar(title: 'Request Details'),
+        body: const SafeArea(
+          child: EmployeeEmptyState(
+            icon: Icons.confirmation_number_outlined,
+            title: 'No ticket selected',
+            description: 'Submit a support ticket or select one from My Requests.',
+          ),
+        ),
+      );
+    }
+
+    final ticketId = ticket['id']?.toString() ?? '';
+    final ticketCode = ticket['ticketNumber']?.toString() ??
+        (ticketId.length > 8
+            ? ticketId.substring(0, 8).toUpperCase()
+            : ticketId);
+    final subject = ticket['subject']?.toString() ??
+        (ticket['category']?.toString() ?? 'Support Request')
+            .replaceAll('_', ' ');
+    final statusRaw = (ticket['status'] ?? 'OPEN').toString().toUpperCase();
+    final statusLabel = statusRaw.replaceAll('_', ' ');
+    final createdAt = [
+      EmployeeDataProvider.formatDisplayDate(ticket['createdAt']?.toString()),
+      EmployeeDataProvider.formatDisplayTime(ticket['createdAt']?.toString()),
+    ].where((s) => s.isNotEmpty).join(', ');
+    final description = ticket['description']?.toString() ?? '';
+    final isResolved = statusRaw == 'RESOLVED' || statusRaw == 'CLOSED';
+    final isInProgress =
+        statusRaw == 'IN_PROGRESS' || statusRaw == 'WAITING_FOR_CORPORATE';
 
     Widget meta(String label, String value) => Row(
           children: [
@@ -64,35 +158,46 @@ class RequestDetailsTrackingScreen extends StatelessWidget {
                         const SizedBox(width: AppSpacing.md),
                         Expanded(
                           child: Text(
-                            'Unsafe Driving',
+                            subject,
                             style: AppTypography.h4(
                               color: p.textPrimary,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
                         ),
-                        EmployeeStatusBadge.fromString('In Progress'),
+                        EmployeeStatusBadge.fromString(statusLabel),
                       ],
                     ),
                     Divider(color: p.border, height: AppSpacing.xxl),
-                    meta('Request ID', 'ADH-784512'),
-                    const SizedBox(height: AppSpacing.sm),
-                    meta('Created On', '09 Dec 2026, 10:20 AM'),
-                    const SizedBox(height: AppSpacing.sm),
-                    meta('Trip', 'Login (Pickup) - 8:15 AM'),
-                    Divider(color: p.border, height: AppSpacing.xxl),
-                    Text(
-                      'Description',
-                      style: AppTypography.caption(
-                        color: p.textMuted,
-                        fontWeight: FontWeight.w600,
+                    if (ticketCode.isNotEmpty) ...[
+                      meta('Request ID', ticketCode),
+                      const SizedBox(height: AppSpacing.sm),
+                    ],
+                    if (createdAt.isNotEmpty) ...[
+                      meta('Created On', createdAt),
+                      const SizedBox(height: AppSpacing.sm),
+                    ],
+                    meta(
+                      'Category',
+                      (ticket['category'] ?? 'GENERAL_SUPPORT')
+                          .toString()
+                          .replaceAll('_', ' '),
+                    ),
+                    if (description.isNotEmpty) ...[
+                      Divider(color: p.border, height: AppSpacing.xxl),
+                      Text(
+                        'Description',
+                        style: AppTypography.caption(
+                          color: p.textMuted,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      'Driver was overspeeding on the main road.',
-                      style: AppTypography.body(color: p.textPrimary),
-                    ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        description,
+                        style: AppTypography.body(color: p.textPrimary),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -102,34 +207,57 @@ class RequestDetailsTrackingScreen extends StatelessWidget {
                 child: TripTimeline(
                   dotSize: 18,
                   entries: [
-                    const TripTimelineEntry(
+                    TripTimelineEntry(
                       dotColor: AppColors.success,
-                      dotChild: Icon(Icons.check, size: 12, color: Colors.white),
+                      dotChild:
+                          const Icon(Icons.check, size: 12, color: Colors.white),
                       title: 'Request Received',
-                      subtitle: '09 Dec, 10:20 AM',
+                      subtitle: createdAt.isNotEmpty ? createdAt : 'Submitted',
                     ),
                     TripTimelineEntry(
-                      dotColor: AppColors.primary,
-                      dotChild: Container(
-                        width: 6,
-                        height: 6,
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
+                      dotColor: isResolved
+                          ? AppColors.success
+                          : (isInProgress ? AppColors.primary : p.border),
+                      dotChild: isResolved
+                          ? const Icon(Icons.check,
+                              size: 12, color: Colors.white)
+                          : Container(
+                              width: 6,
+                              height: 6,
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
                       title: 'Under Review',
-                      emphasise: true,
-                      subtitle: 'Our team is reviewing your request.',
+                      emphasise: !isResolved,
+                      subtitle: 'Our support desk is reviewing your request.',
                     ),
                     TripTimelineEntry(
-                      dotColor: p.border,
+                      dotColor: isResolved ? AppColors.success : p.border,
+                      dotChild: isResolved
+                          ? const Icon(Icons.check,
+                              size: 12, color: Colors.white)
+                          : null,
                       title: 'Resolution Update',
-                      subtitle: "You'll be notified once it's resolved.",
+                      subtitle: isResolved
+                          ? 'This request has been resolved.'
+                          : "You'll be notified once it's resolved.",
                     ),
                   ],
                 ),
               ),
+              if (ticketId.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.xl),
+                EmployeePrimaryButton(
+                  label: 'Open Support Chat',
+                  icon: Icons.chat_bubble_outline_rounded,
+                  onPressed: () => context.push(
+                    AppRoutes.liveSupportChat,
+                    extra: ticketId,
+                  ),
+                ),
+              ],
             ],
           ),
         ),

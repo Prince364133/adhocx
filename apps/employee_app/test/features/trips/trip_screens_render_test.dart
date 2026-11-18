@@ -2,7 +2,6 @@ import 'package:adhocx_employee/features/trips/trips.dart';
 import 'package:adhocx_employee/repositories/http_employee_rider_repository.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
 import 'package:adhocx_employee/services/employee_api_client.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_theme.dart';
 import 'package:flutter/material.dart';
@@ -52,7 +51,6 @@ Future<void> _pump(WidgetTester tester, Widget screen,
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   SharedPreferences.setMockInitialValues({});
-  await tester.runAsync(MockDataService.loadData);
   final riderRepository = HttpEmployeeRiderRepository(
     client: EmployeeApiClient(
       httpClient: MockClient(

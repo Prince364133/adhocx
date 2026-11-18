@@ -2,23 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
+import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
+import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_radius.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
 
-/// Shared scaffold for the incident / complaint / lost-property forms.
-///
-/// - Required description starts EMPTY (with a hint) — the old screens
-///   pre-filled it with sample text that looked like user input.
-/// - The n/200 counter updates live.
-/// - Submit is enabled only once the required description has text.
+/// Shared scaffold for incident / complaint / lost-property forms,
+/// wired directly to POST /corporate/me/tickets.
 class IncidentFormScreen extends StatefulWidget {
   final String title;
   final String? intro;
   final Widget? header;
-
-  /// Fields shown above the description (selectors, trip info…).
   final List<Widget> Function(BuildContext context) topFields;
   final String descriptionLabel;
   final String descriptionHint;
@@ -26,6 +22,9 @@ class IncidentFormScreen extends StatefulWidget {
   final List<IconData> mediaIcons;
   final String submitLabel;
   final String submittedMessage;
+  final String ticketCategory;
+  final String? ticketSubject;
+  final String ticketPriority;
 
   const IncidentFormScreen({
     super.key,
@@ -39,6 +38,9 @@ class IncidentFormScreen extends StatefulWidget {
     this.mediaIcons = const [Icons.image_outlined],
     required this.submitLabel,
     required this.submittedMessage,
+    this.ticketCategory = 'GENERAL_SUPPORT',
+    this.ticketSubject,
+    this.ticketPriority = 'MEDIUM',
   });
 
   @override
@@ -48,6 +50,7 @@ class IncidentFormScreen extends StatefulWidget {
 class _IncidentFormScreenState extends State<IncidentFormScreen> {
   static const _maxLength = 200;
   final TextEditingController _description = TextEditingController();
+  bool _submitting = false;
 
   @override
   void initState() {
@@ -61,17 +64,49 @@ class _IncidentFormScreenState extends State<IncidentFormScreen> {
     super.dispose();
   }
 
-  void _submit() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(widget.submittedMessage)),
-    );
-    context.push(AppRoutes.myRequestsTickets);
+  Future<void> _submit() async {
+    final desc = _description.text.trim();
+    if (desc.isEmpty || _submitting) return;
+
+    setState(() => _submitting = true);
+    final data = maybeEmployeeData(context);
+    try {
+      if (data != null) {
+        await data.repository.createTicket(
+          category: widget.ticketCategory,
+          subject: widget.ticketSubject ?? widget.title,
+          description: desc,
+          priority: widget.ticketPriority,
+        );
+        await data.loadTickets(force: true);
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(widget.submittedMessage),
+          backgroundColor: AppColors.success,
+        ),
+      );
+      context.push(AppRoutes.myRequestsTickets);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Unable to submit ticket: ${e.toString().replaceFirst('Exception: ', '')}',
+          ),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final p = EmployeePalette.of(context);
-    final canSubmit = _description.text.trim().isNotEmpty;
+    final canSubmit = _description.text.trim().isNotEmpty && !_submitting;
 
     return Scaffold(
       backgroundColor: p.background,
@@ -134,6 +169,7 @@ class _IncidentFormScreenState extends State<IncidentFormScreen> {
               const SizedBox(height: AppSpacing.xxxl),
               EmployeePrimaryButton(
                 label: widget.submitLabel,
+                isLoading: _submitting,
                 onPressed: canSubmit ? _submit : null,
               ),
             ],
@@ -144,7 +180,6 @@ class _IncidentFormScreenState extends State<IncidentFormScreen> {
   }
 }
 
-/// Bold form label with spacing below.
 class FormFieldLabel extends StatelessWidget {
   final String text;
 
@@ -166,7 +201,6 @@ class FormFieldLabel extends StatelessWidget {
   }
 }
 
-/// Dropdown on Driver input tokens.
 class FormSelectField extends StatelessWidget {
   final String value;
   final List<String> options;
@@ -214,7 +248,6 @@ class FormSelectField extends StatelessWidget {
   }
 }
 
-/// Read-only value box (date / trip) with a leading icon.
 class FormValueBox extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -258,8 +291,6 @@ class FormValueBox extends StatelessWidget {
   }
 }
 
-/// Attachment tile. Uploads aren't wired yet, so tiles are clearly inert
-/// ("coming soon") rather than looking like working buttons.
 class _MediaTile extends StatelessWidget {
   final IconData icon;
   final bool isAdd;

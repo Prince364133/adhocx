@@ -17,6 +17,17 @@ import {
   OpsDriverDetail,
   OpsDriverListResponse,
   LiveOperationsResponse,
+  RouteStop,
+  CreateManualRoutePayload,
+  UpdateRoutePayload,
+  ManualRouteStopInput,
+  UpdateRouteStopPayload,
+  CorporateEmployeeItem,
+  CorporateEmployeeListResponse,
+  CreateTenantEmployeePayload,
+  UpdateTenantEmployeePayload,
+  OperationsAnalyticsDashboard,
+  OperationsExceptionsResponse,
 } from './opsTypes';
 import {
   getStoredOpsToken,
@@ -502,6 +513,133 @@ export const opsApi = {
     return request<RouteDirectionsResult>(
       `/corporate/routes/${encodeURIComponent(routeId)}/directions${refresh ? '?refresh=true' : ''}`,
     );
+  },
+
+  // ── Manual Route & Stop CRUD ──
+  createManualRoute: (payload: CreateManualRoutePayload): Promise<CorporateRouteItem> =>
+    request<CorporateRouteItem>('/corporate/routes', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  updateRoute: (routeId: string, payload: UpdateRoutePayload): Promise<CorporateRouteItem> =>
+    request<CorporateRouteItem>(`/corporate/routes/${encodeURIComponent(routeId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+
+  deleteRoute: (routeId: string): Promise<{ id: string; deleted: boolean }> =>
+    request<{ id: string; deleted: boolean }>(`/corporate/routes/${encodeURIComponent(routeId)}`, {
+      method: 'DELETE',
+    }),
+
+  addRouteStop: (routeId: string, payload: ManualRouteStopInput): Promise<RouteStop> =>
+    request<RouteStop>(`/corporate/routes/${encodeURIComponent(routeId)}/stops`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  updateRouteStop: (routeId: string, stopId: string, payload: UpdateRouteStopPayload): Promise<RouteStop> =>
+    request<RouteStop>(`/corporate/routes/${encodeURIComponent(routeId)}/stops/${encodeURIComponent(stopId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+
+  deleteRouteStop: (routeId: string, stopId: string): Promise<{ id: string; deleted: boolean }> =>
+    request<{ id: string; deleted: boolean }>(
+      `/corporate/routes/${encodeURIComponent(routeId)}/stops/${encodeURIComponent(stopId)}`,
+      { method: 'DELETE' },
+    ),
+
+  // ── Tenant Employee Directory CRUD ──
+  getTenantEmployees: (
+    tenantId: string,
+    params: {
+      search?: string;
+      officeId?: string;
+      department?: string;
+      isActive?: boolean;
+      page?: number;
+      limit?: number;
+    } = {},
+  ): Promise<CorporateEmployeeListResponse> => {
+    const q = new URLSearchParams();
+    if (params.search?.trim()) q.set('search', params.search.trim());
+    if (params.officeId) q.set('officeId', params.officeId);
+    if (params.department) q.set('department', params.department);
+    if (params.isActive !== undefined) q.set('isActive', String(params.isActive));
+    if (params.page) q.set('page', String(params.page));
+    if (params.limit) q.set('limit', String(params.limit));
+    const suffix = q.size ? `?${q.toString()}` : '';
+    return request<CorporateEmployeeListResponse>(
+      `/corporate/tenants/${encodeURIComponent(tenantId)}/employees${suffix}`,
+    );
+  },
+
+  createTenantEmployee: (
+    tenantId: string,
+    payload: CreateTenantEmployeePayload,
+  ): Promise<CorporateEmployeeItem> =>
+    request<CorporateEmployeeItem>(`/corporate/tenants/${encodeURIComponent(tenantId)}/employees`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  updateTenantEmployee: (
+    tenantId: string,
+    employeeId: string,
+    payload: UpdateTenantEmployeePayload,
+  ): Promise<CorporateEmployeeItem> =>
+    request<CorporateEmployeeItem>(
+      `/corporate/tenants/${encodeURIComponent(tenantId)}/employees/${encodeURIComponent(employeeId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      },
+    ),
+
+  deleteTenantEmployee: (
+    tenantId: string,
+    employeeId: string,
+  ): Promise<{ id?: string; deleted?: boolean; deactivated?: boolean; message?: string }> =>
+    request<{ id?: string; deleted?: boolean; deactivated?: boolean; message?: string }>(
+      `/corporate/tenants/${encodeURIComponent(tenantId)}/employees/${encodeURIComponent(employeeId)}`,
+      { method: 'DELETE' },
+    ),
+
+  // ── Analytics & Exceptions ──
+  getAnalyticsDashboard: (params: {
+    tenantId: string;
+    officeId?: string;
+    from: string;
+    to: string;
+    direction?: string;
+    shiftTime?: string;
+  }): Promise<OperationsAnalyticsDashboard> => {
+    const q = new URLSearchParams({
+      tenantId: params.tenantId,
+      from: params.from,
+      to: params.to,
+    });
+    if (params.officeId) q.set('officeId', params.officeId);
+    if (params.direction) q.set('direction', params.direction);
+    if (params.shiftTime) q.set('shiftTime', params.shiftTime);
+    return request<OperationsAnalyticsDashboard>(`/corporate/analytics/dashboard?${q.toString()}`);
+  },
+
+  getExceptions: (params: {
+    tenantId: string;
+    officeId?: string;
+    from: string;
+    to: string;
+  }): Promise<OperationsExceptionsResponse> => {
+    const q = new URLSearchParams({
+      tenantId: params.tenantId,
+      from: params.from,
+      to: params.to,
+    });
+    if (params.officeId) q.set('officeId', params.officeId);
+    return request<OperationsExceptionsResponse>(`/corporate/analytics/exceptions?${q.toString()}`);
   },
 
   // ── Manual Operations Interventions (§ 55) ──

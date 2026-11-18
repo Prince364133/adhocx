@@ -354,9 +354,26 @@
 .attachmentList li { display: flex; align-items: center; gap: 8px; border: 1px solid var(--border-subtle); border-radius: 7px; padding: 9px; color: var(--text-secondary); font-size: 11px; }
 .attachmentList li svg { color: var(--brand-primary); }
 .attachmentList li small { margin-left: auto; color: var(--text-muted); font-size: 9px; }
+.attachmentList li a { color: var(--brand-primary); text-decoration: none; font-weight: 600; }
+.attachmentList li a:hover { text-decoration: underline; }
 .noAttachments { margin: 0; color: var(--text-muted); font-size: 11px; }
-.readOnlyNote { display: flex; align-items: flex-start; gap: 8px; border: 1px solid var(--color-info-border); border-radius: 8px; padding: 10px; color: var(--text-secondary); background: var(--color-info-bg); font-size: 11px; line-height: 1.45; }
-.readOnlyNote svg { flex: 0 0 15px; color: var(--brand-primary); }
+.statusActions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.statusActionBtn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border-subtle); border-radius: 7px; padding: 7px 12px; background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: 11px; font-weight: 650; cursor: pointer; transition: border-color .15s ease, background-color .15s ease; }
+.statusActionBtn:hover:not(:disabled) { border-color: var(--brand-primary); background: var(--brand-primary-subtle); color: var(--brand-primary); }
+.statusActionBtn:disabled { opacity: .5; cursor: not-allowed; }
+.statusActionResolve { border-color: var(--color-success-border); background: var(--color-success-bg); color: var(--color-success-text); }
+.statusActionResolve:hover:not(:disabled) { border-color: var(--color-success); background: var(--color-success-bg); color: var(--color-success-text); }
+.replyForm { display: grid; gap: 10px; margin-top: 12px; }
+.replyForm textarea { width: 100%; min-height: 76px; box-sizing: border-box; resize: vertical; border: 1px solid var(--border-subtle); border-radius: 7px; padding: 9px 11px; color: var(--text-primary); background: var(--bg-surface); font: inherit; font-size: 12px; line-height: 1.45; }
+.replyForm textarea:focus { outline: none; border-color: var(--brand-primary); box-shadow: 0 0 0 3px var(--focus-ring); }
+.replyFormFooter { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.primaryActionBtn { display: inline-flex; align-items: center; gap: 6px; border: 0; border-radius: 7px; padding: 8px 14px; background: var(--brand-action); color: #fff; font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; }
+.primaryActionBtn:hover:not(:disabled) { background: var(--brand-action-hover); }
+.primaryActionBtn:disabled { opacity: .55; cursor: not-allowed; }
+.feedbackBanner { display: flex; align-items: center; justify-content: space-between; gap: 10px; border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; font-size: 12px; font-weight: 500; }
+.feedbackSuccess { border: 1px solid var(--color-success-border); background: var(--color-success-bg); color: var(--color-success-text); }
+.feedbackError { border: 1px solid var(--color-danger-border); background: var(--color-danger-bg); color: var(--color-danger-text); }
+.feedbackBanner button { border: 0; background: transparent; color: inherit; font-weight: 700; cursor: pointer; }
 .srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; clip-path: inset(50%); }
 
 @keyframes slideIn { from { transform: translateX(12px); opacity: .7; } to { transform: translateX(0); opacity: 1; } }

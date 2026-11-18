@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
 import 'package:adhocx_employee/shared/illustrations/tracking_illustrations.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
@@ -7,19 +6,32 @@ import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
 import '../widgets/map_overlay.dart';
 
-/// Screen 2: Trip Live Map (Full)
+/// Trip Live Map (Full) backed by live tracking API.
 class TripLiveMapFullScreen extends StatelessWidget {
   const TripLiveMapFullScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return TripDataBuilder(
-      load: () async => (await MockDataService.getLiveTracking())['liveState']
-          as Map<String, dynamic>?,
-      builder: (context, data) {
+      load: () => loadLiveTripSnapshot(context),
+      builder: (context, snapshot) {
         final p = EmployeePalette.of(context);
-        final arrivingIn = data['arrivingIn'] ?? '6 min';
-        final distance = data['distance'] ?? '2.4 km towards your pickup';
+        final tracking =
+            (snapshot['tracking'] as Map<String, dynamic>?) ?? const {};
+        final etaMins = tracking['estimatedArrivalMinutes'];
+        final distMeters = tracking['distanceToPickupMeters'];
+        final gpsState = tracking['gpsState']?.toString();
+
+        final headline = etaMins != null
+            ? 'Arriving in $etaMins min'
+            : (tracking['isDriverArrived'] == true
+                ? 'Cab has arrived'
+                : 'Tracking live location');
+        final distance = distMeters is num
+            ? '${(distMeters / 1000).toStringAsFixed(1)} km from your pickup'
+            : (gpsState != null
+                ? 'GPS status: $gpsState'
+                : 'Waiting for live vehicle telemetry');
 
         return Scaffold(
           backgroundColor: p.background,
@@ -33,8 +45,6 @@ class TripLiveMapFullScreen extends StatelessWidget {
                   fullScreen: true,
                 ),
               ),
-
-              // Floating top bar
               SafeArea(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
@@ -50,8 +60,6 @@ class TripLiveMapFullScreen extends StatelessWidget {
                         onPressed: () => Navigator.of(context).maybePop(),
                       ),
                       const MapOverlayTitle(title: 'Live Tracking'),
-                      // Map layer switching isn't implemented yet; shown
-                      // disabled rather than as a dead tap target.
                       const MapOverlayButton(
                         icon: Icons.layers_rounded,
                         tooltip: 'Map layers (coming soon)',
@@ -62,8 +70,6 @@ class TripLiveMapFullScreen extends StatelessWidget {
                   ),
                 ),
               ),
-
-              // Floating status card
               Positioned(
                 left: AppSpacing.pageHorizontal,
                 right: AppSpacing.pageHorizontal,
@@ -88,7 +94,7 @@ class TripLiveMapFullScreen extends StatelessWidget {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                'Arriving in $arrivingIn',
+                                headline,
                                 style: AppTypography.h3(
                                   color: p.textPrimary,
                                   fontWeight: FontWeight.w800,

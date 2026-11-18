@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { opsApi, ShiftOptimizationResponse } from '../../lib/api/opsClient';
 import {
+  CorporateRouteItem,
   CorporateTenantOption,
   RoutePlanningResult,
   RoutePlanningDirectionOutcome,
@@ -31,7 +32,12 @@ import {
   Radar,
   Map as MapIcon,
   Database,
+  Plus,
+  Trash2,
+  Route as RouteIcon,
 } from 'lucide-react';
+
+const COMPANY_STORAGE_KEY = 'adhocx_ops_selected_tenant';
 
 const ROUTE_COLORS = [
   '#5728B2', // Electric Indigo
@@ -128,7 +134,28 @@ function getLocationShortcut(address: string, fallback: string): string {
 
 export default function RouteOptimizerPage() {
   const toast = useToast();
-  const [activeTab, setActiveTab] = useState<'FILE_UPLOAD' | 'DB_SHIFT'>('FILE_UPLOAD');
+  const [activeTab, setActiveTab] = useState<'FILE_UPLOAD' | 'DB_SHIFT' | 'MANUAL'>(() => {
+    if (typeof window !== 'undefined') {
+      const tabParam = new URLSearchParams(window.location.search).get('tab')?.toUpperCase();
+      if (tabParam === 'MANUAL') return 'MANUAL';
+      if (tabParam === 'DB_SHIFT') return 'DB_SHIFT';
+    }
+    return 'FILE_UPLOAD';
+  });
+
+  // Manual Route Builder State
+  const [manualDirection, setManualDirection] = useState<'LOGIN' | 'LOGOUT'>('LOGIN');
+  const [manualShiftDate, setManualShiftDate] = useState<string>(
+    () => new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10),
+  );
+  const [manualShiftTime, setManualShiftTime] = useState<string>('09:00');
+  const [manualVehicleCategory, setManualVehicleCategory] = useState<string>('SEDAN');
+  const [manualMaxCapacity, setManualMaxCapacity] = useState<number>(4);
+  const [manualStops, setManualStops] = useState<
+    Array<{ id: string; name: string; phoneNumber: string; email: string; address: string }>
+  >([{ id: 'stop-1', name: '', phoneNumber: '', email: '', address: '' }]);
+  const [manualSaving, setManualSaving] = useState(false);
+  const [manualCreatedRoute, setManualCreatedRoute] = useState<CorporateRouteItem | null>(null);
 
   // File Upload Form State
   const [officeAddress, setOfficeAddress] = useState('');
@@ -251,17 +278,33 @@ export default function RouteOptimizerPage() {
         if (cancelled) return;
         setTenants(items);
         const requestedTenantId =
-          typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tenantId') : null;
+          typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tenantId')?.trim() : null;
+        let rememberedTenantId = '';
+        if (typeof window !== 'undefined') {
+          try {
+            rememberedTenantId = window.localStorage.getItem(COMPANY_STORAGE_KEY)?.trim() || '';
+          } catch {}
+        }
+        const preferredTenantId = requestedTenantId || rememberedTenantId;
         let tenant: CorporateTenantOption | undefined;
-        if (requestedTenantId) {
-          tenant = items.find((item) => item.id === requestedTenantId) ?? await opsApi.getTenant(requestedTenantId);
-        } else {
+        if (preferredTenantId) {
+          tenant =
+            items.find((item) => item.id === preferredTenantId) ??
+            (await opsApi.getTenant(preferredTenantId).catch(() => undefined));
+        }
+        if (!tenant) {
           tenant = items[0];
         }
         if (tenant) {
           setUploadCompanyLoading(true);
           setSelectedTenantId(tenant.id);
           setSelectedUploadTenantId(tenant.id);
+          if (typeof window !== 'undefined') {
+            try {
+              window.localStorage.setItem(COMPANY_STORAGE_KEY, tenant.id);
+              window.dispatchEvent(new Event('adhocx:ops-tenant-changed'));
+            } catch {}
+          }
           if (!tenant.offices?.length) {
             tenant = await opsApi.getTenant(tenant.id);
             if (cancelled) return;
@@ -296,6 +339,116 @@ export default function RouteOptimizerPage() {
       cancelled = true;
     };
   }, []);
+
+  async function handleSelectCompany(nextTenantId: string) {
+    setSelectedTenantId(nextTenantId);
+    setSelectedUploadTenantId(nextTenantId);
+    setSelectedOfficeId('');
+    setOfficeAddress('');
+    setErrorMsg(null);
+    setManualCreatedRoute(null);
+
+    if (typeof window !== 'undefined' && nextTenantId) {
+      try {
+        window.localStorage.setItem(COMPANY_STORAGE_KEY, nextTenantId);
+        window.dispatchEvent(new Event('adhocx:ops-tenant-changed'));
+        const url = new URL(window.location.href);
+        url.searchParams.set('tenantId', nextTenantId);
+        window.history.replaceState({}, '', url.toString());
+      } catch {}
+    }
+
+    if (!nextTenantId) return;
+
+    const cached = tenants.find((item) => item.id === nextTenantId);
+    if (cached?.offices?.length) {
+      const office = cached.offices[0];
+      setSelectedOfficeId(office.id);
+      setOfficeAddress(office.addressText || office.name || '');
+      const policyDwell = cached.policies?.[0]?.stopDwellMinutes;
+      if (typeof policyDwell === 'number') {
+        setStopDwellMinutes(Math.min(Math.max(policyDwell, 1), 10));
+      }
+      return;
+    }
+
+    setUploadCompanyLoading(true);
+    try {
+      const detailed = await opsApi.getTenant(nextTenantId);
+      setTenants((current) => {
+        const exists = current.some((item) => item.id === detailed.id);
+        return exists
+          ? current.map((item) => (item.id === detailed.id ? detailed : item))
+          : [detailed, ...current];
+      });
+      const office = detailed.offices?.[0];
+      setSelectedOfficeId(office?.id ?? '');
+      setOfficeAddress(office?.addressText || office?.name || '');
+      const policyDwell = detailed.policies?.[0]?.stopDwellMinutes;
+      if (typeof policyDwell === 'number') {
+        setStopDwellMinutes(Math.min(Math.max(policyDwell, 1), 10));
+      }
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? `Could not load company offices: ${err.message}` : 'Could not load company offices.');
+    } finally {
+      setUploadCompanyLoading(false);
+    }
+  }
+
+  async function handleCreateManualRoute(e: React.FormEvent) {
+    e.preventDefault();
+    const targetTenantId = selectedUploadTenantId || selectedTenantId;
+    if (!targetTenantId || !selectedOfficeId) {
+      setErrorMsg('Please select a corporate company and office hub first.');
+      return;
+    }
+    const cleanedStops = manualStops
+      .map((s) => ({
+        name: s.name.trim(),
+        phoneNumber: s.phoneNumber.trim(),
+        email: s.email.trim() || undefined,
+        address: s.address.trim(),
+      }))
+      .filter((s) => s.name || s.phoneNumber || s.address);
+
+    if (cleanedStops.length === 0) {
+      setErrorMsg('Add at least one employee stop with name, phone number, and address.');
+      return;
+    }
+    for (let i = 0; i < cleanedStops.length; i++) {
+      const s = cleanedStops[i];
+      if (!s.name || !s.phoneNumber || !s.address) {
+        setErrorMsg(`Stop #${i + 1}: Name, Phone Number, and Address are all required.`);
+        return;
+      }
+    }
+
+    setManualSaving(true);
+    setErrorMsg(null);
+    setManualCreatedRoute(null);
+    try {
+      const created = await opsApi.createManualRoute({
+        tenantId: targetTenantId,
+        officeId: selectedOfficeId,
+        shiftDate: manualShiftDate,
+        shiftTime: manualShiftTime,
+        direction: manualDirection,
+        vehicleCategory: manualVehicleCategory || 'SEDAN',
+        maxCapacity: Math.max(cleanedStops.length, Number(manualMaxCapacity) || 4),
+        stops: cleanedStops,
+      });
+      setManualCreatedRoute(created);
+      toast.success(
+        `Created manual route with ${cleanedStops.length} employee stop${cleanedStops.length === 1 ? '' : 's'} (all employees auto-registered).`,
+        'Manual Route Created',
+      );
+      setManualStops([{ id: `stop-${Date.now()}`, name: '', phoneNumber: '', email: '', address: '' }]);
+    } catch (err: any) {
+      setErrorMsg(stripApiErrorPrefix(err?.message || 'Could not create manual route.'));
+    } finally {
+      setManualSaving(false);
+    }
+  }
 
   const selectedUploadTenant = tenants.find((tenant) => tenant.id === selectedUploadTenantId);
   const hasConfiguredOffices = Boolean(selectedUploadTenant?.offices?.length);
@@ -1364,8 +1517,8 @@ export default function RouteOptimizerPage() {
                   onClick={() => setActiveTab('FILE_UPLOAD')}
                   style={{
                     flex: 1,
-                    padding: '12px 14px',
-                    fontSize: '13px',
+                    padding: '12px 10px',
+                    fontSize: '12px',
                     fontWeight: 600,
                     background: activeTab === 'FILE_UPLOAD' ? 'var(--brand-primary-subtle)' : 'transparent',
                     color: activeTab === 'FILE_UPLOAD' ? 'var(--brand-blue-500, #5728B2)' : 'var(--text-muted)',
@@ -1375,20 +1528,20 @@ export default function RouteOptimizerPage() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '8px',
+                    gap: '6px',
                     transition: 'all 0.15s ease',
                   }}
                 >
-                  <FileSpreadsheet size={15} />
-                  <span>Roster File Ingest</span>
+                  <FileSpreadsheet size={14} />
+                  <span>Roster Ingest</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveTab('DB_SHIFT')}
                   style={{
                     flex: 1,
-                    padding: '12px 14px',
-                    fontSize: '13px',
+                    padding: '12px 10px',
+                    fontSize: '12px',
                     fontWeight: 600,
                     background: activeTab === 'DB_SHIFT' ? 'var(--brand-primary-subtle)' : 'transparent',
                     color: activeTab === 'DB_SHIFT' ? 'var(--brand-blue-500, #5728B2)' : 'var(--text-muted)',
@@ -1398,12 +1551,35 @@ export default function RouteOptimizerPage() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '8px',
+                    gap: '6px',
                     transition: 'all 0.15s ease',
                   }}
                 >
-                  <Database size={15} />
-                  <span>Live Shift Optimize</span>
+                  <Database size={14} />
+                  <span>Live Shift</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('MANUAL')}
+                  style={{
+                    flex: 1,
+                    padding: '12px 10px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    background: activeTab === 'MANUAL' ? 'var(--brand-primary-subtle)' : 'transparent',
+                    color: activeTab === 'MANUAL' ? 'var(--brand-blue-500, #5728B2)' : 'var(--text-muted)',
+                    border: 'none',
+                    borderBottom: activeTab === 'MANUAL' ? '2px solid var(--brand-blue-500, #5728B2)' : '2px solid transparent',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <RouteIcon size={14} />
+                  <span>Manual Route</span>
                 </button>
               </div>
 
@@ -1411,6 +1587,33 @@ export default function RouteOptimizerPage() {
                 /* FILE UPLOADER & HEURISTIC SOLVER */
                 <form onSubmit={handleCalculateRoutes} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
                   <div style={{ padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px', flex: 1, minHeight: 0 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                        Corporate Client (Company) *
+                      </label>
+                      <select
+                        value={selectedUploadTenantId}
+                        onChange={(e) => void handleSelectCompany(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          backgroundColor: 'var(--bg-input)',
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: '6px',
+                          color: 'var(--text-primary)',
+                          fontSize: '13px',
+                          outline: 'none',
+                        }}
+                      >
+                        {tenants.length === 0 && <option value="">No companies onboarded</option>}
+                        {tenants.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name} ({t.code})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
                     {selectedUploadTenant && (
                       <div
                         onClick={() => {
@@ -1794,7 +1997,7 @@ export default function RouteOptimizerPage() {
                     </Button>
                   </div>
                 </form>
-              ) : (
+              ) : activeTab === 'DB_SHIFT' ? (
                 /* DATABASE SHIFT AUTO-OPTIMIZER FORM */
                 <form onSubmit={handleOptimizeDbShift} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
                   <div style={{ padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px', flex: 1, minHeight: 0 }}>
@@ -1805,13 +2008,7 @@ export default function RouteOptimizerPage() {
                       </label>
                       <select
                         value={selectedTenantId}
-                        onChange={(e) => {
-                          setSelectedTenantId(e.target.value);
-                          const t = tenants.find((item) => item.id === e.target.value);
-                          if (t && t.offices && t.offices.length > 0) {
-                            setSelectedOfficeId(t.offices[0].id);
-                          }
-                        }}
+                        onChange={(e) => void handleSelectCompany(e.target.value)}
                         style={{
                           width: '100%',
                           padding: '8px 12px',
@@ -2087,6 +2284,387 @@ export default function RouteOptimizerPage() {
                       leftIcon={dbOptimizing ? <RefreshCw className="spin" size={16} /> : <Cpu size={16} />}
                     >
                       {dbOptimizing ? 'Optimizing Fleet...' : 'Auto-Optimize Shift Routes'}
+                    </Button>
+                  </div>
+                </form>
+              ) : (
+                /* MANUAL ROUTE BUILDER FORM */
+                <form onSubmit={handleCreateManualRoute} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                  <div style={{ padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', flex: 1, minHeight: 0 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                        Corporate Client (Company) *
+                      </label>
+                      <select
+                        value={selectedUploadTenantId}
+                        onChange={(e) => void handleSelectCompany(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          backgroundColor: 'var(--bg-input)',
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: '6px',
+                          color: 'var(--text-primary)',
+                          fontSize: '13px',
+                          outline: 'none',
+                        }}
+                      >
+                        {tenants.length === 0 && <option value="">No companies onboarded</option>}
+                        {tenants.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name} ({t.code})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                        Company Office Hub *
+                      </label>
+                      <select
+                        value={selectedOfficeId}
+                        disabled={uploadCompanyLoading || !selectedUploadTenant?.offices?.length}
+                        onChange={(e) => setSelectedOfficeId(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          backgroundColor: 'var(--bg-input)',
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: '6px',
+                          color: 'var(--text-primary)',
+                          fontSize: '13px',
+                          outline: 'none',
+                        }}
+                      >
+                        {!selectedUploadTenant?.offices?.length && <option value="">No office hubs configured</option>}
+                        {selectedUploadTenant?.offices?.map((off) => (
+                          <option key={off.id} value={off.id}>
+                            {off.name} ({off.code})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                          Shift Date *
+                        </label>
+                        <input
+                          type="date"
+                          required
+                          value={manualShiftDate}
+                          onChange={(e) => setManualShiftDate(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '8px 10px',
+                            backgroundColor: 'var(--bg-input)',
+                            border: '1px solid var(--border-subtle)',
+                            borderRadius: '6px',
+                            color: 'var(--text-primary)',
+                            fontSize: '13px',
+                            outline: 'none',
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                          Shift Time (IST) *
+                        </label>
+                        <input
+                          type="time"
+                          required
+                          value={manualShiftTime}
+                          onChange={(e) => setManualShiftTime(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '8px 10px',
+                            backgroundColor: 'var(--bg-input)',
+                            border: '1px solid var(--border-subtle)',
+                            borderRadius: '6px',
+                            color: 'var(--text-primary)',
+                            fontSize: '13px',
+                            outline: 'none',
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px', gap: '10px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                          Direction *
+                        </label>
+                        <select
+                          value={manualDirection}
+                          onChange={(e) => setManualDirection(e.target.value as 'LOGIN' | 'LOGOUT')}
+                          style={{
+                            width: '100%',
+                            padding: '8px 10px',
+                            backgroundColor: 'var(--bg-input)',
+                            border: '1px solid var(--border-subtle)',
+                            borderRadius: '6px',
+                            color: 'var(--text-primary)',
+                            fontSize: '12px',
+                            outline: 'none',
+                          }}
+                        >
+                          <option value="LOGIN">LOGIN</option>
+                          <option value="LOGOUT">LOGOUT</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                          Vehicle *
+                        </label>
+                        <select
+                          value={manualVehicleCategory}
+                          onChange={(e) => setManualVehicleCategory(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '8px 10px',
+                            backgroundColor: 'var(--bg-input)',
+                            border: '1px solid var(--border-subtle)',
+                            borderRadius: '6px',
+                            color: 'var(--text-primary)',
+                            fontSize: '12px',
+                            outline: 'none',
+                          }}
+                        >
+                          {vehicleCategories.length > 0 ? (
+                            vehicleCategories.map((cat) => (
+                              <option key={cat.vehicleType} value={cat.vehicleType}>
+                                {cat.categoryLabel}
+                              </option>
+                            ))
+                          ) : (
+                            <>
+                              <option value="SEDAN">Sedan</option>
+                              <option value="SUV">SUV</option>
+                              <option value="HATCHBACK">Hatchback</option>
+                              <option value="TEMPO_TRAVELLER">Tempo Traveller</option>
+                            </>
+                          )}
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                          Seats
+                        </label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={40}
+                          value={manualMaxCapacity}
+                          onChange={(e) => setManualMaxCapacity(Math.max(1, Number(e.target.value) || 4))}
+                          style={{
+                            width: '100%',
+                            padding: '8px 8px',
+                            backgroundColor: 'var(--bg-input)',
+                            border: '1px solid var(--border-subtle)',
+                            borderRadius: '6px',
+                            color: 'var(--text-primary)',
+                            fontSize: '12px',
+                            outline: 'none',
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Dynamic Employee Stops */}
+                    <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          Employee Stops ({manualStops.length})
+                        </span>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          leftIcon={<Plus size={13} />}
+                          onClick={() =>
+                            setManualStops((prev) => [
+                              ...prev,
+                              { id: `stop-${Date.now()}-${prev.length}`, name: '', phoneNumber: '', email: '', address: '' },
+                            ])
+                          }
+                        >
+                          Add Stop
+                        </Button>
+                      </div>
+                      <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)' }}>
+                        Every employee added here is automatically registered in the company directory with a commuter login account.
+                      </p>
+
+                      {manualStops.map((stop, idx) => (
+                        <div
+                          key={stop.id}
+                          style={{
+                            padding: '10px',
+                            borderRadius: '8px',
+                            backgroundColor: 'var(--bg-surface-muted)',
+                            border: '1px solid var(--border-subtle)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '8px',
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--brand-blue-500, #5728B2)' }}>
+                              Stop #{idx + 1}
+                            </span>
+                            {manualStops.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => setManualStops((prev) => prev.filter((item) => item.id !== stop.id))}
+                                style={{
+                                  background: 'transparent',
+                                  border: 'none',
+                                  color: 'var(--color-danger, #DC2626)',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  fontSize: '11px',
+                                  fontWeight: 600,
+                                }}
+                              >
+                                <Trash2 size={12} /> Remove
+                              </button>
+                            )}
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                            <input
+                              type="text"
+                              required
+                              placeholder="Employee Name *"
+                              value={stop.name}
+                              onChange={(e) =>
+                                setManualStops((prev) =>
+                                  prev.map((item) => (item.id === stop.id ? { ...item, name: e.target.value } : item)),
+                                )
+                              }
+                              style={{
+                                width: '100%',
+                                padding: '7px 9px',
+                                backgroundColor: 'var(--bg-input)',
+                                border: '1px solid var(--border-subtle)',
+                                borderRadius: '6px',
+                                color: 'var(--text-primary)',
+                                fontSize: '12px',
+                              }}
+                            />
+                            <input
+                              type="tel"
+                              required
+                              placeholder="Phone (+91...) *"
+                              value={stop.phoneNumber}
+                              onChange={(e) =>
+                                setManualStops((prev) =>
+                                  prev.map((item) => (item.id === stop.id ? { ...item, phoneNumber: e.target.value } : item)),
+                                )
+                              }
+                              style={{
+                                width: '100%',
+                                padding: '7px 9px',
+                                backgroundColor: 'var(--bg-input)',
+                                border: '1px solid var(--border-subtle)',
+                                borderRadius: '6px',
+                                color: 'var(--text-primary)',
+                                fontSize: '12px',
+                              }}
+                            />
+                          </div>
+                          <input
+                            type="email"
+                            placeholder="Email (optional)"
+                            value={stop.email}
+                            onChange={(e) =>
+                              setManualStops((prev) =>
+                                prev.map((item) => (item.id === stop.id ? { ...item, email: e.target.value } : item)),
+                              )
+                            }
+                            style={{
+                              width: '100%',
+                              padding: '7px 9px',
+                              backgroundColor: 'var(--bg-input)',
+                              border: '1px solid var(--border-subtle)',
+                              borderRadius: '6px',
+                              color: 'var(--text-primary)',
+                              fontSize: '12px',
+                            }}
+                          />
+                          <input
+                            type="text"
+                            required
+                            placeholder="Pickup / Drop Address *"
+                            value={stop.address}
+                            onChange={(e) =>
+                              setManualStops((prev) =>
+                                prev.map((item) => (item.id === stop.id ? { ...item, address: e.target.value } : item)),
+                              )
+                            }
+                            style={{
+                              width: '100%',
+                              padding: '7px 9px',
+                              backgroundColor: 'var(--bg-input)',
+                              border: '1px solid var(--border-subtle)',
+                              borderRadius: '6px',
+                              color: 'var(--text-primary)',
+                              fontSize: '12px',
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+
+                    {manualCreatedRoute && (
+                      <div
+                        style={{
+                          padding: '12px 14px',
+                          borderRadius: '8px',
+                          backgroundColor: 'var(--color-success-bg)',
+                          border: '1px solid var(--color-success-border)',
+                          fontSize: '12px',
+                          color: 'var(--color-success)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '8px',
+                        }}
+                      >
+                        <div>
+                          <strong>Manual route created!</strong> RT-{manualCreatedRoute.id.slice(0, 8).toUpperCase()} ({manualCreatedRoute.assignedPassengerCount} passengers auto-registered).
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          <Link href={`/routes/${manualCreatedRoute.id}`} style={{ textDecoration: 'none' }}>
+                            <Button type="button" size="sm" variant="primary" rightIcon={<ExternalLink size={12} />}>
+                              Inspect Route
+                            </Button>
+                          </Link>
+                          <Link
+                            href={selectedUploadTenantId ? `/routes?tenantId=${encodeURIComponent(selectedUploadTenantId)}` : '/routes'}
+                            style={{ textDecoration: 'none' }}
+                          >
+                            <Button type="button" size="sm" variant="outline">
+                              Open Routes Page
+                            </Button>
+                          </Link>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border-subtle)' }}>
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      style={{ width: '100%' }}
+                      isLoading={manualSaving}
+                      disabled={!selectedUploadTenantId || !selectedOfficeId}
+                      leftIcon={<Plus size={16} />}
+                    >
+                      {manualSaving ? 'Creating Route...' : 'Create Manual Route'}
                     </Button>
                   </div>
                 </form>

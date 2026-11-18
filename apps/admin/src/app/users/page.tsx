@@ -1156,8 +1156,7 @@ export default function UsersAndVendorsPage() {
               Industry / Service Domain
             </div>
             <div className="text-md font-semibold text-primary mt-1">
-              {selectedVendor.businessType ||
-                "Commercial Logistics & Corporate Transport"}
+              {selectedVendor.businessType || "—"}
             </div>
           </div>
         </div>

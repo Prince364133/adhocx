@@ -70,7 +70,7 @@ export class CorporateSafetyController {
   }
 
   @Get('alerts')
-  @Roles(UserRole.ADMIN, UserRole.OPS)
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
   @CorporateTenantScoped()
   @ApiOperation({ summary: 'List active and historical corporate SOS emergency alerts for Command Centre' })
   @ApiResponse({ status: 200, description: 'List of emergency alerts' })

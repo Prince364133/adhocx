@@ -440,12 +440,14 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
             <span className="font-semibold text-primary">
               {adminUser?.fullName || "Administrator"}
             </span>
-            <span
-              className="text-brand font-semibold"
-              style={{ fontSize: "0.64rem" }}
-            >
-              {adminUser?.email || "admin@adhocx.com"}
-            </span>
+            {(adminUser?.email || adminUser?.phone) && (
+              <span
+                className="text-brand font-semibold"
+                style={{ fontSize: "0.64rem" }}
+              >
+                {adminUser.email || adminUser.phone}
+              </span>
+            )}
           </div>
 
           <button

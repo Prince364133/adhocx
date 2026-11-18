@@ -19,7 +19,7 @@ export default function ActiveRoutesListPage() {
     setLoading(true);
     setLoadError(null);
     routesApi
-      .list({ status: 'IN_PROGRESS' })
+      .list({ status: 'IN_TRANSIT' })
       .then((data) => {
         setRoutes(data);
       })

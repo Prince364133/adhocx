@@ -40,7 +40,7 @@ export default function LiveOperationsMapPage() {
     const today = new Date().toISOString().slice(0, 10);
 
     Promise.all([
-      routesApi.list(activeTenantId, { status: 'IN_PROGRESS' }),
+      routesApi.list(activeTenantId, { status: 'IN_TRANSIT' }),
       analyticsApi.dashboard({ tenantId: activeTenantId, from: today, to: today }),
     ])
       .then(([rts, dash]) => {

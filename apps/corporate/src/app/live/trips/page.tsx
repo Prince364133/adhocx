@@ -1,15 +1,16 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { Navigation } from 'lucide-react';
 import { GoogleRouteMap } from '../../../components/maps/GoogleRouteMap';
 import { routesApi } from '../../../lib/api/corporate';
 import type { CorporateRoute, RouteTracking } from '../../../lib/api/types';
 
 function LiveTripDetailsContent() {
+  const params = useParams();
   const searchParams = useSearchParams();
-  const routeIdParam = searchParams.get('id');
+  const routeIdParam = (Array.isArray(params?.id) ? params.id[0] : params?.id) || searchParams.get('id');
 
   const [routes, setRoutes] = useState<CorporateRoute[]>([]);
   const [selectedRoute, setSelectedRoute] = useState<CorporateRoute | null>(null);
@@ -20,7 +21,7 @@ function LiveTripDetailsContent() {
   useEffect(() => {
     setLoading(true);
     routesApi
-      .list({ status: 'IN_PROGRESS' })
+      .list({ status: 'IN_TRANSIT' })
       .then((data) => {
         setRoutes(data);
         if (data.length > 0) {
@@ -120,9 +121,9 @@ function LiveTripDetailsContent() {
                 fontWeight: 700,
                 padding: '3px 10px',
                 borderRadius: 'var(--radius-pill)',
-                backgroundColor: selectedRoute.status === 'IN_PROGRESS' ? '#DCFCE7' : '#F1F5F9',
-                color: selectedRoute.status === 'IN_PROGRESS' ? '#16A34A' : '#64748B',
-                border: `1px solid ${selectedRoute.status === 'IN_PROGRESS' ? '#86EFAC' : '#CBD5E1'}`,
+                backgroundColor: selectedRoute.status === 'IN_TRANSIT' ? '#DCFCE7' : '#F1F5F9',
+                color: selectedRoute.status === 'IN_TRANSIT' ? '#16A34A' : '#64748B',
+                border: `1px solid ${selectedRoute.status === 'IN_TRANSIT' ? '#86EFAC' : '#CBD5E1'}`,
               }}
             >
               {selectedRoute.status}
@@ -314,19 +315,19 @@ function LiveTripDetailsContent() {
               <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid var(--border-subtle)' }}>
                 <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>Planned Start</span>
                 <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                  {selectedRoute.plannedStartTime ? new Date(selectedRoute.plannedStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '07:30 AM'}
+                  {selectedRoute.plannedStartTime ? new Date(selectedRoute.plannedStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid var(--border-subtle)' }}>
                 <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>Actual / Dispatched Start</span>
                 <span style={{ fontSize: '13px', fontWeight: 700, color: '#D97706' }}>
-                  {selectedRoute.actualStartTime ? new Date(selectedRoute.actualStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '07:34 AM'}
+                  {selectedRoute.actualStartTime ? new Date(selectedRoute.actualStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid var(--border-subtle)' }}>
                 <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>Planned End</span>
                 <span style={{ fontSize: '13px', fontWeight: 700, color: '#16A34A' }}>
-                  {selectedRoute.plannedEndTime ? new Date(selectedRoute.plannedEndTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '08:45 AM'}
+                  {selectedRoute.plannedEndTime ? new Date(selectedRoute.plannedEndTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid var(--border-subtle)' }}>

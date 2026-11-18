@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
 import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
@@ -10,24 +9,39 @@ import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
 
-/// Screen 3: Driver Details
+/// Driver Details backed by live nextTrip + tracking APIs.
 class DriverDetailsScreen extends StatelessWidget {
   const DriverDetailsScreen({super.key});
 
-  Future<void> _call(String phone) async {
-    final uri = Uri.parse('tel:${phone.replaceAll(RegExp(r'[^0-9+]'), '')}');
+  Future<void> _call(BuildContext context, String phone) async {
+    final clean = phone.replaceAll(RegExp(r'[^0-9+]'), '');
+    if (clean.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Driver contact number not available yet.')),
+      );
+      return;
+    }
+    final uri = Uri.parse('tel:$clean');
     if (await canLaunchUrl(uri)) await launchUrl(uri);
   }
 
   @override
   Widget build(BuildContext context) {
     return TripDataBuilder(
-      load: () async => (await MockDataService.getDriverAssignment())['driver']
-          as Map<String, dynamic>?,
-      builder: (context, driver) {
+      load: () => loadLiveTripSnapshot(context),
+      builder: (context, snapshot) {
         final p = EmployeePalette.of(context);
-        final name = driver['name'] ?? 'Suresh R';
-        final phone = driver['phone'] ?? '+91 98765 00111';
+        final next = (snapshot['nextTrip'] as Map<String, dynamic>?) ?? const {};
+        final tracking =
+            (snapshot['tracking'] as Map<String, dynamic>?) ?? const {};
+        final driver = (tracking['driver'] ?? next['driver']) as Map?;
+        final name = driver?['fullName']?.toString() ??
+            driver?['name']?.toString() ??
+            'Not yet assigned';
+        final phone = driver?['phoneNumber']?.toString() ??
+            driver?['phone']?.toString() ??
+            '';
+        final rating = driver?['rating'];
 
         Widget detail(IconData icon, String title, String value,
             {bool verified = false}) {
@@ -83,15 +97,16 @@ class DriverDetailsScreen extends StatelessWidget {
                         backgroundColor: p.accentTint,
                         child: Icon(Icons.person, size: 54, color: p.accent),
                       ),
-                      Container(
-                        padding: const EdgeInsets.all(AppSpacing.xs),
-                        decoration: const BoxDecoration(
-                          color: AppColors.success,
-                          shape: BoxShape.circle,
+                      if (driver != null)
+                        Container(
+                          padding: const EdgeInsets.all(AppSpacing.xs),
+                          decoration: const BoxDecoration(
+                            color: AppColors.success,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.check,
+                              size: 14, color: Colors.white),
                         ),
-                        child: const Icon(Icons.check,
-                            size: 14, color: Colors.white),
-                      ),
                     ],
                   ),
                   const SizedBox(height: AppSpacing.md),
@@ -99,27 +114,28 @@ class DriverDetailsScreen extends StatelessWidget {
                       style: AppTypography.h2(
                           color: p.textPrimary, fontSize: 20)),
                   const SizedBox(height: AppSpacing.xs),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.star_rounded,
-                          size: 18, color: AppColors.starAmber),
-                      const SizedBox(width: AppSpacing.xs),
-                      Flexible(
-                        child: Text(
-                          '${(driver['rating'] ?? 4.8).toDouble()} (${driver['tripsCompleted'] ?? 412} trips)',
+                  if (rating != null)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.star_rounded,
+                            size: 18, color: AppColors.starAmber),
+                        const SizedBox(width: AppSpacing.xs),
+                        Text(
+                          '$rating',
                           style: AppTypography.bodyMedium(
                             color: p.textSecondary,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
                   const SizedBox(height: AppSpacing.sm),
-                  const EmployeeStatusBadge(
-                    label: 'Verified Driver',
-                    variant: BadgeVariant.approved,
+                  EmployeeStatusBadge(
+                    label: driver != null ? 'Verified Driver' : 'Pending Assignment',
+                    variant: driver != null
+                        ? BadgeVariant.approved
+                        : BadgeVariant.pending,
                     icon: Icons.verified_user_rounded,
                   ),
                   const SizedBox(height: AppSpacing.xxl),
@@ -129,8 +145,7 @@ class DriverDetailsScreen extends StatelessWidget {
                         child: EmployeePrimaryButton(
                           label: 'Call',
                           icon: Icons.call_rounded,
-                          // Was a "Calling…" snackbar; now dials the driver.
-                          onPressed: () => _call(phone),
+                          onPressed: () => _call(context, phone),
                         ),
                       ),
                       const SizedBox(width: AppSpacing.md),
@@ -151,16 +166,25 @@ class DriverDetailsScreen extends StatelessWidget {
                     width: double.infinity,
                     child: Column(
                       children: [
-                        detail(Icons.drive_eta_rounded, 'Driving Experience',
-                            driver['experience'] ?? '6+ years'),
+                        detail(
+                          Icons.phone_outlined,
+                          'Contact',
+                          phone.isNotEmpty ? phone : 'Available on assignment',
+                        ),
                         Divider(color: p.border, height: AppSpacing.xxl),
-                        detail(Icons.badge_rounded, 'License (Commercial)',
-                            driver['licenseStatus'] ?? 'Verified',
-                            verified: true),
+                        detail(
+                          Icons.badge_rounded,
+                          'License (Commercial)',
+                          driver != null ? 'Verified' : 'Pending',
+                          verified: driver != null,
+                        ),
                         Divider(color: p.border, height: AppSpacing.xxl),
-                        detail(Icons.security_rounded, 'Background Check',
-                            driver['backgroundCheck'] ?? 'Completed',
-                            verified: true),
+                        detail(
+                          Icons.security_rounded,
+                          'Background Check',
+                          driver != null ? 'Completed' : 'Pending',
+                          verified: driver != null,
+                        ),
                       ],
                     ),
                   ),

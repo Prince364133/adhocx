@@ -263,7 +263,7 @@ export class CorporateSupportTicketController {
   }
 
   @Patch(':id/status')
-  @Roles(UserRole.ADMIN, UserRole.OPS)
+  @Roles(UserRole.ADMIN, UserRole.OPS, UserRole.CORPORATE_ADMIN, UserRole.CORPORATE_MANAGER)
   @CorporateResource('ticket', 'id')
   @ApiOperation({ summary: 'Change ticket status within the shared workflow' })
   @ApiBody({ schema: { type: 'object', properties: { status: { type: 'string', enum: Object.values(CorporateTicketStatus) }, notes: { type: 'string' } }, required: ['status'] } })

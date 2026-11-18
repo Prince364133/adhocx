@@ -1,22 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
 
-/// Loads one section of the mock `boarding_completion` data.
-Future<Map<String, dynamic>?> loadBoardingSection(String key) async =>
-    (await MockDataService.getBoardingData())[key] as Map<String, dynamic>?;
-
-/// Loads one entry of `boarding_completion.error_states`.
-Future<Map<String, dynamic>?> loadBoardingError(String key) async {
-  final errors = await loadBoardingSection('error_states');
-  return errors?[key] as Map<String, dynamic>?;
-}
-
-/// Trip + driver preview card ("Trip: Login (Pickup) / Driver: Suresh R").
+/// Trip + driver preview card ("Trip: Login (Pickup) / Driver: ...").
 class BoardingTripPreviewCard extends StatelessWidget {
   final String tripType;
   final String driverLine;

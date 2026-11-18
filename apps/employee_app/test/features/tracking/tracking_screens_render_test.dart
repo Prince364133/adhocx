@@ -1,5 +1,4 @@
 import 'package:adhocx_employee/features/tracking/tracking.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/shared/illustrations/tracking_illustrations.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_theme.dart';
@@ -26,7 +25,6 @@ Future<void> _pump(WidgetTester tester, Widget screen,
   tester.view.physicalSize = const Size(360, 640);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  await tester.runAsync(MockDataService.loadData);
   await tester.pumpWidget(MaterialApp(
     theme: AppTheme.lightTheme,
     darkTheme: AppTheme.darkTheme,

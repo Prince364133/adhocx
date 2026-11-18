@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   Building2,
@@ -11,9 +11,16 @@ import {
   Users,
   XCircle,
 } from 'lucide-react';
-import { readMockDashboard, refreshMockDatabase, type MockDashboardSnapshot } from '../../lib/mock-ops-db';
+import { opsApi } from '../../lib/api/opsClient';
+import type {
+  CorporateTenantOption,
+  OpsBoardResponse,
+  SosAlertItem,
+} from '../../lib/api/opsTypes';
 import { MetricCard } from '../../components/common/MetricCard';
 import { Button } from '../../components/common/Button';
+
+const todayIst = () => new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10);
 
 const cardStyle: React.CSSProperties = {
   backgroundColor: 'var(--bg-surface)',
@@ -24,52 +31,63 @@ const cardStyle: React.CSSProperties = {
 };
 
 export default function OperationsOverviewPage() {
-  const [snapshot, setSnapshot] = useState<MockDashboardSnapshot | null>(null);
+  const [board, setBoard] = useState<OpsBoardResponse | null>(null);
+  const [tenants, setTenants] = useState<CorporateTenantOption[]>([]);
+  const [alerts, setAlerts] = useState<SosAlertItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  function loadData(refresh = false) {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      if (refresh) refreshMockDatabase();
-      setSnapshot(readMockDashboard());
+      const [boardRes, tenantsRes, alertsRes] = await Promise.all([
+        opsApi.getOpsBoard({ date: todayIst(), pageSize: 200 }),
+        opsApi.getTenants({ page: 1, limit: 100 }),
+        opsApi.getSosAlerts().catch(() => [] as SosAlertItem[]),
+      ]);
+      setBoard(boardRes);
+      setTenants(tenantsRes?.items ?? []);
+      setAlerts(Array.isArray(alertsRes) ? alertsRes : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load the operations dashboard.');
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
     void loadData();
-  }, []);
+  }, [loadData]);
 
-  const board = snapshot?.board;
-  const tenants = snapshot?.tenants ?? [];
   const counts = board?.counts;
-  const activeAlerts = (snapshot?.alerts ?? []).filter((alert) => ['NEW', 'ACKNOWLEDGED', 'INVESTIGATING', 'ESCALATED'].includes(alert.status));
+  const activeAlerts = alerts.filter((alert) =>
+    ['NEW', 'ACTIVE', 'ACKNOWLEDGED', 'INVESTIGATING', 'ESCALATED'].includes(String(alert.status)),
+  );
   const affectedRoutes = new Set([
-    ...(board?.atRisk.items.map((route) => route.id) ?? []),
-    ...(board?.staleGps.items.map((route) => route.id) ?? []),
+    ...(board?.atRisk?.items.map((route) => route.id) ?? []),
+    ...(board?.staleGps?.items.map((route) => route.id) ?? []),
   ]);
   const activeExceptions = affectedRoutes.size + activeAlerts.length;
-  const carried = ['IN_TRANSIT', 'COMPLETED'].reduce(
-    (sum, status) => {
-      const routeStatus = status as 'IN_TRANSIT' | 'COMPLETED';
-      return sum +
-      (board?.routes[routeStatus].items ?? []).reduce(
-        (routeSum, route) => routeSum + route.assignedPassengerCount,
+  const carried = (['IN_TRANSIT', 'COMPLETED'] as const).reduce(
+    (sum, status) =>
+      sum +
+      (board?.routes?.[status]?.items ?? []).reduce(
+        (routeSum, route) => routeSum + (route.assignedPassengerCount ?? 0),
         0,
-      );
-    },
+      ),
     0,
   );
   const totalScheduled = Math.max(0, (counts?.total ?? 0) - (counts?.CANCELLED ?? 0));
-  const refreshedAt = snapshot?.database.refreshedAt ? new Date(snapshot.database.refreshedAt) : null;
-  const lastUpdated = refreshedAt && !Number.isNaN(refreshedAt.getTime())
-    ? refreshedAt.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' })
-    : null;
+  const refreshedAt = board?.asOf ? new Date(board.asOf) : null;
+  const lastUpdated =
+    refreshedAt && !Number.isNaN(refreshedAt.getTime())
+      ? refreshedAt.toLocaleTimeString('en-IN', {
+          hour: 'numeric',
+          minute: '2-digit',
+          timeZone: 'Asia/Kolkata',
+        })
+      : null;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
@@ -77,15 +95,15 @@ export default function OperationsOverviewPage() {
         <div>
           <h1 className="h1-text" style={{ color: 'var(--text-primary)' }}>Operations Overview</h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginTop: 4 }}>
-            Today’s dispatch and service status across all corporate clients.
+            Today&apos;s live dispatch and service status across all corporate clients.
           </p>
           {lastUpdated && (
             <p style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 4 }} aria-live="polite">
-              Last updated: {lastUpdated}
+              Last updated: {lastUpdated} IST
             </p>
           )}
         </div>
-        <Button size="md" variant="outline" onClick={() => loadData(true)} isLoading={loading}>
+        <Button size="md" variant="outline" onClick={() => void loadData()} isLoading={loading}>
           Refresh
         </Button>
       </div>
@@ -112,7 +130,7 @@ export default function OperationsOverviewPage() {
             ['Completed', counts?.COMPLETED ?? 0],
             ['Cancelled', counts?.CANCELLED ?? 0],
           ].map(([label, count]) => (
-            <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)', fontSize: 13 }}>
+            <div key={String(label)} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)', fontSize: 13 }}>
               <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
               <strong style={{ color: 'var(--text-primary)' }}>{loading ? '—' : count}</strong>
             </div>
@@ -128,25 +146,29 @@ export default function OperationsOverviewPage() {
             <Building2 size={17} color="var(--brand-blue-500, #5728B2)" />
           </div>
           {tenants.length === 0 && !loading ? (
-            <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>No client operations to display.</p>
-          ) : tenants.slice(0, 6).map((tenant) => (
-            <Link
-              key={tenant.id}
-              href={`/board?tenantId=${encodeURIComponent(tenant.id)}`}
-              style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '10px 0', borderBottom: '1px solid var(--border-subtle)', textDecoration: 'none' }}
-            >
-              <span>
-                <strong style={{ display: 'block', color: 'var(--text-primary)', fontSize: 13 }}>{tenant.name}</strong>
-                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{tenant.code}</span>
-              </span>
-              <span style={{ textAlign: 'right', fontSize: 12, color: 'var(--text-secondary)' }}>
-                {tenant.activeCabsCount ?? 0} cabs · {tenant.inTransitCount ?? 0} in transit
-                <span style={{ display: 'block', color: (tenant.delayedCount ?? 0) + (tenant.unassignedCount ?? 0) ? '#DC2626' : '#16A34A' }}>
-                  {(tenant.delayedCount ?? 0) + (tenant.unassignedCount ?? 0)} exceptions
+            <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>No corporate clients onboarded yet.</p>
+          ) : (
+            tenants.slice(0, 6).map((tenant) => (
+              <Link
+                key={tenant.id}
+                href={`/routes?tenantId=${encodeURIComponent(tenant.id)}`}
+                style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '10px 0', borderBottom: '1px solid var(--border-subtle)', textDecoration: 'none' }}
+              >
+                <span>
+                  <strong style={{ display: 'block', color: 'var(--text-primary)', fontSize: 13 }}>{tenant.name}</strong>
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                    {tenant.code} · OTP {tenant.onTimePunctualityPct != null ? `${tenant.onTimePunctualityPct}%` : '—'}
+                  </span>
                 </span>
-              </span>
-            </Link>
-          ))}
+                <span style={{ textAlign: 'right', fontSize: 12, color: 'var(--text-secondary)' }}>
+                  {tenant.activeCabsCount ?? 0} cabs · {tenant.inTransitCount ?? 0} in transit
+                  <span style={{ display: 'block', color: (tenant.delayedCount ?? 0) + (tenant.unassignedCount ?? 0) ? '#DC2626' : '#16A34A' }}>
+                    {(tenant.delayedCount ?? 0) + (tenant.unassignedCount ?? 0)} exceptions
+                  </span>
+                </span>
+              </Link>
+            ))
+          )}
           <Link href="/" style={{ display: 'inline-block', marginTop: 14, color: 'var(--brand-blue-500, #5728B2)', fontSize: 13, fontWeight: 600 }}>
             View company hub →
           </Link>

@@ -9,19 +9,28 @@ class EmployeeAuthProvider extends ChangeNotifier {
   final EmployeeAuthRepository _repository;
   AuthState _state = const AuthState();
   Timer? _countdownTimer;
+  bool _sessionChecked = false;
+  Future<void>? _sessionCheckFuture;
 
   EmployeeAuthProvider({required EmployeeAuthRepository repository})
       : _repository = repository {
-    checkExistingSession();
+    _sessionCheckFuture = checkExistingSession();
   }
 
   AuthState get state => _state;
   EmployeeUser? get currentUser => _state.user;
   bool get isLoading => _state.isLoading;
   bool get isAuthenticated => _state.isAuthenticated;
+  bool get sessionChecked => _sessionChecked;
   String? get errorMessage => _state.errorMessage;
   int get resendCountdown => _state.resendCountdown;
   String? get currentPhone => _state.phoneNumber;
+
+  Future<void> ensureSessionChecked() async {
+    if (_sessionChecked) return;
+    _sessionCheckFuture ??= checkExistingSession();
+    await _sessionCheckFuture;
+  }
 
   Future<void> checkExistingSession() async {
     try {
@@ -31,9 +40,20 @@ class EmployeeAuthProvider extends ChangeNotifier {
           status: AuthStatus.authenticated,
           user: cached,
         );
-        notifyListeners();
       }
-    } catch (_) {}
+    } catch (_) {
+    } finally {
+      _sessionChecked = true;
+      notifyListeners();
+    }
+  }
+
+  void updateCurrentUser(EmployeeUser user) {
+    _state = _state.copyWith(
+      status: AuthStatus.authenticated,
+      user: user,
+    );
+    notifyListeners();
   }
 
   void setPhoneNumber(String phone) {
@@ -235,6 +255,13 @@ class EmployeeAuthProvider extends ChangeNotifier {
   Future<void> signOut() async {
     _countdownTimer?.cancel();
     await _repository.signOut();
+    _state = const AuthState();
+    notifyListeners();
+  }
+
+  Future<void> deleteAccount() async {
+    _countdownTimer?.cancel();
+    await _repository.deleteAccount();
     _state = const AuthState();
     notifyListeners();
   }

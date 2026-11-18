@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
+import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
 import 'package:adhocx_employee/shared/illustrations/trip_illustrations.dart';
 import 'package:adhocx_employee/theme/app_radius.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
-import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
 
 class TripArrivedScreen extends StatelessWidget {
   const TripArrivedScreen({super.key});
@@ -37,10 +36,12 @@ class TripArrivedScreen extends StatelessWidget {
                     border: Border.all(color: p.accent.withAlpha(77)),
                   ),
                   child: Semantics(
-                    label: 'Boarding code ${otp.split('').join(' ')}',
+                    label: otp.isNotEmpty
+                        ? 'Boarding code ${otp.split('').join(' ')}'
+                        : 'Boarding code unavailable',
                     excludeSemantics: true,
                     child: Text(
-                      otp,
+                      otp.isNotEmpty ? otp : '------',
                       style: AppTypography.display(
                         color: p.accent,
                         fontSize: 32,
@@ -69,10 +70,19 @@ class TripArrivedScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TripDataBuilder(
-      load: () => MockDataService.getTrip('arrived'),
-      builder: (context, trip) {
-        final driver = trip['driver'] as Map<String, dynamic>?;
-        final otp = trip['boardingOtp']?.toString() ?? '583271';
+      load: () => loadLiveTripSnapshot(context),
+      builder: (context, snapshot) {
+        final next = (snapshot['nextTrip'] as Map<String, dynamic>?) ?? const {};
+        final tracking =
+            (snapshot['tracking'] as Map<String, dynamic>?) ?? const {};
+        final driver = (tracking['driver'] ?? next['driver']) as Map?;
+        final otp = tracking['boardingOtp']?.toString() ??
+            next['boardingOtp']?.toString() ??
+            '';
+        final driverName = driver?['fullName']?.toString() ??
+            driver?['name']?.toString() ??
+            'Not yet assigned';
+        final driverRating = driver?['rating']?.toString() ?? 'Verified';
 
         return TripStageScaffold(
           title: "Today's Pickup",
@@ -87,8 +97,8 @@ class TripArrivedScreen extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.xxl),
             TripDriverRow(
-              name: driver?['name'] ?? 'Suresh R',
-              rating: (driver?['rating'] ?? 4.8).toString(),
+              name: driverName,
+              rating: driverRating,
               avatarRadius: 20,
             ),
             const SizedBox(height: AppSpacing.xxl),

@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Activity, BarChart3, Clock3, Gauge, RefreshCw, Timer } from 'lucide-react';
+import { opsApi } from '../../../lib/api/opsClient';
+import type { CorporateTenantOption, OperationsAnalyticsDashboard } from '../../../lib/api/opsTypes';
 import { MetricCard } from '../../../components/common/MetricCard';
 import { Button } from '../../../components/common/Button';
-import { buildMockAnalytics, readMockDatabase, refreshMockDatabase, type MockOpsDatabase } from '../../../lib/mock-ops-db';
 
 const today = () => new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10);
 const daysAgo = (days: number) => new Date(Date.now() + 330 * 60_000 - days * 86_400_000).toISOString().slice(0, 10);
@@ -27,28 +28,180 @@ function parseDisplayDate(value: string): string | null {
   return `${year}-${month}-${day}`;
 }
 
+function emptyAnalytics(from: string, to: string, shiftTime: string): OperationsAnalyticsDashboard {
+  return {
+    asOf: new Date().toISOString(),
+    filter: { tenantId: 'ALL', from, to, shiftTime: shiftTime || null, timezone: 'Asia/Kolkata' },
+    trips: { total: 0, byStatus: {} },
+    employeesServed: 0,
+    requests: { total: 0, byStatus: {}, cancelled: 0, noShows: 0, unserved: 0 },
+    punctuality: { measuredStops: 0, onTimePickups: 0, latePickups: 0, onTimePct: null, avgDelayMinutes: null },
+    seatUtilisation: { completedRoutes: 0, assignedSeats: 0, capacitySeats: 0, pct: null },
+    dailyTrips: [],
+  };
+}
+
+function mergeAnalytics(
+  results: OperationsAnalyticsDashboard[],
+  from: string,
+  to: string,
+  shiftTime: string,
+): OperationsAnalyticsDashboard {
+  if (results.length === 0) return emptyAnalytics(from, to, shiftTime);
+  if (results.length === 1) return results[0];
+
+  const tripByStatus: Record<string, number> = {};
+  const reqByStatus: Record<string, number> = {};
+  const dailyMap = new Map<string, { scheduled: number; completed: number }>();
+
+  let tripsTotal = 0;
+  let employeesServed = 0;
+  let reqTotal = 0;
+  let reqCancelled = 0;
+  let reqNoShows = 0;
+  let reqUnserved = 0;
+  let measuredStops = 0;
+  let onTimePickups = 0;
+  let latePickups = 0;
+  let weightedDelaySum = 0;
+  let completedRoutes = 0;
+  let assignedSeats = 0;
+  let capacitySeats = 0;
+
+  for (const r of results) {
+    tripsTotal += r.trips.total;
+    for (const [k, v] of Object.entries(r.trips.byStatus)) {
+      tripByStatus[k] = (tripByStatus[k] ?? 0) + v;
+    }
+    employeesServed += r.employeesServed;
+    reqTotal += r.requests.total;
+    reqCancelled += r.requests.cancelled;
+    reqNoShows += r.requests.noShows;
+    reqUnserved += r.requests.unserved;
+    for (const [k, v] of Object.entries(r.requests.byStatus)) {
+      reqByStatus[k] = (reqByStatus[k] ?? 0) + v;
+    }
+    measuredStops += r.punctuality.measuredStops;
+    onTimePickups += r.punctuality.onTimePickups;
+    latePickups += r.punctuality.latePickups;
+    if (r.punctuality.avgDelayMinutes !== null && r.punctuality.measuredStops > 0) {
+      weightedDelaySum += r.punctuality.avgDelayMinutes * r.punctuality.measuredStops;
+    }
+    completedRoutes += r.seatUtilisation.completedRoutes;
+    assignedSeats += r.seatUtilisation.assignedSeats;
+    capacitySeats += r.seatUtilisation.capacitySeats;
+
+    for (const d of r.dailyTrips) {
+      const prev = dailyMap.get(d.date) ?? { scheduled: 0, completed: 0 };
+      prev.scheduled += d.scheduled;
+      prev.completed += d.completed;
+      dailyMap.set(d.date, prev);
+    }
+  }
+
+  const dailyTrips = Array.from(dailyMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, counts]) => ({ date, ...counts }));
+
+  return {
+    asOf: new Date().toISOString(),
+    filter: { tenantId: 'ALL', from, to, shiftTime: shiftTime || null, timezone: 'Asia/Kolkata' },
+    trips: { total: tripsTotal, byStatus: tripByStatus },
+    employeesServed,
+    requests: {
+      total: reqTotal,
+      byStatus: reqByStatus,
+      cancelled: reqCancelled,
+      noShows: reqNoShows,
+      unserved: reqUnserved,
+    },
+    punctuality: {
+      measuredStops,
+      onTimePickups,
+      latePickups,
+      onTimePct: measuredStops > 0 ? Math.round((onTimePickups * 10000) / measuredStops) / 100 : null,
+      avgDelayMinutes: measuredStops > 0 ? Math.round((weightedDelaySum / measuredStops) * 100) / 100 : null,
+    },
+    seatUtilisation: {
+      completedRoutes,
+      assignedSeats,
+      capacitySeats,
+      pct: capacitySeats > 0 ? Math.round((assignedSeats * 10000) / capacitySeats) / 100 : null,
+    },
+    dailyTrips,
+  };
+}
+
 export default function OperationsAnalyticsPage() {
-  const [database, setDatabase] = useState<MockOpsDatabase | null>(null);
+  const [tenants, setTenants] = useState<CorporateTenantOption[]>([]);
+  const [tenantsLoaded, setTenantsLoaded] = useState(false);
   const [tenantId, setTenantId] = useState('ALL');
   const [from, setFrom] = useState(daysAgo(6));
   const [to, setTo] = useState(today());
   const [fromInput, setFromInput] = useState(() => formatDisplayDate(daysAgo(6)));
   const [toInput, setToInput] = useState(() => formatDisplayDate(today()));
   const [shiftTime, setShiftTime] = useState('');
+  const [data, setData] = useState<OperationsAnalyticsDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
+    void opsApi
+      .getTenants({ page: 1, limit: 100 })
+      .then((res) => setTenants(res?.items ?? []))
+      .catch((err) => setError(err instanceof Error ? err.message : 'Unable to load corporate clients.'))
+      .finally(() => setTenantsLoaded(true));
+  }, []);
+
+  const loadAnalytics = useCallback(async () => {
+    if (!tenantsLoaded) return;
+    if (from > to) {
+      setError('Start date must be on or before end date.');
+      return;
+    }
+    setLoading(true);
+    setError('');
     try {
-      setDatabase(readMockDatabase());
+      if (tenantId !== 'ALL') {
+        const res = await opsApi.getAnalyticsDashboard({
+          tenantId,
+          from,
+          to,
+          shiftTime: shiftTime || undefined,
+        });
+        setData(res);
+      } else if (tenants.length === 0) {
+        setData(emptyAnalytics(from, to, shiftTime));
+      } else {
+        const settled = await Promise.allSettled(
+          tenants.map((t) =>
+            opsApi.getAnalyticsDashboard({
+              tenantId: t.id,
+              from,
+              to,
+              shiftTime: shiftTime || undefined,
+            }),
+          ),
+        );
+        const ok = settled
+          .filter((r): r is PromiseFulfilledResult<OperationsAnalyticsDashboard> => r.status === 'fulfilled')
+          .map((r) => r.value);
+        if (ok.length === 0 && settled.length > 0) {
+          const firstErr = settled.find((r): r is PromiseRejectedResult => r.status === 'rejected');
+          throw new Error(firstErr?.reason instanceof Error ? firstErr.reason.message : 'Unable to load analytics.');
+        }
+        setData(mergeAnalytics(ok, from, to, shiftTime));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load operations analytics.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [from, shiftTime, tenantId, tenants, tenantsLoaded, to]);
 
-  const tenants = database?.tenants ?? [];
+  useEffect(() => {
+    void loadAnalytics();
+  }, [loadAnalytics]);
 
   function commitFromDate() {
     const parsed = parseDisplayDate(fromInput);
@@ -72,31 +225,11 @@ export default function OperationsAnalyticsPage() {
     setError('');
   }
 
-  const data = useMemo(() => {
-    if (!database || from > to) return null;
-    return buildMockAnalytics(database, {
-      tenantId: tenantId === 'ALL' ? undefined : tenantId,
-      from,
-      to,
-      shiftTime: shiftTime || undefined,
-    });
-  }, [database, from, shiftTime, tenantId, to]);
-
-  function loadAnalytics() {
-    setLoading(true);
-    setError('');
-    try {
-      if (from > to) throw new Error('Start date must be on or before end date.');
-      setDatabase(refreshMockDatabase());
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to refresh operations analytics.');
-    } finally {
-      setLoading(false);
-    }
-  }
-
   const scheduled = data?.trips.total ?? 0;
-  const fulfilled = (data?.trips.byStatus.ASSIGNED ?? 0) + (data?.trips.byStatus.IN_TRANSIT ?? 0) + (data?.trips.byStatus.COMPLETED ?? 0);
+  const fulfilled =
+    (data?.trips.byStatus.ASSIGNED ?? 0) +
+    (data?.trips.byStatus.IN_TRANSIT ?? 0) +
+    (data?.trips.byStatus.COMPLETED ?? 0);
   const fulfillmentRate = scheduled > 0 ? Math.round((fulfilled * 1000) / scheduled) / 10 : null;
   const chartMax = Math.max(1, ...(data?.dailyTrips.map((day) => day.scheduled) ?? []));
   const rangeLabel = useMemo(() => `${from} to ${to}`, [from, to]);
@@ -107,10 +240,10 @@ export default function OperationsAnalyticsPage() {
         <div>
           <h1 className="h1-text" style={{ color: 'var(--text-primary)' }}>Operations Analytics</h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginTop: 4 }}>
-            Delivery, service quality, demand coverage, and fleet efficiency · {rangeLabel}
+            Live delivery, service quality, demand coverage, and fleet efficiency · {rangeLabel}
           </p>
         </div>
-        <Button size="md" variant="outline" leftIcon={<RefreshCw size={14} />} onClick={loadAnalytics} isLoading={loading}>
+        <Button size="md" variant="outline" leftIcon={<RefreshCw size={14} />} onClick={() => void loadAnalytics()} isLoading={loading}>
           Refresh
         </Button>
       </div>
@@ -171,7 +304,9 @@ export default function OperationsAnalyticsPage() {
           <h2 style={{ margin: 0, fontSize: 15, color: 'var(--text-primary)' }}>Scheduled vs. Completed Trips</h2>
         </div>
         <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 20px' }}>Daily route delivery trend for the selected client, date range, and shift.</p>
-        {loading ? <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Loading daily trip data…</p> : !data?.dailyTrips.length ? (
+        {loading ? (
+          <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Loading daily trip data…</p>
+        ) : !data?.dailyTrips.length ? (
           <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>No trip data for the selected filters.</p>
         ) : (
           <div style={{ display: 'flex', alignItems: 'end', gap: 12, minHeight: 220, overflowX: 'auto', padding: '8px 0' }}>

@@ -659,7 +659,7 @@ export const adminApi = {
       fulfillmentRate:
         m.totalOrders > 0
           ? Math.round((m.completedOrders / m.totalOrders) * 100)
-          : 100,
+          : 0,
     }));
 
     // Parse city & state from address
@@ -697,7 +697,7 @@ export const adminApi = {
       city,
       state,
       gstNumber: rawVendor.gstNumber || null,
-      businessType: "Logistics & Passenger Fleet",
+      businessType: rawVendor.businessType || null,
       verificationStatus: rawVendor.verificationStatus || "PENDING",
       accountStatus: rawVendor.status || "ACTIVE",
       escrowBalance: Number(rawVendor.escrowBalance || 0),
@@ -790,37 +790,10 @@ export const adminApi = {
     if (params?.limit) queryParams.append("limit", String(params.limit));
 
     const q = queryParams.toString() ? `?${queryParams.toString()}` : "";
-
-    try {
-      const res = await apiClient<any>(`/admin/users${q}`);
-      if (Array.isArray(res)) return res as UserListItem[];
-      if (res && Array.isArray(res.items)) return res.items as UserListItem[];
-    } catch {
-      // If /admin/users endpoint is not yet live on remote EC2, synthesize users list from vendors
-    }
-
-    // Fallback synthesis
-    const vendors = await adminApi
-      .getVendors()
-      .catch(() => [] as VendorListItem[]);
-    return vendors.map((v) => ({
-      id: v.userId || v.id,
-      fullName:
-        v.contactPerson || v.fullName || v.companyName || "User Account",
-      phone: v.phone || "Not Available",
-      email: v.email || "Not Available",
-      role: "VENDOR",
-      status:
-        (v.accountStatus as any) ||
-        (v.verificationStatus === "REJECTED" ? "SUSPENDED" : "ACTIVE"),
-      companyName: v.companyName,
-      address: v.address || "Not Available",
-      city: v.city || "Not Available",
-      state: v.state || "Not Available",
-      totalOrders: v.requirementsCount || 0,
-      createdAt: v.createdAt,
-      updatedAt: v.updatedAt,
-    }));
+    const res = await apiClient<any>(`/admin/users${q}`);
+    if (Array.isArray(res)) return res as UserListItem[];
+    if (res && Array.isArray(res.items)) return res.items as UserListItem[];
+    return [] as UserListItem[];
   },
 
   getUserCount: async (params?: { role?: string }): Promise<number> => {
@@ -870,99 +843,9 @@ export const adminApi = {
   },
 
   getUserDetails: async (id: string): Promise<UserProfileDetail> => {
-    try {
-      const res = await apiClient<any>(`/admin/users/${id}`);
-      if (res && res.orders && Array.isArray(res.orders)) {
-        return res as UserProfileDetail;
-      }
-    } catch {
-      // Fallback synthesis if remote endpoint pending EC2 deployment
-    }
-
-    // Synthesize user details from vendor/requirements
-    const vendors = await adminApi
-      .getVendors()
-      .catch(() => [] as VendorListItem[]);
-    const matchedVendor = vendors.find(
-      (v) => v.id === id || (v as any).userId === id,
+    return apiClient<UserProfileDetail>(
+      `/admin/users/${encodeURIComponent(id)}`,
     );
-    const vendorDetail = matchedVendor
-      ? await adminApi.getVendorDetails(matchedVendor.id).catch(() => null)
-      : null;
-
-    let totalOrders = 0;
-    let completedOrders = 0;
-    let pendingOrders = 0;
-    let cancelledOrders = 0;
-    let totalAmountSpent = 0;
-
-    const orders = (vendorDetail?.orders || []).map((o) => {
-      totalOrders++;
-      if (o.orderStatus === "COMPLETED" || o.orderStatus === "FULFILLED") {
-        completedOrders++;
-        totalAmountSpent += o.orderAmount;
-      } else if (
-        o.orderStatus === "CANCELLED" ||
-        o.orderStatus === "NO_DRIVER_AVAILABLE"
-      ) {
-        cancelledOrders++;
-      } else {
-        pendingOrders++;
-      }
-
-      return {
-        id: o.id,
-        orderId: o.orderId,
-        orderDate: o.orderDate,
-        serviceDetails: o.serviceRequirement,
-        vehicleType: o.vehicleType,
-        assignedVendor: vendorDetail?.companyName || "Corporate Partner",
-        assignedDriver: o.assignedDriver,
-        driverPhone: o.driverPhone,
-        pickupLocation: o.pickupLocation,
-        deliveryLocation: o.deliveryLocation,
-        orderAmount: o.orderAmount,
-        paymentStatus: o.paymentStatus,
-        orderStatus: o.orderStatus,
-      };
-    });
-
-    return {
-      id: matchedVendor?.userId || matchedVendor?.id || id,
-      fullName:
-        matchedVendor?.contactPerson ||
-        matchedVendor?.fullName ||
-        "User Account",
-      email: matchedVendor?.email || "Not Available",
-      phone: matchedVendor?.phone || "Not Available",
-      role: "VENDOR",
-      status: (matchedVendor?.accountStatus as any) || "ACTIVE",
-      createdAt: matchedVendor?.createdAt || new Date().toISOString(),
-      updatedAt: matchedVendor?.updatedAt,
-      profilePhotoUrl: null,
-      address: matchedVendor?.address || "Not Available",
-      city: vendorDetail?.city || "Not Available",
-      state: vendorDetail?.state || "Not Available",
-      latitude: null,
-      longitude: null,
-      corporateTenantName: matchedVendor?.companyName || null,
-      corporateOfficeName: null,
-      totalOrders,
-      completedOrders,
-      pendingOrders,
-      cancelledOrders,
-      totalAmountSpent,
-      orders,
-      activityLogs: [
-        {
-          id: "log-1",
-          action: "User Session Active",
-          entityName: "SECURITY",
-          details: "Account in good administrative standing",
-          timestamp: new Date().toISOString(),
-        },
-      ],
-    };
   },
 
   updateUser: (
@@ -1645,10 +1528,13 @@ export const adminApi = {
     ),
   createCorporateTenant: (input: CreateCorporateTenantInput) =>
     apiClient<CorporateTenantListItem & {
+      hqOfficeCreated?: boolean;
+      hqOfficeWarning?: string;
       portalAccess?: {
         created: boolean;
         corporateRole: string;
         loginMethod: 'SMS_OTP';
+        phone?: string;
       };
     }>('/corporate/tenants', {
       method: 'POST',

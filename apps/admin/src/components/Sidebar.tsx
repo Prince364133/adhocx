@@ -89,6 +89,9 @@ const navSections: NavSection[] = [
   },
 ];
 
+const OPS_PORTAL_URL =
+  process.env.NEXT_PUBLIC_OPS_URL?.trim().replace(/\/+$/, "") || "";
+
 export const Sidebar: React.FC = () => {
   const pathname = usePathname();
   const router = useRouter();
@@ -263,40 +266,42 @@ export const Sidebar: React.FC = () => {
         ))}
       </nav>
 
-      {/* Tactical Fleet Flight Control Launcher (:7004) */}
-      <div
-        className="border-t"
-        style={{ padding: isHovered ? "0.5rem 0.75rem" : "0.5rem 0.4rem" }}
-      >
-        <a
-          href="http://localhost:7004"
-          target="_blank"
-          rel="noopener noreferrer"
-          title="Open Tactical Fleet Operations (:7004)"
-          className="flex items-center rounded-md no-underline text-compact font-bold box-border"
-          style={{
-            justifyContent: isHovered ? "space-between" : "center",
-            padding: isHovered ? "0.5rem 0.75rem" : "0.55rem 0",
-            backgroundColor: "rgba(var(--brand-primary-rgb), 0.1)",
-            border: "1px solid rgba(var(--brand-primary-rgb), 0.25)",
-            color: "var(--text-brand)",
-            width: isHovered ? "100%" : "38px",
-            margin: isHovered ? "0" : "0 auto",
-          }}
+      {/* Tactical Fleet Flight Control Launcher */}
+      {OPS_PORTAL_URL && (
+        <div
+          className="border-t"
+          style={{ padding: isHovered ? "0.5rem 0.75rem" : "0.5rem 0.4rem" }}
         >
-          <div
-            className="flex items-center gap-2"
+          <a
+            href={OPS_PORTAL_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Open Fleet Operations Portal"
+            className="flex items-center rounded-md no-underline text-compact font-bold box-border"
             style={{
-              justifyContent: isHovered ? "flex-start" : "center",
-              width: isHovered ? "auto" : "100%",
+              justifyContent: isHovered ? "space-between" : "center",
+              padding: isHovered ? "0.5rem 0.75rem" : "0.55rem 0",
+              backgroundColor: "rgba(var(--brand-primary-rgb), 0.1)",
+              border: "1px solid rgba(var(--brand-primary-rgb), 0.25)",
+              color: "var(--text-brand)",
+              width: isHovered ? "100%" : "38px",
+              margin: isHovered ? "0" : "0 auto",
             }}
           >
-            <Radio size={15} style={{ flexShrink: 0 }} />
-            {isHovered && <span>Fleet Ops (:7004)</span>}
-          </div>
-          {isHovered && <ExternalLink size={13} style={{ flexShrink: 0 }} />}
-        </a>
-      </div>
+            <div
+              className="flex items-center gap-2"
+              style={{
+                justifyContent: isHovered ? "flex-start" : "center",
+                width: isHovered ? "auto" : "100%",
+              }}
+            >
+              <Radio size={15} style={{ flexShrink: 0 }} />
+              {isHovered && <span>Fleet Ops</span>}
+            </div>
+            {isHovered && <ExternalLink size={13} style={{ flexShrink: 0 }} />}
+          </a>
+        </div>
+      )}
 
       {/* Administrative User & Logout Footer */}
       <div
@@ -314,7 +319,12 @@ export const Sidebar: React.FC = () => {
           }}
           title={
             !isHovered
-              ? `${adminUser?.fullName || "Administrator"} (${adminUser?.email || "admin@adhocx.com"})`
+              ? [
+                  adminUser?.fullName || "Administrator",
+                  adminUser?.email || adminUser?.phone,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")
               : undefined
           }
         >
@@ -338,9 +348,11 @@ export const Sidebar: React.FC = () => {
               >
                 {adminUser?.fullName || "Administrator"}
               </span>
-              <span className="text-micro text-muted whitespace-nowrap overflow-hidden text-ellipsis">
-                {adminUser?.email || "admin@adhocx.com"}
-              </span>
+              {(adminUser?.email || adminUser?.phone) && (
+                <span className="text-micro text-muted whitespace-nowrap overflow-hidden text-ellipsis">
+                  {adminUser.email || adminUser.phone}
+                </span>
+              )}
             </div>
           )}
         </div>

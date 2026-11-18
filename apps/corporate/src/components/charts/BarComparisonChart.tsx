@@ -13,13 +13,33 @@ export interface BarComparisonChartProps {
   height?: number;
 }
 
+function computeAxisScale(rawMax: number, tickCount = 5): { maxVal: number; ticks: number[] } {
+  const safeMax = Number.isFinite(rawMax) && rawMax > 0 ? rawMax : tickCount;
+  const roughStep = safeMax / tickCount;
+  const magnitude = Math.pow(10, Math.floor(Math.log10(roughStep)));
+  const normalized = roughStep / magnitude;
+  const niceNorm = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+  const step = Math.max(1, niceNorm * magnitude);
+  const maxVal = step * tickCount;
+  const ticks = Array.from({ length: tickCount + 1 }, (_, i) => i * step);
+  return { maxVal, ticks };
+}
+
 export const BarComparisonChart: React.FC<BarComparisonChartProps> = ({
   data,
   height = 220,
 }) => {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
-  const paddingLeft = 40;
+  if (!data || data.length === 0) {
+    return (
+      <div style={{ padding: '24px 12px', textAlign: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>
+        No comparison data available.
+      </div>
+    );
+  }
+
+  const paddingLeft = 44;
   const paddingRight = 20;
   const paddingTop = 24;
   const paddingBottom = 32;
@@ -29,9 +49,13 @@ export const BarComparisonChart: React.FC<BarComparisonChartProps> = ({
   const innerWidth = chartWidth - paddingLeft - paddingRight;
   const innerHeight = chartHeight - paddingTop - paddingBottom;
 
-  const maxVal = 500;
-  const groupWidth = innerWidth / data.length;
-  const barWidth = 14;
+  const rawMax = Math.max(
+    0,
+    ...data.map((d) => Math.max(Number(d.scheduled) || 0, Number(d.completed) || 0)),
+  );
+  const { maxVal, ticks } = computeAxisScale(rawMax, 5);
+  const groupWidth = innerWidth / Math.max(1, data.length);
+  const barWidth = Math.min(18, Math.max(8, Math.floor(groupWidth / 3)));
 
   return (
     <div style={{ position: 'relative', width: '100%' }}>
@@ -49,7 +73,7 @@ export const BarComparisonChart: React.FC<BarComparisonChartProps> = ({
 
       <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} style={{ width: '100%', height: 'auto', overflow: 'visible' }}>
         {/* Horizontal grid lines */}
-        {[0, 100, 200, 300, 400, 500].map((val) => {
+        {ticks.map((val) => {
           const y = paddingTop + innerHeight - (val / maxVal) * innerHeight;
           return (
             <g key={val}>
@@ -77,14 +101,17 @@ export const BarComparisonChart: React.FC<BarComparisonChartProps> = ({
 
         {/* Bars */}
         {data.map((d, i) => {
-          const groupCenter = paddingLeft + i * groupWidth + groupWidth / 2;
-          const scheduledHeight = (d.scheduled / maxVal) * innerHeight;
-          const completedHeight = (d.completed / maxVal) * innerHeight;
+          const groupCenter =
+            data.length <= 1
+              ? paddingLeft + innerWidth / 2
+              : paddingLeft + i * groupWidth + groupWidth / 2;
+          const scheduledHeight = Math.max(0, ((Number(d.scheduled) || 0) / maxVal) * innerHeight);
+          const completedHeight = Math.max(0, ((Number(d.completed) || 0) / maxVal) * innerHeight);
           const isHovered = hoveredIdx === i;
 
           return (
             <g
-              key={d.day}
+              key={`${d.day}-${i}`}
               onMouseEnter={() => setHoveredIdx(i)}
               onMouseLeave={() => setHoveredIdx(null)}
               style={{ cursor: 'pointer' }}
@@ -127,16 +154,16 @@ export const BarComparisonChart: React.FC<BarComparisonChartProps> = ({
               {isHovered && (
                 <g>
                   <rect
-                    x={groupCenter - 50}
-                    y={Math.min(paddingTop + innerHeight - Math.max(scheduledHeight, completedHeight) - 40, paddingTop)}
+                    x={Math.max(paddingLeft, Math.min(chartWidth - paddingRight - 100, groupCenter - 50))}
+                    y={Math.max(4, paddingTop + innerHeight - Math.max(scheduledHeight, completedHeight) - 38)}
                     width="100"
                     height="32"
                     rx="4"
                     fill="var(--text-primary, #1E293B)"
                   />
                   <text
-                    x={groupCenter}
-                    y={Math.min(paddingTop + innerHeight - Math.max(scheduledHeight, completedHeight) - 20, paddingTop + 20)}
+                    x={Math.max(paddingLeft + 50, Math.min(chartWidth - paddingRight - 50, groupCenter))}
+                    y={Math.max(24, paddingTop + innerHeight - Math.max(scheduledHeight, completedHeight) - 18)}
                     textAnchor="middle"
                     fontSize="10"
                     fontWeight="600"
@@ -155,4 +182,3 @@ export const BarComparisonChart: React.FC<BarComparisonChartProps> = ({
 };
 
 export default BarComparisonChart;
-

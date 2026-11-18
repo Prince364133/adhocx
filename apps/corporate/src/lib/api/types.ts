@@ -23,6 +23,10 @@ export interface AuthUser {
   fullName?: string | null;
   email?: string | null;
   phone?: string | null;
+  corporateTenantId?: string | null;
+  corporateRole?: string | null;
+  corporateOfficeIds?: string[];
+  corporateEmployeeId?: string | null;
 }
 
 export interface AuthResponse {

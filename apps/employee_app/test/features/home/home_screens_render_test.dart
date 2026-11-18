@@ -3,7 +3,6 @@ import 'package:adhocx_employee/features/schedule/requests/request_change_option
 import 'package:adhocx_employee/models/employee_user.dart';
 import 'package:adhocx_employee/repositories/employee_auth_repository.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
 import 'package:adhocx_employee/state/employee_auth_provider.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
@@ -21,6 +20,8 @@ class _FakeAuthRepository implements EmployeeAuthRepository {
   Future<EmployeeUser?> getCurrentUser() async => null;
   @override
   Future<void> signOut() async {}
+  @override
+  Future<void> deleteAccount() async {}
   @override
   Future<EmployeeUser> verifyOtp({
     required String mobileNumber,
@@ -58,7 +59,6 @@ void main() {
         tester.view.physicalSize = const Size(360, 640);
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.reset);
-        await tester.runAsync(MockDataService.loadData);
 
         await tester.pumpWidget(_app(build(), dark: dark));
         await tester.pumpAndSettle();
@@ -78,7 +78,6 @@ void main() {
     tester.view.physicalSize = const Size(320, 640);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    await tester.runAsync(MockDataService.loadData);
 
     await tester.pumpWidget(_app(const HomeUpcomingPickupScreen()));
     await tester.pumpAndSettle();
@@ -105,7 +104,6 @@ void main() {
     tester.view.physicalSize = const Size(360, 640);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    await tester.runAsync(MockDataService.loadData);
 
     final router = GoRouter(
       initialLocation: AppRoutes.home,

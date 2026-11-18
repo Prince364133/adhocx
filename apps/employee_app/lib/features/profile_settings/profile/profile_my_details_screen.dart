@@ -1,136 +1,194 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
 import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
+import 'package:adhocx_employee/state/employee_auth_provider.dart';
+import 'package:adhocx_employee/state/employee_data_provider.dart';
 import 'package:adhocx_employee/theme/app_colors.dart';
 import 'package:adhocx_employee/theme/app_radius.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
 
-/// Screen 6: Profile (My Details) — Profile tab.
-class ProfileMyDetailsScreen extends StatelessWidget {
+/// Profile (My Details) — Profile tab backed by GET /corporate/me.
+class ProfileMyDetailsScreen extends StatefulWidget {
   const ProfileMyDetailsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return TripDataBuilder(
-      load: () async =>
-          (await MockDataService.getHistoryProfileData())['profile']
-              as Map<String, dynamic>?,
-      builder: (context, profile) {
-        final p = EmployeePalette.of(context);
+  State<ProfileMyDetailsScreen> createState() => _ProfileMyDetailsScreenState();
+}
 
-        return Scaffold(
-          backgroundColor: p.background,
-          body: SingleChildScrollView(
-            child: Column(
-              children: [
-                EmployeeEntrance(
-                  child: _ProfileHeader(
-                    name: profile['fullName'] ?? 'Ravi Kumar',
-                    employeeId: profile['employeeId'] ?? 'EMP001245',
-                  ),
+class _ProfileMyDetailsScreenState extends State<ProfileMyDetailsScreen> {
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadProfile());
+  }
+
+  Future<void> _loadProfile({bool force = false}) async {
+    EmployeeDataProvider? data;
+    try {
+      data = context.read<EmployeeDataProvider>();
+    } catch (_) {
+      data = null;
+    }
+    if (data != null) {
+      await data.loadProfile(force: force);
+    }
+    if (mounted) setState(() => _initialized = true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = EmployeePalette.of(context);
+    EmployeeDataProvider? data;
+    EmployeeAuthProvider? auth;
+    try {
+      data = context.watch<EmployeeDataProvider>();
+    } catch (_) {}
+    try {
+      auth = context.watch<EmployeeAuthProvider>();
+    } catch (_) {}
+
+    if (!_initialized && (data?.loadingProfile ?? false)) {
+      return const EmployeeLoadingScaffold();
+    }
+
+    final profile = data?.profile;
+    final user = auth?.currentUser;
+
+    final fullName = profile?['fullName']?.toString() ?? user?.fullName ?? '';
+    final employeeId =
+        profile?['employeeCode']?.toString() ?? user?.employeeId ?? '';
+    final orgName = (profile?['tenant'] is Map
+            ? (profile!['tenant'] as Map)['name']?.toString()
+            : null) ??
+        user?.organization ??
+        '';
+    final email = profile?['email']?.toString() ?? user?.email ?? '';
+    final phone = profile?['phoneNumber']?.toString() ?? user?.phone ?? '';
+    final pickupAddr = profile?['defaultPickupLocation'] is Map
+        ? (profile!['defaultPickupLocation'] as Map)['addressText']?.toString()
+        : null;
+    final officeName = profile?['office'] is Map
+        ? (profile!['office'] as Map)['name']?.toString()
+        : user?.office;
+
+    return Scaffold(
+      backgroundColor: p.background,
+      body: RefreshIndicator(
+        onRefresh: () => _loadProfile(force: true),
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            children: [
+              EmployeeEntrance(
+                child: _ProfileHeader(
+                  name: fullName.isNotEmpty ? fullName : 'Commuter',
+                  employeeId: employeeId,
                 ),
-                const SizedBox(height: AppSpacing.xxl),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.pageHorizontal,
-                  ),
-                  child: Column(
-                    children: [
-                      EmployeeEntrance(
-                        delay: const Duration(milliseconds: 100),
-                        child: TripInfoCard(
-                          items: [
-                            TripInfoItem(
-                              icon: Icons.apartment_rounded,
-                              label: 'Organization',
-                              value: profile['organization'] ??
-                                  'HITEC Technologies',
-                            ),
-                            TripInfoItem(
-                              icon: Icons.email_outlined,
-                              label: 'Email',
-                              value: profile['email'] ?? 'ravi.kumar@hitec.com',
-                            ),
-                            TripInfoItem(
-                              icon: Icons.phone_outlined,
-                              label: 'Phone Number',
-                              value: profile['phone'] ?? '+91 98765 43210',
-                            ),
-                            TripInfoItem(
-                              icon: Icons.location_on_outlined,
-                              label: 'Address',
-                              value:
-                                  profile['address'] ?? 'Kondapur, Hyderabad',
-                            ),
-                          ],
-                        ),
+              ),
+              const SizedBox(height: AppSpacing.xxl),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.pageHorizontal,
+                ),
+                child: Column(
+                  children: [
+                    EmployeeEntrance(
+                      delay: const Duration(milliseconds: 100),
+                      child: TripInfoCard(
+                        items: [
+                          TripInfoItem(
+                            icon: Icons.apartment_rounded,
+                            label: 'Organization',
+                            value: orgName.isNotEmpty
+                                ? (officeName?.isNotEmpty == true
+                                    ? '$orgName • $officeName'
+                                    : orgName)
+                                : 'Not set',
+                          ),
+                          TripInfoItem(
+                            icon: Icons.email_outlined,
+                            label: 'Email',
+                            value: email.isNotEmpty ? email : 'Not set',
+                          ),
+                          TripInfoItem(
+                            icon: Icons.phone_outlined,
+                            label: 'Phone Number',
+                            value: phone.isNotEmpty ? phone : 'Not set',
+                          ),
+                          TripInfoItem(
+                            icon: Icons.location_on_outlined,
+                            label: 'Address',
+                            value: pickupAddr?.isNotEmpty == true
+                                ? pickupAddr!
+                                : 'Not set',
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: AppSpacing.xl),
-                      EmployeeEntrance(
-                        delay: const Duration(milliseconds: 180),
-                        child: Column(
-                          children: [
-                            for (final (icon, title, route) in const [
-                              (
-                                Icons.edit_outlined,
-                                'Edit Profile',
-                                AppRoutes.editProfile
-                              ),
-                              // Settings (appearance, language) was
-                              // unreachable from the Profile tab.
-                              (
-                                Icons.settings_outlined,
-                                'Settings',
-                                AppRoutes.settingsOverview
-                              ),
-                              (
-                                Icons.language_rounded,
-                                'Language',
-                                AppRoutes.settingsLanguage
-                              ),
-                              (
-                                Icons.contact_phone_outlined,
-                                'Manage Contacts',
-                                AppRoutes.manageEmergencyContacts
-                              ),
-                              (
-                                Icons.headset_mic_outlined,
-                                'Support',
-                                AppRoutes.safetyReportIncident
-                              ),
-                            ]) ...[
-                              EmployeeNavTile(
-                                icon: icon,
-                                title: title,
-                                onTap: () => context.push(route),
-                              ),
-                              const SizedBox(height: AppSpacing.sm + 2),
-                            ],
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                    EmployeeEntrance(
+                      delay: const Duration(milliseconds: 180),
+                      child: Column(
+                        children: [
+                          for (final (icon, title, route) in const [
+                            (
+                              Icons.edit_outlined,
+                              'Edit Profile',
+                              AppRoutes.editProfile
+                            ),
+                            (
+                              Icons.settings_outlined,
+                              'Settings',
+                              AppRoutes.settingsOverview
+                            ),
+                            (
+                              Icons.language_rounded,
+                              'Language',
+                              AppRoutes.settingsLanguage
+                            ),
+                            (
+                              Icons.contact_phone_outlined,
+                              'Manage Contacts',
+                              AppRoutes.manageEmergencyContacts
+                            ),
+                            (
+                              Icons.headset_mic_outlined,
+                              'Support',
+                              AppRoutes.safetyReportIncident
+                            ),
+                          ]) ...[
                             EmployeeNavTile(
-                              icon: Icons.logout_rounded,
-                              title: 'Sign Out',
-                              iconColor: AppColors.error,
-                              onTap: () =>
-                                  context.push(AppRoutes.logoutConfirm),
+                              icon: icon,
+                              title: title,
+                              onTap: () => context.push(route),
                             ),
+                            const SizedBox(height: AppSpacing.sm + 2),
                           ],
-                        ),
+                          EmployeeNavTile(
+                            icon: Icons.logout_rounded,
+                            title: 'Sign Out',
+                            iconColor: AppColors.error,
+                            onTap: () => context.push(AppRoutes.logoutConfirm),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: AppSpacing.xxxl),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: AppSpacing.xxxl),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          bottomNavigationBar: const EmployeeBottomNavBar(currentIndex: 3),
-        );
-      },
+        ),
+      ),
+      bottomNavigationBar: const EmployeeBottomNavBar(currentIndex: 3),
     );
   }
 }
@@ -215,24 +273,26 @@ class _ProfileHeader extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.md + 2),
               Text(name, style: AppTypography.h2(color: Colors.white)),
-              const SizedBox(height: AppSpacing.xs),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.xs,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withAlpha(51),
-                  borderRadius: AppRadius.borderPill,
-                ),
-                child: Text(
-                  employeeId,
-                  style: AppTypography.caption(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
+              if (employeeId.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.xs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withAlpha(51),
+                    borderRadius: AppRadius.borderPill,
+                  ),
+                  child: Text(
+                    employeeId,
+                    style: AppTypography.caption(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
           ),
         ),

@@ -61,6 +61,9 @@ const PRESET_COVERS = [
   },
 ];
 
+const MARKETING_URL =
+  process.env.NEXT_PUBLIC_MARKETING_URL?.trim().replace(/\/+$/, "") || "";
+
 export default function BlogsPage() {
   const [blogs, setBlogs] = useState<BlogPostItem[]>([]);
   const [metrics, setMetrics] = useState<BlogMetrics>({
@@ -593,16 +596,18 @@ export default function BlogsPage() {
             align: "right",
             accessor: (blog) => (
               <div className="flex justify-end" style={{ gap: "0.375rem" }}>
-                <a
-                  href={`http://localhost:4321/blogs/${blog.slug}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  title="Preview live on marketing site"
-                  className="bg-card-elevated text-brand border border-subtle rounded-sm text-sm no-underline inline-flex items-center font-semibold"
-                  style={{ padding: "0.375rem 0.625rem", gap: "0.3rem" }}
-                >
-                  <ExternalLink size={12} /> Preview
-                </a>
+                {MARKETING_URL && (
+                  <a
+                    href={`${MARKETING_URL}/blogs/${blog.slug}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    title="Preview live on marketing site"
+                    className="bg-card-elevated text-brand border border-subtle rounded-sm text-sm no-underline inline-flex items-center font-semibold"
+                    style={{ padding: "0.375rem 0.625rem", gap: "0.3rem" }}
+                  >
+                    <ExternalLink size={12} /> Preview
+                  </a>
+                )}
                 <Button
                   variant="secondary"
                   size="sm"

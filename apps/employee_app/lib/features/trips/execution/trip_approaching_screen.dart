@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:adhocx_employee/routes/app_routes.dart';
-import 'package:adhocx_employee/services/mock_data_service.dart';
 import 'package:adhocx_employee/shared/components/components.dart';
+import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
 import 'package:adhocx_employee/theme/app_spacing.dart';
 import 'package:adhocx_employee/theme/app_typography.dart';
 import 'package:adhocx_employee/theme/employee_palette.dart';
-import 'package:adhocx_employee/shared/components/trip/trip_widgets.dart';
 
 class TripApproachingScreen extends StatelessWidget {
   const TripApproachingScreen({super.key});
@@ -14,11 +13,24 @@ class TripApproachingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TripDataBuilder(
-      load: () => MockDataService.getTrip('approaching'),
-      builder: (context, trip) {
+      load: () => loadLiveTripSnapshot(context),
+      builder: (context, snapshot) {
         final p = EmployeePalette.of(context);
-        final driver = trip['driver'] as Map<String, dynamic>?;
-        final arrivingIn = trip['arrivingIn'] ?? '~ 6 min';
+        final next = (snapshot['nextTrip'] as Map<String, dynamic>?) ?? const {};
+        final tracking =
+            (snapshot['tracking'] as Map<String, dynamic>?) ?? const {};
+        final driver = (tracking['driver'] ?? next['driver']) as Map?;
+        final vehicle = (tracking['vehicle'] ?? next['vehicle']) as Map?;
+
+        final etaMins = tracking['estimatedArrivalMinutes'];
+        final arrivingIn =
+            etaMins != null ? '~ $etaMins min' : 'Live ETA updating';
+        final driverName = driver?['fullName']?.toString() ??
+            driver?['name']?.toString() ??
+            'Not yet assigned';
+        final driverRating = driver?['rating']?.toString() ?? 'Verified';
+        final plate = vehicle?['registrationNumber']?.toString() ??
+            vehicle?['plateNumber']?.toString();
 
         return TripStageScaffold(
           title: "Today's Pickup",
@@ -36,7 +48,7 @@ class TripApproachingScreen extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.xs + 2),
             Text(
-              'Arriving in $arrivingIn',
+              etaMins != null ? 'Arriving in $arrivingIn' : arrivingIn,
               textAlign: TextAlign.center,
               style: AppTypography.h1(
                 color: p.accent,
@@ -46,9 +58,9 @@ class TripApproachingScreen extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.xxl + 4),
             TripDriverRow(
-              name: driver?['name'] ?? 'Suresh R',
-              rating: (driver?['rating'] ?? 4.8).toString(),
-              vehicleNumber: driver?['vehicleNumber'] ?? 'TS09UB7845',
+              name: driverName,
+              rating: driverRating,
+              vehicleNumber: plate,
             ),
             const SizedBox(height: AppSpacing.xxl + 4),
             const EmployeeStepTracker(currentStep: TripStep.approaching),

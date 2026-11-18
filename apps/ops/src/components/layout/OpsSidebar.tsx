@@ -11,6 +11,7 @@ import {
   Radio,
   LifeBuoy,
   Users,
+  UserCheck,
 } from 'lucide-react';
 
 interface NavItem {
@@ -40,6 +41,11 @@ const OPERATIONS_ITEMS: NavItem[] = [
     href: '/drivers',
     label: 'Drivers',
     icon: <Users size={18} />,
+  },
+  {
+    href: '/employees',
+    label: 'Employees',
+    icon: <UserCheck size={18} />,
   },
   {
     href: '/safety',
@@ -187,7 +193,7 @@ export const OpsSidebar: React.FC = () => {
           GOVERNANCE & FINANCE
         </div>
         <a
-          href="http://localhost:7002/dashboard"
+          href={process.env.NEXT_PUBLIC_ADMIN_URL || 'http://localhost:7002/dashboard'}
           target="_blank"
           rel="noopener noreferrer"
           style={{
@@ -205,7 +211,7 @@ export const OpsSidebar: React.FC = () => {
             transition: 'border-color 0.15s ease',
           }}
         >
-          <span>Super Admin (:7002)</span>
+          <span>Super Admin Portal</span>
           <ExternalLink size={14} />
         </a>
       </div>
