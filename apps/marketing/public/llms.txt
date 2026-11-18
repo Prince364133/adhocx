@@ -29,4 +29,4 @@ AdhocX is operated by Estemporaneo Technologies Private Limited. Primary service
 
 ## Optional
 - [RSS feed](https://www.adhocx.com/rss.xml)
-- [Sitemap](https://www.adhocx.com/sitemap-index.xml)
+- [Sitemap](https://www.adhocx.com/sitemap.xml)

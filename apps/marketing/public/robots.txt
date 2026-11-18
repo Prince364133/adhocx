@@ -7,4 +7,4 @@ Allow: /
 Disallow: /api/
 Disallow: /admin/
 
-Sitemap: https://www.adhocx.com/sitemap-index.xml
+Sitemap: https://www.adhocx.com/sitemap.xml

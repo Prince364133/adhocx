@@ -16,7 +16,7 @@ import { join, relative, sep } from 'node:path';
 
 const SITE = 'https://www.adhocx.com';
 const candidates = [process.argv[2], '.vercel/output/static', 'dist'].filter(Boolean);
-const OUT = candidates.find((d) => existsSync(join(d, 'sitemap-index.xml'))) ?? candidates.find((d) => existsSync(d));
+const OUT = candidates.find((d) => existsSync(join(d, 'sitemap.xml'))) ?? candidates.find((d) => existsSync(d));
 
 if (!OUT) {
   console.error('seo-check: no build output found. Run `astro build` first.');
@@ -119,8 +119,8 @@ for (const file of pages) {
 }
 
 // ---- sitemap ---------------------------------------------------------------
-const sitemapFiles = readdirSync(OUT).filter((f) => /^sitemap-\d+\.xml$/.test(f));
-if (!sitemapFiles.length) err('sitemap', 'no sitemap-N.xml found');
+const sitemapFiles = existsSync(join(OUT, 'sitemap.xml')) ? ['sitemap.xml'] : [];
+if (!sitemapFiles.length) err('sitemap', 'sitemap.xml not found');
 const urls = sitemapFiles.flatMap((f) => [...readFileSync(join(OUT, f), 'utf8').matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]));
 const seenUrls = new Set();
 for (const u of urls) {
@@ -140,7 +140,7 @@ const robotsPath = join(OUT, 'robots.txt');
 if (!existsSync(robotsPath)) err('robots.txt', 'missing');
 else {
   const robots = readFileSync(robotsPath, 'utf8');
-  if (!/^Sitemap:\s*https:\/\/www\.adhocx\.com\/sitemap-index\.xml/im.test(robots)) err('robots.txt', 'missing Sitemap line');
+  if (!/^Sitemap:\s*https:\/\/www\.adhocx\.com\/sitemap\.xml/im.test(robots)) err('robots.txt', 'missing Sitemap line');
   if (/^Disallow:\s*\/\s*$/im.test(robots)) err('robots.txt', 'a crawler is blocked site-wide (Disallow: /)');
 }
 if (!existsSync(join(OUT, 'llms.txt'))) err('llms.txt', 'missing');
