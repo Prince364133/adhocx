@@ -480,6 +480,7 @@ class AuthService {
     String? role,
     bool isRegister = false,
     String? fullName,
+    String? referralCode,
   }) async {
     final response = await _api.post(
       '/auth/otp/verify',
@@ -490,6 +491,7 @@ class AuthService {
         if (role != null && role.isNotEmpty) 'role': role,
         'isRegister': isRegister,
         if (fullName != null) 'fullName': fullName,
+        if (referralCode != null && referralCode.trim().isNotEmpty) 'referralCode': referralCode.trim(),
       },
     );
 

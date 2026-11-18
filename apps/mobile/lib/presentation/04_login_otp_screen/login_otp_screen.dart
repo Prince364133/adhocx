@@ -85,6 +85,7 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
         fullName: !isPlaceholderName(onboarding.fullName)
             ? onboarding.fullName.trim()
             : null,
+        referralCode: onboarding.referralCode,
       );
 
       if (mounted) {

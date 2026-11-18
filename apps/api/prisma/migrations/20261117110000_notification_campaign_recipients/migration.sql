@@ -1,7 +1,7 @@
 ALTER TABLE "notification_campaigns"
-ADD COLUMN "recipient_tracking_enabled" BOOLEAN NOT NULL DEFAULT false;
+ADD COLUMN IF NOT EXISTS "recipient_tracking_enabled" BOOLEAN NOT NULL DEFAULT false;
 
-CREATE TABLE "notification_campaign_recipients" (
+CREATE TABLE IF NOT EXISTS "notification_campaign_recipients" (
     "id" UUID NOT NULL,
     "campaign_id" UUID NOT NULL,
     "user_id" UUID,
@@ -34,11 +34,11 @@ CREATE TABLE "notification_campaign_recipients" (
       ON DELETE SET NULL ON UPDATE CASCADE
 );
 
-CREATE UNIQUE INDEX "notification_campaign_recipients_campaign_id_user_id_key"
+CREATE UNIQUE INDEX IF NOT EXISTS "notification_campaign_recipients_campaign_id_user_id_key"
 ON "notification_campaign_recipients"("campaign_id", "user_id");
 
-CREATE INDEX "notification_campaign_recipients_campaign_id_status_idx"
+CREATE INDEX IF NOT EXISTS "notification_campaign_recipients_campaign_id_status_idx"
 ON "notification_campaign_recipients"("campaign_id", "status");
 
-CREATE INDEX "notification_campaign_recipients_user_id_idx"
+CREATE INDEX IF NOT EXISTS "notification_campaign_recipients_user_id_idx"
 ON "notification_campaign_recipients"("user_id");

@@ -494,6 +494,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     _divider(isDark),
                     ProfileMenuItemWidget(
+                      icon: Icons.card_giftcard_rounded,
+                      iconColor: AppColors.primary,
+                      label: context.tr('Refer & Earn ₹500'),
+                      subtitle: context.tr('Invite drivers & unlock milestone cash rewards'),
+                      onTap: () => context.push(AppRoutes.referralScreen),
+                    ),
+                    _divider(isDark),
+                    ProfileMenuItemWidget(
                       icon: Icons.history_rounded,
                       iconColor: AppColors.info,
                       label: context.tr('Completed Trips'),

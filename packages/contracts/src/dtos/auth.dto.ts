@@ -33,6 +33,10 @@ export class RequestOtpDto {
   @IsOptional()
   @IsString()
   companyName?: string;
+
+  @IsOptional()
+  @IsString()
+  referralCode?: string;
 }
 
 export class RequestOtpResponseDto {
@@ -75,6 +79,10 @@ export class VerifyOtpDto {
   @IsOptional()
   @IsString()
   fullName?: string;
+
+  @IsOptional()
+  @IsString()
+  referralCode?: string;
 }
 
 export class SocialAuthDto {

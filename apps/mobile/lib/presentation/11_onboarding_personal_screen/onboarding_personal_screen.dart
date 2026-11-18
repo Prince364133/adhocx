@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -35,9 +36,50 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
   late final TextEditingController _nameController;
   late final TextEditingController _phoneController;
   late final TextEditingController _emailController;
+  final _referralCodeController = TextEditingController();
   final _addressController = TextEditingController();
   final _emergencyNameController = TextEditingController();
   final _emergencyPhoneController = TextEditingController();
+
+  String? _referrerValidationMessage;
+  bool _isValidatingReferral = false;
+  bool _isReferralValid = false;
+  Timer? _referralDebounce;
+
+  void _onReferralChanged(String val) {
+    _referralDebounce?.cancel();
+    if (val.trim().isEmpty) {
+      setState(() {
+        _referrerValidationMessage = null;
+        _isReferralValid = false;
+        _isValidatingReferral = false;
+      });
+      return;
+    }
+    setState(() => _isValidatingReferral = true);
+    _referralDebounce = Timer(const Duration(milliseconds: 500), () async {
+      try {
+        final res = await DriverService.instance.validateReferral(val);
+        if (mounted) {
+          setState(() {
+            _isValidatingReferral = false;
+            if (res != null && res['valid'] == true) {
+              _isReferralValid = true;
+              final ref = res['referrer'];
+              _referrerValidationMessage =
+                  '✓ Referred by ${ref?['fullName'] ?? 'Partner'} (${ref?['phoneMasked'] ?? ''})';
+            } else {
+              _isReferralValid = false;
+              _referrerValidationMessage =
+                  res?['message']?.toString() ?? 'No driver found with this code or phone';
+            }
+          });
+        }
+      } catch (_) {
+        if (mounted) setState(() => _isValidatingReferral = false);
+      }
+    });
+  }
 
   // Vendor / Corporate fields
   late final TextEditingController _companyNameController;
@@ -169,6 +211,8 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
 
   @override
   void dispose() {
+    _referralDebounce?.cancel();
+    _referralCodeController.dispose();
     _nameController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
@@ -437,6 +481,7 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
           dateOfBirth: _selectedDate,
           gender: _selectedGender,
         );
+        onboarding.setReferralCode(_referralCodeController.text);
 
         // Authoritatively persist core User profile (throws ConflictException on collision)
         await AuthService.instance.updateUserProfile(
@@ -449,6 +494,8 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
           if (enteredName.isNotEmpty) 'fullName': enteredName,
           if (enteredPhone.isNotEmpty) 'phone': enteredPhone,
           if (enteredEmail.isNotEmpty) 'email': enteredEmail,
+          if (_referralCodeController.text.trim().isNotEmpty)
+            'referralCode': _referralCodeController.text.trim(),
           if (enteredAddress.isNotEmpty) 'address': enteredAddress,
           if (enteredEmergencyName.isNotEmpty)
             'emergencyContactName': enteredEmergencyName,
@@ -716,6 +763,45 @@ class _OnboardingPersonalScreenState extends State<OnboardingPersonalScreen> {
                           return null;
                         },
                       ),
+                      const SizedBox(height: AppSpacing.lg),
+
+                      // Referral Code or Referrer Mobile Number (Optional)
+                      AppTextField(
+                        controller: _referralCodeController,
+                        label: 'Referral Code or Referrer Mobile Number (Optional)',
+                        hintText: 'e.g. ADH8K92L or 9876543210',
+                        prefixIcon: const Icon(Icons.card_giftcard_rounded, size: 20),
+                        onChanged: _onReferralChanged,
+                        suffixIcon: _isValidatingReferral
+                            ? const Padding(
+                                padding: EdgeInsets.all(12),
+                                child: SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                                ),
+                              )
+                            : (_referrerValidationMessage != null
+                                ? Icon(
+                                    _isReferralValid ? Icons.check_circle_rounded : Icons.info_outline_rounded,
+                                    color: _isReferralValid ? AppColors.accentGreen : Colors.orange,
+                                  )
+                                : null),
+                      ),
+                      if (_referrerValidationMessage != null) ...[
+                        const SizedBox(height: 4),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 4),
+                          child: Text(
+                            _referrerValidationMessage!,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: _isReferralValid ? AppColors.accentGreen : Colors.orange,
+                            ),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: AppSpacing.lg),
 
                       // Gender selector

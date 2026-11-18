@@ -22,6 +22,7 @@ import { StorageService } from '../../common/storage/storage.service';
 import { assertPhoneAvailable, assertVehiclePlateAvailable, getPhoneVariants, sanitizeRealName } from '../../common';
 import { AuditService } from '../audit/audit.service';
 import { LocationsService } from '../locations/locations.service';
+import { ReferralsService } from './referrals/referrals.service';
 
 @Injectable()
 export class DriversService {
@@ -33,6 +34,7 @@ export class DriversService {
     private readonly audit: AuditService,
     @Optional() private readonly locations?: LocationsService,
     @Optional() private readonly redis?: RedisService,
+    @Optional() private readonly referrals?: ReferralsService,
   ) {}
 
   private async getActiveVehicleCategory(code: string): Promise<string> {
@@ -193,6 +195,7 @@ export class DriversService {
         fullName: driver.fullName,
         phone: driver.phone || driver.user?.phone || '',
         email: driver.user?.email || undefined,
+        referralCode: driver.referralCode || undefined,
         verificationStatus: driver.verificationStatus as VerificationStatus,
         availabilityStatus: driver.availabilityStatus as DriverAvailability,
         vehicleType: driver.vehicleType || undefined,
@@ -722,6 +725,14 @@ export class DriversService {
         },
       });
 
+      if (dto.referralCode && this.referrals) {
+        try {
+          await this.referrals.linkReferralOnSignup(existingDriver.id, dto.referralCode);
+        } catch (refErr: any) {
+          this.logger.warn(`Referral linking skipped on KYC resubmit: ${refErr?.message || refErr}`);
+        }
+      }
+
       return this.getProfile(userId);
     }
 
@@ -800,6 +811,14 @@ export class DriversService {
           documentsCount: docsList.length,
         },
       });
+
+      if (dto.referralCode && this.referrals) {
+        try {
+          await this.referrals.linkReferralOnSignup(newDriver.id, dto.referralCode);
+        } catch (refErr: any) {
+          this.logger.warn(`Referral linking skipped on new driver KYC: ${refErr?.message || refErr}`);
+        }
+      }
 
       return this.getProfile(userId);
     }

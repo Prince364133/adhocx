@@ -34,6 +34,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   final _formKey = GlobalKey<FormState>();
   final _phoneController = TextEditingController();
+  final _referralController = TextEditingController();
 
   bool _agreeToTerms = false;
   bool _isLoading = false;
@@ -50,6 +51,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     _termsRecognizer.dispose();
     _privacyRecognizer.dispose();
     _phoneController.dispose();
+    _referralController.dispose();
     super.dispose();
   }
 
@@ -121,6 +123,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
         gender: onboarding.gender,
         phone: phoneE164,
       );
+      if (_referralController.text.trim().isNotEmpty) {
+        onboarding.setReferralCode(_referralController.text.trim());
+      }
 
       final res = await authService.requestOtp(
         phone: phoneE164,
@@ -252,6 +257,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       ),
                       validator: _validatePhone,
                     ),
+                    if (isDriver) ...[
+                      const SizedBox(height: AppSpacing.md),
+                      AppTextField(
+                        controller: _referralController,
+                        label: 'Referral Code / Partner Phone (Optional)',
+                        hintText: 'e.g. ADH8K92L or 9876543210',
+                        prefixIcon: const Icon(Icons.card_giftcard_rounded, size: 20),
+                        textCapitalization: TextCapitalization.characters,
+                        onChanged: (val) {
+                          onboarding.setReferralCode(val.trim());
+                        },
+                      ),
+                    ],
                     const SizedBox(height: AppSpacing.lg),
 
                     // ── Terms & Privacy Checkbox ─────────────────────────────

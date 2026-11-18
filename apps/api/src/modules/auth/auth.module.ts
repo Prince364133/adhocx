@@ -2,6 +2,7 @@ import { Module, Global } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { LocationsModule } from '../locations/locations.module';
+import { ReferralsModule } from '../drivers/referrals/referrals.module';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 
@@ -9,6 +10,7 @@ import { AuthController } from './auth.controller';
 @Module({
   imports: [
     LocationsModule,
+    ReferralsModule,
     JwtModule.registerAsync({
       global: true,
       inject: [ConfigService],

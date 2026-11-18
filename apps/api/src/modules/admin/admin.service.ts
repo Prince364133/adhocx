@@ -320,6 +320,25 @@ export class AdminService {
         .catch((err) => this.logger.warn(`Driver KYC approval notification notice: ${err.message}`));
     }
 
+    // Unlock driver referral if this driver was referred by another driver partner
+    try {
+      const referral = await this.db.driverReferral.findUnique({
+        where: { refereeDriverId: id },
+      });
+      if (referral && (referral.status as string) === 'PENDING_VERIFICATION') {
+        await this.db.driverReferral.update({
+          where: { id: referral.id },
+          data: {
+            status: 'UNLOCKED_READY_TO_CLAIM' as any,
+            refereeVerifiedAt: new Date(),
+          },
+        });
+        this.logger.log(`Unlocked referral ${referral.id} for referee driver ${id}`);
+      }
+    } catch (refErr: any) {
+      this.logger.warn(`Failed to update referral status on driver verification: ${refErr?.message || refErr}`);
+    }
+
     this.logger.log(`Driver ${id} verified by admin ${adminId}`);
     return updated;
   }
