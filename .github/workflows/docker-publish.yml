@@ -35,10 +35,6 @@ jobs:
             image_name: adhocx-admin
             dockerfile: apps/admin/Dockerfile
             context: .
-          - name: marketing
-            image_name: adhocx-marketing
-            dockerfile: apps/marketing/Dockerfile
-            context: .
 
     steps:
       - name: Checkout Source Code

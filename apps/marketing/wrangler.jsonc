@@ -1,0 +1,21 @@
+{
+  "name": "adhocx-marketing",
+  "compatibility_date": "2026-11-18",
+  "assets": {
+    "directory": "./dist",
+    "html_handling": "auto-trailing-slash"
+  },
+  "routes": [
+    {
+      "pattern": "adhocx.com",
+      "custom_domain": true
+    },
+    {
+      "pattern": "www.adhocx.com",
+      "custom_domain": true
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}
